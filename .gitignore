@@ -1,0 +1,13 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# MyPy. Ruff, PyTest cache folders
+.*_cache/
+
+# Virtual environments
+.venv

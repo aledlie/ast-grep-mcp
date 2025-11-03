@@ -1,0 +1,24 @@
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Eventbrite MCP Server",
+  "description": "Event management and ticketing via Eventbrite API",
+  "applicationCategory": "DeveloperApplication",
+  "applicationSubCategory": "Events",
+  "operatingSystem": "Cross-platform",
+  "softwareVersion": "latest",
+  "programmingLanguage": [
+    "JavaScript"
+  ],
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "url": "https://github.com/modelcontextprotocol/server-eventbrite",
+  "softwareRequirements": {
+    "@type": "SoftwareApplication",
+    "name": "Environment Variables",
+    "description": "Required environment variables: EVENTBRITE_API_KEY"
+  }
+}

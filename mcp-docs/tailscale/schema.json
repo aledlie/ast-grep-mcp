@@ -1,0 +1,23 @@
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Tailscale MCP Server",
+  "description": "Tailscale VPN management and network configuration",
+  "applicationCategory": "DeveloperApplication",
+  "applicationSubCategory": "Networking",
+  "operatingSystem": "Cross-platform",
+  "softwareVersion": "latest",
+  "programmingLanguage": [
+    "Go"
+  ],
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "softwareRequirements": {
+    "@type": "SoftwareApplication",
+    "name": "Environment Variables",
+    "description": "Required environment variables: TAILSCALE_API_KEY, TAILSCALE_CLIENT_ID, TAILSCALE_CLIENT_SECRET, TAILSCALE_TAILNET"
+  }
+}
