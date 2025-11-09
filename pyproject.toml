@@ -8,6 +8,7 @@ dependencies = [
     "pydantic>=2.11.0",
     "mcp[cli]>=1.6.0",
     "pyyaml>=6.0.2",
+    "structlog>=24.1.0",
 ]
 
 [project.optional-dependencies]
@@ -42,6 +43,7 @@ exclude_lines = [
     "raise NotImplementedError",
     "pass",
     "except ImportError:",
+    "@mcp.tool\\(\\)",
 ]
 
 [tool.ruff]
@@ -53,8 +55,8 @@ select = ["E", "F", "I", "N", "W"]
 
 [tool.mypy]
 python_version = "3.13"
+strict = true
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = false
 ignore_missing_imports = true
 

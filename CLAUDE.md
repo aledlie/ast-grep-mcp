@@ -52,14 +52,63 @@ uv run main.py
 # Run with config file
 uv run main.py --config /path/to/sgconfig.yaml
 
+# Run with logging options
+uv run main.py --log-level DEBUG --log-file /tmp/ast-grep-mcp.log
+
 # Run via installed script name
 uv run ast-grep-server
 ```
 
+### Logging System
+
+The server uses **structlog** for structured JSON logging. All logs are written to stderr by default, but can be redirected to a file.
+
+**Configuration Options:**
+- `--log-level`: Set logging level (DEBUG, INFO, WARNING, ERROR). Default: INFO
+- `--log-file`: Path to log file. Default: stderr
+- `LOG_LEVEL` env var: Alternative to --log-level flag
+- `LOG_FILE` env var: Alternative to --log-file flag
+
+**Log Format:**
+All logs are JSON formatted with the following fields:
+- `timestamp`: ISO 8601 timestamp (UTC)
+- `level`: Log level (debug, info, warning, error)
+- `event`: Event type (e.g., "tool_invoked", "command_completed", "tool_failed")
+- Additional context fields specific to each event
+
+**Examples:**
+```bash
+# Enable debug logging to stderr
+uv run main.py --log-level DEBUG
+
+# Log to file with INFO level
+uv run main.py --log-file /var/log/ast-grep-mcp.log
+
+# Use environment variables
+export LOG_LEVEL=DEBUG
+export LOG_FILE=/tmp/ast-grep.log
+uv run main.py
+```
+
+**Log Events:**
+- `tool_invoked`: Tool called with parameters (sanitized)
+- `tool_completed`: Tool finished successfully with metrics
+- `tool_failed`: Tool execution failed with error details
+- `executing_command`: Subprocess command starting
+- `command_completed`: Subprocess command finished with timing
+- `command_failed`: Subprocess command failed with error
+- `command_not_found`: Subprocess binary not found
+
+**Performance Metrics:**
+All tool invocations and subprocess executions log:
+- `execution_time_seconds`: Duration in seconds (rounded to 3 decimals)
+- `match_count` / `total_matches`: Number of results found (for search tools)
+- `output_length`: Size of output (for dump_syntax_tree)
+
 ## Architecture
 
 ### Single-file Design
-The entire MCP server is implemented in `main.py` (~317 lines). This is intentional for simplicity and portability.
+The entire MCP server is implemented in `main.py` (~799 lines). This is intentional for simplicity and portability. The file includes comprehensive logging (~282 lines added in Phase 1).
 
 ### Core Components
 

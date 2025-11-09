@@ -1,0 +1,4446 @@
+================================================================================
+TCAD-SCRAPER CODEBASE ANALYSIS
+================================================================================
+
+=== Console.log statements ===
+Found 50 matches (showing first 50 of 1444):
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/database.ts:60
+console.log(`✓ Saved property: ${property.propertyID}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/database.ts:81
+console.log(`✓ Successfully saved ${properties.length} properties`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:15
+console.log('🔑 Getting authentication token...')
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:25
+console.log(`✅ Token received: ${token.substring(0, 50)}...`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:30
+console.log(`\n🔍 Searching for: "${searchTerm}"`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:44
+console.log(`  Trying: ${TCAD_API_BASE_URL}${endpoint}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:64
+console.log(`\n✅ Success with endpoint: ${endpoint}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:65
+console.log('Response:', JSON.stringify(data, null, 2))
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:68
+console.log(`  ❌ ${response.status}: ${response.statusText}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:71
+console.log('  Response data:', errorData)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:76
+console.log(`  ❌ Error: ${error.message}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:80
+console.log('\n❌ All endpoints failed')
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:88
+console.log('╔════════════════════════════════════════════════════╗')
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:89
+console.log('║     TCAD API Direct Test                           ║')
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:90
+console.log('╚════════════════════════════════════════════════════╝\n')
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:103
+console.log('\n╔════════════════════════════════════════════════════╗')
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:104
+console.log('║     Test Complete                                  ║')
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:105
+console.log('╚════════════════════════════════════════════════════╝')
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/xcontroller.client.ts:26
+console.log(`[DataController] Loading from cache: ${scriptId}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/xcontroller.client.ts:57
+console.log(`[DataController] Loaded and cached: ${scriptId}`, data)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/xcontroller.client.ts:85
+console.log(`[DataController] Falling back to API: ${fallbackUrl}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/xcontroller.client.ts:125
+console.log('[DataController] Cache cleared')
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:15
+console.log('\n📊 Database Statistics\n' + '='.repeat(50))
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:25
+console.log(`Total Properties: ${stats.rows[0].total_properties}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:26
+console.log(`Unique Cities: ${stats.rows[0].unique_cities}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:27
+console.log(`Last Scraped: ${stats.rows[0].last_scraped || 'Never'}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:31
+console.log('\n🏙️  Properties by City\n' + '='.repeat(50))
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:47
+console.log(`${row.city.padEnd(20)} | ${String(row.property_count).padStart(5)} properties | Avg: ${avgValue}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:52
+console.log(`\n🏠 Recent Properties (Last ${limit})\n` + '='.repeat(50))
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:68
+console.log(`\n${idx + 1}. Property ID: ${prop.property_id}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:69
+console.log(`   Owner: ${prop.owner_name}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:70
+console.log(`   Address: ${prop.property_address}, ${prop.city || 'N/A'}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:71
+console.log(`   Value: ${prop.appraised_value || 'N/A'}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:72
+console.log(`   Scraped: ${prop.scraped_at}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:77
+console.log(`\n🔍 Search Results for: "${searchTerm}"\n` + '='.repeat(50))
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:95
+console.log('No results found.')
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:98
+console.log(`\n${idx + 1}. ${prop.owner_name}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:99
+console.log(`   ${prop.property_address}, ${prop.city || 'N/A'}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:100
+console.log(`   Value: ${prop.appraised_value || 'N/A'} | ID: ${prop.property_id}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:108
+console.log('\n✓ Query executed successfully\n')
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:110
+console.log(`\nRows returned: ${result.rowCount}`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:147-167
+console.log(`
+🗃️  TCAD Property Database Query Tool
+
+Usage: npm run db:query <command> [args]
+
+Commands:
+  stats              - Show database statistics
+  cities             - Show properties grouped by city
+  recent [N]         - Show N most recent properties (default: 10)
+  search <term>      - Search properties by owner, address, or city
+  query "<SQL>"      - Execute custom SQL query
+
+Examples:
+  npm run db:query stats
+  npm run db:query cities
+  npm run db:query recent 20
+  npm run db:query search "Austin"
+  npm run db:query query "SELECT * FROM properties WHERE city = 'Austin' LIMIT 5"
+
+Or use: npm run db:stats for quick statistics
+        `)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/test-database.ts:63
+console.log('\n🧪 Testing Database Integration\n' + '='.repeat(60))
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/test-database.ts:67
+console.log('\n📊 Test 1: Getting initial property count...')
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/test-database.ts:69
+console.log(`✓ Initial count: ${initialCount} properties`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/test-database.ts:72
+console.log('\n💾 Test 2: Inserting test properties...')
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/test-database.ts:74
+console.log(`✓ Successfully inserted ${testProperties.length} test properties`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/test-database.ts:77
+console.log('\n📊 Test 3: Verifying property count...')
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/test-database.ts:79
+console.log(`✓ New count: ${newCount} properties`)
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/test-database.ts:80
+console.log(`✓ Added: ${newCount - initialCount} properties`)
+
+=== TODO/FIXME comments ===
+No matches found
+
+=== Error handling (try-catch blocks) ===
+Found 30 matches (showing first 30 of 113):
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/services/api.service.ts:156-170
+try {
+          const status = await this.getJobStatus(jobId);
+
+          if (onProgress) {
+            onProgress(status);
+          }
+
+          if (status.status === 'completed' || status.status === 'failed') {
+            resolve(status);
+          } else {
+            setTimeout(checkStatus, pollInterval);
+          }
+        } catch (error) {
+          reject(error);
+        }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:106-113
+try {
+    const result = await pool.query(query);
+    console.log('\n✓ Query executed successfully\n');
+    console.table(result.rows);
+    console.log(`\nRows returned: ${result.rowCount}`);
+  } catch (error) {
+    console.error('❌ Query error:', error);
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:120-173
+try {
+    switch (command) {
+      case 'stats':
+        await displayStats();
+        break;
+      case 'cities':
+        await displayCitySummary();
+        break;
+      case 'recent':
+        const limit = parseInt(args[1]) || 10;
+        await displayRecentProperties(limit);
+        break;
+      case 'search':
+        if (!args[1]) {
+          console.error('Please provide a search term: npm run db:query search "term"');
+          process.exit(1);
+        }
+        await searchProperties(args[1]);
+        break;
+      case 'query':
+        if (!args[1]) {
+          console.error('Please provide a SQL query: npm run db:query query "SELECT * FROM properties LIMIT 5"');
+          process.exit(1);
+        }
+        await runCustomQuery(args[1]);
+        break;
+      default:
+        console.log(`
+🗃️  TCAD Property Database Query Tool
+
+Usage: npm run db:query <command> [args]
+
+Commands:
+  stats              - Show database statistics
+  cities             - Show properties grouped by city
+  recent [N]         - Show N most recent properties (default: 10)
+  search <term>      - Search properties by owner, address, or city
+  query "<SQL>"      - Execute custom SQL query
+
+Examples:
+  npm run db:query stats
+  npm run db:query cities
+  npm run db:query recent 20
+  npm run db:query search "Austin"
+  npm run db:query query "SELECT * FROM properties WHERE city = 'Austin' LIMIT 5"
+
+Or use: npm run db:stats for quick statistics
+        `);
+    }
+  } catch (error) {
+    console.error('Error:', error);
+  } finally {
+    await pool.end();
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/xcontroller.client.ts:43-64
+try {
+      const textContent = scriptTag.textContent || '';
+      const data = JSON.parse(textContent) as T;
+
+      // Validate data structure
+      if (!this.validateData(data)) {
+        console.error(`[DataController] Data validation failed for ${scriptId}`);
+        return null;
+      }
+
+      // Cache the parsed data
+      this.cache.set(scriptId, data);
+
+      if (this.debug) {
+        console.log(`[DataController] Loaded and cached: ${scriptId}`, data);
+      }
+
+      return data;
+    } catch (error) {
+      console.error(`[DataController] Failed to parse data from ${scriptId}:`, error);
+      return null;
+    }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/xcontroller.client.ts:88-102
+try {
+      const response = await fetch(fallbackUrl);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const apiData = await response.json();
+
+      // Cache the API data
+      this.cache.set(scriptId, apiData);
+
+      return apiData as T;
+    } catch (error) {
+      console.error(`[DataController] API fallback failed for ${fallbackUrl}:`, error);
+      return null;
+    }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/xcontroller.client.ts:154-165
+try {
+        setLoading(true);
+        const result = fallbackUrl
+          ? await dataController.loadDataWithFallback<T>(scriptId, fallbackUrl)
+          : dataController.loadData<T>(scriptId);
+
+        setData(result);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error(String(err)));
+      } finally {
+        setLoading(false);
+      }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/hooks/usePropertySearch.ts:46-79
+try {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/properties/search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query, limit }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ message: 'Search failed' }));
+        throw new Error(errorData.message || 'Search failed');
+      }
+
+      const data: SearchResult = await response.json();
+
+      if (!data || !data.data || !data.pagination) {
+        throw new Error('Received invalid data from server');
+      }
+
+      setResults(data.data);
+      setTotalResults(data.pagination.total);
+      setExplanation(data.query?.explanation || '');
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:32-84
+try {
+    // Try different possible API endpoints
+    const endpoints = [
+      '/properties/search',
+      '/property/search',
+      '/search',
+      '/properties',
+      '/property',
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`  Trying: ${TCAD_API_BASE_URL}${endpoint}`);
+
+        // Try with different query parameter names
+        const params = new URLSearchParams({
+          search: searchTerm,
+          q: searchTerm,
+          query: searchTerm,
+          term: searchTerm,
+        });
+
+        const response = await fetch(`${TCAD_API_BASE_URL}${endpoint}?${params}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`\n✅ Success with endpoint: ${endpoint}`);
+          console.log('Response:', JSON.stringify(data, null, 2));
+          return data;
+        } else {
+          console.log(`  ❌ ${response.status}: ${response.statusText}`);
+          if (response.status !== 404 && response.status !== 405) {
+            const errorData = await response.text();
+            console.log('  Response data:', errorData);
+          }
+        }
+
+      } catch (error: any) {
+        console.log(`  ❌ Error: ${error.message}`);
+      }
+    }
+
+    console.log('\n❌ All endpoints failed');
+
+  } catch (error) {
+    console.error('Error searching properties:', error);
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:92-109
+try {
+    // Step 1: Get auth token
+    const token = await getAuthToken();
+
+    // Step 2: Try to search for properties
+    const testSearchTerms = ['Austin', '78701', 'downtown'];
+
+    for (const searchTerm of testSearchTerms) {
+      await searchProperties(token, searchTerm);
+    }
+
+    console.log('\n╔════════════════════════════════════════════════════╗');
+    console.log('║     Test Complete                                  ║');
+    console.log('╚════════════════════════════════════════════════════╝');
+
+  } catch (error) {
+    console.error('\n❌ Test failed:', error);
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/database.ts:58-64
+try {
+    await pool.query(query, values);
+    console.log(`✓ Saved property: ${property.propertyID}`);
+  } catch (error) {
+    console.error(`✗ Error saving property ${property.propertyID}:`, error);
+    throw error;
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/database.ts:73-88
+try {
+    await client.query('BEGIN');
+
+    for (const property of properties) {
+      await insertProperty(property);
+    }
+
+    await client.query('COMMIT');
+    console.log(`✓ Successfully saved ${properties.length} properties`);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('✗ Error saving properties:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/schedulers/scrape-scheduler.ts:62-104
+try {
+      logger.info(`Running ${frequency} scheduled scrapes...`);
+
+      const monitoredSearches = await prisma.monitoredSearch.findMany({
+        where: {
+          active: true,
+          frequency,
+        },
+      });
+
+      logger.info(`Found ${monitoredSearches.length} ${frequency} searches to run`);
+
+      for (const search of monitoredSearches) {
+        // Add random delay to avoid overwhelming the target site
+        const delay = Math.floor(Math.random() * 60000); // 0-60 seconds
+
+        await scraperQueue.add(
+          'scrape-properties',
+          {
+            searchTerm: search.searchTerm,
+            scheduled: true,
+          },
+          {
+            delay,
+            attempts: 5,
+            backoff: {
+              type: 'exponential',
+              delay: 5000,
+            },
+          }
+        );
+
+        // Update last run time
+        await prisma.monitoredSearch.update({
+          where: { id: search.id },
+          data: { lastRun: new Date() },
+        });
+
+        logger.info(`Scheduled scrape for "${search.searchTerm}" with ${delay}ms delay`);
+      }
+    } catch (error) {
+      logger.error(`Failed to run ${frequency} scheduled scrapes:`, error);
+    }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/schedulers/scrape-scheduler.ts:108-131
+try {
+      logger.info('Cleaning up old jobs...');
+
+      // Delete scrape jobs older than 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const deletedJobs = await prisma.scrapeJob.deleteMany({
+        where: {
+          completedAt: {
+            lt: thirtyDaysAgo,
+          },
+        },
+      });
+
+      // Clean Bull queue completed/failed jobs older than 7 days
+      const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+      await scraperQueue.clean(sevenDaysInMs, 'completed');
+      await scraperQueue.clean(sevenDaysInMs, 'failed');
+
+      logger.info(`Cleaned up ${deletedJobs.count} old database jobs`);
+    } catch (error) {
+      logger.error('Failed to clean up old jobs:', error);
+    }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/test-database.ts:65-121
+try {
+    // Test 1: Get initial count
+    console.log('\n📊 Test 1: Getting initial property count...');
+    const initialCount = await getPropertyCount();
+    console.log(`✓ Initial count: ${initialCount} properties`);
+
+    // Test 2: Insert sample properties
+    console.log('\n💾 Test 2: Inserting test properties...');
+    await insertProperties(testProperties);
+    console.log(`✓ Successfully inserted ${testProperties.length} test properties`);
+
+    // Test 3: Verify count increased
+    console.log('\n📊 Test 3: Verifying property count...');
+    const newCount = await getPropertyCount();
+    console.log(`✓ New count: ${newCount} properties`);
+    console.log(`✓ Added: ${newCount - initialCount} properties`);
+
+    // Test 4: Query properties by city
+    console.log('\n🏙️  Test 4: Querying properties by city...');
+    const austinProps = await getPropertiesByCity('Austin');
+    console.log(`✓ Found ${austinProps.length} properties in Austin`);
+
+    // Test 5: Display sample results
+    console.log('\n📋 Test 5: Sample properties from database:');
+    if (austinProps.length > 0) {
+      austinProps.slice(0, 2).forEach((prop: any, idx: number) => {
+        console.log(`\n  ${idx + 1}. ${prop.owner_name}`);
+        console.log(`     Address: ${prop.property_address}`);
+        console.log(`     Type: ${prop.property_type}`);
+        console.log(`     Value: ${prop.appraised_value}`);
+        console.log(`     ID: ${prop.property_id}`);
+      });
+    }
+
+    // Test 6: Test upsert (update existing property)
+    console.log('\n🔄 Test 6: Testing upsert functionality...');
+    const updatedProperty: Property = {
+      ...testProperties[0],
+      assessedValue: "$360,000",  // Updated value
+      appraisedValue: "$385,000"  // Updated value
+    };
+    await insertProperties([updatedProperty]);
+    console.log('✓ Updated existing property (TEST001)');
+
+    // Verify the update
+    const finalCount = await getPropertyCount();
+    console.log(`✓ Count remained the same: ${finalCount} (upsert worked!)`);
+
+    console.log('\n' + '='.repeat(60));
+    console.log('✅ All database integration tests passed!\n');
+
+  } catch (error) {
+    console.error('\n❌ Test failed:', error);
+    throw error;
+  } finally {
+    await closePool();
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/lib/claude.service.ts:18-148
+try {
+      const message = await anthropic.messages.create({
+        model: config.claude.model,
+        max_tokens: config.claude.maxTokens,
+        messages: [
+          {
+            role: 'user',
+            content: `You are a database query generator for a property search system. Convert the user's natural language query into Prisma query filters.
+
+Available fields in the properties table:
+- id (text): unique identifier
+- property_id (text): property ID from TCAD
+- name (text): owner name
+- prop_type (text): property type (e.g., "Residential", "Commercial", "Industrial")
+- city (text): city name
+- property_address (text): full address
+- assessed_value (number): assessed value in dollars
+- appraised_value (number): appraised value in dollars
+- geo_id (text): geographic ID
+- description (text): property description
+- search_term (text): original search term used to find this property
+- scraped_at (datetime): when the data was scraped
+- created_at (datetime): record creation time
+- updated_at (datetime): last update time
+
+User query: "${query}"
+
+Generate a JSON response with these fields:
+1. "whereClause": Prisma where clause as JSON (use "contains" for text searches with "mode": "insensitive" for case-insensitive, "gte"/"lte" for number ranges, "gt"/"lt" for comparisons)
+2. "orderBy": Prisma orderBy clause (optional, use "asc" or "desc")
+3. "explanation": Brief explanation of what you're searching for
+
+Examples:
+
+Query: "properties in Austin worth over 500k"
+Response:
+{
+  "whereClause": {
+    "city": "Austin",
+    "appraisedValue": { "gte": 500000 }
+  },
+  "orderBy": { "appraisedValue": "desc" },
+  "explanation": "Searching for properties in Austin with appraised value over $500,000, sorted by value (highest first)"
+}
+
+Query: "commercial properties owned by Smith"
+Response:
+{
+  "whereClause": {
+    "propType": { "contains": "Commercial", "mode": "insensitive" },
+    "name": { "contains": "Smith", "mode": "insensitive" }
+  },
+  "explanation": "Searching for commercial properties where owner name contains 'Smith'"
+}
+
+Query: "show me the most expensive residential properties"
+Response:
+{
+  "whereClause": {
+    "propType": { "contains": "Residential", "mode": "insensitive" }
+  },
+  "orderBy": { "appraisedValue": "desc" },
+  "explanation": "Showing residential properties sorted by appraised value (highest first)"
+}
+
+Query: "properties on Congress Ave"
+Response:
+{
+  "whereClause": {
+    "propertyAddress": { "contains": "Congress", "mode": "insensitive" }
+  },
+  "explanation": "Searching for properties with 'Congress' in the address"
+}
+
+Query: "find properties appraised between 300k and 600k"
+Response:
+{
+  "whereClause": {
+    "appraisedValue": { "gte": 300000, "lte": 600000 }
+  },
+  "orderBy": { "appraisedValue": "asc" },
+  "explanation": "Searching for properties with appraised value between $300,000 and $600,000"
+}
+
+IMPORTANT:
+- Return ONLY valid JSON, no markdown formatting
+- Use "mode": "insensitive" for all text searches
+- Convert dollar amounts (like "500k" or "$1M") to numbers (500000, 1000000)
+- For text searches, use "contains" with "mode": "insensitive"
+- Only include orderBy if the query implies sorting
+- Keep explanations brief and user-friendly
+
+Now generate the JSON for the user's query above.`,
+          },
+        ],
+      });
+
+      const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
+      logger.info('Claude response:', { responseText });
+
+      // Parse the JSON response
+      const parsed = JSON.parse(responseText);
+
+      return {
+        whereClause: parsed.whereClause || {},
+        orderBy: parsed.orderBy,
+        explanation: parsed.explanation || 'Searching properties based on your query',
+      };
+    } catch (error) {
+      // Safely log the error without risking serialization issues
+      const errorDetails = {
+        message: error instanceof Error ? error.message : String(error),
+        name: error instanceof Error ? error.name : 'Unknown',
+        stack: error instanceof Error ? error.stack : undefined,
+      };
+      logger.error('Error parsing natural language query with Claude:', errorDetails);
+      console.error('Claude API Error Details:', JSON.stringify(errorDetails, null, 2));
+
+      // Fallback: simple text search across multiple fields
+      return {
+        whereClause: {
+          OR: [
+            { name: { contains: query, mode: 'insensitive' } },
+            { propertyAddress: { contains: query, mode: 'insensitive' } },
+            { city: { contains: query, mode: 'insensitive' } },
+            { description: { contains: query, mode: 'insensitive' } },
+          ],
+        },
+        explanation: `Searching for "${query}" across property names, addresses, cities, and descriptions`,
+      };
+    }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/services/token-refresh.service.ts:89-196
+try {
+      logger.info('Starting token refresh...');
+
+      // Initialize browser if needed
+      if (!this.browser) {
+        logger.info('Initializing browser for token refresh...');
+        this.browser = await chromium.launch({
+          headless: config.scraper.headless,
+          executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
+          args: [
+            '--disable-blink-features=AutomationControlled',
+            '--disable-web-security',
+            '--disable-features=IsolateOrigins,site-per-process',
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+          ],
+        });
+        logger.info('Browser initialized for token refresh');
+      }
+
+      const context = await this.browser.newContext({
+        userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        viewport: { width: 1920, height: 1080 },
+        locale: 'en-US',
+        timezoneId: 'America/Chicago',
+      });
+
+      const page = await context.newPage();
+      let capturedToken: string | null = null;
+
+      // Set up request interception to capture Authorization header
+      page.on('request', (request) => {
+        const headers = request.headers();
+        const authHeader = headers['authorization'];
+
+        // Only capture valid tokens (ignore "null" string and ensure it looks like a JWT)
+        if (authHeader &&
+            authHeader !== 'null' &&
+            authHeader.length > 50 &&
+            authHeader.startsWith('eyJ') &&
+            !capturedToken) {
+          capturedToken = authHeader;
+          logger.info(`Authorization token captured from request: length: ${capturedToken.length}, preview: ${capturedToken.substring(0, 50)}...`);
+        }
+      });
+
+      try {
+        // Navigate to TCAD property search
+        logger.info('Navigating to TCAD property search...');
+        await page.goto('https://travis.prodigycad.com/property-search', {
+          waitUntil: 'networkidle',
+          timeout: 30000,
+        });
+
+        // Wait for React app to load
+        logger.info('Waiting for React app to load...');
+        await page.waitForFunction(() => {
+          const root = document.getElementById('root');
+          return root && root.children.length > 0;
+        }, { timeout: 15000 });
+
+        // Perform a test search to trigger API request with auth token
+        logger.info('Performing test search to capture token...');
+        await page.waitForSelector('#searchInput', { timeout: 10000 });
+
+        // Small delay to appear more human-like
+        await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500));
+
+        await page.type('#searchInput', 'test', { delay: 50 });
+        await page.press('#searchInput', 'Enter');
+
+        // Wait for API request to be made
+        await new Promise(resolve => setTimeout(resolve, 3000 + Math.random() * 1000));
+
+        if (!capturedToken) {
+          throw new Error('Failed to capture authorization token from network requests');
+        }
+
+        // Update current token
+        this.currentToken = capturedToken;
+        this.lastRefreshTime = new Date();
+        this.refreshCount++;
+
+        const duration = Date.now() - startTime;
+        logger.info(`Token refreshed successfully in ${duration}ms (refresh #${this.refreshCount})`);
+        logger.info(`New token: ${capturedToken.substring(0, 30)}...`);
+
+        return capturedToken;
+
+      } finally {
+        await context.close();
+      }
+
+    } catch (error) {
+      this.failureCount++;
+      const duration = Date.now() - startTime;
+      logger.error(`Token refresh failed after ${duration}ms (failure #${this.failureCount}):`, error);
+
+      // If we have a current token, keep using it
+      if (this.currentToken) {
+        logger.warn('Keeping existing token after refresh failure');
+      }
+
+      return this.currentToken;
+
+    } finally {
+      this.isRefreshing = false;
+    }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/test-api-discovery.ts:10-22
+try {
+    await scraper.initialize();
+
+    // Use the discoverApiEndpoint method via type assertion
+    // @ts-ignore - accessing private method for testing
+    await scraper.discoverApiEndpoint('Willow');
+
+    console.log('\n✅ API discovery complete!');
+  } catch (error) {
+    console.error('❌ API discovery failed:', error);
+  } finally {
+    await scraper.cleanup();
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/lib/sentry.service.ts:273-283
+try {
+      const result = await fn(...args);
+      transaction.setStatus('ok');
+      return result;
+    } catch (error) {
+      transaction.setStatus('internal_error');
+      Sentry.captureException(error);
+      throw error;
+    } finally {
+      transaction.finish();
+    }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/scripts-archive/2025-01-phase4-tests/test-api-scraper.ts:27-132
+try {
+    await scraper.initialize();
+    console.log('✅ Scraper initialized\n');
+
+    const results: Array<{
+      searchTerm: string;
+      count: number;
+      duration: number;
+      sample: any;
+    }> = [];
+
+    for (const searchTerm of searchTerms) {
+      console.log(`\n${'─'.repeat(80)}`);
+      console.log(`Testing search term: "${searchTerm}"`);
+      console.log('─'.repeat(80));
+
+      const startTime = Date.now();
+
+      try {
+        const properties = await scraper.scrapePropertiesViaAPI(searchTerm);
+        const duration = Date.now() - startTime;
+
+        console.log(`✅ Found ${properties.length} properties in ${(duration / 1000).toFixed(2)}s`);
+
+        if (properties.length > 0) {
+          const sample = properties[0];
+          console.log('\nSample property:');
+          console.log(`  Name: ${sample.name}`);
+          console.log(`  Address: ${sample.propertyAddress}, ${sample.city || 'N/A'}`);
+          console.log(`  Property ID: ${sample.propertyId}`);
+          console.log(`  Appraised Value: $${sample.appraisedValue.toLocaleString()}`);
+          console.log(`  Property Type: ${sample.propType}`);
+
+          results.push({
+            searchTerm,
+            count: properties.length,
+            duration,
+            sample,
+          });
+        } else {
+          console.log('  No properties found');
+          results.push({
+            searchTerm,
+            count: 0,
+            duration,
+            sample: null,
+          });
+        }
+      } catch (error) {
+        console.error(`  ❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        results.push({
+          searchTerm,
+          count: -1, // Indicate error
+          duration: Date.now() - startTime,
+          sample: null,
+        });
+      }
+
+      // Small delay between searches
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
+    // Summary
+    console.log('\n\n' + '='.repeat(80));
+    console.log('TEST SUMMARY');
+    console.log('='.repeat(80) + '\n');
+
+    console.log('Search Term          | Results | Time (s) | Status');
+    console.log('-'.repeat(60));
+
+    results.forEach(r => {
+      const term = r.searchTerm.padEnd(20);
+      const count = r.count === -1 ? 'ERROR'.padEnd(7) : r.count.toString().padEnd(7);
+      const time = (r.duration / 1000).toFixed(2).padEnd(8);
+      const status = r.count === -1 ? '❌' : r.count > 0 ? '✅' : '⚠️';
+      console.log(`${term} | ${count} | ${time} | ${status}`);
+    });
+
+    const totalResults = results.reduce((sum, r) => sum + (r.count > 0 ? r.count : 0), 0);
+    const avgTime = results.reduce((sum, r) => sum + r.duration, 0) / results.length;
+    const successCount = results.filter(r => r.count >= 0).length;
+
+    console.log('\n' + '─'.repeat(60));
+    console.log(`Total properties found: ${totalResults.toLocaleString()}`);
+    console.log(`Average time per search: ${(avgTime / 1000).toFixed(2)}s`);
+    console.log(`Success rate: ${successCount}/${results.length} (${((successCount/results.length)*100).toFixed(1)}%)`);
+
+    // Compare with old method
+    console.log('\n' + '='.repeat(80));
+    console.log('COMPARISON WITH OLD METHOD');
+    console.log('='.repeat(80) + '\n');
+
+    const oldMethodResults = results.length * 20; // Old method: max 20 results per search
+    const improvement = totalResults / oldMethodResults;
+
+    console.log(`Old method (DOM scraping):  ~${oldMethodResults} properties (20 per search)`);
+    console.log(`New method (API scraping):  ${totalResults} properties`);
+    console.log(`Improvement:                ${improvement.toFixed(1)}x more results`);
+    console.log(`\n✅ API scraping method is ${improvement.toFixed(1)}x more effective!\n`);
+
+  } catch (error) {
+    console.error('❌ Fatal error:', error);
+  } finally {
+    await scraper.cleanup();
+    console.log('Scraper cleaned up');
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/scripts-archive/2025-01-phase4-tests/test-api-scraper.ts:45-83
+try {
+        const properties = await scraper.scrapePropertiesViaAPI(searchTerm);
+        const duration = Date.now() - startTime;
+
+        console.log(`✅ Found ${properties.length} properties in ${(duration / 1000).toFixed(2)}s`);
+
+        if (properties.length > 0) {
+          const sample = properties[0];
+          console.log('\nSample property:');
+          console.log(`  Name: ${sample.name}`);
+          console.log(`  Address: ${sample.propertyAddress}, ${sample.city || 'N/A'}`);
+          console.log(`  Property ID: ${sample.propertyId}`);
+          console.log(`  Appraised Value: $${sample.appraisedValue.toLocaleString()}`);
+          console.log(`  Property Type: ${sample.propType}`);
+
+          results.push({
+            searchTerm,
+            count: properties.length,
+            duration,
+            sample,
+          });
+        } else {
+          console.log('  No properties found');
+          results.push({
+            searchTerm,
+            count: 0,
+            duration,
+            sample: null,
+          });
+        }
+      } catch (error) {
+        console.error(`  ❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        results.push({
+          searchTerm,
+          count: -1, // Indicate error
+          duration: Date.now() - startTime,
+          sample: null,
+        });
+      }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/scripts-archive/2025-01-phase4-tests/diagnose-page.ts:17-73
+try {
+    console.log('📄 Loading staging URL...');
+    await page.goto('https://stage.travis.prodigycad.com/property-search', {
+      waitUntil: 'networkidle',
+      timeout: 30000,
+    });
+
+    console.log('✅ Page loaded, waiting for React app to render...\n');
+
+    // Wait for React to render content in the root div
+    await page.waitForFunction(() => {
+      const root = document.getElementById('root');
+      return root && root.children.length > 0;
+    }, { timeout: 15000 });
+
+    console.log('✅ React app rendered\n');
+
+    // Get page title
+    const title = await page.title();
+    console.log(`📌 Page title: ${title}\n`);
+
+    // Check for input fields
+    const inputs = await page.$$('input');
+    console.log(`🔢 Found ${inputs.length} input elements\n`);
+
+    // Get details about each input
+    for (let i = 0; i < Math.min(inputs.length, 10); i++) {
+      const input = inputs[i];
+      const type = await input.getAttribute('type');
+      const placeholder = await input.getAttribute('placeholder');
+      const id = await input.getAttribute('id');
+      const name = await input.getAttribute('name');
+      const className = await input.getAttribute('class');
+
+      console.log(`Input ${i + 1}:`);
+      console.log(`  Type: ${type || 'none'}`);
+      console.log(`  Placeholder: ${placeholder || 'none'}`);
+      console.log(`  ID: ${id || 'none'}`);
+      console.log(`  Name: ${name || 'none'}`);
+      console.log(`  Class: ${className || 'none'}\n`);
+    }
+
+    // Save screenshot
+    await page.screenshot({ path: '/home/aledlie/tcad-scraper/server/page-diagnostic.png', fullPage: true });
+    console.log('📸 Screenshot saved to: /home/aledlie/tcad-scraper/server/page-diagnostic.png\n');
+
+    // Save HTML
+    const html = await page.content();
+    const fs = require('fs');
+    fs.writeFileSync('/home/aledlie/tcad-scraper/server/page-diagnostic.html', html);
+    console.log('💾 HTML saved to: /home/aledlie/tcad-scraper/server/page-diagnostic.html\n');
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+  } finally {
+    await browser.close();
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/scripts-archive/2025-01-phase4-tests/test-pagination.ts:8-39
+try {
+    await scraper.initialize();
+
+    // Use a common name that should return many results
+    const searchTerm = 'Smith';
+    console.log(`Searching for: "${searchTerm}" (should have many results)`);
+
+    const properties = await scraper.scrapeProperties(searchTerm, 1);
+
+    console.log(`\n✅ Found ${properties.length} properties!\n`);
+
+    if (properties.length > 0) {
+      console.log('First 3 properties:');
+      properties.slice(0, 3).forEach((prop, i) => {
+        console.log(`\n${i + 1}. ${prop.name}`);
+        console.log(`   Address: ${prop.propertyAddress}`);
+        console.log(`   Property ID: ${prop.propertyId}`);
+        console.log(`   Appraised Value: $${prop.appraisedValue.toLocaleString()}`);
+      });
+
+      if (properties.length > 20) {
+        console.log(`\n🎉 Pagination worked! Got ${properties.length} properties (more than default 20)`);
+      } else {
+        console.log(`\n⚠️ Only got ${properties.length} properties (may not have triggered pagination)`);
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+  } finally {
+    await scraper.cleanup();
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/scripts-archive/2025-01-phase4-tests/diagnose-pagination.ts:14-121
+try {
+    console.log('Loading TCAD search page...');
+    await page.goto('https://travis.prodigycad.com/property-search', {
+      waitUntil: 'networkidle',
+    });
+
+    // Wait for React
+    await page.waitForFunction(() => {
+      const root = document.getElementById('root');
+      return root && root.children.length > 0;
+    }, { timeout: 15000 });
+
+    console.log('Page loaded, performing search...');
+
+    // Search for a common name
+    await page.waitForSelector('#searchInput', { timeout: 10000 });
+    await page.type('#searchInput', 'Smith', { delay: 100 });
+    await page.press('#searchInput', 'Enter');
+    await page.waitForTimeout(3000);
+
+    // Wait for results
+    await page.waitForFunction(
+      () => {
+        const hasGridCells = document.querySelector('[role="gridcell"]') !== null;
+        const hasNoResults = document.querySelector('.ag-overlay-no-rows-center') !== null;
+        return hasGridCells || hasNoResults;
+      },
+      { timeout: 15000 }
+    );
+
+    console.log('\n=== Checking Status Bar Elements ===');
+
+    // Check various status bar selectors
+    const statusBarInfo = await page.evaluate(() => {
+      const selectors = [
+        '.ag-status-bar-center',
+        '.ag-status-name-value',
+        '[ref="eName"]',
+        '.ag-status-bar',
+        '.ag-paging-row-summary-panel',
+      ];
+
+      const results: any = {};
+
+      selectors.forEach(selector => {
+        const el = document.querySelector(selector);
+        results[selector] = {
+          exists: !!el,
+          text: el?.textContent?.trim() || null,
+          innerHTML: el?.innerHTML || null,
+        };
+      });
+
+      // Also get all elements with 'ag-status' or 'paging' in class name
+      const allStatusElements = Array.from(document.querySelectorAll('[class*="ag-status"], [class*="paging"]'));
+      results['allStatusElements'] = allStatusElements.map(el => ({
+        tag: el.tagName,
+        class: el.className,
+        text: el.textContent?.trim(),
+      }));
+
+      return results;
+    });
+
+    console.log(JSON.stringify(statusBarInfo, null, 2));
+
+    console.log('\n=== Checking Pagination Elements ===');
+
+    const paginationInfo = await page.evaluate(() => {
+      return {
+        pageSize: {
+          selector: document.querySelector('.ag-paging-page-size'),
+          value: (document.querySelector('.ag-paging-page-size') as any)?.value,
+          options: Array.from(document.querySelectorAll('.ag-paging-page-size option')).map((opt: any) => ({
+            value: opt.value,
+            text: opt.textContent?.trim(),
+          })),
+        },
+        nextButton: {
+          exists: !!document.querySelector('.ag-paging-button[ref="btNext"]'),
+          disabled: document.querySelector('.ag-paging-button[ref="btNext"]')?.classList.contains('ag-disabled'),
+        },
+        prevButton: {
+          exists: !!document.querySelector('.ag-paging-button[ref="btPrevious"]'),
+          disabled: document.querySelector('.ag-paging-button[ref="btPrevious"]')?.classList.contains('ag-disabled'),
+        },
+      };
+    });
+
+    console.log(JSON.stringify(paginationInfo, null, 2));
+
+    console.log('\n=== Taking Screenshot ===');
+    await page.screenshot({
+      path: '/home/aledlie/tcad-scraper/server/pagination-diagnostic.png',
+      fullPage: true
+    });
+    console.log('Screenshot saved to: pagination-diagnostic.png');
+
+    console.log('\n✅ Diagnostic complete!');
+    console.log('Keep browser open for 10 seconds to inspect...');
+    await page.waitForTimeout(10000);
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+  } finally {
+    await context.close();
+    await browser.close();
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/routes/app.routes.ts:23-40
+try {
+      const nonce = res.locals.nonce;
+      const initialData = getInitialAppData();
+
+      const html = generateSecureHtml({
+        title: 'TCAD Property Analytics',
+        nonce,
+        initialData,
+        scriptSrc: '/src/main.tsx',
+        styleSrc: '/src/App.css',
+      });
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (error) {
+      console.error('Error serving app:', error);
+      res.status(500).send('Internal Server Error');
+    }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/fallbackBrowserSearch/test-manual-search.ts:9-82
+try {
+    console.log('Navigating to TCAD...');
+    await page.goto('https://travis.prodigycad.com/property-search', {
+      waitUntil: 'networkidle',
+      timeout: 30000,
+    });
+
+    console.log('Waiting for React...');
+    await page.waitForFunction(() => {
+      const root = document.getElementById('root');
+      return root && root.children.length > 0;
+    }, { timeout: 15000 });
+
+    await page.waitForTimeout(2000);
+
+    // Check current year
+    const yearInputs = await page.$$('.MuiSelect-nativeInput');
+    const currentYear = yearInputs.length > 0 ? await yearInputs[yearInputs.length - 1].inputValue() : 'unknown';
+    console.log(`Current year value: ${currentYear}`);
+
+    // Try to click year dropdown and see what options are available
+    await page.locator('text=' + currentYear).last().click();
+    await page.waitForTimeout(1000);
+
+    // Get all available year options
+    const yearOptions = await page.evaluate(() => {
+      const options = Array.from(document.querySelectorAll('[role="option"]'));
+      return options.map(el => el.textContent?.trim());
+    });
+    console.log('Available year options:', yearOptions);
+
+    // Select 2024 if available
+    if (yearOptions.includes('2024')) {
+      await page.locator('text=2024').click();
+      console.log('Selected 2024');
+      await page.waitForTimeout(2000);
+    }
+
+    // Try a simple search
+    console.log('Searching for "Austin"...');
+    await page.type('#searchInput', 'Austin', { delay: 100 });
+    await page.press('#searchInput', 'Enter');
+
+    // Wait for results
+    await page.waitForFunction(
+      () => {
+        const hasGridCells = document.querySelector('[role="gridcell"]') !== null;
+        const hasNoResults = document.querySelector('.ag-overlay-no-rows-center') !== null;
+        return hasGridCells || hasNoResults;
+      },
+      { timeout: 20000 }
+    );
+
+    const hasResults = await page.evaluate(() => {
+      return document.querySelector('[role="gridcell"]') !== null;
+    });
+
+    console.log(`Search results: ${hasResults ? 'FOUND RESULTS' : 'NO RESULTS'}`);
+
+    if (hasResults) {
+      const rowCount = await page.evaluate(() => {
+        return document.querySelectorAll('.ag-row').length;
+      });
+      console.log(`Found ${rowCount} rows`);
+    }
+
+    console.log('\\nWaiting 30 seconds for manual inspection...');
+    await page.waitForTimeout(30000);
+
+  } catch (error) {
+    console.error('Error:', error);
+  } finally {
+    await browser.close();
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/test-api-scraper.ts:10-44
+try {
+    await scraper.initialize();
+
+    console.log('Scraping properties for "Willow"...');
+    const properties = await scraper.scrapePropertiesViaAPI('Willow');
+
+    console.log(`\n✅ Successfully scraped ${properties.length} properties\n`);
+
+    if (properties.length > 0) {
+      console.log('First 3 properties:\n');
+      properties.slice(0, 3).forEach((prop, index) => {
+        console.log(`Property ${index + 1}:`);
+        console.log(`  Property ID: ${prop.propertyId}`);
+        console.log(`  Owner: ${prop.name}`);
+        console.log(`  City: ${prop.city || 'NOT FOUND'}`);
+        console.log(`  Address: ${prop.propertyAddress}`);
+        console.log(`  Appraised Value: $${prop.appraisedValue.toLocaleString()}`);
+        console.log(`  Property Type: ${prop.propType}`);
+        console.log('');
+      });
+
+      // Check for city and appraised value coverage
+      const withCity = properties.filter(p => p.city).length;
+      const withValue = properties.filter(p => p.appraisedValue > 0).length;
+
+      console.log('\n📊 Data Quality:');
+      console.log(`  Properties with city: ${withCity}/${properties.length} (${Math.round(withCity/properties.length*100)}%)`);
+      console.log(`  Properties with appraised value: ${withValue}/${properties.length} (${Math.round(withValue/properties.length*100)}%)`);
+    }
+
+  } catch (error) {
+    console.error('\n❌ Test failed:', error);
+  } finally {
+    await scraper.cleanup();
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/scripts-archive/2025-01-phase4-tests/test-direct-api-bypass.ts:24-202
+try {
+    // Step 1: Get authentication token by performing a search
+    console.log('Step 1: Loading page and waiting for authentication...');
+
+    let authToken: string | null = null;
+
+    // Capture the authorization token from network requests
+    page.on('request', (request) => {
+      const headers = request.headers();
+      if (headers['authorization']) {
+        authToken = headers['authorization'];
+      }
+    });
+
+    await page.goto('https://travis.prodigycad.com/property-search', {
+      waitUntil: 'networkidle',
+      timeout: 30000,
+    });
+
+    // Wait for React to render
+    await page.waitForFunction(() => {
+      const root = document.getElementById('root');
+      return root && root.children.length > 0;
+    }, { timeout: 15000 });
+
+    // Perform a quick search to trigger auth token usage
+    await page.waitForSelector('#searchInput', { timeout: 10000 });
+    await page.type('#searchInput', 'test', { delay: 50 });
+    await page.press('#searchInput', 'Enter');
+    await page.waitForTimeout(3000);
+
+    console.log(`Auth Token: ${authToken ? authToken.substring(0, 50) + '...' : 'Not found'}\n`);
+
+    if (!authToken) {
+      throw new Error('Could not capture authorization token');
+    }
+
+    // Step 2: Test direct API call with larger pageSize
+    console.log('Step 2: Making direct API call with pageSize=100...\n');
+
+    const response = await page.evaluate(async (token: string) => {
+      // Make direct fetch request to the API
+      const apiUrl = 'https://prod-container.trueprodigyapi.com/public/property/searchfulltext?page=1&pageSize=100';
+
+      const requestBody = {
+        pYear: { operator: '=', value: '2025' },
+        fullTextSearch: { operator: 'match', value: 'Smith' }
+      };
+
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': token,
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!res.ok) {
+        return {
+          status: res.status,
+          error: await res.text(),
+        };
+      }
+
+      const data = await res.json();
+      return {
+        status: res.status,
+        totalCount: data.totalProperty?.propertyCount,
+        resultsReturned: data.results?.length,
+        sampleResults: data.results?.slice(0, 3).map((r: any) => ({
+          pid: r.pid,
+          displayName: r.displayName,
+          streetPrimary: r.streetPrimary,
+          city: r.city,
+          appraisedValue: r.appraisedValue,
+        }))
+      };
+    }, authToken);
+
+    console.log('API Response:');
+    console.log(`- Status: ${response.status}`);
+    console.log(`- Total properties matching search: ${response.totalCount}`);
+    console.log(`- Results returned: ${response.resultsReturned}`);
+    console.log(`\n✅ SUCCESS! We got ${response.resultsReturned} results instead of 20!\n`);
+
+    console.log('Sample results:');
+    response.sampleResults?.forEach((result: any, i: number) => {
+      console.log(`\n${i + 1}. ${result.displayName}`);
+      console.log(`   PID: ${result.pid}`);
+      console.log(`   Address: ${result.streetPrimary}, ${result.city}`);
+      console.log(`   Appraised Value: $${result.appraisedValue?.toLocaleString()}`);
+    });
+
+    // Step 3: Calculate pagination needed for all results
+    console.log('\n' + '='.repeat(80));
+    console.log('PAGINATION ANALYSIS');
+    console.log('='.repeat(80) + '\n');
+
+    const totalCount = response.totalCount || 0;
+    const pageSize = 100;
+    const totalPages = Math.ceil(totalCount / pageSize);
+
+    console.log(`Total properties: ${totalCount}`);
+    console.log(`Page size: ${pageSize}`);
+    console.log(`Total pages needed: ${totalPages}`);
+    console.log(`\nTo get ALL results, we would need to make ${totalPages} API calls.`);
+
+    // Step 4: Test getting multiple pages
+    console.log('\n' + '='.repeat(80));
+    console.log('TESTING MULTI-PAGE RETRIEVAL');
+    console.log('='.repeat(80) + '\n');
+
+    console.log('Fetching pages 1, 2, and 3...\n');
+
+    const multiPageResults = await page.evaluate(async (token: string) => {
+      const apiUrl = 'https://prod-container.trueprodigyapi.com/public/property/searchfulltext';
+      const requestBody = {
+        pYear: { operator: '=', value: '2025' },
+        fullTextSearch: { operator: 'match', value: 'Smith' }
+      };
+
+      const allResults = [];
+      for (let page = 1; page <= 3; page++) {
+        const url = `${apiUrl}?page=${page}&pageSize=100`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': token,
+          },
+          body: JSON.stringify(requestBody)
+        });
+        const data = await res.json();
+        allResults.push({
+          page,
+          count: data.results?.length || 0,
+          firstPid: data.results?.[0]?.pid,
+          lastPid: data.results?.[data.results.length - 1]?.pid,
+        });
+      }
+      return allResults;
+    }, authToken);
+
+    multiPageResults.forEach((result: any) => {
+      console.log(`Page ${result.page}: ${result.count} results (PID range: ${result.firstPid} - ${result.lastPid})`);
+    });
+
+    const totalFetched = multiPageResults.reduce((sum: number, r: any) => sum + r.count, 0);
+    console.log(`\n✅ Successfully fetched ${totalFetched} results across 3 pages!`);
+
+    // Summary
+    console.log('\n' + '='.repeat(80));
+    console.log('SOLUTION SUMMARY');
+    console.log('='.repeat(80) + '\n');
+
+    console.log('🎯 WORKAROUND CONFIRMED!\n');
+    console.log('Instead of scraping the UI with Playwright:');
+    console.log('1. Navigate to the page once to get cookies/session');
+    console.log('2. Use page.evaluate() to call fetch() directly');
+    console.log('3. Set pageSize to 100-1000 (test to find max allowed)');
+    console.log('4. Loop through pages to get all results');
+    console.log('5. This bypasses the hidden AG Grid pagination completely!\n');
+
+    console.log('Benefits:');
+    console.log('✅ No DOM parsing needed');
+    console.log('✅ Much faster (direct JSON response)');
+    console.log('✅ Can get 1000s of results per search term');
+    console.log('✅ More reliable (no UI element waiting)');
+    console.log('✅ Less resource intensive\n');
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+  } finally {
+    await context.close();
+    await browser.close();
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/fallbackBrowserSearch/scraper-with-db.ts:18-84
+try {
+    console.log('🔍 Starting scrape...');
+
+    // Navigate to the TCAD website
+    await page.goto(url, {waitUntil: "networkidle0"});
+
+    // Input search term
+    await page.type('input[type="text"]', searchInput);
+
+    // Submit the search form
+    await page.keyboard.press('Enter');
+
+    // Wait for results to load
+    await page.waitForSelector('[role="gridcell"]');
+
+    // Parse result rows with Cheerio
+    const info: Property[] = [];
+    const htmlContent = await page.content();
+    const $ = cheerio.load(htmlContent);
+
+    // Find all rows that contain gridcells (data rows, not header rows)
+    const rows = $('[role="row"]').filter((i, row) => {
+      return $(row).find('[role="gridcell"]').length > 0;
+    });
+
+    console.log(`📋 Found ${rows.length} data rows`);
+
+    // Extract property information using available col-ids
+    rows.each((index, row) => {
+      const propertyData = {
+        name: $(row).find('[col-id="displayName"]').text().trim(), // Owner name
+        propType: $(row).find('[col-id="propType"]').text().trim(),
+        city: '', // Not available in this view
+        propertyAddress: '', // Not available in this view
+        assessedValue: '', // Not available in this view
+        propertyID: $(row).find('[col-id="pid"]').text().trim(),
+        appraisedValue: '', // Not available in this view
+        description: $(row).find('[col-id="refID1"]').text().trim(), // Using refID1 as description
+        geoID: $(row).find('[col-id="geoID"]').text().trim(),
+      };
+
+      info.push(propertyData);
+    });
+
+    // Filter out empty results - use propertyID since address is not available in this view
+    const validProperties = info.filter(elem => elem.propertyID !== '');
+    console.log(`✓ Found ${validProperties.length} valid properties`);
+
+    // Save to database
+    if (validProperties.length > 0) {
+      console.log('💾 Saving to database...');
+      await insertProperties(validProperties);
+
+      const totalCount = await getPropertyCount();
+      console.log(`✓ Database now contains ${totalCount} total properties`);
+    }
+
+    console.log('\n📊 Sample of scraped data:');
+    console.log(validProperties.slice(0, 3));
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+  } finally {
+    await browser.close();
+    await closePool();
+    console.log('✓ Done!');
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/scripts-archive/2025-01-phase4-tests/test-db-save.ts:21-119
+try {
+    await scraper.initialize();
+    console.log('✅ Scraper initialized\n');
+
+    console.log(`Scraping properties for: "${searchTerm}"`);
+    const properties = await scraper.scrapePropertiesViaAPI(searchTerm);
+    console.log(`✅ Found ${properties.length} properties\n`);
+
+    if (properties.length === 0) {
+      console.log('No properties to save');
+      return;
+    }
+
+    // Save to database
+    console.log('Saving properties to database...');
+    let savedCount = 0;
+    let updatedCount = 0;
+
+    for (const property of properties) {
+      try {
+        const result = await prisma.property.upsert({
+          where: { propertyId: property.propertyId },
+          update: {
+            name: property.name,
+            propType: property.propType,
+            city: property.city || null,
+            propertyAddress: property.propertyAddress,
+            assessedValue: property.assessedValue || null,
+            appraisedValue: property.appraisedValue,
+            geoId: property.geoId || null,
+            description: property.description || null,
+            searchTerm: searchTerm,
+            scrapedAt: new Date(),
+            updatedAt: new Date(),
+          },
+          create: {
+            propertyId: property.propertyId,
+            name: property.name,
+            propType: property.propType,
+            city: property.city || null,
+            propertyAddress: property.propertyAddress,
+            assessedValue: property.assessedValue || null,
+            appraisedValue: property.appraisedValue,
+            geoId: property.geoId || null,
+            description: property.description || null,
+            searchTerm: searchTerm,
+            scrapedAt: new Date(),
+          },
+        });
+
+        if (result.createdAt.getTime() === result.updatedAt.getTime()) {
+          savedCount++;
+        } else {
+          updatedCount++;
+        }
+      } catch (error) {
+        console.error(`Error saving property ${property.propertyId}:`, error);
+      }
+    }
+
+    console.log(`✅ Saved ${savedCount} new properties, updated ${updatedCount} existing`);
+
+    // Verify data
+    console.log('\n' + '─'.repeat(80));
+    console.log('VERIFICATION');
+    console.log('─'.repeat(80) + '\n');
+
+    const totalInDb = await prisma.property.count();
+    console.log(`Total properties in database: ${totalInDb}`);
+
+    const sample = await prisma.property.findFirst({
+      where: { searchTerm: searchTerm },
+    });
+
+    if (sample) {
+      console.log('\nSample property from database:');
+      console.log(`  Property ID: ${sample.propertyId}`);
+      console.log(`  Name: ${sample.name}`);
+      console.log(`  Address: ${sample.propertyAddress}`);
+      console.log(`  City: ${sample.city || 'N/A'}`);
+      console.log(`  Property Type: ${sample.propType}`);
+      console.log(`  Appraised Value: $${sample.appraisedValue.toLocaleString()}`);
+      console.log(`  Assessed Value: $${sample.assessedValue?.toLocaleString() || 'N/A'}`);
+      console.log(`  Geo ID: ${sample.geoId || 'N/A'}`);
+      console.log(`  Search Term: ${sample.searchTerm || 'N/A'}`);
+      console.log(`  Scraped At: ${sample.scrapedAt.toISOString()}`);
+      console.log(`  Created At: ${sample.createdAt.toISOString()}`);
+    }
+
+    console.log('\n✅ Database schema verification PASSED!');
+    console.log('All fields are saving correctly with proper data types.\n');
+
+  } catch (error) {
+    console.error('❌ Fatal error:', error);
+  } finally {
+    await scraper.cleanup();
+    await prisma.$disconnect();
+    console.log('Cleanup complete');
+  }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/scripts-archive/2025-01-phase4-tests/test-db-save.ts:40-78
+try {
+        const result = await prisma.property.upsert({
+          where: { propertyId: property.propertyId },
+          update: {
+            name: property.name,
+            propType: property.propType,
+            city: property.city || null,
+            propertyAddress: property.propertyAddress,
+            assessedValue: property.assessedValue || null,
+            appraisedValue: property.appraisedValue,
+            geoId: property.geoId || null,
+            description: property.description || null,
+            searchTerm: searchTerm,
+            scrapedAt: new Date(),
+            updatedAt: new Date(),
+          },
+          create: {
+            propertyId: property.propertyId,
+            name: property.name,
+            propType: property.propType,
+            city: property.city || null,
+            propertyAddress: property.propertyAddress,
+            assessedValue: property.assessedValue || null,
+            appraisedValue: property.appraisedValue,
+            geoId: property.geoId || null,
+            description: property.description || null,
+            searchTerm: searchTerm,
+            scrapedAt: new Date(),
+          },
+        });
+
+        if (result.createdAt.getTime() === result.updatedAt.getTime()) {
+          savedCount++;
+        } else {
+          updatedCount++;
+        }
+      } catch (error) {
+        console.error(`Error saving property ${property.propertyId}:`, error);
+      }
+
+=== Async functions ===
+Found 20 matches (showing first 20 of 77):
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:14-28
+async function displayStats() {
+  console.log('\n📊 Database Statistics\n' + '='.repeat(50));
+
+  const stats = await pool.query(`
+    SELECT
+      COUNT(*) as total_properties,
+      COUNT(DISTINCT city) as unique_cities,
+      MAX(scraped_at) as last_scraped
+    FROM properties
+  `);
+
+  console.log(`Total Properties: ${stats.rows[0].total_properties}`);
+  console.log(`Unique Cities: ${stats.rows[0].unique_cities}`);
+  console.log(`Last Scraped: ${stats.rows[0].last_scraped || 'Never'}`);
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:30-49
+async function displayCitySummary() {
+  console.log('\n🏙️  Properties by City\n' + '='.repeat(50));
+
+  const cities = await pool.query(`
+    SELECT
+      city,
+      COUNT(*) as property_count,
+      AVG(CAST(REPLACE(REPLACE(appraised_value, '$', ''), ',', '') AS NUMERIC)) as avg_value
+    FROM properties
+    WHERE city IS NOT NULL AND city != ''
+    GROUP BY city
+    ORDER BY property_count DESC
+    LIMIT 10
+  `);
+
+  cities.rows.forEach(row => {
+    const avgValue = row.avg_value ? `$${Math.round(row.avg_value).toLocaleString()}` : 'N/A';
+    console.log(`${row.city.padEnd(20)} | ${String(row.property_count).padStart(5)} properties | Avg: ${avgValue}`);
+  });
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:51-74
+async function displayRecentProperties(limit: number = 10) {
+  console.log(`\n🏠 Recent Properties (Last ${limit})\n` + '='.repeat(50));
+
+  const properties = await pool.query(`
+    SELECT
+      property_id,
+      owner_name,
+      property_address,
+      city,
+      appraised_value,
+      scraped_at
+    FROM properties
+    ORDER BY scraped_at DESC
+    LIMIT $1
+  `, [limit]);
+
+  properties.rows.forEach((prop, idx) => {
+    console.log(`\n${idx + 1}. Property ID: ${prop.property_id}`);
+    console.log(`   Owner: ${prop.owner_name}`);
+    console.log(`   Address: ${prop.property_address}, ${prop.city || 'N/A'}`);
+    console.log(`   Value: ${prop.appraised_value || 'N/A'}`);
+    console.log(`   Scraped: ${prop.scraped_at}`);
+  });
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:76-103
+async function searchProperties(searchTerm: string) {
+  console.log(`\n🔍 Search Results for: "${searchTerm}"\n` + '='.repeat(50));
+
+  const results = await pool.query(`
+    SELECT
+      property_id,
+      owner_name,
+      property_address,
+      city,
+      appraised_value
+    FROM properties
+    WHERE
+      owner_name ILIKE $1 OR
+      property_address ILIKE $1 OR
+      city ILIKE $1
+    LIMIT 20
+  `, [`%${searchTerm}%`]);
+
+  if (results.rows.length === 0) {
+    console.log('No results found.');
+  } else {
+    results.rows.forEach((prop, idx) => {
+      console.log(`\n${idx + 1}. ${prop.owner_name}`);
+      console.log(`   ${prop.property_address}, ${prop.city || 'N/A'}`);
+      console.log(`   Value: ${prop.appraised_value || 'N/A'} | ID: ${prop.property_id}`);
+    });
+  }
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:105-114
+async function runCustomQuery(query: string) {
+  try {
+    const result = await pool.query(query);
+    console.log('\n✓ Query executed successfully\n');
+    console.table(result.rows);
+    console.log(`\nRows returned: ${result.rowCount}`);
+  } catch (error) {
+    console.error('❌ Query error:', error);
+  }
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:116-174
+async function main() {
+  const args = process.argv.slice(2);
+  const command = args[0];
+
+  try {
+    switch (command) {
+      case 'stats':
+        await displayStats();
+        break;
+      case 'cities':
+        await displayCitySummary();
+        break;
+      case 'recent':
+        const limit = parseInt(args[1]) || 10;
+        await displayRecentProperties(limit);
+        break;
+      case 'search':
+        if (!args[1]) {
+          console.error('Please provide a search term: npm run db:query search "term"');
+          process.exit(1);
+        }
+        await searchProperties(args[1]);
+        break;
+      case 'query':
+        if (!args[1]) {
+          console.error('Please provide a SQL query: npm run db:query query "SELECT * FROM properties LIMIT 5"');
+          process.exit(1);
+        }
+        await runCustomQuery(args[1]);
+        break;
+      default:
+        console.log(`
+🗃️  TCAD Property Database Query Tool
+
+Usage: npm run db:query <command> [args]
+
+Commands:
+  stats              - Show database statistics
+  cities             - Show properties grouped by city
+  recent [N]         - Show N most recent properties (default: 10)
+  search <term>      - Search properties by owner, address, or city
+  query "<SQL>"      - Execute custom SQL query
+
+Examples:
+  npm run db:query stats
+  npm run db:query cities
+  npm run db:query recent 20
+  npm run db:query search "Austin"
+  npm run db:query query "SELECT * FROM properties WHERE city = 'Austin' LIMIT 5"
+
+Or use: npm run db:stats for quick statistics
+        `);
+    }
+  } catch (error) {
+    console.error('Error:', error);
+  } finally {
+    await pool.end();
+  }
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:29-85
+async function searchProperties(token: string, searchTerm: string) {
+  console.log(`\n🔍 Searching for: "${searchTerm}"`);
+
+  try {
+    // Try different possible API endpoints
+    const endpoints = [
+      '/properties/search',
+      '/property/search',
+      '/search',
+      '/properties',
+      '/property',
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`  Trying: ${TCAD_API_BASE_URL}${endpoint}`);
+
+        // Try with different query parameter names
+        const params = new URLSearchParams({
+          search: searchTerm,
+          q: searchTerm,
+          query: searchTerm,
+          term: searchTerm,
+        });
+
+        const response = await fetch(`${TCAD_API_BASE_URL}${endpoint}?${params}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`\n✅ Success with endpoint: ${endpoint}`);
+          console.log('Response:', JSON.stringify(data, null, 2));
+          return data;
+        } else {
+          console.log(`  ❌ ${response.status}: ${response.statusText}`);
+          if (response.status !== 404 && response.status !== 405) {
+            const errorData = await response.text();
+            console.log('  Response data:', errorData);
+          }
+        }
+
+      } catch (error: any) {
+        console.log(`  ❌ Error: ${error.message}`);
+      }
+    }
+
+    console.log('\n❌ All endpoints failed');
+
+  } catch (error) {
+    console.error('Error searching properties:', error);
+  }
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/test-api-direct.ts:87-110
+async function testTCADAPI() {
+  console.log('╔════════════════════════════════════════════════════╗');
+  console.log('║     TCAD API Direct Test                           ║');
+  console.log('╚════════════════════════════════════════════════════╝\n');
+
+  try {
+    // Step 1: Get auth token
+    const token = await getAuthToken();
+
+    // Step 2: Try to search for properties
+    const testSearchTerms = ['Austin', '78701', 'downtown'];
+
+    for (const searchTerm of testSearchTerms) {
+      await searchProperties(token, searchTerm);
+    }
+
+    console.log('\n╔════════════════════════════════════════════════════╗');
+    console.log('║     Test Complete                                  ║');
+    console.log('╚════════════════════════════════════════════════════╝');
+
+  } catch (error) {
+    console.error('\n❌ Test failed:', error);
+  }
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/xcontroller.client.ts:153-166
+async function loadData() {
+      try {
+        setLoading(true);
+        const result = fallbackUrl
+          ? await dataController.loadDataWithFallback<T>(scriptId, fallbackUrl)
+          : dataController.loadData<T>(scriptId);
+
+        setData(result);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error(String(err)));
+      } finally {
+        setLoading(false);
+      }
+    }
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/test-database.ts:62-122
+async function runTests() {
+  console.log('\n🧪 Testing Database Integration\n' + '='.repeat(60));
+
+  try {
+    // Test 1: Get initial count
+    console.log('\n📊 Test 1: Getting initial property count...');
+    const initialCount = await getPropertyCount();
+    console.log(`✓ Initial count: ${initialCount} properties`);
+
+    // Test 2: Insert sample properties
+    console.log('\n💾 Test 2: Inserting test properties...');
+    await insertProperties(testProperties);
+    console.log(`✓ Successfully inserted ${testProperties.length} test properties`);
+
+    // Test 3: Verify count increased
+    console.log('\n📊 Test 3: Verifying property count...');
+    const newCount = await getPropertyCount();
+    console.log(`✓ New count: ${newCount} properties`);
+    console.log(`✓ Added: ${newCount - initialCount} properties`);
+
+    // Test 4: Query properties by city
+    console.log('\n🏙️  Test 4: Querying properties by city...');
+    const austinProps = await getPropertiesByCity('Austin');
+    console.log(`✓ Found ${austinProps.length} properties in Austin`);
+
+    // Test 5: Display sample results
+    console.log('\n📋 Test 5: Sample properties from database:');
+    if (austinProps.length > 0) {
+      austinProps.slice(0, 2).forEach((prop: any, idx: number) => {
+        console.log(`\n  ${idx + 1}. ${prop.owner_name}`);
+        console.log(`     Address: ${prop.property_address}`);
+        console.log(`     Type: ${prop.property_type}`);
+        console.log(`     Value: ${prop.appraised_value}`);
+        console.log(`     ID: ${prop.property_id}`);
+      });
+    }
+
+    // Test 6: Test upsert (update existing property)
+    console.log('\n🔄 Test 6: Testing upsert functionality...');
+    const updatedProperty: Property = {
+      ...testProperties[0],
+      assessedValue: "$360,000",  // Updated value
+      appraisedValue: "$385,000"  // Updated value
+    };
+    await insertProperties([updatedProperty]);
+    console.log('✓ Updated existing property (TEST001)');
+
+    // Verify the update
+    const finalCount = await getPropertyCount();
+    console.log(`✓ Count remained the same: ${finalCount} (upsert worked!)`);
+
+    console.log('\n' + '='.repeat(60));
+    console.log('✅ All database integration tests passed!\n');
+
+  } catch (error) {
+    console.error('\n❌ Test failed:', error);
+    throw error;
+  } finally {
+    await closePool();
+  }
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/one-off-enqueues/add-business-batch-3.ts:6-40
+async function addBusinessBatch3() {
+  console.log('➕ Adding business batch 3 to front of queue...\n');
+
+  const terms = [
+    'Investments',
+    'Holdings',
+    'Properties',
+    'Ventures',
+    'Equity',
+    'Inc.',
+    'Group',
+    'Partners'
+  ];
+
+  console.log(`Adding ${terms.length} terms with priority 1:\n`);
+
+  for (const term of terms) {
+    await scraperQueue.add(
+      'scrape-properties',
+      { searchTerm: term },
+      { priority: 1 }
+    );
+    console.log(`  ✅ Added "${term}"`);
+  }
+
+  // Show queue status
+  const waiting = await scraperQueue.getWaitingCount();
+  const active = await scraperQueue.getActiveCount();
+
+  console.log(`\n📊 Queue Status:`);
+  console.log(`   Waiting: ${waiting}`);
+  console.log(`   Active: ${active}`);
+
+  await prisma.$disconnect();
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/fallbackBrowserSearch/test-manual-search.ts:3-83
+async function testManualSearch() {
+  console.log('Starting manual test...');
+  const browser = await chromium.launch({ headless: false }); // Run in headed mode to see what's happening
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  try {
+    console.log('Navigating to TCAD...');
+    await page.goto('https://travis.prodigycad.com/property-search', {
+      waitUntil: 'networkidle',
+      timeout: 30000,
+    });
+
+    console.log('Waiting for React...');
+    await page.waitForFunction(() => {
+      const root = document.getElementById('root');
+      return root && root.children.length > 0;
+    }, { timeout: 15000 });
+
+    await page.waitForTimeout(2000);
+
+    // Check current year
+    const yearInputs = await page.$$('.MuiSelect-nativeInput');
+    const currentYear = yearInputs.length > 0 ? await yearInputs[yearInputs.length - 1].inputValue() : 'unknown';
+    console.log(`Current year value: ${currentYear}`);
+
+    // Try to click year dropdown and see what options are available
+    await page.locator('text=' + currentYear).last().click();
+    await page.waitForTimeout(1000);
+
+    // Get all available year options
+    const yearOptions = await page.evaluate(() => {
+      const options = Array.from(document.querySelectorAll('[role="option"]'));
+      return options.map(el => el.textContent?.trim());
+    });
+    console.log('Available year options:', yearOptions);
+
+    // Select 2024 if available
+    if (yearOptions.includes('2024')) {
+      await page.locator('text=2024').click();
+      console.log('Selected 2024');
+      await page.waitForTimeout(2000);
+    }
+
+    // Try a simple search
+    console.log('Searching for "Austin"...');
+    await page.type('#searchInput', 'Austin', { delay: 100 });
+    await page.press('#searchInput', 'Enter');
+
+    // Wait for results
+    await page.waitForFunction(
+      () => {
+        const hasGridCells = document.querySelector('[role="gridcell"]') !== null;
+        const hasNoResults = document.querySelector('.ag-overlay-no-rows-center') !== null;
+        return hasGridCells || hasNoResults;
+      },
+      { timeout: 20000 }
+    );
+
+    const hasResults = await page.evaluate(() => {
+      return document.querySelector('[role="gridcell"]') !== null;
+    });
+
+    console.log(`Search results: ${hasResults ? 'FOUND RESULTS' : 'NO RESULTS'}`);
+
+    if (hasResults) {
+      const rowCount = await page.evaluate(() => {
+        return document.querySelectorAll('.ag-row').length;
+      });
+      console.log(`Found ${rowCount} rows`);
+    }
+
+    console.log('\\nWaiting 30 seconds for manual inspection...');
+    await page.waitForTimeout(30000);
+
+  } catch (error) {
+    console.error('Error:', error);
+  } finally {
+    await browser.close();
+  }
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/one-off-enqueues/add-business-terms.ts:6-40
+async function addBusinessTerms() {
+  console.log('➕ Adding business terms to front of queue...\n');
+
+  const terms = [
+    'found',
+    'invest',
+    'real',
+    'asset',
+    'manage',
+    'capital',
+    'partner',
+    'folio'
+  ];
+
+  console.log(`Adding ${terms.length} terms with priority 1:\n`);
+
+  for (const term of terms) {
+    await scraperQueue.add(
+      'scrape-properties',
+      { searchTerm: term },
+      { priority: 1 }
+    );
+    console.log(`  ✅ Added "${term}"`);
+  }
+
+  // Show queue status
+  const waiting = await scraperQueue.getWaitingCount();
+  const active = await scraperQueue.getActiveCount();
+
+  console.log(`\n📊 Queue Status:`);
+  console.log(`   Waiting: ${waiting}`);
+  console.log(`   Active: ${active}`);
+
+  await prisma.$disconnect();
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/fallbackBrowserSearch/scraper-with-db.ts:8-85
+async function scrapePropertyTaxInformation() {
+  const browser = await puppeteer.launch({
+    headless: true,
+    ignoreHTTPSErrors: true,
+    args: [`--window-size=${width},${height}`, '--no-sandbox', '--disable-setuid-sandbox']
+  });
+  const page = await browser.newPage();
+  const url = 'https://stage.travis.prodigycad.com/property-search';
+  const searchInput = 'dede';
+
+  try {
+    console.log('🔍 Starting scrape...');
+
+    // Navigate to the TCAD website
+    await page.goto(url, {waitUntil: "networkidle0"});
+
+    // Input search term
+    await page.type('input[type="text"]', searchInput);
+
+    // Submit the search form
+    await page.keyboard.press('Enter');
+
+    // Wait for results to load
+    await page.waitForSelector('[role="gridcell"]');
+
+    // Parse result rows with Cheerio
+    const info: Property[] = [];
+    const htmlContent = await page.content();
+    const $ = cheerio.load(htmlContent);
+
+    // Find all rows that contain gridcells (data rows, not header rows)
+    const rows = $('[role="row"]').filter((i, row) => {
+      return $(row).find('[role="gridcell"]').length > 0;
+    });
+
+    console.log(`📋 Found ${rows.length} data rows`);
+
+    // Extract property information using available col-ids
+    rows.each((index, row) => {
+      const propertyData = {
+        name: $(row).find('[col-id="displayName"]').text().trim(), // Owner name
+        propType: $(row).find('[col-id="propType"]').text().trim(),
+        city: '', // Not available in this view
+        propertyAddress: '', // Not available in this view
+        assessedValue: '', // Not available in this view
+        propertyID: $(row).find('[col-id="pid"]').text().trim(),
+        appraisedValue: '', // Not available in this view
+        description: $(row).find('[col-id="refID1"]').text().trim(), // Using refID1 as description
+        geoID: $(row).find('[col-id="geoID"]').text().trim(),
+      };
+
+      info.push(propertyData);
+    });
+
+    // Filter out empty results - use propertyID since address is not available in this view
+    const validProperties = info.filter(elem => elem.propertyID !== '');
+    console.log(`✓ Found ${validProperties.length} valid properties`);
+
+    // Save to database
+    if (validProperties.length > 0) {
+      console.log('💾 Saving to database...');
+      await insertProperties(validProperties);
+
+      const totalCount = await getPropertyCount();
+      console.log(`✓ Database now contains ${totalCount} total properties`);
+    }
+
+    console.log('\n📊 Sample of scraped data:');
+    console.log(validProperties.slice(0, 3));
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+  } finally {
+    await browser.close();
+    await closePool();
+    console.log('✓ Done!');
+  }
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/one-off-enqueues/add-terms-and-dedupe.ts:7-54
+async function addTermsAndDedupe() {
+  console.log('➕ Adding terms and removing duplicates...\n');
+  console.log('=' .repeat(60));
+
+  const terms = [
+    'Assets',
+    'Capital',
+    'Residence',
+    'Portfolio',
+    'Investments'
+  ];
+
+  console.log(`\n📝 Adding ${terms.length} terms with priority 1:\n`);
+
+  for (const term of terms) {
+    await scraperQueue.add(
+      'scrape-properties',
+      { searchTerm: term },
+      { priority: 1 }
+    );
+    console.log(`  ✅ Added "${term}"`);
+  }
+
+  console.log('');
+
+  // Use shared deduplication utility
+  await removeDuplicatesFromQueue({ verbose: true, showProgress: false });
+
+  // Get updated queue stats
+  const [waiting, active, delayed, completed, failedCount] = await Promise.all([
+    scraperQueue.getWaitingCount(),
+    scraperQueue.getActiveCount(),
+    scraperQueue.getDelayedCount(),
+    scraperQueue.getCompletedCount(),
+    scraperQueue.getFailedCount(),
+  ]);
+
+  console.log(`\n📊 Final Queue Status:`);
+  console.log(`   - Waiting: ${waiting}`);
+  console.log(`   - Active: ${active}`);
+  console.log(`   - Delayed: ${delayed}`);
+  console.log(`   - Completed: ${completed}`);
+  console.log(`   - Failed: ${failedCount}`);
+
+  console.log('\n' + '=' .repeat(60));
+
+  await prisma.$disconnect();
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/fallbackBrowserSearch/test-search-types.ts:3-48
+async function testSearchTypes() {
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  const searchTerms = [
+    { term: 'Austin', type: 'City' },
+    { term: 'Lamar', type: 'Street' },
+    { term: 'Congress', type: 'Street' },
+    { term: 'Round Rock', type: 'City' },
+  ];
+
+  try {
+    await page.goto('https://travis.prodigycad.com/property-search', {
+      waitUntil: 'networkidle',
+      timeout: 30000,
+    });
+
+    await page.waitForFunction(() => {
+      const root = document.getElementById('root');
+      return root && root.children.length > 0;
+    }, { timeout: 15000 });
+
+    console.log('\n=== Testing Different Search Terms ===\n');
+
+    for (const { term, type } of searchTerms) {
+      await page.fill('#searchInput', '');
+      await page.waitForTimeout(1000);
+
+      await page.type('#searchInput', term, { delay: 50 });
+      await page.press('#searchInput', 'Enter');
+      await page.waitForTimeout(4000);
+
+      const rowCount = await page.evaluate(() => {
+        return document.querySelectorAll('.ag-row').length;
+      });
+
+      console.log(`${type.padEnd(10)} "${term.padEnd(15)}" -> ${rowCount > 0 ? rowCount + ' results' : 'NO RESULTS'}`);
+    }
+
+  } catch (error) {
+    console.error('Error:', error);
+  } finally {
+    await browser.close();
+  }
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/scripts-archive/2025-01-phase4-tests/test-ag-grid-data.ts:3-62
+async function testAGGridData() {
+  console.log('🔍 Testing AG Grid data extraction...\n');
+
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  try {
+    await page.goto('https://travis.prodigycad.com/property-search', {
+      waitUntil: 'networkidle',
+    });
+
+    await page.waitForFunction(() => {
+      const root = document.getElementById('root');
+      return root && root.children.length > 0;
+    }, { timeout: 15000 });
+
+    await page.waitForSelector('#searchInput', { timeout: 10000 });
+    await page.type('#searchInput', 'Smith', { delay: 100 });
+    await page.press('#searchInput', 'Enter');
+    await page.waitForTimeout(3000);
+
+    await page.waitForFunction(
+      () => document.querySelector('[role="gridcell"]') !== null,
+      { timeout: 15000 }
+    );
+
+    console.log('Results loaded, checking AG Grid data sources...\n');
+
+    const dataInfo = await page.evaluate(() => {
+      return {
+        visibleRows: document.querySelectorAll('.ag-row').length,
+        totalElements: document.querySelectorAll('[class*="ag-"]').length,
+      };
+    });
+
+    console.log('Visible rows:', dataInfo.visibleRows);
+    console.log('Grid APIs found:', dataInfo.gridAPIs.length);
+    console.log('Data extracted:', dataInfo.dataFound);
+    console.log('Total data items:', dataInfo.allData.length);
+
+    if (dataInfo.allData.length > 0) {
+      console.log('\n✅ Found data! Sample:');
+      console.log(JSON.stringify(dataInfo.allData.slice(0, 3), null, 2));
+    } else {
+      console.log('\n❌ Could not extract data from AG Grid internal model');
+      console.log('Grid API locations found:', JSON.stringify(dataInfo.gridAPIs, null, 2));
+    }
+
+  } catch (error) {
+    console.error('Error:', error);
+  } finally {
+    await context.close();
+    await browser.close();
+  }
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/scripts-archive/2025-01-phase4-tests/diagnose-results.ts:3-236
+async function diagnoseResults() {
+  console.log('🔍 Diagnosing TCAD results grid structure...\n');
+
+  const browser = await chromium.launch({
+    headless: true, // Run in headless mode for server environment
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+
+  const context = await browser.newContext({
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    viewport: { width: 1920, height: 1080 },
+  });
+
+  const page = await context.newPage();
+
+  try {
+    console.log('📄 Loading staging URL...');
+    await page.goto('https://stage.travis.prodigycad.com/property-search', {
+      waitUntil: 'networkidle',
+      timeout: 30000,
+    });
+
+    console.log('✅ Page loaded, waiting for React app to render...\n');
+
+    // Wait for React to render content
+    await page.waitForFunction(() => {
+      const root = document.getElementById('root');
+      return root && root.children.length > 0;
+    }, { timeout: 15000 });
+
+    console.log('✅ React app rendered\n');
+
+    // Wait for and fill the search input
+    console.log('🔍 Performing search for "Austin"...');
+    await page.waitForSelector('#searchInput', { timeout: 10000 });
+    await page.type('#searchInput', 'Austin', { delay: 100 });
+    await page.waitForTimeout(500);
+    await page.press('#searchInput', 'Enter');
+
+    console.log('⏳ Waiting for results...\n');
+
+    // Wait a moment for any results to appear
+    await page.waitForTimeout(5000);
+
+    // Take screenshot before checking for results
+    await page.screenshot({
+      path: '/home/aledlie/tcad-scraper/server/after-search.png',
+      fullPage: true
+    });
+    console.log('📸 Screenshot after search saved to: /home/aledlie/tcad-scraper/server/after-search.png\n');
+
+    // Try to wait for results, but continue even if it times out
+    try {
+      await page.waitForSelector('[role="gridcell"]', {
+        timeout: 10000,
+        state: 'visible'
+      });
+      console.log('✅ Results grid found!\n');
+    } catch (error) {
+      console.log('⚠️  No gridcell found after 10 seconds, continuing with analysis...\n');
+    }
+
+    // Wait a bit for all results to render
+    await page.waitForTimeout(2000);
+
+    // Analyze the page structure
+    const analysis = await page.evaluate(() => {
+      const results: any = {
+        gridcellCount: 0,
+        rowsWithSpaceLabel: 0,
+        allRows: 0,
+        sampleRowHTML: '',
+        columnHeaders: [] as string[],
+        sampleCellAttributes: [] as any[],
+        pageMessages: [] as string[],
+        agGridElements: 0,
+        bodyText: '',
+      };
+
+      // Check for any messages on the page (error messages, "no results", etc.)
+      const possibleMessageSelectors = [
+        '.ag-overlay-no-rows-center',
+        '.no-results',
+        '.error-message',
+        '[role="alert"]',
+        '.message',
+      ];
+
+      for (const selector of possibleMessageSelectors) {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+          const text = el.textContent?.trim();
+          if (text) results.pageMessages.push(text);
+        });
+      }
+
+      // Check for AG Grid elements
+      results.agGridElements = document.querySelectorAll('.ag-root').length;
+
+      // Get visible body text (first 500 chars)
+      results.bodyText = document.body.textContent?.trim().substring(0, 500) || '';
+
+      // Count gridcells
+      const gridcells = document.querySelectorAll('[role="gridcell"]');
+      results.gridcellCount = gridcells.length;
+
+      // Count rows with the SPACE label
+      const rowsWithSpace = document.querySelectorAll('[aria-label="Press SPACE to select this row."][role="row"]');
+      results.rowsWithSpaceLabel = rowsWithSpace.length;
+
+      // Count all rows
+      const allRows = document.querySelectorAll('[role="row"]');
+      results.allRows = allRows.length;
+
+      // Get first data row HTML
+      if (rowsWithSpace.length > 0) {
+        results.sampleRowHTML = rowsWithSpace[0].outerHTML.substring(0, 2000);
+      }
+
+      // Get column headers
+      const headers = document.querySelectorAll('[role="columnheader"]');
+      results.columnHeaders = Array.from(headers).map(h => h.textContent?.trim() || '');
+
+      // Get sample cell attributes from first row
+      if (rowsWithSpace.length > 0) {
+        const firstRow = rowsWithSpace[0];
+        const cells = firstRow.querySelectorAll('[role="gridcell"]');
+        results.sampleCellAttributes = Array.from(cells).slice(0, 10).map(cell => ({
+          colId: cell.getAttribute('col-id'),
+          ariaColIndex: cell.getAttribute('aria-colindex'),
+          textContent: cell.textContent?.trim(),
+          className: cell.className,
+        }));
+      }
+
+      return results;
+    });
+
+    console.log('📊 Results Analysis:');
+    console.log('═══════════════════════════════════════════════════\n');
+    console.log(`AG Grid elements: ${analysis.agGridElements}`);
+    console.log(`Total gridcells found: ${analysis.gridcellCount}`);
+    console.log(`Rows with "Press SPACE" label: ${analysis.rowsWithSpaceLabel}`);
+    console.log(`Total rows: ${analysis.allRows}\n`);
+
+    if (analysis.pageMessages.length > 0) {
+      console.log('📢 Page Messages:');
+      analysis.pageMessages.forEach(msg => console.log(`  - ${msg}`));
+      console.log('');
+    }
+
+    if (analysis.bodyText) {
+      console.log('📄 Body Text (first 500 chars):');
+      console.log(analysis.bodyText);
+      console.log('');
+    }
+
+    console.log('📋 Column Headers:');
+    analysis.columnHeaders.forEach((header, i) => {
+      console.log(`  ${i + 1}. ${header}`);
+    });
+    console.log('');
+
+    console.log('🔍 Sample Cell Attributes (first 10 cells of first row):');
+    analysis.sampleCellAttributes.forEach((cell, i) => {
+      console.log(`\nCell ${i + 1}:`);
+      console.log(`  col-id: ${cell.colId || 'none'}`);
+      console.log(`  aria-colindex: ${cell.ariaColIndex || 'none'}`);
+      console.log(`  text: ${cell.textContent || 'empty'}`);
+      console.log(`  class: ${cell.className || 'none'}`);
+    });
+    console.log('');
+
+    // Save screenshot of results
+    await page.screenshot({
+      path: '/home/aledlie/tcad-scraper/server/results-diagnostic.png',
+      fullPage: true
+    });
+    console.log('📸 Screenshot saved to: /home/aledlie/tcad-scraper/server/results-diagnostic.png\n');
+
+    // Save HTML of results
+    const html = await page.content();
+    const fs = require('fs');
+    fs.writeFileSync('/home/aledlie/tcad-scraper/server/results-diagnostic.html', html);
+    console.log('💾 HTML saved to: /home/aledlie/tcad-scraper/server/results-diagnostic.html\n');
+
+    // Try to extract properties using current method
+    console.log('🧪 Testing current extraction method...\n');
+    const properties = await page.evaluate(() => {
+      const rows = document.querySelectorAll('[aria-label="Press SPACE to select this row."][role="row"]');
+
+      return Array.from(rows).map(row => {
+        const extractText = (selector: string): string | null => {
+          const element = row.querySelector(selector);
+          return element?.textContent?.trim() || null;
+        };
+
+        const extractNumber = (selector: string): number => {
+          const text = extractText(selector);
+          if (!text) return 0;
+          const cleaned = text.replace(/[$,]/g, '');
+          return parseFloat(cleaned) || 0;
+        };
+
+        return {
+          propertyId: extractText('[col-id="pid"]') || '',
+          name: extractText('[col-id="name"]') || '',
+          propType: extractText('[col-id="propType"]') || '',
+          city: extractText('[col-id="city"]'),
+          propertyAddress: extractText('[col-id="streetPrimary"]') || '',
+          assessedValue: extractNumber('.assessedValue'),
+          appraisedValue: extractNumber('[col-id="appraisedValue"]'),
+          geoId: extractText('[col-id="geoID"]'),
+          description: extractText('[col-id="legalDescription"]'),
+        };
+      }).filter(property => property.propertyAddress && property.propertyId);
+    });
+
+    console.log(`Current method extracted: ${properties.length} properties`);
+    if (properties.length > 0) {
+      console.log('\n✅ Sample extracted property:');
+      console.log(JSON.stringify(properties[0], null, 2));
+    } else {
+      console.log('\n❌ Current method extracted 0 properties');
+    }
+
+    console.log('\n✅ Diagnostic complete!');
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+  } finally {
+    await browser.close();
+  }
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/scripts-archive/2025-01-phase4-tests/test-direct-api-bypass.ts:12-203
+async function testDirectAPIBypass() {
+  console.log('🚀 Testing Direct API Bypass for Pagination Limit\n');
+  console.log('=' .repeat(80) + '\n');
+
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  try {
+    // Step 1: Get authentication token by performing a search
+    console.log('Step 1: Loading page and waiting for authentication...');
+
+    let authToken: string | null = null;
+
+    // Capture the authorization token from network requests
+    page.on('request', (request) => {
+      const headers = request.headers();
+      if (headers['authorization']) {
+        authToken = headers['authorization'];
+      }
+    });
+
+    await page.goto('https://travis.prodigycad.com/property-search', {
+      waitUntil: 'networkidle',
+      timeout: 30000,
+    });
+
+    // Wait for React to render
+    await page.waitForFunction(() => {
+      const root = document.getElementById('root');
+      return root && root.children.length > 0;
+    }, { timeout: 15000 });
+
+    // Perform a quick search to trigger auth token usage
+    await page.waitForSelector('#searchInput', { timeout: 10000 });
+    await page.type('#searchInput', 'test', { delay: 50 });
+    await page.press('#searchInput', 'Enter');
+    await page.waitForTimeout(3000);
+
+    console.log(`Auth Token: ${authToken ? authToken.substring(0, 50) + '...' : 'Not found'}\n`);
+
+    if (!authToken) {
+      throw new Error('Could not capture authorization token');
+    }
+
+    // Step 2: Test direct API call with larger pageSize
+    console.log('Step 2: Making direct API call with pageSize=100...\n');
+
+    const response = await page.evaluate(async (token: string) => {
+      // Make direct fetch request to the API
+      const apiUrl = 'https://prod-container.trueprodigyapi.com/public/property/searchfulltext?page=1&pageSize=100';
+
+      const requestBody = {
+        pYear: { operator: '=', value: '2025' },
+        fullTextSearch: { operator: 'match', value: 'Smith' }
+      };
+
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': token,
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!res.ok) {
+        return {
+          status: res.status,
+          error: await res.text(),
+        };
+      }
+
+      const data = await res.json();
+      return {
+        status: res.status,
+        totalCount: data.totalProperty?.propertyCount,
+        resultsReturned: data.results?.length,
+        sampleResults: data.results?.slice(0, 3).map((r: any) => ({
+          pid: r.pid,
+          displayName: r.displayName,
+          streetPrimary: r.streetPrimary,
+          city: r.city,
+          appraisedValue: r.appraisedValue,
+        }))
+      };
+    }, authToken);
+
+    console.log('API Response:');
+    console.log(`- Status: ${response.status}`);
+    console.log(`- Total properties matching search: ${response.totalCount}`);
+    console.log(`- Results returned: ${response.resultsReturned}`);
+    console.log(`\n✅ SUCCESS! We got ${response.resultsReturned} results instead of 20!\n`);
+
+    console.log('Sample results:');
+    response.sampleResults?.forEach((result: any, i: number) => {
+      console.log(`\n${i + 1}. ${result.displayName}`);
+      console.log(`   PID: ${result.pid}`);
+      console.log(`   Address: ${result.streetPrimary}, ${result.city}`);
+      console.log(`   Appraised Value: $${result.appraisedValue?.toLocaleString()}`);
+    });
+
+    // Step 3: Calculate pagination needed for all results
+    console.log('\n' + '='.repeat(80));
+    console.log('PAGINATION ANALYSIS');
+    console.log('='.repeat(80) + '\n');
+
+    const totalCount = response.totalCount || 0;
+    const pageSize = 100;
+    const totalPages = Math.ceil(totalCount / pageSize);
+
+    console.log(`Total properties: ${totalCount}`);
+    console.log(`Page size: ${pageSize}`);
+    console.log(`Total pages needed: ${totalPages}`);
+    console.log(`\nTo get ALL results, we would need to make ${totalPages} API calls.`);
+
+    // Step 4: Test getting multiple pages
+    console.log('\n' + '='.repeat(80));
+    console.log('TESTING MULTI-PAGE RETRIEVAL');
+    console.log('='.repeat(80) + '\n');
+
+    console.log('Fetching pages 1, 2, and 3...\n');
+
+    const multiPageResults = await page.evaluate(async (token: string) => {
+      const apiUrl = 'https://prod-container.trueprodigyapi.com/public/property/searchfulltext';
+      const requestBody = {
+        pYear: { operator: '=', value: '2025' },
+        fullTextSearch: { operator: 'match', value: 'Smith' }
+      };
+
+      const allResults = [];
+      for (let page = 1; page <= 3; page++) {
+        const url = `${apiUrl}?page=${page}&pageSize=100`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': token,
+          },
+          body: JSON.stringify(requestBody)
+        });
+        const data = await res.json();
+        allResults.push({
+          page,
+          count: data.results?.length || 0,
+          firstPid: data.results?.[0]?.pid,
+          lastPid: data.results?.[data.results.length - 1]?.pid,
+        });
+      }
+      return allResults;
+    }, authToken);
+
+    multiPageResults.forEach((result: any) => {
+      console.log(`Page ${result.page}: ${result.count} results (PID range: ${result.firstPid} - ${result.lastPid})`);
+    });
+
+    const totalFetched = multiPageResults.reduce((sum: number, r: any) => sum + r.count, 0);
+    console.log(`\n✅ Successfully fetched ${totalFetched} results across 3 pages!`);
+
+    // Summary
+    console.log('\n' + '='.repeat(80));
+    console.log('SOLUTION SUMMARY');
+    console.log('='.repeat(80) + '\n');
+
+    console.log('🎯 WORKAROUND CONFIRMED!\n');
+    console.log('Instead of scraping the UI with Playwright:');
+    console.log('1. Navigate to the page once to get cookies/session');
+    console.log('2. Use page.evaluate() to call fetch() directly');
+    console.log('3. Set pageSize to 100-1000 (test to find max allowed)');
+    console.log('4. Loop through pages to get all results');
+    console.log('5. This bypasses the hidden AG Grid pagination completely!\n');
+
+    console.log('Benefits:');
+    console.log('✅ No DOM parsing needed');
+    console.log('✅ Much faster (direct JSON response)');
+    console.log('✅ Can get 1000s of results per search term');
+    console.log('✅ More reliable (no UI element waiting)');
+    console.log('✅ Less resource intensive\n');
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+  } finally {
+    await context.close();
+    await browser.close();
+  }
+}
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/scripts-archive/2025-01-phase4-tests/queue-test-searches.ts:3-40
+async function queueTestSearches() {
+  const queue = new Bull('scraper-queue', {
+    redis: {
+      host: 'localhost',
+      port: 6379,
+    },
+  });
+
+  console.log('📋 Queuing test searches...\n');
+
+  const searchTerms = [
+    'Austin',
+    '78701',
+    'dede', // Known to have 20 results
+  ];
+
+  for (const searchTerm of searchTerms) {
+    await queue.add('scrape-properties', {
+      searchTerm,
+      timestamp: new Date().toISOString(),
+    });
+    console.log(`✅ Queued: ${searchTerm}`);
+  }
+
+  const waiting = await queue.getWaitingCount();
+  const active = await queue.getActiveCount();
+  const completed = await queue.getCompletedCount();
+  const failed = await queue.getFailedCount();
+
+  console.log(`\n📊 Queue status:`);
+  console.log(`   Waiting: ${waiting}`);
+  console.log(`   Active: ${active}`);
+  console.log(`   Completed: ${completed}`);
+  console.log(`   Failed: ${failed}`);
+
+  await queue.close();
+  process.exit(0);
+}
+
+=== Test patterns (describe/it blocks) ===
+Found 30 matches (showing first 30 of 168):
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:8-352
+describe('DataController', () => {
+  let controller: DataController;
+  let scriptElement: HTMLScriptElement;
+
+  beforeEach(() => {
+    controller = new DataController(true); // debug mode
+    // Clean up any existing test elements
+    document.querySelectorAll('[id^="test-"]').forEach(el => el.remove());
+  });
+
+  afterEach(() => {
+    // Clean up after each test
+    document.querySelectorAll('[id^="test-"]').forEach(el => el.remove());
+  });
+
+  describe('loadData', () => {
+    test('should load data from valid JSON script tag', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-data';
+      scriptElement.textContent = JSON.stringify({ test: 'value', number: 123 });
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<{ test: string; number: number }>('test-data');
+
+      expect(data).not.toBeNull();
+      expect(data?.test).toBe('value');
+      expect(data?.number).toBe(123);
+    });
+
+    test('should return null for non-existent script tag', () => {
+      const data = controller.loadData('non-existent');
+      expect(data).toBeNull();
+    });
+
+    test('should return null for wrong type attribute', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'text/javascript';
+      scriptElement.id = 'test-wrong-type';
+      scriptElement.textContent = JSON.stringify({ test: 'value' });
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData('test-wrong-type');
+      expect(data).toBeNull();
+    });
+
+    test('should return null for invalid JSON', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-invalid';
+      scriptElement.textContent = 'not valid json {]';
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData('test-invalid');
+      expect(data).toBeNull();
+    });
+
+    test('should cache loaded data', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-cache';
+      scriptElement.textContent = JSON.stringify({ cached: true });
+      document.body.appendChild(scriptElement);
+
+      const data1 = controller.loadData('test-cache');
+      const data2 = controller.loadData('test-cache');
+
+      expect(data1).toBe(data2); // Same reference = cached
+      expect(controller.getCacheSize()).toBe(1);
+    });
+
+    test('should handle empty script tag', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-empty';
+      scriptElement.textContent = '';
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData('test-empty');
+      expect(data).toBeNull();
+    });
+
+    test('should handle null values', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-null';
+      scriptElement.textContent = 'null';
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData('test-null');
+      expect(data).toBeNull(); // null is not valid (fails validation)
+    });
+
+    test('should handle arrays', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-array';
+      scriptElement.textContent = JSON.stringify([1, 2, 3]);
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<number[]>('test-array');
+      expect(Array.isArray(data)).toBe(true);
+      expect(data).toEqual([1, 2, 3]);
+    });
+
+    test('should handle complex nested objects', () => {
+      const complexData = {
+        user: { id: 1, name: 'John', roles: ['admin', 'user'] },
+        config: { theme: 'dark', features: { analytics: true } },
+      };
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-complex';
+      scriptElement.textContent = JSON.stringify(complexData);
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<typeof complexData>('test-complex');
+      expect(data).toEqual(complexData);
+    });
+
+    test('should handle unicode and special characters', () => {
+      const unicodeData = {
+        text: 'Hello 世界',
+        emoji: '🚀',
+        escaped: 'Line 1\nLine 2',
+      };
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-unicode';
+      scriptElement.textContent = JSON.stringify(unicodeData);
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<typeof unicodeData>('test-unicode');
+      expect(data).toEqual(unicodeData);
+    });
+  });
+
+  describe('loadDataWithFallback', () => {
+    beforeEach(() => {
+      // Mock fetch
+      global.fetch = jest.fn();
+    });
+
+    test('should use script tag data first', async () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-fallback';
+      scriptElement.textContent = JSON.stringify({ source: 'script' });
+      document.body.appendChild(scriptElement);
+
+      const data = await controller.loadDataWithFallback<{ source: string }>(
+        'test-fallback',
+        '/api/fallback'
+      );
+
+      expect(data?.source).toBe('script');
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    test('should fallback to API when script tag missing', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ source: 'api' }),
+      });
+
+      const data = await controller.loadDataWithFallback<{ source: string }>(
+        'non-existent',
+        '/api/fallback'
+      );
+
+      expect(data?.source).toBe('api');
+      expect(global.fetch).toHaveBeenCalledWith('/api/fallback');
+    });
+
+    test('should cache API fallback data', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ cached: true }),
+      });
+
+      await controller.loadDataWithFallback('test-api-cache', '/api/data');
+      await controller.loadDataWithFallback('test-api-cache', '/api/data');
+
+      expect(global.fetch).toHaveBeenCalledTimes(1); // Only called once
+    });
+
+    test('should return null on API error', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+      });
+
+      const data = await controller.loadDataWithFallback('missing', '/api/error');
+      expect(data).toBeNull();
+    });
+
+    test('should return null on network error', async () => {
+      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+
+      const data = await controller.loadDataWithFallback('missing', '/api/network-error');
+      expect(data).toBeNull();
+    });
+  });
+
+  describe('cache management', () => {
+    test('should clear cache', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-clear';
+      scriptElement.textContent = JSON.stringify({ test: 'value' });
+      document.body.appendChild(scriptElement);
+
+      controller.loadData('test-clear');
+      expect(controller.getCacheSize()).toBe(1);
+
+      controller.clearCache();
+      expect(controller.getCacheSize()).toBe(0);
+    });
+
+    test('should report correct cache size', () => {
+      const createScript = (id: string) => {
+        const script = document.createElement('script');
+        script.type = 'application/json';
+        script.id = id;
+        script.textContent = JSON.stringify({ test: id });
+        document.body.appendChild(script);
+      };
+
+      createScript('test-1');
+      createScript('test-2');
+      createScript('test-3');
+
+      controller.loadData('test-1');
+      expect(controller.getCacheSize()).toBe(1);
+
+      controller.loadData('test-2');
+      expect(controller.getCacheSize()).toBe(2);
+
+      controller.loadData('test-3');
+      expect(controller.getCacheSize()).toBe(3);
+    });
+  });
+
+  describe('XSS Prevention', () => {
+    test('should safely parse data with script tags', () => {
+      const xssData = {
+        payload: '<script>alert("xss")</script>',
+      };
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-xss';
+      scriptElement.textContent = JSON.stringify(xssData);
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<typeof xssData>('test-xss');
+
+      // Data should be parsed, but not executed
+      expect(data?.payload).toBe('<script>alert("xss")</script>');
+
+      // No actual script execution should occur
+      const scripts = document.querySelectorAll('script[src*="alert"]');
+      expect(scripts.length).toBe(0);
+    });
+
+    test('should handle encoded dangerous characters', () => {
+      // Data as it would come from server with proper encoding
+      const encodedData = '{"html":"\\u003Cscript\\u003Ealert(\\"xss\\")\\u003C/script\\u003E"}';
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-encoded';
+      scriptElement.textContent = encodedData;
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<{ html: string }>('test-encoded');
+
+      // Should decode properly
+      expect(data?.html).toBe('<script>alert("xss")</script>');
+    });
+  });
+
+  describe('Type Safety', () => {
+    test('should preserve type information', () => {
+      interface AppConfig {
+        apiUrl: string;
+        features: {
+          analytics: boolean;
+          search: boolean;
+        };
+        version: string;
+      }
+
+      const config: AppConfig = {
+        apiUrl: '/api',
+        features: { analytics: true, search: true },
+        version: '1.0.0',
+      };
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-typed';
+      scriptElement.textContent = JSON.stringify(config);
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<AppConfig>('test-typed');
+
+      expect(data).toBeTruthy();
+      expect(data!.apiUrl).toBe('/api');
+      expect(data!.features.analytics).toBe(true);
+      expect(typeof data!.version).toBe('string');
+    });
+  });
+
+  describe('Error Handling', () => {
+    test('should log errors in debug mode', () => {
+      const consoleError = jest.spyOn(console, 'error').mockImplementation();
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-error';
+      scriptElement.textContent = 'invalid json';
+      document.body.appendChild(scriptElement);
+
+      controller.loadData('test-error');
+
+      expect(consoleError).toHaveBeenCalled();
+      consoleError.mockRestore();
+    });
+
+    test('should handle missing textContent', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-no-content';
+      // No textContent set
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData('test-no-content');
+      expect(data).toBeNull();
+    });
+  });
+})
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:23-145
+describe('loadData', () => {
+    test('should load data from valid JSON script tag', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-data';
+      scriptElement.textContent = JSON.stringify({ test: 'value', number: 123 });
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<{ test: string; number: number }>('test-data');
+
+      expect(data).not.toBeNull();
+      expect(data?.test).toBe('value');
+      expect(data?.number).toBe(123);
+    });
+
+    test('should return null for non-existent script tag', () => {
+      const data = controller.loadData('non-existent');
+      expect(data).toBeNull();
+    });
+
+    test('should return null for wrong type attribute', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'text/javascript';
+      scriptElement.id = 'test-wrong-type';
+      scriptElement.textContent = JSON.stringify({ test: 'value' });
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData('test-wrong-type');
+      expect(data).toBeNull();
+    });
+
+    test('should return null for invalid JSON', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-invalid';
+      scriptElement.textContent = 'not valid json {]';
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData('test-invalid');
+      expect(data).toBeNull();
+    });
+
+    test('should cache loaded data', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-cache';
+      scriptElement.textContent = JSON.stringify({ cached: true });
+      document.body.appendChild(scriptElement);
+
+      const data1 = controller.loadData('test-cache');
+      const data2 = controller.loadData('test-cache');
+
+      expect(data1).toBe(data2); // Same reference = cached
+      expect(controller.getCacheSize()).toBe(1);
+    });
+
+    test('should handle empty script tag', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-empty';
+      scriptElement.textContent = '';
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData('test-empty');
+      expect(data).toBeNull();
+    });
+
+    test('should handle null values', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-null';
+      scriptElement.textContent = 'null';
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData('test-null');
+      expect(data).toBeNull(); // null is not valid (fails validation)
+    });
+
+    test('should handle arrays', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-array';
+      scriptElement.textContent = JSON.stringify([1, 2, 3]);
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<number[]>('test-array');
+      expect(Array.isArray(data)).toBe(true);
+      expect(data).toEqual([1, 2, 3]);
+    });
+
+    test('should handle complex nested objects', () => {
+      const complexData = {
+        user: { id: 1, name: 'John', roles: ['admin', 'user'] },
+        config: { theme: 'dark', features: { analytics: true } },
+      };
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-complex';
+      scriptElement.textContent = JSON.stringify(complexData);
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<typeof complexData>('test-complex');
+      expect(data).toEqual(complexData);
+    });
+
+    test('should handle unicode and special characters', () => {
+      const unicodeData = {
+        text: 'Hello 世界',
+        emoji: '🚀',
+        escaped: 'Line 1\nLine 2',
+      };
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-unicode';
+      scriptElement.textContent = JSON.stringify(unicodeData);
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<typeof unicodeData>('test-unicode');
+      expect(data).toEqual(unicodeData);
+    });
+  })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:24-36
+test('should load data from valid JSON script tag', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-data';
+      scriptElement.textContent = JSON.stringify({ test: 'value', number: 123 });
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<{ test: string; number: number }>('test-data');
+
+      expect(data).not.toBeNull();
+      expect(data?.test).toBe('value');
+      expect(data?.number).toBe(123);
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:38-41
+test('should return null for non-existent script tag', () => {
+      const data = controller.loadData('non-existent');
+      expect(data).toBeNull();
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:43-52
+test('should return null for wrong type attribute', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'text/javascript';
+      scriptElement.id = 'test-wrong-type';
+      scriptElement.textContent = JSON.stringify({ test: 'value' });
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData('test-wrong-type');
+      expect(data).toBeNull();
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:54-63
+test('should return null for invalid JSON', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-invalid';
+      scriptElement.textContent = 'not valid json {]';
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData('test-invalid');
+      expect(data).toBeNull();
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:65-77
+test('should cache loaded data', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-cache';
+      scriptElement.textContent = JSON.stringify({ cached: true });
+      document.body.appendChild(scriptElement);
+
+      const data1 = controller.loadData('test-cache');
+      const data2 = controller.loadData('test-cache');
+
+      expect(data1).toBe(data2); // Same reference = cached
+      expect(controller.getCacheSize()).toBe(1);
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:79-88
+test('should handle empty script tag', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-empty';
+      scriptElement.textContent = '';
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData('test-empty');
+      expect(data).toBeNull();
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:90-99
+test('should handle null values', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-null';
+      scriptElement.textContent = 'null';
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData('test-null');
+      expect(data).toBeNull(); // null is not valid (fails validation)
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:101-111
+test('should handle arrays', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-array';
+      scriptElement.textContent = JSON.stringify([1, 2, 3]);
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<number[]>('test-array');
+      expect(Array.isArray(data)).toBe(true);
+      expect(data).toEqual([1, 2, 3]);
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:113-127
+test('should handle complex nested objects', () => {
+      const complexData = {
+        user: { id: 1, name: 'John', roles: ['admin', 'user'] },
+        config: { theme: 'dark', features: { analytics: true } },
+      };
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-complex';
+      scriptElement.textContent = JSON.stringify(complexData);
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<typeof complexData>('test-complex');
+      expect(data).toEqual(complexData);
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:129-144
+test('should handle unicode and special characters', () => {
+      const unicodeData = {
+        text: 'Hello 世界',
+        emoji: '🚀',
+        escaped: 'Line 1\nLine 2',
+      };
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-unicode';
+      scriptElement.textContent = JSON.stringify(unicodeData);
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<typeof unicodeData>('test-unicode');
+      expect(data).toEqual(unicodeData);
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:147-213
+describe('loadDataWithFallback', () => {
+    beforeEach(() => {
+      // Mock fetch
+      global.fetch = jest.fn();
+    });
+
+    test('should use script tag data first', async () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-fallback';
+      scriptElement.textContent = JSON.stringify({ source: 'script' });
+      document.body.appendChild(scriptElement);
+
+      const data = await controller.loadDataWithFallback<{ source: string }>(
+        'test-fallback',
+        '/api/fallback'
+      );
+
+      expect(data?.source).toBe('script');
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    test('should fallback to API when script tag missing', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ source: 'api' }),
+      });
+
+      const data = await controller.loadDataWithFallback<{ source: string }>(
+        'non-existent',
+        '/api/fallback'
+      );
+
+      expect(data?.source).toBe('api');
+      expect(global.fetch).toHaveBeenCalledWith('/api/fallback');
+    });
+
+    test('should cache API fallback data', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ cached: true }),
+      });
+
+      await controller.loadDataWithFallback('test-api-cache', '/api/data');
+      await controller.loadDataWithFallback('test-api-cache', '/api/data');
+
+      expect(global.fetch).toHaveBeenCalledTimes(1); // Only called once
+    });
+
+    test('should return null on API error', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+      });
+
+      const data = await controller.loadDataWithFallback('missing', '/api/error');
+      expect(data).toBeNull();
+    });
+
+    test('should return null on network error', async () => {
+      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+
+      const data = await controller.loadDataWithFallback('missing', '/api/network-error');
+      expect(data).toBeNull();
+    });
+  })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:215-252
+describe('cache management', () => {
+    test('should clear cache', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-clear';
+      scriptElement.textContent = JSON.stringify({ test: 'value' });
+      document.body.appendChild(scriptElement);
+
+      controller.loadData('test-clear');
+      expect(controller.getCacheSize()).toBe(1);
+
+      controller.clearCache();
+      expect(controller.getCacheSize()).toBe(0);
+    });
+
+    test('should report correct cache size', () => {
+      const createScript = (id: string) => {
+        const script = document.createElement('script');
+        script.type = 'application/json';
+        script.id = id;
+        script.textContent = JSON.stringify({ test: id });
+        document.body.appendChild(script);
+      };
+
+      createScript('test-1');
+      createScript('test-2');
+      createScript('test-3');
+
+      controller.loadData('test-1');
+      expect(controller.getCacheSize()).toBe(1);
+
+      controller.loadData('test-2');
+      expect(controller.getCacheSize()).toBe(2);
+
+      controller.loadData('test-3');
+      expect(controller.getCacheSize()).toBe(3);
+    });
+  })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:216-228
+test('should clear cache', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-clear';
+      scriptElement.textContent = JSON.stringify({ test: 'value' });
+      document.body.appendChild(scriptElement);
+
+      controller.loadData('test-clear');
+      expect(controller.getCacheSize()).toBe(1);
+
+      controller.clearCache();
+      expect(controller.getCacheSize()).toBe(0);
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:230-251
+test('should report correct cache size', () => {
+      const createScript = (id: string) => {
+        const script = document.createElement('script');
+        script.type = 'application/json';
+        script.id = id;
+        script.textContent = JSON.stringify({ test: id });
+        document.body.appendChild(script);
+      };
+
+      createScript('test-1');
+      createScript('test-2');
+      createScript('test-3');
+
+      controller.loadData('test-1');
+      expect(controller.getCacheSize()).toBe(1);
+
+      controller.loadData('test-2');
+      expect(controller.getCacheSize()).toBe(2);
+
+      controller.loadData('test-3');
+      expect(controller.getCacheSize()).toBe(3);
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:254-291
+describe('XSS Prevention', () => {
+    test('should safely parse data with script tags', () => {
+      const xssData = {
+        payload: '<script>alert("xss")</script>',
+      };
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-xss';
+      scriptElement.textContent = JSON.stringify(xssData);
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<typeof xssData>('test-xss');
+
+      // Data should be parsed, but not executed
+      expect(data?.payload).toBe('<script>alert("xss")</script>');
+
+      // No actual script execution should occur
+      const scripts = document.querySelectorAll('script[src*="alert"]');
+      expect(scripts.length).toBe(0);
+    });
+
+    test('should handle encoded dangerous characters', () => {
+      // Data as it would come from server with proper encoding
+      const encodedData = '{"html":"\\u003Cscript\\u003Ealert(\\"xss\\")\\u003C/script\\u003E"}';
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-encoded';
+      scriptElement.textContent = encodedData;
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<{ html: string }>('test-encoded');
+
+      // Should decode properly
+      expect(data?.html).toBe('<script>alert("xss")</script>');
+    });
+  })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:255-274
+test('should safely parse data with script tags', () => {
+      const xssData = {
+        payload: '<script>alert("xss")</script>',
+      };
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-xss';
+      scriptElement.textContent = JSON.stringify(xssData);
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<typeof xssData>('test-xss');
+
+      // Data should be parsed, but not executed
+      expect(data?.payload).toBe('<script>alert("xss")</script>');
+
+      // No actual script execution should occur
+      const scripts = document.querySelectorAll('script[src*="alert"]');
+      expect(scripts.length).toBe(0);
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:276-290
+test('should handle encoded dangerous characters', () => {
+      // Data as it would come from server with proper encoding
+      const encodedData = '{"html":"\\u003Cscript\\u003Ealert(\\"xss\\")\\u003C/script\\u003E"}';
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-encoded';
+      scriptElement.textContent = encodedData;
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<{ html: string }>('test-encoded');
+
+      // Should decode properly
+      expect(data?.html).toBe('<script>alert("xss")</script>');
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:293-323
+describe('Type Safety', () => {
+    test('should preserve type information', () => {
+      interface AppConfig {
+        apiUrl: string;
+        features: {
+          analytics: boolean;
+          search: boolean;
+        };
+        version: string;
+      }
+
+      const config: AppConfig = {
+        apiUrl: '/api',
+        features: { analytics: true, search: true },
+        version: '1.0.0',
+      };
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-typed';
+      scriptElement.textContent = JSON.stringify(config);
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<AppConfig>('test-typed');
+
+      expect(data).toBeTruthy();
+      expect(data!.apiUrl).toBe('/api');
+      expect(data!.features.analytics).toBe(true);
+      expect(typeof data!.version).toBe('string');
+    });
+  })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:294-322
+test('should preserve type information', () => {
+      interface AppConfig {
+        apiUrl: string;
+        features: {
+          analytics: boolean;
+          search: boolean;
+        };
+        version: string;
+      }
+
+      const config: AppConfig = {
+        apiUrl: '/api',
+        features: { analytics: true, search: true },
+        version: '1.0.0',
+      };
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-typed';
+      scriptElement.textContent = JSON.stringify(config);
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData<AppConfig>('test-typed');
+
+      expect(data).toBeTruthy();
+      expect(data!.apiUrl).toBe('/api');
+      expect(data!.features.analytics).toBe(true);
+      expect(typeof data!.version).toBe('string');
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:325-351
+describe('Error Handling', () => {
+    test('should log errors in debug mode', () => {
+      const consoleError = jest.spyOn(console, 'error').mockImplementation();
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-error';
+      scriptElement.textContent = 'invalid json';
+      document.body.appendChild(scriptElement);
+
+      controller.loadData('test-error');
+
+      expect(consoleError).toHaveBeenCalled();
+      consoleError.mockRestore();
+    });
+
+    test('should handle missing textContent', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-no-content';
+      // No textContent set
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData('test-no-content');
+      expect(data).toBeNull();
+    });
+  })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:326-339
+test('should log errors in debug mode', () => {
+      const consoleError = jest.spyOn(console, 'error').mockImplementation();
+
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-error';
+      scriptElement.textContent = 'invalid json';
+      document.body.appendChild(scriptElement);
+
+      controller.loadData('test-error');
+
+      expect(consoleError).toHaveBeenCalled();
+      consoleError.mockRestore();
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/xcontroller.client.test.ts:341-350
+test('should handle missing textContent', () => {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/json';
+      scriptElement.id = 'test-no-content';
+      // No textContent set
+      document.body.appendChild(scriptElement);
+
+      const data = controller.loadData('test-no-content');
+      expect(data).toBeNull();
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/api-config.test.ts:17-257
+describe('API Configuration', () => {
+  let mockLoadData: jest.MockedFunction<typeof DataController.prototype.loadData>;
+  let originalEnv: any;
+
+  beforeEach(() => {
+    // Store original import.meta.env
+    originalEnv = { ...import.meta.env };
+
+    // Get mocked loadData
+    mockLoadData = (require('../xcontroller.client').dataController.loadData as jest.MockedFunction<typeof DataController.prototype.loadData>);
+
+    // Reset all mocks
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    // Restore original environment
+    Object.assign(import.meta.env, originalEnv);
+  });
+
+  describe('getApiBaseUrl', () => {
+    test('should prioritize VITE_API_URL (for static deployments)', () => {
+      // Mock VITE_API_URL environment variable
+      (import.meta.env as any).VITE_API_URL = 'https://api.alephatx.info';
+
+      // Mock xcontroller returning server config (should be ignored)
+      mockLoadData.mockReturnValue({
+        apiUrl: 'https://api.example.com',
+        environment: 'production',
+        features: { search: true, analytics: true, monitoring: true },
+        version: '1.0.0',
+      });
+
+      const apiUrl = getApiBaseUrl();
+
+      // Should use VITE_API_URL, not xcontroller
+      expect(apiUrl).toBe('https://api.alephatx.info');
+      // Should NOT call loadData when VITE_API_URL is available
+      expect(mockLoadData).not.toHaveBeenCalled();
+    });
+
+    test('should fall back to server-passed config when VITE_API_URL is unavailable', () => {
+      // Ensure VITE_API_URL is not set
+      delete (import.meta.env as any).VITE_API_URL;
+
+      // Mock xcontroller returning server config
+      mockLoadData.mockReturnValue({
+        apiUrl: 'https://api.example.com',
+        environment: 'production',
+        features: { search: true, analytics: true, monitoring: true },
+        version: '1.0.0',
+      });
+
+      const apiUrl = getApiBaseUrl();
+
+      expect(apiUrl).toBe('https://api.example.com');
+      expect(mockLoadData).toHaveBeenCalledWith('initial-data');
+    });
+
+    test('should fall back to /api for local development when both sources are unavailable', () => {
+      // Mock xcontroller returning null
+      mockLoadData.mockReturnValue(null);
+
+      // Ensure VITE_API_URL is not set
+      delete (import.meta.env as any).VITE_API_URL;
+
+      const apiUrl = getApiBaseUrl();
+
+      expect(apiUrl).toBe('/api');
+      expect(mockLoadData).toHaveBeenCalledWith('initial-data');
+    });
+
+    test('should handle empty string from xcontroller when VITE_API_URL is not set', () => {
+      // Ensure VITE_API_URL is not set
+      delete (import.meta.env as any).VITE_API_URL;
+
+      // Mock xcontroller returning data with empty apiUrl
+      mockLoadData.mockReturnValue({
+        apiUrl: '',
+        environment: 'production',
+        features: { search: true, analytics: true, monitoring: true },
+        version: '1.0.0',
+      });
+
+      const apiUrl = getApiBaseUrl();
+
+      // Empty string is falsy, should fall back to /api
+      expect(apiUrl).toBe('/api');
+    });
+
+    test('should handle undefined apiUrl from xcontroller when VITE_API_URL is not set', () => {
+      // Ensure VITE_API_URL is not set
+      delete (import.meta.env as any).VITE_API_URL;
+
+      // Mock xcontroller returning data without apiUrl property
+      mockLoadData.mockReturnValue({
+        environment: 'production',
+        features: { search: true, analytics: true, monitoring: true },
+        version: '1.0.0',
+      } as any);
+
+      const apiUrl = getApiBaseUrl();
+
+      expect(apiUrl).toBe('/api');
+    });
+
+    test('should use production API URL from environment variable', () => {
+      // This test simulates GitHub Pages deployment
+      mockLoadData.mockReturnValue(null);
+      (import.meta.env as any).VITE_API_URL = 'https://api.alephatx.info';
+
+      const apiUrl = getApiBaseUrl();
+
+      expect(apiUrl).toBe('https://api.alephatx.info');
+    });
+
+    test('should preserve URL format from xcontroller', () => {
+      // Test with various URL formats
+      const testUrls = [
+        'https://api.example.com',
+        'https://api.example.com:8080',
+        'https://api.example.com/v1',
+        'http://localhost:3001',
+        '/api',
+      ];
+
+      testUrls.forEach(url => {
+        mockLoadData.mockReturnValue({
+          apiUrl: url,
+          environment: 'test',
+          features: { search: true, analytics: true, monitoring: true },
+          version: '1.0.0',
+        });
+
+        const apiUrl = getApiBaseUrl();
+        expect(apiUrl).toBe(url);
+      });
+    });
+
+    test('should preserve URL format from VITE_API_URL', () => {
+      mockLoadData.mockReturnValue(null);
+
+      const testUrls = [
+        'https://api.example.com',
+        'http://localhost:3001/api',
+        '/api',
+      ];
+
+      testUrls.forEach(url => {
+        (import.meta.env as any).VITE_API_URL = url;
+        const apiUrl = getApiBaseUrl();
+        expect(apiUrl).toBe(url);
+      });
+    });
+  });
+
+  describe('Error Prevention', () => {
+    test('REGRESSION: should not return relative /api when VITE_API_URL is set', () => {
+      // This is the bug that caused the production issue
+      // The component was falling back to '/api' instead of using VITE_API_URL
+
+      (import.meta.env as any).VITE_API_URL = 'https://api.alephatx.info';
+
+      const apiUrl = getApiBaseUrl();
+
+      // Must NOT be '/api' when VITE_API_URL is available
+      expect(apiUrl).not.toBe('/api');
+      expect(apiUrl).toBe('https://api.alephatx.info');
+      // Should not even call loadData when VITE_API_URL is set
+      expect(mockLoadData).not.toHaveBeenCalled();
+    });
+
+    test('REGRESSION: should work in GitHub Pages deployment scenario', () => {
+      // Simulates exact production environment:
+      // - No xcontroller data (static HTML)
+      // - VITE_API_URL set during build
+
+      (import.meta.env as any).VITE_API_URL = 'https://api.alephatx.info';
+
+      const apiUrl = getApiBaseUrl();
+
+      // Should resolve to production API, not relative path
+      expect(apiUrl).toBe('https://api.alephatx.info');
+      expect(apiUrl).toMatch(/^https:\/\//);
+      // Should not call loadData to avoid console errors
+      expect(mockLoadData).not.toHaveBeenCalled();
+    });
+
+    test('REGRESSION: should not log console errors in static builds', () => {
+      // This test ensures we don't call loadData when VITE_API_URL is available
+      // Previously caused "[DataController] Script tag with id 'initial-data' not found" error
+
+      (import.meta.env as any).VITE_API_URL = 'https://api.alephatx.info';
+
+      const apiUrl = getApiBaseUrl();
+
+      // Verify the xcontroller was never called (preventing console.error)
+      expect(mockLoadData).not.toHaveBeenCalled();
+      expect(apiUrl).toBe('https://api.alephatx.info');
+    });
+  });
+
+  describe('Integration Scenarios', () => {
+    test('should work in server-side rendered scenario (no VITE_API_URL)', () => {
+      // SSR scenarios don't set VITE_API_URL
+      delete (import.meta.env as any).VITE_API_URL;
+
+      mockLoadData.mockReturnValue({
+        apiUrl: 'https://ssr-api.example.com',
+        environment: 'production',
+        features: { search: true, analytics: true, monitoring: true },
+        version: '1.0.0',
+      });
+
+      const apiUrl = getApiBaseUrl();
+
+      expect(apiUrl).toBe('https://ssr-api.example.com');
+      expect(mockLoadData).toHaveBeenCalledWith('initial-data');
+    });
+
+    test('should work in static site scenario (GitHub Pages)', () => {
+      (import.meta.env as any).VITE_API_URL = 'https://api.alephatx.info';
+
+      const apiUrl = getApiBaseUrl();
+
+      expect(apiUrl).toBe('https://api.alephatx.info');
+      // Should not call loadData in static builds
+      expect(mockLoadData).not.toHaveBeenCalled();
+    });
+
+    test('should work in local development scenario', () => {
+      delete (import.meta.env as any).VITE_API_URL;
+      mockLoadData.mockReturnValue(null);
+
+      const apiUrl = getApiBaseUrl();
+
+      expect(apiUrl).toBe('/api');
+      expect(mockLoadData).toHaveBeenCalledWith('initial-data');
+    });
+  });
+})
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/api-config.test.ts:37-171
+describe('getApiBaseUrl', () => {
+    test('should prioritize VITE_API_URL (for static deployments)', () => {
+      // Mock VITE_API_URL environment variable
+      (import.meta.env as any).VITE_API_URL = 'https://api.alephatx.info';
+
+      // Mock xcontroller returning server config (should be ignored)
+      mockLoadData.mockReturnValue({
+        apiUrl: 'https://api.example.com',
+        environment: 'production',
+        features: { search: true, analytics: true, monitoring: true },
+        version: '1.0.0',
+      });
+
+      const apiUrl = getApiBaseUrl();
+
+      // Should use VITE_API_URL, not xcontroller
+      expect(apiUrl).toBe('https://api.alephatx.info');
+      // Should NOT call loadData when VITE_API_URL is available
+      expect(mockLoadData).not.toHaveBeenCalled();
+    });
+
+    test('should fall back to server-passed config when VITE_API_URL is unavailable', () => {
+      // Ensure VITE_API_URL is not set
+      delete (import.meta.env as any).VITE_API_URL;
+
+      // Mock xcontroller returning server config
+      mockLoadData.mockReturnValue({
+        apiUrl: 'https://api.example.com',
+        environment: 'production',
+        features: { search: true, analytics: true, monitoring: true },
+        version: '1.0.0',
+      });
+
+      const apiUrl = getApiBaseUrl();
+
+      expect(apiUrl).toBe('https://api.example.com');
+      expect(mockLoadData).toHaveBeenCalledWith('initial-data');
+    });
+
+    test('should fall back to /api for local development when both sources are unavailable', () => {
+      // Mock xcontroller returning null
+      mockLoadData.mockReturnValue(null);
+
+      // Ensure VITE_API_URL is not set
+      delete (import.meta.env as any).VITE_API_URL;
+
+      const apiUrl = getApiBaseUrl();
+
+      expect(apiUrl).toBe('/api');
+      expect(mockLoadData).toHaveBeenCalledWith('initial-data');
+    });
+
+    test('should handle empty string from xcontroller when VITE_API_URL is not set', () => {
+      // Ensure VITE_API_URL is not set
+      delete (import.meta.env as any).VITE_API_URL;
+
+      // Mock xcontroller returning data with empty apiUrl
+      mockLoadData.mockReturnValue({
+        apiUrl: '',
+        environment: 'production',
+        features: { search: true, analytics: true, monitoring: true },
+        version: '1.0.0',
+      });
+
+      const apiUrl = getApiBaseUrl();
+
+      // Empty string is falsy, should fall back to /api
+      expect(apiUrl).toBe('/api');
+    });
+
+    test('should handle undefined apiUrl from xcontroller when VITE_API_URL is not set', () => {
+      // Ensure VITE_API_URL is not set
+      delete (import.meta.env as any).VITE_API_URL;
+
+      // Mock xcontroller returning data without apiUrl property
+      mockLoadData.mockReturnValue({
+        environment: 'production',
+        features: { search: true, analytics: true, monitoring: true },
+        version: '1.0.0',
+      } as any);
+
+      const apiUrl = getApiBaseUrl();
+
+      expect(apiUrl).toBe('/api');
+    });
+
+    test('should use production API URL from environment variable', () => {
+      // This test simulates GitHub Pages deployment
+      mockLoadData.mockReturnValue(null);
+      (import.meta.env as any).VITE_API_URL = 'https://api.alephatx.info';
+
+      const apiUrl = getApiBaseUrl();
+
+      expect(apiUrl).toBe('https://api.alephatx.info');
+    });
+
+    test('should preserve URL format from xcontroller', () => {
+      // Test with various URL formats
+      const testUrls = [
+        'https://api.example.com',
+        'https://api.example.com:8080',
+        'https://api.example.com/v1',
+        'http://localhost:3001',
+        '/api',
+      ];
+
+      testUrls.forEach(url => {
+        mockLoadData.mockReturnValue({
+          apiUrl: url,
+          environment: 'test',
+          features: { search: true, analytics: true, monitoring: true },
+          version: '1.0.0',
+        });
+
+        const apiUrl = getApiBaseUrl();
+        expect(apiUrl).toBe(url);
+      });
+    });
+
+    test('should preserve URL format from VITE_API_URL', () => {
+      mockLoadData.mockReturnValue(null);
+
+      const testUrls = [
+        'https://api.example.com',
+        'http://localhost:3001/api',
+        '/api',
+      ];
+
+      testUrls.forEach(url => {
+        (import.meta.env as any).VITE_API_URL = url;
+        const apiUrl = getApiBaseUrl();
+        expect(apiUrl).toBe(url);
+      });
+    });
+  })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/api-config.test.ts:38-56
+test('should prioritize VITE_API_URL (for static deployments)', () => {
+      // Mock VITE_API_URL environment variable
+      (import.meta.env as any).VITE_API_URL = 'https://api.alephatx.info';
+
+      // Mock xcontroller returning server config (should be ignored)
+      mockLoadData.mockReturnValue({
+        apiUrl: 'https://api.example.com',
+        environment: 'production',
+        features: { search: true, analytics: true, monitoring: true },
+        version: '1.0.0',
+      });
+
+      const apiUrl = getApiBaseUrl();
+
+      // Should use VITE_API_URL, not xcontroller
+      expect(apiUrl).toBe('https://api.alephatx.info');
+      // Should NOT call loadData when VITE_API_URL is available
+      expect(mockLoadData).not.toHaveBeenCalled();
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/api-config.test.ts:58-74
+test('should fall back to server-passed config when VITE_API_URL is unavailable', () => {
+      // Ensure VITE_API_URL is not set
+      delete (import.meta.env as any).VITE_API_URL;
+
+      // Mock xcontroller returning server config
+      mockLoadData.mockReturnValue({
+        apiUrl: 'https://api.example.com',
+        environment: 'production',
+        features: { search: true, analytics: true, monitoring: true },
+        version: '1.0.0',
+      });
+
+      const apiUrl = getApiBaseUrl();
+
+      expect(apiUrl).toBe('https://api.example.com');
+      expect(mockLoadData).toHaveBeenCalledWith('initial-data');
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/api-config.test.ts:76-87
+test('should fall back to /api for local development when both sources are unavailable', () => {
+      // Mock xcontroller returning null
+      mockLoadData.mockReturnValue(null);
+
+      // Ensure VITE_API_URL is not set
+      delete (import.meta.env as any).VITE_API_URL;
+
+      const apiUrl = getApiBaseUrl();
+
+      expect(apiUrl).toBe('/api');
+      expect(mockLoadData).toHaveBeenCalledWith('initial-data');
+    })
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/__tests__/api-config.test.ts:89-105
+test('should handle empty string from xcontroller when VITE_API_URL is not set', () => {
+      // Ensure VITE_API_URL is not set
+      delete (import.meta.env as any).VITE_API_URL;
+
+      // Mock xcontroller returning data with empty apiUrl
+      mockLoadData.mockReturnValue({
+        apiUrl: '',
+        environment: 'production',
+        features: { search: true, analytics: true, monitoring: true },
+        version: '1.0.0',
+      });
+
+      const apiUrl = getApiBaseUrl();
+
+      // Empty string is falsy, should fall back to /api
+      expect(apiUrl).toBe('/api');
+    })
+
+=== Environment variable usage ===
+Found 30 matches (showing first 30 of 91):
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:6
+process.env.DATABASE_URL
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/query-db.ts:11
+process.env.DATABASE_URL
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/lib/xcontroller.client.ts:141
+process.env.NODE_ENV
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/database.ts:4
+process.env.DATABASE_URL
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/src/database.ts:8
+process.env.DATABASE_URL
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/lib/prisma.ts:9
+process.env.NODE_ENV
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/lib/prisma.ts:12
+process.env.NODE_ENV
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/lib/prisma.ts:19
+process.env.DATABASE_READ_ONLY_URL
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/lib/prisma.ts:19
+process.env.DATABASE_URL
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/lib/prisma.ts:22
+process.env.NODE_ENV
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/lib/prisma.ts:25
+process.env.NODE_ENV
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/scripts/worker.ts:16
+process.env.REDIS_HOST
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/scripts/worker.ts:16
+process.env.REDIS_PORT
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/scripts/worker.ts:17
+process.env.DATABASE_URL
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/lib/logger.ts:5
+process.env.LOG_LEVEL
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/services/token-refresh.service.ts:97
+process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/lib/tcad-scraper.ts:63
+process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/config/index.ts:51
+process.env.NODE_ENV
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/config/index.ts:52
+process.env.NODE_ENV
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/config/index.ts:53
+process.env.NODE_ENV
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/config/index.ts:54
+process.env.NODE_ENV
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/config/index.ts:59
+process.env.DOPPLER_PROJECT
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/config/index.ts:60
+process.env.DOPPLER_CONFIG
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/config/index.ts:61
+process.env.DOPPLER_PROJECT
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/config/index.ts:67
+process.env.HOST
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/config/index.ts:68
+process.env.LOG_LEVEL
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/config/index.ts:74
+process.env.DATABASE_URL
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/config/index.ts:75
+process.env.DATABASE_READ_ONLY_URL
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/config/index.ts:82
+process.env.REDIS_HOST
+
+/Users/alyshialedlie/code/ISPublicSites/tcad-scraper/server/src/config/index.ts:84
+process.env.REDIS_PASSWORD
+
+=== Deprecated patterns (var declarations) ===
+No matches found
+
+================================================================================
+ANALYSIS COMPLETE
+================================================================================

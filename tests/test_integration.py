@@ -106,7 +106,7 @@ rule:
   pattern: class $NAME"""
 
         result = find_code_by_rule(
-            project_folder=fixtures_dir, yaml=yaml_rule, output_format="text"
+            project_folder=fixtures_dir, yaml_rule=yaml_rule, output_format="text"
         )
 
         assert "Calculator" in result
