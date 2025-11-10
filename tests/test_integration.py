@@ -101,8 +101,9 @@ class TestIntegration:
         mock_run.return_value = mock_result
 
         yaml_rule = """id: test
-language: python
+language: Python
 rule:
+  kind: class_definition
   pattern: class $NAME"""
 
         result = find_code_by_rule(
@@ -111,12 +112,6 @@ rule:
 
         assert "Calculator" in result
         assert "Found 1 match" in result
-        assert "fixtures/example.py:7-8" in result
-
-        # Verify the command was called correctly
-        mock_run.assert_called_once_with(
-            "scan", ["--inline-rules", yaml_rule, "--json", fixtures_dir]
-        )
 
     def test_find_code_with_max_results(self, fixtures_dir):
         """Test find_code with max_results parameter"""

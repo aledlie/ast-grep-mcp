@@ -110,7 +110,7 @@ The prompt will ask LLM to use MCP to create, verify and improve the rule it cre
 
 ## Features
 
-The server provides four main tools for code analysis:
+The server provides five main tools for code analysis:
 
 ### 🔍 `dump_syntax_tree`
 Visualize the Abstract Syntax Tree structure of code snippets. Essential for understanding how to write effective search patterns.
@@ -166,6 +166,25 @@ Advanced codebase search using complex YAML rules that can express sophisticated
 - Search with relational constraints (inside, has, precedes, follows)
 - Complex multi-condition searches
 
+### 🔁 `find_duplication`
+Detect duplicate code and suggest modularization based on DRY (Don't Repeat Yourself) principles.
+
+**Parameters:**
+- `construct_type`: Type of code construct to analyze (`function_definition`, `class_definition`, `method_definition`)
+- `min_similarity`: Similarity threshold (0.0-1.0) to consider code as duplicate (default: 0.8)
+- `min_lines`: Minimum lines to consider for duplication (default: 5)
+
+**Returns:**
+- Summary statistics (total constructs analyzed, duplicate groups found, potential line savings)
+- Detailed duplication groups with similarity scores and locations
+- Specific refactoring suggestions for each duplication group
+
+**Use cases:**
+- Identify duplicate functions, classes, or methods across a codebase
+- Get quantified metrics on code duplication (lines duplicated, potential savings)
+- Receive actionable refactoring suggestions to eliminate duplication
+- Enforce DRY principles during code review
+
 
 ## Usage Examples
 
@@ -202,6 +221,47 @@ rule:
     - has:
         pattern: await $EXPR
         stopBy: end
+```
+
+### Duplication Detection Example
+
+User Query:
+> Find duplicate functions in my Python codebase
+
+AI will use the `find_duplication` tool:
+
+```
+find_duplication(
+  project_folder="/path/to/project",
+  language="python",
+  construct_type="function_definition",
+  min_similarity=0.8,
+  min_lines=5
+)
+```
+
+Result might show:
+```json
+{
+  "summary": {
+    "total_constructs": 45,
+    "duplicate_groups": 3,
+    "total_duplicated_lines": 120,
+    "potential_line_savings": 80
+  },
+  "refactoring_suggestions": [
+    {
+      "type": "Extract Shared Function",
+      "description": "Extract 3 similar functions into a shared utility function",
+      "duplicate_count": 3,
+      "locations": [
+        "utils.py:15-25",
+        "helpers.py:30-40",
+        "services.py:50-60"
+      ]
+    }
+  ]
+}
 ```
 
 ## Supported Languages

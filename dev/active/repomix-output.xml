@@ -1,0 +1,3671 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+ast-grep-mcp-strategic-plan/
+  ast-grep-mcp-context.md
+  ast-grep-mcp-strategic-plan.md
+  ast-grep-mcp-tasks.md
+  HANDOFF-NOTES.md
+  phase1-session-notes.md
+CONTEXT-RESET-SUMMARY.md
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="ast-grep-mcp-strategic-plan/ast-grep-mcp-context.md">
+# AST-Grep MCP Server - Context Documentation
+
+**Last Updated:** 2025-11-08 (Phase 1: 100% COMPLETE - All 5 tasks)
+
+---
+
+## Project Overview
+
+**Name:** ast-grep MCP Server
+**Repository:** https://github.com/ast-grep/ast-grep-mcp
+**Type:** Model Context Protocol (MCP) Server
+**Purpose:** Provide AI assistants with structural code search capabilities using ast-grep
+**Status:** Experimental/MVP
+**License:** TBD (check repository)
+
+---
+
+## Architecture Overview
+
+### System Design
+
+```
+┌─────────────────────┐
+│   MCP Client        │
+│ (Cursor/Claude)     │
+└──────────┬──────────┘
+           │ MCP Protocol (stdio)
+           ▼
+┌─────────────────────┐
+│   FastMCP Server    │
+│   (Python/main.py)  │
+├─────────────────────┤
+│ - dump_syntax_tree  │
+│ - test_match_code   │
+│ - find_code         │
+│ - find_code_by_rule │
+└──────────┬──────────┘
+           │ subprocess.run()
+           ▼
+┌─────────────────────┐
+│   ast-grep CLI      │
+│  (External Binary)  │
+└─────────────────────┘
+```
+
+### Key Design Decisions
+
+1. **Single-File Architecture** (main.py, ~517 lines as of 2025-11-08)
+   - Rationale: Simplicity, portability, easy maintenance
+   - Trade-off: May need refactoring if complexity grows beyond ~600 lines
+   - Current: 166 statements, 96% test coverage
+
+2. **Text Output Format as Default**
+   - Rationale: Reduces token usage by ~75% vs JSON
+   - Format: `filepath:line-range` headers with match text
+   - Trade-off: Less metadata available (use JSON for full details)
+
+3. **Dynamic Tool Registration**
+   - Pattern: Tools registered via `register_mcp_tools()` after config parsing
+   - Rationale: Allows tools to access global `CONFIG_PATH` variable
+   - Complexity: Nested functions for closure over config
+
+4. **Subprocess Execution**
+   - Flow: `run_ast_grep()` → `run_command()` → `subprocess.run()`
+   - Windows compatibility: `shell=True` for npm-installed ast-grep (batch file)
+   - Error handling: Custom exception hierarchy (AstGrepError and subclasses)
+
+5. **Test Mocking Strategy**
+   - Approach: `MockFastMCP` class bypasses decorator machinery
+   - Pattern: Patch imports, import main, call `register_mcp_tools()`, extract tools
+   - Trade-off: Brittle if FastMCP changes, but allows direct tool testing
+
+---
+
+## Key Files and Directories
+
+### Core Implementation
+- **`main.py`** (799 lines) - Entire MCP server implementation
+  - Lines 1-12: Imports (added time, structlog in Phase 1)
+  - Lines 18-63: Logging configuration (configure_logging, get_logger)
+  - Lines 66-138: Custom exception classes (6 exception types)
+  - Lines 141-181: Pydantic configuration models (validation)
+  - Lines 184-225: Config validation function
+  - Lines 228-297: Argument parsing, config resolution, logging setup
+  - Lines 299-633: Tool implementations (4 tools with comprehensive logging)
+  - Lines 636-798: Helper functions (format, languages, execution with logging)
+  - Line 799: Entry point
+
+### Documentation
+- **`README.md`** - User-facing documentation, installation, usage
+- **`CLAUDE.md`** - AI assistant development guide (project instructions)
+- **`CONFIGURATION.md`** - sgconfig.yaml configuration guide (350+ lines, created 2025-11-08)
+- **`ast-grep.mdc`** - Comprehensive ast-grep rule documentation (for LLMs)
+- **`dev/active/ast-grep-mcp-strategic-plan/phase1-session-notes.md`** - Phase 1 implementation notes
+
+### Testing
+- **`tests/test_unit.py`** (990 lines, 57 unit tests) - Unit tests with mocked subprocess calls
+- **`tests/test_integration.py`** (5 integration tests) - Integration tests with real ast-grep execution
+- **`tests/fixtures/`** - Test code samples and config files
+  - Code samples: `example.py`, `example.js`, `sample.py`
+  - Config samples: `valid_config.yaml`, `invalid_config_*.yaml`, `empty_config.yaml`
+- **Coverage:** 96% (166 statements, 7 lines uncovered)
+
+### Configuration
+- **`pyproject.toml`** - Python project configuration
+  - Dependencies: pydantic, mcp[cli], pyyaml, structlog
+  - Dev dependencies: pytest, ruff, mypy, pytest-cov
+  - Scripts: `ast-grep-server` entry point
+  - Tool configs: pytest, coverage (96% target), ruff (line-length=140), mypy (strict=true)
+
+### Other
+- **`generate_mcp_docs.py`** - Script to generate MCP server documentation
+- **`mcp-docs/`** - Documentation for 29 different MCP servers (reference material)
+- **`renovate.json`** - Automated dependency updates configuration
+
+---
+
+## Critical Dependencies
+
+### Runtime Dependencies
+1. **ast-grep CLI** (external binary)
+   - Purpose: Core structural code search engine
+   - Installation: brew/nix/cargo/npm
+   - Version compatibility: Monitor for breaking changes
+   - Alternative: tree-sitter native integration (future consideration)
+
+2. **FastMCP** (`mcp[cli]>=1.6.0`)
+   - Purpose: MCP protocol implementation framework
+   - Provides: `@mcp.tool()` decorator, stdio transport
+   - Risk: Protocol changes may require adaptation
+
+3. **Pydantic** (`>=2.11.0`)
+   - Purpose: Data validation, `Field()` for tool parameters
+   - Usage: Parameter descriptions, default values, type hints
+
+4. **PyYAML** (`>=6.0.2`)
+   - Purpose: Parse sgconfig.yaml for custom languages
+   - Usage: Read custom language configurations
+
+### Development Dependencies
+- **pytest** - Test framework
+- **pytest-cov** - Coverage reporting
+- **pytest-mock** - Mocking utilities
+- **ruff** - Linting and formatting
+- **mypy** - Static type checking
+
+### Build/Runtime Tools
+- **uv** - Fast Python package manager
+- **Python 3.13+** - Language runtime
+
+---
+
+## Configuration System
+
+### Config Path Precedence
+1. `--config` CLI flag (highest priority)
+2. `AST_GREP_CONFIG` environment variable
+3. None (ast-grep uses defaults)
+
+### sgconfig.yaml Support
+- **Purpose**: Customize ast-grep behavior (language mappings, rule directories)
+- **Location**: User-specified via --config or env var
+- **Usage**: Passed to ast-grep via `--config` flag
+- **Validation**: Full Pydantic validation (structure, field types, extension format)
+- **Custom Languages**: Parsed to extend `get_supported_languages()` output
+- **Error Handling**: ConfigurationError with helpful messages and documentation links
+
+### Global State
+- **`CONFIG_PATH`**: Global variable set by `parse_args_and_get_config()`
+- **Rationale**: Shared across all tool functions without passing as parameter
+- **Risk**: Global state, but acceptable for single-server-instance design
+
+---
+
+## Data Flow
+
+### Tool Invocation Flow
+```
+1. MCP Client sends tool request (JSON-RPC over stdio)
+   ↓
+2. FastMCP deserializes request, calls tool function
+   ↓
+3. Tool function prepares ast-grep command arguments
+   ↓
+4. run_ast_grep() adds --config if CONFIG_PATH set
+   ↓
+5. run_command() executes subprocess.run()
+   ↓
+6. ast-grep processes code, outputs JSON or text
+   ↓
+7. Tool function parses output, formats result
+   ↓
+8. FastMCP serializes response back to client
+```
+
+### Text Format Conversion
+```
+ast-grep JSON output:
+{
+  "file": "src/app.py",
+  "range": {"start": {"line": 10}, "end": {"line": 15}},
+  "text": "def example():\n    pass"
+}
+   ↓
+Text format:
+src/app.py:11-16
+def example():
+    pass
+```
+
+---
+
+## Testing Strategy
+
+### Unit Tests (`test_unit.py`)
+- **Approach**: Mock subprocess calls, test logic in isolation
+- **Coverage**: Tool parameter handling, output formatting, error cases
+- **Mocking**: Patch `subprocess.run()` to return controlled responses
+- **Fixtures**: Mock JSON responses from ast-grep
+
+### Integration Tests (`test_integration.py`)
+- **Approach**: Real ast-grep execution against test fixtures
+- **Coverage**: End-to-end tool execution, real ast-grep output parsing
+- **Fixtures**: `tests/fixtures/` contains sample code in various languages
+- **Prerequisites**: Requires ast-grep CLI installed on test system
+
+### Test Infrastructure
+- **MockFastMCP Pattern**: Bypass decorator machinery to extract tool functions
+- **Direct Function Testing**: Call tool functions directly without MCP protocol
+- **Shared Setup**: `register_mcp_tools()` called in test setup to define tools
+
+---
+
+## Phase 1 Implementation (2025-11-08) - 100% COMPLETE ✅
+
+### Production-Grade Quality Achieved
+
+Phase 1 of the strategic plan focused on establishing production-grade quality standards. **All five tasks completed** in a single session, transforming the codebase from experimental MVP to production-ready quality.
+
+### Completed Enhancements
+
+**1. Custom Exception Hierarchy (Task 1)**
+- Created 6 specific exception classes with helpful error messages
+- AstGrepError (base), AstGrepNotFoundError, InvalidYAMLError, ConfigurationError, AstGrepExecutionError, NoMatchesError
+- Each exception includes installation/resolution guidance
+- All error handling migrated from generic exceptions
+
+**2. Comprehensive Logging System (Task 2) - ✅ JUST COMPLETED**
+- Structured JSON logging with structlog
+- 4 log levels: DEBUG, INFO, WARNING, ERROR
+- CLI flags: --log-level, --log-file
+- Environment variables: LOG_LEVEL, LOG_FILE
+- All 4 tools wrapped with timing and performance metrics
+- Subprocess execution logging with sanitization
+- Log events: tool_invoked, tool_completed, tool_failed, command_completed, etc.
+- Total: +282 lines added to main.py
+
+**3. Test Coverage Expansion (Task 3)**
+- Increased coverage from 72% to 96% (target: 90%)
+- Added 36 new test cases across 8 new test classes
+- Created 7 test fixture files for edge case validation
+- Total: 62 tests (unit + integration)
+
+**4. Type Safety with Mypy Strict Mode (Task 4)**
+- Enabled mypy strict mode in pyproject.toml
+- Added comprehensive type hints throughout codebase
+- Used cast() for dynamic JSON parsing
+- Removed all type:ignore comments (except get_logger return type)
+
+**5. Configuration Validation with Pydantic (Task 5)**
+- Created Pydantic models: CustomLanguageConfig, AstGrepConfig
+- Implemented validate_config_file() with comprehensive checks
+- File existence, YAML parsing, structure validation, field validation
+- Created CONFIGURATION.md documentation (350+ lines)
+- Validation integrated into startup sequence
+
+### Final Phase 1 Metrics
+- **Test Coverage:** 96% (191 statements, 7 uncovered)
+- **Tests:** 62 total (57 unit, 5 integration)
+- **Code Quality:** mypy strict mode ✅, ruff linting ✅
+- **Lines of Code:** 799 (main.py, +282 from Task 2), 990 (test_unit.py)
+- **Documentation:** 6 comprehensive docs (README, CLAUDE with logging, CONFIGURATION, strategic plan, session notes, task checklist)
+- **Dependencies:** pydantic, mcp[cli], pyyaml, structlog
+
+### Technical Debt Addressed
+- ✅ Generic error messages → Specific, helpful exceptions
+- ✅ Minimal test coverage → Comprehensive 96% coverage
+- ✅ No type hints → Full mypy strict mode compliance
+- ✅ No config validation → Pydantic models with validators
+- ✅ No structured logging → structlog with JSON output and performance metrics
+
+### Files Created in Phase 1
+- `CONFIGURATION.md` - Configuration guide
+- `tests/fixtures/valid_config.yaml` - Valid config example
+- `tests/fixtures/invalid_config_*.yaml` - Invalid config examples
+- `dev/active/ast-grep-mcp-strategic-plan/phase1-session-notes.md` - Implementation notes
+
+### See Also
+- **Phase 1 Session Notes:** `dev/active/ast-grep-mcp-strategic-plan/phase1-session-notes.md`
+- **Strategic Plan:** `dev/active/ast-grep-mcp-strategic-plan/ast-grep-mcp-strategic-plan.md`
+- **Task Breakdown:** `dev/active/ast-grep-mcp-strategic-plan/ast-grep-mcp-tasks.md`
+
+---
+
+## Known Issues and Limitations
+
+### Current Limitations
+1. **No Progress Indication**: Long searches provide no feedback
+2. **No Result Streaming**: Wait for all results before returning
+3. **No Caching**: Identical queries re-execute every time
+4. **Limited Error Context**: Generic error messages, minimal debugging info
+5. **No Rewrite Support**: Read-only operations, can't apply ast-grep fixes
+6. **Blocking Execution**: Single-threaded, no parallelization
+7. **Memory Constraints**: Large result sets load entirely into memory
+
+### Known Bugs/Quirks
+1. **"No matches" Error in test_match_code_rule**: Suggests `stopBy: end` for relational rules
+   - Location: main.py:97
+   - Rationale: Common gotcha with ast-grep's traversal behavior
+
+2. **Windows Shell Requirement**: ast-grep needs `shell=True` when installed via npm
+   - Location: main.py:282
+   - Rationale: npm creates batch file wrapper, not executable
+
+3. **Line Number Off-by-One**: ast-grep returns 0-indexed lines, display as 1-indexed
+   - Location: main.py:241-242
+   - Handles: Conversion for user-friendly output
+
+---
+
+## Common Development Patterns
+
+### Adding a New Tool
+```python
+@mcp.tool()
+def new_tool(
+    param: str = Field(description="Parameter description"),
+) -> str:
+    """Tool description for AI assistant."""
+    # Prepare ast-grep args
+    args = ["--option", param]
+
+    # Execute
+    result = run_ast_grep("command", args)
+
+    # Process and return
+    return result.stdout.strip()
+```
+
+### Error Handling Pattern
+```python
+try:
+    result = run_ast_grep("scan", args)
+except RuntimeError as e:
+    # User-friendly error message
+    raise ValueError(f"Search failed: {e}")
+```
+
+### Output Format Selection
+```python
+if output_format == "text":
+    text_output = format_matches_as_text(matches)
+    return header + ":\n\n" + text_output
+return matches  # JSON
+```
+
+---
+
+## Performance Considerations
+
+### Current Performance Characteristics
+- **Small codebases (<1K files)**: <1s response time
+- **Medium codebases (1K-10K files)**: 1-5s response time
+- **Large codebases (>10K files)**: 5-30s response time (varies by query complexity)
+
+### Bottlenecks
+1. **ast-grep Execution**: Subprocess overhead, file I/O
+2. **JSON Parsing**: Large result sets require full parsing
+3. **No Caching**: Repeated queries re-execute
+4. **Single-threaded**: No parallel file processing
+
+### Optimization Opportunities (Future)
+- Implement result streaming (don't wait for completion)
+- Add LRU cache for frequent queries
+- Parallel execution for multi-file searches
+- Memory-mapped file handling for large files
+
+---
+
+## Security Considerations
+
+### Current Security Posture
+- **Input Validation**: Minimal (relies on ast-grep for YAML validation)
+- **Path Traversal**: No explicit protection (relies on ast-grep)
+- **Code Injection**: YAML passed to ast-grep could contain shell commands (if ast-grep vulnerable)
+- **Resource Limits**: None (queries can consume arbitrary CPU/memory)
+
+### Security Recommendations (Future)
+1. Validate all file paths (no `../`, must be within allowed directories)
+2. Validate YAML structure before passing to ast-grep
+3. Implement timeout limits for long-running queries
+4. Add memory limits to prevent OOM
+5. Sanitize user input (patterns, file paths)
+6. Consider sandboxing ast-grep execution
+
+---
+
+## Development Workflow
+
+### Local Development
+```bash
+# Setup
+uv sync --extra dev
+
+# Run tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=main --cov-report=term-missing
+
+# Lint
+uv run ruff check .
+uv run ruff check --fix .
+
+# Type check
+uv run mypy main.py
+
+# Run server
+uv run main.py --config /path/to/sgconfig.yaml
+```
+
+### Testing Workflow
+1. Write test case in `test_unit.py` or `test_integration.py`
+2. Run specific test: `uv run pytest tests/test_unit.py::test_name -v`
+3. Verify coverage: `uv run pytest --cov=main --cov-report=html`
+4. Review coverage report in `htmlcov/index.html`
+
+### Debugging
+- **Print debugging**: Add print statements (output goes to stderr in MCP context)
+- **pytest -s flag**: See print output during tests
+- **ast-grep --debug-query**: Use directly to debug AST patterns
+- **Mock testing**: Test tool functions directly without MCP protocol
+
+---
+
+## Integration Points
+
+### MCP Client Configuration
+**Cursor** (`.cursor-mcp/settings.json`):
+```json
+{
+  "mcpServers": {
+    "ast-grep": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/ast-grep-mcp", "run", "main.py"],
+      "env": {}
+    }
+  }
+}
+```
+
+**Claude Desktop** (similar configuration)
+
+### ast-grep Integration
+- **Commands Used**: `ast-grep run`, `ast-grep scan`
+- **Flags**: `--pattern`, `--lang`, `--debug-query`, `--json`, `--stdin`, `--inline-rules`, `--config`
+- **Input**: Code via stdin for testing, file paths for scanning
+- **Output**: JSON for parsing, stderr for debug queries
+
+---
+
+## Future Architecture Considerations
+
+### Potential Refactoring (when >500 lines)
+```
+ast_grep_mcp/
+  __init__.py
+  server.py         # FastMCP initialization
+  tools.py          # Tool implementations
+  executor.py       # ast-grep subprocess handling
+  cache.py          # Query result caching
+  formatter.py      # Output formatting (text/JSON)
+  config.py         # Configuration management
+  types.py          # Pydantic models, type definitions
+```
+
+### Extension Points
+- **Custom Formatters**: Plugin system for output formats
+- **Result Processors**: Post-processing hooks (filtering, sorting, grouping)
+- **Cache Backends**: Redis, file-based, in-memory
+- **Observability**: Pluggable logging, metrics, tracing
+
+---
+
+## Resources and References
+
+### Official Documentation
+- **ast-grep**: https://ast-grep.github.io/
+- **Model Context Protocol**: https://modelcontextprotocol.io/
+- **FastMCP**: https://github.com/pydantic/fastmcp
+- **MCP Server Registry**: https://github.com/modelcontextprotocol/servers
+
+### Key ast-grep Concepts
+- **Pattern Syntax**: AST-based search patterns with metavariables ($VAR)
+- **YAML Rules**: Complex multi-condition searches (all/any/not, relational rules)
+- **Relational Rules**: inside, has, precedes, follows (with stopBy)
+- **Custom Languages**: tree-sitter grammar integration
+
+### Development Resources
+- **Python Type Hints**: https://docs.python.org/3/library/typing.html
+- **Pydantic**: https://docs.pydantic.dev/
+- **pytest**: https://docs.pytest.org/
+- **ruff**: https://docs.astral.sh/ruff/
+
+---
+
+## Glossary
+
+- **MCP (Model Context Protocol)**: Protocol for AI assistants to access tools and resources
+- **FastMCP**: Python framework for building MCP servers
+- **ast-grep**: CLI tool for structural code search using AST pattern matching
+- **AST (Abstract Syntax Tree)**: Tree representation of code structure
+- **CST (Concrete Syntax Tree)**: Tree including all syntax tokens (whitespace, comments)
+- **Pattern**: Simple ast-grep search expression with metavariables
+- **YAML Rule**: Complex search configuration with multiple conditions
+- **Relational Rule**: Rule matching code based on structural relationships (inside, has, etc.)
+- **stopBy**: ast-grep directive to limit traversal depth in relational rules
+- **sgconfig.yaml**: ast-grep configuration file for custom languages and settings
+
+---
+
+## Decision Log
+
+### ADR-001: Single-File Architecture
+**Date:** Initial implementation
+**Decision:** Keep entire server in main.py (~317 lines)
+**Rationale:** Simplicity, portability, easy maintenance for experimental project
+**Consequences:** May need refactoring if complexity grows beyond ~500 lines
+
+### ADR-002: Text Output Format as Default
+**Date:** Initial implementation
+**Decision:** Default to text format (~75% fewer tokens than JSON)
+**Rationale:** Optimize for LLM token consumption, most users don't need metadata
+**Consequences:** Users must explicitly request JSON for full match details
+
+### ADR-003: Global CONFIG_PATH Variable
+**Date:** Initial implementation
+**Decision:** Use global variable instead of passing config through tool signatures
+**Rationale:** Simplifies tool function signatures, config is server-wide setting
+**Consequences:** Global state, but acceptable for single-server-instance design
+
+### ADR-004: Dynamic Tool Registration
+**Date:** Initial implementation
+**Decision:** Register tools via function after config parsing
+**Rationale:** Tools need access to CONFIG_PATH, which is set at startup
+**Consequences:** Nested functions, slight complexity in tool definition
+
+### ADR-005: Subprocess Execution for ast-grep
+**Date:** Initial implementation
+**Decision:** Shell out to ast-grep CLI instead of native tree-sitter integration
+**Rationale:** Leverage ast-grep's battle-tested implementation, avoid reimplementation
+**Consequences:** Dependency on external binary, subprocess overhead
+**Future Consideration:** Native tree-sitter integration for performance
+
+---
+
+## Contact and Ownership
+
+**Maintainer:** TBD (check repository)
+**Repository:** https://github.com/ast-grep/ast-grep-mcp
+**Issues:** https://github.com/ast-grep/ast-grep-mcp/issues
+**Discussions:** https://github.com/ast-grep/ast-grep-mcp/discussions
+
+---
+
+*This context document provides the foundational knowledge needed to understand, maintain, and extend the ast-grep MCP server. It should be updated as the project evolves.*
+</file>
+
+<file path="ast-grep-mcp-strategic-plan/ast-grep-mcp-strategic-plan.md">
+# AST-Grep MCP Server - Strategic Development Plan
+
+**Last Updated:** 2025-11-08
+
+---
+
+## Executive Summary
+
+The ast-grep MCP server is a specialized Model Context Protocol implementation that bridges AI assistants with ast-grep's powerful structural code search capabilities. This plan outlines the strategic direction for maturing the project from an experimental proof-of-concept to a production-ready, widely-adopted tool in the MCP ecosystem.
+
+**Key Strategic Goals:**
+1. Enhance reliability, performance, and user experience
+2. Expand language support and custom configuration capabilities
+3. Improve developer experience through better documentation and tooling
+4. Build community adoption and contribution pathways
+5. Establish production-grade quality standards
+
+**Current Maturity:** Experimental MVP with core functionality implemented
+**Target Maturity:** Production-ready tool with comprehensive documentation and community adoption
+
+---
+
+## Current State Analysis
+
+### Strengths
+- **Clean Architecture**: Single-file design (~317 lines) makes the codebase highly maintainable
+- **Complete Core Functionality**: All four essential tools implemented and functional
+  - `dump_syntax_tree`: AST visualization
+  - `test_match_code_rule`: Rule testing
+  - `find_code`: Pattern-based search
+  - `find_code_by_rule`: YAML rule-based search
+- **Token-Optimized Output**: Text format reduces token usage by ~75% vs JSON
+- **Comprehensive Testing**: Both unit and integration test suites with mocking patterns
+- **Good Documentation**: CLAUDE.md provides clear development guidance
+- **Cross-Platform**: Windows compatibility handled (shell=True for npm-installed ast-grep)
+- **Flexible Configuration**: Support for custom sgconfig.yaml via --config flag or env var
+- **Modern Tooling**: Uses uv for dependency management, ruff for linting, mypy for type checking
+
+### Weaknesses
+- **Limited Error Recovery**: Basic error handling could be more granular and helpful
+- **No Progress Indication**: Long-running searches provide no feedback to users
+- **Missing Features**: No support for ast-grep's fix/rewrite capabilities
+- **Minimal Performance Optimization**: No caching, parallelization, or result streaming
+- **Limited Observability**: No logging, metrics, or debugging capabilities
+- **No User Customization**: Limited ability to customize tool behavior per-user
+- **Documentation Gaps**: Missing troubleshooting guides, advanced usage examples
+- **Dependency on External Binary**: Requires ast-grep CLI to be pre-installed
+
+### Opportunities
+- **Growing MCP Ecosystem**: MCP adoption is increasing across AI assistants
+- **Unique Capability**: Only structural code search MCP server in the ecosystem
+- **Developer Demand**: Code search is a core developer workflow
+- **Integration Potential**: Could integrate with other development tools (LSP, formatters)
+- **Educational Value**: Can teach developers about AST-based code analysis
+- **Enterprise Adoption**: Code search is valuable for large codebases
+
+### Threats
+- **Competition**: Other code search tools may develop MCP integrations
+- **ast-grep Changes**: Breaking changes in ast-grep CLI could impact server
+- **MCP Protocol Evolution**: FastMCP or MCP spec changes require adaptation
+- **Performance Expectations**: Users expect fast responses for large codebases
+- **Security Concerns**: Code execution and file access require careful security boundaries
+
+---
+
+## Proposed Future State
+
+### Vision
+The ast-grep MCP server becomes the **de facto standard for structural code search in AI-assisted development**, trusted by individual developers and enterprises for its reliability, performance, and comprehensive feature set.
+
+### Success Metrics
+1. **Adoption**: 1000+ GitHub stars, 10+ production deployments
+2. **Reliability**: 99.5% uptime in production environments, <5 critical bugs per quarter
+3. **Performance**: <2s response time for 90% of queries on medium codebases (10K files)
+4. **Community**: 20+ external contributors, 50+ community-submitted rules/examples
+5. **Documentation**: <5% of issues are documentation-related questions
+6. **Quality**: 90%+ test coverage, 0 known security vulnerabilities
+
+### Key Capabilities (Future State)
+- **Advanced Search**: Support for ast-grep's full feature set including rewrites
+- **High Performance**: Caching, streaming results, parallel execution
+- **Rich Diagnostics**: Detailed error messages, query explanations, performance metrics
+- **Flexible Integration**: Multiple output formats, webhooks, custom processors
+- **Production-Ready**: Comprehensive logging, monitoring, error recovery
+- **Developer-Friendly**: Interactive rule builder, debugging tools, rich examples
+
+---
+
+## Implementation Phases
+
+### Phase 1: Foundation & Quality (Weeks 1-3)
+**Goal:** Establish production-grade quality standards and improve reliability
+
+#### Tasks
+1. **Enhanced Error Handling** [Effort: M]
+   - Acceptance: Specific error types for different failure modes (file not found, invalid YAML, ast-grep errors)
+   - Acceptance: User-friendly error messages with actionable suggestions
+   - Acceptance: Graceful degradation when ast-grep fails
+   - Dependencies: None
+
+2. **Comprehensive Logging System** [Effort: M]
+   - Acceptance: Structured logging (JSON format) for all operations
+   - Acceptance: Configurable log levels (DEBUG, INFO, WARNING, ERROR)
+   - Acceptance: Performance metrics (query time, result count, file count)
+   - Dependencies: None
+
+3. **Test Coverage Expansion** [Effort: L]
+   - Acceptance: 90%+ code coverage on main.py
+   - Acceptance: Edge case testing (empty results, malformed YAML, large files)
+   - Acceptance: Performance regression tests
+   - Dependencies: None
+
+4. **Type Safety Improvements** [Effort: S]
+   - Acceptance: mypy passes with --strict flag
+   - Acceptance: All function signatures fully typed
+   - Acceptance: Pydantic models for all data structures
+   - Dependencies: None
+
+5. **Configuration Validation** [Effort: S]
+   - Acceptance: Validate sgconfig.yaml before passing to ast-grep
+   - Acceptance: Clear error messages for invalid configuration
+   - Acceptance: Schema documentation for custom language configs
+   - Dependencies: Task 1 (error handling)
+
+### Phase 2: Performance & Scalability (Weeks 4-6)
+**Goal:** Optimize for large codebases and improve response times
+
+#### Tasks
+6. **Result Streaming** [Effort: L]
+   - Acceptance: Stream results as they're found (don't wait for completion)
+   - Acceptance: Support for early termination when max_results reached
+   - Acceptance: Progress updates during long-running searches
+   - Dependencies: Logging system (Task 2)
+
+7. **Query Result Caching** [Effort: M]
+   - Acceptance: LRU cache for identical queries (configurable size)
+   - Acceptance: Cache invalidation on file changes (optional)
+   - Acceptance: Cache hit/miss metrics in logs
+   - Dependencies: Logging system (Task 2)
+
+8. **Parallel Execution** [Effort: L]
+   - Acceptance: Parallel file processing for multi-file searches
+   - Acceptance: Configurable worker pool size
+   - Acceptance: Graceful handling of parallel execution failures
+   - Dependencies: Enhanced error handling (Task 1)
+
+9. **Large File Handling** [Effort: M]
+   - Acceptance: Streaming parsing for files >10MB
+   - Acceptance: Configurable file size limits
+   - Acceptance: Memory-efficient result aggregation
+   - Dependencies: Result streaming (Task 6)
+
+10. **Performance Benchmarking Suite** [Effort: M]
+    - Acceptance: Benchmark harness for common query patterns
+    - Acceptance: Performance regression detection in CI
+    - Acceptance: Comparison with baseline metrics
+    - Dependencies: Test coverage expansion (Task 3)
+
+### Phase 3: Feature Expansion (Weeks 7-10)
+**Goal:** Add advanced ast-grep capabilities and improve user experience
+
+#### Tasks
+11. **Code Rewrite Support** [Effort: XL]
+    - Acceptance: New tool `rewrite_code` for applying ast-grep fixes
+    - Acceptance: Dry-run mode to preview changes
+    - Acceptance: Rollback capability for failed rewrites
+    - Dependencies: Enhanced error handling (Task 1), logging (Task 2)
+
+12. **Interactive Rule Builder** [Effort: L]
+    - Acceptance: Tool to generate YAML rules from natural language
+    - Acceptance: Step-by-step rule refinement with feedback
+    - Acceptance: Integration with dump_syntax_tree for validation
+    - Dependencies: None
+
+13. **Query Explanation** [Effort: M]
+    - Acceptance: Human-readable explanation of what a rule matches
+    - Acceptance: Examples of matching/non-matching code
+    - Acceptance: Visualization of AST patterns
+    - Dependencies: None
+
+14. **Multi-Language Support Enhancements** [Effort: M]
+    - Acceptance: Auto-detection of custom languages from sgconfig
+    - Acceptance: Language-specific optimization hints
+    - Acceptance: Support for polyglot codebases (mixed languages)
+    - Dependencies: Configuration validation (Task 5)
+
+15. **Batch Operations** [Effort: M]
+    - Acceptance: Execute multiple patterns/rules in single request
+    - Acceptance: Aggregate results across queries
+    - Acceptance: Conditional execution (if pattern A, then search for pattern B)
+    - Dependencies: Parallel execution (Task 8)
+
+### Phase 4: Developer Experience (Weeks 11-13)
+**Goal:** Improve documentation, tooling, and onboarding
+
+#### Tasks
+16. **Comprehensive Documentation Overhaul** [Effort: L]
+    - Acceptance: Getting started guide (5-minute quickstart)
+    - Acceptance: Troubleshooting section for common issues
+    - Acceptance: Advanced usage guide with complex examples
+    - Acceptance: Architecture decision records (ADRs)
+    - Dependencies: None
+
+17. **Example Library** [Effort: M]
+    - Acceptance: 50+ curated rules for common patterns
+    - Acceptance: Examples organized by language and use case
+    - Acceptance: Searchable example index
+    - Dependencies: None
+
+18. **Debug Mode** [Effort: S]
+    - Acceptance: --debug flag for verbose output
+    - Acceptance: Step-by-step query execution trace
+    - Acceptance: AST visualization in debug output
+    - Dependencies: Logging system (Task 2)
+
+19. **Health Check Endpoint** [Effort: S]
+    - Acceptance: Tool to verify ast-grep installation
+    - Acceptance: Configuration validation check
+    - Acceptance: System resource availability check
+    - Dependencies: Configuration validation (Task 5)
+
+20. **VS Code Extension** [Effort: XL]
+    - Acceptance: Extension for testing rules in editor
+    - Acceptance: Syntax highlighting for ast-grep YAML
+    - Acceptance: Inline preview of match results
+    - Dependencies: Interactive rule builder (Task 12)
+
+### Phase 5: Production Readiness (Weeks 14-16)
+**Goal:** Prepare for production deployment and community adoption
+
+#### Tasks
+21. **Security Audit** [Effort: L]
+    - Acceptance: Code review for injection vulnerabilities
+    - Acceptance: Path traversal protection
+    - Acceptance: Resource limit enforcement (memory, CPU, file count)
+    - Dependencies: Configuration validation (Task 5)
+
+22. **Monitoring Integration** [Effort: M]
+    - Acceptance: Prometheus metrics endpoint (optional)
+    - Acceptance: Structured logs for Datadog/Splunk
+    - Acceptance: Distributed tracing support
+    - Dependencies: Logging system (Task 2)
+
+23. **Release Automation** [Effort: M]
+    - Acceptance: Automated GitHub releases with changelogs
+    - Acceptance: PyPI package publishing
+    - Acceptance: Docker image builds
+    - Dependencies: None
+
+24. **Contribution Guidelines** [Effort: S]
+    - Acceptance: CONTRIBUTING.md with setup instructions
+    - Acceptance: Issue templates for bugs and features
+    - Acceptance: PR template with checklist
+    - Dependencies: Documentation overhaul (Task 16)
+
+25. **Community Engagement Plan** [Effort: M]
+    - Acceptance: Blog post announcing production-ready version
+    - Acceptance: MCP server registry listing
+    - Acceptance: Outreach to 5+ developer communities
+    - Dependencies: Documentation overhaul (Task 16), release automation (Task 23)
+
+---
+
+## Risk Assessment and Mitigation Strategies
+
+### Technical Risks
+
+| Risk | Impact | Probability | Mitigation |
+|------|--------|-------------|------------|
+| **ast-grep CLI breaking changes** | High | Medium | Pin ast-grep version, maintain compatibility matrix, add version detection |
+| **Performance degradation on large codebases** | High | Medium | Implement streaming (Task 6), add resource limits, benchmark continuously (Task 10) |
+| **Memory leaks in long-running processes** | Medium | Low | Add memory monitoring, implement periodic restarts, use memory profiling |
+| **Security vulnerabilities (code injection)** | Critical | Low | Security audit (Task 21), input validation, sandboxing |
+| **MCP protocol changes** | Medium | Medium | Monitor FastMCP releases, maintain version compatibility, add protocol tests |
+
+### Operational Risks
+
+| Risk | Impact | Probability | Mitigation |
+|------|--------|-------------|------------|
+| **Limited maintainer bandwidth** | High | Medium | Automate testing/releases (Task 23), build contributor community (Task 24) |
+| **Dependency on single external tool** | Medium | Low | Document ast-grep alternatives, consider native tree-sitter integration |
+| **User configuration errors** | Medium | High | Enhanced validation (Task 5), better error messages (Task 1), examples (Task 17) |
+| **Cross-platform compatibility issues** | Medium | Medium | Expand CI matrix (Windows, macOS, Linux), test with different ast-grep install methods |
+
+### Adoption Risks
+
+| Risk | Impact | Probability | Mitigation |
+|------|--------|-------------|------------|
+| **Low MCP ecosystem awareness** | High | Medium | Community engagement (Task 25), documentation (Task 16), showcase examples |
+| **Competition from other tools** | Medium | Medium | Differentiate on quality and features, focus on unique capabilities |
+| **Poor onboarding experience** | Medium | High | Quickstart guide (Task 16), better error messages (Task 1), examples (Task 17) |
+| **Insufficient documentation** | High | Medium | Documentation overhaul (Task 16), video tutorials, interactive demos |
+
+---
+
+## Success Metrics
+
+### Development Velocity Metrics
+- Sprint velocity: 15-20 story points per 2-week sprint
+- Bug fix time: <7 days for medium priority, <2 days for critical
+- PR merge time: <48 hours for non-breaking changes
+- Test execution time: <5 minutes for full suite
+
+### Quality Metrics
+- Code coverage: 90%+ maintained
+- Mypy strict mode: 100% type coverage
+- Ruff linting: 0 violations
+- Security scan: 0 high/critical vulnerabilities
+- Performance: No >10% regression on benchmarks
+
+### User Experience Metrics
+- First-query success rate: >95%
+- Error rate: <1% of queries
+- Average query time: <2s for medium codebases
+- Documentation search-to-answer time: <2 minutes
+
+### Community Metrics
+- GitHub stars: 1000+ by end of Phase 5
+- Active contributors: 20+ total, 5+ regular
+- Issue resolution rate: >80% closed within 30 days
+- Community-contributed rules: 50+ in example library
+
+---
+
+## Required Resources and Dependencies
+
+### Human Resources
+- **Lead Developer**: 20 hours/week (architecture, code review, complex features)
+- **Contributing Developers**: 2-3 developers @ 5-10 hours/week (features, bugs)
+- **Documentation Writer**: 5 hours/week (guides, examples, tutorials)
+- **Community Manager**: 3 hours/week (issues, discussions, outreach)
+
+### Infrastructure
+- **CI/CD**: GitHub Actions (free tier sufficient)
+- **Package Hosting**: PyPI (free), GitHub Releases (free)
+- **Documentation**: GitHub Pages or ReadTheDocs (free)
+- **Monitoring**: Optional Prometheus/Grafana for production deployments
+
+### External Dependencies
+- **ast-grep**: Core dependency (stable, actively maintained)
+- **FastMCP**: MCP framework (stable, Pydantic-backed)
+- **Python 3.13+**: Runtime requirement
+- **uv**: Development tooling (fast, modern)
+
+### Tooling Dependencies
+- **pytest**: Testing framework
+- **ruff**: Linting and formatting
+- **mypy**: Type checking
+- **pytest-cov**: Coverage reporting
+- **pytest-mock**: Test mocking
+
+---
+
+## Timeline Estimates
+
+### Phase 1: Foundation & Quality
+**Duration:** 3 weeks
+**Effort:** 40-50 developer hours
+**Deliverables:** Enhanced error handling, logging, 90%+ test coverage, strict type checking
+
+### Phase 2: Performance & Scalability
+**Duration:** 3 weeks
+**Effort:** 50-60 developer hours
+**Deliverables:** Result streaming, caching, parallel execution, large file support, benchmarks
+
+### Phase 3: Feature Expansion
+**Duration:** 4 weeks
+**Effort:** 70-80 developer hours
+**Deliverables:** Code rewrite tool, rule builder, query explanation, batch operations
+
+### Phase 4: Developer Experience
+**Duration:** 3 weeks
+**Effort:** 50-60 developer hours
+**Deliverables:** Comprehensive docs, example library, debug mode, VS Code extension
+
+### Phase 5: Production Readiness
+**Duration:** 3 weeks
+**Effort:** 40-50 developer hours
+**Deliverables:** Security audit, monitoring, release automation, community engagement
+
+**Total Duration:** 16 weeks (4 months)
+**Total Effort:** 250-300 developer hours
+
+### Milestone Schedule
+- **Week 4**: Phase 1 complete - Production-grade quality foundation
+- **Week 7**: Phase 2 complete - High-performance search capabilities
+- **Week 11**: Phase 3 complete - Advanced feature parity with ast-grep
+- **Week 14**: Phase 4 complete - Excellent developer experience
+- **Week 16**: Phase 5 complete - Production-ready 1.0 release
+
+---
+
+## Dependencies and Sequencing
+
+### Critical Path
+1. Enhanced Error Handling (Task 1) → Blocks code rewrite (Task 11), parallel execution (Task 8)
+2. Logging System (Task 2) → Blocks result streaming (Task 6), monitoring (Task 22)
+3. Test Coverage (Task 3) → Required before feature expansion (Phase 3)
+4. Result Streaming (Task 6) → Enables large file handling (Task 9)
+5. Documentation Overhaul (Task 16) → Required for community engagement (Task 25)
+
+### Parallel Workstreams
+- **Quality Track**: Tasks 1-5 (Phase 1) can proceed independently
+- **Performance Track**: Tasks 6-10 (Phase 2) mostly independent after Task 2
+- **Feature Track**: Tasks 11-15 (Phase 3) can run in parallel after Phase 1
+- **Documentation Track**: Tasks 16-17 can start early alongside development
+
+### Phase Gates
+- **Phase 1 → Phase 2**: All tests passing, mypy strict mode enabled, error handling complete
+- **Phase 2 → Phase 3**: Performance benchmarks passing, no regression from Phase 1
+- **Phase 3 → Phase 4**: All new tools tested, code coverage maintained
+- **Phase 4 → Phase 5**: Documentation complete, examples validated, debug mode functional
+
+---
+
+## Implementation Notes
+
+### Technical Approach
+- **Incremental Development**: Each phase builds on previous work
+- **Test-Driven**: Write tests before or alongside implementation
+- **Backward Compatibility**: Maintain compatibility with existing MCP clients
+- **Performance First**: Benchmark every optimization, avoid premature optimization
+- **Security by Default**: Input validation, resource limits, principle of least privilege
+
+### Code Organization (Future)
+Consider splitting main.py into modules as complexity grows:
+- `ast_grep_mcp/server.py`: MCP server initialization
+- `ast_grep_mcp/tools.py`: Tool implementations
+- `ast_grep_mcp/executor.py`: ast-grep subprocess handling
+- `ast_grep_mcp/cache.py`: Query result caching
+- `ast_grep_mcp/formatter.py`: Output formatting
+- `ast_grep_mcp/config.py`: Configuration management
+
+### Testing Strategy
+- **Unit Tests**: Mock subprocess calls, test logic in isolation
+- **Integration Tests**: Real ast-grep execution against fixtures
+- **Performance Tests**: Benchmark against standardized codebases
+- **Security Tests**: Fuzzing inputs, testing path traversal protection
+- **Compatibility Tests**: Multiple ast-grep versions, OS platforms
+
+### Documentation Strategy
+- **README**: Quick start, installation, basic usage
+- **CLAUDE.md**: AI assistant development guide (existing)
+- **ARCHITECTURE.md**: Design decisions, system overview
+- **CONTRIBUTING.md**: Developer onboarding, standards
+- **EXAMPLES.md**: Curated rule examples, use cases
+- **TROUBLESHOOTING.md**: Common issues, debugging techniques
+- **API.md**: Tool reference, parameter documentation
+
+---
+
+## Future Considerations (Beyond Phase 5)
+
+### Potential Enhancements
+- **Language Server Protocol (LSP) Integration**: Real-time code search in editors
+- **Web UI**: Browser-based rule builder and query interface
+- **Cloud Service**: Hosted ast-grep search for public repositories
+- **AI-Powered Rule Generation**: LLM-assisted rule creation from examples
+- **Collaborative Features**: Share rules, queries, and results across teams
+- **Advanced Analytics**: Code quality metrics, pattern detection, refactoring suggestions
+
+### Ecosystem Integration
+- **GitHub Actions**: Pre-built workflow for code pattern enforcement
+- **Pre-commit Hooks**: Prevent commits matching anti-patterns
+- **CI/CD Integration**: Code quality gates based on pattern searches
+- **IDE Plugins**: IntelliJ, Sublime Text, Vim integrations
+- **Code Review Tools**: Automated pattern-based code review comments
+
+### Community Growth
+- **Conference Talks**: Present at developer conferences (PyConf, JSConf)
+- **Tutorial Series**: YouTube videos, blog posts, workshops
+- **Enterprise Support**: Commercial support contracts for large deployments
+- **Certification Program**: Train and certify ast-grep experts
+- **Ecosystem Fund**: Support community tools and extensions
+
+---
+
+## Conclusion
+
+This strategic plan provides a comprehensive roadmap for evolving the ast-grep MCP server from an experimental project to a production-ready, community-driven tool. By focusing on quality, performance, features, and developer experience in sequential phases, we can systematically build a reliable and powerful code search solution for the MCP ecosystem.
+
+**Next Steps:**
+1. Review and approve this strategic plan
+2. Set up project tracking (GitHub Projects or similar)
+3. Begin Phase 1 implementation
+4. Schedule bi-weekly progress reviews
+5. Engage early adopters for feedback
+
+**Success Indicators:**
+- ✅ All 25 tasks completed within 16-week timeline
+- ✅ 90%+ test coverage maintained throughout
+- ✅ 1000+ GitHub stars by end of Phase 5
+- ✅ Production deployments in at least 10 organizations
+- ✅ Active community of 20+ contributors
+</file>
+
+<file path="ast-grep-mcp-strategic-plan/ast-grep-mcp-tasks.md">
+# AST-Grep MCP Server - Task Checklist
+
+**Last Updated:** 2025-11-08 (Phase 1: 5/5 tasks complete - 100% COMPLETE)
+
+---
+
+## Phase 1: Foundation & Quality (Weeks 1-3) - 100% COMPLETE ✅
+
+### ✅ Task 1: Enhanced Error Handling [M] - COMPLETE
+- [x] Define specific error types for different failure modes
+  - [x] Create `AstGrepNotFoundError` exception class (main.py:21-37)
+  - [x] Create `InvalidYAMLError` exception class (main.py:40-58)
+  - [x] Create `ConfigurationError` exception class (main.py:61-76)
+  - [x] Create `AstGrepExecutionError` exception class (main.py:79-84)
+  - [x] Create `NoMatchesError` exception class (main.py:87)
+  - [x] Create base `AstGrepError` exception class (main.py:16-18)
+- [x] Improve error messages with actionable suggestions
+  - [x] Add "Install ast-grep" suggestion for binary not found
+  - [x] Add YAML syntax validation hints for parse errors
+  - [x] Add file path suggestions for file not found errors
+  - [x] Add configuration troubleshooting for config errors
+- [ ] Implement graceful degradation for ast-grep failures (deferred)
+  - [ ] Return partial results if some files fail
+  - [ ] Log errors but continue processing
+  - [ ] Add --strict mode flag for failing on first error
+- [x] Add error context to exception messages
+  - [x] Include command that failed (in AstGrepExecutionError)
+  - [x] Include stderr output from ast-grep
+  - [x] Include suggested fixes/workarounds in all error messages
+- [x] Update tests for new error types
+  - [x] Unit tests for each error type
+  - [x] Updated all existing tests to use new exception types
+  - [x] Test error message content
+
+**Acceptance Criteria:**
+- ✅ 6 specific error types defined (exceeded target of 5)
+- ✅ All error messages include actionable suggestions
+- ⏸️ Server continues operating after non-critical errors (deferred)
+- ✅ 100% of new error paths covered by tests
+
+**Implementation Date:** 2025-11-08
+
+---
+
+### ✅ Task 2: Comprehensive Logging System [M] - COMPLETE
+- [x] Implement structured logging (JSON format)
+  - [x] Choose logging library (structlog selected)
+  - [x] Configure JSON formatter for all log output (main.py:18-51)
+  - [x] Add log context (timestamp, level, event, metrics)
+- [x] Add configurable log levels
+  - [x] Support DEBUG, INFO, WARNING, ERROR levels
+  - [x] Add --log-level CLI flag (main.py:256-262)
+  - [x] Add LOG_LEVEL environment variable (main.py:290-297)
+  - [x] Default to INFO level
+- [x] Log all tool invocations
+  - [x] Log tool name, parameters (sanitized) - all 4 tools
+  - [x] Log start time, end time (execution_time_seconds)
+  - [x] Log success/failure status
+- [x] Add performance metrics logging
+  - [x] Query execution time (rounded to 3 decimals)
+  - [x] Result count (match_count, total_matches)
+  - [x] Output size (output_length, code_length)
+  - [ ] Memory usage - deferred to Phase 2
+- [ ] Implement log rotation/management - deferred to Phase 5
+  - [x] Optional file logging (stderr by default)
+  - [x] Configurable log file path (--log-file flag)
+  - [ ] Rotation by size or time - deferred
+- [x] Update documentation with logging examples
+  - [x] Document log format and fields (CLAUDE.md:62-106)
+  - [x] Add examples of parsing logs
+  - [x] Document log event types
+
+**Acceptance Criteria:**
+- ✅ All log output is valid JSON
+- ✅ Log levels configurable via CLI and env var
+- ✅ All tool invocations logged with timing
+- ✅ Performance metrics included in logs
+- ✅ Documentation includes log format specification
+
+**Implementation Date:** 2025-11-08
+**Lines Added:** ~282 (main.py: 517 → 799)
+**Deferred Items:** Log rotation, memory usage (Phase 2/5)
+
+---
+
+### ✅ Task 3: Test Coverage Expansion [L] - COMPLETE (96% coverage achieved)
+- [x] Achieve 90%+ code coverage on main.py
+  - [x] Identify uncovered code paths (generated HTML coverage report)
+  - [x] Write tests for all uncovered branches
+  - [x] Write tests for all uncovered functions
+  - [x] Added pragma: no cover to untestable code (entry points, decorators)
+- [x] Add edge case testing
+  - [x] Test empty result sets
+  - [x] Test malformed YAML input (5 YAML validation tests)
+  - [x] Test invalid file paths (ConfigValidation tests)
+  - [x] Test missing ast-grep binary (run_command tests)
+  - [x] Test configuration validation edge cases (8 tests)
+  - [x] Test format edge cases with missing fields (3 tests)
+  - [ ] Test very large files (>10MB) - deferred to performance testing
+  - [ ] Test very large result sets (>1000 matches) - deferred to performance testing
+  - [ ] Test special characters in patterns - deferred
+- [ ] Add performance regression tests (deferred to Phase 2)
+  - [ ] Create benchmark test suite
+  - [ ] Set performance baselines for common queries
+  - [ ] Add CI check for >10% regression
+  - [ ] Document expected performance ranges
+- [ ] Add cross-platform tests (deferred to CI/CD setup)
+  - [ ] Test on Linux (GitHub Actions)
+  - [ ] Test on macOS (GitHub Actions)
+  - [ ] Test on Windows (GitHub Actions)
+- [ ] Add ast-grep version compatibility tests (deferred to Phase 2)
+  - [ ] Test with multiple ast-grep versions
+  - [ ] Document supported version range
+  - [ ] Add version detection/warning
+- [x] Improve test fixtures
+  - [x] Add fixtures for config validation (7 YAML fixture files)
+  - [x] Add fixtures for edge cases
+  - [ ] Add fixtures for all supported languages - deferred
+
+**Acceptance Criteria:**
+- ✅ Code coverage 96% on main.py (exceeded 90% target)
+- ✅ All edge cases identified in plan have tests (config, YAML, format, errors)
+- ⏸️ Performance regression tests in CI (deferred to Phase 2)
+- ⏸️ Tests pass on Linux, macOS, Windows (local macOS only, CI deferred)
+- ⏸️ At least 2 ast-grep versions tested (deferred to Phase 2)
+
+**Implementation Date:** 2025-11-08
+**Test Count:** 62 (57 unit, 5 integration)
+**Coverage Details:** 166 statements, 7 uncovered (sys.exit paths and entry points)
+
+---
+
+### ✅ Task 4: Type Safety Improvements [S] - COMPLETE
+- [x] Enable mypy strict mode
+  - [x] Added `strict = true` flag to pyproject.toml [tool.mypy]
+  - [x] Fixed all strict mode errors (used cast() for JSON parsing)
+  - [ ] Add mypy to CI checks (deferred to CI/CD setup)
+- [x] Add type hints to all functions
+  - [x] Ensured all function signatures have return types
+  - [x] Ensured all parameters have type hints
+  - [x] Removed all `# type: ignore` comments (used cast() instead)
+- [x] Create Pydantic models for data structures
+  - [x] CustomLanguageConfig model (main.py:91-113)
+  - [x] AstGrepConfig model (main.py:116-130)
+  - [x] Field validators for extension format
+  - [ ] Model for ast-grep match JSON - deferred (using Dict[str, Any])
+  - [ ] Model for error responses - deferred (using custom exceptions)
+- [x] Add type hints for complex types
+  - [x] Used `List`, `Dict`, `Optional` consistently
+  - [x] Used `cast()` for JSON structures instead of TypedDict
+  - [x] Used `subprocess.CompletedProcess[str]` for subprocess returns
+- [ ] Update documentation with type information
+  - [ ] Document all Pydantic models (partially - in CONFIGURATION.md)
+  - [ ] Add type hints to examples - deferred
+
+**Acceptance Criteria:**
+- ✅ `mypy --strict main.py` passes with no errors
+- ✅ All functions have complete type signatures
+- ✅ Pydantic models for configuration (CustomLanguageConfig, AstGrepConfig)
+- ✅ No `type: ignore` comments remaining (0 in codebase)
+
+**Implementation Date:** 2025-11-08
+**Type Checking:** mypy strict mode enabled and passing
+
+---
+
+### ✅ Task 5: Configuration Validation [S] - COMPLETE
+- [x] Validate sgconfig.yaml before passing to ast-grep
+  - [x] Parse YAML and check structure (validate_config_file function)
+  - [x] Validate customLanguages section (Pydantic model)
+  - [x] Validate languageGlobs if present (List[Dict[str, Any]])
+  - [x] Validate ruleDirs/testDirs if present (List[str])
+  - [x] Integrated into parse_args_and_get_config() startup sequence
+- [x] Add clear error messages for invalid config
+  - [x] Specific error for YAML syntax errors (ConfigurationError)
+  - [x] Specific error for file not found/not readable
+  - [x] Specific error for invalid language definitions (field validators)
+  - [x] Suggest fixes for common mistakes (extension format, empty lists)
+  - [x] Link to CONFIGURATION.md in error messages
+- [x] Create schema documentation for custom languages
+  - [x] Created CONFIGURATION.md (350+ lines)
+  - [x] Documented customLanguages YAML structure
+  - [x] Added 4 complete config examples (minimal, custom lang, globs, full)
+  - [x] Added troubleshooting section with common errors
+  - [x] Documented all field types and validation rules
+- [ ] Add config validation tool (deferred - not essential)
+  - [ ] New tool `validate_config` for checking config files
+  - [ ] Returns validation errors or success
+  - [ ] Suggests fixes for common issues
+- [x] Update tests with config validation
+  - [x] Test valid configurations (TestConfigValidation::test_valid_config)
+  - [x] Test invalid configurations (8 tests for different error cases)
+  - [x] Test error messages (assertions check error content)
+  - [x] Test custom language parsing (TestGetSupportedLanguages)
+
+**Acceptance Criteria:**
+- ✅ Invalid configs detected before ast-grep execution (startup validation)
+- ✅ Error messages identify specific config problems (Pydantic validators)
+- ✅ Schema documentation complete with examples (CONFIGURATION.md)
+- ✅ Config validation tests cover common errors (8 ConfigValidation tests)
+- ⏸️ `validate_config` tool available (deferred - validation happens on startup)
+
+**Dependencies:** Task 1 (Enhanced Error Handling) - ✅ Complete
+
+**Implementation Date:** 2025-11-08
+**Files Created:** CONFIGURATION.md, 7 test fixture YAML files
+**Validation Function:** validate_config_file() at main.py:133-174
+
+---
+
+## Phase 2: Performance & Scalability (Weeks 4-6)
+
+### Task 6: Result Streaming [L]
+- [ ] Implement streaming result output
+  - [ ] Parse ast-grep output line-by-line
+  - [ ] Yield results as they're found
+  - [ ] Support MCP streaming protocol (if available)
+- [ ] Support early termination at max_results
+  - [ ] Stop ast-grep process when limit reached
+  - [ ] Clean up subprocess on early termination
+  - [ ] Test termination doesn't leak processes
+- [ ] Add progress updates during long searches
+  - [ ] Report files processed every N files
+  - [ ] Report matches found so far
+  - [ ] Estimate time remaining (optional)
+- [ ] Update output formatters for streaming
+  - [ ] format_matches_as_text works with generator
+  - [ ] JSON output supports streaming
+  - [ ] Text output flushes incrementally
+- [ ] Add tests for streaming behavior
+  - [ ] Test partial result streaming
+  - [ ] Test early termination
+  - [ ] Test progress updates
+  - [ ] Test error handling during streaming
+
+**Acceptance Criteria:**
+- ✓ Results stream as found, not batched
+- ✓ Early termination stops ast-grep cleanly
+- ✓ Progress updates every 100 files (configurable)
+- ✓ Streaming tests pass for large result sets
+- ✓ No subprocess leaks on termination
+
+**Dependencies:** Task 2 (Logging System)
+
+---
+
+### Task 7: Query Result Caching [M]
+- [ ] Implement LRU cache for query results
+  - [ ] Choose caching strategy (functools.lru_cache or custom)
+  - [ ] Cache key based on query + file timestamps
+  - [ ] Configurable cache size (default 100 entries)
+- [ ] Add cache invalidation on file changes
+  - [ ] Optional file watching (inotify/FSEvents)
+  - [ ] Manual cache clear API
+  - [ ] TTL-based expiration (configurable)
+- [ ] Log cache hit/miss metrics
+  - [ ] Log cache hits with time saved
+  - [ ] Log cache misses
+  - [ ] Log cache size and evictions
+  - [ ] Add cache stats tool (optional)
+- [ ] Make caching configurable
+  - [ ] --no-cache flag to disable
+  - [ ] CACHE_SIZE env var
+  - [ ] CACHE_TTL env var
+- [ ] Add cache tests
+  - [ ] Test cache hits return cached results
+  - [ ] Test cache misses execute query
+  - [ ] Test cache invalidation
+  - [ ] Test cache size limits
+
+**Acceptance Criteria:**
+- ✓ Identical queries return cached results
+- ✓ Cache invalidates on file changes (if enabled)
+- ✓ Cache metrics logged for all queries
+- ✓ Caching is configurable via CLI/env
+- ✓ Cache tests verify correctness
+
+**Dependencies:** Task 2 (Logging System)
+
+---
+
+### Task 8: Parallel Execution [L]
+- [ ] Implement parallel file processing
+  - [ ] Use multiprocessing or concurrent.futures
+  - [ ] Configurable worker pool size
+  - [ ] Default to CPU count workers
+- [ ] Add --workers CLI flag
+  - [ ] Set number of parallel workers
+  - [ ] Default to os.cpu_count()
+  - [ ] Support --workers=1 for serial execution
+- [ ] Handle parallel execution failures gracefully
+  - [ ] Collect errors from all workers
+  - [ ] Continue on partial failures
+  - [ ] Aggregate results from all workers
+- [ ] Ensure result ordering (if needed)
+  - [ ] Sort results by file:line if order matters
+  - [ ] Or document that order is non-deterministic
+- [ ] Add parallel execution tests
+  - [ ] Test multi-worker execution
+  - [ ] Test error handling across workers
+  - [ ] Test result aggregation
+  - [ ] Test worker pool cleanup
+
+**Acceptance Criteria:**
+- ✓ Parallel execution reduces query time on multi-file searches
+- ✓ Worker count configurable via --workers
+- ✓ Failures in one worker don't crash entire search
+- ✓ All workers properly cleaned up on completion
+- ✓ Parallel execution tests pass
+
+**Dependencies:** Task 1 (Enhanced Error Handling)
+
+---
+
+### Task 9: Large File Handling [M]
+- [ ] Implement streaming parsing for large files
+  - [ ] Process files >10MB in chunks
+  - [ ] Don't load entire file into memory
+  - [ ] Stream results incrementally
+- [ ] Add configurable file size limits
+  - [ ] --max-file-size flag (default 100MB)
+  - [ ] Skip files exceeding limit
+  - [ ] Log skipped files with reason
+- [ ] Implement memory-efficient result aggregation
+  - [ ] Don't accumulate all results in list
+  - [ ] Use generators where possible
+  - [ ] Stream results to output
+- [ ] Add large file tests
+  - [ ] Generate test files >10MB
+  - [ ] Test streaming parsing
+  - [ ] Test file size limit enforcement
+  - [ ] Test memory usage stays bounded
+
+**Acceptance Criteria:**
+- ✓ Files up to 100MB processed without OOM
+- ✓ File size limits configurable and enforced
+- ✓ Memory usage stays bounded during large searches
+- ✓ Large file tests pass
+
+**Dependencies:** Task 6 (Result Streaming)
+
+---
+
+### Task 10: Performance Benchmarking Suite [M]
+- [ ] Create benchmark test harness
+  - [ ] Generate benchmark codebases (small, medium, large)
+  - [ ] Define standard query patterns
+  - [ ] Measure execution time, memory usage
+- [ ] Add benchmark for common query patterns
+  - [ ] Pattern search (find_code)
+  - [ ] YAML rule search (find_code_by_rule)
+  - [ ] Complex multi-condition rules
+  - [ ] Large result sets
+- [ ] Implement performance regression detection
+  - [ ] Store baseline performance metrics
+  - [ ] Compare current run to baseline
+  - [ ] Fail CI if >10% regression
+- [ ] Add benchmark reporting
+  - [ ] Generate performance report (markdown/HTML)
+  - [ ] Track performance over time
+  - [ ] Visualize trends (optional)
+- [ ] Document expected performance ranges
+  - [ ] Document performance by codebase size
+  - [ ] Document performance by query complexity
+  - [ ] Set performance targets
+
+**Acceptance Criteria:**
+- ✓ Benchmark suite runs in CI
+- ✓ At least 5 standard query patterns benchmarked
+- ✓ Regression detection fails CI on >10% slowdown
+- ✓ Performance documentation complete
+
+**Dependencies:** Task 3 (Test Coverage Expansion)
+
+---
+
+## Phase 3: Feature Expansion (Weeks 7-10)
+
+### Task 11: Code Rewrite Support [XL]
+- [ ] Implement new `rewrite_code` tool
+  - [ ] Accept YAML rule with `fix` field
+  - [ ] Execute ast-grep in rewrite mode
+  - [ ] Return list of modified files
+- [ ] Add dry-run mode
+  - [ ] --dry-run flag to preview changes
+  - [ ] Return diff of proposed changes
+  - [ ] Don't modify files in dry-run
+- [ ] Implement rollback capability
+  - [ ] Create backups before rewriting
+  - [ ] Add `rollback_rewrite` tool
+  - [ ] Restore from backups on rollback
+  - [ ] Clean up old backups
+- [ ] Add rewrite validation
+  - [ ] Verify rewritten code parses correctly
+  - [ ] Run tests after rewrite (optional)
+  - [ ] Warn if rewrite breaks code
+- [ ] Add comprehensive rewrite tests
+  - [ ] Test successful rewrites
+  - [ ] Test dry-run mode
+  - [ ] Test rollback functionality
+  - [ ] Test rewrite validation
+  - [ ] Test error handling
+
+**Acceptance Criteria:**
+- ✓ `rewrite_code` tool applies ast-grep fixes
+- ✓ Dry-run mode shows changes without applying
+- ✓ Rollback restores original code
+- ✓ Validation detects syntax errors after rewrite
+- ✓ All rewrite scenarios tested
+
+**Dependencies:** Task 1 (Enhanced Error Handling), Task 2 (Logging System)
+
+---
+
+### Task 12: Interactive Rule Builder [L]
+- [ ] Create `generate_rule` tool
+  - [ ] Accept natural language description
+  - [ ] Generate YAML rule from description
+  - [ ] Use LLM or pattern library (decide approach)
+- [ ] Implement step-by-step refinement
+  - [ ] Test generated rule against sample code
+  - [ ] Show matches/non-matches
+  - [ ] Accept feedback to refine rule
+  - [ ] Iterate until rule is correct
+- [ ] Integrate with dump_syntax_tree
+  - [ ] Auto-generate AST for sample code
+  - [ ] Suggest patterns based on AST structure
+  - [ ] Explain how rule matches AST nodes
+- [ ] Add rule explanation feature
+  - [ ] Describe what the rule matches in plain English
+  - [ ] Show example matches and non-matches
+  - [ ] Explain each condition in the rule
+- [ ] Add tests for rule generation
+  - [ ] Test common pattern generation
+  - [ ] Test refinement workflow
+  - [ ] Test explanation accuracy
+
+**Acceptance Criteria:**
+- ✓ `generate_rule` produces working rules from descriptions
+- ✓ Refinement loop improves rule accuracy
+- ✓ Integration with dump_syntax_tree works
+- ✓ Generated rules tested and validated
+
+---
+
+### Task 13: Query Explanation [M]
+- [ ] Implement `explain_rule` tool
+  - [ ] Accept YAML rule as input
+  - [ ] Return human-readable explanation
+  - [ ] Break down complex rules into parts
+- [ ] Generate example matches/non-matches
+  - [ ] Create positive examples (should match)
+  - [ ] Create negative examples (shouldn't match)
+  - [ ] Show why each example matches or doesn't
+- [ ] Visualize AST patterns
+  - [ ] Render AST tree for pattern
+  - [ ] Highlight matched nodes
+  - [ ] Show metavariable bindings (optional)
+- [ ] Add explanation tests
+  - [ ] Test simple pattern explanations
+  - [ ] Test complex rule explanations
+  - [ ] Test example generation
+
+**Acceptance Criteria:**
+- ✓ `explain_rule` returns clear explanations
+- ✓ Examples illustrate what rule matches
+- ✓ AST visualization helpful for understanding
+- ✓ Explanation tests pass
+
+---
+
+### Task 14: Multi-Language Support Enhancements [M]
+- [ ] Implement auto-detection of custom languages
+  - [ ] Parse sgconfig.yaml for customLanguages
+  - [ ] Add custom languages to supported list
+  - [ ] Update tool descriptions dynamically
+- [ ] Add language-specific optimization hints
+  - [ ] Suggest better patterns for language idioms
+  - [ ] Warn about unsupported features per language
+  - [ ] Provide language-specific examples
+- [ ] Support polyglot codebases
+  - [ ] Search multiple languages in one query
+  - [ ] Filter results by language
+  - [ ] Aggregate results across languages
+- [ ] Add language detection tests
+  - [ ] Test auto-detection of custom languages
+  - [ ] Test multi-language searches
+  - [ ] Test language-specific optimizations
+
+**Acceptance Criteria:**
+- ✓ Custom languages auto-detected from config
+- ✓ Optimization hints provided per language
+- ✓ Multi-language searches work correctly
+- ✓ Language detection tests pass
+
+**Dependencies:** Task 5 (Configuration Validation)
+
+---
+
+### Task 15: Batch Operations [M]
+- [ ] Implement `batch_search` tool
+  - [ ] Accept list of patterns/rules
+  - [ ] Execute all searches in parallel
+  - [ ] Return aggregated results
+- [ ] Add result aggregation
+  - [ ] Combine results from multiple queries
+  - [ ] Deduplicate overlapping matches
+  - [ ] Sort/filter combined results
+- [ ] Support conditional execution
+  - [ ] If pattern A matches, search for pattern B
+  - [ ] Chain multiple searches
+  - [ ] Support AND/OR logic between searches
+- [ ] Add batch operation tests
+  - [ ] Test parallel batch execution
+  - [ ] Test result aggregation
+  - [ ] Test conditional execution
+  - [ ] Test error handling in batch
+
+**Acceptance Criteria:**
+- ✓ `batch_search` executes multiple queries
+- ✓ Results properly aggregated and deduplicated
+- ✓ Conditional execution works as expected
+- ✓ Batch operation tests pass
+
+**Dependencies:** Task 8 (Parallel Execution)
+
+---
+
+## Phase 4: Developer Experience (Weeks 11-13)
+
+### Task 16: Comprehensive Documentation Overhaul [L]
+- [ ] Create getting started guide
+  - [ ] 5-minute quickstart tutorial
+  - [ ] Installation step-by-step
+  - [ ] First query walkthrough
+  - [ ] Common use cases
+- [ ] Write troubleshooting section
+  - [ ] "ast-grep not found" solution
+  - [ ] "No matches found" debugging
+  - [ ] Performance troubleshooting
+  - [ ] Configuration issues
+- [ ] Create advanced usage guide
+  - [ ] Complex YAML rule examples
+  - [ ] Performance optimization tips
+  - [ ] Custom language setup
+  - [ ] Integration with other tools
+- [ ] Write architecture decision records
+  - [ ] Document key design decisions
+  - [ ] Explain trade-offs made
+  - [ ] Justify current architecture
+- [ ] Add API reference documentation
+  - [ ] Document all tool parameters
+  - [ ] Include request/response examples
+  - [ ] Document error codes
+- [ ] Create video tutorials (optional)
+  - [ ] Screen recordings of common workflows
+  - [ ] Rule creation tutorial
+  - [ ] Troubleshooting demo
+
+**Acceptance Criteria:**
+- ✓ Getting started guide takes <5 minutes to complete
+- ✓ Troubleshooting section covers top 10 issues
+- ✓ Advanced guide includes 10+ complex examples
+- ✓ ADRs document all major decisions
+- ✓ API reference complete for all tools
+
+---
+
+### Task 17: Example Library [M]
+- [ ] Create rule examples for common patterns
+  - [ ] 50+ rules covering different use cases
+  - [ ] Examples for all supported languages
+  - [ ] Examples for common anti-patterns
+- [ ] Organize examples by language and use case
+  - [ ] Create examples/ directory structure
+  - [ ] Subdirectories per language
+  - [ ] Subdirectories per use case (security, refactoring, etc.)
+- [ ] Build searchable example index
+  - [ ] Create index.md with categorized rules
+  - [ ] Add search functionality (grep or web-based)
+  - [ ] Tag examples with keywords
+- [ ] Add example tests
+  - [ ] Verify all examples execute successfully
+  - [ ] Test examples produce expected results
+  - [ ] Add CI check for example validity
+- [ ] Document example usage
+  - [ ] Explain each example's purpose
+  - [ ] Show expected matches
+  - [ ] Provide modification suggestions
+
+**Acceptance Criteria:**
+- ✓ At least 50 curated rule examples
+- ✓ Examples organized by language and use case
+- ✓ Searchable index available
+- ✓ All examples tested in CI
+- ✓ Each example includes documentation
+
+---
+
+### Task 18: Debug Mode [S]
+- [ ] Add --debug CLI flag
+  - [ ] Enable verbose output
+  - [ ] Show all subprocess commands
+  - [ ] Display timing information
+- [ ] Implement step-by-step query trace
+  - [ ] Log each stage of query execution
+  - [ ] Show intermediate results
+  - [ ] Explain decisions made
+- [ ] Include AST visualization in debug output
+  - [ ] Show AST for patterns
+  - [ ] Show AST for matched code
+  - [ ] Highlight matching nodes
+- [ ] Add debug mode tests
+  - [ ] Test debug output format
+  - [ ] Verify all stages logged
+  - [ ] Test AST visualization
+
+**Acceptance Criteria:**
+- ✓ --debug flag enables verbose output
+- ✓ Query execution traced step-by-step
+- ✓ AST visualization included in debug mode
+- ✓ Debug mode tests pass
+
+**Dependencies:** Task 2 (Logging System)
+
+---
+
+### Task 19: Health Check Endpoint [S]
+- [ ] Create `health_check` tool
+  - [ ] Verify ast-grep installation
+  - [ ] Check ast-grep version
+  - [ ] Validate configuration file
+- [ ] Add configuration validation
+  - [ ] Parse and validate sgconfig.yaml
+  - [ ] Report configuration errors
+  - [ ] Suggest configuration fixes
+- [ ] Check system resource availability
+  - [ ] Check disk space (optional)
+  - [ ] Check memory availability (optional)
+  - [ ] Report resource constraints
+- [ ] Return health status report
+  - [ ] Overall health: healthy/degraded/unhealthy
+  - [ ] List of checks passed/failed
+  - [ ] Suggestions for fixing issues
+- [ ] Add health check tests
+  - [ ] Test healthy system
+  - [ ] Test missing ast-grep
+  - [ ] Test invalid configuration
+  - [ ] Test resource constraints
+
+**Acceptance Criteria:**
+- ✓ `health_check` tool verifies all dependencies
+- ✓ Configuration validation integrated
+- ✓ Resource checks report constraints
+- ✓ Health status clearly communicated
+- ✓ Health check tests cover all scenarios
+
+**Dependencies:** Task 5 (Configuration Validation)
+
+---
+
+### Task 20: VS Code Extension [XL]
+- [ ] Create VS Code extension skeleton
+  - [ ] Set up extension project structure
+  - [ ] Configure package.json
+  - [ ] Set up build pipeline
+- [ ] Implement rule testing in editor
+  - [ ] Command to test current rule
+  - [ ] Show results in editor
+  - [ ] Highlight matched code
+- [ ] Add syntax highlighting for ast-grep YAML
+  - [ ] Create TextMate grammar
+  - [ ] Support pattern syntax
+  - [ ] Support metavariable highlighting
+- [ ] Implement inline preview of matches
+  - [ ] Show match count in status bar
+  - [ ] Preview matches without running full search
+  - [ ] Quick navigation to matches
+- [ ] Add extension tests
+  - [ ] Test command execution
+  - [ ] Test syntax highlighting
+  - [ ] Test match preview
+- [ ] Publish extension
+  - [ ] Package extension (vsce)
+  - [ ] Publish to VS Code marketplace
+  - [ ] Document installation and usage
+
+**Acceptance Criteria:**
+- ✓ Extension installs and activates in VS Code
+- ✓ Rule testing works from editor
+- ✓ Syntax highlighting for YAML rules
+- ✓ Inline match preview functional
+- ✓ Extension published to marketplace
+
+**Dependencies:** Task 12 (Interactive Rule Builder)
+
+---
+
+## Phase 5: Production Readiness (Weeks 14-16)
+
+### Task 21: Security Audit [L]
+- [ ] Code review for injection vulnerabilities
+  - [ ] Review all user input handling
+  - [ ] Check for command injection risks
+  - [ ] Verify YAML parsing safety
+  - [ ] Check for path traversal vulnerabilities
+- [ ] Implement path traversal protection
+  - [ ] Validate all file paths
+  - [ ] Reject paths with ../
+  - [ ] Restrict to allowed directories (optional)
+- [ ] Add resource limit enforcement
+  - [ ] Set memory limits per query
+  - [ ] Set CPU time limits per query
+  - [ ] Limit file count per search
+  - [ ] Limit result set size
+- [ ] Perform automated security scanning
+  - [ ] Run bandit (Python security linter)
+  - [ ] Run safety (dependency vulnerability check)
+  - [ ] Fix all high/critical findings
+- [ ] Document security considerations
+  - [ ] Security best practices for users
+  - [ ] Known limitations and risks
+  - [ ] Recommended deployment configurations
+- [ ] Add security tests
+  - [ ] Test injection attack scenarios
+  - [ ] Test path traversal attempts
+  - [ ] Test resource limit enforcement
+
+**Acceptance Criteria:**
+- ✓ No code injection vulnerabilities found
+- ✓ Path traversal attacks blocked
+- ✓ Resource limits prevent DoS
+- ✓ Automated security scans pass
+- ✓ Security documentation complete
+- ✓ Security tests cover attack vectors
+
+**Dependencies:** Task 5 (Configuration Validation)
+
+---
+
+### Task 22: Monitoring Integration [M]
+- [ ] Add Prometheus metrics endpoint (optional)
+  - [ ] Create /metrics endpoint
+  - [ ] Export query counts
+  - [ ] Export query duration histogram
+  - [ ] Export error rates
+- [ ] Output structured logs for Datadog/Splunk
+  - [ ] Ensure JSON log format compatible
+  - [ ] Add standard fields (timestamp, level, service)
+  - [ ] Tag logs with query metadata
+- [ ] Implement distributed tracing support
+  - [ ] Add trace ID to all operations
+  - [ ] Propagate trace context
+  - [ ] Export traces (Jaeger/Zipkin) (optional)
+- [ ] Add monitoring documentation
+  - [ ] Document available metrics
+  - [ ] Provide example Grafana dashboards
+  - [ ] Document log fields and format
+- [ ] Add monitoring tests
+  - [ ] Test metrics endpoint
+  - [ ] Test log output format
+  - [ ] Test trace context propagation
+
+**Acceptance Criteria:**
+- ✓ Prometheus metrics available (if enabled)
+- ✓ Logs compatible with Datadog/Splunk
+- ✓ Distributed tracing supported
+- ✓ Monitoring documentation complete
+- ✓ Monitoring integration tested
+
+**Dependencies:** Task 2 (Logging System)
+
+---
+
+### Task 23: Release Automation [M]
+- [ ] Set up GitHub Actions for releases
+  - [ ] Create release workflow
+  - [ ] Trigger on version tag push
+  - [ ] Run all tests before release
+- [ ] Generate automated changelogs
+  - [ ] Use conventional commits
+  - [ ] Generate changelog from commits
+  - [ ] Include breaking changes section
+- [ ] Automate PyPI package publishing
+  - [ ] Build sdist and wheel
+  - [ ] Upload to PyPI
+  - [ ] Verify package installable
+- [ ] Build and push Docker images
+  - [ ] Create Dockerfile
+  - [ ] Build multi-arch images (amd64, arm64)
+  - [ ] Push to Docker Hub/GHCR
+- [ ] Create GitHub release
+  - [ ] Upload build artifacts
+  - [ ] Include changelog in release notes
+  - [ ] Tag release appropriately
+- [ ] Document release process
+  - [ ] Document versioning scheme (SemVer)
+  - [ ] Document release checklist
+  - [ ] Document rollback procedure
+
+**Acceptance Criteria:**
+- ✓ GitHub Actions workflow creates releases
+- ✓ Changelog auto-generated from commits
+- ✓ PyPI package published on tag push
+- ✓ Docker images built and pushed
+- ✓ Release process documented
+
+---
+
+### Task 24: Contribution Guidelines [S]
+- [ ] Write CONTRIBUTING.md
+  - [ ] Development environment setup
+  - [ ] Code style guidelines
+  - [ ] Testing requirements
+  - [ ] PR submission process
+- [ ] Create issue templates
+  - [ ] Bug report template
+  - [ ] Feature request template
+  - [ ] Question template
+- [ ] Create PR template
+  - [ ] Checklist for contributors
+  - [ ] Testing requirements
+  - [ ] Documentation requirements
+- [ ] Document code review process
+  - [ ] Review criteria
+  - [ ] Response time expectations
+  - [ ] Merge requirements
+- [ ] Add contributor recognition
+  - [ ] CONTRIBUTORS.md file
+  - [ ] All Contributors bot (optional)
+  - [ ] Thank contributors in releases
+
+**Acceptance Criteria:**
+- ✓ CONTRIBUTING.md covers setup and workflow
+- ✓ Issue templates available for all issue types
+- ✓ PR template includes complete checklist
+- ✓ Code review process documented
+- ✓ Contributors recognized
+
+**Dependencies:** Task 16 (Documentation Overhaul)
+
+---
+
+### Task 25: Community Engagement Plan [M]
+- [ ] Write announcement blog post
+  - [ ] Describe project and features
+  - [ ] Highlight unique capabilities
+  - [ ] Provide getting started guide
+  - [ ] Include compelling examples
+- [ ] Submit to MCP server registry
+  - [ ] Create registry entry
+  - [ ] Include server metadata
+  - [ ] Link to documentation
+- [ ] Outreach to developer communities
+  - [ ] Post to Reddit (r/programming, language-specific subs)
+  - [ ] Post to Hacker News
+  - [ ] Post to dev.to or similar
+  - [ ] Share on Twitter/X
+  - [ ] Share in Discord/Slack communities
+- [ ] Create demo videos/GIFs
+  - [ ] Record common workflow demos
+  - [ ] Create animated GIFs for README
+  - [ ] Upload to YouTube (optional)
+- [ ] Engage with early adopters
+  - [ ] Respond to issues promptly
+  - [ ] Collect feedback
+  - [ ] Incorporate suggestions
+  - [ ] Thank contributors
+- [ ] Track community metrics
+  - [ ] GitHub stars/forks/watchers
+  - [ ] Issue/PR activity
+  - [ ] Downloads/installs
+  - [ ] Community feedback sentiment
+
+**Acceptance Criteria:**
+- ✓ Blog post published and shared
+- ✓ Listed in MCP server registry
+- ✓ Outreach to at least 5 communities
+- ✓ Demo videos/GIFs created
+- ✓ Early adopter feedback collected
+
+**Dependencies:** Task 16 (Documentation Overhaul), Task 23 (Release Automation)
+
+---
+
+## Task Summary
+
+**Total Tasks:** 25
+**Total Effort:** 250-300 developer hours
+**Timeline:** 16 weeks (4 months)
+
+### By Effort Level
+- **Small (S):** 5 tasks (5-10 hours each)
+- **Medium (M):** 11 tasks (10-20 hours each)
+- **Large (L):** 7 tasks (20-40 hours each)
+- **Extra Large (XL):** 2 tasks (40+ hours each)
+
+### By Phase
+- **Phase 1 (Foundation & Quality):** 5 tasks, 3 weeks
+- **Phase 2 (Performance & Scalability):** 5 tasks, 3 weeks
+- **Phase 3 (Feature Expansion):** 5 tasks, 4 weeks
+- **Phase 4 (Developer Experience):** 5 tasks, 3 weeks
+- **Phase 5 (Production Readiness):** 5 tasks, 3 weeks
+
+### Critical Path Tasks
+1. Task 1 (Enhanced Error Handling) - Blocks 8, 11
+2. Task 2 (Logging System) - Blocks 6, 7, 22
+3. Task 3 (Test Coverage) - Required before Phase 3
+4. Task 5 (Config Validation) - Blocks 14, 19, 21
+5. Task 6 (Result Streaming) - Blocks 9
+6. Task 16 (Documentation) - Blocks 25
+
+---
+
+## Progress Tracking
+
+To track progress:
+1. Check off completed subtasks as you finish them
+2. Update the "Last Updated" date at the top
+3. Add notes on blockers or issues encountered
+4. Link to related PRs/commits where applicable
+5. Review progress weekly against timeline
+
+---
+
+*This task checklist provides a detailed breakdown of all work required to complete the strategic plan. Update this file as you make progress to maintain an accurate picture of project status.*
+</file>
+
+<file path="ast-grep-mcp-strategic-plan/HANDOFF-NOTES.md">
+# Session Handoff Notes - Phase 1 Complete
+
+**Date:** 2025-11-08
+**Session Type:** Phase 1 Implementation
+**Status:** 100% COMPLETE - Ready for git commit
+**Next Action:** Commit Phase 1 work, then start Phase 2
+
+---
+
+## What Was Accomplished
+
+### Phase 1: Foundation & Quality - **ALL 5 TASKS COMPLETE ✅**
+
+This session completed all remaining Phase 1 tasks, achieving production-grade quality for the ast-grep MCP server.
+
+#### Task 2: Comprehensive Logging System (Just Completed)
+- **Implemented:** Structured JSON logging with structlog
+- **Configuration:** CLI flags (--log-level, --log-file) + env vars (LOG_LEVEL, LOG_FILE)
+- **Coverage:** All 4 MCP tools + subprocess execution
+- **Metrics:** Execution time, match counts, output sizes
+- **Events:** tool_invoked, tool_completed, tool_failed, command_completed, command_failed
+- **Security:** Code content sanitized, error messages truncated to 200 chars
+- **Lines Added:** ~282 (main.py: 517 → 799 lines)
+
+#### Previously Completed (Same Session)
+- Task 1: Enhanced Error Handling (6 custom exception classes)
+- Task 3: Test Coverage Expansion (96% coverage, 62 tests)
+- Task 4: Type Safety Improvements (mypy strict mode)
+- Task 5: Configuration Validation (Pydantic models)
+
+---
+
+## Files Modified (Uncommitted)
+
+### Modified Files
+1. **main.py** (799 lines, +282 from logging)
+   - Lines 1-12: Added time, structlog imports
+   - Lines 18-63: Logging configuration
+   - Lines 66-138: Custom exceptions
+   - Lines 141-181: Pydantic models
+   - Lines 228-297: CLI args + logging setup
+   - Lines 299-633: Tools with logging
+   - Lines 636-798: Helpers with logging
+
+2. **pyproject.toml**
+   - Line 11: Added structlog>=24.1.0
+
+3. **CLAUDE.md**
+   - Lines 55-106: Logging system documentation
+   - Line 111: Updated file size to 799 lines
+
+4. **tests/test_unit.py** (990 lines, 57 tests)
+   - 8 new test classes, 36 new tests from earlier tasks
+
+### New Files Created
+- `CONFIGURATION.md` (350+ lines)
+- `tests/fixtures/*.yaml` (7 config test files)
+- `dev/active/ast-grep-mcp-strategic-plan/HANDOFF-NOTES.md` (this file)
+
+### Documentation Updated
+- `dev/active/ast-grep-mcp-strategic-plan/phase1-session-notes.md`
+- `dev/active/ast-grep-mcp-strategic-plan/ast-grep-mcp-tasks.md`
+- `dev/active/ast-grep-mcp-strategic-plan/ast-grep-mcp-context.md`
+
+---
+
+## Quality Metrics (Final)
+
+- ✅ **Tests:** 62/62 passing
+- ✅ **Coverage:** 96% (191 statements, 7 uncovered sys.exit paths)
+- ✅ **Type Checking:** mypy strict mode passing
+- ✅ **Linting:** ruff passing
+- ✅ **Dependencies:** All installed via `uv sync --extra dev`
+
+---
+
+## Immediate Next Steps
+
+### 1. Create Git Commit
+
+**IMPORTANT:** All Phase 1 work is uncommitted. Create a single commit for all 5 tasks.
+
+```bash
+# Verify tests pass
+uv run pytest --cov=main --cov-report=term-missing
+
+# Stage all changes
+git add main.py pyproject.toml CLAUDE.md CONFIGURATION.md tests/ dev/
+
+# Commit with provided message
+git commit -m "$(cat <<'EOF'
+Complete Phase 1: Foundation & Quality (5/5 tasks)
+
+Phase 1 establishes production-grade quality standards for ast-grep MCP server.
+
+Tasks Completed:
+- Task 1: Enhanced Error Handling (6 custom exception classes)
+- Task 2: Comprehensive Logging System (structlog with JSON output)
+- Task 3: Test Coverage Expansion (96% coverage, 62 tests)
+- Task 4: Type Safety Improvements (mypy strict mode)
+- Task 5: Configuration Validation (Pydantic models)
+
+Major Changes:
+- main.py: 517 → 799 lines (+282 lines)
+  - Custom exception hierarchy with helpful messages
+  - Structured JSON logging with performance metrics
+  - Pydantic config validation
+  - Full type hints with mypy strict mode
+
+- tests/: 26 → 62 tests (+36 tests)
+  - 96% coverage (191 statements, 7 uncovered)
+  - 8 new test classes for edge cases
+  - 7 new test fixture files
+
+- Documentation:
+  - CONFIGURATION.md (350+ lines)
+  - Updated CLAUDE.md with logging guide
+  - Comprehensive session notes
+
+Dependencies Added:
+- structlog>=24.1.0 (JSON logging)
+
+Quality Metrics:
+✅ 62/62 tests passing
+✅ 96% code coverage
+✅ mypy strict mode passing
+✅ ruff linting passing
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+EOF
+)"
+
+# Verify commit
+git log -1 --stat
+```
+
+### 2. Start Phase 2: Performance & Scalability
+
+**Phase 2 Tasks (from ast-grep-mcp-strategic-plan.md):**
+1. Task 6: Result Streaming [L] - Stream results as found
+2. Task 7: Query Result Caching [M] - LRU cache for queries
+3. Task 8: Parallel Execution [L] - Multi-worker processing
+4. Task 9: Large File Handling [M] - Streaming for >10MB files
+5. Task 10: Performance Benchmarking Suite [M] - Regression detection
+
+**Suggested Starting Point:** Task 6 (Result Streaming)
+- Most impactful for user experience
+- Reduces latency for large searches
+- Enables early termination at max_results
+
+---
+
+## Technical Context
+
+### Architecture Decisions Made
+
+**1. structlog for Logging**
+- Rationale: Native JSON support, cleaner API than stdlib+json-formatter
+- Similar to Node.js pino (as requested)
+- Trade-off: External dependency vs. stdlib logging
+
+**2. stderr for Default Logging**
+- Rationale: MCP protocol uses stdout for JSON-RPC
+- stderr available without interference
+- File logging optional via --log-file
+
+**3. Truncate Error Messages in Logs**
+- Rationale: Prevent log bloat from large stderr
+- 200 char limit balances context vs. size
+- Full errors still raised to user
+
+**4. Time Tracking per Function**
+- Rationale: Precise timing per operation
+- `time.time()` at start/end of each tool/command
+- Rounded to 3 decimals for consistency
+
+**5. Return Type `Any` for get_logger**
+- Rationale: structlog.get_logger() returns dynamic type
+- `BoundLogger` type fails mypy strict mode
+- Acceptable pattern for logger instances
+
+### File Size Management
+
+**Current State:**
+- main.py: 799 lines (exceeded original 600 line target)
+- Still manageable as single file
+- Approaching 1000 line limit
+
+**Refactoring Threshold:**
+- If Phase 2 adds >200 lines, consider refactoring
+- Suggested modules: config.py, exceptions.py, logging_config.py
+
+**Progression:**
+- Initial: ~317 lines
+- After Tasks 1,3,4,5: 517 lines (+200)
+- After Task 2 (Logging): 799 lines (+282)
+- Target: Keep under 1000 lines before refactoring
+
+### Known Limitations (Deferred)
+
+**From Logging Implementation:**
+1. No log rotation - File logs append indefinitely (Phase 5)
+2. No request ID tracking - Can't correlate logs across tool calls (Task 22)
+3. No memory usage metrics - Deferred to Phase 2
+4. Logging during startup not captured - Acceptable (no critical startup ops)
+
+**From Other Tasks:**
+- Graceful degradation for ast-grep failures - Deferred
+- Performance regression tests - Phase 2 Task 10
+- Cross-platform tests (Windows, Linux) - Deferred to CI/CD
+
+---
+
+## Testing Notes
+
+### Test Patterns to Remember
+
+**1. MockFastMCP Pattern (Brittle but Necessary)**
+```python
+# Patch FastMCP before importing main.py
+with patch('main.FastMCP', MockFastMCP):
+    import main
+    main.register_mcp_tools()
+    tool_func = main.mcp.tools['tool_name']
+```
+- DO NOT modify this pattern - tests depend on it
+- Any FastMCP updates may break tests
+
+**2. Config Validation Testing**
+```python
+@patch('main.CONFIG_PATH', 'tests/fixtures/valid_config.yaml')
+def test_valid_config():
+    config = main.validate_config_file('tests/fixtures/valid_config.yaml')
+    assert isinstance(config, main.AstGrepConfig)
+```
+
+**3. Environment Variable Mocking**
+```python
+def env_side_effect(key, default=None):
+    if key == 'LOG_LEVEL':
+        return 'DEBUG'
+    return default
+mock_env_get.side_effect = env_side_effect
+```
+
+### Coverage Exclusions
+
+Intentionally uncovered lines (7 lines, 4%):
+- Lines 279-281, 288-290: sys.exit() error paths
+- Line 771: `if __name__ == '__main__'` entry point
+- Excluded via pyproject.toml: `@mcp.tool()` decorator lines
+
+---
+
+## Configuration Reference
+
+### Logging Configuration
+
+**CLI Flags:**
+```bash
+--log-level {DEBUG,INFO,WARNING,ERROR}  # Default: INFO
+--log-file PATH                          # Default: stderr
+```
+
+**Environment Variables:**
+```bash
+export LOG_LEVEL=DEBUG
+export LOG_FILE=/tmp/ast-grep-mcp.log
+```
+
+**Precedence:** CLI flag > env var > default
+
+### MCP Client Configuration
+
+**Cursor (.cursor-mcp/settings.json):**
+```json
+{
+  "mcpServers": {
+    "ast-grep": {
+      "command": "uv",
+      "args": [
+        "--directory", "/path/to/ast-grep-mcp",
+        "run", "main.py",
+        "--log-level", "INFO",
+        "--log-file", "/tmp/ast-grep-mcp.log"
+      ]
+    }
+  }
+}
+```
+
+### Log Event Types
+
+- `tool_invoked`: Tool called with params
+- `tool_completed`: Tool finished successfully
+- `tool_failed`: Tool execution failed
+- `executing_command`: Subprocess starting
+- `command_completed`: Subprocess finished
+- `command_failed`: Subprocess failed
+- `command_not_found`: Binary not found
+
+---
+
+## Important Warnings
+
+### DO NOT Modify
+- MockFastMCP test pattern (brittle but necessary)
+- camelCase Pydantic field names (match ast-grep config format)
+- Coverage exclusions (intentional for untestable code)
+- `# noqa: N815` comments (suppress linting for camelCase fields)
+
+### Be Careful With
+- Changing exception types (update all tests)
+- Modifying Pydantic models (may break existing configs)
+- Removing type casts (will break mypy strict mode)
+- main.py file size (approaching 1000 line limit)
+
+---
+
+## Environment Setup Verification
+
+```bash
+# Verify environment is ready
+uv sync --extra dev              # Install all dependencies
+uv run pytest                    # All tests should pass (62/62)
+uv run pytest --cov=main --cov-report=term-missing  # 96% coverage
+uv run mypy main.py              # Strict mode should pass
+uv run ruff check .              # Linting should pass
+
+# Test logging system
+uv run python main.py --help     # Should show logging options
+uv run python main.py --log-level DEBUG --help  # Test logging works
+```
+
+---
+
+## Session Summary
+
+**Time Spent:** ~4 hours
+**Lines Added:** ~282 (logging) + ~200 (other tasks) = ~482 total
+**Tasks Completed:** 5/5 (100% of Phase 1)
+**Tests Added:** 36 (26 → 62 total)
+**Coverage:** 72% → 96%
+**Quality:** Production-ready ✅
+
+**Key Achievement:** Transformed experimental MVP into production-grade MCP server with comprehensive error handling, logging, testing, type safety, and configuration validation.
+
+---
+
+**Next Session Reminder:**
+1. Create git commit (see template above)
+2. Review Phase 2 plan
+3. Start with Task 6 (Result Streaming) or user's choice
+4. Keep main.py under 1000 lines (currently 799)
+
+---
+
+**Contact:** See dev/active/ast-grep-mcp-strategic-plan/ for full documentation
+</file>
+
+<file path="ast-grep-mcp-strategic-plan/phase1-session-notes.md">
+# Phase 1 Implementation Session Notes
+
+**Last Updated:** 2025-11-08
+**Session Context:** Post-strategic planning implementation
+**Status:** Phase 1 Nearly Complete (4/5 tasks done)
+
+---
+
+## Session Overview
+
+This session focused on implementing Phase 1 (Foundation & Quality) tasks from the strategic plan. Successfully completed Tasks 1, 3, 4, and 5, achieving production-grade quality standards for the ast-grep MCP server.
+
+---
+
+## Completed Tasks
+
+### ✅ Task 1: Enhanced Error Handling (Week 1)
+
+**Status:** COMPLETE
+**Implementation Date:** 2025-11-08
+**Files Modified:** `main.py` (lines 16-87)
+
+#### What Was Built
+Created a custom exception hierarchy with 6 specific exception classes, each with helpful error messages and resolution guidance.
+
+#### Exception Classes Created
+1. **AstGrepError** (base class)
+   - Purpose: Base exception for all ast-grep MCP errors
+   - Location: main.py:16-18
+
+2. **AstGrepNotFoundError**
+   - Purpose: Raised when ast-grep binary not found in PATH
+   - Location: main.py:21-37
+   - Features: Installation instructions for macOS/Linux/Windows/npm
+
+3. **InvalidYAMLError**
+   - Purpose: Raised when YAML rule is invalid or malformed
+   - Location: main.py:40-58
+   - Features: Example valid YAML in error message, shows problematic YAML
+
+4. **ConfigurationError**
+   - Purpose: Raised when sgconfig.yaml file is invalid
+   - Location: main.py:61-76
+   - Features: Path to config file, specific error reason, link to CONFIGURATION.md
+
+5. **AstGrepExecutionError**
+   - Purpose: Raised when ast-grep command execution fails
+   - Location: main.py:79-84
+   - Features: Command details, exit code, stderr output
+
+6. **NoMatchesError**
+   - Purpose: Raised when no matches found (with debugging tips)
+   - Location: main.py:87
+   - Features: Debugging suggestions, pattern verification tips
+
+#### Key Design Decisions
+- **Inheritance Chain**: All inherit from AstGrepError for unified catch blocks
+- **Helpful Messages**: Each exception includes resolution steps, not just error description
+- **Context Preservation**: Original exceptions chained with `from e` for debugging
+- **User-Friendly**: Messages written for AI assistants and end users, not developers
+
+#### Error Handling Migration
+Updated all error handling throughout codebase:
+- `FileNotFoundError` → `AstGrepNotFoundError`
+- `CalledProcessError` → `AstGrepExecutionError`
+- Generic `ValueError` → `InvalidYAMLError` for YAML issues
+- Generic `RuntimeError` → Specific exception types
+
+#### Tests Updated
+Updated all test assertions to expect new exception types:
+```python
+# Before:
+with pytest.raises(RuntimeError, match="failed with exit code"):
+
+# After:
+with pytest.raises(main.AstGrepExecutionError, match="failed with exit code"):
+```
+
+---
+
+### ✅ Task 3: Test Coverage Expansion (Week 1-2)
+
+**Status:** COMPLETE - 96% coverage achieved (target: 90%)
+**Implementation Date:** 2025-11-08
+**Files Modified:** `tests/test_unit.py`, `tests/fixtures/`, `pyproject.toml`
+
+#### Coverage Metrics
+- **Starting Coverage:** 72% (26 tests)
+- **Final Coverage:** 96% (62 tests)
+- **Improvement:** +24 percentage points
+- **New Tests Added:** 36 tests across 8 new test classes
+
+#### Test Classes Added
+
+1. **TestConfigValidation** (8 tests)
+   - Valid config file parsing
+   - Invalid extensions (missing dots)
+   - Empty lists/dicts
+   - File not found
+   - Path is directory not file
+   - YAML parsing errors
+   - Empty config file
+   - Config not a dictionary
+
+2. **TestGetSupportedLanguages** (4 tests)
+   - Without config (built-in languages only)
+   - With custom languages in config
+   - With nonexistent config path
+   - With config parsing exception
+
+3. **TestCustomLanguageConfig** (2 tests)
+   - Empty extensions list validation error
+   - Valid extensions with dot prefix
+
+4. **TestFormatMatchesEdgeCases** (3 tests)
+   - Missing 'file' field in match dict
+   - Missing 'range' field in match dict
+   - Missing 'text' field in match dict
+
+5. **TestFindCodeEdgeCases** (2 tests)
+   - find_code with language parameter
+   - find_code without language parameter
+
+6. **TestFindCodeByRuleEdgeCases** (8 tests)
+   - No results in text format
+   - Invalid YAML syntax
+   - Invalid output format
+   - YAML not a dictionary
+   - Missing required 'id' field
+   - Missing required 'language' field
+   - Missing required 'rule' field
+   - With max_results parameter
+
+7. **TestValidateConfigFileErrors** (1 test)
+   - OSError during file read
+
+8. **TestYAMLValidation** (5 tests)
+   - Invalid YAML structure
+   - Missing 'id' field
+   - Missing 'language' field
+   - Missing 'rule' field
+   - YAML syntax error in test_match_code_rule
+
+9. **TestParseArgsAndGetConfig** (3 tests)
+   - No config provided
+   - With --config flag
+   - With AST_GREP_CONFIG environment variable
+
+#### Test Fixtures Created
+Created 7 new YAML fixture files in `tests/fixtures/`:
+- `valid_config.yaml` - Complete valid configuration
+- `invalid_config_extensions.yaml` - Extensions missing dots
+- `invalid_config_empty.yaml` - Empty lists/dicts
+- `invalid_config_yaml_error.yaml` - YAML syntax error
+- `empty_config.yaml` - Empty file
+- `invalid_config_not_dict.yaml` - YAML list instead of dict
+- `config_with_custom_lang.yaml` - Custom language testing
+
+#### Coverage Exclusions Added
+Updated `pyproject.toml` to exclude untestable code:
+```toml
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "@mcp.tool\\(\\)",  # Decorator lines
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
+```
+
+#### Uncovered Lines (4% remaining)
+- Lines 212-214: sys.exit() error handling in parse_args_and_get_config
+- Lines 221-223: sys.exit() error handling in parse_args_and_get_config
+- Line 517: `if __name__ == '__main__'` entry point
+
+**Rationale for Not Testing:** These are error exit paths and entry points that are difficult to test in pytest and don't affect core functionality.
+
+#### Key Testing Patterns Discovered
+
+1. **Mock Environment Variables:**
+```python
+@patch('os.environ.get')
+def test_with_env_var(self, mock_env_get):
+    def env_side_effect(key, default=None):
+        if key == 'AST_GREP_CONFIG':
+            return config_path
+        return default
+    mock_env_get.side_effect = env_side_effect
+```
+
+2. **Test Config Validation:**
+```python
+@patch('main.CONFIG_PATH', 'tests/fixtures/valid_config.yaml')
+def test_valid_config():
+    config = main.validate_config_file('tests/fixtures/valid_config.yaml')
+    assert isinstance(config, main.AstGrepConfig)
+```
+
+3. **Test YAML Parsing Errors:**
+```python
+yaml_rule = "id: test\nlanguage: python"  # Missing 'rule' field
+with pytest.raises(main.InvalidYAMLError, match="Missing required field 'rule'"):
+    find_code_by_rule(project_folder=".", yaml_rule=yaml_rule)
+```
+
+---
+
+### ✅ Task 4: Type Safety Improvements (Week 1)
+
+**Status:** COMPLETE
+**Implementation Date:** 2025-11-08
+**Files Modified:** `main.py`, `pyproject.toml`
+
+#### Mypy Strict Mode Enabled
+Updated `pyproject.toml`:
+```toml
+[tool.mypy]
+python_version = "3.13"
+strict = true  # ENABLED
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+```
+
+#### Type Hints Added
+
+1. **Function Return Types:**
+```python
+def run_command(
+    args: List[str],
+    input_text: Optional[str] = None
+) -> subprocess.CompletedProcess[str]:
+```
+
+2. **JSON Parsing with cast():**
+```python
+from typing import cast
+
+# Before:
+matches = json.loads(result.stdout.strip())  # type: ignore[no-any-return]
+
+# After:
+matches = cast(List[dict[str, Any]], json.loads(result.stdout.strip()))
+```
+
+3. **Global Variables:**
+```python
+CONFIG_PATH: Optional[str] = None
+```
+
+4. **Complex Return Types:**
+```python
+def format_matches_as_text(matches: List[dict[str, Any]]) -> str:
+```
+
+#### Type Checking Results
+- **Before:** Multiple type errors with `# type: ignore` comments
+- **After:** Clean mypy output with strict mode enabled
+- **Removed:** All `# type: ignore` comments
+- **Added:** Proper type annotations and casts
+
+#### Key Type Safety Patterns
+
+1. **Cast for Dynamic JSON:**
+```python
+matches = cast(List[dict[str, Any]], json.loads(result.stdout.strip()))
+```
+
+2. **Optional Parameters:**
+```python
+def validate_config_file(config_path: str) -> AstGrepConfig:
+```
+
+3. **Type Guards for Validation:**
+```python
+if not isinstance(config_data, dict):
+    raise ConfigurationError(config_path, "Config must be a YAML dictionary")
+```
+
+---
+
+### ✅ Task 5: Configuration Validation (Week 2)
+
+**Status:** COMPLETE
+**Implementation Date:** 2025-11-08
+**Files Modified:** `main.py`, `CONFIGURATION.md` (new), test fixtures
+
+#### Pydantic Models Created
+
+1. **CustomLanguageConfig** (lines 91-113)
+```python
+class CustomLanguageConfig(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    extensions: List[str]
+    languageId: Optional[str] = None  # noqa: N815
+    expandoChar: Optional[str] = None  # noqa: N815
+
+    @field_validator('extensions')
+    @classmethod
+    def validate_extensions(cls, v: List[str]) -> List[str]:
+        if not v:
+            raise ValueError("extensions list cannot be empty")
+        for ext in v:
+            if not ext.startswith('.'):
+                raise ValueError(f"Extension '{ext}' must start with a dot")
+        return v
+```
+
+2. **AstGrepConfig** (lines 116-130)
+```python
+class AstGrepConfig(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    ruleDirs: Optional[List[str]] = None  # noqa: N815
+    testDirs: Optional[List[str]] = None  # noqa: N815
+    customLanguages: Optional[Dict[str, CustomLanguageConfig]] = None  # noqa: N815
+    languageGlobs: Optional[List[Dict[str, Any]]] = None  # noqa: N815
+```
+
+#### Validation Function Created
+
+**validate_config_file()** (lines 133-174)
+- File existence check
+- File vs directory check
+- YAML parsing with error handling
+- Empty file detection
+- Dict structure validation
+- Pydantic model validation
+- Comprehensive error messages
+
+#### Validation Integration
+```python
+def parse_args_and_get_config() -> None:
+    global CONFIG_PATH
+    # ... argument parsing ...
+
+    if config_path:
+        # Validate config file structure
+        try:
+            validate_config_file(config_path)
+        except ConfigurationError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        CONFIG_PATH = config_path
+```
+
+#### Configuration Documentation Created
+
+**CONFIGURATION.md** (350+ lines)
+- Complete sgconfig.yaml structure reference
+- Field descriptions and validation rules
+- Examples for all configuration options
+- Troubleshooting section
+- Common errors and fixes
+- Pydantic schema reference
+
+Sections:
+1. Overview
+2. Configuration File Structure
+3. Field Reference (ruleDirs, testDirs, customLanguages, languageGlobs)
+4. Validation Rules
+5. Examples (minimal, custom languages, language globs, complete)
+6. Troubleshooting
+7. Schema Reference
+
+#### Key Design Decisions
+
+1. **Preserve camelCase Field Names:**
+   - Reason: Match ast-grep's config format
+   - Solution: `# noqa: N815` to suppress linting warnings
+   - Implementation: `ConfigDict(populate_by_name=True)` for aliases
+
+2. **Validate Before Passing to ast-grep:**
+   - Reason: Provide better error messages than ast-grep
+   - Trade-off: May need updates if ast-grep config schema changes
+   - Benefit: Catch errors early with helpful messages
+
+3. **Flexible languageGlobs Type:**
+   - Type: `List[Dict[str, Any]]` instead of strict structure
+   - Reason: ast-grep's schema is flexible and may evolve
+   - Trade-off: Less type safety, but more forward-compatible
+
+#### Validation Error Examples
+
+```python
+# Missing dot in extension:
+ConfigurationError: Validation failed:
+Extension 'ts' must start with a dot
+
+# Empty extensions list:
+ConfigurationError: Validation failed:
+extensions list cannot be empty
+
+# File is directory:
+ConfigurationError: Path is not a file
+
+# YAML parsing error:
+ConfigurationError: YAML parsing failed:
+while scanning a simple key...
+```
+
+---
+
+## Bugs Fixed During Implementation
+
+### 1. Test Failures After Parameter Rename
+**Problem:** Renamed `yaml` parameter to `yaml_rule`, tests failed
+**Files:** `tests/test_integration.py`, `tests/test_unit.py`
+**Solution:** Updated all test calls to use `yaml_rule=` keyword argument
+
+### 2. Mypy Strict Mode Errors
+**Problem:** Returning Any from function, unused type:ignore comments
+**Solution:** Added `cast()` for json.loads(), removed type:ignore comments
+
+### 3. Ruff Linting N815 Errors
+**Problem:** mixedCase variable names (ruleDirs, testDirs, languageId)
+**Reason:** Must match ast-grep's config format
+**Solution:** Added `# noqa: N815` comments
+
+### 4. Pydantic Validation Error
+**Problem:** languageGlobs expected string but got list
+**Cause:** Type was `Dict[str, str]` but YAML has lists in dict values
+**Solution:** Changed to `Dict[str, Any]` for flexibility
+
+### 5. Environment Variable Mock Error
+**Problem:** env_side_effect() takes 1 positional argument but 2 were given
+**Cause:** os.environ.get() passes both key and default value
+**Solution:** Changed signature to `def env_side_effect(key, default=None):`
+
+---
+
+## Technical Decisions Made
+
+### Exception Design Philosophy
+- **User-Centric Messages:** Written for AI assistants and end users
+- **Actionable Guidance:** Every error includes resolution steps
+- **Context Preservation:** Chain exceptions with `from e`
+- **Specific Over Generic:** Custom exceptions for each error type
+
+### Test Coverage Strategy
+- **Target 90%+:** Focus on critical paths and edge cases
+- **Exclude Untestables:** Use pragma: no cover for entry points
+- **Mock External Calls:** Isolate unit tests from ast-grep CLI
+- **Real Integration Tests:** Verify end-to-end with actual ast-grep
+
+### Type Safety Approach
+- **Strict Mode:** Enable all mypy checks
+- **Explicit Casts:** Use cast() for dynamic JSON parsing
+- **No type:ignore:** Prefer proper type annotations
+- **Optional Over None:** Use Optional[T] for nullable types
+
+### Configuration Validation Strategy
+- **Validate Early:** Check config before starting server
+- **Helpful Errors:** Point to documentation and examples
+- **Forward Compatible:** Use flexible types for evolving schemas
+- **Preserve Format:** Match ast-grep's camelCase conventions
+
+---
+
+## Files Modified Summary
+
+### main.py Changes
+- Lines 16-87: Custom exception classes
+- Lines 90-130: Pydantic configuration models
+- Lines 133-174: validate_config_file() function
+- Lines 182-223: parse_args_and_get_config() with validation
+- Throughout: Type hints, error handling updates, cast() usage
+
+**Line Count:** 517 total (was ~317 before changes)
+**Statements:** 166 (96% coverage)
+**Complexity:** Moderate increase due to validation logic
+
+### tests/test_unit.py Changes
+- Lines 1-990: Expanded from ~440 lines
+- Added 8 new test classes
+- Added 36 new test cases
+- Total: 62 tests (was 26)
+
+### New Files Created
+1. **CONFIGURATION.md** (350+ lines) - Configuration guide
+2. **tests/fixtures/valid_config.yaml** - Valid config example
+3. **tests/fixtures/invalid_config_extensions.yaml** - Invalid extensions
+4. **tests/fixtures/invalid_config_empty.yaml** - Empty lists/dicts
+5. **tests/fixtures/invalid_config_yaml_error.yaml** - YAML syntax error
+6. **tests/fixtures/empty_config.yaml** - Empty file
+7. **tests/fixtures/invalid_config_not_dict.yaml** - List instead of dict
+8. **tests/fixtures/config_with_custom_lang.yaml** - Custom languages
+
+### pyproject.toml Changes
+- Enabled mypy strict mode
+- Added coverage exclusion for decorator lines
+- No dependency changes
+
+---
+
+## Commands Run This Session
+
+```bash
+# Run tests with coverage (multiple times)
+uv run pytest --cov=main --cov-report=term-missing
+
+# Run specific test file
+uv run pytest tests/test_unit.py -v
+
+# Type checking
+uv run mypy main.py
+
+# Linting
+uv run ruff check .
+```
+
+---
+
+## Remaining Phase 1 Work
+
+### ✅ Task 2: Comprehensive Logging System - COMPLETE
+
+**Status:** COMPLETE
+**Implementation Date:** 2025-11-08 (same session as Tasks 1, 3, 4, 5)
+**Files Modified:** `main.py`, `pyproject.toml`, `CLAUDE.md`
+
+#### What Was Built
+
+**1. Structured Logging with structlog**
+- Added `structlog>=24.1.0` dependency to pyproject.toml:11
+- Created `configure_logging()` function (main.py:18-51)
+  - JSON output via `structlog.processors.JSONRenderer()`
+  - ISO 8601 timestamps (UTC) via `TimeStamper(fmt="iso", utc=True)`
+  - Log level filtering via `make_filtering_bound_logger(numeric_level)`
+  - Configurable output (stderr default, file optional)
+- Created `get_logger(name: str) -> Any` helper (main.py:54-63)
+  - Returns structlog logger instance
+  - Used `Any` return type to satisfy mypy strict mode
+
+**2. CLI Flags and Environment Variables**
+- Added `--log-level` flag (main.py:256-262)
+  - Choices: DEBUG, INFO, WARNING, ERROR
+  - Default: INFO
+- Added `--log-file` flag (main.py:263-269)
+  - Optional file path for logs
+  - Default: None (uses stderr)
+- Environment variable support (main.py:290-297):
+  - `LOG_LEVEL`: Alternative to --log-level flag
+  - `LOG_FILE`: Alternative to --log-file flag
+  - Precedence: CLI flag > env var > default
+- Updated argument parser epilog (main.py:242-245)
+
+**3. Tool Invocation Logging**
+Added logging to all 4 MCP tools with try/except blocks:
+
+- `dump_syntax_tree` (main.py:322-356):
+  - tool_invoked: language, format, code_length
+  - tool_completed: execution_time_seconds, output_length, status="success"
+  - tool_failed: execution_time_seconds, error (truncated to 200 chars), status="failed"
+
+- `test_match_code_rule` (main.py:369-420):
+  - tool_invoked: rule_id, language, code_length, yaml_length
+  - tool_completed: execution_time_seconds, match_count, status="success"
+  - tool_failed: execution_time_seconds, error, status="failed"
+
+- `find_code` (main.py:461-520):
+  - tool_invoked: project_folder, pattern_length, language, max_results, output_format
+  - tool_completed: execution_time_seconds, total_matches, returned_matches, output_format, status="success"
+  - tool_failed: execution_time_seconds, error, status="failed"
+
+- `find_code_by_rule` (main.py:561-633):
+  - tool_invoked: project_folder, rule_id, language, yaml_length, max_results, output_format
+  - tool_completed: execution_time_seconds, total_matches, returned_matches, output_format, status="success"
+  - tool_failed: execution_time_seconds, error, status="failed"
+
+**4. Subprocess Execution Logging**
+Enhanced `run_command()` function (main.py:568-633):
+- executing_command: command, args, has_stdin (sanitized, no code content)
+- command_completed: command, execution_time_seconds, returncode
+- command_failed: command, execution_time_seconds, returncode, stderr (truncated to 200 chars)
+- command_not_found: command, execution_time_seconds
+
+**5. Performance Metrics**
+All logs include `time.time()` based timing:
+- Start time captured before execution
+- End time calculated after completion/failure
+- `execution_time_seconds` rounded to 3 decimal places
+- Additional metrics: match counts, output lengths, return codes
+
+**6. Log Security**
+- Code content NOT logged (sanitized from subprocess args)
+- Error messages truncated to 200 chars in logs
+- Only metadata logged: lengths, counts, paths, IDs
+
+#### Key Design Decisions
+
+1. **structlog over stdlib logging**
+   - Rationale: Better structured data support, JSON output native
+   - Cleaner API than stdlib + python-json-logger
+   - Similar to Node.js pino (as requested)
+
+2. **stderr by default**
+   - Rationale: MCP protocol uses stdout for JSON-RPC
+   - stderr available for logs without interference
+   - File logging optional for production deployments
+
+3. **Truncate error messages**
+   - Rationale: Prevent log bloat from large stderr output
+   - 200 char limit balances context vs. size
+   - Full errors still raised to user
+
+4. **Time tracking in each function**
+   - Rationale: Precise timing per operation
+   - try/finally would be cleaner but try/except required for error logging
+   - Duplicated `time.time()` calls acceptable for clarity
+
+5. **Return type `Any` for get_logger**
+   - Rationale: structlog.get_logger() returns dynamic type
+   - `BoundLogger` type fails mypy strict mode check
+   - `Any` acceptable for logger instances (stdlib pattern)
+
+#### Files Modified Summary
+
+**main.py Changes:**
+- Lines 1-12: Added `import time` and `import structlog`
+- Lines 18-63: Logging configuration functions (46 lines)
+- Lines 242-245: Updated CLI help with env vars
+- Lines 256-269: Added --log-level and --log-file flags
+- Lines 290-297: Environment variable resolution and configure_logging() call
+- Lines 322-356: dump_syntax_tree logging (35 lines added)
+- Lines 369-420: test_match_code_rule logging (52 lines added)
+- Lines 461-520: find_code logging (60 lines added)
+- Lines 561-633: find_code_by_rule logging (73 lines added)
+- Lines 568-633: run_command logging (66 lines added)
+
+**Total Lines Added:** ~282 lines
+**New main.py Size:** 799 lines (was 517)
+
+**pyproject.toml Changes:**
+- Line 11: Added `"structlog>=24.1.0"` dependency
+
+**CLAUDE.md Changes:**
+- Lines 55-106: New "Logging System" section (52 lines)
+  - Configuration options
+  - Log format specification
+  - Usage examples
+  - Log event types
+  - Performance metrics documentation
+- Line 111: Updated file size from ~317 to ~799 lines
+
+#### Testing Results
+
+**All Tests Pass:** 62/62 ✅
+**Coverage:** 96% maintained (191 statements, 7 uncovered)
+- Uncovered lines: 279-281, 288-290, 771 (sys.exit paths)
+- Same uncovered lines as before logging implementation
+
+**Type Checking:** mypy strict mode passes ✅
+**Linting:** ruff passes ✅
+
+#### Usage Examples
+
+```bash
+# Default INFO level to stderr
+uv run main.py
+
+# DEBUG level to stderr
+uv run main.py --log-level DEBUG
+
+# Log to file
+uv run main.py --log-file /tmp/ast-grep-mcp.log
+
+# Environment variables
+export LOG_LEVEL=DEBUG
+export LOG_FILE=/var/log/ast-grep.log
+uv run main.py
+```
+
+#### Example Log Output
+
+```json
+{"event": "tool_invoked", "level": "info", "timestamp": "2025-01-08T12:34:56.789Z", "tool": "find_code", "project_folder": "/path/to/project", "pattern_length": 15, "language": "python", "max_results": 0, "output_format": "text"}
+{"event": "executing_command", "level": "info", "timestamp": "2025-01-08T12:34:56.790Z", "command": "ast-grep", "args": ["run", "--pattern", "...", "--json", "/path/to/project"], "has_stdin": false}
+{"event": "command_completed", "level": "info", "timestamp": "2025-01-08T12:34:57.123Z", "command": "ast-grep", "execution_time_seconds": 0.333, "returncode": 0}
+{"event": "tool_completed", "level": "info", "timestamp": "2025-01-08T12:34:57.125Z", "tool": "find_code", "execution_time_seconds": 0.335, "total_matches": 42, "returned_matches": 42, "output_format": "text", "status": "success"}
+```
+
+#### Integration with MCP Clients
+
+**Cursor (.cursor-mcp/settings.json):**
+```json
+{
+  "mcpServers": {
+    "ast-grep": {
+      "command": "uv",
+      "args": [
+        "--directory", "/path/to/ast-grep-mcp",
+        "run", "main.py",
+        "--log-level", "INFO",
+        "--log-file", "/tmp/ast-grep-mcp.log"
+      ]
+    }
+  }
+}
+```
+
+**Claude Desktop:** Similar configuration with logging flags in args array
+
+#### Known Limitations
+
+1. **No log rotation** - File logs append indefinitely
+   - Future: Add max size/time rotation (Phase 5)
+
+2. **No request ID tracking** - Cannot correlate logs across tool calls
+   - Future: Add distributed tracing (Task 22)
+
+3. **Logging during startup not captured** - configure_logging called after arg parsing
+   - Acceptable: No critical startup operations to log
+
+4. **Test output includes JSON logs** - Tests see stderr logs
+   - Acceptable: Tests don't validate log content, just functionality
+   - Future: Could add log capture assertions
+
+---
+
+## Next Steps
+
+### ✅ Phase 1 Complete!
+
+**All 5 Tasks Completed:**
+1. ✅ Enhanced Error Handling
+2. ✅ Comprehensive Logging System
+3. ✅ Test Coverage Expansion
+4. ✅ Type Safety Improvements
+5. ✅ Configuration Validation
+
+### Immediate Next Actions
+1. **Create git commit** for Phase 1 work (all 5 tasks)
+2. **Move to Phase 2: Performance & Scalability**
+3. Update task checklist to mark Phase 1 as 100% complete
+
+### Phase 2 Preview (Performance & User Experience)
+- Task 6: Progress indication for long operations
+- Task 7: Result streaming for large searches
+- Task 8: Simple in-memory caching
+- Task 9: Enhanced error messages
+- Task 10: Performance benchmarking
+
+---
+
+## Context for Next Session
+
+### Current State
+- **Working Directory:** /Users/alyshialedlie/code/ast-grep-mcp
+- **Git Status:** All Phase 1 work uncommitted (ready for git commit)
+- **Branch:** main
+- **Last Commit:** 9423729 init
+- **Phase Status:** Phase 1 100% COMPLETE (5/5 tasks)
+
+### What Was Being Done
+**Session Summary:** Completed all 5 Phase 1 tasks in single session (2025-11-08)
+- Started with Task 1 (Error Handling)
+- Completed Tasks 3, 4, 5 (Tests, Types, Config)
+- **Just finished:** Task 2 (Logging System with structlog)
+
+### Outstanding Work
+**Ready to commit:**
+- main.py: 799 lines (+282 from logging, +200 from other tasks)
+- pyproject.toml: Added structlog dependency
+- CLAUDE.md: Added logging documentation
+- CONFIGURATION.md: Config validation docs (350+ lines)
+- tests/test_unit.py: 990 lines, 57 unit tests
+- tests/fixtures/: 7 new YAML config test files
+- dev/active/: Updated session notes and task tracking
+
+### Environment Setup
+```bash
+# Dependencies installed (includes structlog)
+uv sync --extra dev
+
+# All tests passing
+uv run pytest  # 62 passed
+
+# Coverage maintained
+uv run pytest --cov=main --cov-report=term-missing  # 96% (191 stmts, 7 uncovered)
+
+# Type checking clean
+uv run mypy main.py  # Success (strict mode)
+
+# Linting clean
+uv run ruff check .  # All checks passed
+```
+
+### What to Do on Restart
+1. **Git commit Phase 1 work** (see commit message template below)
+2. **Read Phase 2 strategic plan** in ast-grep-mcp-strategic-plan.md
+3. **Choose first Phase 2 task** (suggested: Task 6 - Result Streaming)
+4. Review updated metrics in ast-grep-mcp-context.md
+
+### Recommended Commit Message
+```
+Complete Phase 1: Foundation & Quality (5/5 tasks)
+
+Phase 1 establishes production-grade quality standards for ast-grep MCP server.
+
+Tasks Completed:
+- Task 1: Enhanced Error Handling (6 custom exception classes)
+- Task 2: Comprehensive Logging System (structlog with JSON output)
+- Task 3: Test Coverage Expansion (96% coverage, 62 tests)
+- Task 4: Type Safety Improvements (mypy strict mode)
+- Task 5: Configuration Validation (Pydantic models)
+
+Major Changes:
+- main.py: 517 → 799 lines (+282 lines)
+  - Custom exception hierarchy with helpful messages
+  - Structured JSON logging with performance metrics
+  - Pydantic config validation
+  - Full type hints with mypy strict mode
+
+- tests/: 26 → 62 tests (+36 tests)
+  - 96% coverage (191 statements, 7 uncovered)
+  - 8 new test classes for edge cases
+  - 7 new test fixture files
+
+- Documentation:
+  - CONFIGURATION.md (350+ lines)
+  - Updated CLAUDE.md with logging guide
+  - Comprehensive session notes
+
+Dependencies Added:
+- structlog>=24.1.0 (JSON logging)
+
+Quality Metrics:
+✅ 62/62 tests passing
+✅ 96% code coverage
+✅ mypy strict mode passing
+✅ ruff linting passing
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+---
+
+## Important Notes
+
+### Do NOT Modify
+- MockFastMCP test pattern - it's brittle but necessary
+- camelCase Pydantic field names - they match ast-grep's config
+- Coverage exclusions - they're intentional for untestable code
+
+### Be Careful With
+- Changing exception types - update all tests
+- Modifying Pydantic models - may break existing configs
+- Removing type casts - will break mypy strict mode
+
+### Future Considerations
+- main.py is now 799 lines (exceeds original 600 line target)
+- Still manageable as single file, but approaching limit
+- Future refactoring: Consider splitting if Phase 2 adds >200 lines
+- Suggested modules if refactoring: config.py, exceptions.py, logging_config.py
+
+### File Size Progression
+- Initial: ~317 lines
+- After Tasks 1,3,4,5: 517 lines (+200)
+- After Task 2 (Logging): 799 lines (+282)
+- Target before refactoring: Keep under 1000 lines
+
+---
+
+**Session End Time:** 2025-11-08
+**Session Duration:** ~4 hours
+**Phase 1 Status:** 100% COMPLETE (5/5 tasks)
+**Next Session:** Create git commit, then start Phase 2
+</file>
+
+<file path="CONTEXT-RESET-SUMMARY.md">
+# Context Reset Summary
+
+**Generated:** 2025-11-08
+**Purpose:** Seamless continuation after context reset
+**Status:** Phase 1 Complete (5/5 tasks) - Ready for git commit
+
+---
+
+## Quick Start (TL;DR)
+
+**What happened:** Completed all 5 Phase 1 tasks, including comprehensive logging system with structlog.
+
+**What to do next:**
+1. ✅ Verify tests: `uv run pytest --cov=main`
+2. 📝 Create git commit (see HANDOFF-NOTES.md for commit message template)
+3. 🚀 Start Phase 2 (Performance & Scalability)
+
+**Key files to review:**
+- `dev/active/ast-grep-mcp-strategic-plan/HANDOFF-NOTES.md` - Complete handoff
+- `dev/active/ast-grep-mcp-strategic-plan/phase1-session-notes.md` - Detailed implementation notes
+- `main.py` lines 18-63 - New logging system
+
+---
+
+## Phase 1: 100% COMPLETE ✅
+
+### All 5 Tasks Finished (2025-11-08)
+
+1. **✅ Task 1: Enhanced Error Handling**
+   - 6 custom exception classes
+   - Helpful error messages with resolution guidance
+   - Lines: main.py:66-138
+
+2. **✅ Task 2: Comprehensive Logging System** ← Just completed!
+   - structlog with JSON output
+   - CLI: --log-level, --log-file
+   - Env vars: LOG_LEVEL, LOG_FILE
+   - All tools + subprocess logging
+   - Performance metrics (timing, counts)
+   - Lines: main.py:18-63 (config), extensive throughout tools
+
+3. **✅ Task 3: Test Coverage Expansion**
+   - 96% coverage (target: 90%)
+   - 62 tests (was 26)
+   - 8 new test classes
+   - 7 YAML fixture files
+
+4. **✅ Task 4: Type Safety Improvements**
+   - mypy strict mode enabled
+   - All functions have type hints
+   - No type:ignore comments (except get_logger)
+
+5. **✅ Task 5: Configuration Validation**
+   - Pydantic models: CustomLanguageConfig, AstGrepConfig
+   - validate_config_file() function
+   - CONFIGURATION.md (350+ lines)
+
+---
+
+## Current Codebase State
+
+### Files Modified (Uncommitted)
+```
+Modified:
+  - main.py (799 lines, +282 from logging, +200 from other tasks)
+  - pyproject.toml (+structlog dependency)
+  - CLAUDE.md (+logging documentation)
+  - tests/test_unit.py (990 lines, 57 tests)
+  - tests/test_integration.py (5 tests)
+  - uv.lock (updated dependencies)
+
+New Files:
+  - CONFIGURATION.md (350+ lines)
+  - tests/fixtures/*.yaml (7 config test files)
+  - dev/active/ast-grep-mcp-strategic-plan/* (updated docs)
+  - dev/active/HANDOFF-NOTES.md (this session)
+  - dev/active/CONTEXT-RESET-SUMMARY.md (this file)
+```
+
+### Quality Metrics
+```
+✅ Tests: 62/62 passing
+✅ Coverage: 96% (191 stmts, 7 uncovered sys.exit paths)
+✅ Type Check: mypy strict mode passing
+✅ Linting: ruff passing
+✅ Dependencies: All installed
+```
+
+### Key Numbers
+- **main.py:** 317 → 517 → 799 lines
+- **Tests:** 26 → 62 tests (+36)
+- **Coverage:** 72% → 96% (+24%)
+- **Session Duration:** ~4 hours
+- **Tasks Completed:** 5/5 (100%)
+
+---
+
+## What Was Just Implemented (Task 2 Details)
+
+### Logging System with structlog
+
+**Configuration (main.py:18-51):**
+```python
+def configure_logging(log_level: str = "INFO", log_file: Optional[str] = None)
+```
+- JSON output via `structlog.processors.JSONRenderer()`
+- ISO timestamps (UTC)
+- Configurable levels: DEBUG, INFO, WARNING, ERROR
+- Output: stderr (default) or file
+
+**CLI Integration (main.py:256-297):**
+- `--log-level` flag (choices: DEBUG, INFO, WARNING, ERROR)
+- `--log-file` flag (optional file path)
+- Environment variables: LOG_LEVEL, LOG_FILE
+- Precedence: CLI > env var > default (INFO)
+
+**Tool Logging (all 4 tools wrapped):**
+```python
+logger = get_logger("tool.dump_syntax_tree")
+logger.info("tool_invoked", tool="...", params="...")
+# ... execute tool ...
+logger.info("tool_completed", execution_time_seconds=0.123, status="success")
+```
+
+**Events Logged:**
+- tool_invoked, tool_completed, tool_failed
+- executing_command, command_completed, command_failed
+- command_not_found
+
+**Metrics Tracked:**
+- execution_time_seconds (rounded to 3 decimals)
+- match_count, total_matches, returned_matches
+- output_length, code_length, pattern_length
+- returncode, stderr (truncated to 200 chars)
+
+**Security:**
+- Code content NOT logged (sanitized)
+- Error messages truncated
+- Only metadata logged
+
+---
+
+## Documentation Updated
+
+All strategic plan documents updated:
+
+1. **phase1-session-notes.md**
+   - Added Task 2 complete section (200+ lines)
+   - Implementation details, design decisions
+   - Updated context for next session
+   - Git commit message template
+
+2. **ast-grep-mcp-tasks.md**
+   - Marked Task 2 as complete
+   - Updated checklist (all boxes checked)
+   - Added deferred items (log rotation, memory usage)
+
+3. **ast-grep-mcp-context.md**
+   - Updated file structure (main.py line numbers)
+   - Added structlog to dependencies
+   - Updated Phase 1 summary to 100% complete
+   - Final metrics updated
+
+4. **CLAUDE.md**
+   - Added "Logging System" section (lines 62-106)
+   - Configuration options
+   - Usage examples
+   - Log event types
+   - Performance metrics docs
+
+5. **HANDOFF-NOTES.md** (new)
+   - Complete session handoff
+   - Git commit instructions
+   - Next steps for Phase 2
+   - Technical context
+   - Testing notes
+
+6. **CONTEXT-RESET-SUMMARY.md** (new, this file)
+   - Quick reference for context reset
+   - Key information at a glance
+
+---
+
+## Next Steps After Context Reset
+
+### Immediate Actions
+
+**1. Verify Environment**
+```bash
+cd /Users/alyshialedlie/code/ast-grep-mcp
+uv sync --extra dev
+uv run pytest --cov=main --cov-report=term-missing
+# Should show: 62 passed, 96% coverage
+```
+
+**2. Review Documentation**
+```bash
+# Read these in order:
+cat dev/active/CONTEXT-RESET-SUMMARY.md  # This file (quick overview)
+cat dev/active/HANDOFF-NOTES.md          # Detailed handoff
+cat dev/active/ast-grep-mcp-strategic-plan/phase1-session-notes.md  # Full notes
+```
+
+**3. Create Git Commit**
+```bash
+# Use commit message from HANDOFF-NOTES.md
+git add -A
+git commit -m "$(cat dev/active/HANDOFF-NOTES.md | sed -n '/^```$/,/^```$/p' | sed '1d;$d')"
+# Or manually copy commit message from HANDOFF-NOTES.md section "Recommended Commit Message"
+```
+
+**4. Plan Phase 2**
+```bash
+# Review Phase 2 tasks
+cat dev/active/ast-grep-mcp-strategic-plan/ast-grep-mcp-tasks.md | grep -A 30 "Phase 2"
+
+# Suggested starting task: Task 6 (Result Streaming)
+# Most impactful for UX, reduces latency
+```
+
+---
+
+## Architecture Quick Reference
+
+### File Structure (main.py - 799 lines)
+```
+Lines 1-12:    Imports (time, structlog added)
+Lines 18-63:   Logging config (configure_logging, get_logger)
+Lines 66-138:  Custom exceptions (6 classes)
+Lines 141-181: Pydantic models (config validation)
+Lines 184-225: Config validation function
+Lines 228-297: CLI args parsing + logging setup
+Lines 299-633: MCP tools (4 tools with logging)
+Lines 636-798: Helper functions (with logging)
+Line 799:      Entry point
+```
+
+### Key Design Decisions
+
+1. **structlog over stdlib:** Better JSON support, cleaner API
+2. **stderr by default:** MCP uses stdout for JSON-RPC
+3. **Truncate errors:** 200 char limit to prevent log bloat
+4. **Time per function:** Precise timing with time.time()
+5. **Return `Any` for logger:** Avoid mypy strict mode issues
+
+### Coverage Exclusions (Intentional)
+- sys.exit() paths (lines 279-281, 288-290, 771)
+- @mcp.tool() decorator lines
+- if __name__ == '__main__' block
+
+---
+
+## Common Commands
+
+### Development
+```bash
+# Run tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=main --cov-report=term-missing
+
+# Type check
+uv run mypy main.py
+
+# Lint
+uv run ruff check .
+
+# Run server with logging
+uv run main.py --log-level DEBUG --log-file /tmp/test.log
+```
+
+### Testing Logging
+```bash
+# Test with DEBUG level
+uv run python main.py --log-level DEBUG --help
+
+# Test with file output
+uv run python main.py --log-file /tmp/ast-grep.log --help
+tail -f /tmp/ast-grep.log
+```
+
+---
+
+## Important Warnings
+
+### DO NOT
+- Modify MockFastMCP test pattern (brittle but necessary)
+- Change camelCase Pydantic field names (match ast-grep)
+- Remove coverage exclusions (intentional)
+- Remove # noqa: N815 comments
+
+### BE CAREFUL
+- main.py at 799 lines (approaching 1000 line limit)
+- Changing exception types (update all tests)
+- Modifying Pydantic models (may break configs)
+
+---
+
+## Troubleshooting
+
+### If Tests Fail
+```bash
+# Reinstall dependencies
+uv sync --extra dev
+
+# Check for missing imports
+uv run python -c "import structlog; print('structlog OK')"
+
+# Run specific test
+uv run pytest tests/test_unit.py::TestDumpSyntaxTree -v
+```
+
+### If Coverage Drops
+```bash
+# Check what's not covered
+uv run pytest --cov=main --cov-report=html
+open htmlcov/index.html
+```
+
+### If mypy Fails
+```bash
+# Check strict mode
+uv run mypy main.py --show-error-codes
+
+# Common issue: get_logger return type
+# Should be: -> Any (not BoundLogger)
+```
+
+---
+
+## Phase 2 Preview
+
+**Next Phase:** Performance & Scalability (Weeks 4-6)
+
+**Tasks:**
+1. Task 6: Result Streaming [L] - Stream results as found
+2. Task 7: Query Result Caching [M] - LRU cache
+3. Task 8: Parallel Execution [L] - Multi-worker
+4. Task 9: Large File Handling [M] - Stream >10MB files
+5. Task 10: Performance Benchmarking [M] - Regression tests
+
+**Suggested First:** Task 6 (Result Streaming)
+- High impact on UX
+- Enables early termination
+- Reduces perceived latency
+
+**Current main.py:** 799 lines
+**Phase 2 Estimate:** +150-250 lines
+**Refactor Threshold:** 1000 lines (consider splitting if exceeded)
+
+---
+
+## Contact & Resources
+
+**Documentation:**
+- Full plan: `dev/active/ast-grep-mcp-strategic-plan/ast-grep-mcp-strategic-plan.md`
+- Tasks: `dev/active/ast-grep-mcp-strategic-plan/ast-grep-mcp-tasks.md`
+- Context: `dev/active/ast-grep-mcp-strategic-plan/ast-grep-mcp-context.md`
+- Session notes: `dev/active/ast-grep-mcp-strategic-plan/phase1-session-notes.md`
+- Handoff: `dev/active/HANDOFF-NOTES.md`
+
+**Quick Reference:**
+- CLAUDE.md - Development commands, architecture
+- CONFIGURATION.md - Config file reference
+- README.md - User-facing docs
+
+---
+
+**Last Updated:** 2025-11-08 (End of Phase 1 session)
+**Status:** All documentation current, ready for continuation
+**Action Required:** Create git commit, then proceed to Phase 2
+</file>
+
+</files>
