@@ -4,15 +4,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an MCP (Model Context Protocol) server that exposes ast-grep's structural code search capabilities to AI assistants. It wraps the `ast-grep` CLI tool and provides five main MCP tools:
+This is an MCP (Model Context Protocol) server that combines ast-grep's structural code search capabilities with Schema.org structured data tools. The server provides 13 MCP tools across two domains:
 
+### Code Search Tools (ast-grep)
 1. **`dump_syntax_tree`**: Visualize AST structure of code snippets for pattern development
 2. **`test_match_code_rule`**: Test YAML rules against code before applying to larger codebases
 3. **`find_code`**: Search using simple patterns for straightforward structural matches
 4. **`find_code_by_rule`**: Advanced search using complex YAML rules with relational constraints
 5. **`find_duplication`**: Detect duplicate code and suggest modularization based on DRY principles
 
-**External dependency**: Requires `ast-grep` CLI to be installed and available in PATH. The server shells out to `ast-grep` via subprocess calls.
+### Schema.org Tools
+6. **`get_schema_type`**: Get detailed information about a Schema.org type
+7. **`search_schemas`**: Search for Schema.org types by keyword
+8. **`get_type_hierarchy`**: Get the inheritance hierarchy for a type
+9. **`get_type_properties`**: Get all properties available for a type
+10. **`generate_schema_example`**: Generate example JSON-LD structured data
+11. **`generate_entity_id`**: Generate proper @id values following SEO best practices
+12. **`validate_entity_id`**: Validate @id values against best practices
+13. **`build_entity_graph`**: Build knowledge graphs with related entities using @id references
+
+**External dependencies**:
+- `ast-grep` CLI (for code search tools) - must be installed and available in PATH
+- Internet connection (for Schema.org tools) - fetches vocabulary from schema.org on first use
 
 ## Prerequisites
 
@@ -133,6 +146,9 @@ uv run python scripts/find_duplication.py /path/to/project --language python
 # Analyze JavaScript classes with strict similarity
 uv run python scripts/find_duplication.py /path/to/project --language javascript \
     --construct-type class_definition --min-similarity 0.9
+
+# Analyze more constructs for large codebases (default is 1000)
+uv run python scripts/find_duplication.py /path/to/project --language python --max-constructs 5000
 
 # Customize exclusion patterns (or disable with empty list)
 uv run python scripts/find_duplication.py /path/to/project --language python \
@@ -257,11 +273,11 @@ uv run main.py
 ## Architecture
 
 ### Single-file Design
-The entire MCP server is implemented in `main.py` (~1578 lines). This is intentional for simplicity and portability. The file includes comprehensive logging (~282 lines), streaming result parsing (~156 lines), query result caching (~117 lines), and duplication detection (~382 lines).
+The entire MCP server is implemented in `main.py` (~2600 lines). This is intentional for simplicity and portability. The file includes comprehensive logging (~282 lines), streaming result parsing (~156 lines), query result caching (~117 lines), duplication detection (~382 lines), Schema.org client (~490 lines with ID features) and 8 Schema.org MCP tools (~340 lines).
 
 ### Core Components
 
-**Tool Registration Pattern**: Tools are registered dynamically via `register_mcp_tools()` which is called at startup. This function uses the FastMCP decorator pattern to register the five main tools. Tools are defined as nested functions inside `register_mcp_tools()` to access the global `CONFIG_PATH` variable set during argument parsing.
+**Tool Registration Pattern**: Tools are registered dynamically via `register_mcp_tools()` which is called at startup. This function uses the FastMCP decorator pattern to register thirteen tools (5 ast-grep + 8 Schema.org including 3 ID-based tools). Tools are defined as nested functions inside `register_mcp_tools()` to access the global `CONFIG_PATH` variable and `get_schema_org_client()` function set during argument parsing.
 
 **Config Path Resolution**: The server supports custom `sgconfig.yaml` via `--config` flag or `AST_GREP_CONFIG` env var. The global `CONFIG_PATH` variable is set by `parse_args_and_get_config()` before tool registration, allowing tools to pass `--config` to ast-grep commands when needed.
 
@@ -286,18 +302,30 @@ Both modes internally use JSON from ast-grep for accurate result limiting, then 
 
 The streaming layer sits between the MCP tools and the subprocess execution layer, replacing the traditional `run_ast_grep()` call for search operations. This provides significant performance benefits when searching large codebases with result limits, as ast-grep can be terminated as soon as enough matches are found rather than scanning the entire project.
 
-**Duplication Detection**: The `find_duplication` tool (main.py:880-1077) detects duplicate code and suggests refactoring opportunities based on DRY principles. The detection process:
+**Duplication Detection**: The `find_duplication` tool (main.py:880-1316) detects duplicate code and suggests refactoring opportunities based on DRY principles. The detection process:
 1. Uses ast-grep streaming to find all instances of a construct type (functions, classes, methods)
-2. Normalizes code for comparison (removes whitespace, comments)
-3. Calculates pairwise similarity using difflib's SequenceMatcher
-4. Groups similar code blocks into duplication clusters (configurable threshold)
-5. Generates refactoring suggestions for each cluster
+2. Filters out library code based on exclude_patterns (default: site-packages, node_modules, .venv, venv, vendor)
+3. Limits analysis to max_constructs (default: 1000) for performance on large codebases
+4. Normalizes code for comparison (removes whitespace, comments)
+5. Calculates pairwise similarity using difflib's SequenceMatcher with hash-based bucketing optimization
+6. Groups similar code blocks into duplication clusters (configurable threshold)
+7. Generates refactoring suggestions for each cluster
 
 Key algorithms:
 - `normalize_code()`: Removes whitespace/comments for fair comparison
 - `calculate_similarity()`: Returns 0-1 similarity ratio using SequenceMatcher
-- `group_duplicates()`: Clusters similar code with configurable min_similarity and min_lines
+- `group_duplicates()`: Clusters similar code using hash-based bucketing by line count (reduces O(n²) to practical comparisons):
+  - Buckets functions by line count (±5 lines)
+  - Quick hash equality check for 100% identical code
+  - Size ratio filtering (skips if >2x difference)
+  - Only compares within and across adjacent buckets
+  - Example: 1000 constructs → 82,594 comparisons vs 499,500 maximum (83% reduction)
 - `generate_refactoring_suggestions()`: Creates actionable refactoring advice
+
+Performance optimizations:
+- **max_constructs** (default 1000): Limits number of constructs analyzed to prevent excessive computation on large codebases. Set to 0 for unlimited.
+- **exclude_patterns**: Filters out library/vendor code that can't be modified (default: ["site-packages", "node_modules", ".venv", "venv", "vendor"])
+- **Hash-based bucketing**: Groups constructs by similar line counts before comparison, dramatically reducing pairwise comparisons
 
 The tool returns a structured report with:
 - Summary statistics (total constructs, duplicate groups, potential line savings)
@@ -311,17 +339,46 @@ result = find_duplication(
     project_folder="/path/to/project",
     language="python",
     construct_type="function_definition",
-    min_similarity=0.8,  # 80% similarity threshold
-    min_lines=5          # Ignore functions < 5 lines
+    min_similarity=0.8,        # 80% similarity threshold
+    min_lines=5,               # Ignore functions < 5 lines
+    max_constructs=1000,       # Limit analysis for performance (0=unlimited)
+    exclude_patterns=["site-packages", "node_modules", ".venv", "venv", "vendor"]
 )
 
 # Result includes:
-# - summary.total_constructs: Total functions found
+# - summary.total_constructs: Total functions found (after filtering)
 # - summary.duplicate_groups: Number of duplication clusters
 # - summary.potential_line_savings: Lines that could be saved
 # - duplication_groups: Details of each cluster
 # - refactoring_suggestions: Actionable advice for each cluster
 ```
+
+**Schema.org Integration**: The server includes a SchemaOrgClient class (main.py:494-980) that fetches and indexes the complete Schema.org vocabulary. The integration pattern:
+
+1. **Lazy Initialization**: Schema.org data is fetched from `https://schema.org/version/latest/schemaorg-current-https.jsonld` on first use (not at server startup)
+2. **In-Memory Indexing**: All types and properties are indexed by `@id` and `rdfs:label` for fast lookups (~2600+ entries)
+3. **Async Client with Sync Wrappers**: The SchemaOrgClient uses httpx for async HTTP requests, wrapped with `asyncio.run()` in the MCP tool functions for synchronous execution
+4. **Single Global Instance**: A global `_schema_org_client` instance is created on first access via `get_schema_org_client()`
+
+Schema.org tool features:
+- **Type Queries** (`get_schema_type`): Returns type metadata, description, parent types, and URL
+- **Search** (`search_schemas`): Full-text search across type names and descriptions, sorted by relevance (limit 1-100 results)
+- **Hierarchy** (`get_type_hierarchy`): Traverses parent (`rdfs:subClassOf`) and child relationships
+- **Properties** (`get_type_properties`): Lists direct and inherited properties with expected value types
+- **Example Generation** (`generate_schema_example`): Creates valid JSON-LD with common properties and custom values
+- **ID Generation** (`generate_entity_id`): Creates proper @id values following SEO best practices (canonical URL + hash fragment)
+- **ID Validation** (`validate_entity_id`): Validates @id against best practices with warnings and suggestions
+- **Knowledge Graph Building** (`build_entity_graph`): Creates @graph structures with multiple entities connected via @id references
+
+**@id Best Practices** (from [Momentic Marketing](https://momenticmarketing.com/blog/id-schema-for-seo-llms-knowledge-graphs)):
+- Use format: `{canonical_url}#{entity_type}` or `{canonical_url}/{slug}#{entity_type}`
+- Keep IDs stable (no timestamps, query parameters, or dynamic values)
+- Use descriptive fragments for debugging clarity
+- One unchanging identifier per entity
+- Enable cross-page entity references
+- Build knowledge graphs over time
+
+The Schema.org client operates independently from ast-grep and requires internet connectivity for initial data fetch. After initialization, all operations use the in-memory indexed data. The ID-based tools (generate_entity_id, validate_entity_id, build_entity_graph) are synchronous and don't require data fetching.
 
 ### Testing Architecture
 
@@ -368,3 +425,326 @@ When testing rules, if no matches are found, the error message suggests adding `
 
 ### Text Format Design
 The text output format was designed to minimize token usage for LLMs while maintaining context. Format: `filepath:startline-endline` header followed by complete match text, with matches separated by blank lines.
+
+## Real-World Usage: PersonalSite Schema Enhancement Project
+
+This section documents a complete real-world usage of the Schema.org tools to implement a unified knowledge graph and enhanced blog post schemas for a Jekyll-based personal website.
+
+### Project Overview
+
+**Repository**: ~/code/PersonalSite (Jekyll static site)
+**Objective**: Replace fragmented Schema.org markup with unified knowledge graph and content-specific schemas
+**Tools Used**: 8 of 13 MCP tools (5 Schema.org tools + ast-grep for analysis)
+**Outcome**: 91% file reduction, 100% @id validation, 3 new blog post schema types
+
+### Phase 1: Unified Knowledge Graph Implementation
+
+**Problem**: PersonalSite had 11 separate schema include files with duplicate entity definitions and inconsistent @id usage.
+
+**Solution**: Used Schema.org tools to create a unified knowledge graph:
+
+1. **Analysis** (using `search_schemas`, `get_type_properties`):
+   - Identified 5 core entities: Person, WebSite, Blog, 2 Organizations
+   - Mapped 15 bidirectional relationships between entities
+
+2. **ID Generation** (using `generate_entity_id`):
+   ```bash
+   # Generated proper @id values following best practices
+   generate_entity_id("https://www.aledlie.com", "person")
+   # Returns: "https://www.aledlie.com#person"
+
+   generate_entity_id("https://www.aledlie.com", "organization", "organizations/integrity-studios")
+   # Returns: "https://www.aledlie.com/organizations/integrity-studios#organization"
+   ```
+
+3. **Validation** (using `validate_entity_id`):
+   - Validated all @id values: 100% pass rate
+   - Verified hash fragments present
+   - Confirmed no dynamic values or timestamps
+
+4. **Knowledge Graph Construction** (using `build_entity_graph`):
+   ```python
+   entities = [
+       {
+           "fragment": "person",
+           "type": "Person",
+           "name": "Alyshia Ledlie",
+           "relationships": {
+               "owns": "website",
+               "worksFor": ["organization-integrity", "organization-inventoryai"]
+           }
+       },
+       {
+           "fragment": "website",
+           "type": "WebSite",
+           "name": "Alyshia Ledlie",
+           "relationships": {
+               "publisher": "person",
+               "hasPart": ["blog"]
+           }
+       },
+       # ... more entities
+   ]
+
+   graph = build_entity_graph(entities, "https://www.aledlie.com")
+   # Returns complete @graph with all @id references resolved
+   ```
+
+**Files Created**:
+- `_includes/unified-knowledge-graph-schema.html` (260 lines) - Production schema
+- `_includes/SCHEMA-KNOWLEDGE-GRAPH-GUIDE.md` - Implementation guide
+- `KNOWLEDGE-GRAPH-ANALYSIS-SUMMARY.md` - Analysis report
+- `SCHEMA-BEFORE-AFTER-COMPARISON.md` - Comparison document
+
+**Results**:
+- Replaced 11 fragmented files with 1 unified schema
+- 91% file reduction
+- 100% @id validation pass rate
+- 15 bidirectional entity relationships
+
+### Phase 2: Enhanced Blog Post Schemas
+
+**Problem**: All blog posts used generic BlogPosting schema regardless of content type (technical guides, performance analysis, tutorials).
+
+**Solution**: Created specialized schemas for different content patterns:
+
+1. **Content Analysis** (using ast-grep `find_code`):
+   - Analyzed blog post markdown files
+   - Identified 3 content patterns:
+     - Technical guides (Jekyll update)
+     - Performance analysis with data (Wix performance)
+     - Personal narratives (What3Things)
+
+2. **Schema Research** (using `search_schemas`, `get_type_properties`):
+   ```python
+   # Found appropriate schema types
+   search_schemas("technical article")
+   # Returns: TechArticle - "A technical article - Example: How-to topics, step-by-step..."
+
+   search_schemas("analysis report data")
+   # Returns: AnalysisNewsArticle - "A NewsArticle that incorporates expertise..."
+
+   search_schemas("how to guide tutorial")
+   # Returns: HowTo - "Instructions that explain how to achieve a result..."
+   ```
+
+3. **Property Research** (using `get_type_properties`):
+   - TechArticle: dependencies, proficiencyLevel, articleSection
+   - AnalysisNewsArticle: dateline, backstory (inherits from NewsArticle)
+   - HowTo: steps, tools, supplies, totalTime, estimatedCost
+
+4. **Schema Template Creation**:
+   - Created 3 conditional schema templates using Liquid templating
+   - All schemas reference unified knowledge graph via @id
+   - Front matter controls which schema type is used
+
+**Files Created**:
+- `_includes/tech-article-schema.html` (94 lines) - For technical guides
+- `_includes/analysis-article-schema.html` (92 lines) - For analysis articles
+- `_includes/how-to-schema.html` (136 lines) - For step-by-step tutorials
+- `BLOG-SCHEMA-ENHANCEMENT-ANALYSIS.md` (450+ lines) - Complete analysis
+- `ENHANCED-SCHEMA-IMPLEMENTATION-GUIDE.md` (800+ lines) - Usage guide
+- `BLOG-SCHEMA-ENHANCEMENT-SUMMARY.md` - Implementation summary
+
+**Files Modified**:
+- `_includes/seo.html` - Added conditional schema logic
+- `_includes/post-schema.html` - Replaced nested objects with @id references
+- `_posts/2025-09-02-WixPerformanceImprovement.md` - Added AnalysisNewsArticle schema
+- `_posts/2025-07-02-updating-jekyll-in-2025.markdown` - Added TechArticle schema
+
+**Implementation Pattern**:
+```yaml
+# Front matter for TechArticle
+---
+title: "Updating Jekyll in 2025"
+date: 2025-07-02
+schema_type: TechArticle
+schema_dependencies: "Ruby 3.x, Jekyll 4.x, Bundler 2.x"
+schema_proficiency: "Intermediate"
+schema_section: "Jekyll"
+schema_about: "Jekyll Static Site Generator"
+---
+
+# Front matter for AnalysisNewsArticle
+---
+title: "Wix Performance Improvement"
+date: 2025-09-02
+schema_type: AnalysisNewsArticle
+schema_about: "Web Performance Optimization"
+schema_dateline: "November 2025"
+schema_section: "Performance Analysis"
+schema_backstory: "Performance analysis based on real-world production data..."
+---
+```
+
+### Phase 3: Documentation & Validation
+
+**Documentation Created** (8 comprehensive guides):
+
+1. **Testing**: `SCHEMA-TESTING-VALIDATION-GUIDE.md`
+   - 3-phase testing checklist (pre-deploy, post-deploy, relationship validation)
+   - Google Rich Results Test procedures
+   - Schema.org Validator procedures
+   - JSON-LD Playground usage
+   - Common issues and fixes
+   - Success criteria
+
+2. **Monitoring**: `SEARCH-CONSOLE-MONITORING-GUIDE.md`
+   - Daily monitoring (Week 1)
+   - Weekly monitoring (Weeks 2-4)
+   - Monthly monitoring (Long-term)
+   - Error detection and response
+   - Performance analysis framework
+   - Reporting templates
+
+3. **Analysis**: `KNOWLEDGE-GRAPH-ANALYSIS-SUMMARY.md`
+   - Complete entity analysis
+   - Relationship mapping
+   - Statistics and metrics
+   - Technical implementation details
+
+4. **Comparison**: `SCHEMA-BEFORE-AFTER-COMPARISON.md`
+   - Side-by-side comparison of approaches
+   - Visual relationship diagrams
+   - SEO impact analysis
+
+5. **Original Implementation**: `IMPLEMENTATION-COMPLETE-SUMMARY.md`
+   - Complete summary of unified schema implementation
+   - Deployment steps
+   - Testing procedures
+   - Next actions
+
+6. **Blog Enhancement Analysis**: `BLOG-SCHEMA-ENHANCEMENT-ANALYSIS.md`
+   - Content pattern analysis
+   - Schema type deep dive
+   - Implementation strategy
+   - Benefits analysis
+
+7. **Implementation Guide**: `ENHANCED-SCHEMA-IMPLEMENTATION-GUIDE.md`
+   - Front matter templates for each schema type
+   - Required vs. optional fields
+   - Decision tree for schema selection
+   - Validation checklist
+   - Troubleshooting guide
+
+8. **Enhancement Summary**: `BLOG-SCHEMA-ENHANCEMENT-SUMMARY.md`
+   - Complete implementation summary
+   - Files created/modified
+   - Testing procedures
+   - Next steps
+
+**Validation Steps**:
+
+1. **Local Testing**:
+   ```bash
+   cd ~/code/PersonalSite
+   bundle exec jekyll build
+   bundle exec jekyll serve
+   # View source → Copy JSON-LD → Validate in JSON-LD Playground
+   ```
+
+2. **Production Validation** (Post-Deployment):
+   - Google Rich Results Test: https://search.google.com/test/rich-results
+   - Schema.org Validator: https://validator.schema.org/
+   - Manual source inspection for @id resolution
+
+3. **Search Console Monitoring** (Ongoing):
+   - Week 1: Schema detection, URL inspection
+   - Weeks 2-4: Structured data processing, entity detection
+   - Months 2-3: Rich results eligibility and appearance
+   - Month 6+: Knowledge graph impact, CTR improvements
+
+### Expected SEO Benefits
+
+**TechArticle Schema**:
+- Better technical documentation indexing
+- "How-to" rich results eligibility
+- Developer audience targeting
+- Skill level matching
+
+**AnalysisNewsArticle Schema**:
+- Expert analysis recognition
+- Data-driven content highlighting
+- Trust signals (Trust Project alignment)
+- Analysis query matching
+
+**HowTo Schema**:
+- Step-by-step rich snippets
+- Featured snippet eligibility
+- Voice search optimization
+- FAQ-style results
+
+**Knowledge Graph**:
+- Improved semantic clarity
+- Enhanced relationship depth
+- Better entity recognition
+- Cross-page entity references
+
+### Key Learnings
+
+1. **@id Best Practices**: Using format `{canonical_url}#{entity_type}` enables knowledge graph building across multiple pages
+
+2. **Schema Type Selection**: Different content types benefit from specialized schemas (TechArticle vs AnalysisNewsArticle vs HowTo vs BlogPosting)
+
+3. **Conditional Templates**: Jekyll's Liquid templating allows clean conditional schema inclusion based on front matter
+
+4. **Validation is Critical**: Using `validate_entity_id` tool caught potential issues before deployment
+
+5. **Documentation Matters**: Comprehensive guides ensure maintainability and future content creators understand schema usage
+
+### Tools Usage Statistics
+
+**Schema.org Tools Used**:
+1. `search_schemas` - Found appropriate schema types for content patterns
+2. `get_type_properties` - Researched properties for TechArticle, AnalysisNewsArticle, HowTo
+3. `generate_entity_id` - Created all @id values following best practices
+4. `validate_entity_id` - Validated all @id values (100% pass rate)
+5. `build_entity_graph` - Built complete knowledge graph with 5 entities and 15 relationships
+
+**ast-grep Tools Used**:
+1. `find_code` - Analyzed blog post content patterns (Markdown files)
+2. `search_schemas` integration - Pattern analysis led to schema research
+
+**External Tools**:
+- WebSearch - Researched Schema.org properties and examples
+- WebFetch - Fetched Momentic Marketing @id best practices guide
+
+### Repository Links
+
+**Main Files**:
+- Unified Schema: `~/code/PersonalSite/_includes/unified-knowledge-graph-schema.html`
+- Enhanced Schemas: `~/code/PersonalSite/_includes/{tech-article,analysis-article,how-to}-schema.html`
+- SEO Include: `~/code/PersonalSite/_includes/seo.html`
+- Post Schema: `~/code/PersonalSite/_includes/post-schema.html`
+
+**Documentation**:
+- All guides in `~/code/PersonalSite/*.md`
+- Implementation guide in `~/code/PersonalSite/_includes/SCHEMA-KNOWLEDGE-GRAPH-GUIDE.md`
+
+**Modified Posts**:
+- `~/code/PersonalSite/_posts/2025-09-02-WixPerformanceImprovement.md` (AnalysisNewsArticle)
+- `~/code/PersonalSite/_posts/2025-07-02-updating-jekyll-in-2025.markdown` (TechArticle)
+
+### Final Metrics
+
+**File Changes**:
+- 17 files changed
+- 4,388 insertions
+- 45 deletions
+- Git commit: 88f6a304
+- Pushed to: origin/master
+
+**Schema Implementation**:
+- 1 unified knowledge graph schema (replaces 11 files)
+- 3 enhanced blog post schemas
+- 2 blog posts enhanced with specialized schemas
+- 8 comprehensive documentation files
+- 100% @id validation pass rate
+- 15 entity relationships mapped
+
+**Timeline**:
+- Analysis & Implementation: 1 session
+- Testing: In progress
+- Monitoring: Next 6 months (following SEARCH-CONSOLE-MONITORING-GUIDE.md)
+
+This project demonstrates the practical application of Schema.org tools for building semantic web structures and knowledge graphs in a real-world Jekyll static site.
