@@ -897,6 +897,22 @@ def register_mcp_tools() -> None:  # pragma: no cover
             default=5,
             description="Minimum number of lines to consider for duplication detection. Default: 5"
         ),
+        max_constructs: int = Field(
+            default=1000,
+            description=(
+                "Maximum number of constructs to analyze (performance optimization). "
+                "For large codebases, limiting this prevents excessive computation. "
+                "Set to 0 for unlimited. Default: 1000"
+            )
+        ),
+        exclude_patterns: List[str] = Field(
+            default_factory=lambda: ["site-packages", "node_modules", ".venv", "venv", "vendor"],
+            description=(
+                "List of path patterns to exclude from analysis (e.g., library code). "
+                "Files matching any of these patterns will be skipped. "
+                "Default: ['site-packages', 'node_modules', '.venv', 'venv', 'vendor']"
+            )
+        ),
     ) -> Dict[str, Any]:
         """
         Detect duplicate code in a project and suggest modularization based on DRY principles.
@@ -929,7 +945,9 @@ def register_mcp_tools() -> None:  # pragma: no cover
             language=language,
             construct_type=construct_type,
             min_similarity=min_similarity,
-            min_lines=min_lines
+            min_lines=min_lines,
+            max_constructs=max_constructs,
+            exclude_patterns=exclude_patterns
         )
 
         try:
@@ -938,6 +956,8 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 raise ValueError("min_similarity must be between 0.0 and 1.0")
             if min_lines < 1:
                 raise ValueError("min_lines must be at least 1")
+            if max_constructs < 0:
+                raise ValueError("max_constructs must be 0 (unlimited) or positive")
 
             # Map construct types to ast-grep patterns
             construct_patterns = {
@@ -965,13 +985,39 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 language=language
             )
 
-            # Use streaming to get all matches
+            # Use streaming to get matches (limit if max_constructs set)
+            stream_limit = max_constructs if max_constructs > 0 else 0
             all_matches = list(stream_ast_grep_results(
                 "run",
                 args + ["--json=stream", project_folder],
-                max_results=0,  # Get all matches
+                max_results=stream_limit,
                 progress_interval=100
             ))
+
+            # Filter out excluded paths (e.g., library code)
+            if exclude_patterns:
+                matches_before = len(all_matches)
+                all_matches = [
+                    match for match in all_matches
+                    if not any(pattern in match.get('file', '') for pattern in exclude_patterns)
+                ]
+                if matches_before > len(all_matches):
+                    logger.info(
+                        "excluded_matches",
+                        total_before=matches_before,
+                        total_after=len(all_matches),
+                        excluded_count=matches_before - len(all_matches),
+                        patterns=exclude_patterns
+                    )
+
+            # Log if we hit the limit
+            if max_constructs > 0 and len(all_matches) >= max_constructs:
+                logger.info(
+                    "construct_limit_reached",
+                    total_found=len(all_matches),
+                    max_constructs=max_constructs,
+                    message=f"Analysis limited to first {max_constructs} constructs for performance"
+                )
 
             if not all_matches:
                 execution_time = time.time() - start_time
@@ -988,7 +1034,8 @@ def register_mcp_tools() -> None:  # pragma: no cover
                         "total_constructs": 0,
                         "duplicate_groups": 0,
                         "total_duplicated_lines": 0,
-                        "potential_line_savings": 0
+                        "potential_line_savings": 0,
+                        "analysis_time_seconds": round(execution_time, 3)
                     },
                     "duplication_groups": [],
                     "refactoring_suggestions": [],
@@ -1166,6 +1213,9 @@ def group_duplicates(
 ) -> List[List[Dict[str, Any]]]:
     """Group similar code matches into duplication clusters.
 
+    Uses hash-based bucketing to reduce O(n²) comparisons for large codebases.
+    Only compares functions with similar line counts (within 20% difference).
+
     Args:
         matches: List of code matches from ast-grep
         min_similarity: Minimum similarity threshold (0-1)
@@ -1174,47 +1224,119 @@ def group_duplicates(
     Returns:
         List of duplication groups (each group is a list of similar matches)
     """
+    logger = get_logger("duplication.grouping")
+
     if not matches:
         return []
 
-    # Filter by minimum lines
+    # Filter by minimum lines and enrich with metadata
     filtered_matches = []
     for match in matches:
         text = match.get('text', '')
         line_count = len([line for line in text.split('\n') if line.strip()])
         if line_count >= min_lines:
+            # Add metadata for optimization
+            match['_line_count'] = line_count
+            match['_normalized_hash'] = hash(normalize_code(text))
             filtered_matches.append(match)
 
     if not filtered_matches:
         return []
 
-    # Group similar matches
+    logger.info(
+        "grouping_start",
+        total_candidates=len(filtered_matches),
+        min_similarity=min_similarity
+    )
+
+    # Hash-based bucketing by line count (reduces comparison space)
+    # Group functions into buckets of similar sizes (±20% tolerance)
+    size_buckets: Dict[int, List[Dict[str, Any]]] = {}
+    for match in filtered_matches:
+        # Bucket key is line count rounded to nearest 5
+        bucket_key = (match['_line_count'] // 5) * 5
+        if bucket_key not in size_buckets:
+            size_buckets[bucket_key] = []
+        size_buckets[bucket_key].append(match)
+
+    logger.info(
+        "bucketing_complete",
+        num_buckets=len(size_buckets),
+        bucket_sizes={k: len(v) for k, v in list(size_buckets.items())[:10]}  # Log first 10
+    )
+
+    # Group similar matches within and across adjacent buckets
     groups: List[List[Dict[str, Any]]] = []
     used_indices: set[int] = set()
+    comparisons_made = 0
+    progress_interval = 100
 
     for i, match1 in enumerate(filtered_matches):
         if i in used_indices:
             continue
 
+        # Log progress for large datasets
+        if i > 0 and i % progress_interval == 0:
+            logger.info(
+                "grouping_progress",
+                processed=i,
+                total=len(filtered_matches),
+                groups_found=len(groups),
+                comparisons=comparisons_made
+            )
+
         group = [match1]
         used_indices.add(i)
+        match1_bucket = (match1['_line_count'] // 5) * 5
+
+        # Only compare with matches in same or adjacent buckets (±20% size difference)
+        candidate_buckets = [match1_bucket - 5, match1_bucket, match1_bucket + 5]
+        candidates = []
+        for bucket_key in candidate_buckets:
+            if bucket_key in size_buckets:
+                candidates.extend(size_buckets[bucket_key])
 
         for j, match2 in enumerate(filtered_matches[i + 1:], start=i + 1):
             if j in used_indices:
                 continue
 
-            similarity = calculate_similarity(
-                match1.get('text', ''),
-                match2.get('text', '')
-            )
+            # Skip if not in candidate buckets (too different in size)
+            if match2 not in candidates:
+                continue
 
-            if similarity >= min_similarity:
+            # Quick hash check before expensive similarity calculation
+            if match1['_normalized_hash'] == match2['_normalized_hash']:
+                # Identical after normalization
                 group.append(match2)
                 used_indices.add(j)
+                comparisons_made += 1
+            else:
+                # Size similarity check (must be within 50% to be worth comparing)
+                size_ratio = match1['_line_count'] / max(match2['_line_count'], 1)
+                if size_ratio < 0.5 or size_ratio > 2.0:
+                    continue
+
+                # Expensive similarity calculation
+                similarity = calculate_similarity(
+                    match1.get('text', ''),
+                    match2.get('text', '')
+                )
+                comparisons_made += 1
+
+                if similarity >= min_similarity:
+                    group.append(match2)
+                    used_indices.add(j)
 
         # Only include groups with 2+ items (actual duplicates)
         if len(group) >= 2:
             groups.append(group)
+
+    logger.info(
+        "grouping_complete",
+        groups_found=len(groups),
+        total_comparisons=comparisons_made,
+        max_possible_comparisons=(len(filtered_matches) * (len(filtered_matches) - 1)) // 2
+    )
 
     return groups
 

@@ -332,6 +332,8 @@ class TestFindDuplicationTool:
 
         assert result["summary"]["total_constructs"] == 0
         assert "No function_definition instances found" in result["message"]
+        assert "analysis_time_seconds" in result["summary"]
+        assert isinstance(result["summary"]["analysis_time_seconds"], (int, float))
 
     @patch("main.stream_ast_grep_results")
     def test_custom_similarity_threshold(self, mock_stream):
@@ -385,3 +387,118 @@ class TestFindDuplicationTool:
                 language="python",
                 min_lines=0
             )
+
+    @patch("main.stream_ast_grep_results")
+    def test_max_constructs_limit(self, mock_stream):
+        """Test that max_constructs limits the analysis scope"""
+        # Create 10 mock matches
+        mock_matches = [
+            {
+                "text": f"def foo{i}():\n    return {i}",
+                "file": f"file{i}.py",
+                "range": {"start": {"line": 0}, "end": {"line": 1}}
+            }
+            for i in range(10)
+        ]
+        mock_stream.return_value = iter(mock_matches)
+
+        result = find_duplication(
+            project_folder="/test/project",
+            language="python",
+            max_constructs=5  # Limit to 5
+        )
+
+        # stream_ast_grep_results should be called with max_results=5
+        mock_stream.assert_called_once()
+        call_args = mock_stream.call_args
+        # Check that max_results was passed correctly
+        assert call_args[1]['max_results'] == 5
+
+    @patch("main.stream_ast_grep_results")
+    def test_max_constructs_unlimited(self, mock_stream):
+        """Test that max_constructs=0 means unlimited"""
+        mock_matches = []
+        mock_stream.return_value = iter(mock_matches)
+
+        result = find_duplication(
+            project_folder="/test/project",
+            language="python",
+            max_constructs=0  # Unlimited
+        )
+
+        # stream_ast_grep_results should be called with max_results=0
+        mock_stream.assert_called_once()
+        call_args = mock_stream.call_args
+        assert call_args[1]['max_results'] == 0
+
+    def test_invalid_max_constructs(self):
+        """Test that negative max_constructs raises error"""
+        with pytest.raises(ValueError, match="max_constructs must be 0 \\(unlimited\\) or positive"):
+            find_duplication(
+                project_folder="/test/project",
+                language="python",
+                max_constructs=-1
+            )
+
+    @patch("main.stream_ast_grep_results")
+    def test_exclude_patterns_filters_library_code(self, mock_stream):
+        """Test that exclude_patterns filters out library code"""
+        # Create matches with some in library paths
+        mock_matches = [
+            {
+                "text": "def foo():\n    return 1\n    x = 2\n    y = 3",
+                "file": "/project/mycode.py",
+                "range": {"start": {"line": 0}, "end": {"line": 3}}
+            },
+            {
+                "text": "def bar():\n    return 1\n    x = 2\n    y = 3",
+                "file": "/project/site-packages/lib.py",
+                "range": {"start": {"line": 0}, "end": {"line": 3}}
+            },
+            {
+                "text": "def baz():\n    return 1\n    x = 2\n    y = 3",
+                "file": "/project/node_modules/lib.js",
+                "range": {"start": {"line": 0}, "end": {"line": 3}}
+            },
+            {
+                "text": "def qux():\n    return 1\n    x = 2\n    y = 3",
+                "file": "/project/utils.py",
+                "range": {"start": {"line": 0}, "end": {"line": 3}}
+            }
+        ]
+        mock_stream.return_value = iter(mock_matches)
+
+        result = find_duplication(
+            project_folder="/test/project",
+            language="python",
+            exclude_patterns=["site-packages", "node_modules"]
+        )
+
+        # Should only analyze the 2 non-library files
+        assert result["summary"]["total_constructs"] == 2
+
+    @patch("main.stream_ast_grep_results")
+    def test_exclude_patterns_empty_list(self, mock_stream):
+        """Test that empty exclude_patterns includes all matches"""
+        mock_matches = [
+            {
+                "text": "def foo():\n    return 1\n    x = 2\n    y = 3",
+                "file": "/project/mycode.py",
+                "range": {"start": {"line": 0}, "end": {"line": 3}}
+            },
+            {
+                "text": "def bar():\n    return 1\n    x = 2\n    y = 3",
+                "file": "/project/site-packages/lib.py",
+                "range": {"start": {"line": 0}, "end": {"line": 3}}
+            }
+        ]
+        mock_stream.return_value = iter(mock_matches)
+
+        result = find_duplication(
+            project_folder="/test/project",
+            language="python",
+            exclude_patterns=[]  # No exclusions
+        )
+
+        # Should analyze both files
+        assert result["summary"]["total_constructs"] == 2

@@ -169,6 +169,20 @@ Examples:
     )
 
     parser.add_argument(
+        "--max-constructs", "-x",
+        type=int,
+        default=1000,
+        help="Maximum constructs to analyze for performance (0=unlimited, default: 1000)"
+    )
+
+    parser.add_argument(
+        "--exclude-patterns", "-e",
+        nargs="*",
+        default=["site-packages", "node_modules", ".venv", "venv", "vendor"],
+        help="Path patterns to exclude (e.g., library code). Default: site-packages node_modules .venv venv vendor"
+    )
+
+    parser.add_argument(
         "--json", "-j",
         action="store_true",
         help="Output results as JSON instead of formatted text"
@@ -195,6 +209,11 @@ Examples:
         print(f"Error: min-lines must be at least 1", file=sys.stderr)
         sys.exit(1)
 
+    # Validate max constructs
+    if args.max_constructs < 0:
+        print(f"Error: max-constructs must be 0 (unlimited) or positive", file=sys.stderr)
+        sys.exit(1)
+
     # Show analysis parameters
     if not args.json:
         print(f"Analyzing: {args.project_folder}")
@@ -202,6 +221,12 @@ Examples:
         print(f"Construct type: {args.construct_type}")
         print(f"Min similarity: {args.min_similarity:.1%}")
         print(f"Min lines: {args.min_lines}")
+        if args.max_constructs > 0:
+            print(f"Max constructs: {args.max_constructs}")
+        else:
+            print(f"Max constructs: unlimited")
+        if args.exclude_patterns:
+            print(f"Excluding patterns: {', '.join(args.exclude_patterns)}")
         print("\nSearching for duplicates...")
 
     try:
@@ -211,7 +236,9 @@ Examples:
             language=args.language,
             construct_type=args.construct_type,
             min_similarity=args.min_similarity,
-            min_lines=args.min_lines
+            min_lines=args.min_lines,
+            max_constructs=args.max_constructs,
+            exclude_patterns=args.exclude_patterns
         )
 
         if args.json:
