@@ -127,12 +127,16 @@ The `scripts/` directory contains standalone utilities for running MCP tools fro
 
 **Find Duplication (Python)**:
 ```bash
-# Analyze Python functions
+# Analyze Python functions (excludes library code by default)
 uv run python scripts/find_duplication.py /path/to/project --language python
 
 # Analyze JavaScript classes with strict similarity
 uv run python scripts/find_duplication.py /path/to/project --language javascript \
     --construct-type class_definition --min-similarity 0.9
+
+# Customize exclusion patterns (or disable with empty list)
+uv run python scripts/find_duplication.py /path/to/project --language python \
+    --exclude-patterns site-packages build dist
 
 # Output as JSON
 uv run python scripts/find_duplication.py /path/to/project --language python --json
@@ -140,10 +144,13 @@ uv run python scripts/find_duplication.py /path/to/project --language python --j
 
 **Find Duplication (Bash wrapper)**:
 ```bash
-# Simple interface with positional arguments
+# Simple interface with positional arguments (uses default exclusions)
 ./scripts/find_duplication.sh /path/to/project python
 ./scripts/find_duplication.sh /path/to/project javascript class_definition 0.9
 ```
+
+**Default Exclusions**: By default, the tool excludes library code from analysis:
+`site-packages`, `node_modules`, `.venv`, `venv`, `vendor`
 
 See `scripts/README.md` for full documentation.
 
