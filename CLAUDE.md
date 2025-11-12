@@ -2,6 +2,35 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Quick Start
+
+```bash
+# Install dependencies
+uv sync
+
+# Run all tests
+uv run pytest
+
+# Run specific test suite
+uv run pytest tests/test_unit.py          # Unit tests (fast, no ast-grep needed)
+uv run pytest tests/test_integration.py   # Integration tests (requires ast-grep)
+
+# Run with coverage
+uv run pytest --cov=main --cov-report=term-missing
+
+# Lint code
+uv run ruff check .
+
+# Type check
+uv run mypy main.py
+
+# Run the MCP server
+uv run main.py
+
+# Run duplication analysis from command line
+uv run python scripts/find_duplication.py /path/to/project --language python
+```
+
 ## Project Overview
 
 This is an MCP (Model Context Protocol) server that combines ast-grep's structural code search capabilities with Schema.org structured data tools. The server provides 13 MCP tools across two domains:
