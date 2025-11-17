@@ -2262,7 +2262,7 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 else:
                     # Get list of files that will be modified (before rewrite)
                     preview_matches = list(stream_ast_grep_results("scan", args, max_results=0))
-                    files_to_modify = list(set(m.get("file") for m in preview_matches if m.get("file")))
+                    files_to_modify = [str(f) for f in set(m.get("file") for m in preview_matches if m.get("file"))]
 
                     if not files_to_modify:
                         return {
@@ -2287,6 +2287,18 @@ def register_mcp_tools() -> None:  # pragma: no cover
 
                     result = run_ast_grep("scan", rewrite_args)
 
+                    # Validate syntax of rewritten files
+                    language = rule_data.get("language", "unknown")
+                    validation_summary = validate_rewrites(files_to_modify, language)
+
+                    logger.info(
+                        "syntax_validation",
+                        validated=validation_summary["validated"],
+                        passed=validation_summary["passed"],
+                        failed=validation_summary["failed"],
+                        skipped=validation_summary["skipped"]
+                    )
+
                     execution_time = time.time() - start_time
                     logger.info(
                         "tool_completed",
@@ -2295,16 +2307,27 @@ def register_mcp_tools() -> None:  # pragma: no cover
                         dry_run=False,
                         modified_files=len(files_to_modify),
                         backup_id=backup_id,
+                        validation_failed=validation_summary["failed"],
                         status="success"
                     )
 
-                    return {
+                    response = {
                         "dry_run": False,
                         "message": f"Applied changes to {len(files_to_modify)} file(s)",
                         "modified_files": files_to_modify,
                         "backup_id": backup_id,
-                        "output": result.stdout
+                        "output": result.stdout,
+                        "validation": validation_summary
                     }
+
+                    # Add warning if validation failed
+                    if validation_summary["failed"] > 0:
+                        response["warning"] = (
+                            f"{validation_summary['failed']} file(s) failed syntax validation. "
+                            f"Use rollback_rewrite(backup_id='{backup_id}') to restore if needed."
+                        )
+
+                    return response
 
             finally:
                 # Clean up temporary rule file
@@ -3059,6 +3082,124 @@ def stream_ast_grep_results(
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait()
+
+# ============================================================================
+# Syntax Validation for Code Rewrites
+# ============================================================================
+
+def validate_syntax(file_path: str, language: str) -> Dict[str, Any]:
+    """Validate syntax of a rewritten file.
+
+    Args:
+        file_path: Absolute path to the file to validate
+        language: Programming language (python, javascript, typescript, etc.)
+
+    Returns:
+        Dict with 'valid' (bool), 'error' (str if invalid), 'language' (str)
+    """
+    result: Dict[str, Any] = {
+        "file": file_path,
+        "language": language,
+        "valid": True,
+        "error": None
+    }
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Python syntax validation
+        if language == "python":
+            try:
+                compile(content, file_path, 'exec')
+            except SyntaxError as e:
+                result["valid"] = False
+                result["error"] = f"Line {e.lineno}: {e.msg}"
+                return result
+
+        # JavaScript/TypeScript validation (using external validator if available)
+        elif language in ["javascript", "typescript", "tsx", "jsx"]:
+            # Try using node if available
+            try:
+                node_code = f"""
+try {{
+    new Function({json.dumps(content)});
+    console.log("VALID");
+}} catch(e) {{
+    console.log("INVALID: " + e.message);
+}}
+"""
+                node_result = subprocess.run(
+                    ["node", "-e", node_code],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if "INVALID:" in node_result.stdout:
+                    result["valid"] = False
+                    result["error"] = node_result.stdout.replace("INVALID: ", "").strip()
+                    return result
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                # Node not available or timeout - skip validation
+                result["error"] = f"Validation skipped (node not available for {language})"
+                pass
+
+        # For other languages, check for basic syntax patterns that indicate errors
+        # This is a basic check - won't catch all syntax errors
+        else:
+            # Check for obviously malformed code (unmatched braces, etc.)
+            if language in ["c", "cpp", "csharp", "java", "rust", "go"]:
+                open_braces = content.count('{')
+                close_braces = content.count('}')
+                if abs(open_braces - close_braces) > 0:
+                    result["valid"] = False
+                    result["error"] = f"Mismatched braces: {open_braces} '{{' vs {close_braces} '}}'"
+                    return result
+
+            # If we can't validate, note it but don't fail
+            result["error"] = f"Validation not supported for {language} (manual verification recommended)"
+
+        return result
+
+    except Exception as e:
+        result["valid"] = False
+        result["error"] = f"Validation error: {str(e)}"
+        return result
+
+
+def validate_rewrites(modified_files: List[str], language: str) -> Dict[str, Any]:
+    """Validate syntax of all rewritten files.
+
+    Args:
+        modified_files: List of file paths that were modified
+        language: Programming language
+
+    Returns:
+        Dict with validation summary and results per file
+    """
+    validation_results = []
+    failed_count = 0
+    skipped_count = 0
+
+    for file_path in modified_files:
+        result = validate_syntax(file_path, language)
+        validation_results.append(result)
+
+        if not result["valid"]:
+            if result["error"] and "not supported" in result["error"]:
+                skipped_count += 1
+            elif result["error"] and "skipped" in result["error"]:
+                skipped_count += 1
+            else:
+                failed_count += 1
+
+    return {
+        "validated": len(modified_files),
+        "passed": len(modified_files) - failed_count - skipped_count,
+        "failed": failed_count,
+        "skipped": skipped_count,
+        "results": validation_results
+    }
 
 # ============================================================================
 # Backup Management for Code Rewrites

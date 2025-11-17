@@ -606,3 +606,207 @@ fix: print("$MSG")
 
         with open(self.test_file) as f:
             assert f.read() == original_content
+
+
+class TestSyntaxValidation:
+    """Tests for syntax validation of rewritten code."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.temp_dir = tempfile.mkdtemp()
+
+    def teardown_method(self) -> None:
+        """Clean up test fixtures."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_validate_syntax_valid_python(self) -> None:
+        """Test validation passes for valid Python code."""
+        test_file = os.path.join(self.temp_dir, "valid.py")
+        with open(test_file, "w") as f:
+            f.write("def hello():\n    print('world')\n")
+
+        result = main.validate_syntax(test_file, "python")
+
+        assert result["valid"] is True
+        assert result["error"] is None
+        assert result["language"] == "python"
+
+    def test_validate_syntax_invalid_python(self) -> None:
+        """Test validation fails for invalid Python code."""
+        test_file = os.path.join(self.temp_dir, "invalid.py")
+        with open(test_file, "w") as f:
+            f.write("def hello(\n    print('missing closing paren')\n")
+
+        result = main.validate_syntax(test_file, "python")
+
+        assert result["valid"] is False
+        assert result["error"] is not None
+        assert "Line" in result["error"]
+
+    def test_validate_syntax_mismatched_braces(self) -> None:
+        """Test validation detects mismatched braces in C-like languages."""
+        test_file = os.path.join(self.temp_dir, "invalid.c")
+        with open(test_file, "w") as f:
+            f.write("int main() {\n    printf(\"hello\");\n")  # Missing closing brace
+
+        result = main.validate_syntax(test_file, "c")
+
+        assert result["valid"] is False
+        assert "brace" in result["error"].lower()
+
+    def test_validate_syntax_unsupported_language(self) -> None:
+        """Test validation handles unsupported languages gracefully."""
+        test_file = os.path.join(self.temp_dir, "test.rb")
+        with open(test_file, "w") as f:
+            f.write("puts 'hello'\n")
+
+        result = main.validate_syntax(test_file, "ruby")
+
+        # For unsupported languages, valid=True but with a note in error
+        assert result["valid"] is True
+        assert "not supported" in result["error"]
+
+    def test_validate_rewrites_all_pass(self) -> None:
+        """Test validate_rewrites when all files pass validation."""
+        file1 = os.path.join(self.temp_dir, "valid1.py")
+        file2 = os.path.join(self.temp_dir, "valid2.py")
+
+        for f in [file1, file2]:
+            with open(f, "w") as file:
+                file.write("print('hello')\n")
+
+        summary = main.validate_rewrites([file1, file2], "python")
+
+        assert summary["validated"] == 2
+        assert summary["passed"] == 2
+        assert summary["failed"] == 0
+        assert len(summary["results"]) == 2
+
+    def test_validate_rewrites_some_fail(self) -> None:
+        """Test validate_rewrites when some files fail validation."""
+        valid_file = os.path.join(self.temp_dir, "valid.py")
+        invalid_file = os.path.join(self.temp_dir, "invalid.py")
+
+        with open(valid_file, "w") as f:
+            f.write("print('hello')\n")
+
+        with open(invalid_file, "w") as f:
+            f.write("def broken(\n")  # Syntax error
+
+        summary = main.validate_rewrites([valid_file, invalid_file], "python")
+
+        assert summary["validated"] == 2
+        assert summary["passed"] == 1
+        assert summary["failed"] == 1
+
+    def test_validate_syntax_nonexistent_file(self) -> None:
+        """Test validation handles nonexistent files gracefully."""
+        result = main.validate_syntax("/nonexistent/file.py", "python")
+
+        assert result["valid"] is False
+        assert "error" in result["error"].lower()
+
+
+class TestRewriteWithValidation:
+    """Test rewrite_code tool with validation integration."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.project_folder = self.temp_dir
+
+        # Create sample Python file
+        self.test_file = os.path.join(self.temp_dir, "sample.py")
+        with open(self.test_file, "w") as f:
+            f.write("def test():\n    print('hello')\n")
+
+        # Get tool function
+        self.rewrite_code = main.mcp.tools.get("rewrite_code")
+
+    def teardown_method(self) -> None:
+        """Clean up test fixtures."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("subprocess.run")
+    @patch("subprocess.Popen")
+    def test_rewrite_includes_validation_results(self, mock_popen: Mock, mock_run: Mock) -> None:
+        """Test rewrite_code returns validation results."""
+        # Mock dry-run (uses Popen for streaming)
+        mock_process = MagicMock()
+        mock_process.stdout = [
+            b'{"file": "' + self.test_file.encode() + b'", "diffs": [{"replacement": "new"}]}\n'
+        ]
+        mock_process.poll.return_value = None
+        mock_process.wait.return_value = 0
+        mock_popen.return_value = mock_process
+
+        # Mock actual rewrite (uses run with --update-all)
+        mock_run.return_value = Mock(returncode=0, stdout="")
+
+        yaml_rule = """
+id: test-rule
+language: python
+rule:
+  pattern: print('$MSG')
+fix: print("$MSG")
+"""
+
+        result = self.rewrite_code(
+            project_folder=self.project_folder,
+            yaml_rule=yaml_rule,
+            dry_run=False,
+            backup=False
+        )
+
+        assert result["dry_run"] is False
+        assert "validation" in result
+        assert "validated" in result["validation"]
+        assert "passed" in result["validation"]
+        assert "failed" in result["validation"]
+
+    @patch("main.validate_rewrites")
+    @patch("subprocess.run")
+    @patch("subprocess.Popen")
+    def test_rewrite_warns_on_validation_failure(
+        self, mock_popen: Mock, mock_run: Mock, mock_validate: Mock
+    ) -> None:
+        """Test rewrite_code includes warning when validation fails."""
+        # Mock dry-run
+        mock_process = MagicMock()
+        mock_process.stdout = [
+            b'{"file": "' + self.test_file.encode() + b'", "diffs": [{"replacement": "new"}]}\n'
+        ]
+        mock_process.poll.return_value = None
+        mock_process.wait.return_value = 0
+        mock_popen.return_value = mock_process
+
+        # Mock actual rewrite
+        mock_run.return_value = Mock(returncode=0, stdout="")
+
+        # Mock validation to return failures
+        mock_validate.return_value = {
+            "validated": 1,
+            "passed": 0,
+            "failed": 1,
+            "skipped": 0,
+            "results": [{"file": self.test_file, "valid": False, "error": "Syntax error"}]
+        }
+
+        yaml_rule = """
+id: test-rule
+language: python
+rule:
+  pattern: print('$MSG')
+fix: print("$MSG")
+"""
+
+        result = self.rewrite_code(
+            project_folder=self.project_folder,
+            yaml_rule=yaml_rule,
+            dry_run=False,
+            backup=True
+        )
+
+        assert "warning" in result
+        assert "failed syntax validation" in result["warning"]
+        assert "rollback_rewrite" in result["warning"]

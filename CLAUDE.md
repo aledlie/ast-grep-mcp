@@ -151,7 +151,7 @@ uv run pytest tests/unit/test_cache.py          # 26 cache tests (Task 7: Cachin
 uv run pytest tests/unit/test_duplication.py    # 24 duplication detection tests
 uv run pytest tests/unit/test_phase2.py         # 21 Phase 2 feature tests (Tasks 6, 8, 9)
 uv run pytest tests/unit/test_schema.py         # 52 Schema.org tests
-uv run pytest tests/unit/test_rewrite.py        # 24 code rewrite tests (Task 11)
+uv run pytest tests/unit/test_rewrite.py        # 33 code rewrite tests (Task 11 + validation)
 uv run pytest tests/integration/test_integration.py   # 5 integration tests
 uv run pytest tests/integration/test_benchmark.py     # Performance benchmarks (Task 10)
 
@@ -159,7 +159,7 @@ uv run pytest tests/integration/test_benchmark.py     # Performance benchmarks (
 uv run pytest --cov=main --cov-report=term-missing
 ```
 
-**Unit Tests** (209 tests): All unit tests use mocked HTTP/subprocess calls:
+**Unit Tests** (218 tests): All unit tests use mocked HTTP/subprocess calls:
 - `test_unit.py`: Core AST-grep functionality (dump_syntax_tree, find_code, YAML validation, etc.)
 - `test_cache.py`: **Query caching functionality (26 tests)** - Task 7
   - Core caching (10 tests): put/get, TTL expiration, LRU eviction, cache keys
@@ -175,20 +175,22 @@ uv run pytest --cov=main --cov-report=term-missing
   - SchemaOrgClient class tests (38 tests): initialization, type queries, search, hierarchy, properties, example generation
   - Entity @id generation/validation tests (7 tests): proper formatting, best practices validation
   - Entity graph building tests (7 tests): relationships, cross-references
-- `test_rewrite.py`: **Code rewrite functionality (24 tests)** - Task 11 ⭐ NEW!
+- `test_rewrite.py`: **Code rewrite functionality (33 tests)** - Task 11 + validation ⭐
   - rewrite_code tool tests (8 tests): dry-run mode, actual mode with backups, YAML validation, file size limits, parallel execution
   - Backup management tests (8 tests): backup creation, file copying, metadata, restoration, backup listing
   - rollback_rewrite tool tests (3 tests): tool registration, successful rollback, error handling
   - list_backups tool tests (3 tests): empty list, multiple backups, sorting
   - Integration tests (2 tests): full workflow, data loss prevention
+  - **Syntax validation tests (7 tests):** valid/invalid Python, mismatched braces, unsupported languages, validation aggregation
+  - **Validation integration tests (2 tests):** rewrite with validation, validation warnings
 
 **Integration Tests** (13 tests): Require real ast-grep binary:
 - `test_integration.py`: End-to-end tests with real ast-grep subprocess
 - `test_benchmark.py`: Performance benchmarking suite (Task 10)
 
-**Total Tests: 220** (209 unit + 11 integration, excluding 1 skipped)
+**Total Tests: 230** (218 unit + 12 integration, excluding 1 skipped)
 
-**Test Coverage: 91%** (701 statements covered out of 770, 69 uncovered)
+**Test Coverage: 90%** (736 statements covered out of 818, 82 uncovered)
 
 ### Performance Benchmarking
 ```bash
@@ -286,14 +288,17 @@ The rewrite tools enable safe, automated code transformations using ast-grep's f
 **Safety Features:**
 - **Dry-run by default**: `dry_run=true` previews changes without modifying files
 - **Automatic backups**: Creates timestamped backups before applying changes (unless `backup=false`)
+- **Syntax validation**: Automatically validates rewritten code for syntax errors after changes
 - **Rollback capability**: Restore previous state from any backup
 - **Backup metadata**: JSON metadata tracks all modified files with timestamps
+- **Validation warnings**: Alerts when rewritten code fails syntax validation
 
 **Workflow:**
 1. **Preview** - Run with `dry_run=true` (default) to see what will change
 2. **Apply** - Set `dry_run=false` to apply changes (creates backup automatically)
-3. **Verify** - Check the modified code
-4. **Rollback** (if needed) - Use `rollback_rewrite` with backup_id to restore
+3. **Validate** - Automatic syntax validation runs on rewritten files
+4. **Verify** - Check the modified code and validation results
+5. **Rollback** (if needed) - Use `rollback_rewrite` with backup_id to restore
 
 **Backup Storage:**
 - Location: `.ast-grep-backups/` directory in project root
@@ -329,7 +334,18 @@ result = rewrite_code(
     dry_run=false,  # Apply changes
     backup=true     # Default - create backup
 )
-# Returns: {"dry_run": false, "modified_files": [...], "backup_id": "backup-20250117-120000-123"}
+# Returns: {
+#   "dry_run": false,
+#   "modified_files": [...],
+#   "backup_id": "backup-20250117-120000-123",
+#   "validation": {
+#     "validated": 3,
+#     "passed": 3,
+#     "failed": 0,
+#     "skipped": 0,
+#     "results": [...]
+#   }
+# }
 
 # Step 3: List available backups
 backups = list_backups(project_folder="/path/to/project")
@@ -346,6 +362,23 @@ result = rollback_rewrite(
 **Advanced Options:**
 - `max_file_size_mb`: Skip files larger than N MB (prevents processing minified/generated files)
 - `workers`: Parallel execution (e.g., `workers=4` for faster rewrites on large codebases)
+
+**Syntax Validation:**
+
+After applying changes, the rewrite tool automatically validates the syntax of all modified files:
+- **Python**: Uses built-in `compile()` to detect syntax errors
+- **JavaScript/TypeScript**: Uses Node.js if available (falls back to basic validation)
+- **C/C++/Java/Rust/Go**: Checks for mismatched braces and basic syntax patterns
+- **Other languages**: Reports "validation not supported" but doesn't fail
+
+Validation results are included in the response:
+- `validated`: Total files checked
+- `passed`: Files with valid syntax
+- `failed`: Files with syntax errors (includes warning message)
+- `skipped`: Files where validation wasn't possible
+- `results`: Per-file validation details
+
+If validation fails, a warning message suggests using `rollback_rewrite()` to restore the original code.
 
 **Best Practices:**
 1. Always preview with `dry_run=true` before applying changes
