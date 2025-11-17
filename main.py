@@ -2431,6 +2431,264 @@ def register_mcp_tools() -> None:  # pragma: no cover
             )
             raise
 
+    # Batch Operations
+    @mcp.tool()
+    def batch_search(
+        project_folder: str = Field(description="The absolute path to the project folder"),
+        queries: List[Dict[str, Any]] = Field(description="List of search specifications to execute"),
+        deduplicate: bool = Field(default=True, description="Remove duplicate matches across queries"),
+        max_results_per_query: int = Field(default=0, description="Limit results per query (0 = unlimited)"),
+        output_format: Literal["text", "json"] = Field(default="json", description="Output format")
+    ) -> Dict[str, Any]:
+        """
+        Execute multiple code searches in parallel and aggregate results.
+
+        Each query in the list should have:
+        - type: "pattern" or "rule" (required)
+        - pattern: Search pattern (for type="pattern")
+        - yaml_rule: YAML rule (for type="rule")
+        - language: Programming language (for pattern searches)
+        - id: Optional identifier for the query
+        - condition: Optional - {"type": "if_matches"|"if_no_matches", "query_id": "id"}
+
+        Example queries:
+        ```json
+        [
+          {
+            "id": "find_todos",
+            "type": "pattern",
+            "pattern": "TODO: $MSG",
+            "language": "python"
+          },
+          {
+            "id": "find_fixmes",
+            "type": "pattern",
+            "pattern": "FIXME: $MSG",
+            "language": "python",
+            "condition": {"type": "if_matches", "query_id": "find_todos"}
+          }
+        ]
+        ```
+
+        Returns:
+        - total_queries: Number of queries executed
+        - total_matches: Total matches found (after deduplication)
+        - queries_executed: List of query IDs executed
+        - matches: Aggregated results
+        - per_query_stats: Statistics per query
+        """
+        logger = get_logger("tool.batch_search")
+        start_time = time.time()
+
+        logger.info(
+            "tool_invoked",
+            tool="batch_search",
+            project_folder=project_folder,
+            query_count=len(queries),
+            deduplicate=deduplicate
+        )
+
+        try:
+            import concurrent.futures
+            from collections import defaultdict
+
+            # Validate queries
+            for i, query in enumerate(queries):
+                if "type" not in query:
+                    raise ValueError(f"Query {i}: 'type' field is required")
+                if query["type"] not in ["pattern", "rule"]:
+                    raise ValueError(f"Query {i}: type must be 'pattern' or 'rule'")
+
+                # Assign ID if not provided
+                if "id" not in query:
+                    query["id"] = f"query_{i}"
+
+            # Separate conditional and unconditional queries
+            unconditional_queries = [q for q in queries if "condition" not in q]
+            conditional_queries = [q for q in queries if "condition" in q]
+
+            # Execute unconditional queries in parallel
+            results_by_id: Dict[str, List[Dict[str, Any]]] = {}
+            queries_executed = []
+
+            def execute_query(query: Dict[str, Any]) -> Tuple[str, List[Dict[str, Any]]]:
+                """Execute a single query and return (query_id, results)."""
+                query_id = query["id"]
+                query_type = query["type"]
+
+                try:
+                    if query_type == "pattern":
+                        # Pattern search
+                        if "pattern" not in query:
+                            raise ValueError(f"Query {query_id}: 'pattern' field required for type='pattern'")
+                        if "language" not in query:
+                            raise ValueError(f"Query {query_id}: 'language' field required for type='pattern'")
+
+                        # Use find_code tool
+                        result = find_code(
+                            project_folder=project_folder,
+                            pattern=query["pattern"],
+                            language=query["language"],
+                            output_format="json",
+                            max_results=max_results_per_query
+                        )
+                        matches = json.loads(result) if isinstance(result, str) else result
+
+                    elif query_type == "rule":
+                        # Rule search
+                        if "yaml_rule" not in query:
+                            raise ValueError(f"Query {query_id}: 'yaml_rule' field required for type='rule'")
+
+                        # Use find_code_by_rule tool
+                        result = find_code_by_rule(
+                            project_folder=project_folder,
+                            yaml_rule=query["yaml_rule"],
+                            output_format="json",
+                            max_results=max_results_per_query
+                        )
+                        matches = json.loads(result) if isinstance(result, str) else result
+
+                    else:
+                        matches = []
+
+                    # Add query_id to each match for traceability
+                    for match in matches:
+                        match["query_id"] = query_id
+
+                    return (query_id, matches)
+
+                except Exception as e:
+                    logger.warning(f"query_failed", query_id=query_id, error=str(e)[:200])
+                    return (query_id, [])
+
+            # Execute unconditional queries in parallel
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                futures = [executor.submit(execute_query, q) for q in unconditional_queries]
+                for future in concurrent.futures.as_completed(futures):
+                    query_id, matches = future.result()
+                    results_by_id[query_id] = matches
+                    queries_executed.append(query_id)
+
+            # Execute conditional queries sequentially
+            for query in conditional_queries:
+                query_id = query["id"]
+                condition = query["condition"]
+
+                # Check condition
+                condition_type = condition.get("type")
+                condition_query_id = condition.get("query_id")
+
+                if condition_query_id not in results_by_id:
+                    logger.warning(
+                        "condition_query_not_found",
+                        query_id=query_id,
+                        condition_query_id=condition_query_id
+                    )
+                    continue
+
+                condition_results = results_by_id[condition_query_id]
+                has_matches = len(condition_results) > 0
+
+                # Evaluate condition
+                should_execute = False
+                if condition_type == "if_matches" and has_matches:
+                    should_execute = True
+                elif condition_type == "if_no_matches" and not has_matches:
+                    should_execute = True
+
+                if should_execute:
+                    query_id_result, matches = execute_query(query)
+                    results_by_id[query_id_result] = matches
+                    queries_executed.append(query_id_result)
+                else:
+                    logger.info("condition_not_met", query_id=query_id, condition=condition)
+
+            # Aggregate results
+            all_matches = []
+            for matches in results_by_id.values():
+                all_matches.extend(matches)
+
+            # Deduplicate if requested
+            if deduplicate:
+                seen = set()
+                deduplicated = []
+                for match in all_matches:
+                    # Create key from file + line + text (or just file + line if text not available)
+                    file_path = match.get("file", "")
+                    line = match.get("range", {}).get("start", {}).get("line", 0)
+                    text = match.get("text", "")[:100]  # Use first 100 chars for key
+                    key = (file_path, line, text)
+
+                    if key not in seen:
+                        seen.add(key)
+                        deduplicated.append(match)
+
+                all_matches = deduplicated
+
+            # Sort by file, then line
+            all_matches.sort(key=lambda m: (
+                m.get("file", ""),
+                m.get("range", {}).get("start", {}).get("line", 0)
+            ))
+
+            # Calculate per-query statistics
+            per_query_stats: Dict[str, Dict[str, Any]] = {}
+            for query_id, matches in results_by_id.items():
+                per_query_stats[query_id] = {
+                    "match_count": len(matches),
+                    "executed": True
+                }
+
+            # Add stats for non-executed conditional queries
+            for query in conditional_queries:
+                if query["id"] not in queries_executed:
+                    per_query_stats[query["id"]] = {
+                        "match_count": 0,
+                        "executed": False,
+                        "reason": "condition_not_met"
+                    }
+
+            execution_time = time.time() - start_time
+            logger.info(
+                "tool_completed",
+                tool="batch_search",
+                execution_time_seconds=round(execution_time, 3),
+                total_queries=len(queries),
+                queries_executed=len(queries_executed),
+                total_matches=len(all_matches),
+                status="success"
+            )
+
+            # Format output
+            if output_format == "text":
+                formatted_matches = format_matches_as_text(all_matches)
+                return {
+                    "total_queries": len(queries),
+                    "queries_executed": queries_executed,
+                    "total_matches": len(all_matches),
+                    "per_query_stats": per_query_stats,
+                    "matches": formatted_matches
+                }
+            else:
+                return {
+                    "total_queries": len(queries),
+                    "queries_executed": queries_executed,
+                    "total_matches": len(all_matches),
+                    "per_query_stats": per_query_stats,
+                    "matches": all_matches
+                }
+
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(
+                "tool_failed",
+                tool="batch_search",
+                execution_time_seconds=round(execution_time, 3),
+                error=str(e)[:200],
+                status="failed"
+            )
+            raise
+
 
 def format_matches_as_text(matches: List[dict[str, Any]]) -> str:
     """Convert JSON matches to LLM-friendly text format.

@@ -35,7 +35,7 @@ python3 schema-graph-builder.py ~/path/to/schemas https://example.com
 
 ## Project Overview
 
-This is an MCP (Model Context Protocol) server that combines ast-grep's structural code search and rewrite capabilities with Schema.org structured data tools. The server provides 16 MCP tools across three domains:
+This is an MCP (Model Context Protocol) server that combines ast-grep's structural code search and rewrite capabilities with Schema.org structured data tools. The server provides 17 MCP tools across three domains:
 
 ### Code Search Tools (ast-grep)
 1. **`dump_syntax_tree`**: Visualize AST structure of code snippets for pattern development
@@ -43,21 +43,22 @@ This is an MCP (Model Context Protocol) server that combines ast-grep's structur
 3. **`find_code`**: Search using simple patterns for straightforward structural matches
 4. **`find_code_by_rule`**: Advanced search using complex YAML rules with relational constraints
 5. **`find_duplication`**: Detect duplicate code and suggest modularization based on DRY principles
+6. **`batch_search`**: Execute multiple search queries in parallel with result aggregation and conditional logic
 
 ### Code Rewrite Tools (ast-grep fix mode)
-6. **`rewrite_code`**: Apply code transformations using ast-grep fix rules with dry-run preview and automatic backups
-7. **`rollback_rewrite`**: Restore files from a previous backup after a rewrite
-8. **`list_backups`**: List all available backups for a project
+7. **`rewrite_code`**: Apply code transformations using ast-grep fix rules with dry-run preview and automatic backups
+8. **`rollback_rewrite`**: Restore files from a previous backup after a rewrite
+9. **`list_backups`**: List all available backups for a project
 
 ### Schema.org Tools
-9. **`get_schema_type`**: Get detailed information about a Schema.org type
-10. **`search_schemas`**: Search for Schema.org types by keyword
-11. **`get_type_hierarchy`**: Get the inheritance hierarchy for a type
-12. **`get_type_properties`**: Get all properties available for a type
-13. **`generate_schema_example`**: Generate example JSON-LD structured data
-14. **`generate_entity_id`**: Generate proper @id values following SEO best practices
-15. **`validate_entity_id`**: Validate @id values against best practices
-16. **`build_entity_graph`**: Build knowledge graphs with related entities using @id references
+10. **`get_schema_type`**: Get detailed information about a Schema.org type
+11. **`search_schemas`**: Search for Schema.org types by keyword
+12. **`get_type_hierarchy`**: Get the inheritance hierarchy for a type
+13. **`get_type_properties`**: Get all properties available for a type
+14. **`generate_schema_example`**: Generate example JSON-LD structured data
+15. **`generate_entity_id`**: Generate proper @id values following SEO best practices
+16. **`validate_entity_id`**: Validate @id values against best practices
+17. **`build_entity_graph`**: Build knowledge graphs with related entities using @id references
 
 **External dependencies**:
 - `ast-grep` CLI (for code search tools) - must be installed and available in PATH
@@ -152,6 +153,7 @@ uv run pytest tests/unit/test_duplication.py    # 24 duplication detection tests
 uv run pytest tests/unit/test_phase2.py         # 21 Phase 2 feature tests (Tasks 6, 8, 9)
 uv run pytest tests/unit/test_schema.py         # 52 Schema.org tests
 uv run pytest tests/unit/test_rewrite.py        # 33 code rewrite tests (Task 11 + validation)
+uv run pytest tests/unit/test_batch.py          # 18 batch operation tests (Task 15)
 uv run pytest tests/integration/test_integration.py   # 5 integration tests
 uv run pytest tests/integration/test_benchmark.py     # Performance benchmarks (Task 10)
 
@@ -159,7 +161,7 @@ uv run pytest tests/integration/test_benchmark.py     # Performance benchmarks (
 uv run pytest --cov=main --cov-report=term-missing
 ```
 
-**Unit Tests** (218 tests): All unit tests use mocked HTTP/subprocess calls:
+**Unit Tests** (236 tests): All unit tests use mocked HTTP/subprocess calls:
 - `test_unit.py`: Core AST-grep functionality (dump_syntax_tree, find_code, YAML validation, etc.)
 - `test_cache.py`: **Query caching functionality (26 tests)** - Task 7
   - Core caching (10 tests): put/get, TTL expiration, LRU eviction, cache keys
@@ -183,12 +185,17 @@ uv run pytest --cov=main --cov-report=term-missing
   - Integration tests (2 tests): full workflow, data loss prevention
   - **Syntax validation tests (7 tests):** valid/invalid Python, mismatched braces, unsupported languages, validation aggregation
   - **Validation integration tests (2 tests):** rewrite with validation, validation warnings
+- `test_batch.py`: **Batch operations (18 tests)** - Task 15 ⭐
+  - Basic functionality (6 tests): tool registration, single/multiple queries, input validation
+  - Result aggregation (4 tests): deduplication, sorting, query_id traceability
+  - Conditional execution (4 tests): if_matches and if_no_matches logic
+  - Error handling (4 tests): error recovery, auto ID assignment, output formats
 
 **Integration Tests** (13 tests): Require real ast-grep binary:
 - `test_integration.py`: End-to-end tests with real ast-grep subprocess
 - `test_benchmark.py`: Performance benchmarking suite (Task 10)
 
-**Total Tests: 230** (218 unit + 12 integration, excluding 1 skipped)
+**Total Tests: 248** (236 unit + 12 integration, excluding 1 skipped)
 
 **Test Coverage: 90%** (736 statements covered out of 818, 82 uncovered)
 
@@ -390,11 +397,11 @@ If validation fails, a warning message suggests using `rollback_rewrite()` to re
 ## Architecture
 
 ### Single-file Design
-Entire server in `main.py` (~3190 lines) for simplicity. Includes logging, streaming, caching, file handling, duplication detection, code rewrite with backups, and Schema.org client.
+Entire server in `main.py` (~3190 lines) for simplicity. Includes logging, streaming, caching, file handling, duplication detection, batch operations, code rewrite with backups, and Schema.org client.
 
 ### Core Components
 
-**Tool Registration:** 16 tools (5 ast-grep search + 3 ast-grep rewrite + 8 Schema.org) registered via `register_mcp_tools()` using FastMCP decorators.
+**Tool Registration:** 17 tools (6 ast-grep search + 3 ast-grep rewrite + 8 Schema.org) registered via `register_mcp_tools()` using FastMCP decorators.
 
 **Execution Paths:**
 - Non-streaming: `run_ast_grep()` → `subprocess.run()`
@@ -409,6 +416,8 @@ Entire server in `main.py` (~3190 lines) for simplicity. Includes logging, strea
 **Parallel Execution:** `workers` parameter leverages ast-grep's threading (`--threads N`). Can reduce search time by 50-70% on large projects.
 
 **Duplication Detection:** `find_duplication` tool finds duplicate code using ast-grep streaming + difflib similarity. Hash-based bucketing by line count reduces O(n²) comparisons (83% reduction). Filters library code via `exclude_patterns`, limits analysis via `max_constructs` (default 1000). Returns structured report with duplicate groups, similarity scores, and refactoring suggestions.
+
+**Batch Operations:** `batch_search` tool executes multiple queries in parallel with result aggregation. Supports both pattern and rule queries. Features: (1) Parallel execution using ThreadPoolExecutor (max 4 workers), (2) Automatic deduplication based on file path + line + text, (3) Conditional execution (if_matches/if_no_matches) for query chaining, (4) Per-query statistics and error isolation, (5) Auto-assignment of query IDs if not provided. Returns aggregated results sorted by file and line number with query_id traceability.
 
 **Schema.org Integration:** SchemaOrgClient class fetches vocabulary on first use, indexes ~2600+ types/properties in memory. 8 tools: type queries, search, hierarchy, properties, example generation, @id generation/validation, knowledge graph building. @id format: `{canonical_url}#{entity_type}` for stable, cross-page entity references.
 
