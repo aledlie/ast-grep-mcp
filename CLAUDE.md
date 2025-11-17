@@ -142,10 +142,10 @@ uv run pytest tests/integration/
 
 # Run specific test file
 uv run pytest tests/unit/test_unit.py           # 57 unit tests
-uv run pytest tests/unit/test_cache.py          # 15 cache tests (Task 7: Caching)
+uv run pytest tests/unit/test_cache.py          # 26 cache tests (Task 7: Caching + helpers)
 uv run pytest tests/unit/test_duplication.py    # 24 duplication detection tests
 uv run pytest tests/unit/test_phase2.py         # 21 Phase 2 feature tests (Tasks 6, 8, 9)
-uv run pytest tests/unit/test_schema.py         # 52 Schema.org tests (NEW!)
+uv run pytest tests/unit/test_schema.py         # 52 Schema.org tests
 uv run pytest tests/integration/test_integration.py   # 5 integration tests
 uv run pytest tests/integration/test_benchmark.py     # Performance benchmarks (Task 10)
 
@@ -153,16 +153,19 @@ uv run pytest tests/integration/test_benchmark.py     # Performance benchmarks (
 uv run pytest --cov=main --cov-report=term-missing
 ```
 
-**Unit Tests** (174 tests): All unit tests use mocked HTTP/subprocess calls:
+**Unit Tests** (185 tests): All unit tests use mocked HTTP/subprocess calls:
 - `test_unit.py`: Core AST-grep functionality (dump_syntax_tree, find_code, YAML validation, etc.)
-- `test_cache.py`: Query caching functionality (Task 7)
+- `test_cache.py`: **Query caching functionality (26 tests)** - Task 7
+  - Core caching (10 tests): put/get, TTL expiration, LRU eviction, cache keys
+  - Tool integration (5 tests): find_code/find_code_by_rule caching, format handling
+  - **Helper methods (11 tests):** clear(), get_stats(), cache key consistency, LRU behavior ⭐ NEW!
 - `test_duplication.py`: Code duplication detection
 - `test_phase2.py`: Phase 2 performance features
   - **Task 6 - Result Streaming** (7 tests): JSON parsing, early termination, subprocess cleanup
   - **Task 8 - Parallel Execution** (4 tests): Workers parameter, --threads flag
   - **Task 9 - Large File Handling** (8 tests): File filtering, size limits, language filtering
   - **Integration Tests** (2 tests): Combined features, caching integration
-- `test_schema.py`: **Schema.org client and tools (52 tests)** ⭐ NEW!
+- `test_schema.py`: Schema.org client and tools (52 tests)
   - SchemaOrgClient class tests (38 tests): initialization, type queries, search, hierarchy, properties, example generation
   - Entity @id generation/validation tests (7 tests): proper formatting, best practices validation
   - Entity graph building tests (7 tests): relationships, cross-references
@@ -171,7 +174,7 @@ uv run pytest --cov=main --cov-report=term-missing
 - `test_integration.py`: End-to-end tests with real ast-grep subprocess
 - `test_benchmark.py`: Performance benchmarking suite (Task 10)
 
-**Test Coverage: 90%** (648 statements covered out of 720)
+**Test Coverage: 90%** (651 statements covered out of 720, 69 uncovered)
 
 ### Performance Benchmarking
 ```bash

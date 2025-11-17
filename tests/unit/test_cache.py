@@ -308,3 +308,211 @@ rule:
         assert "Found 1 match" in result_text
         assert "test.py" in result_text
         assert "def test():" in result_text
+
+
+class TestCacheClearAndStats:
+    """Tests for cache.clear() and cache.get_stats() methods"""
+
+    def test_clear_empty_cache(self):
+        """Test clearing an empty cache"""
+        cache = QueryCache(max_size=10, ttl_seconds=300)
+
+        cache.clear()
+
+        assert len(cache.cache) == 0
+        assert cache.hits == 0
+        assert cache.misses == 0
+
+    def test_clear_populated_cache(self):
+        """Test clearing a cache with entries"""
+        cache = QueryCache(max_size=10, ttl_seconds=300)
+
+        # Add multiple entries
+        cache.put("run", ["--pattern", "test1"], "/project", [{"text": "match1"}])
+        cache.put("run", ["--pattern", "test2"], "/project", [{"text": "match2"}])
+        cache.put("scan", ["--rule", "rule1"], "/project", [{"text": "match3"}])
+
+        assert len(cache.cache) == 3
+
+        # Clear the cache
+        cache.clear()
+
+        assert len(cache.cache) == 0
+        assert cache.hits == 0
+        assert cache.misses == 0
+
+    def test_clear_resets_stats(self):
+        """Test that clear() resets hit/miss statistics"""
+        cache = QueryCache(max_size=10, ttl_seconds=300)
+
+        # Generate some hits and misses
+        cache.put("run", ["--pattern", "test"], "/project", [{"text": "match"}])
+        cache.get("run", ["--pattern", "test"], "/project")  # hit
+        cache.get("run", ["--pattern", "other"], "/project")  # miss
+
+        assert cache.hits == 1
+        assert cache.misses == 1
+
+        # Clear should reset stats
+        cache.clear()
+
+        assert cache.hits == 0
+        assert cache.misses == 0
+
+    def test_get_stats_initial_state(self):
+        """Test get_stats() on a new cache"""
+        cache = QueryCache(max_size=50, ttl_seconds=120)
+
+        stats = cache.get_stats()
+
+        assert stats["size"] == 0
+        assert stats["max_size"] == 50
+        assert stats["hits"] == 0
+        assert stats["misses"] == 0
+        assert stats["hit_rate"] == 0
+        assert stats["ttl_seconds"] == 120
+
+    def test_get_stats_after_operations(self):
+        """Test get_stats() tracks operations correctly"""
+        cache = QueryCache(max_size=10, ttl_seconds=300)
+
+        # Add entries
+        cache.put("run", ["--pattern", "test1"], "/project", [{"text": "match1"}])
+        cache.put("run", ["--pattern", "test2"], "/project", [{"text": "match2"}])
+
+        # Generate hits and misses
+        cache.get("run", ["--pattern", "test1"], "/project")  # hit
+        cache.get("run", ["--pattern", "test2"], "/project")  # hit
+        cache.get("run", ["--pattern", "test3"], "/project")  # miss
+        cache.get("run", ["--pattern", "test4"], "/project")  # miss
+
+        stats = cache.get_stats()
+
+        assert stats["size"] == 2
+        assert stats["max_size"] == 10
+        assert stats["hits"] == 2
+        assert stats["misses"] == 2
+        assert stats["hit_rate"] == 0.5  # 2 hits / 4 total = 0.5
+        assert stats["ttl_seconds"] == 300
+
+    def test_get_stats_hit_rate_calculation(self):
+        """Test hit rate calculation in get_stats()"""
+        cache = QueryCache(max_size=10, ttl_seconds=300)
+
+        cache.put("run", ["--pattern", "test"], "/project", [{"text": "match"}])
+
+        # 3 hits, 1 miss = 75% hit rate
+        cache.get("run", ["--pattern", "test"], "/project")  # hit
+        cache.get("run", ["--pattern", "test"], "/project")  # hit
+        cache.get("run", ["--pattern", "test"], "/project")  # hit
+        cache.get("run", ["--pattern", "other"], "/project")  # miss
+
+        stats = cache.get_stats()
+
+        assert stats["hits"] == 3
+        assert stats["misses"] == 1
+        assert stats["hit_rate"] == 0.75
+
+    def test_get_stats_rounds_hit_rate(self):
+        """Test that get_stats() rounds hit rate to 3 decimals"""
+        cache = QueryCache(max_size=10, ttl_seconds=300)
+
+        cache.put("run", ["--pattern", "test"], "/project", [{"text": "match"}])
+
+        # Create uneven ratio: 1 hit, 2 misses = 0.333...
+        cache.get("run", ["--pattern", "test"], "/project")  # hit
+        cache.get("run", ["--pattern", "other1"], "/project")  # miss
+        cache.get("run", ["--pattern", "other2"], "/project")  # miss
+
+        stats = cache.get_stats()
+
+        assert stats["hit_rate"] == 0.333  # Rounded to 3 decimals
+
+    def test_cache_key_consistency(self):
+        """Test that cache keys are consistent for identical queries"""
+        cache = QueryCache(max_size=10, ttl_seconds=300)
+
+        # Same query parameters should generate same key
+        key1 = cache._make_key("run", ["--pattern", "test", "--lang", "python"], "/project")
+        key2 = cache._make_key("run", ["--pattern", "test", "--lang", "python"], "/project")
+
+        assert key1 == key2
+
+        # Different order of args should still generate same key (args are sorted)
+        key3 = cache._make_key("run", ["--lang", "python", "--pattern", "test"], "/project")
+
+        assert key1 == key3
+
+    def test_cache_key_different_for_different_queries(self):
+        """Test that different queries generate different cache keys"""
+        cache = QueryCache(max_size=10, ttl_seconds=300)
+
+        key1 = cache._make_key("run", ["--pattern", "test1"], "/project")
+        key2 = cache._make_key("run", ["--pattern", "test2"], "/project")
+        key3 = cache._make_key("scan", ["--pattern", "test1"], "/project")
+        key4 = cache._make_key("run", ["--pattern", "test1"], "/other")
+
+        # All should be different
+        assert key1 != key2  # Different pattern
+        assert key1 != key3  # Different command
+        assert key1 != key4  # Different project folder
+        assert len({key1, key2, key3, key4}) == 4  # All unique
+
+    def test_updating_existing_entry_moves_to_end(self):
+        """Test that updating an existing entry moves it to end (LRU)"""
+        cache = QueryCache(max_size=3, ttl_seconds=300)
+
+        # Add three entries
+        cache.put("run", ["--pattern", "test1"], "/project", [{"text": "match1"}])
+        cache.put("run", ["--pattern", "test2"], "/project", [{"text": "match2"}])
+        cache.put("run", ["--pattern", "test3"], "/project", [{"text": "match3"}])
+
+        # Update first entry (should move to end)
+        cache.put("run", ["--pattern", "test1"], "/project", [{"text": "updated"}])
+
+        # All three should still be in cache
+        assert len(cache.cache) == 3
+
+        # Add fourth entry - should evict test2 (now oldest)
+        cache.put("run", ["--pattern", "test4"], "/project", [{"text": "match4"}])
+
+        # test2 should be evicted, others should remain
+        assert cache.get("run", ["--pattern", "test2"], "/project") is None
+        assert cache.get("run", ["--pattern", "test1"], "/project") is not None
+        assert cache.get("run", ["--pattern", "test3"], "/project") is not None
+        assert cache.get("run", ["--pattern", "test4"], "/project") is not None
+
+    def test_get_stats_comprehensive_accuracy(self):
+        """Test get_stats() accuracy with multiple operations"""
+        cache = QueryCache(max_size=5, ttl_seconds=300)
+
+        # Start with empty cache
+        stats = cache.get_stats()
+        assert stats["size"] == 0
+        assert stats["hit_rate"] == 0
+
+        # Add 3 entries
+        cache.put("run", ["--pattern", "test1"], "/project", [{"text": "1"}])
+        cache.put("run", ["--pattern", "test2"], "/project", [{"text": "2"}])
+        cache.put("run", ["--pattern", "test3"], "/project", [{"text": "3"}])
+
+        stats = cache.get_stats()
+        assert stats["size"] == 3
+
+        # Generate 6 hits
+        for _ in range(2):
+            cache.get("run", ["--pattern", "test1"], "/project")
+            cache.get("run", ["--pattern", "test2"], "/project")
+            cache.get("run", ["--pattern", "test3"], "/project")
+
+        # Generate 4 misses
+        cache.get("run", ["--pattern", "test4"], "/project")
+        cache.get("run", ["--pattern", "test5"], "/project")
+        cache.get("run", ["--pattern", "test6"], "/project")
+        cache.get("run", ["--pattern", "test7"], "/project")
+
+        stats = cache.get_stats()
+        assert stats["size"] == 3  # Still 3 entries
+        assert stats["hits"] == 6
+        assert stats["misses"] == 4
+        assert stats["hit_rate"] == 0.6  # 6/10 = 0.6
