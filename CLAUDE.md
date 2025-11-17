@@ -145,6 +145,7 @@ uv run pytest tests/unit/test_unit.py           # 57 unit tests
 uv run pytest tests/unit/test_cache.py          # 15 cache tests (Task 7: Caching)
 uv run pytest tests/unit/test_duplication.py    # 24 duplication detection tests
 uv run pytest tests/unit/test_phase2.py         # 21 Phase 2 feature tests (Tasks 6, 8, 9)
+uv run pytest tests/unit/test_schema.py         # 52 Schema.org tests (NEW!)
 uv run pytest tests/integration/test_integration.py   # 5 integration tests
 uv run pytest tests/integration/test_benchmark.py     # Performance benchmarks (Task 10)
 
@@ -152,8 +153,8 @@ uv run pytest tests/integration/test_benchmark.py     # Performance benchmarks (
 uv run pytest --cov=main --cov-report=term-missing
 ```
 
-**Unit Tests** (122 tests): All unit tests use mocked subprocess calls and don't require ast-grep:
-- `test_unit.py`: Core functionality tests (dump_syntax_tree, find_code, YAML validation, etc.)
+**Unit Tests** (174 tests): All unit tests use mocked HTTP/subprocess calls:
+- `test_unit.py`: Core AST-grep functionality (dump_syntax_tree, find_code, YAML validation, etc.)
 - `test_cache.py`: Query caching functionality (Task 7)
 - `test_duplication.py`: Code duplication detection
 - `test_phase2.py`: Phase 2 performance features
@@ -161,10 +162,16 @@ uv run pytest --cov=main --cov-report=term-missing
   - **Task 8 - Parallel Execution** (4 tests): Workers parameter, --threads flag
   - **Task 9 - Large File Handling** (8 tests): File filtering, size limits, language filtering
   - **Integration Tests** (2 tests): Combined features, caching integration
+- `test_schema.py`: **Schema.org client and tools (52 tests)** ⭐ NEW!
+  - SchemaOrgClient class tests (38 tests): initialization, type queries, search, hierarchy, properties, example generation
+  - Entity @id generation/validation tests (7 tests): proper formatting, best practices validation
+  - Entity graph building tests (7 tests): relationships, cross-references
 
-**Integration Tests** (12 tests): Require real ast-grep binary:
+**Integration Tests** (13 tests): Require real ast-grep binary:
 - `test_integration.py`: End-to-end tests with real ast-grep subprocess
 - `test_benchmark.py`: Performance benchmarking suite (Task 10)
+
+**Test Coverage: 90%** (648 statements covered out of 720)
 
 ### Performance Benchmarking
 ```bash
