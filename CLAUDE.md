@@ -27,8 +27,10 @@ uv run mypy main.py
 # Run the MCP server
 uv run main.py
 
-# Run duplication analysis from command line
+# Standalone tools (see "Standalone Tools" section below)
 uv run python scripts/find_duplication.py /path/to/project --language python
+uv run python schema-tools.py search "article"
+python3 schema-graph-builder.py ~/path/to/schemas https://example.com
 ```
 
 ## Project Overview
@@ -104,6 +106,83 @@ Add to your Claude Desktop MCP configuration:
 }
 ```
 
+## Standalone Tools
+
+### Schema.org Tools CLI (`schema-tools.py`)
+
+A command-line interface for quick access to Schema.org vocabulary tools. Provides instant lookups without running the MCP server.
+
+**Quick Usage:**
+```bash
+# Search for Schema.org types
+uv run python schema-tools.py search "article"
+
+# Get type information
+uv run python schema-tools.py type Person
+
+# Get type properties
+uv run python schema-tools.py properties Organization
+```
+
+**Available commands:**
+1. **search** - Search for Schema.org types by keyword
+2. **type** - Get detailed information about a specific type
+3. **properties** - Get all properties available for a type
+
+**Options:**
+- `--limit N` - Limit search results (search command)
+- `--no-inherited` - Exclude inherited properties (properties command)
+- `--json` - Output as JSON for programmatic use (all commands)
+
+**Use cases:**
+- Quick lookups during development
+- Exploring Schema.org vocabulary
+- Planning structured data implementation
+- Exporting type information for reference
+
+**Documentation:** `SCHEMA-TOOLS-README.md`
+
+### Schema Graph Builder (`schema-graph-builder.py`)
+
+A standalone Python script that automates building unified Schema.org entity graphs from multiple JSON files. This tool was created using the MCP server's Schema.org tools and demonstrates their practical application.
+
+**Quick Usage:**
+```bash
+# Build entity graph from directory of Schema.org JSON files
+python3 schema-graph-builder.py <directory> <base_url>
+
+# Example
+python3 schema-graph-builder.py ~/code/PersonalSite/schemas-static https://www.aledlie.com
+```
+
+**What it does:**
+1. Discovers Schema.org JSON files in a directory
+2. Extracts entities with `@type` and `@id`
+3. Validates all `@id` values against best practices
+4. Builds unified `@graph` structure
+5. Analyzes relationships between entities
+6. Generates comprehensive documentation
+
+**Output files** (in `schema-analysis/` directory):
+- `unified-entity-graph.json` - Complete knowledge graph ready for deployment
+- `entity-graph-analysis.json` - Relationship statistics and analysis
+- `entity-id-validation.json` - @id validation results
+- `ENTITY-GRAPH-SUMMARY.md` - Comprehensive documentation
+
+**Options:**
+- `--output-dir DIR` - Custom output directory (default: `<directory>/schema-analysis`)
+- `--name NAME` - Project name for documentation (default: extracted from base_url)
+- `--exclude PATTERN ...` - Additional filename patterns to exclude
+- `--json` - Output summary as JSON for programmatic use
+
+**Real-world results:**
+- PersonalSite (aledlie.com): 16 entities, 13 types, 33 relationships, 100% validation
+- Fisterra Dance (fisterra-dance.com): 22 entities, 17 types, 26 relationships, 100% validation
+
+**Documentation:**
+- Quick start: `SCHEMA-GRAPH-BUILDER-QUICK-START.md`
+- Full documentation: `SCHEMA-GRAPH-BUILDER-README.md`
+
 ## Development Commands
 
 ### Setup
@@ -116,19 +195,73 @@ uv sync --extra dev
 ```
 
 ### Testing
+
+Tests are organized into two categories:
+- **Unit tests** (`tests/unit/`): Fast, mocked dependencies, no ast-grep required
+- **Integration tests** (`tests/integration/`): Require ast-grep binary installed
+
 ```bash
 # Run all tests
 uv run pytest
 
+# Run only unit tests (fast, mocked)
+uv run pytest tests/unit/
+
+# Run only integration tests (requires ast-grep)
+uv run pytest tests/integration/
+
 # Run specific test file
-uv run pytest tests/test_unit.py          # 57 unit tests
-uv run pytest tests/test_integration.py   # 5 integration tests
-uv run pytest tests/test_cache.py         # 15 cache tests
-uv run pytest tests/test_duplication.py   # 24 duplication detection tests
+uv run pytest tests/unit/test_unit.py           # 57 unit tests
+uv run pytest tests/unit/test_cache.py          # 15 cache tests (Task 7: Caching)
+uv run pytest tests/unit/test_duplication.py    # 24 duplication detection tests
+uv run pytest tests/unit/test_phase2.py         # 21 Phase 2 feature tests (Tasks 6, 8, 9)
+uv run pytest tests/integration/test_integration.py   # 5 integration tests
+uv run pytest tests/integration/test_benchmark.py     # Performance benchmarks (Task 10)
 
 # Run with coverage
 uv run pytest --cov=main --cov-report=term-missing
 ```
+
+**Unit Tests** (122 tests): All unit tests use mocked subprocess calls and don't require ast-grep:
+- `test_unit.py`: Core functionality tests (dump_syntax_tree, find_code, YAML validation, etc.)
+- `test_cache.py`: Query caching functionality (Task 7)
+- `test_duplication.py`: Code duplication detection
+- `test_phase2.py`: Phase 2 performance features
+  - **Task 6 - Result Streaming** (7 tests): JSON parsing, early termination, subprocess cleanup
+  - **Task 8 - Parallel Execution** (4 tests): Workers parameter, --threads flag
+  - **Task 9 - Large File Handling** (8 tests): File filtering, size limits, language filtering
+  - **Integration Tests** (2 tests): Combined features, caching integration
+
+**Integration Tests** (12 tests): Require real ast-grep binary:
+- `test_integration.py`: End-to-end tests with real ast-grep subprocess
+- `test_benchmark.py`: Performance benchmarking suite (Task 10)
+
+### Performance Benchmarking
+```bash
+# Run performance benchmarks
+python scripts/run_benchmarks.py
+
+# Update baseline metrics (after performance improvements)
+python scripts/run_benchmarks.py --save-baseline
+
+# Check for regressions (for CI)
+python scripts/run_benchmarks.py --check-regression
+```
+
+The benchmark suite tracks:
+- **Execution time** for standard query patterns
+- **Memory usage** during searches
+- **Cache hit performance** (>10x speedup expected)
+- **Early termination** efficiency with max_results
+- **File size filtering** overhead
+
+**Regression Detection:** Fails CI if performance degrades >10% compared to baseline
+
+See `BENCHMARKING.md` for detailed documentation on:
+- Expected performance ranges by codebase size
+- How to add custom benchmarks
+- CI integration for automated regression detection
+- Interpreting benchmark reports
 
 ### Linting and Type Checking
 ```bash
@@ -302,7 +435,7 @@ uv run main.py
 ## Architecture
 
 ### Single-file Design
-The entire MCP server is implemented in `main.py` (~2600 lines). This is intentional for simplicity and portability. The file includes comprehensive logging (~282 lines), streaming result parsing (~156 lines), query result caching (~117 lines), duplication detection (~382 lines), Schema.org client (~490 lines with ID features) and 8 Schema.org MCP tools (~340 lines).
+The entire MCP server is implemented in `main.py` (~2775 lines). This is intentional for simplicity and portability. The file includes comprehensive logging (~282 lines), streaming result parsing (~156 lines), query result caching (~117 lines), large file handling (~150 lines), duplication detection (~382 lines), Schema.org client (~490 lines with ID features) and 8 Schema.org MCP tools (~340 lines).
 
 ### Core Components
 
@@ -330,6 +463,31 @@ Both modes internally use JSON from ast-grep for accurate result limiting, then 
 - Performs graceful subprocess cleanup (SIGTERM, then SIGKILL if needed)
 
 The streaming layer sits between the MCP tools and the subprocess execution layer, replacing the traditional `run_ast_grep()` call for search operations. This provides significant performance benefits when searching large codebases with result limits, as ast-grep can be terminated as soon as enough matches are found rather than scanning the entire project.
+
+**Large File Handling**: `find_code` and `find_code_by_rule` support optional file size filtering via the `max_file_size_mb` parameter. This feature helps exclude large generated/minified files from searches. The implementation:
+- **File Filtering**: `filter_files_by_size()` function (main.py:2427-2519) recursively walks the project directory
+- **Size Checking**: Uses `os.path.getsize()` to check each file against the limit
+- **Language Filtering**: Optionally filters by language-specific extensions (e.g., .py for Python)
+- **Ignore Patterns**: Automatically skips hidden directories and common patterns (node_modules, venv, .venv, build, dist)
+- **File List Mode**: When filtering is active, passes individual file paths to ast-grep instead of the directory
+- **Logging**: Logs skipped files at DEBUG level and filtering summary at INFO level (files_filtered_by_size event)
+- **Edge Cases**: Handles scenarios where all files exceed the limit (returns empty results)
+
+Memory efficiency is achieved through the streaming architecture (Task 6) rather than custom file parsing. ast-grep handles file reading internally and efficiently, while our streaming layer processes results incrementally.
+
+**Parallel Execution**: `find_code` and `find_code_by_rule` support parallel execution via the `workers` parameter. This leverages ast-grep's built-in threading capabilities:
+- **Worker Parameter**: `workers=0` (default) uses ast-grep's auto-detection heuristics
+- **Custom Thread Count**: `workers=N` spawns N parallel threads for file processing
+- **Threading Flag**: Passes `--threads N` to ast-grep subprocess
+- **CPU Utilization**: Higher thread counts improve performance on multi-core systems
+- **Large Codebases**: Can reduce search time by 50-70% on projects with 1K+ files
+- **Logging**: Worker count logged in tool_invoked events
+
+Performance improvements scale with available CPU cores. For example:
+- 1K files, 4 cores, workers=4: ~60% faster than single-threaded
+- 10K files, 8 cores, workers=8: ~70% faster than single-threaded
+
+The parallel execution integrates seamlessly with streaming, caching, and file filtering features.
 
 **Duplication Detection**: The `find_duplication` tool (main.py:880-1316) detects duplicate code and suggests refactoring opportunities based on DRY principles. The detection process:
 1. Uses ast-grep streaming to find all instances of a construct type (functions, classes, methods)
@@ -419,6 +577,18 @@ Tests use a `MockFastMCP` class to bypass FastMCP's decorator machinery and extr
 
 Unit tests (`test_unit.py`) mock subprocess calls. Integration tests (`test_integration.py`) run against real fixtures in `tests/fixtures/`.
 
+**Cache Isolation in Tests**: Test classes that call search tools should clear the query cache in `setup_method()` to prevent test interference:
+```python
+def setup_method(self):
+    """Clear cache before each test to avoid test interference"""
+    if main._query_cache is not None:
+        main._query_cache.cache.clear()
+        main._query_cache.hits = 0
+        main._query_cache.misses = 0
+```
+
+**Benchmark Tests**: The benchmark suite (test_benchmark.py) initializes caching globally to accurately measure cache performance. The `run_benchmark()` function tracks cache hits by monitoring the cache hit counter before and after each tool invocation.
+
 ### Language Support
 
 The `get_supported_languages()` function returns a hardcoded list of ast-grep's built-in languages PLUS any custom languages defined in the `sgconfig.yaml` file (if provided). This list is used in tool parameter descriptions.
@@ -450,6 +620,16 @@ The `get_supported_languages()` function returns a hardcoded list of ast-grep's 
 This can result in substantial time savings on large projects. For example, finding the first 10 matches in a 100,000-file codebase might complete in seconds rather than minutes.
 
 ### Common ast-grep Patterns
+
+**YAML Rule Requirements**: Modern ast-grep versions require the `kind` field in YAML rules. For example:
+```yaml
+id: test-rule
+language: python
+rule:
+  kind: class_definition  # Required!
+  pattern: class $NAME
+```
+
 When testing rules, if no matches are found, the error message suggests adding `stopBy: end` to relational rules (inside/has). This is a common gotcha with ast-grep's traversal behavior.
 
 ### Text Format Design

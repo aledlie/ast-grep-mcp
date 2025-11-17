@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 # Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
 # Mock FastMCP to disable decoration
@@ -55,7 +55,7 @@ with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
 @pytest.fixture
 def fixtures_dir():
     """Get the path to the fixtures directory"""
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures"))
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "fixtures"))
 
 
 class TestIntegration:

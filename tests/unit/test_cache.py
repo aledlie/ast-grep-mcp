@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 # Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 # Mock FastMCP before importing main
 class MockFastMCP:

@@ -31,6 +31,10 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v"
+markers = [
+    "unit: Unit tests (fast, mocked dependencies)",
+    "integration: Integration tests (requires ast-grep binary)",
+]
 
 [tool.coverage.run]
 source = ["main"]

@@ -1130,6 +1130,10 @@ def register_mcp_tools() -> None:  # pragma: no cover
                                            "If not specified, will be auto-detected based on file extensions.", default = ""),
         max_results: int = Field(default = 0, description = "Maximum results to return"),
         output_format: str = Field(default = "text", description = "'text' or 'json'"),
+        max_file_size_mb: int = Field(default = 0, description = "Skip files larger than this size in MB. 0 = unlimited (default). "
+                                                                   "Useful for excluding large generated/minified files."),
+        workers: int = Field(default = 0, description = "Number of parallel worker threads. 0 = auto (default, uses ast-grep heuristics). "
+                                                         "Higher values can speed up searches on large codebases with multiple CPU cores."),
     ) -> str | List[dict[str, Any]]:
         """
         Find code in a project folder that matches the given ast-grep pattern.
@@ -1171,22 +1175,58 @@ def register_mcp_tools() -> None:  # pragma: no cover
             pattern_length=len(pattern),
             language=language or "auto",
             max_results=max_results,
-            output_format=output_format
+            output_format=output_format,
+            max_file_size_mb=max_file_size_mb if max_file_size_mb > 0 else "unlimited",
+            workers=workers if workers > 0 else "auto"
         )
 
         try:
             if output_format not in ["text", "json"]:
                 raise ValueError(f"Invalid output_format: {output_format}. Must be 'text' or 'json'.")
 
+            # Filter files by size if max_file_size_mb is set
+            search_targets = [project_folder]  # Default: search entire directory
+            if max_file_size_mb > 0:
+                files_to_search, skipped_files = filter_files_by_size(
+                    project_folder,
+                    max_size_mb=max_file_size_mb,
+                    language=language if language else None
+                )
+                if files_to_search:
+                    search_targets = files_to_search
+                    logger.info(
+                        "file_size_filtering_applied",
+                        tool="find_code",
+                        files_to_search=len(files_to_search),
+                        files_skipped=len(skipped_files),
+                        max_size_mb=max_file_size_mb
+                    )
+                elif skipped_files:
+                    # All files were skipped
+                    logger.warning(
+                        "all_files_skipped_by_size",
+                        tool="find_code",
+                        total_files=len(skipped_files),
+                        max_size_mb=max_file_size_mb
+                    )
+                    # Return empty result
+                    return "No matches found (all files exceeded size limit)" if output_format == "text" else []
+                # If no files found at all, continue with directory search (ast-grep will handle it)
+
             args = ["--pattern", pattern]
             if language:
                 args.extend(["--lang", language])
+            if workers > 0:
+                args.extend(["--threads", str(workers)])
+
+            # Build ast-grep arguments with search targets
+            stream_args = args + ["--json=stream"] + search_targets
 
             # Check cache first
             cache = get_query_cache()
             cached_result = None
             if cache:
-                cached_result = cache.get("run", args + ["--json=stream", project_folder], project_folder)
+                cached_result = cache.get("run", stream_args, project_folder)
                 if cached_result is not None:
                     matches = cached_result
                     logger.info(
@@ -1205,14 +1245,14 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 # This enables early termination and progress logging
                 matches = list(stream_ast_grep_results(
                     "run",
-                    args + ["--json=stream", project_folder],
+                    stream_args,
                     max_results=max_results,
                     progress_interval=100
                 ))
 
                 # Store in cache if available
                 if cache:
-                    cache.put("run", args + ["--json=stream", project_folder], project_folder, matches)
+                    cache.put("run", stream_args, project_folder, matches)
                     logger.info(
                         "cache_stored",
                         tool="find_code",
@@ -1254,6 +1294,10 @@ def register_mcp_tools() -> None:  # pragma: no cover
         yaml_rule: str = Field(description = "The ast-grep YAML rule to search. It must have id, language, rule fields."),
         max_results: int = Field(default = 0, description = "Maximum results to return"),
         output_format: str = Field(default = "text", description = "'text' or 'json'"),
+        max_file_size_mb: int = Field(default = 0, description = "Skip files larger than this size in MB. 0 = unlimited (default). "
+                                                                   "Useful for excluding large generated/minified files."),
+        workers: int = Field(default = 0, description = "Number of parallel worker threads. 0 = auto (default, uses ast-grep heuristics). "
+                                                         "Higher values can speed up searches on large codebases with multiple CPU cores."),
         ) -> str | List[dict[str, Any]]:
         """
         Find code using ast-grep's YAML rule in a project folder.
@@ -1315,17 +1359,54 @@ def register_mcp_tools() -> None:  # pragma: no cover
             language=parsed_yaml.get('language'),
             yaml_length=len(yaml_rule),
             max_results=max_results,
-            output_format=output_format
+            output_format=output_format,
+            max_file_size_mb=max_file_size_mb if max_file_size_mb > 0 else "unlimited",
+            workers=workers if workers > 0 else "auto"
         )
 
         try:
+            # Filter files by size if max_file_size_mb is set
+            search_targets = [project_folder]  # Default: search entire directory
+            if max_file_size_mb > 0:
+                rule_language = parsed_yaml.get('language', '')
+                files_to_search, skipped_files = filter_files_by_size(
+                    project_folder,
+                    max_size_mb=max_file_size_mb,
+                    language=rule_language if rule_language else None
+                )
+                if files_to_search:
+                    search_targets = files_to_search
+                    logger.info(
+                        "file_size_filtering_applied",
+                        tool="find_code_by_rule",
+                        files_to_search=len(files_to_search),
+                        files_skipped=len(skipped_files),
+                        max_size_mb=max_file_size_mb
+                    )
+                elif skipped_files:
+                    # All files were skipped
+                    logger.warning(
+                        "all_files_skipped_by_size",
+                        tool="find_code_by_rule",
+                        total_files=len(skipped_files),
+                        max_size_mb=max_file_size_mb
+                    )
+                    # Return empty result
+                    return "No matches found (all files exceeded size limit)" if output_format == "text" else []
+                # If no files found at all, continue with directory search (ast-grep will handle it)
+
             args = ["--inline-rules", yaml_rule]
+            if workers > 0:
+                args.extend(["--threads", str(workers)])
+
+            # Build ast-grep arguments with search targets
+            stream_args = args + ["--json=stream"] + search_targets
 
             # Check cache first
             cache = get_query_cache()
             cached_result = None
             if cache:
-                cached_result = cache.get("scan", args + ["--json=stream", project_folder], project_folder)
+                cached_result = cache.get("scan", stream_args, project_folder)
                 if cached_result is not None:
                     matches = cached_result
                     logger.info(
@@ -1344,14 +1425,14 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 # This enables early termination and progress logging
                 matches = list(stream_ast_grep_results(
                     "scan",
-                    args + ["--json=stream", project_folder],
+                    stream_args,
                     max_results=max_results,
                     progress_interval=100
                 ))
 
                 # Store in cache if available
                 if cache:
-                    cache.put("scan", args + ["--json=stream", project_folder], project_folder, matches)
+                    cache.put("scan", stream_args, project_folder, matches)
                     logger.info(
                         "cache_stored",
                         tool="find_code_by_rule",
@@ -1847,7 +1928,10 @@ def register_mcp_tools() -> None:  # pragma: no cover
     def generate_entity_id(
         base_url: str = Field(description="The canonical URL (e.g., 'https://example.com' or 'https://example.com/page')"),
         entity_type: str = Field(description="The Schema.org type (e.g., 'Organization', 'Person', 'Product')"),
-        entity_slug: Optional[str] = Field(default=None, description="Optional URL slug for specific entity instances (e.g., 'john-doe', 'products/widget-a')")
+        entity_slug: Optional[str] = Field(
+            default=None,
+            description="Optional URL slug for specific entity instances (e.g., 'john-doe', 'products/widget-a')"
+        )
     ) -> str:
         """
         Generate a proper @id value following Schema.org and SEO best practices.
@@ -2423,6 +2507,100 @@ def run_command(args: List[str], input_text: Optional[str] = None) -> subprocess
         if args[0] == "ast-grep":
             raise AstGrepNotFoundError() from e
         raise AstGrepNotFoundError(f"Command '{args[0]}' not found") from e
+
+def filter_files_by_size(
+    directory: str,
+    max_size_mb: Optional[int] = None,
+    language: Optional[str] = None
+) -> Tuple[List[str], List[str]]:
+    """Filter files in directory by size.
+
+    Args:
+        directory: Directory to search
+        max_size_mb: Maximum file size in megabytes (None = unlimited)
+        language: Optional language filter for file extensions
+
+    Returns:
+        Tuple of (files_to_search, skipped_files)
+        - files_to_search: List of file paths under size limit
+        - skipped_files: List of file paths that were skipped
+    """
+    logger = get_logger("file_filter")
+
+    if max_size_mb is None or max_size_mb <= 0:
+        # No filtering needed
+        return ([], [])
+
+    max_size_bytes = max_size_mb * 1024 * 1024
+    files_to_search: List[str] = []
+    skipped_files: List[str] = []
+
+    # Get language extensions if specified
+    lang_extensions: Optional[List[str]] = None
+    if language:
+        # Common extensions by language (simplified)
+        lang_map = {
+            'python': ['.py', '.pyi'],
+            'javascript': ['.js', '.jsx', '.mjs'],
+            'typescript': ['.ts', '.tsx'],
+            'java': ['.java'],
+            'rust': ['.rs'],
+            'go': ['.go'],
+            'c': ['.c', '.h'],
+            'cpp': ['.cpp', '.hpp', '.cc', '.cxx', '.h'],
+            'ruby': ['.rb'],
+            'php': ['.php'],
+            'swift': ['.swift'],
+            'kotlin': ['.kt', '.kts'],
+        }
+        lang_extensions = lang_map.get(language.lower())
+
+    # Walk directory and check file sizes
+    for root, dirs, files in os.walk(directory):
+        # Skip hidden directories and common ignore patterns
+        dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['node_modules', 'venv', '.venv', 'build', 'dist']]
+
+        for file in files:
+            # Skip hidden files
+            if file.startswith('.'):
+                continue
+
+            # Check language filter
+            if lang_extensions:
+                if not any(file.endswith(ext) for ext in lang_extensions):
+                    continue
+
+            file_path = os.path.join(root, file)
+
+            try:
+                file_size = os.path.getsize(file_path)
+
+                if file_size > max_size_bytes:
+                    skipped_files.append(file_path)
+                    logger.debug(
+                        "file_skipped_size",
+                        file=file_path,
+                        size_mb=round(file_size / (1024 * 1024), 2),
+                        max_size_mb=max_size_mb
+                    )
+                else:
+                    files_to_search.append(file_path)
+
+            except OSError as e:
+                # Skip files we can't stat
+                logger.debug("file_stat_error", file=file_path, error=str(e))
+                continue
+
+    if skipped_files:
+        logger.info(
+            "files_filtered_by_size",
+            total_files=len(files_to_search) + len(skipped_files),
+            files_to_search=len(files_to_search),
+            skipped_files=len(skipped_files),
+            max_size_mb=max_size_mb
+        )
+
+    return (files_to_search, skipped_files)
 
 def run_ast_grep(command: str, args: List[str], input_text: Optional[str] = None) -> subprocess.CompletedProcess[str]:
     """Execute ast-grep command with optional config.

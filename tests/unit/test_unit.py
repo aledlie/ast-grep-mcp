@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 # Add the parent directory to the path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
 # Mock FastMCP to disable decoration
@@ -138,6 +138,13 @@ rule:
 class TestFindCode:
     """Test the find_code function"""
 
+    def setup_method(self):
+        """Clear cache before each test to avoid test interference"""
+        if main._query_cache is not None:
+            main._query_cache.cache.clear()
+            main._query_cache.hits = 0
+            main._query_cache.misses = 0
+
     @patch("main.stream_ast_grep_results")
     def test_text_format_with_results(self, mock_stream):
         """Test text format output with results"""
@@ -249,6 +256,13 @@ class TestFindCode:
 
 class TestFindCodeByRule:
     """Test the find_code_by_rule function"""
+
+    def setup_method(self):
+        """Clear cache before each test to avoid test interference"""
+        if main._query_cache is not None:
+            main._query_cache.cache.clear()
+            main._query_cache.hits = 0
+            main._query_cache.misses = 0
 
     @patch("main.stream_ast_grep_results")
     def test_text_format_with_results(self, mock_stream):
@@ -436,7 +450,7 @@ class TestConfigValidation:
     def test_valid_config(self):
         """Test validating a valid config file"""
         from main import validate_config_file
-        fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
+        fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "valid_config.yaml")
 
         # Should not raise an exception
@@ -450,7 +464,7 @@ class TestConfigValidation:
     def test_invalid_config_extensions(self):
         """Test config with invalid extensions (missing dots)"""
         from main import validate_config_file, ConfigurationError
-        fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
+        fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "invalid_config_extensions.yaml")
 
         with pytest.raises(ConfigurationError, match="must start with a dot"):
@@ -459,7 +473,7 @@ class TestConfigValidation:
     def test_invalid_config_empty_lists(self):
         """Test config with empty lists"""
         from main import validate_config_file, ConfigurationError
-        fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
+        fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "invalid_config_empty.yaml")
 
         with pytest.raises(ConfigurationError, match="cannot be empty"):
@@ -475,7 +489,7 @@ class TestConfigValidation:
     def test_config_file_is_directory(self):
         """Test with directory instead of file"""
         from main import validate_config_file, ConfigurationError
-        fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
+        fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
 
         with pytest.raises(ConfigurationError, match="not a file"):
             validate_config_file(fixtures_dir)
@@ -483,7 +497,7 @@ class TestConfigValidation:
     def test_config_yaml_parsing_error(self):
         """Test config with YAML syntax error"""
         from main import validate_config_file, ConfigurationError
-        fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
+        fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "invalid_config_yaml_error.yaml")
 
         with pytest.raises(ConfigurationError, match="YAML parsing failed"):
@@ -492,7 +506,7 @@ class TestConfigValidation:
     def test_config_empty_file(self):
         """Test config with empty file"""
         from main import validate_config_file, ConfigurationError
-        fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
+        fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "empty_config.yaml")
 
         with pytest.raises(ConfigurationError, match="empty"):
@@ -501,7 +515,7 @@ class TestConfigValidation:
     def test_config_not_dictionary(self):
         """Test config that is not a dictionary"""
         from main import validate_config_file, ConfigurationError
-        fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
+        fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "invalid_config_not_dict.yaml")
 
         with pytest.raises(ConfigurationError, match="must be a YAML dictionary"):
@@ -529,7 +543,7 @@ class TestGetSupportedLanguages:
         """Test getting languages with custom languages in config"""
         from main import get_supported_languages
 
-        fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
+        fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "config_with_custom_lang.yaml")
         mock_config_path.__bool__ = lambda x: True
         mock_config_path.__str__ = lambda x: config_path
@@ -842,7 +856,7 @@ class TestValidateConfigFileErrors:
     def test_config_file_read_error(self):
         """Test when file cannot be read (OSError)"""
         from main import validate_config_file, ConfigurationError
-        fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
+        fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "valid_config.yaml")
 
         with patch("builtins.open", side_effect=OSError("Permission denied")):
@@ -937,7 +951,7 @@ class TestParseArgsAndGetConfig:
         import main
 
         importlib.reload(main)
-        fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
+        fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "valid_config.yaml")
 
         with patch('sys.argv', ['main.py', '--config', config_path]):
@@ -951,7 +965,7 @@ class TestParseArgsAndGetConfig:
         import importlib
         import main
 
-        fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
+        fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "valid_config.yaml")
 
         # Mock environment variable
