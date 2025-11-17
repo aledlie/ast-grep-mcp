@@ -1228,7 +1228,8 @@ def register_mcp_tools() -> None:  # pragma: no cover
             if cache:
                 cached_result = cache.get("run", stream_args, project_folder)
                 if cached_result is not None:
-                    matches = cached_result
+                    # Apply max_results limit to cached results
+                    matches = cached_result[:max_results] if max_results > 0 else cached_result
                     logger.info(
                         "cache_hit",
                         tool="find_code",
@@ -1408,7 +1409,8 @@ def register_mcp_tools() -> None:  # pragma: no cover
             if cache:
                 cached_result = cache.get("scan", stream_args, project_folder)
                 if cached_result is not None:
-                    matches = cached_result
+                    # Apply max_results limit to cached results
+                    matches = cached_result[:max_results] if max_results > 0 else cached_result
                     logger.info(
                         "cache_hit",
                         tool="find_code_by_rule",
