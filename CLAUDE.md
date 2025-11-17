@@ -35,7 +35,7 @@ python3 schema-graph-builder.py ~/path/to/schemas https://example.com
 
 ## Project Overview
 
-This is an MCP (Model Context Protocol) server that combines ast-grep's structural code search capabilities with Schema.org structured data tools. The server provides 13 MCP tools across two domains:
+This is an MCP (Model Context Protocol) server that combines ast-grep's structural code search and rewrite capabilities with Schema.org structured data tools. The server provides 16 MCP tools across three domains:
 
 ### Code Search Tools (ast-grep)
 1. **`dump_syntax_tree`**: Visualize AST structure of code snippets for pattern development
@@ -44,15 +44,20 @@ This is an MCP (Model Context Protocol) server that combines ast-grep's structur
 4. **`find_code_by_rule`**: Advanced search using complex YAML rules with relational constraints
 5. **`find_duplication`**: Detect duplicate code and suggest modularization based on DRY principles
 
+### Code Rewrite Tools (ast-grep fix mode)
+6. **`rewrite_code`**: Apply code transformations using ast-grep fix rules with dry-run preview and automatic backups
+7. **`rollback_rewrite`**: Restore files from a previous backup after a rewrite
+8. **`list_backups`**: List all available backups for a project
+
 ### Schema.org Tools
-6. **`get_schema_type`**: Get detailed information about a Schema.org type
-7. **`search_schemas`**: Search for Schema.org types by keyword
-8. **`get_type_hierarchy`**: Get the inheritance hierarchy for a type
-9. **`get_type_properties`**: Get all properties available for a type
-10. **`generate_schema_example`**: Generate example JSON-LD structured data
-11. **`generate_entity_id`**: Generate proper @id values following SEO best practices
-12. **`validate_entity_id`**: Validate @id values against best practices
-13. **`build_entity_graph`**: Build knowledge graphs with related entities using @id references
+9. **`get_schema_type`**: Get detailed information about a Schema.org type
+10. **`search_schemas`**: Search for Schema.org types by keyword
+11. **`get_type_hierarchy`**: Get the inheritance hierarchy for a type
+12. **`get_type_properties`**: Get all properties available for a type
+13. **`generate_schema_example`**: Generate example JSON-LD structured data
+14. **`generate_entity_id`**: Generate proper @id values following SEO best practices
+15. **`validate_entity_id`**: Validate @id values against best practices
+16. **`build_entity_graph`**: Build knowledge graphs with related entities using @id references
 
 **External dependencies**:
 - `ast-grep` CLI (for code search tools) - must be installed and available in PATH
@@ -146,6 +151,7 @@ uv run pytest tests/unit/test_cache.py          # 26 cache tests (Task 7: Cachin
 uv run pytest tests/unit/test_duplication.py    # 24 duplication detection tests
 uv run pytest tests/unit/test_phase2.py         # 21 Phase 2 feature tests (Tasks 6, 8, 9)
 uv run pytest tests/unit/test_schema.py         # 52 Schema.org tests
+uv run pytest tests/unit/test_rewrite.py        # 24 code rewrite tests (Task 11)
 uv run pytest tests/integration/test_integration.py   # 5 integration tests
 uv run pytest tests/integration/test_benchmark.py     # Performance benchmarks (Task 10)
 
@@ -153,12 +159,12 @@ uv run pytest tests/integration/test_benchmark.py     # Performance benchmarks (
 uv run pytest --cov=main --cov-report=term-missing
 ```
 
-**Unit Tests** (185 tests): All unit tests use mocked HTTP/subprocess calls:
+**Unit Tests** (209 tests): All unit tests use mocked HTTP/subprocess calls:
 - `test_unit.py`: Core AST-grep functionality (dump_syntax_tree, find_code, YAML validation, etc.)
 - `test_cache.py`: **Query caching functionality (26 tests)** - Task 7
   - Core caching (10 tests): put/get, TTL expiration, LRU eviction, cache keys
   - Tool integration (5 tests): find_code/find_code_by_rule caching, format handling
-  - **Helper methods (11 tests):** clear(), get_stats(), cache key consistency, LRU behavior ⭐ NEW!
+  - **Helper methods (11 tests):** clear(), get_stats(), cache key consistency, LRU behavior
 - `test_duplication.py`: Code duplication detection
 - `test_phase2.py`: Phase 2 performance features
   - **Task 6 - Result Streaming** (7 tests): JSON parsing, early termination, subprocess cleanup
@@ -169,12 +175,20 @@ uv run pytest --cov=main --cov-report=term-missing
   - SchemaOrgClient class tests (38 tests): initialization, type queries, search, hierarchy, properties, example generation
   - Entity @id generation/validation tests (7 tests): proper formatting, best practices validation
   - Entity graph building tests (7 tests): relationships, cross-references
+- `test_rewrite.py`: **Code rewrite functionality (24 tests)** - Task 11 ⭐ NEW!
+  - rewrite_code tool tests (8 tests): dry-run mode, actual mode with backups, YAML validation, file size limits, parallel execution
+  - Backup management tests (8 tests): backup creation, file copying, metadata, restoration, backup listing
+  - rollback_rewrite tool tests (3 tests): tool registration, successful rollback, error handling
+  - list_backups tool tests (3 tests): empty list, multiple backups, sorting
+  - Integration tests (2 tests): full workflow, data loss prevention
 
 **Integration Tests** (13 tests): Require real ast-grep binary:
 - `test_integration.py`: End-to-end tests with real ast-grep subprocess
 - `test_benchmark.py`: Performance benchmarking suite (Task 10)
 
-**Test Coverage: 90%** (651 statements covered out of 720, 69 uncovered)
+**Total Tests: 220** (209 unit + 11 integration, excluding 1 skipped)
+
+**Test Coverage: 91%** (701 statements covered out of 770, 69 uncovered)
 
 ### Performance Benchmarking
 ```bash
@@ -265,14 +279,89 @@ LRU cache with TTL for `find_code` and `find_code_by_rule` queries.
 
 Cache keys include command, args, and project path. Both text/json formats share cached results.
 
+### Code Rewrite Functionality
+
+The rewrite tools enable safe, automated code transformations using ast-grep's fix rules. All rewrites include safety guardrails to prevent data loss.
+
+**Safety Features:**
+- **Dry-run by default**: `dry_run=true` previews changes without modifying files
+- **Automatic backups**: Creates timestamped backups before applying changes (unless `backup=false`)
+- **Rollback capability**: Restore previous state from any backup
+- **Backup metadata**: JSON metadata tracks all modified files with timestamps
+
+**Workflow:**
+1. **Preview** - Run with `dry_run=true` (default) to see what will change
+2. **Apply** - Set `dry_run=false` to apply changes (creates backup automatically)
+3. **Verify** - Check the modified code
+4. **Rollback** (if needed) - Use `rollback_rewrite` with backup_id to restore
+
+**Backup Storage:**
+- Location: `.ast-grep-backups/` directory in project root
+- Format: `backup-YYYYMMDD-HHMMSS-mmm/` (timestamped directories)
+- Metadata: `backup-metadata.json` contains file list and timestamps
+- Sorted: `list_backups` returns newest first
+
+**Example: Refactor quote style in Python**
+
+```yaml
+# Convert single quotes to double quotes
+id: quote-style
+language: python
+rule:
+  pattern: print('$MSG')
+fix: print("$MSG")
+```
+
+**Usage with rewrite_code tool:**
+```python
+# Step 1: Preview changes (dry-run mode)
+result = rewrite_code(
+    project_folder="/path/to/project",
+    yaml_rule=yaml_rule_above,
+    dry_run=true  # Default - preview only
+)
+# Returns: {"dry_run": true, "changes": [...previews...]}
+
+# Step 2: Apply changes with automatic backup
+result = rewrite_code(
+    project_folder="/path/to/project",
+    yaml_rule=yaml_rule_above,
+    dry_run=false,  # Apply changes
+    backup=true     # Default - create backup
+)
+# Returns: {"dry_run": false, "modified_files": [...], "backup_id": "backup-20250117-120000-123"}
+
+# Step 3: List available backups
+backups = list_backups(project_folder="/path/to/project")
+# Returns: [{"backup_id": "...", "timestamp": "...", "file_count": 3, "files": [...]}]
+
+# Step 4: Rollback if needed
+result = rollback_rewrite(
+    project_folder="/path/to/project",
+    backup_id="backup-20250117-120000-123"
+)
+# Returns: {"restored_files": [...], "backup_id": "..."}
+```
+
+**Advanced Options:**
+- `max_file_size_mb`: Skip files larger than N MB (prevents processing minified/generated files)
+- `workers`: Parallel execution (e.g., `workers=4` for faster rewrites on large codebases)
+
+**Best Practices:**
+1. Always preview with `dry_run=true` before applying changes
+2. Test on a small subset first (use `--paths` in YAML rule to limit scope)
+3. Keep backups until changes are verified and committed
+4. Use version control (git) as an additional safety layer
+5. Run tests after rewriting to ensure functionality preserved
+
 ## Architecture
 
 ### Single-file Design
-Entire server in `main.py` (~2775 lines) for simplicity. Includes logging, streaming, caching, file handling, duplication detection, and Schema.org client.
+Entire server in `main.py` (~3190 lines) for simplicity. Includes logging, streaming, caching, file handling, duplication detection, code rewrite with backups, and Schema.org client.
 
 ### Core Components
 
-**Tool Registration:** 13 tools (5 ast-grep + 8 Schema.org) registered via `register_mcp_tools()` using FastMCP decorators.
+**Tool Registration:** 16 tools (5 ast-grep search + 3 ast-grep rewrite + 8 Schema.org) registered via `register_mcp_tools()` using FastMCP decorators.
 
 **Execution Paths:**
 - Non-streaming: `run_ast_grep()` → `subprocess.run()`

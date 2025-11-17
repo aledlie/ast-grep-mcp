@@ -4,10 +4,12 @@ import difflib
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
 from collections import OrderedDict
+from datetime import datetime
 from typing import Any, Dict, Generator, List, Literal, Optional, Tuple, cast
 
 import httpx
@@ -2122,6 +2124,290 @@ def register_mcp_tools() -> None:  # pragma: no cover
             )
             raise
 
+    # Code Rewrite Tools
+    @mcp.tool()
+    def rewrite_code(
+        project_folder: str = Field(description="The absolute path to the project folder"),
+        yaml_rule: str = Field(description="YAML rule with 'fix' field for code transformation"),
+        dry_run: bool = Field(default=True, description="Preview changes without applying (default: true for safety)"),
+        backup: bool = Field(default=True, description="Create backup before applying changes (default: true)"),
+        max_file_size_mb: int = Field(default=0, description="Skip files larger than this (0 = unlimited)"),
+        workers: int = Field(default=0, description="Number of worker threads (0 = auto)")
+    ) -> Dict[str, Any]:
+        """
+        Rewrite code using ast-grep fix rules. Apply automated code transformations safely.
+
+        SAFETY FEATURES:
+        - dry_run=True by default (preview before applying)
+        - Automatic backups before changes
+        - Returns diff preview or list of modified files
+
+        Example YAML Rule:
+        ```yaml
+        id: replace-var-with-const
+        language: javascript
+        rule:
+          pattern: var $NAME = $VAL
+        fix: const $NAME = $VAL
+        ```
+
+        Returns:
+        - dry_run=True: Preview with diffs showing proposed changes
+        - dry_run=False: backup_id and list of modified files
+        """
+        logger = get_logger("tool.rewrite_code")
+        start_time = time.time()
+
+        logger.info(
+            "tool_invoked",
+            tool="rewrite_code",
+            project_folder=project_folder,
+            dry_run=dry_run,
+            backup=backup,
+            workers=workers
+        )
+
+        try:
+            # Validate YAML rule
+            try:
+                rule_data = yaml.safe_load(yaml_rule)
+            except yaml.YAMLError as e:
+                raise InvalidYAMLError(f"Invalid YAML rule: {e}") from e
+
+            if not isinstance(rule_data, dict):
+                raise InvalidYAMLError("Rule must be a YAML dictionary")
+
+            if "fix" not in rule_data:
+                raise ValueError("Rule must include a 'fix' field for code rewriting")
+
+            if "language" not in rule_data:
+                raise ValueError("Rule must include a 'language' field")
+
+            # Write rule to temporary file
+            import tempfile
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+                f.write(yaml_rule)
+                rule_file = f.name
+
+            try:
+                # Build command args
+                args = ["--rule", rule_file]
+                if max_file_size_mb > 0:
+                    files_to_search, _ = filter_files_by_size(
+                        project_folder,
+                        max_size_mb=max_file_size_mb,
+                        language=rule_data.get("language")
+                    )
+                    if files_to_search:
+                        search_targets = files_to_search
+                    else:
+                        return {"message": "No files to rewrite (all exceeded size limit)", "changes": []}
+                else:
+                    search_targets = [project_folder]
+
+                if workers > 0:
+                    args.extend(["--threads", str(workers)])
+
+                args.extend(["--json=stream"] + search_targets)
+
+                # DRY RUN MODE: Preview changes
+                if dry_run:
+                    matches = list(stream_ast_grep_results("scan", args, max_results=0))
+
+                    if not matches:
+                        execution_time = time.time() - start_time
+                        logger.info(
+                            "tool_completed",
+                            tool="rewrite_code",
+                            execution_time_seconds=round(execution_time, 3),
+                            dry_run=True,
+                            changes_found=0,
+                            status="success"
+                        )
+                        return {
+                            "dry_run": True,
+                            "message": "No matches found - no changes would be applied",
+                            "changes": []
+                        }
+
+                    # Format changes for preview
+                    changes = []
+                    for match in matches:
+                        if "replacement" in match:
+                            changes.append({
+                                "file": match.get("file", "unknown"),
+                                "line": match.get("range", {}).get("start", {}).get("line", 0),
+                                "original": match.get("text", ""),
+                                "replacement": match["replacement"],
+                                "rule_id": match.get("ruleId", "unknown")
+                            })
+
+                    execution_time = time.time() - start_time
+                    logger.info(
+                        "tool_completed",
+                        tool="rewrite_code",
+                        execution_time_seconds=round(execution_time, 3),
+                        dry_run=True,
+                        changes_found=len(changes),
+                        status="success"
+                    )
+
+                    return {
+                        "dry_run": True,
+                        "message": f"Found {len(changes)} change(s) - set dry_run=false to apply",
+                        "changes": changes
+                    }
+
+                # ACTUAL REWRITE MODE: Apply changes
+                else:
+                    # Get list of files that will be modified (before rewrite)
+                    preview_matches = list(stream_ast_grep_results("scan", args, max_results=0))
+                    files_to_modify = list(set(m.get("file") for m in preview_matches if m.get("file")))
+
+                    if not files_to_modify:
+                        return {
+                            "dry_run": False,
+                            "message": "No changes applied - no matches found",
+                            "modified_files": [],
+                            "backup_id": None
+                        }
+
+                    # Create backup if requested
+                    backup_id: Optional[str] = None
+                    if backup:
+                        # Call the backup function (avoid name collision with parameter)
+                        backup_id = globals()['create_backup'](files_to_modify, project_folder)
+                        logger.info("backup_created", backup_id=backup_id, file_count=len(files_to_modify))
+
+                    # Apply rewrite with --update-all
+                    rewrite_args = ["--rule", rule_file, "--update-all"] + search_targets
+                    if workers > 0:
+                        rewrite_args.insert(0, "--threads")
+                        rewrite_args.insert(1, str(workers))
+
+                    result = run_ast_grep("scan", rewrite_args)
+
+                    execution_time = time.time() - start_time
+                    logger.info(
+                        "tool_completed",
+                        tool="rewrite_code",
+                        execution_time_seconds=round(execution_time, 3),
+                        dry_run=False,
+                        modified_files=len(files_to_modify),
+                        backup_id=backup_id,
+                        status="success"
+                    )
+
+                    return {
+                        "dry_run": False,
+                        "message": f"Applied changes to {len(files_to_modify)} file(s)",
+                        "modified_files": files_to_modify,
+                        "backup_id": backup_id,
+                        "output": result.stdout
+                    }
+
+            finally:
+                # Clean up temporary rule file
+                if os.path.exists(rule_file):
+                    os.unlink(rule_file)
+
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(
+                "tool_failed",
+                tool="rewrite_code",
+                execution_time_seconds=round(execution_time, 3),
+                error=str(e)[:200],
+                status="failed"
+            )
+            raise
+
+    @mcp.tool()
+    def rollback_rewrite(
+        project_folder: str = Field(description="The absolute path to the project folder"),
+        backup_id: str = Field(description="The backup identifier to restore from")
+    ) -> Dict[str, Any]:
+        """
+        Rollback a previous code rewrite by restoring files from backup.
+
+        Use list_backups() to see available backups.
+
+        Returns list of restored files.
+        """
+        logger = get_logger("tool.rollback_rewrite")
+        start_time = time.time()
+
+        logger.info("tool_invoked", tool="rollback_rewrite", backup_id=backup_id)
+
+        try:
+            restored_files = restore_from_backup(backup_id, project_folder)
+
+            execution_time = time.time() - start_time
+            logger.info(
+                "tool_completed",
+                tool="rollback_rewrite",
+                execution_time_seconds=round(execution_time, 3),
+                restored_files=len(restored_files),
+                status="success"
+            )
+
+            return {
+                "message": f"Restored {len(restored_files)} file(s) from backup {backup_id}",
+                "restored_files": restored_files,
+                "backup_id": backup_id
+            }
+
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(
+                "tool_failed",
+                tool="rollback_rewrite",
+                execution_time_seconds=round(execution_time, 3),
+                error=str(e)[:200],
+                status="failed"
+            )
+            raise
+
+    @mcp.tool()
+    def list_backups(
+        project_folder: str = Field(description="The absolute path to the project folder")
+    ) -> List[Dict[str, Any]]:
+        """
+        List all available backups for a project.
+
+        Returns list of backups sorted by timestamp (newest first).
+        Each backup includes: backup_id, timestamp, file_count, and list of files.
+        """
+        logger = get_logger("tool.list_backups")
+        start_time = time.time()
+
+        logger.info("tool_invoked", tool="list_backups", project_folder=project_folder)
+
+        try:
+            backups = list_available_backups(project_folder)
+
+            execution_time = time.time() - start_time
+            logger.info(
+                "tool_completed",
+                tool="list_backups",
+                execution_time_seconds=round(execution_time, 3),
+                backup_count=len(backups),
+                status="success"
+            )
+
+            return backups
+
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(
+                "tool_failed",
+                tool="list_backups",
+                execution_time_seconds=round(execution_time, 3),
+                error=str(e)[:200],
+                status="failed"
+            )
+            raise
+
 
 def format_matches_as_text(matches: List[dict[str, Any]]) -> str:
     """Convert JSON matches to LLM-friendly text format.
@@ -2773,6 +3059,122 @@ def stream_ast_grep_results(
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait()
+
+# ============================================================================
+# Backup Management for Code Rewrites
+# ============================================================================
+
+def create_backup(files_to_backup: List[str], project_folder: str) -> str:
+    """Create a timestamped backup of files before rewriting.
+
+    Args:
+        files_to_backup: List of absolute file paths to backup
+        project_folder: Project root folder
+
+    Returns:
+        backup_id: Unique identifier for this backup (timestamp-based)
+    """
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
+    backup_id = f"backup-{timestamp}"
+    backup_dir = os.path.join(project_folder, ".ast-grep-backups", backup_id)
+
+    os.makedirs(backup_dir, exist_ok=True)
+
+    metadata: Dict[str, Any] = {
+        "backup_id": backup_id,
+        "timestamp": datetime.now().isoformat(),
+        "files": [],
+        "project_folder": project_folder
+    }
+
+    for file_path in files_to_backup:
+        if not os.path.exists(file_path):
+            continue
+
+        rel_path = os.path.relpath(file_path, project_folder)
+        backup_file_path = os.path.join(backup_dir, rel_path)
+
+        os.makedirs(os.path.dirname(backup_file_path), exist_ok=True)
+        shutil.copy2(file_path, backup_file_path)
+
+        metadata["files"].append({
+            "original": file_path,
+            "relative": rel_path,
+            "backup": backup_file_path
+        })
+
+    metadata_path = os.path.join(backup_dir, "backup-metadata.json")
+    with open(metadata_path, "w") as f:
+        json.dump(metadata, f, indent=2)
+
+    return backup_id
+
+
+def restore_from_backup(backup_id: str, project_folder: str) -> List[str]:
+    """Restore files from a backup.
+
+    Args:
+        backup_id: The backup identifier to restore from
+        project_folder: Project root folder
+
+    Returns:
+        List of restored file paths
+    """
+    backup_dir = os.path.join(project_folder, ".ast-grep-backups", backup_id)
+    metadata_path = os.path.join(backup_dir, "backup-metadata.json")
+
+    if not os.path.exists(metadata_path):
+        raise ValueError(f"Backup '{backup_id}' not found or invalid")
+
+    with open(metadata_path, "r") as f:
+        metadata = json.load(f)
+
+    restored_files = []
+    for file_info in metadata["files"]:
+        backup_file = file_info["backup"]
+        original_file = file_info["original"]
+
+        if not os.path.exists(backup_file):
+            continue
+
+        os.makedirs(os.path.dirname(original_file), exist_ok=True)
+        shutil.copy2(backup_file, original_file)
+        restored_files.append(original_file)
+
+    return restored_files
+
+
+def list_available_backups(project_folder: str) -> List[Dict[str, Any]]:
+    """List all available backups for a project.
+
+    Args:
+        project_folder: Project root folder
+
+    Returns:
+        List of backup metadata dictionaries
+    """
+    backups_root = os.path.join(project_folder, ".ast-grep-backups")
+
+    if not os.path.exists(backups_root):
+        return []
+
+    backups = []
+    for backup_dir in os.listdir(backups_root):
+        metadata_path = os.path.join(backups_root, backup_dir, "backup-metadata.json")
+
+        if os.path.exists(metadata_path):
+            with open(metadata_path, "r") as f:
+                metadata = json.load(f)
+                backups.append({
+                    "backup_id": metadata["backup_id"],
+                    "timestamp": metadata["timestamp"],
+                    "file_count": len(metadata["files"]),
+                    "files": [f["relative"] for f in metadata["files"]]
+                })
+
+    backups.sort(key=lambda x: x["timestamp"], reverse=True)
+    return backups
+
 
 def run_mcp_server() -> None:  # pragma: no cover
     """
