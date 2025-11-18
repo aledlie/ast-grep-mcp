@@ -283,7 +283,7 @@ class TestPerformanceBenchmarks:
         benchmark_fixtures: Path
     ) -> None:
         """Benchmark simple pattern search with find_code."""
-        tool = mcp.tools["find_code"]
+        tool = mcp.tools["find_code"]  # type: ignore
 
         result = benchmark_runner.run_benchmark(
             "simple_pattern_search",
@@ -303,7 +303,7 @@ class TestPerformanceBenchmarks:
         benchmark_fixtures: Path
     ) -> None:
         """Benchmark YAML rule search with find_code_by_rule."""
-        tool = mcp.tools["find_code_by_rule"]
+        tool = mcp.tools["find_code_by_rule"]  # type: ignore
 
         yaml_rule = """
 id: test-rule
@@ -330,7 +330,7 @@ rule:
         benchmark_fixtures: Path
     ) -> None:
         """Benchmark early termination with max_results."""
-        tool = mcp.tools["find_code"]
+        tool = mcp.tools["find_code"]  # type: ignore
 
         # Benchmark with max_results (should terminate early)
         result = benchmark_runner.run_benchmark(
@@ -352,7 +352,7 @@ rule:
         benchmark_fixtures: Path
     ) -> None:
         """Benchmark file size filtering performance."""
-        tool = mcp.tools["find_code"]
+        tool = mcp.tools["find_code"]  # type: ignore
 
         # Benchmark with file size filtering
         result = benchmark_runner.run_benchmark(
@@ -373,7 +373,7 @@ rule:
         benchmark_fixtures: Path
     ) -> None:
         """Benchmark cache hit performance."""
-        tool = mcp.tools["find_code"]
+        tool = mcp.tools["find_code"]  # type: ignore
 
         # First run (cache miss)
         result1 = benchmark_runner.run_benchmark(
@@ -482,7 +482,7 @@ class TestCIBenchmarks:
     ) -> None:
         """Run benchmarks in CI and fail on regression."""
         # Run all standard benchmarks
-        tool = mcp.tools["find_code"]
+        tool = mcp.tools["find_code"]  # type: ignore
 
         benchmark_runner.run_benchmark(
             "ci_simple_search",

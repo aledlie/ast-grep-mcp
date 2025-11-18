@@ -43,10 +43,10 @@ except ImportError:
 class SchemaToolsCLI:
     """Command-line interface for Schema.org tools."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.client: SchemaOrgClient | None = None
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize the Schema.org client."""
         if self.client is None:
             self.client = SchemaOrgClient()
@@ -192,7 +192,7 @@ def format_properties(properties: List[Dict[str, Any]], type_name: str) -> str:
     return '\n'.join(lines)
 
 
-async def main():
+async def main() -> None:
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(
         description='Schema.org vocabulary tools for searching types and querying properties',

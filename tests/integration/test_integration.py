@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+from typing import Any, Dict, List
 from unittest.mock import Mock, patch
 
 import pytest
@@ -15,27 +16,27 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 class MockFastMCP:
     """Mock FastMCP that returns functions unchanged"""
 
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name = name
-        self.tools = {}  # Store registered tools
+        self.tools: Dict[str, Any] = {}  # Store registered tools
 
-    def tool(self, **kwargs):
+    def tool(self, **kwargs: Any) -> Any:
         """Decorator that returns the function unchanged"""
 
-        def decorator(func):
+        def decorator(func: Any) -> Any:
             # Store the function for later retrieval
             self.tools[func.__name__] = func
             return func  # Return original function without modification
 
         return decorator
 
-    def run(self, **kwargs):
+    def run(self, **kwargs: Any) -> None:
         """Mock run method"""
         pass
 
 
 # Mock the Field function to return the default value
-def mock_field(**kwargs):
+def mock_field(**kwargs: Any) -> Any:
     return kwargs.get("default")
 
 
@@ -48,12 +49,12 @@ with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
         main.register_mcp_tools()
 
         # Extract the tool functions from the mocked mcp instance
-        find_code = main.mcp.tools.get("find_code")
-        find_code_by_rule = main.mcp.tools.get("find_code_by_rule")
+        find_code = main.mcp.tools.get("find_code")  # type: ignore
+        find_code_by_rule = main.mcp.tools.get("find_code_by_rule")  # type: ignore
 
 
 @pytest.fixture
-def fixtures_dir():
+def fixtures_dir() -> str:
     """Get the path to the fixtures directory"""
     return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "fixtures"))
 
@@ -61,7 +62,7 @@ def fixtures_dir():
 class TestIntegration:
     """Integration tests for ast-grep MCP functions"""
 
-    def test_find_code_text_format(self, fixtures_dir):
+    def test_find_code_text_format(self, fixtures_dir: str) -> None:
         """Test find_code with text format"""
         result = find_code(
             project_folder=fixtures_dir,
@@ -74,7 +75,7 @@ class TestIntegration:
         assert "add" in result
         assert "Found" in result and "matches" in result
 
-    def test_find_code_json_format(self, fixtures_dir):
+    def test_find_code_json_format(self, fixtures_dir: str) -> None:
         """Test find_code with JSON format"""
         result = find_code(
             project_folder=fixtures_dir,
@@ -88,11 +89,11 @@ class TestIntegration:
         assert any("add" in str(match) for match in result)
 
     @patch("main.run_ast_grep")
-    def test_find_code_by_rule(self, mock_run, fixtures_dir):
+    def test_find_code_by_rule(self, mock_run: Any, fixtures_dir: str) -> None:
         """Test find_code_by_rule with mocked ast-grep"""
         # Mock the response with JSON format (since we always use JSON internally)
         mock_result = Mock()
-        mock_matches = [{
+        mock_matches: List[Any] = [{
             "text": "class Calculator:\n    pass",
             "file": "fixtures/example.py",
             "range": {"start": {"line": 6}, "end": {"line": 7}}
@@ -113,7 +114,7 @@ rule:
         assert "Calculator" in result
         assert "Found 1 match" in result
 
-    def test_find_code_with_max_results(self, fixtures_dir):
+    def test_find_code_with_max_results(self, fixtures_dir: str) -> None:
         """Test find_code with max_results parameter"""
         result = find_code(
             project_folder=fixtures_dir,
@@ -128,7 +129,7 @@ rule:
         # Should only have one match in the output
         assert result.count("def ") == 1
 
-    def test_find_code_no_matches(self, fixtures_dir):
+    def test_find_code_no_matches(self, fixtures_dir: str) -> None:
         """Test find_code when no matches are found"""
         result = find_code(
             project_folder=fixtures_dir,

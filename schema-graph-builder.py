@@ -26,16 +26,27 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, TypedDict
+
+
+class StatsDict(TypedDict):
+    """Type definition for stats dictionary."""
+    files_found: int
+    entities_extracted: int
+    entities_unique: int
+    relationships: int
+    ids_added: int
+    ids_validated: int
+    validation_warnings: List[str]
 
 
 class SchemaGraphBuilder:
     """Main class for building and analyzing Schema.org entity graphs."""
 
-    def __init__(self, base_url: str, project_name: str = None):
+    def __init__(self, base_url: str, project_name: Optional[str] = None):
         self.base_url = base_url.rstrip('/')
         self.project_name = project_name or self._extract_project_name(base_url)
-        self.stats = {
+        self.stats: StatsDict = {
             'files_found': 0,
             'entities_extracted': 0,
             'entities_unique': 0,
@@ -50,7 +61,7 @@ class SchemaGraphBuilder:
         """Extract project name from base URL."""
         return base_url.split('//')[-1].split('.')[0].title()
 
-    def discover_json_schemas(self, directory: Path, exclude_patterns: List[str] = None) -> List[Path]:
+    def discover_json_schemas(self, directory: Path, exclude_patterns: Optional[List[str]] = None) -> List[Path]:
         """
         Discover all Schema.org JSON files in directory.
 
@@ -92,7 +103,7 @@ class SchemaGraphBuilder:
         self.stats['files_found'] = len(json_files)
         return sorted(json_files)
 
-    def generate_entity_id(self, entity_type: str, slug: str = None) -> str:
+    def generate_entity_id(self, entity_type: str, slug: Optional[str] = None) -> str:
         """
         Generate proper @id value following best practices.
 
@@ -319,7 +330,7 @@ class SchemaGraphBuilder:
         entities = graph['@graph']
 
         # Count entities by type
-        type_counts = defaultdict(int)
+        type_counts: Dict[str, int] = defaultdict(int)
         for entity in entities:
             entity_type = entity['@type']
             if isinstance(entity_type, list):
@@ -359,7 +370,7 @@ class SchemaGraphBuilder:
         self.stats['relationships'] = len(relationships)
 
         # Count relationships by property
-        relationship_counts = defaultdict(int)
+        relationship_counts: Dict[str, int] = defaultdict(int)
         for rel in relationships:
             relationship_counts[rel['property']] += 1
 
@@ -562,7 +573,7 @@ class SchemaGraphBuilder:
         return results
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description='Build unified Schema.org entity graphs with comprehensive analysis',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -672,27 +683,27 @@ Examples:
 
     # Save unified graph
     graph_file = output_dir / 'unified-entity-graph.json'
-    with open(graph_file, 'w') as f:
-        json.dump(graph, f, indent=2)
+    with open(graph_file, 'w') as graph_f:
+        json.dump(graph, graph_f, indent=2)
     print(f"\n✅ Unified entity graph: {graph_file}")
 
     # Save analysis
     analysis_file = output_dir / 'entity-graph-analysis.json'
-    with open(analysis_file, 'w') as f:
-        json.dump(analysis, f, indent=2)
+    with open(analysis_file, 'w') as analysis_f:
+        json.dump(analysis, analysis_f, indent=2)
     print(f"✅ Graph analysis: {analysis_file}")
 
     # Save validation results
     validation_file = output_dir / 'entity-id-validation.json'
-    with open(validation_file, 'w') as f:
-        json.dump(validation_results, f, indent=2)
+    with open(validation_file, 'w') as validation_f:
+        json.dump(validation_results, validation_f, indent=2)
     print(f"✅ Validation results: {validation_file}")
 
     # Generate documentation
     documentation = builder.generate_documentation(graph, analysis, json_files)
     doc_file = output_dir / 'ENTITY-GRAPH-SUMMARY.md'
-    with open(doc_file, 'w') as f:
-        f.write(documentation)
+    with open(doc_file, 'w') as doc_f:
+        doc_f.write(documentation)
     print(f"✅ Documentation: {doc_file}")
 
     # Print summary

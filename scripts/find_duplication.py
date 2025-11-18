@@ -13,6 +13,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any, Callable, Dict, List
 
 # Add parent directory to path to import main
 script_dir = Path(__file__).parent
@@ -21,33 +22,33 @@ sys.path.insert(0, str(project_root))
 
 # Mock FastMCP before importing main
 class MockFastMCP:
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name = name
-        self.tools = {}
+        self.tools: Dict[str, Callable[..., Any]] = {}
 
-    def tool(self, **kwargs):
-        def decorator(func):
+    def tool(self, **kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             self.tools[func.__name__] = func
             return func
         return decorator
 
-    def run(self, **kwargs):
+    def run(self, **kwargs: Any) -> None:
         pass
 
 
-def mock_field(**kwargs):
+def mock_field(**kwargs: Any) -> Any:
     return kwargs.get("default")
 
 
 # Mock the imports
 sys.modules['mcp.server.fastmcp'] = type(sys)('mcp.server.fastmcp')
-sys.modules['mcp.server.fastmcp'].FastMCP = MockFastMCP
+sys.modules['mcp.server.fastmcp'].FastMCP = MockFastMCP  # type: ignore
 
 sys.modules['pydantic'] = type(sys)('pydantic')
-sys.modules['pydantic'].Field = mock_field
-sys.modules['pydantic'].BaseModel = object
-sys.modules['pydantic'].ConfigDict = dict
-sys.modules['pydantic'].field_validator = lambda *args, **kwargs: lambda f: f
+sys.modules['pydantic'].Field = mock_field  # type: ignore
+sys.modules['pydantic'].BaseModel = object  # type: ignore
+sys.modules['pydantic'].ConfigDict = dict  # type: ignore
+sys.modules['pydantic'].field_validator = lambda *args, **kwargs: lambda f: f  # type: ignore
 
 # Now import main
 import main  # noqa: E402
@@ -56,10 +57,10 @@ import main  # noqa: E402
 main.register_mcp_tools()
 
 # Get the tool function
-find_duplication = main.mcp.tools.get("find_duplication")
+find_duplication = main.mcp.tools.get("find_duplication")  # type: ignore
 
 
-def format_summary(summary):
+def format_summary(summary: Dict[str, Any]) -> None:
     """Format the summary section"""
     print("\n" + "=" * 80)
     print("DUPLICATION ANALYSIS SUMMARY")
@@ -72,7 +73,7 @@ def format_summary(summary):
     print("=" * 80)
 
 
-def format_duplication_groups(groups):
+def format_duplication_groups(groups: List[Dict[str, Any]]) -> None:
     """Format duplication groups"""
     if not groups:
         return
@@ -91,7 +92,7 @@ def format_duplication_groups(groups):
                 print(f"     Preview: {preview}...")
 
 
-def format_refactoring_suggestions(suggestions):
+def format_refactoring_suggestions(suggestions: List[Dict[str, Any]]) -> None:
     """Format refactoring suggestions"""
     if not suggestions:
         return
@@ -113,7 +114,7 @@ def format_refactoring_suggestions(suggestions):
         print(f"   {suggestion['suggestion']}")
 
 
-def main_cli():
+def main_cli() -> None:
     """Main CLI entry point"""
     parser = argparse.ArgumentParser(
         description="Detect duplicate code in a project using ast-grep",

@@ -13,6 +13,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -23,21 +24,21 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 # Mock FastMCP before importing main
 class MockFastMCP:
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name = name
-        self.tools = {}
+        self.tools: Dict[str, Any] = {}
 
-    def tool(self, **kwargs):
-        def decorator(func):
+    def tool(self, **kwargs: Any) -> Any:
+        def decorator(func: Any) -> Any:
             self.tools[func.__name__] = func
             return func
         return decorator
 
-    def run(self, **kwargs):
+    def run(self, **kwargs: Any) -> None:
         pass
 
 
-def mock_field(**kwargs):
+def mock_field(**kwargs: Any) -> Any:
     return kwargs.get("default")
 
 
@@ -56,7 +57,7 @@ class TestResultStreaming:
     """Test streaming result parsing and early termination"""
 
     @patch("subprocess.Popen")
-    def test_stream_basic_json_parsing(self, mock_popen):
+    def test_stream_basic_json_parsing(self, mock_popen: Any) -> None:
         """Test basic JSON Lines parsing from subprocess"""
         # Mock subprocess that outputs JSON Lines
         mock_process = MagicMock()
@@ -76,7 +77,7 @@ class TestResultStreaming:
         assert results[1]["text"] == "match2"
 
     @patch("subprocess.Popen")
-    def test_stream_early_termination(self, mock_popen):
+    def test_stream_early_termination(self, mock_popen: Any) -> None:
         """Test that streaming stops after max_results is reached"""
         # Mock subprocess that outputs many matches
         mock_process = MagicMock()
@@ -105,7 +106,7 @@ class TestResultStreaming:
         assert mock_process.terminate.called or mock_process.kill.called
 
     @patch("subprocess.Popen")
-    def test_stream_subprocess_cleanup_sigterm(self, mock_popen):
+    def test_stream_subprocess_cleanup_sigterm(self, mock_popen: Any) -> None:
         """Test graceful subprocess cleanup with SIGTERM"""
         mock_process = MagicMock()
         mock_process.stdout = [
@@ -126,7 +127,7 @@ class TestResultStreaming:
 
     @patch("subprocess.Popen")
     @patch("time.sleep")  # Mock sleep to speed up test
-    def test_stream_subprocess_cleanup_sigkill(self, mock_sleep, mock_popen):
+    def test_stream_subprocess_cleanup_sigkill(self, mock_sleep: Any, mock_popen: Any) -> None:
         """Test subprocess cleanup attempts terminate and optionally kill"""
         mock_process = MagicMock()
         mock_process.stdout = [
@@ -147,7 +148,7 @@ class TestResultStreaming:
         assert mock_process.terminate.called
 
     @patch("subprocess.Popen")
-    def test_stream_invalid_json_line_handling(self, mock_popen):
+    def test_stream_invalid_json_line_handling(self, mock_popen: Any) -> None:
         """Test handling of invalid JSON lines during streaming"""
         mock_process = MagicMock()
         mock_process.stdout = [
@@ -168,7 +169,7 @@ class TestResultStreaming:
         assert results[1]["text"] == "match2"
 
     @patch("subprocess.Popen")
-    def test_stream_empty_results(self, mock_popen):
+    def test_stream_empty_results(self, mock_popen: Any) -> None:
         """Test streaming with no matches"""
         mock_process = MagicMock()
         mock_process.stdout = []  # No output
@@ -181,10 +182,10 @@ class TestResultStreaming:
         assert len(results) == 0
 
     @patch("subprocess.Popen")
-    def test_stream_large_result_set(self, mock_popen):
+    def test_stream_large_result_set(self, mock_popen: Any) -> None:
         """Test streaming handles large result sets efficiently"""
         # Generate 1000 mock matches
-        mock_matches = [
+        mock_matches: List[Any] = [
             f'{{"text": "match{i}", "file": "test.py", "range": {{"start": {{"line": {i}}}}}}}\n'.encode()
             for i in range(1000)
         ]
@@ -210,18 +211,18 @@ class TestResultStreaming:
 class TestParallelExecution:
     """Test parallel execution with workers parameter"""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Reset cache and register tools before each test"""
         main._query_cache = None
         main.CACHE_ENABLED = False
         main.register_mcp_tools()
 
     @patch("main.stream_ast_grep_results")
-    def test_workers_parameter_default_auto(self, mock_stream):
+    def test_workers_parameter_default_auto(self, mock_stream: Any) -> None:
         """Test that workers=0 uses ast-grep's auto-detection (no --threads flag)"""
         mock_stream.return_value = iter([{"text": "match"}])
 
-        find_code = main.mcp.tools.get("find_code")
+        find_code = main.mcp.tools.get("find_code")  # type: ignore
         find_code(
             project_folder="/project",
             pattern="test",
@@ -239,11 +240,11 @@ class TestParallelExecution:
         assert "--threads" not in args
 
     @patch("main.stream_ast_grep_results")
-    def test_workers_parameter_explicit_value(self, mock_stream):
+    def test_workers_parameter_explicit_value(self, mock_stream: Any) -> None:
         """Test that workers>0 passes --threads flag to ast-grep"""
         mock_stream.return_value = iter([{"text": "match"}])
 
-        find_code = main.mcp.tools.get("find_code")
+        find_code = main.mcp.tools.get("find_code")  # type: ignore
         find_code(
             project_folder="/project",
             pattern="test",
@@ -263,7 +264,7 @@ class TestParallelExecution:
         assert args[threads_index + 1] == "4"
 
     @patch("main.stream_ast_grep_results")
-    def test_workers_parameter_in_find_code_by_rule(self, mock_stream):
+    def test_workers_parameter_in_find_code_by_rule(self, mock_stream: Any) -> None:
         """Test workers parameter works in find_code_by_rule"""
         mock_stream.return_value = iter([{"text": "match"}])
 
@@ -272,7 +273,7 @@ language: Python
 rule:
   pattern: def $NAME"""
 
-        find_code_by_rule = main.mcp.tools.get("find_code_by_rule")
+        find_code_by_rule = main.mcp.tools.get("find_code_by_rule")  # type: ignore
         find_code_by_rule(
             project_folder="/project",
             yaml_rule=yaml_rule,
@@ -290,11 +291,11 @@ rule:
         assert args[threads_index + 1] == "8"
 
     @patch("main.stream_ast_grep_results")
-    def test_workers_with_other_parameters(self, mock_stream):
+    def test_workers_with_other_parameters(self, mock_stream: Any) -> None:
         """Test workers parameter works alongside other parameters"""
         mock_stream.return_value = iter([{"text": "match"}])
 
-        find_code = main.mcp.tools.get("find_code")
+        find_code = main.mcp.tools.get("find_code")  # type: ignore
         find_code(
             project_folder="/project",
             pattern="test",
@@ -324,7 +325,7 @@ rule:
 class TestLargeFileHandling:
     """Test file size filtering functionality"""
 
-    def test_filter_files_by_size_basic(self):
+    def test_filter_files_by_size_basic(self) -> None:
         """Test basic file filtering by size"""
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create test files of different sizes
@@ -337,7 +338,7 @@ class TestLargeFileHandling:
             # Filter with 50KB limit
             files_to_search, skipped = filter_files_by_size(
                 tmpdir,
-                max_size_mb=0.05,  # 50KB
+                max_size_mb=0.05,  # type: ignore  # 50KB - testing fractional MB
                 language="python"
             )
 
@@ -345,7 +346,7 @@ class TestLargeFileHandling:
             assert any("small.py" in f for f in files_to_search)
             assert any("large.py" in f for f in skipped)
 
-    def test_filter_files_by_size_no_limit(self):
+    def test_filter_files_by_size_no_limit(self) -> None:
         """Test that None or 0 max_size_mb returns empty lists"""
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = Path(tmpdir) / "test.py"
@@ -361,7 +362,7 @@ class TestLargeFileHandling:
             assert len(files_to_search) == 0
             assert len(skipped) == 0
 
-    def test_filter_files_by_size_language_filtering(self):
+    def test_filter_files_by_size_language_filtering(self) -> None:
         """Test that language parameter filters file extensions"""
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create files with different extensions
@@ -386,7 +387,7 @@ class TestLargeFileHandling:
             assert not any("test.js" in f for f in files_to_search)
             assert not any("test.txt" in f for f in files_to_search)
 
-    def test_filter_files_by_size_excludes_common_dirs(self):
+    def test_filter_files_by_size_excludes_common_dirs(self) -> None:
         """Test that common directories are excluded from filtering"""
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create file in excluded directory
@@ -412,7 +413,7 @@ class TestLargeFileHandling:
             # Normal file should be included
             assert any(f.endswith("test.py") and "node_modules" not in f for f in files_to_search)
 
-    def test_filter_files_by_size_handles_os_errors(self):
+    def test_filter_files_by_size_handles_os_errors(self) -> None:
         """Test that OSError on file stat doesn't crash filtering"""
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = Path(tmpdir) / "test.py"
@@ -432,14 +433,14 @@ class TestLargeFileHandling:
 
     @patch("main.filter_files_by_size")
     @patch("main.stream_ast_grep_results")
-    def test_max_file_size_mb_integration_with_find_code(self, mock_stream, mock_filter):
+    def test_max_file_size_mb_integration_with_find_code(self, mock_stream: Any, mock_filter: Any) -> None:
         """Test max_file_size_mb parameter integrates with find_code"""
         # Mock filter to return some files
         mock_filter.return_value = (["/project/small.py"], ["/project/large.py"])
         mock_stream.return_value = iter([{"text": "match"}])
 
         main.register_mcp_tools()
-        find_code = main.mcp.tools.get("find_code")
+        find_code = main.mcp.tools.get("find_code")  # type: ignore
 
         find_code(
             project_folder="/project",
@@ -462,7 +463,7 @@ class TestLargeFileHandling:
 
     @patch("main.filter_files_by_size")
     @patch("main.stream_ast_grep_results")
-    def test_max_file_size_mb_integration_with_find_code_by_rule(self, mock_stream, mock_filter):
+    def test_max_file_size_mb_integration_with_find_code_by_rule(self, mock_stream: Any, mock_filter: Any) -> None:
         """Test max_file_size_mb parameter integrates with find_code_by_rule"""
         mock_filter.return_value = (["/project/small.py"], ["/project/large.py"])
         mock_stream.return_value = iter([{"text": "match"}])
@@ -473,7 +474,7 @@ rule:
   pattern: def $NAME"""
 
         main.register_mcp_tools()
-        find_code_by_rule = main.mcp.tools.get("find_code_by_rule")
+        find_code_by_rule = main.mcp.tools.get("find_code_by_rule")  # type: ignore
 
         find_code_by_rule(
             project_folder="/project",
@@ -489,12 +490,12 @@ rule:
 
     @patch("main.filter_files_by_size")
     @patch("main.stream_ast_grep_results")
-    def test_max_file_size_mb_zero_disables_filtering(self, mock_stream, mock_filter):
+    def test_max_file_size_mb_zero_disables_filtering(self, mock_stream: Any, mock_filter: Any) -> None:
         """Test that max_file_size_mb=0 disables file filtering"""
         mock_stream.return_value = iter([{"text": "match"}])
 
         main.register_mcp_tools()
-        find_code = main.mcp.tools.get("find_code")
+        find_code = main.mcp.tools.get("find_code")  # type: ignore
 
         find_code(
             project_folder="/project",
@@ -515,7 +516,7 @@ rule:
 class TestPhase2Integration:
     """Test multiple Phase 2 features working together"""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Reset state before each test"""
         main._query_cache = None
         main.CACHE_ENABLED = False
@@ -523,7 +524,7 @@ class TestPhase2Integration:
 
     @patch("main.filter_files_by_size")
     @patch("main.stream_ast_grep_results")
-    def test_streaming_with_file_filtering_and_parallel(self, mock_stream, mock_filter):
+    def test_streaming_with_file_filtering_and_parallel(self, mock_stream: Any, mock_filter: Any) -> None:
         """Test streaming + file filtering + parallel execution together"""
         mock_filter.return_value = (["/project/file1.py", "/project/file2.py"], ["/project/huge.py"])
         mock_stream.return_value = iter([
@@ -531,7 +532,7 @@ class TestPhase2Integration:
             {"text": "match2", "file": "/project/file2.py", "range": {"start": {"line": 1}}},
         ])
 
-        find_code = main.mcp.tools.get("find_code")
+        find_code = main.mcp.tools.get("find_code")  # type: ignore
 
         result = find_code(
             project_folder="/project",
@@ -558,7 +559,7 @@ class TestPhase2Integration:
 
     @patch("main.filter_files_by_size")
     @patch("main.stream_ast_grep_results")
-    def test_all_phase2_features_with_caching(self, mock_stream, mock_filter):
+    def test_all_phase2_features_with_caching(self, mock_stream: Any, mock_filter: Any) -> None:
         """Test all Phase 2 features together including caching"""
         # Enable caching
         from main import QueryCache
@@ -568,7 +569,7 @@ class TestPhase2Integration:
         mock_filter.return_value = (["/project/file.py"], [])
         mock_stream.return_value = iter([{"text": "match"}])
 
-        find_code = main.mcp.tools.get("find_code")
+        find_code = main.mcp.tools.get("find_code")  # type: ignore
 
         # First call - should execute
         result1 = find_code(

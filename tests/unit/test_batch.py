@@ -11,6 +11,7 @@ Tests cover:
 import os
 import sys
 import tempfile
+from typing import Any, Dict
 from unittest.mock import Mock, patch
 
 import pytest
@@ -21,21 +22,21 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 # Mock FastMCP before importing main
 class MockFastMCP:
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name = name
-        self.tools = {}
+        self.tools: Dict[str, Any] = {}
 
-    def tool(self, **kwargs):
-        def decorator(func):
+    def tool(self, **kwargs: Any) -> Any:
+        def decorator(func: Any) -> Any:
             self.tools[func.__name__] = func
             return func
         return decorator
 
-    def run(self, **kwargs):
+    def run(self, **kwargs: Any) -> None:
         pass
 
 
-def mock_field(**kwargs):
+def mock_field(**kwargs: Any) -> Any:
     return kwargs.get("default")
 
 
@@ -57,7 +58,7 @@ class TestBatchSearchBasic:
         self.project_folder = self.temp_dir
 
         # Get tool function
-        self.batch_search = main.mcp.tools.get("batch_search")
+        self.batch_search = main.mcp.tools.get("batch_search")  # type: ignore
         assert self.batch_search is not None, "batch_search tool not registered"
 
     def teardown_method(self) -> None:
@@ -67,8 +68,8 @@ class TestBatchSearchBasic:
 
     def test_batch_search_tool_registered(self) -> None:
         """Test that batch_search tool is registered."""
-        assert "batch_search" in main.mcp.tools
-        assert callable(main.mcp.tools["batch_search"])
+        assert "batch_search" in main.mcp.tools  # type: ignore
+        assert callable(main.mcp.tools["batch_search"])  # type: ignore
 
     @patch("main.stream_ast_grep_results")
     def test_batch_search_single_query(self, mock_stream: Mock) -> None:
@@ -172,7 +173,7 @@ class TestBatchSearchAggregation:
     def setup_method(self) -> None:
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
-        self.batch_search = main.mcp.tools.get("batch_search")
+        self.batch_search = main.mcp.tools.get("batch_search")  # type: ignore
 
     def teardown_method(self) -> None:
         """Clean up test fixtures."""
@@ -274,7 +275,7 @@ class TestBatchSearchConditional:
     def setup_method(self) -> None:
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
-        self.batch_search = main.mcp.tools.get("batch_search")
+        self.batch_search = main.mcp.tools.get("batch_search")  # type: ignore
 
     def teardown_method(self) -> None:
         """Clean up test fixtures."""
@@ -403,7 +404,7 @@ class TestBatchSearchErrorHandling:
     def setup_method(self) -> None:
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
-        self.batch_search = main.mcp.tools.get("batch_search")
+        self.batch_search = main.mcp.tools.get("batch_search")  # type: ignore
 
     def teardown_method(self) -> None:
         """Clean up test fixtures."""

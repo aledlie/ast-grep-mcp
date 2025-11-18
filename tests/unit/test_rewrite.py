@@ -13,6 +13,7 @@ import os
 import shutil
 import sys
 import tempfile
+from typing import Any, Dict
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -23,21 +24,21 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 # Mock FastMCP before importing main
 class MockFastMCP:
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name = name
-        self.tools = {}
+        self.tools: Dict[str, Any] = {}
 
-    def tool(self, **kwargs):
-        def decorator(func):
+    def tool(self, **kwargs: Any) -> Any:
+        def decorator(func: Any) -> Any:
             self.tools[func.__name__] = func
             return func
         return decorator
 
-    def run(self, **kwargs):
+    def run(self, **kwargs: Any) -> None:
         pass
 
 
-def mock_field(**kwargs):
+def mock_field(**kwargs: Any) -> Any:
     return kwargs.get("default")
 
 
@@ -45,7 +46,7 @@ def mock_field(**kwargs):
 with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
     with patch("pydantic.Field", mock_field):
         import main
-        # Register tools so they're available in main.mcp.tools
+        # Register tools so they're available in main.mcp.tools  # type: ignore
         main.register_mcp_tools()
 
 
@@ -64,7 +65,7 @@ class TestRewriteCode:
             f.write("def hello():\n    print('hello')\n")
 
         # Get tool function
-        self.rewrite_code = main.mcp.tools.get("rewrite_code")
+        self.rewrite_code = main.mcp.tools.get("rewrite_code")  # type: ignore
         assert self.rewrite_code is not None, "rewrite_code tool not registered"
 
     def teardown_method(self) -> None:
@@ -73,8 +74,8 @@ class TestRewriteCode:
 
     def test_rewrite_code_tool_registered(self) -> None:
         """Test that rewrite_code tool is registered."""
-        assert "rewrite_code" in main.mcp.tools
-        assert callable(main.mcp.tools["rewrite_code"])
+        assert "rewrite_code" in main.mcp.tools  # type: ignore
+        assert callable(main.mcp.tools["rewrite_code"])  # type: ignore
 
     @patch("subprocess.Popen")
     def test_rewrite_code_dry_run_mode(self, mock_popen: Mock) -> None:
@@ -422,7 +423,7 @@ class TestRollbackRewrite:
             f.write("ORIGINAL\n")
 
         # Get tool function
-        self.rollback_rewrite = main.mcp.tools.get("rollback_rewrite")
+        self.rollback_rewrite = main.mcp.tools.get("rollback_rewrite")  # type: ignore
         assert self.rollback_rewrite is not None, "rollback_rewrite tool not registered"
 
     def teardown_method(self) -> None:
@@ -431,8 +432,8 @@ class TestRollbackRewrite:
 
     def test_rollback_rewrite_tool_registered(self) -> None:
         """Test that rollback_rewrite tool is registered."""
-        assert "rollback_rewrite" in main.mcp.tools
-        assert callable(main.mcp.tools["rollback_rewrite"])
+        assert "rollback_rewrite" in main.mcp.tools  # type: ignore
+        assert callable(main.mcp.tools["rollback_rewrite"])  # type: ignore
 
     def test_rollback_rewrite_restores_files(self) -> None:
         """Test rollback_rewrite successfully restores files."""
@@ -480,7 +481,7 @@ class TestListBackups:
             f.write("TEST\n")
 
         # Get tool function
-        self.list_backups = main.mcp.tools.get("list_backups")
+        self.list_backups = main.mcp.tools.get("list_backups")  # type: ignore
         assert self.list_backups is not None, "list_backups tool not registered"
 
     def teardown_method(self) -> None:
@@ -489,8 +490,8 @@ class TestListBackups:
 
     def test_list_backups_tool_registered(self) -> None:
         """Test that list_backups tool is registered."""
-        assert "list_backups" in main.mcp.tools
-        assert callable(main.mcp.tools["list_backups"])
+        assert "list_backups" in main.mcp.tools  # type: ignore
+        assert callable(main.mcp.tools["list_backups"])  # type: ignore
 
     def test_list_backups_empty(self) -> None:
         """Test list_backups returns empty list when no backups."""
@@ -527,8 +528,8 @@ class TestRewriteIntegration:
             f.write("def test():\n    print('hello')\n")
 
         # Get tool functions
-        self.rewrite_code = main.mcp.tools.get("rewrite_code")
-        self.list_backups = main.mcp.tools.get("list_backups")
+        self.rewrite_code = main.mcp.tools.get("rewrite_code")  # type: ignore
+        self.list_backups = main.mcp.tools.get("list_backups")  # type: ignore
 
     def teardown_method(self) -> None:
         """Clean up test fixtures."""
@@ -753,7 +754,7 @@ class TestRewriteWithValidation:
             f.write("def test():\n    print('hello')\n")
 
         # Get tool function
-        self.rewrite_code = main.mcp.tools.get("rewrite_code")
+        self.rewrite_code = main.mcp.tools.get("rewrite_code")  # type: ignore
 
     def teardown_method(self) -> None:
         """Clean up test fixtures."""

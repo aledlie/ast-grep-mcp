@@ -3,6 +3,7 @@
 import os
 import sys
 import time
+from typing import Any, Dict, List
 from unittest.mock import patch
 
 # Add parent directory to path
@@ -10,21 +11,21 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 # Mock FastMCP before importing main
 class MockFastMCP:
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name = name
-        self.tools = {}
+        self.tools: Dict[str, Any] = {}
 
-    def tool(self, **kwargs):
-        def decorator(func):
+    def tool(self, **kwargs: Any) -> Any:
+        def decorator(func: Any) -> Any:
             self.tools[func.__name__] = func
             return func
         return decorator
 
-    def run(self, **kwargs):
+    def run(self, **kwargs: Any) -> None:
         pass
 
 
-def mock_field(**kwargs):
+def mock_field(**kwargs: Any) -> Any:
     return kwargs.get("default")
 
 
@@ -38,7 +39,7 @@ with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
 class TestQueryCache:
     """Test QueryCache class functionality"""
 
-    def test_cache_initialization(self):
+    def test_cache_initialization(self) -> None:
         """Test cache is initialized with correct parameters"""
         cache = QueryCache(max_size=50, ttl_seconds=120)
         assert cache.max_size == 50
@@ -47,7 +48,7 @@ class TestQueryCache:
         assert cache.hits == 0
         assert cache.misses == 0
 
-    def test_cache_put_and_get(self):
+    def test_cache_put_and_get(self) -> None:
         """Test storing and retrieving results from cache"""
         cache = QueryCache(max_size=10, ttl_seconds=300)
 
@@ -59,7 +60,7 @@ class TestQueryCache:
         assert cache.hits == 1
         assert cache.misses == 0
 
-    def test_cache_miss(self):
+    def test_cache_miss(self) -> None:
         """Test cache miss returns None and updates stats"""
         cache = QueryCache(max_size=10, ttl_seconds=300)
 
@@ -68,7 +69,7 @@ class TestQueryCache:
         assert cache.hits == 0
         assert cache.misses == 1
 
-    def test_cache_ttl_expiration(self):
+    def test_cache_ttl_expiration(self) -> None:
         """Test cache entries expire after TTL"""
         cache = QueryCache(max_size=10, ttl_seconds=1)  # 1 second TTL
 
@@ -87,7 +88,7 @@ class TestQueryCache:
         assert retrieved is None
         assert cache.misses == 1
 
-    def test_cache_lru_eviction(self):
+    def test_cache_lru_eviction(self) -> None:
         """Test LRU eviction when cache is full"""
         cache = QueryCache(max_size=2, ttl_seconds=300)
 
@@ -104,7 +105,7 @@ class TestQueryCache:
         assert cache.get("run", ["--pattern", "test2"], "/project") is not None
         assert cache.get("run", ["--pattern", "test3"], "/project") is not None
 
-    def test_cache_lru_access_updates_order(self):
+    def test_cache_lru_access_updates_order(self) -> None:
         """Test that accessing a cache entry updates its LRU position"""
         cache = QueryCache(max_size=2, ttl_seconds=300)
 
@@ -123,7 +124,7 @@ class TestQueryCache:
         assert cache.get("run", ["--pattern", "test2"], "/project") is None
         assert cache.get("run", ["--pattern", "test3"], "/project") is not None
 
-    def test_cache_key_generation(self):
+    def test_cache_key_generation(self) -> None:
         """Test cache key includes command, args, and project folder"""
         cache = QueryCache()
 
@@ -137,7 +138,7 @@ class TestQueryCache:
         assert result1 == [{"text": "match1"}]
         assert result2 == [{"text": "match2"}]
 
-    def test_cache_args_order_normalized(self):
+    def test_cache_args_order_normalized(self) -> None:
         """Test cache key is consistent regardless of args order"""
         cache = QueryCache()
 
@@ -148,7 +149,7 @@ class TestQueryCache:
         result = cache.get("run", ["--pattern", "test", "--lang", "python"], "/project")
         assert result == [{"text": "match1"}]
 
-    def test_hit_rate_calculation(self):
+    def test_hit_rate_calculation(self) -> None:
         """Test cache hit rate calculation"""
         cache = QueryCache()
 
@@ -167,7 +168,7 @@ class TestQueryCache:
         stats = cache.get_stats()
         assert stats["hit_rate"] == 0.5
 
-    def test_empty_results_can_be_cached(self):
+    def test_empty_results_can_be_cached(self) -> None:
         """Test that empty result lists can be cached"""
         cache = QueryCache()
 
@@ -183,27 +184,27 @@ class TestQueryCache:
 class TestCacheIntegration:
     """Test cache integration with find_code and find_code_by_rule"""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Reset global cache before each test"""
         main._query_cache = QueryCache(max_size=10, ttl_seconds=300)
         main.CACHE_ENABLED = True
         # Register tools
         main.register_mcp_tools()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up after each test"""
         main._query_cache = None
         main.CACHE_ENABLED = True
 
     @patch("main.stream_ast_grep_results")
-    def test_find_code_cache_miss_then_hit(self, mock_stream):
+    def test_find_code_cache_miss_then_hit(self, mock_stream: Any) -> None:
         """Test find_code caches results and serves from cache on second call"""
-        mock_matches = [
+        mock_matches: List[Any] = [
             {"text": "def test():", "file": "test.py", "range": {"start": {"line": 1}}}
         ]
         mock_stream.return_value = iter(mock_matches)
 
-        find_code = main.mcp.tools.get("find_code")
+        find_code = main.mcp.tools.get("find_code")  # type: ignore
 
         # First call - cache miss, should call stream_ast_grep_results
         result1 = find_code(project_folder="/project", pattern="def $NAME", output_format="json")
@@ -216,9 +217,9 @@ class TestCacheIntegration:
         assert result2 == mock_matches
 
     @patch("main.stream_ast_grep_results")
-    def test_find_code_by_rule_cache_miss_then_hit(self, mock_stream):
+    def test_find_code_by_rule_cache_miss_then_hit(self, mock_stream: Any) -> None:
         """Test find_code_by_rule caches results and serves from cache on second call"""
-        mock_matches = [
+        mock_matches: List[Any] = [
             {"text": "class Test:", "file": "test.py", "range": {"start": {"line": 1}}}
         ]
         mock_stream.return_value = iter(mock_matches)
@@ -228,7 +229,7 @@ language: Python
 rule:
   pattern: class $NAME"""
 
-        find_code_by_rule = main.mcp.tools.get("find_code_by_rule")
+        find_code_by_rule = main.mcp.tools.get("find_code_by_rule")  # type: ignore
 
         # First call - cache miss
         result1 = find_code_by_rule(
@@ -249,15 +250,15 @@ rule:
         assert result2 == mock_matches
 
     @patch("main.stream_ast_grep_results")
-    def test_cache_disabled(self, mock_stream):
+    def test_cache_disabled(self, mock_stream: Any) -> None:
         """Test that caching is disabled when CACHE_ENABLED is False"""
         main.CACHE_ENABLED = False
         main._query_cache = None
 
-        mock_matches = [{"text": "match"}]
+        mock_matches: List[Any] = [{"text": "match"}]
         mock_stream.return_value = iter(mock_matches)
 
-        find_code = main.mcp.tools.get("find_code")
+        find_code = main.mcp.tools.get("find_code")  # type: ignore
 
         # Call twice, should execute both times
         find_code(project_folder="/project", pattern="test", output_format="json")
@@ -266,14 +267,14 @@ rule:
         assert mock_stream.call_count == 2
 
     @patch("main.stream_ast_grep_results")
-    def test_different_patterns_not_cached_together(self, mock_stream):
+    def test_different_patterns_not_cached_together(self, mock_stream: Any) -> None:
         """Test that different patterns create separate cache entries"""
         mock_stream.side_effect = [
             iter([{"text": "match1"}]),
             iter([{"text": "match2"}])
         ]
 
-        find_code = main.mcp.tools.get("find_code")
+        find_code = main.mcp.tools.get("find_code")  # type: ignore
 
         # Two different patterns
         result1 = find_code(project_folder="/project", pattern="pattern1", output_format="json")
@@ -284,14 +285,14 @@ rule:
         assert result2 == [{"text": "match2"}]
 
     @patch("main.stream_ast_grep_results")
-    def test_cache_text_and_json_formats(self, mock_stream):
+    def test_cache_text_and_json_formats(self, mock_stream: Any) -> None:
         """Test that both text and json formats use the same cache"""
-        mock_matches = [
+        mock_matches: List[Any] = [
             {"text": "def test():", "file": "test.py", "range": {"start": {"line": 1}, "end": {"line": 1}}}
         ]
         mock_stream.return_value = iter(mock_matches)
 
-        find_code = main.mcp.tools.get("find_code")
+        find_code = main.mcp.tools.get("find_code")  # type: ignore
 
         # First call with json format - cache miss
         result_json = find_code(project_folder="/project", pattern="test", output_format="json")
@@ -311,7 +312,7 @@ rule:
 class TestCacheClearAndStats:
     """Tests for cache.clear() and cache.get_stats() methods"""
 
-    def test_clear_empty_cache(self):
+    def test_clear_empty_cache(self) -> None:
         """Test clearing an empty cache"""
         cache = QueryCache(max_size=10, ttl_seconds=300)
 
@@ -321,7 +322,7 @@ class TestCacheClearAndStats:
         assert cache.hits == 0
         assert cache.misses == 0
 
-    def test_clear_populated_cache(self):
+    def test_clear_populated_cache(self) -> None:
         """Test clearing a cache with entries"""
         cache = QueryCache(max_size=10, ttl_seconds=300)
 
@@ -339,7 +340,7 @@ class TestCacheClearAndStats:
         assert cache.hits == 0
         assert cache.misses == 0
 
-    def test_clear_resets_stats(self):
+    def test_clear_resets_stats(self) -> None:
         """Test that clear() resets hit/miss statistics"""
         cache = QueryCache(max_size=10, ttl_seconds=300)
 
@@ -357,7 +358,7 @@ class TestCacheClearAndStats:
         assert cache.hits == 0
         assert cache.misses == 0
 
-    def test_get_stats_initial_state(self):
+    def test_get_stats_initial_state(self) -> None:
         """Test get_stats() on a new cache"""
         cache = QueryCache(max_size=50, ttl_seconds=120)
 
@@ -370,7 +371,7 @@ class TestCacheClearAndStats:
         assert stats["hit_rate"] == 0
         assert stats["ttl_seconds"] == 120
 
-    def test_get_stats_after_operations(self):
+    def test_get_stats_after_operations(self) -> None:
         """Test get_stats() tracks operations correctly"""
         cache = QueryCache(max_size=10, ttl_seconds=300)
 
@@ -393,7 +394,7 @@ class TestCacheClearAndStats:
         assert stats["hit_rate"] == 0.5  # 2 hits / 4 total = 0.5
         assert stats["ttl_seconds"] == 300
 
-    def test_get_stats_hit_rate_calculation(self):
+    def test_get_stats_hit_rate_calculation(self) -> None:
         """Test hit rate calculation in get_stats()"""
         cache = QueryCache(max_size=10, ttl_seconds=300)
 
@@ -411,7 +412,7 @@ class TestCacheClearAndStats:
         assert stats["misses"] == 1
         assert stats["hit_rate"] == 0.75
 
-    def test_get_stats_rounds_hit_rate(self):
+    def test_get_stats_rounds_hit_rate(self) -> None:
         """Test that get_stats() rounds hit rate to 3 decimals"""
         cache = QueryCache(max_size=10, ttl_seconds=300)
 
@@ -426,7 +427,7 @@ class TestCacheClearAndStats:
 
         assert stats["hit_rate"] == 0.333  # Rounded to 3 decimals
 
-    def test_cache_key_consistency(self):
+    def test_cache_key_consistency(self) -> None:
         """Test that cache keys are consistent for identical queries"""
         cache = QueryCache(max_size=10, ttl_seconds=300)
 
@@ -441,7 +442,7 @@ class TestCacheClearAndStats:
 
         assert key1 == key3
 
-    def test_cache_key_different_for_different_queries(self):
+    def test_cache_key_different_for_different_queries(self) -> None:
         """Test that different queries generate different cache keys"""
         cache = QueryCache(max_size=10, ttl_seconds=300)
 
@@ -456,7 +457,7 @@ class TestCacheClearAndStats:
         assert key1 != key4  # Different project folder
         assert len({key1, key2, key3, key4}) == 4  # All unique
 
-    def test_updating_existing_entry_moves_to_end(self):
+    def test_updating_existing_entry_moves_to_end(self) -> None:
         """Test that updating an existing entry moves it to end (LRU)"""
         cache = QueryCache(max_size=3, ttl_seconds=300)
 
@@ -480,7 +481,7 @@ class TestCacheClearAndStats:
         assert cache.get("run", ["--pattern", "test3"], "/project") is not None
         assert cache.get("run", ["--pattern", "test4"], "/project") is not None
 
-    def test_get_stats_comprehensive_accuracy(self):
+    def test_get_stats_comprehensive_accuracy(self) -> None:
         """Test get_stats() accuracy with multiple operations"""
         cache = QueryCache(max_size=5, ttl_seconds=300)
 

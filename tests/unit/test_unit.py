@@ -3,6 +3,7 @@
 import os
 import subprocess
 import sys
+from typing import Any, Dict, List
 from unittest.mock import Mock, patch
 
 import pytest
@@ -15,27 +16,27 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 class MockFastMCP:
     """Mock FastMCP that returns functions unchanged"""
 
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name = name
-        self.tools = {}  # Store registered tools
+        self.tools: Dict[str, Any] = {}  # Store registered tools
 
-    def tool(self, **kwargs):
+    def tool(self, **kwargs: Any) -> Any:
         """Decorator that returns the function unchanged"""
 
-        def decorator(func):
+        def decorator(func: Any) -> Any:
             # Store the function for later retrieval
             self.tools[func.__name__] = func
             return func  # Return original function without modification
 
         return decorator
 
-    def run(self, **kwargs):
+    def run(self, **kwargs: Any) -> None:
         """Mock run method"""
         pass
 
 
 # Mock the Field function to return the default value
-def mock_field(**kwargs):
+def mock_field(**kwargs: Any) -> Any:
     return kwargs.get("default")
 
 
@@ -53,17 +54,17 @@ with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
         main.register_mcp_tools()
 
         # Extract the tool functions from the mocked mcp instance
-        dump_syntax_tree = main.mcp.tools.get("dump_syntax_tree")
-        find_code = main.mcp.tools.get("find_code")
-        find_code_by_rule = main.mcp.tools.get("find_code_by_rule")
-        match_code_rule = main.mcp.tools.get("test_match_code_rule")
+        dump_syntax_tree = main.mcp.tools.get("dump_syntax_tree")  # type: ignore
+        find_code = main.mcp.tools.get("find_code")  # type: ignore
+        find_code_by_rule = main.mcp.tools.get("find_code_by_rule")  # type: ignore
+        match_code_rule = main.mcp.tools.get("test_match_code_rule")  # type: ignore
 
 
 class TestDumpSyntaxTree:
     """Test the dump_syntax_tree function"""
 
     @patch("main.run_ast_grep")
-    def test_dump_syntax_tree_cst(self, mock_run):
+    def test_dump_syntax_tree_cst(self, mock_run: Any) -> None:
         """Test dumping CST format"""
         mock_result = Mock()
         mock_result.stderr = "ROOT@0..10"
@@ -78,7 +79,7 @@ class TestDumpSyntaxTree:
         )
 
     @patch("main.run_ast_grep")
-    def test_dump_syntax_tree_pattern(self, mock_run):
+    def test_dump_syntax_tree_pattern(self, mock_run: Any) -> None:
         """Test dumping pattern format"""
         mock_result = Mock()
         mock_result.stderr = "pattern_node"
@@ -96,7 +97,7 @@ class TestTestMatchCodeRule:
     """Test the test_match_code_rule function"""
 
     @patch("main.run_ast_grep")
-    def test_match_found(self, mock_run):
+    def test_match_found(self, mock_run: Any) -> None:
         """Test when matches are found"""
         mock_result = Mock()
         mock_result.stdout = '[{"text": "def foo(): pass"}]'
@@ -117,7 +118,7 @@ rule:
         )
 
     @patch("main.run_ast_grep")
-    def test_no_match(self, mock_run):
+    def test_no_match(self, mock_run: Any) -> None:
         """Test when no matches are found"""
         mock_result = Mock()
         mock_result.stdout = "[]"
@@ -137,7 +138,7 @@ rule:
 class TestFindCode:
     """Test the find_code function"""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Clear cache before each test to avoid test interference"""
         if main._query_cache is not None:
             main._query_cache.cache.clear()
@@ -145,9 +146,9 @@ class TestFindCode:
             main._query_cache.misses = 0
 
     @patch("main.stream_ast_grep_results")
-    def test_text_format_with_results(self, mock_stream):
+    def test_text_format_with_results(self, mock_stream: Any) -> None:
         """Test text format output with results"""
-        mock_matches = [
+        mock_matches: List[Any] = [
             {"text": "def foo():\n    pass", "file": "file.py",
              "range": {"start": {"line": 0}, "end": {"line": 1}}},
             {"text": "def bar():\n    return", "file": "file.py",
@@ -173,7 +174,7 @@ class TestFindCode:
         )
 
     @patch("main.stream_ast_grep_results")
-    def test_text_format_no_results(self, mock_stream):
+    def test_text_format_no_results(self, mock_stream: Any) -> None:
         """Test text format output with no results"""
         mock_stream.return_value = iter([])
 
@@ -188,10 +189,10 @@ class TestFindCode:
         )
 
     @patch("main.stream_ast_grep_results")
-    def test_text_format_with_max_results(self, mock_stream):
+    def test_text_format_with_max_results(self, mock_stream: Any) -> None:
         """Test text format with max_results limit"""
         # Only return 2 matches since streaming stops early
-        mock_matches = [
+        mock_matches: List[Any] = [
             {"text": "match1", "file": "f.py", "range": {"start": {"line": 0}, "end": {"line": 0}}},
             {"text": "match2", "file": "f.py", "range": {"start": {"line": 1}, "end": {"line": 1}}},
         ]
@@ -209,9 +210,9 @@ class TestFindCode:
         assert "match2" in result
 
     @patch("main.stream_ast_grep_results")
-    def test_json_format(self, mock_stream):
+    def test_json_format(self, mock_stream: Any) -> None:
         """Test JSON format output"""
-        mock_matches = [
+        mock_matches: List[Any] = [
             {"text": "def foo():", "file": "test.py"},
             {"text": "def bar():", "file": "test.py"},
         ]
@@ -228,10 +229,10 @@ class TestFindCode:
         )
 
     @patch("main.stream_ast_grep_results")
-    def test_json_format_with_max_results(self, mock_stream):
+    def test_json_format_with_max_results(self, mock_stream: Any) -> None:
         """Test JSON format with max_results limit"""
         # Only return 2 matches since streaming stops early
-        mock_matches = [{"text": "match1"}, {"text": "match2"}]
+        mock_matches: List[Any] = [{"text": "match1"}, {"text": "match2"}]
         mock_stream.return_value = iter(mock_matches)
 
         result = find_code(
@@ -245,7 +246,7 @@ class TestFindCode:
         assert result[0]["text"] == "match1"
         assert result[1]["text"] == "match2"
 
-    def test_invalid_output_format(self):
+    def test_invalid_output_format(self) -> None:
         """Test with invalid output format"""
         with pytest.raises(ValueError, match="Invalid output_format"):
             find_code(
@@ -256,7 +257,7 @@ class TestFindCode:
 class TestFindCodeByRule:
     """Test the find_code_by_rule function"""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Clear cache before each test to avoid test interference"""
         if main._query_cache is not None:
             main._query_cache.cache.clear()
@@ -264,9 +265,9 @@ class TestFindCodeByRule:
             main._query_cache.misses = 0
 
     @patch("main.stream_ast_grep_results")
-    def test_text_format_with_results(self, mock_stream):
+    def test_text_format_with_results(self, mock_stream: Any) -> None:
         """Test text format output with results"""
-        mock_matches = [
+        mock_matches: List[Any] = [
             {"text": "class Foo:\n    pass", "file": "file.py",
              "range": {"start": {"line": 0}, "end": {"line": 1}}},
             {"text": "class Bar:\n    pass", "file": "file.py",
@@ -295,9 +296,9 @@ rule:
         )
 
     @patch("main.stream_ast_grep_results")
-    def test_json_format(self, mock_stream):
+    def test_json_format(self, mock_stream: Any) -> None:
         """Test JSON format output"""
-        mock_matches = [{"text": "class Foo:", "file": "test.py"}]
+        mock_matches: List[Any] = [{"text": "class Foo:", "file": "test.py"}]
         mock_stream.return_value = iter(mock_matches)
 
         yaml_rule = """id: test
@@ -321,7 +322,7 @@ class TestRunCommand:
     """Test the run_command function"""
 
     @patch("subprocess.run")
-    def test_successful_command(self, mock_run):
+    def test_successful_command(self, mock_run: Any) -> None:
         """Test successful command execution"""
         mock_result = Mock()
         mock_result.returncode = 0
@@ -336,7 +337,7 @@ class TestRunCommand:
         )
 
     @patch("subprocess.run")
-    def test_command_failure(self, mock_run):
+    def test_command_failure(self, mock_run: Any) -> None:
         """Test command execution failure"""
         mock_run.side_effect = subprocess.CalledProcessError(
             1, ["false"], stderr="error message"
@@ -346,7 +347,7 @@ class TestRunCommand:
             run_command(["false"])
 
     @patch("subprocess.run")
-    def test_command_not_found(self, mock_run):
+    def test_command_not_found(self, mock_run: Any) -> None:
         """Test when command is not found"""
         mock_run.side_effect = FileNotFoundError()
 
@@ -357,12 +358,12 @@ class TestRunCommand:
 class TestFormatMatchesAsText:
     """Test the format_matches_as_text helper function"""
 
-    def test_empty_matches(self):
+    def test_empty_matches(self) -> None:
         """Test with empty matches list"""
         result = format_matches_as_text([])
         assert result == ""
 
-    def test_single_line_match(self):
+    def test_single_line_match(self) -> None:
         """Test formatting a single-line match"""
         matches = [
             {
@@ -374,7 +375,7 @@ class TestFormatMatchesAsText:
         result = format_matches_as_text(matches)
         assert result == "test.js:5\nconst x = 1"
 
-    def test_multi_line_match(self):
+    def test_multi_line_match(self) -> None:
         """Test formatting a multi-line match"""
         matches = [
             {
@@ -386,7 +387,7 @@ class TestFormatMatchesAsText:
         result = format_matches_as_text(matches)
         assert result == "test.py:10-11\ndef foo():\n    return 42"
 
-    def test_multiple_matches(self):
+    def test_multiple_matches(self) -> None:
         """Test formatting multiple matches"""
         matches = [
             {
@@ -410,7 +411,7 @@ class TestRunAstGrep:
 
     @patch("main.run_command")
     @patch("main.CONFIG_PATH", None)
-    def test_without_config(self, mock_run):
+    def test_without_config(self, mock_run: Any) -> None:
         """Test running ast-grep without config"""
         mock_result = Mock()
         mock_run.return_value = mock_result
@@ -422,7 +423,7 @@ class TestRunAstGrep:
 
     @patch("main.run_command")
     @patch("main.CONFIG_PATH", "/path/to/config.yaml")
-    def test_with_config(self, mock_run):
+    def test_with_config(self, mock_run: Any) -> None:
         """Test running ast-grep with config"""
         mock_result = Mock()
         mock_run.return_value = mock_result
@@ -446,7 +447,7 @@ class TestRunAstGrep:
 class TestConfigValidation:
     """Test the validate_config_file function"""
 
-    def test_valid_config(self):
+    def test_valid_config(self) -> None:
         """Test validating a valid config file"""
         from main import validate_config_file
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
@@ -457,10 +458,11 @@ class TestConfigValidation:
         assert config is not None
         assert config.ruleDirs == ["rules", "custom-rules"]
         assert config.testDirs == ["tests"]
+        assert config.customLanguages is not None
         assert "mylang" in config.customLanguages
         assert ".ml" in config.customLanguages["mylang"].extensions
 
-    def test_invalid_config_extensions(self):
+    def test_invalid_config_extensions(self) -> None:
         """Test config with invalid extensions (missing dots)"""
         from main import ConfigurationError, validate_config_file
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
@@ -469,7 +471,7 @@ class TestConfigValidation:
         with pytest.raises(ConfigurationError, match="must start with a dot"):
             validate_config_file(config_path)
 
-    def test_invalid_config_empty_lists(self):
+    def test_invalid_config_empty_lists(self) -> None:
         """Test config with empty lists"""
         from main import ConfigurationError, validate_config_file
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
@@ -478,14 +480,14 @@ class TestConfigValidation:
         with pytest.raises(ConfigurationError, match="cannot be empty"):
             validate_config_file(config_path)
 
-    def test_config_file_not_found(self):
+    def test_config_file_not_found(self) -> None:
         """Test with non-existent config file"""
         from main import ConfigurationError, validate_config_file
 
         with pytest.raises(ConfigurationError, match="does not exist"):
             validate_config_file("/nonexistent/path/to/config.yaml")
 
-    def test_config_file_is_directory(self):
+    def test_config_file_is_directory(self) -> None:
         """Test with directory instead of file"""
         from main import ConfigurationError, validate_config_file
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
@@ -493,7 +495,7 @@ class TestConfigValidation:
         with pytest.raises(ConfigurationError, match="not a file"):
             validate_config_file(fixtures_dir)
 
-    def test_config_yaml_parsing_error(self):
+    def test_config_yaml_parsing_error(self) -> None:
         """Test config with YAML syntax error"""
         from main import ConfigurationError, validate_config_file
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
@@ -502,7 +504,7 @@ class TestConfigValidation:
         with pytest.raises(ConfigurationError, match="YAML parsing failed"):
             validate_config_file(config_path)
 
-    def test_config_empty_file(self):
+    def test_config_empty_file(self) -> None:
         """Test config with empty file"""
         from main import ConfigurationError, validate_config_file
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
@@ -511,7 +513,7 @@ class TestConfigValidation:
         with pytest.raises(ConfigurationError, match="empty"):
             validate_config_file(config_path)
 
-    def test_config_not_dictionary(self):
+    def test_config_not_dictionary(self) -> None:
         """Test config that is not a dictionary"""
         from main import ConfigurationError, validate_config_file
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
@@ -525,7 +527,7 @@ class TestGetSupportedLanguages:
     """Test the get_supported_languages function"""
 
     @patch("main.CONFIG_PATH", None)
-    def test_without_config(self):
+    def test_without_config(self) -> None:
         """Test getting languages without config file"""
         from main import get_supported_languages
 
@@ -538,7 +540,7 @@ class TestGetSupportedLanguages:
         assert len(languages) >= 24  # At least 24 built-in languages
 
     @patch("main.CONFIG_PATH")
-    def test_with_custom_languages(self, mock_config_path):
+    def test_with_custom_languages(self, mock_config_path: Any) -> None:
         """Test getting languages with custom languages in config"""
 
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
@@ -566,7 +568,7 @@ class TestGetSupportedLanguages:
 
     @patch("main.CONFIG_PATH", "/nonexistent/path.yaml")
     @patch("os.path.exists", return_value=False)
-    def test_with_nonexistent_config(self, mock_exists):
+    def test_with_nonexistent_config(self, mock_exists: Any) -> None:
         """Test with config path that doesn't exist"""
         from main import get_supported_languages
 
@@ -577,7 +579,7 @@ class TestGetSupportedLanguages:
         assert len(languages) >= 24
 
     @patch("main.CONFIG_PATH")
-    def test_with_config_exception(self, mock_config_path):
+    def test_with_config_exception(self, mock_config_path: Any) -> None:
         """Test when config file reading raises exception"""
         from main import get_supported_languages
 
@@ -596,7 +598,7 @@ class TestGetSupportedLanguages:
 class TestCustomLanguageConfig:
     """Test CustomLanguageConfig Pydantic model"""
 
-    def test_empty_extensions_list(self):
+    def test_empty_extensions_list(self) -> None:
         """Test that empty extensions list raises error"""
         from pydantic import ValidationError
 
@@ -605,7 +607,7 @@ class TestCustomLanguageConfig:
         with pytest.raises(ValidationError, match="extensions list cannot be empty"):
             CustomLanguageConfig(extensions=[])
 
-    def test_valid_extensions(self):
+    def test_valid_extensions(self) -> None:
         """Test valid extensions"""
         from main import CustomLanguageConfig
 
@@ -620,7 +622,7 @@ class TestCustomLanguageConfig:
 class TestFormatMatchesEdgeCases:
     """Test edge cases for format_matches_as_text"""
 
-    def test_missing_file_field(self):
+    def test_missing_file_field(self) -> None:
         """Test match with missing file field"""
         from main import format_matches_as_text
 
@@ -631,7 +633,7 @@ class TestFormatMatchesEdgeCases:
         result = format_matches_as_text(matches)
         assert ":1\ntest" in result
 
-    def test_missing_range_field(self):
+    def test_missing_range_field(self) -> None:
         """Test match with missing range field"""
         from main import format_matches_as_text
 
@@ -642,7 +644,7 @@ class TestFormatMatchesEdgeCases:
         result = format_matches_as_text(matches)
         assert "test.py:1\ntest" in result
 
-    def test_missing_text_field(self):
+    def test_missing_text_field(self) -> None:
         """Test match with missing text field"""
         from main import format_matches_as_text
 
@@ -658,7 +660,7 @@ class TestFindCodeEdgeCases:
     """Test edge cases for find_code function"""
 
     @patch("main.stream_ast_grep_results")
-    def test_find_code_with_language(self, mock_stream):
+    def test_find_code_with_language(self, mock_stream: Any) -> None:
         """Test find_code with language specified"""
         mock_stream.return_value = iter([])
 
@@ -676,9 +678,9 @@ class TestFindCodeEdgeCases:
         assert "python" in call_args
 
     @patch("main.stream_ast_grep_results")
-    def test_find_code_without_language(self, mock_stream):
+    def test_find_code_without_language(self, mock_stream: Any) -> None:
         """Test find_code without language (auto-detect)"""
-        mock_matches = [{
+        mock_matches: List[Any] = [{
             "file": "test.py",
             "range": {"start": {"line": 0}, "end": {"line": 0}},
             "text": "test"
@@ -703,7 +705,7 @@ class TestFindCodeByRuleEdgeCases:
     """Test edge cases for find_code_by_rule function"""
 
     @patch("main.stream_ast_grep_results")
-    def test_find_code_by_rule_no_results_text(self, mock_stream):
+    def test_find_code_by_rule_no_results_text(self, mock_stream: Any) -> None:
         """Test find_code_by_rule with no results in text format"""
         mock_stream.return_value = iter([])
 
@@ -722,7 +724,7 @@ rule:
         assert result == "No matches found"
 
     @patch("main.run_ast_grep")
-    def test_find_code_by_rule_invalid_yaml_syntax(self, mock_run):
+    def test_find_code_by_rule_invalid_yaml_syntax(self, mock_run: Any) -> None:
         """Test find_code_by_rule with invalid YAML syntax"""
         from main import InvalidYAMLError
 
@@ -737,7 +739,7 @@ rule:
             )
 
     @patch("main.run_ast_grep")
-    def test_find_code_by_rule_invalid_output_format(self, mock_run):
+    def test_find_code_by_rule_invalid_output_format(self, mock_run: Any) -> None:
         """Test find_code_by_rule with invalid output format"""
 
         yaml_rule = """
@@ -754,7 +756,7 @@ rule:
             )
 
     @patch("main.run_ast_grep")
-    def test_find_code_by_rule_yaml_not_dict(self, mock_run):
+    def test_find_code_by_rule_yaml_not_dict(self, mock_run: Any) -> None:
         """Test find_code_by_rule with YAML that's not a dict"""
         from main import InvalidYAMLError
 
@@ -768,7 +770,7 @@ rule:
             )
 
     @patch("main.run_ast_grep")
-    def test_find_code_by_rule_missing_id(self, mock_run):
+    def test_find_code_by_rule_missing_id(self, mock_run: Any) -> None:
         """Test find_code_by_rule missing id field"""
         from main import InvalidYAMLError
 
@@ -785,7 +787,7 @@ rule:
             )
 
     @patch("main.run_ast_grep")
-    def test_find_code_by_rule_missing_language(self, mock_run):
+    def test_find_code_by_rule_missing_language(self, mock_run: Any) -> None:
         """Test find_code_by_rule missing language field"""
         from main import InvalidYAMLError
 
@@ -802,7 +804,7 @@ rule:
             )
 
     @patch("main.run_ast_grep")
-    def test_find_code_by_rule_missing_rule(self, mock_run):
+    def test_find_code_by_rule_missing_rule(self, mock_run: Any) -> None:
         """Test find_code_by_rule missing rule field"""
         from main import InvalidYAMLError
 
@@ -818,10 +820,10 @@ language: python
             )
 
     @patch("main.stream_ast_grep_results")
-    def test_find_code_by_rule_with_max_results(self, mock_stream):
+    def test_find_code_by_rule_with_max_results(self, mock_stream: Any) -> None:
         """Test find_code_by_rule with max_results limiting"""
         # Only return 3 matches since streaming stops early
-        mock_matches = [
+        mock_matches: List[Any] = [
             {
                 "file": f"test{i}.py",
                 "range": {"start": {"line": i}, "end": {"line": i}},
@@ -853,7 +855,7 @@ rule:
 class TestValidateConfigFileErrors:
     """Test error paths in validate_config_file"""
 
-    def test_config_file_read_error(self):
+    def test_config_file_read_error(self) -> None:
         """Test when file cannot be read (OSError)"""
         from main import ConfigurationError, validate_config_file
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
@@ -868,7 +870,7 @@ class TestYAMLValidation:
     """Test YAML validation in tools"""
 
     @patch("main.run_ast_grep")
-    def test_invalid_yaml_structure(self, mock_run):
+    def test_invalid_yaml_structure(self, mock_run: Any) -> None:
         """Test with invalid YAML structure (not a dict)"""
         from main import InvalidYAMLError
 
@@ -878,7 +880,7 @@ class TestYAMLValidation:
             match_code_rule("test code", yaml_rule)
 
     @patch("main.run_ast_grep")
-    def test_missing_id_field(self, mock_run):
+    def test_missing_id_field(self, mock_run: Any) -> None:
         """Test YAML missing id field"""
         from main import InvalidYAMLError
 
@@ -891,7 +893,7 @@ rule:
             match_code_rule("test code", yaml_rule)
 
     @patch("main.run_ast_grep")
-    def test_missing_language_field(self, mock_run):
+    def test_missing_language_field(self, mock_run: Any) -> None:
         """Test YAML missing language field"""
         from main import InvalidYAMLError
 
@@ -904,7 +906,7 @@ rule:
             match_code_rule("test code", yaml_rule)
 
     @patch("main.run_ast_grep")
-    def test_missing_rule_field(self, mock_run):
+    def test_missing_rule_field(self, mock_run: Any) -> None:
         """Test YAML missing rule field"""
         from main import InvalidYAMLError
 
@@ -916,7 +918,7 @@ language: python
             match_code_rule("test code", yaml_rule)
 
     @patch("main.run_ast_grep")
-    def test_yaml_syntax_error_in_test_match(self, mock_run):
+    def test_yaml_syntax_error_in_test_match(self, mock_run: Any) -> None:
         """Test YAML syntax error in test_match_code_rule"""
         from main import InvalidYAMLError
 
@@ -932,7 +934,7 @@ class TestParseArgsAndGetConfig:
 
     @patch('sys.argv', ['main.py'])
     @patch('main.CONFIG_PATH', None)
-    def test_no_config_provided(self):
+    def test_no_config_provided(self) -> None:
         """Test when no config is provided"""
         import importlib
 
@@ -946,7 +948,7 @@ class TestParseArgsAndGetConfig:
         assert main.CONFIG_PATH is None
 
     @patch('sys.argv', ['main.py', '--config', 'tests/fixtures/valid_config.yaml'])
-    def test_with_valid_config_flag(self):
+    def test_with_valid_config_flag(self) -> None:
         """Test with valid --config flag"""
         import importlib
 
@@ -962,7 +964,7 @@ class TestParseArgsAndGetConfig:
 
     @patch('os.environ.get')
     @patch('sys.argv', ['main.py'])
-    def test_with_env_var_config(self, mock_env_get):
+    def test_with_env_var_config(self, mock_env_get: Any) -> None:
         """Test with AST_GREP_CONFIG environment variable"""
         import importlib
 
@@ -972,7 +974,7 @@ class TestParseArgsAndGetConfig:
         config_path = os.path.join(fixtures_dir, "valid_config.yaml")
 
         # Mock environment variable
-        def env_side_effect(key, default=None):
+        def env_side_effect(key: str, default: Any = None) -> Any:
             if key == 'AST_GREP_CONFIG':
                 return config_path
             return default

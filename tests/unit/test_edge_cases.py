@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import tempfile
+from typing import Any, Dict
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -17,18 +18,18 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 class MockFastMCP:
     """Mock FastMCP that returns functions unchanged"""
 
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name = name
-        self.tools = {}
+        self.tools: Dict[str, Any] = {}
 
-    def tool(self, **kwargs):
+    def tool(self, **kwargs: Any) -> Any:
         """Decorator that returns the function unchanged"""
-        def decorator(func):
+        def decorator(func: Any) -> Any:
             self.tools[func.__name__] = func
             return func
         return decorator
 
-    def run(self, *args, **kwargs):
+    def run(self, *args: Any, **kwargs: Any) -> None:
         """Mock run method"""
         pass
 
@@ -46,7 +47,7 @@ with patch('mcp.server.fastmcp.FastMCP', MockFastMCP):
 class TestConfigValidationErrorPaths:
     """Test configuration validation error handling with sys.exit."""
 
-    def test_parse_args_with_invalid_config_flag(self):
+    def test_parse_args_with_invalid_config_flag(self) -> None:
         """Test that invalid config via --config flag triggers sys.exit."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
             f.write("invalid: yaml: syntax: [}")
@@ -60,7 +61,7 @@ class TestConfigValidationErrorPaths:
         finally:
             os.unlink(invalid_config)
 
-    def test_parse_args_with_invalid_config_env_var(self):
+    def test_parse_args_with_invalid_config_env_var(self) -> None:
         """Test that invalid config via AST_GREP_CONFIG env var triggers sys.exit."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
             f.write("customLanguages:\n  - extensions: []\n")  # Invalid: empty extensions
@@ -79,27 +80,27 @@ class TestConfigValidationErrorPaths:
 class TestCacheEnvironmentVariables:
     """Test cache configuration via environment variables."""
 
-    def test_cache_disabled_via_no_cache_flag(self):
+    def test_cache_disabled_via_no_cache_flag(self) -> None:
         """Test CACHE_ENABLED set to False via --no-cache flag."""
         with patch('sys.argv', ['main.py', '--no-cache']):
             main.parse_args_and_get_config()
             assert main.CACHE_ENABLED is False
 
-    def test_cache_disabled_via_env_var(self):
+    def test_cache_disabled_via_env_var(self) -> None:
         """Test CACHE_ENABLED set to False via CACHE_DISABLED env var."""
         with patch.dict(os.environ, {'CACHE_DISABLED': '1'}):
             with patch('sys.argv', ['main.py']):
                 main.parse_args_and_get_config()
                 assert main.CACHE_ENABLED is False
 
-    def test_cache_size_via_env_var(self):
+    def test_cache_size_via_env_var(self) -> None:
         """Test CACHE_SIZE set via CACHE_SIZE env var."""
         with patch.dict(os.environ, {'CACHE_SIZE': '200'}):
             with patch('sys.argv', ['main.py']):
                 main.parse_args_and_get_config()
                 assert main.CACHE_SIZE == 200
 
-    def test_cache_size_invalid_env_var(self):
+    def test_cache_size_invalid_env_var(self) -> None:
         """Test CACHE_SIZE with invalid env var falls back to default."""
         with patch.dict(os.environ, {'CACHE_SIZE': 'invalid'}):
             with patch('sys.argv', ['main.py']):
@@ -107,14 +108,14 @@ class TestCacheEnvironmentVariables:
                 main.parse_args_and_get_config()
                 assert main.CACHE_SIZE == 100  # Default
 
-    def test_cache_ttl_via_env_var(self):
+    def test_cache_ttl_via_env_var(self) -> None:
         """Test CACHE_TTL set via CACHE_TTL env var."""
         with patch.dict(os.environ, {'CACHE_TTL': '600'}):
             with patch('sys.argv', ['main.py']):
                 main.parse_args_and_get_config()
                 assert main.CACHE_TTL == 600
 
-    def test_cache_ttl_invalid_env_var(self):
+    def test_cache_ttl_invalid_env_var(self) -> None:
         """Test CACHE_TTL with invalid env var falls back to default."""
         with patch.dict(os.environ, {'CACHE_TTL': 'not-a-number'}):
             with patch('sys.argv', ['main.py']):
@@ -122,7 +123,7 @@ class TestCacheEnvironmentVariables:
                 main.parse_args_and_get_config()
                 assert main.CACHE_TTL == 300  # Default
 
-    def test_cache_none_when_disabled(self):
+    def test_cache_none_when_disabled(self) -> None:
         """Test _query_cache is None when caching is disabled."""
         with patch('sys.argv', ['main.py', '--no-cache']):
             main.parse_args_and_get_config()
@@ -132,7 +133,7 @@ class TestCacheEnvironmentVariables:
 class TestDuplicationSizeRatioEdgeCase:
     """Test duplication detection size ratio filtering."""
 
-    def test_group_duplicates_skips_different_sizes(self):
+    def test_group_duplicates_skips_different_sizes(self) -> None:
         """Test that matches with very different sizes are not compared."""
         # Create matches with very different sizes
         matches = [
@@ -158,7 +159,7 @@ class TestDuplicationSizeRatioEdgeCase:
 class TestJavaScriptValidation:
     """Test JavaScript/TypeScript syntax validation with node."""
 
-    def test_validate_syntax_javascript_node_not_found(self):
+    def test_validate_syntax_javascript_node_not_found(self) -> None:
         """Test JavaScript validation when node is not available."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
             f.write("const x = 1;")
@@ -172,7 +173,7 @@ class TestJavaScriptValidation:
         finally:
             os.unlink(js_file)
 
-    def test_validate_syntax_javascript_timeout(self):
+    def test_validate_syntax_javascript_timeout(self) -> None:
         """Test JavaScript validation timeout."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
             f.write("const x = 1;")
@@ -186,7 +187,7 @@ class TestJavaScriptValidation:
         finally:
             os.unlink(js_file)
 
-    def test_validate_syntax_javascript_invalid_code(self):
+    def test_validate_syntax_javascript_invalid_code(self) -> None:
         """Test JavaScript validation with invalid code."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
             f.write("const x = {")  # Unclosed brace
@@ -209,11 +210,11 @@ class TestJavaScriptValidation:
 class TestSchemaOrgClientEdgeCases:
     """Test Schema.org client error handling."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Reset schema client before each test."""
         main._schema_org_client = None
 
-    def test_schema_org_client_http_error_fallback(self):
+    def test_schema_org_client_http_error_fallback(self) -> None:
         """Test Schema.org client handles HTTP errors gracefully."""
         with patch('httpx.get') as mock_get:
             mock_get.side_effect = Exception("Network error")
@@ -224,7 +225,7 @@ class TestSchemaOrgClientEdgeCases:
             # Client should still be created but with empty data
             assert client is not None
 
-    def test_schema_org_client_empty_graph(self):
+    def test_schema_org_client_empty_graph(self) -> None:
         """Test Schema.org client with no @graph in response."""
         mock_response = Mock()
         mock_response.json.return_value = {}  # No @graph
@@ -238,17 +239,17 @@ class TestSchemaOrgClientEdgeCases:
 class TestRewriteBackupEdgeCases:
     """Test edge cases in rewrite and backup functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Create temp directory for tests."""
         self.temp_dir = tempfile.mkdtemp()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up temp directory."""
         import shutil
         if os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
 
-    def test_create_backup_nonexistent_file(self):
+    def test_create_backup_nonexistent_file(self) -> None:
         """Test create_backup skips nonexistent files."""
         nonexistent = os.path.join(self.temp_dir, "nonexistent.py")
 
@@ -268,7 +269,7 @@ class TestRewriteBackupEdgeCases:
 class TestCommandNotFoundLogging:
     """Test command not found error paths."""
 
-    def test_run_ast_grep_command_not_found(self):
+    def test_run_ast_grep_command_not_found(self) -> None:
         """Test run_ast_grep logs when ast-grep not found."""
         with patch('subprocess.run', side_effect=FileNotFoundError("ast-grep not found")):
             with pytest.raises(main.AstGrepNotFoundError):
@@ -278,7 +279,7 @@ class TestCommandNotFoundLogging:
 class TestStreamingSubprocessCleanup:
     """Test subprocess cleanup in streaming mode."""
 
-    def test_stream_results_early_termination_logging(self):
+    def test_stream_results_early_termination_logging(self) -> None:
         """Test that early termination is logged properly."""
         # Create a mock process that yields results
         mock_process = Mock()
