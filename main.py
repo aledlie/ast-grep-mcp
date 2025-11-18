@@ -13,10 +13,12 @@ from datetime import datetime
 from typing import Any, Dict, Generator, List, Literal, Optional, Tuple, cast
 
 import httpx
+import sentry_sdk
 import structlog
 import yaml
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from sentry_sdk.integrations.anthropic import AnthropicIntegration
 
 # Global variable for config path (will be set by parse_args_and_get_config)
 CONFIG_PATH: Optional[str] = None
@@ -73,6 +75,62 @@ def get_logger(name: str) -> Any:
         Configured structlog logger
     """
     return structlog.get_logger(name)
+
+
+def init_sentry(service_name: str = "ast-grep-mcp") -> None:
+    """Initialize Sentry with Anthropic AI integration and service tagging.
+
+    Args:
+        service_name: Unique service identifier (default: 'ast-grep-mcp')
+    """
+    def _tag_event(event: Any, hint: Any) -> Any:
+        """Add service tags to every event for unified project."""
+        event.setdefault("tags", {})
+        event["tags"]["service"] = service_name
+        event["tags"]["language"] = "python"
+        event["tags"]["component"] = "mcp-server"
+        return event
+
+    # Only initialize if SENTRY_DSN is set
+    dsn = os.getenv("SENTRY_DSN")
+    if not dsn:
+        return
+
+    sentry_sdk.init(
+        dsn=dsn,
+        # Environment
+        environment=os.getenv("SENTRY_ENVIRONMENT", "development"),
+        # Integrations - Include Anthropic AI
+        integrations=[
+            AnthropicIntegration(
+                record_inputs=True,   # Capture prompts
+                record_outputs=True,  # Capture responses
+            ),
+        ],
+        # Performance monitoring - REQUIRED for AI tracking
+        traces_sample_rate=1.0 if os.getenv("SENTRY_ENVIRONMENT") == "development" else 0.1,
+        profiles_sample_rate=1.0 if os.getenv("SENTRY_ENVIRONMENT") == "development" else 0.1,
+        # Send PII for AI context
+        send_default_pii=True,
+        # Additional options
+        attach_stacktrace=True,
+        max_breadcrumbs=50,
+        debug=os.getenv("SENTRY_ENVIRONMENT") == "development",
+        # Tag every event with service name
+        before_send=_tag_event,
+    )
+
+    # Set global tags for all future events
+    sentry_sdk.set_tag("service", service_name)
+    sentry_sdk.set_tag("language", "python")
+    sentry_sdk.set_tag("component", "mcp-server")
+
+    logger = get_logger("sentry")
+    logger.info(
+        "sentry_initialized",
+        service=service_name,
+        environment=os.getenv("SENTRY_ENVIRONMENT", "development"),
+    )
 
 
 # Custom exception classes for better error handling
@@ -538,6 +596,10 @@ class SchemaOrgClient:
         except Exception as e:
             self.logger.error("schema_org_load_failed", error=str(e))
             self.initialized = False
+            sentry_sdk.capture_exception(e, extras={
+                "url": self.SCHEMA_URL,
+                "operation": "schema_org_initialize"
+            })
             raise RuntimeError(f"Failed to initialize schema.org client: {e}") from e
 
     def _normalize_to_array(self, value: Any) -> List[Any]:
@@ -2343,6 +2405,13 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "rewrite_code",
+                "project_folder": project_folder,
+                "dry_run": dry_run,
+                "backup_enabled": backup,
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
     @mcp.tool()
@@ -3059,11 +3128,19 @@ def run_command(args: List[str], input_text: Optional[str] = None) -> subprocess
             stderr=stderr_msg[:200]  # Truncate stderr in logs
         )
 
-        raise AstGrepExecutionError(
+        error = AstGrepExecutionError(
             command=args,
             returncode=e.returncode,
             stderr=stderr_msg
-        ) from e
+        )
+        sentry_sdk.capture_exception(error, extras={
+            "command": " ".join(args),
+            "returncode": e.returncode,
+            "stderr": stderr_msg[:500],
+            "execution_time_seconds": round(execution_time, 3),
+            "has_stdin": has_stdin
+        })
+        raise error from e
     except FileNotFoundError as e:
         execution_time = time.time() - start_time
 
@@ -3074,8 +3151,12 @@ def run_command(args: List[str], input_text: Optional[str] = None) -> subprocess
         )
 
         if args[0] == "ast-grep":
-            raise AstGrepNotFoundError() from e
-        raise AstGrepNotFoundError(f"Command '{args[0]}' not found") from e
+            error = AstGrepNotFoundError()
+            sentry_sdk.capture_exception(error, extras={"command": " ".join(args)})
+            raise error from e
+        error = AstGrepNotFoundError(f"Command '{args[0]}' not found")
+        sentry_sdk.capture_exception(error, extras={"command": " ".join(args)})
+        raise error from e
 
 def filter_files_by_size(
     directory: str,
@@ -3294,6 +3375,13 @@ def stream_ast_grep_results(
                         line_preview=line[:100],
                         error=str(e)
                     )
+                    sentry_sdk.capture_exception(e)
+                    sentry_sdk.add_breadcrumb(
+                        message="JSON parse error in ast-grep stream",
+                        category="ast-grep.stream",
+                        level="warning",
+                        data={"line_preview": line[:100]}
+                    )
                     continue
 
         # Wait for process to complete (if not terminated early)
@@ -3311,11 +3399,19 @@ def stream_ast_grep_results(
                 execution_time_seconds=round(execution_time, 3)
             )
 
-            raise AstGrepExecutionError(
+            error = AstGrepExecutionError(
                 command=full_command,
                 returncode=returncode,
                 stderr=stderr_output
             )
+            sentry_sdk.capture_exception(error, extras={
+                "command": " ".join(full_command),
+                "returncode": returncode,
+                "stderr": stderr_output[:500],
+                "execution_time_seconds": round(execution_time, 3),
+                "match_count": match_count
+            })
+            raise error
 
         execution_time = time.time() - start_time
         logger.info(
@@ -3328,8 +3424,12 @@ def stream_ast_grep_results(
     except FileNotFoundError as e:
         logger.error("stream_command_not_found", command=full_command[0])
         if full_command[0] == "ast-grep":
-            raise AstGrepNotFoundError() from e
-        raise AstGrepNotFoundError(f"Command '{full_command[0]}' not found") from e
+            error = AstGrepNotFoundError()
+            sentry_sdk.capture_exception(error, extras={"command": " ".join(full_command)})
+            raise error from e
+        error = AstGrepNotFoundError(f"Command '{full_command[0]}' not found")
+        sentry_sdk.capture_exception(error, extras={"command": " ".join(full_command)})
+        raise error from e
 
     finally:
         # Ensure subprocess is cleaned up
@@ -3475,7 +3575,15 @@ def create_backup(files_to_backup: List[str], project_folder: str) -> str:
     """
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
     backup_id = f"backup-{timestamp}"
-    backup_dir = os.path.join(project_folder, ".ast-grep-backups", backup_id)
+    backup_base_dir = os.path.join(project_folder, ".ast-grep-backups")
+    backup_dir = os.path.join(backup_base_dir, backup_id)
+
+    # Handle collision by appending counter suffix
+    counter = 1
+    while os.path.exists(backup_dir):
+        backup_id = f"backup-{timestamp}-{counter}"
+        backup_dir = os.path.join(backup_base_dir, backup_id)
+        counter += 1
 
     os.makedirs(backup_dir, exist_ok=True)
 
@@ -3581,6 +3689,7 @@ def run_mcp_server() -> None:  # pragma: no cover
     This function is used to start the MCP server when this script is run directly.
     """
     parse_args_and_get_config()  # sets CONFIG_PATH
+    init_sentry()  # Initialize Sentry error tracking (if SENTRY_DSN is set)
     register_mcp_tools()  # tools defined *after* CONFIG_PATH is known
     mcp.run(transport="stdio")
 
