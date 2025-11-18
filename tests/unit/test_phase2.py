@@ -9,15 +9,11 @@ Note: Task 7 (Caching) is tested in test_cache.py
 Note: Task 10 (Benchmarking) is tested in test_benchmark.py
 """
 
-import json
 import os
-import subprocess
 import sys
 import tempfile
-import time
 from pathlib import Path
-from typing import Any
-from unittest.mock import Mock, MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 

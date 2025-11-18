@@ -50,7 +50,7 @@ sys.modules['pydantic'].ConfigDict = dict
 sys.modules['pydantic'].field_validator = lambda *args, **kwargs: lambda f: f
 
 # Now import main
-import main
+import main  # noqa: E402
 
 # Register the tools
 main.register_mcp_tools()
@@ -106,10 +106,10 @@ def format_refactoring_suggestions(suggestions):
         print(f"   Duplicates: {suggestion['duplicate_count']} instances")
         print(f"   Lines per instance: {suggestion['lines_per_duplicate']}")
         print(f"   Total duplicated: {suggestion['total_duplicated_lines']} lines")
-        print(f"\n   Locations:")
+        print("\n   Locations:")
         for loc in suggestion['locations']:
             print(f"   • {loc}")
-        print(f"\n   Recommendation:")
+        print("\n   Recommendation:")
         print(f"   {suggestion['suggestion']}")
 
 
@@ -201,17 +201,17 @@ Examples:
 
     # Validate similarity threshold
     if not 0.0 <= args.min_similarity <= 1.0:
-        print(f"Error: min-similarity must be between 0.0 and 1.0", file=sys.stderr)
+        print("Error: min-similarity must be between 0.0 and 1.0", file=sys.stderr)
         sys.exit(1)
 
     # Validate min lines
     if args.min_lines < 1:
-        print(f"Error: min-lines must be at least 1", file=sys.stderr)
+        print("Error: min-lines must be at least 1", file=sys.stderr)
         sys.exit(1)
 
     # Validate max constructs
     if args.max_constructs < 0:
-        print(f"Error: max-constructs must be 0 (unlimited) or positive", file=sys.stderr)
+        print("Error: max-constructs must be 0 (unlimited) or positive", file=sys.stderr)
         sys.exit(1)
 
     # Show analysis parameters
@@ -224,7 +224,7 @@ Examples:
         if args.max_constructs > 0:
             print(f"Max constructs: {args.max_constructs}")
         else:
-            print(f"Max constructs: unlimited")
+            print("Max constructs: unlimited")
         if args.exclude_patterns:
             print(f"Excluding patterns: {', '.join(args.exclude_patterns)}")
         print("\nSearching for duplicates...")

@@ -402,7 +402,7 @@ class TestFindDuplicationTool:
         ]
         mock_stream.return_value = iter(mock_matches)
 
-        result = find_duplication(
+        find_duplication(
             project_folder="/test/project",
             language="python",
             max_constructs=5  # Limit to 5
@@ -420,7 +420,7 @@ class TestFindDuplicationTool:
         mock_matches = []
         mock_stream.return_value = iter(mock_matches)
 
-        result = find_duplication(
+        find_duplication(
             project_folder="/test/project",
             language="python",
             max_constructs=0  # Unlimited

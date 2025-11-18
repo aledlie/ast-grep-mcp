@@ -24,7 +24,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -497,4 +497,4 @@ class TestCIBenchmarks:
         has_regression, errors = benchmark_runner.check_regression()
 
         if has_regression:
-            pytest.fail(f"Performance regression detected:\n" + "\n".join(errors))
+            pytest.fail("Performance regression detected:\n" + "\n".join(errors))

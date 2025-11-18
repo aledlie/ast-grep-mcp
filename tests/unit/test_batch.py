@@ -8,7 +8,6 @@ Tests cover:
 - Error handling in batch operations
 """
 
-import json
 import os
 import sys
 import tempfile
@@ -486,7 +485,7 @@ class TestBatchSearchErrorHandling:
             {"id": "q1", "type": "pattern", "pattern": "def $FUNC", "language": "python"}
         ]
 
-        result = self.batch_search(
+        self.batch_search(
             project_folder=self.temp_dir,
             queries=queries,
             max_results_per_query=5

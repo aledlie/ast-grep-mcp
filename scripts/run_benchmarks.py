@@ -92,7 +92,7 @@ def run_benchmarks(
     elif check_regression:
         print()
         print("⚠️  No baseline found - skipping regression check")
-        print(f"   Run with --save-baseline to create baseline")
+        print("   Run with --save-baseline to create baseline")
 
     print()
     print("=" * 80)

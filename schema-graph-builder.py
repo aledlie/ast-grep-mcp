@@ -20,13 +20,13 @@ Example:
     python3 schema-graph-builder.py ~/code/IntegrityStudioClients/fisterra https://fisterra-dance.com --output-dir analysis
 """
 
-import json
 import argparse
-from pathlib import Path
-from typing import Dict, List, Any, Tuple
+import json
+import sys
 from collections import defaultdict
 from datetime import datetime
-import sys
+from pathlib import Path
+from typing import Any, Dict, List
 
 
 class SchemaGraphBuilder:
@@ -286,7 +286,7 @@ class SchemaGraphBuilder:
         self.stats['entities_extracted'] = len(all_entities)
 
         # Merge duplicates
-        print(f"\nMerging duplicate entities...")
+        print("\nMerging duplicate entities...")
         unique_entities = self.merge_duplicate_entities(all_entities)
         self.stats['entities_unique'] = len(unique_entities)
         print(f"  {len(all_entities)} entities → {len(unique_entities)} unique entities")
@@ -394,18 +394,19 @@ class SchemaGraphBuilder:
             "",
             f"**Site**: {self.base_url}",
             f"**Created**: {datetime.now().strftime('%Y-%m-%d')}",
-            f"**Method**: `schema-graph-builder.py`",
-            f"**Status**: ✅ Complete & Validated",
+            "**Method**: `schema-graph-builder.py`",
+            "**Status**: ✅ Complete & Validated",
             "",
             "---",
             "",
             "## Executive Summary",
             "",
-            f"Successfully created a **unified knowledge graph** for {self.project_name} from {len(json_files)} Schema.org JSON files, resulting in:",
+            (f"Successfully created a **unified knowledge graph** for {self.project_name} "
+             f"from {len(json_files)} Schema.org JSON files, resulting in:"),
             "",
             f"- **{analysis['total_entities']} unique entities** across {len(analysis['entities_by_type'])} Schema.org types",
             f"- **{analysis['total_relationships']} relationships** connecting entities",
-            f"- **100% valid** JSON-LD format",
+            "- **100% valid** JSON-LD format",
             "",
             "---",
             "",
@@ -417,7 +418,7 @@ class SchemaGraphBuilder:
             f"| **Total Entities** | {analysis['total_entities']} unique |",
             f"| **Entity Types** | {len(analysis['entities_by_type'])} unique types |",
             f"| **Relationships** | {analysis['total_relationships']} connections |",
-            f"| **Validation** | ✅ Valid JSON-LD |",
+            "| **Validation** | ✅ Valid JSON-LD |",
             "",
             "---",
             "",
@@ -533,7 +534,7 @@ class SchemaGraphBuilder:
             f"**Base URL**: {self.base_url}",
             f"**Entities**: {analysis['total_entities']}",
             f"**Relationships**: {analysis['total_relationships']}",
-            f"**Validation**: ✅ Pass",
+            "**Validation**: ✅ Pass",
             ""
         ])
 
@@ -611,7 +612,7 @@ Examples:
 
     # Discover JSON files
     print(f"\n{'='*80}")
-    print(f"Schema.org Entity Graph Builder")
+    print("Schema.org Entity Graph Builder")
     print(f"{'='*80}")
     print(f"Directory: {args.directory}")
     print(f"Base URL: {args.base_url}")
@@ -638,12 +639,12 @@ Examples:
     analysis = builder.analyze_relationships(graph)
 
     print(f"\nTotal entities: {analysis['total_entities']}")
-    print(f"\nEntities by type:")
+    print("\nEntities by type:")
     for entity_type, count in sorted(analysis['entities_by_type'].items()):
         print(f"  {entity_type}: {count}")
 
     print(f"\nTotal relationships: {analysis['total_relationships']}")
-    print(f"\nRelationships by property:")
+    print("\nRelationships by property:")
     for prop, count in sorted(analysis['relationships_by_property'].items()):
         print(f"  {prop}: {count}")
 
@@ -698,7 +699,7 @@ Examples:
     print(f"\n{'='*80}")
     print("Build Complete")
     print(f"{'='*80}")
-    print(f"\n📊 Summary:")
+    print("\n📊 Summary:")
     print(f"  - {analysis['total_entities']} unique entities")
     print(f"  - {len(analysis['entities_by_type'])} Schema.org types")
     print(f"  - {analysis['total_relationships']} relationships")

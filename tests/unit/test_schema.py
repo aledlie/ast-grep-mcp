@@ -1,17 +1,16 @@
 """Tests for Schema.org client and tools."""
-import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from typing import Dict, Any
-import httpx
-
+import os
 
 # Import after mocking is set up
 import sys
-import os
+from unittest.mock import AsyncMock, Mock, patch
+
+import httpx
+import pytest
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from main import SchemaOrgClient, get_schema_org_client
-
 
 # Mock Schema.org data for testing
 MOCK_SCHEMA_DATA = {
@@ -698,7 +697,6 @@ class TestSchemaOrgTools:
             mock_client_class.return_value = mock_client
 
             # Import tools after patching
-            from main import register_mcp_tools
 
             # We need to test the tools through the client
             client = SchemaOrgClient()

@@ -2657,7 +2657,6 @@ def register_mcp_tools() -> None:  # pragma: no cover
 
         try:
             import concurrent.futures
-            from collections import defaultdict
 
             # Validate queries
             for i, query in enumerate(queries):
@@ -2725,7 +2724,7 @@ def register_mcp_tools() -> None:  # pragma: no cover
                     return (query_id, matches)
 
                 except Exception as e:
-                    logger.warning(f"query_failed", query_id=query_id, error=str(e)[:200])
+                    logger.warning("query_failed", query_id=query_id, error=str(e)[:200])
                     return (query_id, [])
 
             # Execute unconditional queries in parallel
@@ -2902,7 +2901,7 @@ def register_mcp_tools() -> None:  # pragma: no cover
                     "test_type": test_type
                 }
 
-            result = {"status": "success", "test_type": test_type}
+            result: Dict[str, Any] = {"status": "success", "test_type": test_type}
 
             if test_type == "error":
                 # Trigger a test exception
@@ -3391,12 +3390,12 @@ def run_command(args: List[str], input_text: Optional[str] = None) -> subprocess
         )
 
         if args[0] == "ast-grep":
-            error = AstGrepNotFoundError()
-            sentry_sdk.capture_exception(error, extras={"command": " ".join(args)})
-            raise error from e
-        error = AstGrepNotFoundError(f"Command '{args[0]}' not found")
-        sentry_sdk.capture_exception(error, extras={"command": " ".join(args)})
-        raise error from e
+            not_found_error = AstGrepNotFoundError()
+            sentry_sdk.capture_exception(not_found_error, extras={"command": " ".join(args)})
+            raise not_found_error from e
+        not_found_error = AstGrepNotFoundError(f"Command '{args[0]}' not found")
+        sentry_sdk.capture_exception(not_found_error, extras={"command": " ".join(args)})
+        raise not_found_error from e
 
 def filter_files_by_size(
     directory: str,
@@ -3664,12 +3663,12 @@ def stream_ast_grep_results(
     except FileNotFoundError as e:
         logger.error("stream_command_not_found", command=full_command[0])
         if full_command[0] == "ast-grep":
-            error = AstGrepNotFoundError()
-            sentry_sdk.capture_exception(error, extras={"command": " ".join(full_command)})
-            raise error from e
-        error = AstGrepNotFoundError(f"Command '{full_command[0]}' not found")
-        sentry_sdk.capture_exception(error, extras={"command": " ".join(full_command)})
-        raise error from e
+            not_found_error = AstGrepNotFoundError()
+            sentry_sdk.capture_exception(not_found_error, extras={"command": " ".join(full_command)})
+            raise not_found_error from e
+        not_found_error = AstGrepNotFoundError(f"Command '{full_command[0]}' not found")
+        sentry_sdk.capture_exception(not_found_error, extras={"command": " ".join(full_command)})
+        raise not_found_error from e
 
     finally:
         # Ensure subprocess is cleaned up

@@ -155,7 +155,7 @@ def format_type_info(type_info: Dict[str, Any]) -> str:
     lines.append(f"\nDescription:\n{description}")
 
     if parent_types:
-        lines.append(f"\nParent Type(s):")
+        lines.append("\nParent Type(s):")
         for parent in parent_types:
             lines.append(f"  - {parent}")
 

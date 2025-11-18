@@ -13,8 +13,6 @@ import os
 import shutil
 import sys
 import tempfile
-from pathlib import Path
-from typing import Any, Dict, List
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -636,7 +634,7 @@ fix: print("$MSG")
             assert f.read() == "CORRUPTED DATA\n"
 
         # Rollback restores original
-        restored = main.restore_from_backup(backup_id, self.project_folder)
+        main.restore_from_backup(backup_id, self.project_folder)
 
         with open(self.test_file) as f:
             assert f.read() == original_content

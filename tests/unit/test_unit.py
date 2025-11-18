@@ -1,6 +1,5 @@
 """Unit tests for ast-grep MCP server"""
 
-import json
 import os
 import subprocess
 import sys
@@ -463,7 +462,7 @@ class TestConfigValidation:
 
     def test_invalid_config_extensions(self):
         """Test config with invalid extensions (missing dots)"""
-        from main import validate_config_file, ConfigurationError
+        from main import ConfigurationError, validate_config_file
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "invalid_config_extensions.yaml")
 
@@ -472,7 +471,7 @@ class TestConfigValidation:
 
     def test_invalid_config_empty_lists(self):
         """Test config with empty lists"""
-        from main import validate_config_file, ConfigurationError
+        from main import ConfigurationError, validate_config_file
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "invalid_config_empty.yaml")
 
@@ -481,14 +480,14 @@ class TestConfigValidation:
 
     def test_config_file_not_found(self):
         """Test with non-existent config file"""
-        from main import validate_config_file, ConfigurationError
+        from main import ConfigurationError, validate_config_file
 
         with pytest.raises(ConfigurationError, match="does not exist"):
             validate_config_file("/nonexistent/path/to/config.yaml")
 
     def test_config_file_is_directory(self):
         """Test with directory instead of file"""
-        from main import validate_config_file, ConfigurationError
+        from main import ConfigurationError, validate_config_file
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
 
         with pytest.raises(ConfigurationError, match="not a file"):
@@ -496,7 +495,7 @@ class TestConfigValidation:
 
     def test_config_yaml_parsing_error(self):
         """Test config with YAML syntax error"""
-        from main import validate_config_file, ConfigurationError
+        from main import ConfigurationError, validate_config_file
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "invalid_config_yaml_error.yaml")
 
@@ -505,7 +504,7 @@ class TestConfigValidation:
 
     def test_config_empty_file(self):
         """Test config with empty file"""
-        from main import validate_config_file, ConfigurationError
+        from main import ConfigurationError, validate_config_file
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "empty_config.yaml")
 
@@ -514,7 +513,7 @@ class TestConfigValidation:
 
     def test_config_not_dictionary(self):
         """Test config that is not a dictionary"""
-        from main import validate_config_file, ConfigurationError
+        from main import ConfigurationError, validate_config_file
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "invalid_config_not_dict.yaml")
 
@@ -541,7 +540,6 @@ class TestGetSupportedLanguages:
     @patch("main.CONFIG_PATH")
     def test_with_custom_languages(self, mock_config_path):
         """Test getting languages with custom languages in config"""
-        from main import get_supported_languages
 
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "config_with_custom_lang.yaml")
@@ -552,6 +550,7 @@ class TestGetSupportedLanguages:
         with patch("os.path.exists", return_value=True):
             # Re-import to get fresh module state
             import importlib
+
             import main
             importlib.reload(main)
 
@@ -599,8 +598,9 @@ class TestCustomLanguageConfig:
 
     def test_empty_extensions_list(self):
         """Test that empty extensions list raises error"""
-        from main import CustomLanguageConfig
         from pydantic import ValidationError
+
+        from main import CustomLanguageConfig
 
         with pytest.raises(ValidationError, match="extensions list cannot be empty"):
             CustomLanguageConfig(extensions=[])
@@ -855,7 +855,7 @@ class TestValidateConfigFileErrors:
 
     def test_config_file_read_error(self):
         """Test when file cannot be read (OSError)"""
-        from main import validate_config_file, ConfigurationError
+        from main import ConfigurationError, validate_config_file
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "valid_config.yaml")
 
@@ -935,6 +935,7 @@ class TestParseArgsAndGetConfig:
     def test_no_config_provided(self):
         """Test when no config is provided"""
         import importlib
+
         import main
 
         # Reload to reset CONFIG_PATH
@@ -948,6 +949,7 @@ class TestParseArgsAndGetConfig:
     def test_with_valid_config_flag(self):
         """Test with valid --config flag"""
         import importlib
+
         import main
 
         importlib.reload(main)
@@ -963,6 +965,7 @@ class TestParseArgsAndGetConfig:
     def test_with_env_var_config(self, mock_env_get):
         """Test with AST_GREP_CONFIG environment variable"""
         import importlib
+
         import main
 
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
