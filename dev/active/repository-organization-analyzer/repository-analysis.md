@@ -17,9 +17,31 @@
 3. ✅ `tests/README_ENHANCED.md` - Experimental Schema.org metadata
 4. ✅ `tests/fixtures/README_ENHANCED.md` - Experimental Schema.org metadata
 
-**Phase 2: Documentation Review - PENDING**
-- Decision needed on `mcp-docs/` directory (30 subdirs, 412KB)
-- Options: Keep as-is, move to docs/, or archive
+**Phase 2: Documentation Review - COMPLETED ✅**
+- **Executed:** 2025-11-18
+- **Decision:** Keep mcp-docs/ and repomix files as-is
+- **Documentation updated:** CLAUDE.md + README.md
+
+**Phase 2 Decisions:**
+1. ✅ **mcp-docs/ directory** - Kept as-is (Option A selected)
+   - Provides valuable MCP ecosystem reference
+   - Well-organized by category (AI/ML, Database, Development Tools, etc.)
+   - Size (412KB) justified by comprehensive coverage of 30+ MCP servers
+   - Documented in CLAUDE.md with purpose and maintenance notes
+
+2. ✅ **Repomix snapshot files** - Restored and kept git-ignored
+   - Restored `mcp-docs/repomix-output.xml` and `tests/repomix-output.xml`
+   - Remain in `.gitignore` (local development aids, not committed)
+   - Documented refresh frequency: After major changes, monthly minimum
+   - Added regeneration instructions to both CLAUDE.md and README.md
+
+3. ✅ **Documentation Updates:**
+   - Added "Repository Structure" section to CLAUDE.md (100 lines)
+   - Added "Repository Structure" section to README.md (27 lines)
+   - Documented mcp-docs/ purpose and organization
+   - Documented repomix refresh best practices
+
+**Outcome:** Repository organization analysis complete with clear documentation
 
 ## Executive Summary
 
