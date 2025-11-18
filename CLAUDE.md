@@ -216,7 +216,7 @@ Minimal configuration without error tracking:
 - `tests/unit/` - 309+ tests, mocked subprocess/HTTP calls, no ast-grep required
 - `tests/integration/` - 12 tests, requires real ast-grep binary
 
-**Total: 321+ tests** with comprehensive coverage of error paths and edge cases
+**Total: 267 tests** (254 unit + 13 integration) with comprehensive coverage of error paths and edge cases
 
 **Key Test Files:**
 - `test_unit.py` (57) - Core ast-grep functionality
@@ -378,7 +378,39 @@ python scripts/run_benchmarks.py --check-regression  # CI regression check
 
 Tracks: execution time, memory usage, cache hit performance (>10x speedup), early termination, file filtering. Fails CI if >10% performance degradation. See `BENCHMARKING.md`.
 
-## Recent Updates (Updated: 2025-11-17)
+## Recent Updates (Updated: 2025-11-18)
+
+### Code Quality Improvements
+**Commit:** 77e06e7 (2025-11-18)
+
+- Fixed all ruff and mypy lint errors across 14 files
+- Removed unused imports (defaultdict, Tuple, get_supported_languages)
+- Fixed f-strings without placeholders in schema-graph-builder.py
+- Added explicit type annotations for better type safety
+- Renamed exception variables to avoid type conflicts
+- Auto-fixed import statement ordering
+- All 254 unit tests continue to pass
+
+**Quality Assurance:**
+- ✅ ruff validation passes
+- ✅ mypy type checking passes
+- ✅ 100% test coverage maintained
+
+### Documentation Cleanup
+**Commits:** e7753cd, aa411c7, 2fa9225, 583a3a8 (2025-11-18)
+
+- Archived completed strategic plan (Phase 1 & 2: 100% complete) to `~/dev/archive/`
+- Removed outdated repomix snapshots from git (now git-ignored, documented)
+- Removed experimental README_ENHANCED.md files with Schema.org metadata
+- Documented mcp-docs/ directory purpose and maintenance in CLAUDE.md
+- Added repository structure section to both CLAUDE.md and README.md
+- Documented repomix refresh best practices
+
+**Repository Organization:**
+- Clean dev/active/ workspace (only current work)
+- mcp-docs/ kept as valuable ecosystem reference (30+ MCP servers)
+- Repomix snapshots kept locally for development (regenerable)
+- All decisions documented in repository-analysis.md
 
 ### Sentry Error Tracking Integration
 **Commits:** 826529c, 49cbbb6 (2025-11-17)
@@ -433,7 +465,7 @@ Created extensive documentation (2,190+ lines):
   - Schema.org client HTTP errors
   - Streaming subprocess cleanup
 - Updated `test_rewrite.py` to properly mock `Popen` for streaming
-- Total test count increased from 248 to 321+ tests
+- Total test count: 267 tests (254 unit + 13 integration)
 
 ### Breaking Changes
 None. All changes are backward compatible:
@@ -469,7 +501,7 @@ All features work without migration - this provides enhanced observability for p
 **Testing:**
 - `tests/unit/` - 8 test files with mocked subprocess/HTTP calls
 - `tests/integration/` - 2 test files requiring real ast-grep binary
-- Total: 321+ tests with comprehensive edge case coverage
+- Total: 267 tests (254 unit + 13 integration) with comprehensive edge case coverage
 
 **Scripts:**
 - `scripts/find_duplication.py` - Standalone duplication detection
@@ -481,6 +513,10 @@ All features work without migration - this provides enhanced observability for p
 - `dev/README.md` - Development workflow guide
 - `dev/CONFIGURATION.md` - Configuration examples (567 lines)
 - `dev/active/` - Active task documentation and planning
+  - `repository-organization-analyzer/` - Current repository analysis and cleanup decisions
+
+**Archived Documentation:**
+- `~/dev/archive/ast-grep-mcp-strategic-plan-2025-11/` - Completed Phase 1 & 2 strategic plan (archived 2025-11-18)
 
 ### mcp-docs/ Directory
 
