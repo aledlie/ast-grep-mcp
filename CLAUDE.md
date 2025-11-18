@@ -380,6 +380,63 @@ Tracks: execution time, memory usage, cache hit performance (>10x speedup), earl
 
 ## Recent Updates (Updated: 2025-11-18)
 
+### Repository Organization Refactor
+**Branch:** refactor (2025-11-18)
+**Commits:** 2eeb8ac, 569992d, d24a973, cbad43e, 0e18468
+
+Comprehensive 6-phase repository reorganization for better maintainability and discoverability:
+
+**Phase 1: Build Artifact Cleanup**
+- Removed `.coverage` from git tracking (was incorrectly committed despite .gitignore)
+- Prevents merge conflicts and repository bloat
+
+**Phase 2: Documentation Consolidation**
+- Moved major docs to root for visibility:
+  - `dev/BENCHMARKING.md` → `BENCHMARKING.md`
+  - `dev/CONFIGURATION.md` → `CONFIGURATION.md`
+  - `dev/DOPPLER-MIGRATION.md` → `DOPPLER-MIGRATION.md`
+  - `dev/SENTRY-INTEGRATION.md` → `SENTRY-INTEGRATION.md`
+- Total: 2,277 lines of documentation now at root level
+
+**Phase 3: Tool Consolidation**
+- Moved standalone scripts to `scripts/` directory:
+  - `schema-tools.py` → `scripts/schema-tools.py`
+  - `schema-graph-builder.py` → `scripts/schema-graph-builder.py`
+- Updated 11 documentation references
+- Cleaner root directory, consistent organization
+
+**Phase 4: Repomix Cleanup**
+- Deleted 29 redundant per-server repomix snapshots (116KB, 3,718 lines)
+- Kept 3 essential snapshots: mcp-docs, tests, tests/fixtures
+- 97% reduction in repomix files (32 → 3)
+
+**Phase 5: Planning Document Tracking**
+- Added 12 strategic planning documents to version control (6,610 lines):
+  - NEW-FEATURES-OVERVIEW.md
+  - code-analysis-metrics/, code-quality-standards/
+  - cross-language-operations/, documentation-generation/
+  - enhanced-duplication-detection/, refactoring-assistants/
+  - repository-organization-analyzer/ (3 analysis docs)
+
+**Phase 6: Documentation Updates**
+- Updated CLAUDE.md Repository Structure section
+- Reflected all organizational changes
+- Added refactoring notes to Recent Updates
+
+**Overall Impact:**
+- Tracked files: 135 → 120 (-11%)
+- Build artifacts tracked: 1 → 0 (-100%)
+- Root-level docs: 3 → 7 (+133% discoverability)
+- Repomix files: 32 → 3 (-91%)
+- Planning docs tracked: 2 → 14 (+600%)
+
+**Quality Assurance:**
+- ✅ All 267 tests pass
+- ✅ ruff validation passes
+- ✅ mypy type checking passes
+- ✅ All documentation links verified
+- ✅ All tool paths updated
+
 ### Final Lint Cleanup
 **Commit:** 93d4d81 (2025-11-18)
 
@@ -506,6 +563,7 @@ All features work without migration - this provides enhanced observability for p
 **Documentation:**
 - `README.md` - Main project documentation
 - `CLAUDE.md` - This file, Claude Code instructions
+- `CONFIGURATION.md` - Configuration examples and validation (567 lines)
 - `SENTRY-INTEGRATION.md` - Sentry setup guide (765 lines)
 - `DOPPLER-MIGRATION.md` - Doppler migration guide (699 lines)
 - `BENCHMARKING.md` - Performance benchmarking guide
@@ -524,9 +582,15 @@ All features work without migration - this provides enhanced observability for p
 
 **Development Documentation:**
 - `dev/README.md` - Development workflow guide
-- `CONFIGURATION.md` - Configuration examples (567 lines)
-- `dev/active/` - Active task documentation and planning
-  - `repository-organization-analyzer/` - Current repository analysis and cleanup decisions
+- `dev/active/` - Active feature planning and task documentation (12 documents)
+  - `NEW-FEATURES-OVERVIEW.md` - Overview of 6 planned features
+  - `code-analysis-metrics/` - Code quality metrics and reporting
+  - `code-quality-standards/` - Linting and best practice enforcement
+  - `cross-language-operations/` - Multi-language support expansion
+  - `documentation-generation/` - Automated API documentation
+  - `enhanced-duplication-detection/` - Advanced similarity analysis
+  - `refactoring-assistants/` - Code transformation helpers
+  - `repository-organization-analyzer/` - Repository structure analysis (3 docs)
 
 **Archived Documentation:**
 - `~/dev/archive/ast-grep-mcp-strategic-plan-2025-11/` - Completed Phase 1 & 2 strategic plan (archived 2025-11-18)
@@ -566,8 +630,11 @@ The `mcp-docs/` directory contains reference documentation for 30+ MCP servers a
 The repository includes periodic `repomix-output.xml` files that capture codebase snapshots:
 
 **Locations:**
-- `mcp-docs/repomix-output.xml` - MCP documentation snapshot
-- `tests/repomix-output.xml` - Test suite snapshot
+- `mcp-docs/repomix-output.xml` - MCP documentation snapshot (54KB)
+- `tests/repomix-output.xml` - Test suite snapshot (45KB)
+- `tests/fixtures/repomix-output.xml` - Test fixture (3.9KB)
+
+**Note:** Previous per-server repomix files (29 files, 116KB) were removed in the 2025-11-18 refactor as redundant with the main mcp-docs snapshot.
 
 **Purpose:**
 - Provides point-in-time codebase overview
