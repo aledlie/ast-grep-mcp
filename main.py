@@ -103,8 +103,7 @@ def init_sentry(service_name: str = "ast-grep-mcp") -> None:
         # Integrations - Include Anthropic AI
         integrations=[
             AnthropicIntegration(
-                record_inputs=True,   # Capture prompts
-                record_outputs=True,  # Capture responses
+                include_prompts=True,  # Capture prompts and responses
             ),
         ],
         # Performance monitoring - REQUIRED for AI tracking
