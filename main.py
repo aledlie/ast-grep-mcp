@@ -568,10 +568,14 @@ class SchemaOrgClient:
 
         try:
             self.logger.info("fetching_schema_org_data", url=self.SCHEMA_URL)
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(self.SCHEMA_URL)
-                response.raise_for_status()
-                data = response.json()
+            with sentry_sdk.start_span(op="http.client", name="Fetch Schema.org vocabulary") as span:
+                span.set_data("url", self.SCHEMA_URL)
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.get(self.SCHEMA_URL)
+                    response.raise_for_status()
+                    data = response.json()
+                span.set_data("status_code", response.status_code)
+                span.set_data("content_length", len(str(data)))
 
             if not data:
                 raise RuntimeError("No data received from schema.org")
@@ -1120,6 +1124,13 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "dump_syntax_tree",
+                "language": language,
+                "format": format,
+                "code_length": len(code),
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
     @mcp.tool()
@@ -1184,6 +1195,13 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "test_match_code_rule",
+                "rule_id": parsed_yaml.get('id'),
+                "language": parsed_yaml.get('language'),
+                "code_length": len(code),
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
     @mcp.tool()
@@ -1351,6 +1369,14 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "find_code",
+                "project_folder": project_folder,
+                "pattern": pattern[:100],
+                "language": language,
+                "output_format": output_format,
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
     @mcp.tool()
@@ -1532,6 +1558,14 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "find_code_by_rule",
+                "project_folder": project_folder,
+                "yaml_rule": yaml_rule[:200],
+                "max_results": max_results,
+                "output_format": output_format,
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
     @mcp.tool()
@@ -1784,6 +1818,14 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "find_duplication",
+                "project_folder": project_folder,
+                "language": language,
+                "construct_type": construct_type,
+                "min_similarity": min_similarity,
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
     # Schema.org Tools
@@ -1824,6 +1866,11 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "get_schema_type",
+                "type_name": type_name,
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
     @mcp.tool()
@@ -1865,6 +1912,12 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "search_schemas",
+                "query": query,
+                "limit": limit,
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
     @mcp.tool()
@@ -1904,6 +1957,11 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "get_type_hierarchy",
+                "type_name": type_name,
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
     @mcp.tool()
@@ -1945,6 +2003,12 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "get_type_properties",
+                "type_name": type_name,
+                "include_inherited": include_inherited,
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
     @mcp.tool()
@@ -1988,6 +2052,12 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "generate_schema_example",
+                "type_name": type_name,
+                "has_custom_properties": custom_properties is not None,
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
     @mcp.tool()
@@ -2049,6 +2119,13 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "generate_entity_id",
+                "base_url": base_url,
+                "entity_type": entity_type,
+                "has_slug": entity_slug is not None,
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
     @mcp.tool()
@@ -2103,6 +2180,11 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "validate_entity_id",
+                "entity_id": entity_id,
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
     @mcp.tool()
@@ -2184,6 +2266,12 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "build_entity_graph",
+                "entity_count": len(entities),
+                "base_url": base_url,
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
     # Code Rewrite Tools
@@ -2458,6 +2546,12 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "rollback_rewrite",
+                "project_folder": project_folder,
+                "backup_id": backup_id,
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
     @mcp.tool()
@@ -2498,6 +2592,11 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "list_backups",
+                "project_folder": project_folder,
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
     # Batch Operations
@@ -2631,12 +2730,15 @@ def register_mcp_tools() -> None:  # pragma: no cover
                     return (query_id, [])
 
             # Execute unconditional queries in parallel
-            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-                futures = [executor.submit(execute_query, q) for q in unconditional_queries]
-                for future in concurrent.futures.as_completed(futures):
-                    query_id, matches = future.result()
-                    results_by_id[query_id] = matches
-                    queries_executed.append(query_id)
+            with sentry_sdk.start_span(op="batch.parallel_search", name="Execute queries in parallel") as span:
+                span.set_data("query_count", len(unconditional_queries))
+                with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                    futures = [executor.submit(execute_query, q) for q in unconditional_queries]
+                    for future in concurrent.futures.as_completed(futures):
+                        query_id, matches = future.result()
+                        results_by_id[query_id] = matches
+                        queries_executed.append(query_id)
+                span.set_data("results_count", len(queries_executed))
 
             # Execute conditional queries sequentially
             for query in conditional_queries:
@@ -2756,6 +2858,139 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 error=str(e)[:200],
                 status="failed"
             )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "batch_search",
+                "project_folder": project_folder,
+                "query_count": len(queries),
+                "deduplicate": deduplicate,
+                "output_format": output_format,
+                "execution_time_seconds": round(execution_time, 3)
+            })
+            raise
+
+    @mcp.tool()
+    def test_sentry_integration(
+        test_type: Literal["error", "warning", "breadcrumb", "span"] = Field(
+            default="breadcrumb",
+            description="Type of Sentry test: 'error' (exception), 'warning' (capture_message), 'breadcrumb', or 'span' (performance)"
+        ),
+        message: str = Field(default="Test message", description="Custom test message")
+    ) -> Dict[str, Any]:
+        """
+        Test Sentry integration by triggering different event types.
+
+        Used to verify that Sentry error tracking is properly configured and working.
+        Only works when SENTRY_DSN environment variable is set.
+
+        Test Types:
+        - error: Triggers a test exception that gets captured by Sentry
+        - warning: Sends a warning message to Sentry
+        - breadcrumb: Adds test breadcrumbs (check Sentry dashboard for context)
+        - span: Creates a performance span
+
+        Returns information about what was sent to Sentry.
+        """
+        logger = get_logger("tool.test_sentry_integration")
+        start_time = time.time()
+
+        logger.info("tool_invoked", tool="test_sentry_integration", test_type=test_type)
+
+        try:
+            if not os.getenv("SENTRY_DSN"):
+                return {
+                    "status": "skipped",
+                    "message": "Sentry not configured (SENTRY_DSN not set)",
+                    "test_type": test_type
+                }
+
+            result = {"status": "success", "test_type": test_type}
+
+            if test_type == "error":
+                # Trigger a test exception
+                try:
+                    raise ValueError(f"Sentry integration test error: {message}")
+                except ValueError as e:
+                    sentry_sdk.capture_exception(e, extras={
+                        "test": True,
+                        "tool": "test_sentry_integration",
+                        "message": message
+                    })
+                    result["message"] = "Test exception captured and sent to Sentry"
+                    result["exception_type"] = "ValueError"
+
+            elif test_type == "warning":
+                sentry_sdk.capture_message(
+                    f"Sentry integration test warning: {message}",
+                    level="warning",
+                    extras={"test": True, "tool": "test_sentry_integration"}
+                )
+                result["message"] = "Test warning message sent to Sentry"
+
+            elif test_type == "breadcrumb":
+                sentry_sdk.add_breadcrumb(
+                    message=f"Test breadcrumb 1: {message}",
+                    category="test.breadcrumb",
+                    level="info",
+                    data={"test": True, "sequence": 1}
+                )
+                sentry_sdk.add_breadcrumb(
+                    message="Test breadcrumb 2: Sequence item",
+                    category="test.breadcrumb",
+                    level="info",
+                    data={"test": True, "sequence": 2}
+                )
+                # Breadcrumbs only show up with events, so also send a message
+                sentry_sdk.capture_message(
+                    "Test breadcrumb context (check breadcrumb trail)",
+                    level="info",
+                    extras={"test": True, "tool": "test_sentry_integration"}
+                )
+                result["message"] = "Test breadcrumbs added and sent to Sentry (check breadcrumb trail in event)"
+                result["breadcrumb_count"] = 2
+
+            elif test_type == "span":
+                with sentry_sdk.start_span(op="test.operation", name=f"Test span: {message}") as span:
+                    span.set_data("test", True)
+                    span.set_data("message", message)
+                    span.set_data("tool", "test_sentry_integration")
+                    # Simulate some work
+                    time.sleep(0.1)
+                # Spans need a transaction to show up
+                sentry_sdk.capture_message(
+                    "Test span completed (check performance monitoring)",
+                    level="info",
+                    extras={"test": True, "tool": "test_sentry_integration"}
+                )
+                result["message"] = "Test performance span created and sent to Sentry"
+
+            execution_time = time.time() - start_time
+            logger.info(
+                "tool_completed",
+                tool="test_sentry_integration",
+                test_type=test_type,
+                execution_time_seconds=round(execution_time, 3),
+                status="success"
+            )
+
+            result["execution_time_seconds"] = round(execution_time, 3)
+            result["sentry_configured"] = True
+            return result
+
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(
+                "tool_failed",
+                tool="test_sentry_integration",
+                execution_time_seconds=round(execution_time, 3),
+                error=str(e)[:200],
+                status="failed"
+            )
+            # For this test tool, capture the error even if it's not expected
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "test_sentry_integration",
+                "test_type": test_type,
+                "execution_time_seconds": round(execution_time, 3)
+            })
             raise
 
 
@@ -3098,14 +3333,20 @@ def run_command(args: List[str], input_text: Optional[str] = None) -> subprocess
         # that requires shell=True to execute properly
         use_shell = (sys.platform == "win32" and args[0] == "ast-grep")
 
-        result = subprocess.run(
-            args,
-            capture_output=True,
-            input=input_text,
-            text=True,
-            check=True,  # Raises CalledProcessError if return code is non-zero
-            shell=use_shell
-        )
+        with sentry_sdk.start_span(op="subprocess.run", name=f"Running {args[0]}") as span:
+            span.set_data("command", sanitized_args[0])
+            span.set_data("has_stdin", has_stdin)
+
+            result = subprocess.run(
+                args,
+                capture_output=True,
+                input=input_text,
+                text=True,
+                check=True,  # Raises CalledProcessError if return code is non-zero
+                shell=use_shell
+            )
+
+            span.set_data("returncode", result.returncode)
 
         execution_time = time.time() - start_time
         logger.info(

@@ -29,12 +29,13 @@ python3 schema-graph-builder.py ~/path/to/schemas https://example.com
 
 ## Project Overview
 
-MCP server combining ast-grep's structural code search/rewrite with Schema.org tools. Single-file design (`main.py`, ~3588 lines).
+MCP server combining ast-grep's structural code search/rewrite with Schema.org tools. Single-file design (`main.py`, ~4000 lines).
 
-**17 MCP Tools:**
+**18 MCP Tools:**
 - **Code Search** (6): dump_syntax_tree, test_match_code_rule, find_code, find_code_by_rule, find_duplication, batch_search
 - **Code Rewrite** (3): rewrite_code, rollback_rewrite, list_backups
 - **Schema.org** (8): get_schema_type, search_schemas, get_type_hierarchy, get_type_properties, generate_schema_example, generate_entity_id, validate_entity_id, build_entity_graph
+- **Testing** (1): test_sentry_integration
 
 **External Dependencies:**
 - `ast-grep` CLI - must be installed and in PATH
