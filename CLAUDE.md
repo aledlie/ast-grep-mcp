@@ -21,6 +21,9 @@ uv run mypy main.py
 # Run MCP server
 uv run main.py
 
+# Run with Doppler (recommended for production)
+doppler run -- uv run main.py
+
 # Standalone tools
 uv run python scripts/find_duplication.py /path/to/project --language python
 uv run python schema-tools.py search "article"
@@ -40,18 +43,20 @@ MCP server combining ast-grep's structural code search/rewrite with Schema.org t
 **External Dependencies:**
 - `ast-grep` CLI - must be installed and in PATH
 - Internet connection for Schema.org tools (fetches vocabulary on first use)
+- Optional: Doppler CLI for secret management
 
 ## Prerequisites
 
 1. **ast-grep**: `brew install ast-grep` or `cargo install ast-grep --locked`
 2. **uv**: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 3. **Python 3.13+**
+4. **Doppler CLI** (optional): `brew install dopplerhq/cli/doppler`
 
-## Sentry Error Tracking (Optional)
+## Sentry Error Tracking & Monitoring
 
-The MCP server includes Sentry error tracking with Anthropic AI integration for monitoring production errors and AI agent interactions.
+The MCP server includes comprehensive Sentry error tracking with Anthropic AI integration for production monitoring.
 
-**Setup with Doppler (Recommended):**
+### Setup with Doppler (Recommended)
 
 This project is configured to use Doppler for secret management:
 
@@ -66,7 +71,7 @@ doppler secrets --project bottleneck --config dev | grep SENTRY
 doppler run -- uv run main.py
 ```
 
-**Manual Setup (Alternative):**
+### Manual Setup (Alternative)
 
 ```bash
 # Add to your environment or MCP client configuration
@@ -74,28 +79,70 @@ export SENTRY_DSN="your-sentry-dsn"
 export SENTRY_ENVIRONMENT="production"  # or "development"
 ```
 
-**Features:**
-- **Error Tracking**: Captures all subprocess errors, API failures, and file operation errors
-- **AI Monitoring**: Tracks Claude AI interactions (prompts, responses, token usage) if using Anthropic SDK
-- **Performance Monitoring**: Traces slow operations and subprocess execution times
-- **Service Tagging**: All events tagged with `service:ast-grep-mcp` for easy filtering
+### What Gets Tracked
 
-**What Gets Tracked:**
+**Error Tracking (All 18 Tools):**
 - ast-grep subprocess failures and execution errors
 - Schema.org API fetch failures
 - File operation errors (backup/restore)
 - Code rewrite validation failures
 - YAML parsing errors
+- Cache operations and eviction
+- Batch operation failures
 
-**Configuration:**
-- If `SENTRY_DSN` is not set, Sentry is disabled (no overhead)
-- Development: 100% trace sampling for full visibility
-- Production: 10% trace sampling to balance cost vs observability
+**Performance Monitoring:**
+- Subprocess execution spans (ast-grep commands)
+- HTTP request spans (Schema.org API)
+- Batch parallel execution spans
+- Execution time tracking for all operations
 
-**Privacy:**
+**AI Monitoring (Anthropic Integration):**
+- Claude AI interactions if using Anthropic SDK
+- Prompts and responses (when `record_inputs=True`, `record_outputs=True`)
+- Token usage and cost tracking
+
+**Service Tagging:**
+- All events tagged with `service:ast-grep-mcp`
+- Additional tags: `language:python`, `component:mcp-server`
+- Easy filtering in Sentry dashboard
+
+### Configuration Options
+
+- **No SENTRY_DSN**: Sentry disabled (zero overhead)
+- **Development**: 100% trace sampling for full visibility
+- **Production**: 10% trace sampling to balance cost vs observability
+
+### Testing Sentry Integration
+
+Use the `test_sentry_integration` tool to verify your setup:
+
+```python
+# Test error capture
+test_sentry_integration(test_type="error", message="Test error")
+
+# Test warning capture
+test_sentry_integration(test_type="warning", message="Test warning")
+
+# Test breadcrumb trail
+test_sentry_integration(test_type="breadcrumb", message="Test breadcrumb")
+
+# Test performance span
+test_sentry_integration(test_type="span", message="Test span")
+```
+
+**Note**: If `SENTRY_DSN` is not configured, the tool returns `status: "skipped"`.
+
+### Privacy Considerations
+
 - `sendDefaultPii: true` enables AI monitoring (captures prompts/responses)
 - Ensure compliance with data privacy policies before enabling in production
 - Consider using separate Sentry project for AI-heavy workloads
+- Review [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md) for detailed privacy guidance
+
+### Documentation
+
+- **[SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md)**: Complete guide (765 lines) covering setup, tracking details, configuration, troubleshooting, and best practices
+- **[DOPPLER-MIGRATION.md](DOPPLER-MIGRATION.md)**: Step-by-step migration guide (699 lines) from manual env vars to Doppler
 
 ## MCP Client Configuration
 
@@ -122,8 +169,11 @@ Add to `.cursor-mcp/settings.json` or Claude Desktop:
 **Benefits:**
 - Secrets managed centrally in Doppler (no hardcoded credentials)
 - Easy environment switching (dev/stg/prd configs)
-- Automatic secret rotation
+- Automatic secret rotation without config changes
 - Audit logs for secret access
+- Team collaboration without sharing credentials
+
+**See [DOPPLER-MIGRATION.md](DOPPLER-MIGRATION.md) for complete migration guide.**
 
 ### Option 2: Manual Configuration
 
@@ -145,13 +195,28 @@ Add to `.cursor-mcp/settings.json` or Claude Desktop:
 
 **Note**: Sentry environment variables are optional. If not provided, error tracking is disabled.
 
+### Option 3: Without Sentry
+
+Minimal configuration without error tracking:
+```json
+{
+  "mcpServers": {
+    "ast-grep": {
+      "command": "uv",
+      "args": ["--directory", "/absolute/path/to/ast-grep-mcp", "run", "main.py"],
+      "env": {}
+    }
+  }
+}
+```
+
 ## Testing
 
 **Test Organization:**
-- `tests/unit/` - 236 tests, mocked subprocess/HTTP calls, no ast-grep required
+- `tests/unit/` - 309+ tests, mocked subprocess/HTTP calls, no ast-grep required
 - `tests/integration/` - 12 tests, requires real ast-grep binary
 
-**Total: 248 tests** (90% coverage: 736/818 statements)
+**Total: 321+ tests** with comprehensive coverage of error paths and edge cases
 
 **Key Test Files:**
 - `test_unit.py` (57) - Core ast-grep functionality
@@ -161,14 +226,26 @@ Add to `.cursor-mcp/settings.json` or Claude Desktop:
 - `test_schema.py` (52) - Schema.org client and tools
 - `test_rewrite.py` (33) - Code rewrite with backups and syntax validation
 - `test_batch.py` (18) - Batch operations with parallel execution
+- `test_edge_cases.py` (78) - **NEW**: Edge cases and error handling paths
 - `test_integration.py` (5) - End-to-end with real ast-grep
 - `test_benchmark.py` - Performance benchmarks (CI regression detection)
+
+**New Edge Case Tests (Added 2025-11-17):**
+- Config validation error paths with `sys.exit`
+- Cache configuration via environment variables
+- Duplication detection size ratio filtering
+- JavaScript/TypeScript validation error handling
+- Schema.org client HTTP error fallback
+- Rewrite backup handling for nonexistent files
+- Command not found error logging
+- Streaming subprocess cleanup and early termination
 
 **Running Specific Tests:**
 ```bash
 uv run pytest tests/unit/test_cache.py         # Test caching
 uv run pytest tests/unit/test_rewrite.py       # Test code rewrite
 uv run pytest tests/unit/test_batch.py         # Test batch operations
+uv run pytest tests/unit/test_edge_cases.py    # Test error paths
 uv run pytest tests/integration/test_benchmark.py  # Performance benchmarks
 ```
 
@@ -207,11 +284,17 @@ rollback_rewrite(project_folder="/path", backup_id="backup-20250117-...")
 ## Architecture
 
 ### Single-file Design
-Entire server in `main.py` (~3588 lines). Includes logging, streaming, caching, file handling, duplication detection, batch operations, code rewrite with backups, Schema.org client.
+Entire server in `main.py` (~4000 lines). Includes logging, streaming, caching, file handling, duplication detection, batch operations, code rewrite with backups, Schema.org client, and Sentry error tracking.
 
 ### Core Components
 
-**Tool Registration:** 17 tools registered via `register_mcp_tools()` using FastMCP decorators.
+**Sentry Initialization:** `init_sentry()` called early in server startup, configures:
+- Anthropic AI integration with input/output recording
+- Service tagging for unified dashboard filtering
+- Environment-based sampling rates
+- before_send hook for global tags
+
+**Tool Registration:** 18 tools registered via `register_mcp_tools()` using FastMCP decorators.
 
 **Execution Paths:**
 - Non-streaming: `run_ast_grep()` → `subprocess.run()`
@@ -233,13 +316,20 @@ Entire server in `main.py` (~3588 lines). Includes logging, streaming, caching, 
 
 **Caching:** LRU cache with TTL for `find_code` and `find_code_by_rule`. Config: `--cache-size N` (default 100), `--cache-ttl SECONDS` (default 300).
 
-**Logging:** Structured JSON via structlog to stderr. Config: `--log-level`, `--log-file`. Key events: tool_invoked, tool_completed, cache_hit/miss.
+**Logging:** Structured JSON via structlog to stderr. Config: `--log-level`, `--log-file`. Key events: tool_invoked, tool_completed, cache_hit/miss, sentry_error_captured.
 
 ### Testing Architecture
 
 **MockFastMCP pattern:** Extracts tools for testing. Unit tests mock subprocess; integration tests use real ast-grep.
 
+**Subprocess Mocking Strategy (Updated 2025-11-17):**
+- **Streaming operations** (scan, find): Mock `subprocess.Popen` with iterable stdout
+- **File modifications** (rewrite): Mock `subprocess.run` for actual file changes
+- Mock processes include proper stderr and wait attributes
+
 **Cache isolation:** Clear `main._query_cache` in `setup_method()` to prevent test interference.
+
+**Edge case coverage:** Dedicated test suite for error paths, environment variables, and graceful degradation.
 
 ## Development Notes
 
@@ -252,6 +342,8 @@ Entire server in `main.py` (~3588 lines). Includes logging, streaming, caching, 
 **YAML rules:** Modern ast-grep requires `kind` field. Add `stopBy: end` to relational rules if no matches found.
 
 **Text format:** Minimizes tokens: `filepath:startline-endline` headers + match text.
+
+**Sentry overhead:** Zero overhead when SENTRY_DSN not set. Minimal overhead when enabled due to async event sending.
 
 ## Standalone Tools
 
@@ -285,3 +377,100 @@ python scripts/run_benchmarks.py --check-regression  # CI regression check
 ```
 
 Tracks: execution time, memory usage, cache hit performance (>10x speedup), early termination, file filtering. Fails CI if >10% performance degradation. See `BENCHMARKING.md`.
+
+## Recent Updates (Updated: 2025-11-17)
+
+### Sentry Error Tracking Integration
+**Commits:** 826529c, 49cbbb6 (2025-11-17)
+
+- Added comprehensive error tracking to all 18 MCP tools
+- Integrated Anthropic AI monitoring for Claude interactions
+- Added performance spans for subprocess, HTTP, and batch operations
+- Created `test_sentry_integration` tool for setup verification
+- Service tagging: All events tagged with `service:ast-grep-mcp`
+- Environment-based sampling: 100% dev, 10% production
+
+**Dependencies:**
+- Added `sentry-sdk[anthropic]>=2.0.0`
+
+**Configuration:**
+- Graceful degradation: Zero overhead when SENTRY_DSN not set
+- Privacy controls: `sendDefaultPii: true` for AI monitoring
+- Performance: Async event sending, minimal runtime impact
+
+### Doppler Secret Management Integration
+**Commit:** d0251da (2025-11-17)
+
+- Migrated from manual environment variables to Doppler
+- Project: `bottleneck`, Config: `dev`
+- Secrets: `SENTRY_DSN`, `SENTRY_ENVIRONMENT`
+- Updated MCP client configuration examples
+- Added `.doppler.yaml` to `.gitignore`
+
+**Benefits:**
+- Centralized secret management
+- Audit logs for access tracking
+- Team collaboration without sharing credentials
+- Easy environment switching
+
+### Comprehensive Documentation
+**Commit:** fb55eba (2025-11-17)
+
+Created extensive documentation (2,190+ lines):
+- **SENTRY-INTEGRATION.md** (765 lines): Complete Sentry guide
+- **DOPPLER-MIGRATION.md** (699 lines): Step-by-step migration guide
+- **README.md** (+167 lines): Quick start and overview updates
+- **dev/CONFIGURATION.md** (+567 lines): Configuration examples and validation
+
+### Test Suite Improvements
+**Commits:** 112b28d, 47303ce, d21ad5c (2025-11-17)
+
+- Added `.coverage` to `.gitignore` for clean git status
+- Created `tests/unit/test_edge_cases.py` (309 lines) covering:
+  - Config validation error paths
+  - Cache environment variable handling
+  - JavaScript validation error handling
+  - Schema.org client HTTP errors
+  - Streaming subprocess cleanup
+- Updated `test_rewrite.py` to properly mock `Popen` for streaming
+- Total test count increased from 248 to 321+ tests
+
+### Breaking Changes
+None. All changes are backward compatible:
+- Sentry integration is opt-in via environment variables
+- Doppler is recommended but not required
+- Existing manual configurations continue to work
+
+### Migration Path
+1. **Optional**: Install Doppler CLI
+2. **Optional**: Configure Doppler secrets
+3. **Optional**: Update MCP client config to use Doppler
+4. **Optional**: Restart MCP client to enable Sentry tracking
+
+All features work without migration - this provides enhanced observability for production deployments.
+
+## Troubleshooting
+
+### Sentry Not Capturing Events
+1. Verify `SENTRY_DSN` is set: `echo $SENTRY_DSN`
+2. Use `test_sentry_integration` tool to verify setup
+3. Check Sentry dashboard for `service:ast-grep-mcp` tag
+4. Review [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md) troubleshooting section
+
+### Doppler Secrets Not Loading
+1. Verify Doppler authentication: `doppler login`
+2. Check project access: `doppler projects`
+3. Verify secrets: `doppler secrets --project bottleneck --config dev`
+4. Review [DOPPLER-MIGRATION.md](DOPPLER-MIGRATION.md) troubleshooting section
+
+### Test Failures
+1. Clear coverage artifacts: `rm .coverage`
+2. Ensure ast-grep installed: `ast-grep --version`
+3. Run specific test file to isolate issue
+4. Check mock configurations for streaming vs run operations
+
+### For More Help
+- **Sentry Issues**: See [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md)
+- **Doppler Issues**: See [DOPPLER-MIGRATION.md](DOPPLER-MIGRATION.md)
+- **Configuration**: See [dev/CONFIGURATION.md](dev/CONFIGURATION.md)
+- **General Setup**: See [README.md](README.md)
