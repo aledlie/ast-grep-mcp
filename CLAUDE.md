@@ -449,6 +449,106 @@ None. All changes are backward compatible:
 
 All features work without migration - this provides enhanced observability for production deployments.
 
+## Repository Structure
+
+### Directory Organization
+
+**Core Files:**
+- `main.py` (151KB, ~4000 lines) - Single-file MCP server with all 18 tools
+- `pyproject.toml` - uv dependency management
+- `uv.lock` - Locked dependencies
+
+**Documentation:**
+- `README.md` - Main project documentation
+- `CLAUDE.md` - This file, Claude Code instructions
+- `SENTRY-INTEGRATION.md` - Sentry setup guide (765 lines)
+- `DOPPLER-MIGRATION.md` - Doppler migration guide (699 lines)
+- `BENCHMARKING.md` - Performance benchmarking guide
+- `ast-grep.mdc` - ast-grep rule writing instructions
+
+**Testing:**
+- `tests/unit/` - 8 test files with mocked subprocess/HTTP calls
+- `tests/integration/` - 2 test files requiring real ast-grep binary
+- Total: 321+ tests with comprehensive edge case coverage
+
+**Scripts:**
+- `scripts/find_duplication.py` - Standalone duplication detection
+- `scripts/run_benchmarks.py` - Performance regression testing
+- `schema-tools.py` - Standalone Schema.org CLI
+- `schema-graph-builder.py` - Entity graph builder
+
+**Development Documentation:**
+- `dev/README.md` - Development workflow guide
+- `dev/CONFIGURATION.md` - Configuration examples (567 lines)
+- `dev/active/` - Active task documentation and planning
+
+### mcp-docs/ Directory
+
+The `mcp-docs/` directory contains reference documentation for 30+ MCP servers available in the ecosystem:
+
+**Purpose:**
+- Catalogs available MCP servers by category (AI/ML, Database, Development Tools, etc.)
+- Each subdirectory contains README.md and schema.json for one MCP server
+- Helps developers understand available MCP integrations
+- Reference for configuring Claude Code with different MCP capabilities
+
+**Categories:**
+- AI/ML: cloudflare-ai-gateway, memory
+- Analytics: cloudflare-radar
+- Authentication: auth0
+- Automation: mcp-cron, scheduler-mcp
+- Database: postgres, redis, supabase
+- Development Tools: ast-grep, git-visualization, github, openapi
+- And 20+ more across various domains
+
+**Maintenance:**
+- Documentation is manually curated
+- Updated when new MCP servers are configured or discovered
+- Not auto-generated - represents ecosystem snapshot
+
+**Decision:** Kept as-is (Phase 2 analysis, 2025-11-18)
+- Provides valuable MCP ecosystem reference
+- Well-organized by category
+- Size (412KB) justified by comprehensive coverage
+- See `dev/active/repository-organization-analyzer/repository-analysis.md` for full analysis
+
+### Repomix Snapshots
+
+The repository includes periodic `repomix-output.xml` files that capture codebase snapshots:
+
+**Locations:**
+- `mcp-docs/repomix-output.xml` - MCP documentation snapshot
+- `tests/repomix-output.xml` - Test suite snapshot
+
+**Purpose:**
+- Provides point-in-time codebase overview
+- Useful for analysis, documentation, and understanding project structure
+- Can be used with code analysis tools and AI assistants
+
+**Refresh Frequency:**
+- **Recommended:** Regenerate after major changes (new features, refactoring)
+- **Minimum:** Monthly for active development
+- **Triggers:** Before releases, after significant architectural changes
+
+**How to Regenerate:**
+```bash
+# Install repomix if not already installed
+npm install -g repomix
+
+# Generate full repository snapshot
+repomix
+
+# Generate specific directory snapshot
+repomix mcp-docs/
+repomix tests/
+```
+
+**Decision:** Kept in repository (Phase 2 analysis, 2025-11-18)
+- Provides valuable context for code analysis
+- Small size relative to benefit (~100KB total)
+- Easily regenerable when outdated
+- Git-trackable for change history
+
 ## Troubleshooting
 
 ### Sentry Not Capturing Events

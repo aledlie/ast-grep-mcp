@@ -791,6 +791,33 @@ You can also add support for custom languages through the `sgconfig.yaml` config
 
 See [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md) for detailed troubleshooting guides.
 
+## Repository Structure
+
+### Key Directories
+
+- **`mcp-docs/`** - Reference documentation for 30+ MCP servers in the ecosystem (AI/ML, databases, development tools, etc.). Helps discover and configure other MCP capabilities alongside ast-grep.
+- **`tests/`** - 321+ comprehensive tests (unit + integration) with edge case coverage
+- **`scripts/`** - Standalone utilities (duplication detection, benchmarking, Schema.org tools)
+- **`dev/`** - Development documentation and active task planning
+
+### Repomix Snapshots
+
+This repository includes `repomix-output.xml` files in `mcp-docs/` and `tests/` directories. These are codebase snapshots useful for analysis and documentation.
+
+**Refresh these snapshots when:**
+- Making major changes (new features, refactoring)
+- Before releases
+- Monthly during active development
+
+**How to regenerate:**
+```bash
+npm install -g repomix  # Install if needed
+repomix mcp-docs/       # Regenerate mcp-docs snapshot
+repomix tests/          # Regenerate tests snapshot
+```
+
+See [CLAUDE.md](CLAUDE.md#repository-structure) for detailed repository structure information.
+
 ## Contributing
 
 This is an experimental project. Issues and pull requests are welcome!
