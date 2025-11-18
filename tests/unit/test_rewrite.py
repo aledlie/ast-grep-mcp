@@ -78,24 +78,30 @@ class TestRewriteCode:
         assert "rewrite_code" in main.mcp.tools
         assert callable(main.mcp.tools["rewrite_code"])
 
-    @patch("subprocess.run")
-    def test_rewrite_code_dry_run_mode(self, mock_run: Mock) -> None:
+    @patch("subprocess.Popen")
+    def test_rewrite_code_dry_run_mode(self, mock_popen: Mock) -> None:
         """Test rewrite_code in dry-run mode (preview only)."""
-        # Mock ast-grep output showing potential changes
-        mock_run.return_value = Mock(
-            returncode=0,
-            stdout=json.dumps({
+        # Mock ast-grep streaming output showing potential changes
+        # The streaming format puts replacement directly in the match object
+        mock_process = Mock()
+        mock_process.stdout = [
+            json.dumps({
                 "file": self.test_file,
-                "diffs": [
-                    {
-                        "replacement": "print(\"hello\")",
-                        "old_text": "print('hello')",
-                        "start": {"line": 2, "column": 4},
-                        "end": {"line": 2, "column": 19}
-                    }
-                ]
+                "text": "print('hello')",
+                "replacement": "print(\"hello\")",
+                "range": {
+                    "start": {"line": 2, "column": 4},
+                    "end": {"line": 2, "column": 19}
+                },
+                "ruleId": "quote-style"
             })
-        )
+        ]
+        mock_process.returncode = 0
+        mock_stderr = Mock()
+        mock_stderr.read.return_value = ""
+        mock_process.stderr = mock_stderr
+        mock_process.wait.return_value = 0
+        mock_popen.return_value = mock_process
 
         yaml_rule = """
 id: quote-style
@@ -531,7 +537,8 @@ class TestRewriteIntegration:
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("subprocess.run")
-    def test_full_rewrite_workflow(self, mock_run: Mock) -> None:
+    @patch("subprocess.Popen")
+    def test_full_rewrite_workflow(self, mock_popen: Mock, mock_run: Mock) -> None:
         """Test complete workflow: preview -> rewrite with backup -> list backups."""
         yaml_rule = """
 id: quote-style
@@ -541,14 +548,46 @@ rule:
 fix: print("$MSG")
 """
 
-        # Step 1: Dry-run preview
-        mock_run.return_value = Mock(
-            returncode=0,
-            stdout=json.dumps({
+        # Step 1: Dry-run preview - mock streaming output
+        # The streaming format puts replacement directly in the match object
+        mock_process1 = Mock()
+        mock_process1.stdout = [
+            json.dumps({
                 "file": self.test_file,
-                "diffs": [{"replacement": 'print("hello")', "old_text": "print('hello')"}]
+                "text": "print('hello')",
+                "replacement": 'print("hello")',
+                "range": {"start": {"line": 2}, "end": {"line": 2}},
+                "ruleId": "quote-style"
             })
-        )
+        ]
+        mock_process1.returncode = 0
+        mock_stderr1 = Mock()
+        mock_stderr1.read.return_value = ""
+        mock_process1.stderr = mock_stderr1
+        mock_process1.wait.return_value = 0
+
+        # Step 2: Apply rewrite - mock streaming output for scan + run for actual rewrite
+        mock_process2 = Mock()
+        mock_process2.stdout = [
+            json.dumps({
+                "file": self.test_file,
+                "text": "print('hello')",
+                "replacement": 'print("hello")',
+                "range": {"start": {"line": 2}, "end": {"line": 2}},
+                "ruleId": "quote-style"
+            })
+        ]
+        mock_process2.returncode = 0
+        mock_stderr2 = Mock()
+        mock_stderr2.read.return_value = ""
+        mock_process2.stderr = mock_stderr2
+        mock_process2.wait.return_value = 0
+
+        # For the actual rewrite, mock subprocess.run for the ast-grep scan --update-all
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+
+        # Popen is used for streaming, run is used for actual rewrite
+        mock_popen.side_effect = [mock_process1, mock_process2]
 
         preview_result = self.rewrite_code(
             project_folder=self.project_folder,
@@ -559,12 +598,7 @@ fix: print("$MSG")
         assert preview_result["dry_run"] is True
         assert len(preview_result["changes"]) > 0
 
-        # Step 2: Apply rewrite with backup
-        mock_run.side_effect = [
-            Mock(returncode=0, stdout=json.dumps({"file": self.test_file, "diffs": []})),
-            Mock(returncode=0, stdout="")
-        ]
-
+        # Apply rewrite with backup
         with patch("main.create_backup") as mock_backup:
             mock_backup.return_value = "backup-test-123"
 
