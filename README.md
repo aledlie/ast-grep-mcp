@@ -69,10 +69,58 @@ This is useful for quickly trying out the server without cloning the repository.
 
 ## Configuration
 
-### For Cursor
+### Option 1: With Doppler (Recommended)
 
-Add to your MCP settings (usually in `.cursor-mcp/settings.json`):
+For production deployments with Sentry error tracking:
 
+**Cursor** (`.cursor-mcp/settings.json`):
+```json
+{
+  "mcpServers": {
+    "ast-grep": {
+      "command": "doppler",
+      "args": [
+        "run",
+        "--project", "bottleneck",
+        "--config", "dev",
+        "--command",
+        "uv --directory /absolute/path/to/ast-grep-mcp run main.py"
+      ]
+    }
+  }
+}
+```
+
+**Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "ast-grep": {
+      "command": "doppler",
+      "args": [
+        "run",
+        "--project", "bottleneck",
+        "--config", "dev",
+        "--command",
+        "uv --directory /absolute/path/to/ast-grep-mcp run main.py"
+      ]
+    }
+  }
+}
+```
+
+**Benefits:**
+- Centralized secret management (no hardcoded credentials)
+- Easy environment switching (dev/staging/production configs)
+- Automatic secret rotation support
+- Audit logs for secret access
+- Team collaboration with role-based access
+
+### Option 2: Manual Configuration (No Monitoring)
+
+For local development without error tracking:
+
+**Cursor/Claude Desktop**:
 ```json
 {
   "mcpServers": {
@@ -85,17 +133,21 @@ Add to your MCP settings (usually in `.cursor-mcp/settings.json`):
 }
 ```
 
-### For Claude Desktop
+### Option 3: Manual Configuration with Sentry
 
-Add to your Claude Desktop MCP configuration:
+If you want Sentry monitoring without Doppler:
 
+**Cursor/Claude Desktop**:
 ```json
 {
   "mcpServers": {
     "ast-grep": {
       "command": "uv",
       "args": ["--directory", "/absolute/path/to/ast-grep-mcp", "run", "main.py"],
-      "env": {}
+      "env": {
+        "SENTRY_DSN": "https://your-sentry-dsn@sentry.io/project-id",
+        "SENTRY_ENVIRONMENT": "production"
+      }
     }
   }
 }
@@ -119,9 +171,54 @@ You can add it to your cursor rule or Claude.md, and attach it when you need AI 
 
 The prompt will ask LLM to use MCP to create, verify and improve the rule it creates.
 
+## Error Tracking and Monitoring
+
+This MCP server includes optional Sentry integration for production error tracking, performance monitoring, and AI agent interaction analysis.
+
+### Sentry Features
+
+- **Comprehensive Error Tracking**: Captures all subprocess errors, API failures, and validation errors across all 18 MCP tools
+- **Performance Monitoring**: Transaction traces for slow operations, subprocess execution spans, and batch operation profiling
+- **AI Interaction Monitoring**: Tracks Claude AI prompts, responses, and token usage (requires Anthropic SDK integration)
+- **Rich Context**: Every error includes tool name, parameters, execution time, and full stack traces
+- **Service Tagging**: All events tagged with `service:ast-grep-mcp` for easy filtering in Sentry dashboard
+
+### Quick Setup with Doppler (Recommended)
+
+This project uses [Doppler](https://www.doppler.com/) for secure secret management:
+
+```bash
+# 1. Install Doppler CLI
+brew install dopplerhq/cli/doppler  # macOS
+# or: curl -Ls https://cli.doppler.com/install.sh | sh
+
+# 2. Authenticate with Doppler
+doppler login
+
+# 3. Verify configuration (project: bottleneck, config: dev)
+doppler secrets --project bottleneck --config dev
+
+# 4. Set your Sentry DSN in Doppler
+doppler secrets set SENTRY_DSN="your-sentry-dsn" --project bottleneck --config dev
+```
+
+See [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md) for detailed setup and configuration.
+See [DOPPLER-MIGRATION.md](DOPPLER-MIGRATION.md) for migrating from manual environment variables.
+
+### Manual Setup (Alternative)
+
+If you prefer not to use Doppler, you can set environment variables directly:
+
+```bash
+export SENTRY_DSN="your-sentry-dsn"
+export SENTRY_ENVIRONMENT="production"  # or "development"
+```
+
+**Note**: Sentry is completely optional. If `SENTRY_DSN` is not configured, the server runs with zero monitoring overhead.
+
 ## Features
 
-The server provides 13 tools across two domains:
+The server provides 18 tools across three domains:
 
 ### Code Analysis Tools (ast-grep)
 
@@ -197,6 +294,37 @@ Detect duplicate code and suggest modularization based on DRY (Don't Repeat Your
 - Get quantified metrics on code duplication (lines duplicated, potential savings)
 - Receive actionable refactoring suggestions to eliminate duplication
 - Enforce DRY principles during code review
+
+### 🧪 `test_sentry_integration`
+Test and verify Sentry error tracking configuration. This tool helps ensure your Sentry setup is working correctly.
+
+**Returns:**
+- Sentry connection status (enabled/disabled)
+- Current configuration (DSN status, environment, sample rates)
+- Test error capture result
+- Instructions for viewing captured errors in Sentry dashboard
+
+**Use cases:**
+- Verify Sentry DSN is configured correctly
+- Test error capture before deploying to production
+- Debug Sentry integration issues
+- Confirm monitoring is active
+
+**Example:**
+```
+test_sentry_integration()
+→ {
+  "sentry_enabled": true,
+  "configuration": {
+    "dsn_configured": true,
+    "environment": "development",
+    "traces_sample_rate": 1.0
+  },
+  "test_result": "success",
+  "message": "Test error captured successfully. Check your Sentry dashboard.",
+  "dashboard_url": "https://sentry.io/organizations/your-org/issues/"
+}
+```
 
 ### Schema.org Tools
 
@@ -635,6 +763,33 @@ You can also add support for custom languages through the `sgconfig.yaml` config
 2. **No matches found**: Try adding `stopBy: end` to relational rules
 3. **Pattern not matching**: Use `dump_syntax_tree` to understand the AST structure
 4. **Permission errors**: Ensure the server has read access to target directories
+
+### Sentry/Doppler Issues
+
+5. **Sentry not capturing errors**:
+   - Run `test_sentry_integration()` tool to verify configuration
+   - Check `SENTRY_DSN` environment variable is set correctly
+   - Verify Sentry project is active in your Sentry dashboard
+   - Check server logs for Sentry initialization messages
+
+6. **Doppler authentication failures**:
+   - Ensure Doppler CLI is installed: `doppler --version`
+   - Authenticate: `doppler login`
+   - Verify project access: `doppler projects`
+   - Check secrets: `doppler secrets --project bottleneck --config dev`
+
+7. **MCP server not starting with Doppler**:
+   - Test Doppler command manually: `doppler run --project bottleneck --config dev -- uv run main.py`
+   - Check `.doppler.yaml` exists in project root
+   - Verify `uv` is in PATH when running via Doppler
+   - Check MCP client logs for specific error messages
+
+8. **Sentry capturing too many events (costs)**:
+   - Reduce `traces_sample_rate` in production (default: 0.1 = 10%)
+   - Add custom error filters in Sentry project settings
+   - Use environment-specific configurations (dev: 100%, prod: 10%)
+
+See [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md) for detailed troubleshooting guides.
 
 ## Contributing
 
