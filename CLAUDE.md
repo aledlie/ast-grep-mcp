@@ -26,8 +26,8 @@ doppler run -- uv run main.py
 
 # Standalone tools
 uv run python scripts/find_duplication.py /path/to/project --language python
-uv run python schema-tools.py search "article"
-python3 schema-graph-builder.py ~/path/to/schemas https://example.com
+uv run python scripts/schema-tools.py search "article"
+python3 scripts/schema-graph-builder.py ~/path/to/schemas https://example.com
 ```
 
 ## Project Overview
@@ -347,17 +347,17 @@ Entire server in `main.py` (~4000 lines). Includes logging, streaming, caching, 
 
 ## Standalone Tools
 
-**schema-tools.py** - Quick Schema.org lookups without MCP server:
+**scripts/schema-tools.py** - Quick Schema.org lookups without MCP server:
 ```bash
-uv run python schema-tools.py search "article"
-uv run python schema-tools.py type Person
-uv run python schema-tools.py properties Organization --json
+uv run python scripts/schema-tools.py search "article"
+uv run python scripts/schema-tools.py type Person
+uv run python scripts/schema-tools.py properties Organization --json
 ```
 See `SCHEMA-TOOLS-README.md` for details.
 
-**schema-graph-builder.py** - Build unified entity graphs from JSON files:
+**scripts/schema-graph-builder.py** - Build unified entity graphs from JSON files:
 ```bash
-python3 schema-graph-builder.py ~/path/to/schemas https://example.com
+python3 scripts/schema-graph-builder.py ~/path/to/schemas https://example.com
 ```
 Outputs: `unified-entity-graph.json`, analysis files, validation reports. See `SCHEMA-GRAPH-BUILDER-README.md`.
 
@@ -519,12 +519,12 @@ All features work without migration - this provides enhanced observability for p
 **Scripts:**
 - `scripts/find_duplication.py` - Standalone duplication detection
 - `scripts/run_benchmarks.py` - Performance regression testing
-- `schema-tools.py` - Standalone Schema.org CLI
-- `schema-graph-builder.py` - Entity graph builder
+- `scripts/schema-tools.py` - Standalone Schema.org CLI
+- `scripts/schema-graph-builder.py` - Entity graph builder
 
 **Development Documentation:**
 - `dev/README.md` - Development workflow guide
-- `dev/CONFIGURATION.md` - Configuration examples (567 lines)
+- `CONFIGURATION.md` - Configuration examples (567 lines)
 - `dev/active/` - Active task documentation and planning
   - `repository-organization-analyzer/` - Current repository analysis and cleanup decisions
 
@@ -621,5 +621,5 @@ repomix tests/
 ### For More Help
 - **Sentry Issues**: See [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md)
 - **Doppler Issues**: See [DOPPLER-MIGRATION.md](DOPPLER-MIGRATION.md)
-- **Configuration**: See [dev/CONFIGURATION.md](dev/CONFIGURATION.md)
+- **Configuration**: See [CONFIGURATION.md](CONFIGURATION.md)
 - **General Setup**: See [README.md](README.md)
