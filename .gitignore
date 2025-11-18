@@ -14,3 +14,4 @@ wheels/
 
 # Repomix output files
 repomix-output.xml
+.doppler.yaml

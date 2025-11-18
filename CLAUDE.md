@@ -51,7 +51,22 @@ MCP server combining ast-grep's structural code search/rewrite with Schema.org t
 
 The MCP server includes Sentry error tracking with Anthropic AI integration for monitoring production errors and AI agent interactions.
 
-**Setup:**
+**Setup with Doppler (Recommended):**
+
+This project is configured to use Doppler for secret management:
+
+```bash
+# Project is already set up (see .doppler.yaml)
+# Secrets are stored in: bottleneck/dev
+
+# Verify secrets are configured
+doppler secrets --project bottleneck --config dev | grep SENTRY
+
+# Run MCP server with Doppler
+doppler run -- uv run main.py
+```
+
+**Manual Setup (Alternative):**
 
 ```bash
 # Add to your environment or MCP client configuration
@@ -83,6 +98,34 @@ export SENTRY_ENVIRONMENT="production"  # or "development"
 - Consider using separate Sentry project for AI-heavy workloads
 
 ## MCP Client Configuration
+
+### Option 1: With Doppler (Recommended)
+
+Add to `.cursor-mcp/settings.json` or Claude Desktop:
+```json
+{
+  "mcpServers": {
+    "ast-grep": {
+      "command": "doppler",
+      "args": [
+        "run",
+        "--project", "bottleneck",
+        "--config", "dev",
+        "--command",
+        "uv --directory /absolute/path/to/ast-grep-mcp run main.py"
+      ]
+    }
+  }
+}
+```
+
+**Benefits:**
+- Secrets managed centrally in Doppler (no hardcoded credentials)
+- Easy environment switching (dev/stg/prd configs)
+- Automatic secret rotation
+- Audit logs for secret access
+
+### Option 2: Manual Configuration
 
 Add to `.cursor-mcp/settings.json` or Claude Desktop:
 ```json
