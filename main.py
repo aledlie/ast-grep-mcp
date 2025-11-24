@@ -2419,6 +2419,303 @@ def register_mcp_tools() -> None:  # pragma: no cover
             sentry_sdk.capture_exception(e)
             raise
 
+    # Phase 4.1: Deduplication Analysis with Prioritization
+    @mcp.tool()
+    def analyze_deduplication_candidates(
+        project_path: str = Field(description="The absolute path to the project folder to analyze"),
+        language: str = Field(description=f"The target language. Supported: {', '.join(get_supported_languages())}"),
+        min_similarity: float = Field(
+            default=0.8,
+            description="Minimum similarity threshold (0.0-1.0) to consider as duplicate. Default: 0.8"
+        ),
+        include_test_coverage: bool = Field(
+            default=True,
+            description="Whether to check test coverage for prioritization. Default: true"
+        ),
+        min_lines: int = Field(
+            default=5,
+            description="Minimum number of lines to consider for duplication. Default: 5"
+        ),
+        max_candidates: int = Field(
+            default=100,
+            description="Maximum number of candidates to return. Default: 100"
+        ),
+        exclude_patterns: List[str] = Field(
+            default_factory=lambda: ["site-packages", "node_modules", ".venv", "venv", "vendor", "__pycache__", ".git"],
+            description="Path patterns to exclude from analysis"
+        ),
+    ) -> Dict[str, Any]:
+        """
+        Analyze a project for deduplication candidates and return ranked results.
+
+        This tool extends find_duplication by:
+        1. Scoring duplicates by complexity, frequency, and maintainability impact
+        2. Optionally checking test coverage to prioritize well-tested code
+        3. Ranking candidates by refactoring value (highest savings + lowest risk first)
+        4. Providing actionable recommendations for each candidate group
+
+        Returns:
+        - candidates: List of duplicate groups with scores and rankings
+        - total_groups: Number of duplication groups found
+        - total_savings_potential: Total lines that could be saved
+        - analysis_metadata: Timing and configuration info
+
+        Example:
+          analyze_deduplication_candidates(
+              project_path="/path/to/project",
+              language="python",
+              min_similarity=0.85,
+              include_test_coverage=True
+          )
+        """
+        logger = get_logger("tool.analyze_deduplication_candidates")
+        start_time = time.time()
+
+        logger.info(
+            "tool_invoked",
+            tool="analyze_deduplication_candidates",
+            project_path=project_path,
+            language=language,
+            min_similarity=min_similarity,
+            include_test_coverage=include_test_coverage,
+            min_lines=min_lines,
+            max_candidates=max_candidates
+        )
+
+        try:
+            # Validate parameters
+            if not os.path.isdir(project_path):
+                raise ValueError(f"Project path does not exist: {project_path}")
+
+            if min_similarity < 0.0 or min_similarity > 1.0:
+                raise ValueError("min_similarity must be between 0.0 and 1.0")
+
+            if min_lines < 1:
+                raise ValueError("min_lines must be at least 1")
+
+            if max_candidates < 1:
+                raise ValueError("max_candidates must be at least 1")
+
+            # Map language to construct patterns
+            construct_patterns = {
+                "function_definition": "def $NAME($$$)",
+                "class_definition": "class $NAME",
+                "method_definition": "def $NAME($$$)"
+            }
+
+            # Language-specific patterns
+            if language.lower() in ["javascript", "typescript", "jsx", "tsx"]:
+                construct_patterns["function_definition"] = "function $NAME($$$) { $$$ }"
+                construct_patterns["method_definition"] = "$NAME($$$) { $$$ }"
+            elif language.lower() in ["java", "csharp", "cpp", "c"]:
+                construct_patterns["function_definition"] = "$TYPE $NAME($$$) { $$$ }"
+                construct_patterns["method_definition"] = "$TYPE $NAME($$$) { $$$ }"
+
+            pattern = construct_patterns["function_definition"]
+
+            logger.info(
+                "searching_constructs",
+                pattern=pattern,
+                language=language
+            )
+
+            # Find all function constructs using ast-grep streaming
+            args = ["--pattern", pattern, "--lang", language]
+            all_matches = list(stream_ast_grep_results(
+                "run",
+                args + ["--json=stream", project_path],
+                max_results=0,  # Get all matches
+                progress_interval=100
+            ))
+
+            # Filter excluded paths
+            if exclude_patterns:
+                matches_before = len(all_matches)
+                all_matches = [
+                    match for match in all_matches
+                    if not any(pat in match.get('file', '') for pat in exclude_patterns)
+                ]
+                logger.info(
+                    "excluded_matches",
+                    total_before=matches_before,
+                    total_after=len(all_matches),
+                    excluded_count=matches_before - len(all_matches)
+                )
+
+            if not all_matches:
+                execution_time = time.time() - start_time
+                logger.info(
+                    "tool_completed",
+                    tool="analyze_deduplication_candidates",
+                    execution_time_seconds=round(execution_time, 3),
+                    total_constructs=0,
+                    status="success"
+                )
+                return {
+                    "candidates": [],
+                    "total_groups": 0,
+                    "total_savings_potential": 0,
+                    "analysis_metadata": {
+                        "project_path": project_path,
+                        "language": language,
+                        "total_constructs_analyzed": 0,
+                        "analysis_time_seconds": round(execution_time, 3),
+                        "min_similarity": min_similarity,
+                        "include_test_coverage": include_test_coverage
+                    },
+                    "message": "No function definitions found in the project"
+                }
+
+            # Group duplicates using existing algorithm
+            logger.info(
+                "analyzing_similarity",
+                total_matches=len(all_matches),
+                min_similarity=min_similarity
+            )
+
+            duplication_groups = group_duplicates(all_matches, min_similarity, min_lines)
+
+            # Score and rank candidates
+            candidates: List[Dict[str, Any]] = []
+            total_savings = 0
+
+            for idx, group in enumerate(duplication_groups):
+                if len(group) < 2:
+                    continue
+
+                # Calculate metrics for this group
+                group_lines = sum(
+                    (match.get('range', {}).get('end', {}).get('line', 0) -
+                     match.get('range', {}).get('start', {}).get('line', 0) + 1)
+                    for match in group
+                )
+
+                avg_lines = group_lines // len(group) if group else 0
+                savings = group_lines - avg_lines  # Keep one instance
+
+                # Calculate similarity score for the group
+                if len(group) >= 2:
+                    similarity = calculate_similarity(
+                        group[0].get('text', ''),
+                        group[1].get('text', '')
+                    )
+                else:
+                    similarity = 1.0
+
+                # Complexity score (based on code length as proxy)
+                complexity_score = min(avg_lines / 50.0, 1.0)  # Normalize to 0-1
+
+                # Frequency score (more instances = higher value)
+                frequency_score = min(len(group) / 10.0, 1.0)  # Normalize to 0-1
+
+                # Combined priority score (higher = better candidate)
+                priority_score = (
+                    similarity * 0.3 +
+                    complexity_score * 0.3 +
+                    frequency_score * 0.2 +
+                    (savings / 100.0) * 0.2  # Normalize savings contribution
+                )
+
+                # Format instances
+                instances: List[Dict[str, Any]] = []
+                files_affected: List[str] = []
+
+                for match in group:
+                    file_path = match.get('file', '')
+                    start_line = match.get('range', {}).get('start', {}).get('line', 0) + 1
+                    end_line = match.get('range', {}).get('end', {}).get('line', 0) + 1
+
+                    instances.append({
+                        "file": file_path,
+                        "start_line": start_line,
+                        "end_line": end_line,
+                        "lines": f"{start_line}-{end_line}",
+                        "code_preview": match.get('text', '')[:300]
+                    })
+
+                    if file_path not in files_affected:
+                        files_affected.append(file_path)
+
+                candidate: Dict[str, Any] = {
+                    "group_id": idx + 1,
+                    "priority_score": round(priority_score, 3),
+                    "similarity_score": round(similarity, 3),
+                    "instance_count": len(group),
+                    "total_lines": group_lines,
+                    "avg_lines_per_instance": avg_lines,
+                    "potential_savings": savings,
+                    "files_affected": files_affected,
+                    "instances": instances,
+                    "recommendation": _generate_dedup_recommendation(
+                        similarity, len(group), avg_lines, savings
+                    )
+                }
+
+                # Add test coverage info if requested
+                if include_test_coverage:
+                    candidate["test_coverage"] = {
+                        "status": "not_implemented",
+                        "note": "Test coverage analysis will be implemented in Phase 4.2"
+                    }
+
+                candidates.append(candidate)
+                total_savings += savings
+
+            # Sort by priority score (highest first) and limit results
+            candidates.sort(key=lambda x: x["priority_score"], reverse=True)
+            candidates = candidates[:max_candidates]
+
+            # Add rank to each candidate
+            for rank, candidate in enumerate(candidates, 1):
+                candidate["rank"] = rank
+
+            execution_time = time.time() - start_time
+
+            logger.info(
+                "tool_completed",
+                tool="analyze_deduplication_candidates",
+                execution_time_seconds=round(execution_time, 3),
+                total_constructs=len(all_matches),
+                total_groups=len(candidates),
+                total_savings=total_savings,
+                status="success"
+            )
+
+            return {
+                "candidates": candidates,
+                "total_groups": len(candidates),
+                "total_savings_potential": total_savings,
+                "analysis_metadata": {
+                    "project_path": project_path,
+                    "language": language,
+                    "total_constructs_analyzed": len(all_matches),
+                    "analysis_time_seconds": round(execution_time, 3),
+                    "min_similarity": min_similarity,
+                    "min_lines": min_lines,
+                    "include_test_coverage": include_test_coverage,
+                    "max_candidates": max_candidates
+                },
+                "message": f"Found {len(candidates)} deduplication candidate(s) with potential to save {total_savings} lines"
+            }
+
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(
+                "tool_failed",
+                tool="analyze_deduplication_candidates",
+                execution_time_seconds=round(execution_time, 3),
+                error=str(e)[:200],
+                status="failed"
+            )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "analyze_deduplication_candidates",
+                "project_path": project_path,
+                "language": language,
+                "min_similarity": min_similarity,
+                "execution_time_seconds": round(execution_time, 3)
+            })
+            raise
+
     # Schema.org Tools
     @mcp.tool()
     def get_schema_type(
@@ -3658,6 +3955,40 @@ def calculate_similarity(code1: str, code2: str) -> float:
     # Use difflib SequenceMatcher for similarity
     matcher = difflib.SequenceMatcher(None, norm1, norm2)
     return matcher.ratio()
+
+
+def _generate_dedup_recommendation(
+    similarity: float,
+    instance_count: int,
+    avg_lines: int,
+    savings: int
+) -> str:
+    """Generate a human-readable recommendation for a deduplication candidate.
+
+    Args:
+        similarity: Similarity score (0-1)
+        instance_count: Number of duplicate instances
+        avg_lines: Average lines per instance
+        savings: Potential lines to save
+
+    Returns:
+        Recommendation string
+    """
+    if similarity >= 0.95:
+        if instance_count >= 5:
+            return f"HIGH PRIORITY: Nearly identical code ({instance_count} instances). Extract to shared utility - saves {savings} lines."
+        elif instance_count >= 3:
+            return f"RECOMMENDED: Very similar code ({instance_count} instances). Good candidate for extraction - saves {savings} lines."
+        else:
+            return f"Consider extracting this duplicate code to a shared function - saves {savings} lines."
+    elif similarity >= 0.85:
+        if avg_lines >= 20:
+            return (f"MODERATE: Similar code blocks ({instance_count} instances, ~{avg_lines} lines each). "
+                    f"Consider parameterized extraction - saves {savings} lines.")
+        else:
+            return f"Similar code detected. May benefit from extraction with parameters - saves {savings} lines."
+    else:
+        return f"Partial similarity detected ({instance_count} instances). Review for potential abstraction - could save {savings} lines."
 
 
 # Variation Classification Types
@@ -13433,6 +13764,510 @@ def _plan_file_modification_order(
     return plan
 
 
+# ============================================================================
+# Phase 4.4: Impact Analysis for Deduplication
+# ============================================================================
+
+def analyze_deduplication_impact(
+    duplicate_group: dict,
+    project_root: str,
+    language: str
+) -> dict:
+    """Analyze the impact of applying deduplication to a duplicate group.
+
+    Uses ast-grep to find external references to the duplicated code and
+    assesses breaking change risks.
+
+    Args:
+        duplicate_group: A duplication group from find_duplication results containing:
+            - locations: List of file:line-range strings
+            - sample_code: Representative code sample
+            - duplicate_count: Number of instances
+            - lines_per_duplicate: Lines in each instance
+        project_root: Absolute path to project root
+        language: Programming language
+
+    Returns:
+        Impact analysis with:
+        - files_affected: Number of files that would be modified
+        - lines_changed: Dict with additions and deletions estimates
+        - external_call_sites: List of locations calling the duplicated code
+        - breaking_change_risk: Dict with risk level and factors
+    """
+    logger = get_logger("duplication.impact_analysis")
+
+    locations = duplicate_group.get("locations", [])
+    sample_code = duplicate_group.get("sample_code", "")
+    duplicate_count = duplicate_group.get("duplicate_count", 0)
+    lines_per_duplicate = duplicate_group.get("lines_per_duplicate", 0)
+
+    # Parse locations to get file paths and line ranges
+    files_in_group = []
+    for loc in locations:
+        if ":" in loc:
+            file_path = loc.split(":")[0]
+            if file_path not in files_in_group:
+                files_in_group.append(file_path)
+
+    # Extract function/class names from sample code
+    function_names = _extract_function_names_from_code(sample_code, language)
+
+    logger.info(
+        "impact_analysis_start",
+        duplicate_count=duplicate_count,
+        files_in_group=len(files_in_group),
+        function_names=function_names[:5] if function_names else []
+    )
+
+    # Find external call sites using ast-grep
+    external_call_sites = _find_external_call_sites(
+        function_names=function_names,
+        project_root=project_root,
+        language=language,
+        exclude_files=files_in_group
+    )
+
+    # Find imports of the duplicated code
+    import_sites = _find_import_references(
+        function_names=function_names,
+        project_root=project_root,
+        language=language,
+        exclude_files=files_in_group
+    )
+
+    # Combine call sites and imports
+    all_external_refs = external_call_sites + import_sites
+
+    # Estimate lines changed
+    lines_changed = _estimate_lines_changed(
+        duplicate_count=duplicate_count,
+        lines_per_duplicate=lines_per_duplicate,
+        external_call_sites=len(all_external_refs)
+    )
+
+    # Assess breaking change risk
+    breaking_change_risk = _assess_breaking_change_risk(
+        function_names=function_names,
+        files_in_group=files_in_group,
+        external_call_sites=all_external_refs,
+        project_root=project_root,
+        language=language
+    )
+
+    # Calculate files affected
+    files_affected = len(files_in_group)
+    external_files = set()
+    for site in all_external_refs:
+        if "file" in site:
+            external_files.add(site["file"])
+    files_affected += len(external_files)
+
+    result = {
+        "files_affected": files_affected,
+        "lines_changed": lines_changed,
+        "external_call_sites": all_external_refs,
+        "breaking_change_risk": breaking_change_risk
+    }
+
+    logger.info(
+        "impact_analysis_complete",
+        files_affected=files_affected,
+        external_references=len(all_external_refs),
+        risk_level=breaking_change_risk.get("level", "unknown")
+    )
+
+    return result
+
+
+def _extract_function_names_from_code(code: str, language: str) -> List[str]:
+    """Extract function/method/class names from code sample.
+
+    Args:
+        code: Code sample to analyze
+        language: Programming language
+
+    Returns:
+        List of extracted names
+    """
+    names = []
+
+    if not code:
+        return names
+
+    lang = language.lower()
+
+    # Language-specific patterns for extracting names
+    if lang == "python":
+        # Match: def function_name( or class ClassName
+        import re
+        func_matches = re.findall(r'\bdef\s+(\w+)\s*\(', code)
+        class_matches = re.findall(r'\bclass\s+(\w+)', code)
+        names.extend(func_matches)
+        names.extend(class_matches)
+
+    elif lang in ("javascript", "typescript", "jsx", "tsx"):
+        import re
+        # Match: function name( or const name = or name( { for methods
+        func_matches = re.findall(r'\bfunction\s+(\w+)\s*\(', code)
+        arrow_matches = re.findall(r'\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>', code)
+        method_matches = re.findall(r'^\s*(\w+)\s*\([^)]*\)\s*\{', code, re.MULTILINE)
+        names.extend(func_matches)
+        names.extend(arrow_matches)
+        names.extend(method_matches)
+
+    elif lang in ("java", "csharp", "cpp", "c"):
+        import re
+        # Match: returnType methodName( or class ClassName
+        method_matches = re.findall(r'\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{', code)
+        class_matches = re.findall(r'\bclass\s+(\w+)', code)
+        names.extend(method_matches)
+        names.extend(class_matches)
+
+    elif lang == "go":
+        import re
+        # Match: func FunctionName( or func (r *Receiver) MethodName(
+        func_matches = re.findall(r'\bfunc\s+(?:\([^)]*\)\s+)?(\w+)\s*\(', code)
+        names.extend(func_matches)
+
+    elif lang == "rust":
+        import re
+        # Match: fn function_name( or struct StructName
+        func_matches = re.findall(r'\bfn\s+(\w+)\s*[<(]', code)
+        struct_matches = re.findall(r'\bstruct\s+(\w+)', code)
+        names.extend(func_matches)
+        names.extend(struct_matches)
+
+    # Deduplicate and filter common words
+    filtered_names = []
+    seen = set()
+    common_words = {"new", "get", "set", "if", "for", "while", "return", "main", "init", "test"}
+
+    for name in names:
+        if name and name not in seen and name.lower() not in common_words:
+            seen.add(name)
+            filtered_names.append(name)
+
+    return filtered_names
+
+
+def _find_external_call_sites(
+    function_names: List[str],
+    project_root: str,
+    language: str,
+    exclude_files: List[str]
+) -> List[dict]:
+    """Find call sites for functions outside the duplicate locations.
+
+    Uses ast-grep to search for function calls.
+
+    Args:
+        function_names: Names of functions to search for
+        project_root: Project root path
+        language: Programming language
+        exclude_files: Files to exclude (contain the duplicates)
+
+    Returns:
+        List of call site info dicts with file, line, column, context
+    """
+    call_sites = []
+
+    if not function_names:
+        return call_sites
+
+    lang = language.lower()
+
+    for func_name in function_names[:10]:  # Limit to prevent too many searches
+        # Build call pattern based on language
+        if lang == "python":
+            pattern = f"{func_name}($$$)"
+        elif lang in ("javascript", "typescript", "jsx", "tsx"):
+            pattern = f"{func_name}($$$)"
+        elif lang in ("java", "csharp"):
+            pattern = f"{func_name}($$$)"
+        elif lang == "go":
+            pattern = f"{func_name}($$$)"
+        elif lang == "rust":
+            pattern = f"{func_name}($$$)"
+        else:
+            pattern = f"{func_name}($$$)"
+
+        try:
+            # Run ast-grep to find call sites
+            args = ["--pattern", pattern, "--lang", language, "--json", project_root]
+            result = run_ast_grep("run", args)
+
+            if result.returncode == 0 and result.stdout.strip():
+                matches = json.loads(result.stdout)
+
+                for match in matches:
+                    file_path = match.get("file", "")
+
+                    # Skip files containing the duplicates
+                    if file_path in exclude_files:
+                        continue
+
+                    # Make path absolute if needed
+                    if not os.path.isabs(file_path):
+                        file_path = os.path.join(project_root, file_path)
+
+                    call_site = {
+                        "file": file_path,
+                        "line": match.get("range", {}).get("start", {}).get("line", 0) + 1,
+                        "column": match.get("range", {}).get("start", {}).get("column", 0),
+                        "function_called": func_name,
+                        "context": match.get("text", "")[:100],
+                        "type": "function_call"
+                    }
+                    call_sites.append(call_site)
+
+        except (json.JSONDecodeError, subprocess.SubprocessError) as e:
+            # Log but continue with other function names
+            logger = get_logger("duplication.impact_analysis")
+            logger.debug("call_site_search_error", function=func_name, error=str(e))
+            continue
+
+    return call_sites
+
+
+def _find_import_references(
+    function_names: List[str],
+    project_root: str,
+    language: str,
+    exclude_files: List[str]
+) -> List[dict]:
+    """Find import statements that reference the duplicated code.
+
+    Args:
+        function_names: Names to search for in imports
+        project_root: Project root path
+        language: Programming language
+        exclude_files: Files to exclude
+
+    Returns:
+        List of import reference info dicts
+    """
+    import_refs = []
+
+    if not function_names:
+        return import_refs
+
+    lang = language.lower()
+
+    for func_name in function_names[:10]:
+        # Build import pattern based on language
+        if lang == "python":
+            # from module import func_name or import module
+            patterns = [
+                f"from $MODULE import {func_name}",
+                f"from $MODULE import $$$, {func_name}, $$$"
+            ]
+        elif lang in ("javascript", "typescript", "jsx", "tsx"):
+            patterns = [
+                f"import {{ {func_name} }} from $MODULE",
+                f"import {{ $$$, {func_name}, $$$ }} from $MODULE"
+            ]
+        elif lang in ("java",):
+            patterns = [f"import $$$$.{func_name}"]
+        elif lang == "go":
+            # Go imports are package-level, not function-level
+            continue
+        else:
+            continue
+
+        for pattern in patterns:
+            try:
+                args = ["--pattern", pattern, "--lang", language, "--json", project_root]
+                result = run_ast_grep("run", args)
+
+                if result.returncode == 0 and result.stdout.strip():
+                    matches = json.loads(result.stdout)
+
+                    for match in matches:
+                        file_path = match.get("file", "")
+
+                        if file_path in exclude_files:
+                            continue
+
+                        if not os.path.isabs(file_path):
+                            file_path = os.path.join(project_root, file_path)
+
+                        import_ref = {
+                            "file": file_path,
+                            "line": match.get("range", {}).get("start", {}).get("line", 0) + 1,
+                            "column": match.get("range", {}).get("start", {}).get("column", 0),
+                            "imported_name": func_name,
+                            "context": match.get("text", "")[:100],
+                            "type": "import"
+                        }
+                        import_refs.append(import_ref)
+
+            except (json.JSONDecodeError, subprocess.SubprocessError):
+                continue
+
+    return import_refs
+
+
+def _estimate_lines_changed(
+    duplicate_count: int,
+    lines_per_duplicate: int,
+    external_call_sites: int
+) -> dict:
+    """Estimate the number of lines that would change during deduplication.
+
+    Args:
+        duplicate_count: Number of duplicate instances
+        lines_per_duplicate: Lines in each duplicate
+        external_call_sites: Number of external references
+
+    Returns:
+        Dict with additions and deletions estimates
+    """
+    # Deletions: All duplicate code except one instance
+    deletions = (duplicate_count - 1) * lines_per_duplicate
+
+    # Additions:
+    # - One extracted function (slightly more lines due to parameterization)
+    extracted_function_lines = int(lines_per_duplicate * 1.2)
+
+    # - Import statements for each file (1 line per file)
+    import_lines = duplicate_count - 1  # minus the file with the extracted function
+
+    # - Replacement calls (1 line each)
+    replacement_calls = duplicate_count
+
+    # - Updates to external call sites (minimal, usually 0 or 1 line each)
+    external_updates = external_call_sites
+
+    additions = extracted_function_lines + import_lines + replacement_calls + external_updates
+
+    # Net change
+    net_change = additions - deletions
+
+    return {
+        "additions": additions,
+        "deletions": deletions,
+        "net_change": net_change,
+        "breakdown": {
+            "extracted_function": extracted_function_lines,
+            "new_imports": import_lines,
+            "replacement_calls": replacement_calls,
+            "external_call_updates": external_updates
+        }
+    }
+
+
+def _assess_breaking_change_risk(
+    function_names: List[str],
+    files_in_group: List[str],
+    external_call_sites: List[dict],
+    project_root: str,
+    language: str
+) -> dict:
+    """Assess the risk of breaking changes from deduplication.
+
+    Args:
+        function_names: Names of functions being deduplicated
+        files_in_group: Files containing the duplicates
+        external_call_sites: External references found
+        project_root: Project root path
+        language: Programming language
+
+    Returns:
+        Risk assessment with level, factors, and recommendations
+    """
+    risk_factors = []
+    risk_score = 0
+
+    # Factor 1: External call sites exist
+    if external_call_sites:
+        call_count = len([s for s in external_call_sites if s.get("type") == "function_call"])
+        import_count = len([s for s in external_call_sites if s.get("type") == "import"])
+
+        if call_count > 0:
+            risk_factors.append(f"Found {call_count} external call site(s) that may need updates")
+            risk_score += min(call_count, 3)  # Cap at 3
+
+        if import_count > 0:
+            risk_factors.append(f"Found {import_count} import statement(s) referencing the code")
+            risk_score += min(import_count, 2)  # Cap at 2
+
+    # Factor 2: Check if functions appear to be public API
+    for name in function_names:
+        # Heuristics for public API
+        is_public = False
+
+        # Python: no underscore prefix
+        if language.lower() == "python" and not name.startswith("_"):
+            is_public = True
+
+        # Java/C#: typically PascalCase for public
+        if language.lower() in ("java", "csharp") and name[0].isupper():
+            is_public = True
+
+        # Check if exported (for JS/TS, would need file analysis)
+
+        if is_public:
+            risk_factors.append(f"Function '{name}' appears to be public API")
+            risk_score += 2
+            break  # Only count once
+
+    # Factor 3: Cross-module dependencies
+    if len(files_in_group) > 1:
+        # Check if files are in different directories (different modules)
+        directories = set()
+        for file_path in files_in_group:
+            directories.add(os.path.dirname(file_path))
+
+        if len(directories) > 1:
+            risk_factors.append(f"Duplicates span {len(directories)} different modules/directories")
+            risk_score += 2
+
+    # Factor 4: Test files involved
+    test_files = [f for f in files_in_group if "test" in f.lower() or "spec" in f.lower()]
+    if test_files:
+        risk_factors.append(f"{len(test_files)} test file(s) contain duplicates - lower risk")
+        risk_score -= 1  # Reduce risk for test-only changes
+
+    # Factor 5: Check for __init__.py or index files (re-exports)
+    reexport_files = [f for f in files_in_group
+                     if os.path.basename(f) in ("__init__.py", "index.ts", "index.js", "mod.rs")]
+    if reexport_files:
+        risk_factors.append("Code is in module export file - higher breakage risk")
+        risk_score += 3
+
+    # Determine risk level
+    if risk_score <= 1:
+        level = "low"
+        recommendations = [
+            "Safe to proceed with standard review",
+            "Run tests after applying changes"
+        ]
+    elif risk_score <= 4:
+        level = "medium"
+        recommendations = [
+            "Review external call sites before applying",
+            "Consider updating call sites in the same commit",
+            "Run comprehensive test suite after changes"
+        ]
+    else:
+        level = "high"
+        recommendations = [
+            "Carefully review all external references",
+            "Consider deprecating old functions instead of removing",
+            "Update external call sites first",
+            "May require coordinated changes across modules",
+            "Consider feature flag for gradual rollout"
+        ]
+
+    return {
+        "level": level,
+        "score": risk_score,
+        "factors": risk_factors,
+        "recommendations": recommendations,
+        "external_reference_count": len(external_call_sites)
+    }
+
+
 def _generate_import_for_extracted_function(
     source_file: str,
     target_file: str,
@@ -13671,6 +14506,665 @@ def _suggest_syntax_fix(error: Optional[str], language: str) -> Optional[str]:
         return "Check for unclosed or mismatched quotes"
 
     return "Review the syntax around the indicated line"
+
+
+# ============================================================================
+# Phase 4.2: Deduplication Ranking Algorithm
+# ============================================================================
+
+def calculate_deduplication_score(
+    lines_saved: int,
+    complexity: int,
+    has_tests: bool,
+    affected_files: int,
+    external_call_sites: int
+) -> float:
+    """Calculate a prioritization score for deduplication candidates.
+
+    Uses a weighted formula combining multiple factors to determine the value
+    and risk of refactoring a particular duplication group.
+
+    Weights:
+    - Code savings: 40% (higher is better)
+    - Complexity: 20% (lower is better - inverse)
+    - Risk: 25% (lower is better - inverse)
+    - Effort: 15% (lower is better - inverse)
+
+    Args:
+        lines_saved: Number of lines that would be removed by refactoring
+        complexity: Complexity score from Phase 1 (1-10 scale)
+        has_tests: Whether the code has test coverage
+        affected_files: Number of files that would be modified
+        external_call_sites: Number of external call sites to update
+
+    Returns:
+        Normalized score from 0-100 (higher = better candidate for refactoring)
+
+    Examples:
+        >>> calculate_deduplication_score(100, 3, True, 2, 5)
+        75.0  # High savings, low complexity, tested = excellent candidate
+
+        >>> calculate_deduplication_score(10, 8, False, 10, 50)
+        25.0  # Low savings, high complexity, untested = poor candidate
+    """
+    # Normalize inputs to 0-1 scale
+
+    # 1. Code savings (0-1): Higher is better
+    # Cap at 500 lines for normalization, anything above is maxed out
+    max_lines = 500
+    savings_score = min(lines_saved / max_lines, 1.0)
+
+    # 2. Complexity (0-1): Lower is better (inverse)
+    # Complexity is 1-10, convert to 0-1 where 1=best (low complexity)
+    complexity_score = 1.0 - ((complexity - 1) / 9.0)
+    complexity_score = max(0.0, min(1.0, complexity_score))
+
+    # 3. Risk (0-1): Lower is better (inverse)
+    # Risk factors: no tests, high call sites
+    risk_score = 0.0
+
+    # No test coverage adds significant risk
+    if not has_tests:
+        risk_score += 0.5
+
+    # Many external call sites increase risk
+    # Cap at 20 call sites for normalization
+    max_call_sites = 20
+    call_site_risk = min(external_call_sites / max_call_sites, 0.5)
+    risk_score += call_site_risk
+
+    # Convert to inverse (1 = lowest risk)
+    risk_score = 1.0 - risk_score
+
+    # 4. Effort (0-1): Lower is better (inverse)
+    # Effort based on affected files
+    # Cap at 10 files for normalization
+    max_files = 10
+    effort_factor = min(affected_files / max_files, 1.0)
+    effort_score = 1.0 - effort_factor
+
+    # Apply weights
+    # savings: 40%, complexity: 20%, risk: 25%, effort: 15%
+    weighted_score = (
+        (savings_score * 0.40) +
+        (complexity_score * 0.20) +
+        (risk_score * 0.25) +
+        (effort_score * 0.15)
+    )
+
+    # Normalize to 0-100 scale
+    final_score = round(weighted_score * 100, 1)
+
+    return final_score
+
+
+def rank_deduplication_candidates(
+    candidates: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """Rank deduplication candidates by their calculated scores.
+
+    Takes a list of candidate dictionaries and returns them sorted by score
+    (highest first). Each candidate should have the following fields:
+    - lines_saved: int
+    - complexity_score: int (1-10)
+    - has_tests: bool
+    - affected_files: int
+    - external_call_sites: int
+
+    The function adds a 'deduplication_score' field to each candidate.
+
+    Args:
+        candidates: List of candidate dictionaries with required fields
+
+    Returns:
+        Sorted list with scores added, highest score first
+    """
+    scored_candidates = []
+
+    for candidate in candidates:
+        score = calculate_deduplication_score(
+            lines_saved=candidate.get('lines_saved', 0),
+            complexity=candidate.get('complexity_score', 5),
+            has_tests=candidate.get('has_tests', False),
+            affected_files=candidate.get('affected_files', 1),
+            external_call_sites=candidate.get('external_call_sites', 0)
+        )
+
+        # Create a copy with the score added
+        scored_candidate = {**candidate, 'deduplication_score': score}
+        scored_candidates.append(scored_candidate)
+
+    # Sort by score descending (highest first)
+    scored_candidates.sort(key=lambda x: x['deduplication_score'], reverse=True)
+
+    return scored_candidates
+
+
+# ============================================================================
+# Phase 4.5: Recommendation Engine for Deduplication Analysis
+# ============================================================================
+
+def generate_deduplication_recommendation(
+    score: float,
+    complexity: int,
+    lines_saved: int,
+    has_tests: bool,
+    affected_files: int
+) -> Dict[str, Any]:
+    """Generate actionable recommendations for deduplication candidates.
+
+    Combines scoring factors to produce prioritized recommendations with
+    multiple refactoring strategy options ranked by effort/value ratio.
+
+    Args:
+        score: Overall deduplication score (0-100)
+        complexity: Cyclomatic complexity of the duplicated code
+        lines_saved: Number of lines that would be saved by deduplication
+        has_tests: Whether the duplicated code has test coverage
+        affected_files: Number of files containing the duplicate
+
+    Returns:
+        Dictionary containing:
+        - recommendation_text: Human-readable recommendation
+        - strategies: List of refactoring strategies with details
+        - priority: Priority level (high/medium/low)
+        - effort_value_ratio: Numeric ratio (higher = better value)
+    """
+    # Calculate effort estimate based on complexity and affected files
+    base_effort = complexity * 0.3 + affected_files * 0.5
+    if not has_tests:
+        base_effort *= 1.5  # Higher effort without test safety net
+
+    # Calculate value based on lines saved and affected files
+    value = lines_saved * 0.4 + affected_files * 10
+
+    # Avoid division by zero
+    effort_value_ratio = value / max(base_effort, 1)
+
+    # Generate recommendation text based on score
+    if score > 80:
+        recommendation_text = "High Value: Extract to shared utility"
+        priority = "high"
+    elif score >= 50:
+        recommendation_text = "Medium Value: Consider refactoring"
+        priority = "medium"
+    else:
+        recommendation_text = "Low Value: May not be worth refactoring"
+        priority = "low"
+
+    # Generate strategy options ranked by suitability
+    strategies = _generate_refactoring_strategies(
+        complexity=complexity,
+        lines_saved=lines_saved,
+        has_tests=has_tests,
+        affected_files=affected_files,
+        score=score
+    )
+
+    return {
+        "recommendation_text": recommendation_text,
+        "strategies": strategies,
+        "priority": priority,
+        "effort_value_ratio": round(effort_value_ratio, 2)
+    }
+
+
+def _generate_refactoring_strategies(
+    complexity: int,
+    lines_saved: int,
+    has_tests: bool,
+    affected_files: int,
+    score: float
+) -> List[Dict[str, Any]]:
+    """Generate ranked list of refactoring strategies for a duplication candidate.
+
+    Evaluates multiple strategies and ranks them by suitability based on
+    the characteristics of the duplicated code.
+
+    Args:
+        complexity: Cyclomatic complexity
+        lines_saved: Lines that would be saved
+        has_tests: Whether tests exist
+        affected_files: Number of affected files
+        score: Overall duplication score
+
+    Returns:
+        List of strategy dictionaries with name, description, suitability_score
+    """
+    strategies = []
+
+    # Strategy 1: Extract Function
+    # Best for simple, stateless duplicates
+    extract_fn_score = 70.0
+    if complexity <= 5:
+        extract_fn_score += 20
+    elif complexity > 10:
+        extract_fn_score -= 20
+    if lines_saved >= 10:
+        extract_fn_score += 10
+    if affected_files >= 3:
+        extract_fn_score += 10
+
+    strategies.append({
+        "name": "extract_function",
+        "description": "Extract duplicate code into a shared function",
+        "suitability_score": min(100, max(0, extract_fn_score)),
+        "effort": "low" if complexity <= 5 else "medium",
+        "risk": "low" if has_tests else "medium",
+        "best_for": "Simple, stateless duplicates with clear inputs/outputs"
+    })
+
+    # Strategy 2: Extract Class
+    # Best for stateful or complex duplicates
+    extract_class_score = 50.0
+    if complexity > 10:
+        extract_class_score += 30
+    elif complexity > 5:
+        extract_class_score += 15
+    if lines_saved >= 20:
+        extract_class_score += 15
+    if affected_files >= 2:
+        extract_class_score += 10
+    # Penalty for very simple code
+    if complexity <= 3 and lines_saved < 10:
+        extract_class_score -= 20
+
+    strategies.append({
+        "name": "extract_class",
+        "description": "Extract duplicate code into a shared class with state",
+        "suitability_score": min(100, max(0, extract_class_score)),
+        "effort": "medium" if complexity <= 10 else "high",
+        "risk": "medium" if has_tests else "high",
+        "best_for": "Complex duplicates with shared state or multiple related functions"
+    })
+
+    # Strategy 3: Inline (keep duplication)
+    # Best when duplication is intentional or low value
+    inline_score = 30.0
+    if score < 40:
+        inline_score += 40
+    elif score < 60:
+        inline_score += 20
+    if affected_files == 1:
+        inline_score += 20
+    if lines_saved < 5:
+        inline_score += 20
+    # Strong penalty for high-value duplicates
+    if score > 80:
+        inline_score -= 30
+
+    strategies.append({
+        "name": "inline",
+        "description": "Keep code duplicated (intentional duplication)",
+        "suitability_score": min(100, max(0, inline_score)),
+        "effort": "none",
+        "risk": "none",
+        "best_for": "Intentional duplication, very small code blocks, or domain-specific variations"
+    })
+
+    # Sort strategies by suitability score (highest first)
+    strategies.sort(key=lambda s: s["suitability_score"], reverse=True)
+
+    return strategies
+
+
+# ============================================================================
+# Phase 4.3: Test Coverage Detection for Deduplication Analysis
+# ============================================================================
+
+def find_test_file_patterns(language: str) -> list[str]:
+    """Get test file patterns for a given programming language.
+
+    Args:
+        language: Programming language (python, javascript, typescript, java, etc.)
+
+    Returns:
+        List of glob patterns for test files in that language
+    """
+    lang = language.lower()
+
+    if lang == "python":
+        return [
+            "test_*.py",
+            "*_test.py",
+            "tests/*.py",
+            "**/tests/*.py",
+            "**/test/*.py",
+            "**/*_test.py",
+            "**/test_*.py",
+        ]
+    elif lang in ("javascript", "js"):
+        return [
+            "*.test.js",
+            "*.spec.js",
+            "__tests__/*.js",
+            "**/__tests__/*.js",
+            "**/tests/*.js",
+            "**/test/*.js",
+            "**/*.test.js",
+            "**/*.spec.js",
+        ]
+    elif lang in ("typescript", "ts", "tsx"):
+        return [
+            "*.test.ts",
+            "*.test.tsx",
+            "*.spec.ts",
+            "*.spec.tsx",
+            "__tests__/*.ts",
+            "__tests__/*.tsx",
+            "**/__tests__/*.ts",
+            "**/__tests__/*.tsx",
+            "**/tests/*.ts",
+            "**/tests/*.tsx",
+            "**/*.test.ts",
+            "**/*.test.tsx",
+            "**/*.spec.ts",
+            "**/*.spec.tsx",
+        ]
+    elif lang == "java":
+        return [
+            "*Test.java",
+            "*Tests.java",
+            "**/*Test.java",
+            "**/*Tests.java",
+            "**/test/**/*.java",
+            "src/test/**/*.java",
+        ]
+    elif lang == "go":
+        return [
+            "*_test.go",
+            "**/*_test.go",
+        ]
+    elif lang in ("ruby", "rb"):
+        return [
+            "*_test.rb",
+            "*_spec.rb",
+            "test/*.rb",
+            "spec/*.rb",
+            "**/test/*.rb",
+            "**/spec/*.rb",
+            "**/*_test.rb",
+            "**/*_spec.rb",
+        ]
+    elif lang in ("rust", "rs"):
+        return [
+            "**/tests/*.rs",
+            "**/tests/**/*.rs",
+        ]
+    elif lang in ("csharp", "cs", "c#"):
+        return [
+            "*Tests.cs",
+            "*Test.cs",
+            "**/*Tests.cs",
+            "**/*Test.cs",
+            "**/Tests/**/*.cs",
+        ]
+    else:
+        # Generic patterns for unknown languages
+        return [
+            "**/test*",
+            "**/tests/*",
+            "**/*test*",
+            "**/*spec*",
+        ]
+
+
+def _get_potential_test_paths(file_path: str, language: str, project_root: str) -> list[str]:
+    """Generate potential test file paths for a source file.
+
+    Args:
+        file_path: Path to the source file
+        language: Programming language
+        project_root: Root directory of the project
+
+    Returns:
+        List of potential test file paths that could contain tests for this file
+    """
+    # Get relative path from project root
+    try:
+        rel_path = os.path.relpath(file_path, project_root)
+    except ValueError:
+        rel_path = os.path.basename(file_path)
+
+    # Get base name without extension
+    basename = os.path.basename(file_path)
+    name_without_ext = os.path.splitext(basename)[0]
+    ext = os.path.splitext(basename)[1]
+    dir_path = os.path.dirname(rel_path)
+
+    potential_paths: list[str] = []
+    lang = language.lower()
+
+    if lang == "python":
+        # test_<name>.py, <name>_test.py
+        potential_paths.extend([
+            os.path.join(project_root, dir_path, f"test_{name_without_ext}.py"),
+            os.path.join(project_root, dir_path, f"{name_without_ext}_test.py"),
+            os.path.join(project_root, "tests", f"test_{name_without_ext}.py"),
+            os.path.join(project_root, "tests", dir_path, f"test_{name_without_ext}.py"),
+            os.path.join(project_root, "test", f"test_{name_without_ext}.py"),
+            os.path.join(project_root, "tests", "unit", f"test_{name_without_ext}.py"),
+            os.path.join(project_root, "tests", "integration", f"test_{name_without_ext}.py"),
+        ])
+
+    elif lang in ("javascript", "js"):
+        potential_paths.extend([
+            os.path.join(project_root, dir_path, f"{name_without_ext}.test.js"),
+            os.path.join(project_root, dir_path, f"{name_without_ext}.spec.js"),
+            os.path.join(project_root, dir_path, "__tests__", f"{name_without_ext}.js"),
+            os.path.join(project_root, "tests", f"{name_without_ext}.test.js"),
+            os.path.join(project_root, "__tests__", f"{name_without_ext}.js"),
+        ])
+
+    elif lang in ("typescript", "ts", "tsx"):
+        # Handle both .ts and .tsx
+        ts_ext = ".tsx" if ext == ".tsx" else ".ts"
+        potential_paths.extend([
+            os.path.join(project_root, dir_path, f"{name_without_ext}.test{ts_ext}"),
+            os.path.join(project_root, dir_path, f"{name_without_ext}.spec{ts_ext}"),
+            os.path.join(project_root, dir_path, "__tests__", f"{name_without_ext}{ts_ext}"),
+            os.path.join(project_root, "tests", f"{name_without_ext}.test{ts_ext}"),
+            os.path.join(project_root, "__tests__", f"{name_without_ext}{ts_ext}"),
+        ])
+
+    elif lang == "java":
+        # Convert class name: MyClass.java -> MyClassTest.java
+        potential_paths.extend([
+            os.path.join(project_root, dir_path, f"{name_without_ext}Test.java"),
+            os.path.join(project_root, dir_path, f"{name_without_ext}Tests.java"),
+            # Maven/Gradle standard: src/test/java mirrors src/main/java
+            os.path.join(project_root, "src", "test", "java",
+                        dir_path.replace("src/main/java/", "").replace("src\\main\\java\\", ""),
+                        f"{name_without_ext}Test.java"),
+        ])
+
+    elif lang == "go":
+        potential_paths.extend([
+            os.path.join(project_root, dir_path, f"{name_without_ext}_test.go"),
+        ])
+
+    elif lang in ("ruby", "rb"):
+        potential_paths.extend([
+            os.path.join(project_root, dir_path, f"{name_without_ext}_test.rb"),
+            os.path.join(project_root, dir_path, f"{name_without_ext}_spec.rb"),
+            os.path.join(project_root, "test", f"{name_without_ext}_test.rb"),
+            os.path.join(project_root, "spec", f"{name_without_ext}_spec.rb"),
+        ])
+
+    return [os.path.normpath(p) for p in potential_paths]
+
+
+def _check_test_file_references_source(
+    test_file_path: str,
+    source_file_path: str,
+    language: str
+) -> bool:
+    """Check if a test file references/imports the source file.
+
+    Args:
+        test_file_path: Path to the test file
+        source_file_path: Path to the source file being tested
+        language: Programming language
+
+    Returns:
+        True if the test file appears to test the source file
+    """
+    import re as regex_module
+
+    if not os.path.exists(test_file_path):
+        return False
+
+    try:
+        with open(test_file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read()
+    except (IOError, OSError):
+        return False
+
+    # Get the module/class name from source file
+    source_name = os.path.splitext(os.path.basename(source_file_path))[0]
+    lang = language.lower()
+
+    # Check for imports/references based on language
+    if lang == "python":
+        # Check for: from <module> import, import <module>
+        import_patterns = [
+            f"from {source_name} import",
+            f"from .{source_name} import",
+            f"import {source_name}",
+            f"from.*{source_name}.*import",
+        ]
+        for pattern in import_patterns:
+            if regex_module.search(pattern, content, regex_module.IGNORECASE):
+                return True
+
+    elif lang in ("javascript", "js", "typescript", "ts", "tsx"):
+        # Check for: require('<module>'), import from '<module>'
+        import_patterns = [
+            f"from ['\"].*{source_name}['\"]",
+            f"require\\(['\"].*{source_name}['\"]\\)",
+            f"import.*{source_name}",
+        ]
+        for pattern in import_patterns:
+            if regex_module.search(pattern, content, regex_module.IGNORECASE):
+                return True
+
+    elif lang == "java":
+        # Check for: import <package>.<ClassName>
+        class_name = source_name
+        if regex_module.search(f"import.*\\.{class_name};", content):
+            return True
+        # Also check if class name is directly used
+        if regex_module.search(f"\\b{class_name}\\b", content):
+            return True
+
+    elif lang == "go":
+        # Go test files in same directory automatically have access
+        source_dir = os.path.dirname(source_file_path)
+        test_dir = os.path.dirname(test_file_path)
+        if os.path.normpath(source_dir) == os.path.normpath(test_dir):
+            return True
+        # Check for package import
+        if regex_module.search(f"import.*{source_name}", content):
+            return True
+
+    elif lang in ("ruby", "rb"):
+        # Check for require/require_relative
+        if regex_module.search(f"require.*{source_name}", content, regex_module.IGNORECASE):
+            return True
+
+    # Fallback: check if source file name appears anywhere in test
+    if source_name.lower() in content.lower():
+        return True
+
+    return False
+
+
+def has_test_coverage(file_path: str, language: str, project_root: str) -> bool:
+    """Check if a source file has corresponding test coverage.
+
+    Args:
+        file_path: Path to the source file
+        language: Programming language
+        project_root: Root directory of the project
+
+    Returns:
+        True if test coverage exists for the file
+    """
+    import glob as glob_module
+
+    logger = get_logger("duplication.test_coverage")
+
+    # Get potential test file paths
+    potential_tests = _get_potential_test_paths(file_path, language, project_root)
+
+    # Check if any potential test file exists
+    for test_path in potential_tests:
+        if os.path.exists(test_path):
+            logger.debug(
+                "found_test_file",
+                source_file=file_path,
+                test_file=test_path
+            )
+            return True
+
+    # Also search using glob patterns for more flexible matching
+    patterns = find_test_file_patterns(language)
+
+    for pattern in patterns:
+        full_pattern = os.path.join(project_root, pattern)
+        try:
+            matches = glob_module.glob(full_pattern, recursive=True)
+            for match in matches:
+                # Check if this test file references our source
+                if _check_test_file_references_source(match, file_path, language):
+                    logger.debug(
+                        "found_test_by_reference",
+                        source_file=file_path,
+                        test_file=match
+                    )
+                    return True
+        except Exception as e:
+            logger.warning("glob_search_failed", pattern=pattern, error=str(e))
+            continue
+
+    logger.debug("no_test_coverage", source_file=file_path)
+    return False
+
+
+def get_test_coverage_for_files(
+    file_paths: list[str],
+    language: str,
+    project_root: str
+) -> dict[str, bool]:
+    """Get test coverage status for multiple files.
+
+    Args:
+        file_paths: List of source file paths
+        language: Programming language
+        project_root: Root directory of the project
+
+    Returns:
+        Dictionary mapping file paths to their test coverage status
+    """
+    logger = get_logger("duplication.test_coverage_batch")
+
+    coverage_map: dict[str, bool] = {}
+    covered_count = 0
+
+    for file_path in file_paths:
+        has_coverage = has_test_coverage(file_path, language, project_root)
+        coverage_map[file_path] = has_coverage
+        if has_coverage:
+            covered_count += 1
+
+    logger.info(
+        "test_coverage_analysis_complete",
+        total_files=len(file_paths),
+        files_with_coverage=covered_count,
+        files_without_coverage=len(file_paths) - covered_count
+    )
+
+    return coverage_map
 
 
 def run_mcp_server() -> None:  # pragma: no cover
