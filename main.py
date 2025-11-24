@@ -2085,6 +2085,340 @@ def register_mcp_tools() -> None:  # pragma: no cover
             })
             raise
 
+    # Phase 3.5: Syntax Validation Pipeline for Deduplication
+    @mcp.tool()
+    def apply_deduplication(
+        project_folder: str = Field(description="The absolute path to the project folder"),
+        group_id: int = Field(description="The duplication group ID from find_duplication results"),
+        refactoring_plan: Dict[str, Any] = Field(description="The refactoring plan with generated_code, files_affected, strategy, language"),
+        dry_run: bool = Field(default=True, description="Preview changes without applying (default: true for safety)"),
+        backup: bool = Field(default=True, description="Create backup before applying changes (default: true)"),
+        extract_to_file: Optional[str] = Field(default=None, description="Where to place extracted function (auto-detect if None)")
+    ) -> Dict[str, Any]:
+        """
+        Apply automated deduplication refactoring with comprehensive syntax validation.
+
+        Phase 3.5 VALIDATION PIPELINE:
+        1. PRE-VALIDATION: Validate all generated code before applying
+        2. APPLICATION: Create backup and apply changes
+        3. POST-VALIDATION: Validate modified files
+        4. AUTO-ROLLBACK: Restore from backup if validation fails
+
+        Returns:
+        - status: "preview" | "success" | "failed" | "rolled_back"
+        - validation: Pre and post validation results with detailed errors
+        - errors: Detailed error info with file, line, message, and suggested fix
+        """
+        logger = get_logger("tool.apply_deduplication")
+
+        logger.info(
+            "tool_invoked",
+            tool="apply_deduplication",
+            project_folder=project_folder,
+            group_id=group_id,
+            dry_run=dry_run,
+            backup=backup
+        )
+
+        try:
+            if not os.path.isdir(project_folder):
+                raise ValueError(f"Project folder does not exist: {project_folder}")
+
+            if not refactoring_plan:
+                raise ValueError("refactoring_plan is required")
+
+            files_affected = refactoring_plan.get("files_affected", [])
+            generated_code = refactoring_plan.get("generated_code", {})
+            language = refactoring_plan.get("language", "python")
+
+            validation_result: Dict[str, Any] = {
+                "pre_validation": {"passed": False, "errors": []},
+                "post_validation": {"passed": False, "errors": []}
+            }
+
+            if not files_affected:
+                return {"status": "no_changes", "message": "No files affected", "dry_run": dry_run, "validation": validation_result}
+
+            files_to_modify = []
+            for file_info in files_affected:
+                file_path = file_info if isinstance(file_info, str) else file_info.get("file", "")
+                if file_path and os.path.isfile(file_path):
+                    files_to_modify.append(file_path)
+                elif file_path and os.path.isfile(os.path.join(project_folder, file_path)):
+                    files_to_modify.append(os.path.join(project_folder, file_path))
+
+            if not files_to_modify:
+                return {"status": "no_files", "message": "No valid files found", "dry_run": dry_run, "validation": validation_result}
+
+            # Phase 3.3: Multi-File Orchestration
+            # Plan file modification order for atomicity
+            orchestration_plan = _plan_file_modification_order(
+                files_to_modify=files_to_modify,
+                generated_code=generated_code,
+                extract_to_file=extract_to_file,
+                project_folder=project_folder,
+                language=language
+            )
+
+            logger.info(
+                "orchestration_planned",
+                create_files=len(orchestration_plan.get("create_files", [])),
+                update_files=len(orchestration_plan.get("update_files", [])),
+                import_additions=len(orchestration_plan.get("import_additions", {}))
+            )
+
+            # PRE-VALIDATION
+            logger.info("pre_validation_start", stage="pre_validation")
+            pre_validation_errors: List[Dict[str, Any]] = []
+
+            extracted_function = generated_code.get("extracted_function", "")
+            if extracted_function:
+                is_valid, error_msg = _validate_code_for_language(extracted_function, language)
+                if not is_valid:
+                    pre_validation_errors.append({
+                        "type": "extracted_function",
+                        "file": extract_to_file or "target file",
+                        "error": error_msg,
+                        "code_preview": extracted_function[:200],
+                        "suggestion": _suggest_syntax_fix(error_msg, language)
+                    })
+
+            replacements = generated_code.get("replacements", {})
+            for file_path, replacement in replacements.items():
+                new_content = replacement.get("new_content", "")
+                if new_content:
+                    is_valid, error_msg = _validate_code_for_language(new_content, language)
+                    if not is_valid:
+                        pre_validation_errors.append({
+                            "type": "replacement_code",
+                            "file": file_path,
+                            "error": error_msg,
+                            "suggestion": _suggest_syntax_fix(error_msg, language)
+                        })
+
+            validation_result["pre_validation"] = {
+                "passed": len(pre_validation_errors) == 0,
+                "errors": pre_validation_errors
+            }
+
+            if pre_validation_errors:
+                return {
+                    "status": "failed",
+                    "dry_run": dry_run,
+                    "message": f"Pre-validation failed with {len(pre_validation_errors)} error(s)",
+                    "validation": validation_result,
+                    "errors": pre_validation_errors,
+                    "group_id": group_id
+                }
+
+            # DRY RUN
+            strategy = refactoring_plan.get("strategy", "extract_function")
+            if dry_run:
+                changes_preview = []
+                for fp in files_to_modify:
+                    with open(fp, 'r') as f:
+                        changes_preview.append({"file": fp, "lines": len(f.read().splitlines())})
+                return {
+                    "status": "preview",
+                    "dry_run": True,
+                    "message": f"Preview of changes to {len(files_to_modify)} file(s)",
+                    "changes_preview": changes_preview,
+                    "validation": validation_result,
+                    "group_id": group_id,
+                    "strategy": strategy
+                }
+
+            # APPLICATION - Phase 3.3 Enhanced Multi-File Orchestration
+            backup_id: Optional[str] = None
+            strategy = refactoring_plan.get("strategy", "extract_function")
+
+            # Determine all files that will be affected (including new files)
+            all_affected_files = list(files_to_modify)
+            create_files = orchestration_plan.get("create_files", [])
+            for create_info in create_files:
+                target_path = create_info.get("path", "")
+                if target_path and target_path not in all_affected_files:
+                    # Only backup if file already exists
+                    if os.path.exists(target_path):
+                        all_affected_files.append(target_path)
+
+            if backup:
+                # Compute hashes of original files for integrity verification
+                original_hashes: Dict[str, str] = {}
+                for file_path in all_affected_files:
+                    if os.path.exists(file_path):
+                        original_hashes[file_path] = get_file_hash(file_path)
+
+                # Create deduplication-specific backup with metadata
+                backup_id = create_deduplication_backup(
+                    files_to_backup=[f for f in all_affected_files if os.path.exists(f)],
+                    project_folder=project_folder,
+                    duplicate_group_id=group_id,
+                    strategy=strategy,
+                    original_hashes=original_hashes
+                )
+
+            modified_files = []
+            failed_files: List[Dict[str, Any]] = []
+
+            try:
+                # Step 1: Create new files for extracted functions (must be first)
+                for create_info in orchestration_plan.get("create_files", []):
+                    target_path = create_info.get("path", "")
+                    content = create_info.get("content", "")
+
+                    if not target_path or not content:
+                        continue
+
+                    try:
+                        # Ensure directory exists
+                        target_dir = os.path.dirname(target_path)
+                        if target_dir and not os.path.exists(target_dir):
+                            os.makedirs(target_dir, exist_ok=True)
+
+                        # Handle append vs create
+                        mode = 'a' if os.path.exists(target_path) and create_info.get("append", False) else 'w'
+                        prefix = "\n\n" if mode == 'a' else ""
+
+                        with open(target_path, mode) as f:
+                            f.write(prefix + content)
+
+                        modified_files.append(target_path)
+                        logger.info("file_created", file=target_path, mode=mode)
+
+                    except Exception as e:
+                        failed_files.append({
+                            "file": target_path,
+                            "operation": "create",
+                            "error": str(e)
+                        })
+                        raise  # Fail fast for atomicity
+
+                # Step 2: Update duplicate location files with replacements and imports
+                for update_info in orchestration_plan.get("update_files", []):
+                    file_path = update_info.get("path", "")
+
+                    if not file_path or not os.path.exists(file_path):
+                        continue
+
+                    try:
+                        # Read current content
+                        with open(file_path, 'r') as f:
+                            current_content = f.read()
+
+                        new_content = current_content
+
+                        # Apply replacement from generated_code
+                        replacement = replacements.get(file_path, {})
+                        if replacement.get("new_content"):
+                            new_content = replacement["new_content"]
+
+                        # Add import statement if needed
+                        import_info = orchestration_plan.get("import_additions", {}).get(file_path)
+                        if import_info:
+                            new_content = _add_import_to_content(
+                                content=new_content,
+                                import_statement=import_info.get("import_statement", ""),
+                                language=language
+                            )
+
+                        # Write updated content
+                        with open(file_path, 'w') as f:
+                            f.write(new_content)
+
+                        if file_path not in modified_files:
+                            modified_files.append(file_path)
+                        logger.info("file_updated", file=file_path)
+
+                    except Exception as e:
+                        failed_files.append({
+                            "file": file_path,
+                            "operation": "update",
+                            "error": str(e)
+                        })
+                        raise  # Fail fast for atomicity
+
+                # Step 3: Handle legacy flow for files not in orchestration plan
+                for fp in files_to_modify:
+                    if fp in [u.get("path") for u in orchestration_plan.get("update_files", [])]:
+                        continue  # Already handled
+
+                    replacement = replacements.get(fp, {})
+                    if replacement.get("new_content"):
+                        try:
+                            with open(fp, 'w') as f:
+                                f.write(replacement["new_content"])
+                            if fp not in modified_files:
+                                modified_files.append(fp)
+                        except Exception as e:
+                            failed_files.append({
+                                "file": fp,
+                                "operation": "update",
+                                "error": str(e)
+                            })
+                            raise
+
+            except Exception as e:
+                # Atomic rollback on any failure
+                if backup_id:
+                    restored = restore_from_backup(backup_id, project_folder)
+                    logger.warning(
+                        "orchestration_rollback",
+                        backup_id=backup_id,
+                        files_restored=len(restored),
+                        failed_files=failed_files,
+                        error=str(e)
+                    )
+                raise
+
+            # POST-VALIDATION
+            post_validation_errors: List[Dict[str, Any]] = []
+            for fp in modified_files:
+                if os.path.exists(fp):
+                    result = validate_syntax(fp, language)
+                    if not result["valid"]:
+                        post_validation_errors.append({
+                            "type": "modified_file",
+                            "file": fp,
+                            "error": result.get("error", ""),
+                            "suggestion": _suggest_syntax_fix(result.get("error"), language)
+                        })
+
+            validation_result["post_validation"] = {
+                "passed": len(post_validation_errors) == 0,
+                "errors": post_validation_errors
+            }
+
+            # AUTO-ROLLBACK
+            if post_validation_errors and backup_id:
+                restored = restore_from_backup(backup_id, project_folder)
+                return {
+                    "status": "rolled_back",
+                    "message": f"Rolled back due to {len(post_validation_errors)} validation error(s)",
+                    "files_restored": restored,
+                    "backup_id": backup_id,
+                    "validation": validation_result,
+                    "errors": post_validation_errors,
+                    "group_id": group_id
+                }
+
+            return {
+                "status": "success",
+                "dry_run": False,
+                "message": f"Applied deduplication to {len(modified_files)} file(s)",
+                "files_modified": modified_files,
+                "backup_id": backup_id,
+                "validation": validation_result,
+                "group_id": group_id,
+                "strategy": strategy,
+                "rollback_command": f"rollback_rewrite(project_folder='{project_folder}', backup_id='{backup_id}')"
+            }
+
+        except Exception as e:
+            logger.error("tool_failed", tool="apply_deduplication", error=str(e)[:200])
+            sentry_sdk.capture_exception(e)
+            raise
+
     # Schema.org Tools
     @mcp.tool()
     def get_schema_type(
@@ -12407,6 +12741,351 @@ def validate_rewrites(modified_files: List[str], language: str) -> Dict[str, Any
     }
 
 # ============================================================================
+# Phase 3.4: Diff Preview Generator for apply_deduplication
+# ============================================================================
+
+@dataclass
+class FileDiff:
+    """Represents a diff for a single file.
+
+    Attributes:
+        file_path: Absolute path to the file
+        original_content: Original file content
+        new_content: New content after changes
+        unified_diff: Raw unified diff string
+        formatted_diff: Human-readable formatted diff with colors/context
+        hunks: List of individual diff hunks
+        additions: Number of lines added
+        deletions: Number of lines deleted
+    """
+    file_path: str
+    original_content: str
+    new_content: str
+    unified_diff: str
+    formatted_diff: str
+    hunks: List[Dict[str, Any]]
+    additions: int
+    deletions: int
+
+
+@dataclass
+class DiffPreview:
+    """Container for multi-file diff preview.
+
+    Attributes:
+        file_diffs: List of FileDiff objects for each modified file
+        total_files: Number of files with changes
+        total_additions: Total lines added across all files
+        total_deletions: Total lines deleted across all files
+        combined_diff: Single string with all diffs combined
+        summary: Human-readable summary of changes
+    """
+    file_diffs: List[FileDiff]
+    total_files: int
+    total_additions: int
+    total_deletions: int
+    combined_diff: str
+    summary: str
+
+
+def generate_file_diff(
+    file_path: str,
+    original_content: str,
+    new_content: str,
+    context_lines: int = 3
+) -> FileDiff:
+    """Generate a unified diff for a single file.
+
+    Args:
+        file_path: Path to the file (used in diff header)
+        original_content: Original file content
+        new_content: New content after changes
+        context_lines: Number of context lines before/after changes (default 3)
+
+    Returns:
+        FileDiff object with raw and formatted diffs
+    """
+    import re
+
+    # Split content into lines
+    original_lines = original_content.splitlines(keepends=True)
+    new_lines = new_content.splitlines(keepends=True)
+
+    # Ensure lines end with newline for proper diff format
+    if original_lines and not original_lines[-1].endswith('\n'):
+        original_lines[-1] += '\n'
+    if new_lines and not new_lines[-1].endswith('\n'):
+        new_lines[-1] += '\n'
+
+    # Generate unified diff
+    diff_lines = list(difflib.unified_diff(
+        original_lines,
+        new_lines,
+        fromfile=f"a/{os.path.basename(file_path)}",
+        tofile=f"b/{os.path.basename(file_path)}",
+        lineterm='',
+        n=context_lines
+    ))
+
+    unified_diff = ''.join(diff_lines)
+
+    # Parse hunks and count additions/deletions
+    hunks: List[Dict[str, Any]] = []
+    additions = 0
+    deletions = 0
+    current_hunk: Optional[Dict[str, Any]] = None
+
+    for line in diff_lines:
+        if line.startswith('@@'):
+            # Parse hunk header: @@ -start,count +start,count @@
+            if current_hunk:
+                hunks.append(current_hunk)
+
+            # Extract line numbers from hunk header
+            match = re.match(r'@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@', line)
+            if match:
+                current_hunk = {
+                    'header': line,
+                    'old_start': int(match.group(1)),
+                    'old_count': int(match.group(2)) if match.group(2) else 1,
+                    'new_start': int(match.group(3)),
+                    'new_count': int(match.group(4)) if match.group(4) else 1,
+                    'lines': []
+                }
+            else:
+                current_hunk = {
+                    'header': line,
+                    'lines': []
+                }
+        elif current_hunk is not None:
+            current_hunk['lines'].append(line)
+            if line.startswith('+') and not line.startswith('+++'):
+                additions += 1
+            elif line.startswith('-') and not line.startswith('---'):
+                deletions += 1
+
+    if current_hunk:
+        hunks.append(current_hunk)
+
+    # Generate formatted diff with line numbers
+    formatted_diff = _format_diff_with_line_numbers(
+        file_path, diff_lines, original_lines, new_lines
+    )
+
+    return FileDiff(
+        file_path=file_path,
+        original_content=original_content,
+        new_content=new_content,
+        unified_diff=unified_diff,
+        formatted_diff=formatted_diff,
+        hunks=hunks,
+        additions=additions,
+        deletions=deletions
+    )
+
+
+def _format_diff_with_line_numbers(
+    file_path: str,
+    diff_lines: List[str],
+    original_lines: List[str],
+    new_lines: List[str]
+) -> str:
+    """Format diff with line numbers for readability.
+
+    Args:
+        file_path: Path to the file
+        diff_lines: Raw diff lines from unified_diff
+        original_lines: Original file lines
+        new_lines: New file lines
+
+    Returns:
+        Formatted diff string with line numbers and visual indicators
+    """
+    import re
+
+    if not diff_lines:
+        return f"No changes in {file_path}"
+
+    output = []
+    output.append(f"{'=' * 70}")
+    output.append(f"File: {file_path}")
+    output.append(f"{'=' * 70}")
+
+    old_line_num = 0
+    new_line_num = 0
+
+    for line in diff_lines:
+        if line.startswith('---'):
+            output.append(f"--- {file_path} (original)")
+        elif line.startswith('+++'):
+            output.append(f"+++ {file_path} (modified)")
+        elif line.startswith('@@'):
+            # Parse hunk header for line numbers
+            match = re.match(r'@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)', line)
+            if match:
+                old_line_num = int(match.group(1)) - 1
+                new_line_num = int(match.group(2)) - 1
+                context = match.group(3).strip()
+                output.append(f"\n{line.strip()}")
+                if context:
+                    output.append(f"  Context: {context}")
+            else:
+                output.append(f"\n{line.strip()}")
+        elif line.startswith('-'):
+            old_line_num += 1
+            output.append(f"{old_line_num:4d}      - {line[1:].rstrip()}")
+        elif line.startswith('+'):
+            new_line_num += 1
+            output.append(f"     {new_line_num:4d} + {line[1:].rstrip()}")
+        else:
+            # Context line
+            old_line_num += 1
+            new_line_num += 1
+            output.append(f"{old_line_num:4d} {new_line_num:4d}   {line.rstrip()}")
+
+    output.append(f"\n{'=' * 70}\n")
+
+    return '\n'.join(output)
+
+
+def generate_multi_file_diff(
+    file_changes: List[Dict[str, str]],
+    context_lines: int = 3
+) -> DiffPreview:
+    """Generate combined diff preview for multiple file changes.
+
+    Args:
+        file_changes: List of dicts with keys:
+            - 'file_path': Absolute path to file
+            - 'original_content': Original file content
+            - 'new_content': New content after changes
+        context_lines: Number of context lines (default 3)
+
+    Returns:
+        DiffPreview with all file diffs combined
+    """
+    file_diffs = []
+    total_additions = 0
+    total_deletions = 0
+
+    for change in file_changes:
+        file_diff = generate_file_diff(
+            file_path=change['file_path'],
+            original_content=change['original_content'],
+            new_content=change['new_content'],
+            context_lines=context_lines
+        )
+        file_diffs.append(file_diff)
+        total_additions += file_diff.additions
+        total_deletions += file_diff.deletions
+
+    # Combine all formatted diffs
+    combined_parts = []
+    for fd in file_diffs:
+        combined_parts.append(fd.formatted_diff)
+
+    combined_diff = '\n'.join(combined_parts)
+
+    # Generate summary
+    files_with_changes = [fd for fd in file_diffs if fd.additions > 0 or fd.deletions > 0]
+    summary_lines = [
+        "Diff Preview Summary",
+        "-" * 40,
+        f"Files modified: {len(files_with_changes)}",
+        f"Total additions: +{total_additions}",
+        f"Total deletions: -{total_deletions}",
+        "-" * 40,
+    ]
+
+    for fd in files_with_changes:
+        summary_lines.append(
+            f"  {os.path.basename(fd.file_path)}: +{fd.additions}/-{fd.deletions}"
+        )
+
+    summary = '\n'.join(summary_lines)
+
+    return DiffPreview(
+        file_diffs=file_diffs,
+        total_files=len(files_with_changes),
+        total_additions=total_additions,
+        total_deletions=total_deletions,
+        combined_diff=combined_diff,
+        summary=summary
+    )
+
+
+def diff_preview_to_dict(preview: DiffPreview) -> Dict[str, Any]:
+    """Convert DiffPreview to a dictionary for JSON serialization.
+
+    Args:
+        preview: DiffPreview object
+
+    Returns:
+        Dictionary representation suitable for JSON/tool output
+    """
+    return {
+        'summary': preview.summary,
+        'total_files': preview.total_files,
+        'total_additions': preview.total_additions,
+        'total_deletions': preview.total_deletions,
+        'combined_diff': preview.combined_diff,
+        'files': [
+            {
+                'file_path': fd.file_path,
+                'additions': fd.additions,
+                'deletions': fd.deletions,
+                'unified_diff': fd.unified_diff,
+                'formatted_diff': fd.formatted_diff,
+                'hunks': fd.hunks
+            }
+            for fd in preview.file_diffs
+        ]
+    }
+
+
+def generate_diff_from_file_paths(
+    original_files: List[str],
+    new_contents: Dict[str, str],
+    context_lines: int = 3
+) -> DiffPreview:
+    """Generate diff preview by reading original files from disk.
+
+    Convenience function that reads original content from file paths
+    and generates a diff preview against provided new content.
+
+    Args:
+        original_files: List of absolute file paths to read
+        new_contents: Dict mapping file paths to new content
+        context_lines: Number of context lines (default 3)
+
+    Returns:
+        DiffPreview with all file diffs
+
+    Raises:
+        FileNotFoundError: If original file doesn't exist
+    """
+    file_changes = []
+
+    for file_path in original_files:
+        if file_path not in new_contents:
+            continue
+
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Original file not found: {file_path}")
+
+        with open(file_path, 'r', encoding='utf-8') as f:
+            original_content = f.read()
+
+        file_changes.append({
+            'file_path': file_path,
+            'original_content': original_content,
+            'new_content': new_contents[file_path]
+        })
+
+    return generate_multi_file_diff(file_changes, context_lines)
+
+
+# ============================================================================
 # Backup Management for Code Rewrites
 # ============================================================================
 
@@ -12462,6 +13141,140 @@ def create_backup(files_to_backup: List[str], project_folder: str) -> str:
         json.dump(metadata, f, indent=2)
 
     return backup_id
+
+
+def create_deduplication_backup(
+    files_to_backup: List[str],
+    project_folder: str,
+    duplicate_group_id: int,
+    strategy: str,
+    original_hashes: Dict[str, str]
+) -> str:
+    """Create a backup with deduplication-specific metadata.
+
+    Args:
+        files_to_backup: List of absolute file paths to backup
+        project_folder: Project root folder
+        duplicate_group_id: ID of the duplicate group being refactored
+        strategy: Deduplication strategy used (e.g., 'extract_function', 'consolidate')
+        original_hashes: Dict mapping file paths to their content hashes
+
+    Returns:
+        backup_id: Unique identifier for this backup (timestamp-based)
+    """
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
+    backup_id = f"dedup-backup-{timestamp}"
+    backup_base_dir = os.path.join(project_folder, ".ast-grep-backups")
+    backup_dir = os.path.join(backup_base_dir, backup_id)
+
+    # Handle collision by appending counter suffix
+    counter = 1
+    while os.path.exists(backup_dir):
+        backup_id = f"dedup-backup-{timestamp}-{counter}"
+        backup_dir = os.path.join(backup_base_dir, backup_id)
+        counter += 1
+
+    os.makedirs(backup_dir, exist_ok=True)
+
+    metadata: Dict[str, Any] = {
+        "backup_id": backup_id,
+        "backup_type": "deduplication",
+        "timestamp": datetime.now().isoformat(),
+        "files": [],
+        "project_folder": project_folder,
+        "deduplication_metadata": {
+            "duplicate_group_id": duplicate_group_id,
+            "strategy": strategy,
+            "original_hashes": original_hashes,
+            "affected_files": files_to_backup
+        }
+    }
+
+    for file_path in files_to_backup:
+        if not os.path.exists(file_path):
+            continue
+
+        rel_path = os.path.relpath(file_path, project_folder)
+        backup_file_path = os.path.join(backup_dir, rel_path)
+
+        os.makedirs(os.path.dirname(backup_file_path), exist_ok=True)
+        shutil.copy2(file_path, backup_file_path)
+
+        metadata["files"].append({
+            "original": file_path,
+            "relative": rel_path,
+            "backup": backup_file_path,
+            "original_hash": original_hashes.get(file_path, "")
+        })
+
+    metadata_path = os.path.join(backup_dir, "backup-metadata.json")
+    with open(metadata_path, "w") as f:
+        json.dump(metadata, f, indent=2)
+
+    return backup_id
+
+
+def get_file_hash(file_path: str) -> str:
+    """Calculate SHA-256 hash of a file's contents.
+
+    Args:
+        file_path: Absolute path to the file
+
+    Returns:
+        Hex digest of the file's SHA-256 hash
+    """
+    import hashlib
+    try:
+        with open(file_path, 'rb') as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except (OSError, IOError):
+        return ""
+
+
+def verify_backup_integrity(backup_id: str, project_folder: str) -> Dict[str, Any]:
+    """Verify that a backup can be safely restored.
+
+    Args:
+        backup_id: The backup identifier to verify
+        project_folder: Project root folder
+
+    Returns:
+        Dict with verification status and any issues found
+    """
+    backup_dir = os.path.join(project_folder, ".ast-grep-backups", backup_id)
+    metadata_path = os.path.join(backup_dir, "backup-metadata.json")
+
+    result: Dict[str, Any] = {
+        "valid": True,
+        "issues": [],
+        "files_verified": 0,
+        "backup_type": "unknown"
+    }
+
+    if not os.path.exists(metadata_path):
+        result["valid"] = False
+        result["issues"].append(f"Backup '{backup_id}' not found or invalid")
+        return result
+
+    try:
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+    except json.JSONDecodeError as e:
+        result["valid"] = False
+        result["issues"].append(f"Invalid metadata JSON: {str(e)}")
+        return result
+
+    result["backup_type"] = metadata.get("backup_type", "rewrite")
+
+    for file_info in metadata.get("files", []):
+        backup_file = file_info.get("backup", "")
+        if not os.path.exists(backup_file):
+            result["valid"] = False
+            result["issues"].append(f"Missing backup file: {file_info.get('relative', 'unknown')}")
+        else:
+            result["files_verified"] += 1
+
+    return result
 
 
 def restore_from_backup(backup_id: str, project_folder: str) -> List[str]:
@@ -12528,6 +13341,336 @@ def list_available_backups(project_folder: str) -> List[Dict[str, Any]]:
 
     backups.sort(key=lambda x: x["timestamp"], reverse=True)
     return backups
+
+
+# ============================================================================
+# Phase 3.3: Multi-File Orchestration Helper Functions
+# ============================================================================
+
+def _plan_file_modification_order(
+    files_to_modify: List[str],
+    generated_code: Dict[str, Any],
+    extract_to_file: Optional[str],
+    project_folder: str,
+    language: str
+) -> Dict[str, Any]:
+    """Plan the order of file modifications for atomic deduplication.
+
+    Determines which files need to be created vs updated, and generates
+    import statements for files that will call the extracted function.
+
+    Args:
+        files_to_modify: List of files containing duplicates
+        generated_code: Generated code from Phase 2 engine
+        extract_to_file: Target file for extracted function (or None for auto)
+        project_folder: Project root folder
+        language: Programming language
+
+    Returns:
+        Orchestration plan with:
+        - create_files: List of files to create (extracted function)
+        - update_files: List of files to update (duplicate locations)
+        - import_additions: Dict mapping files to import info
+    """
+    plan: Dict[str, Any] = {
+        "create_files": [],
+        "update_files": [],
+        "import_additions": {}
+    }
+
+    extracted_function = generated_code.get("extracted_function", "")
+    function_name = generated_code.get("function_name", "extracted_function")
+
+    # Determine target file for extracted function
+    target_file = extract_to_file or generated_code.get("extract_to_file")
+    if not target_file and files_to_modify:
+        # Auto-detect: use first file or create utilities module
+        first_file = files_to_modify[0]
+        file_dir = os.path.dirname(first_file)
+        ext = os.path.splitext(first_file)[1]
+        target_file = os.path.join(file_dir, f"_extracted_utils{ext}")
+
+    if target_file and not os.path.isabs(target_file):
+        target_file = os.path.join(project_folder, target_file)
+
+    # Plan file creation for extracted function
+    if extracted_function and target_file:
+        # Check if we're appending to existing file
+        append_mode = os.path.exists(target_file)
+
+        plan["create_files"].append({
+            "path": target_file,
+            "content": extracted_function,
+            "append": append_mode,
+            "operation": "append" if append_mode else "create"
+        })
+
+    # Plan updates for duplicate location files
+    for file_path in files_to_modify:
+        plan["update_files"].append({
+            "path": file_path,
+            "operation": "replace_duplicate"
+        })
+
+        # Generate import statement if needed
+        # Only add imports if there's actually an extracted function to import
+        if extracted_function and target_file and file_path != target_file:
+            import_stmt = _generate_import_for_extracted_function(
+                source_file=file_path,
+                target_file=target_file,
+                function_name=function_name,
+                project_folder=project_folder,
+                language=language
+            )
+
+            if import_stmt:
+                plan["import_additions"][file_path] = {
+                    "import_statement": import_stmt,
+                    "from_file": target_file,
+                    "function_name": function_name
+                }
+
+    return plan
+
+
+def _generate_import_for_extracted_function(
+    source_file: str,
+    target_file: str,
+    function_name: str,
+    project_folder: str,
+    language: str
+) -> str:
+    """Generate import statement for an extracted function.
+
+    Creates the appropriate import statement based on the relative path
+    between source and target files.
+
+    Args:
+        source_file: File that needs the import
+        target_file: File containing the extracted function
+        function_name: Name of the function to import
+        project_folder: Project root folder
+        language: Programming language
+
+    Returns:
+        Import statement string
+    """
+    # Calculate relative path from source to target
+    source_dir = os.path.dirname(source_file)
+    target_rel = os.path.relpath(target_file, source_dir)
+
+    # Convert path to module path
+    module_path = os.path.splitext(target_rel)[0]
+    module_path = module_path.replace(os.sep, ".")
+    module_path = module_path.replace("/", ".")
+
+    # Handle parent directory references
+    if module_path.startswith(".."):
+        # Convert ../foo to relative import
+        parts = module_path.split(".")
+        parent_count = sum(1 for p in parts if p == "")
+        module_parts = [p for p in parts if p and p != ".."]
+        module_path = "." * parent_count + ".".join(module_parts)
+
+    # Generate import using existing function
+    return generate_import_statement(
+        module_path=module_path,
+        items=[function_name],
+        language=language
+    )
+
+
+def _add_import_to_content(
+    content: str,
+    import_statement: str,
+    language: str
+) -> str:
+    """Add an import statement to file content.
+
+    Inserts the import statement at the appropriate location based on
+    language conventions (after existing imports, at top of file, etc.).
+
+    Args:
+        content: Current file content
+        import_statement: Import statement to add
+        language: Programming language
+
+    Returns:
+        Updated content with import added
+    """
+    if not import_statement:
+        return content
+
+    lines = content.split('\n')
+    lang = language.lower()
+
+    # Check if import already exists
+    if import_statement.strip() in content:
+        return content
+
+    if lang == "python":
+        # Find last import statement
+        last_import_idx = -1
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped.startswith("import ") or stripped.startswith("from "):
+                last_import_idx = i
+            elif stripped and not stripped.startswith("#") and last_import_idx >= 0:
+                # Reached non-import, non-comment content
+                break
+
+        if last_import_idx >= 0:
+            # Insert after last import
+            lines.insert(last_import_idx + 1, import_statement)
+        else:
+            # No imports found, add at top (after shebang/docstring if present)
+            insert_idx = 0
+            if lines and (lines[0].startswith("#!") or lines[0].startswith('"""')):
+                insert_idx = 1
+                # Skip multi-line docstring
+                if lines[0].startswith('"""') and not lines[0].endswith('"""'):
+                    for i in range(1, len(lines)):
+                        if '"""' in lines[i]:
+                            insert_idx = i + 1
+                            break
+            lines.insert(insert_idx, import_statement)
+            if insert_idx == 0:
+                lines.insert(1, "")  # Add blank line after import
+
+    elif lang in ("typescript", "javascript", "tsx", "jsx"):
+        # Find last import statement
+        last_import_idx = -1
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped.startswith("import ") or stripped.startswith("const ") and "require(" in stripped:
+                last_import_idx = i
+
+        if last_import_idx >= 0:
+            lines.insert(last_import_idx + 1, import_statement)
+        else:
+            # Add at top
+            lines.insert(0, import_statement)
+            lines.insert(1, "")
+
+    elif lang == "java":
+        # Find package or last import
+        package_idx = -1
+        last_import_idx = -1
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped.startswith("package "):
+                package_idx = i
+            elif stripped.startswith("import "):
+                last_import_idx = i
+
+        if last_import_idx >= 0:
+            lines.insert(last_import_idx + 1, import_statement)
+        elif package_idx >= 0:
+            lines.insert(package_idx + 2, import_statement)
+        else:
+            lines.insert(0, import_statement)
+
+    elif lang == "go":
+        # Find import block or add one
+        import_block_start = -1
+        for i, line in enumerate(lines):
+            if line.strip().startswith("import"):
+                import_block_start = i
+                break
+
+        if import_block_start >= 0:
+            # Add to import block
+            if "(" in lines[import_block_start]:
+                # Multi-line import
+                lines.insert(import_block_start + 1, f"\t{import_statement}")
+            else:
+                # Single import - convert to block
+                old_import = lines[import_block_start]
+                lines[import_block_start] = "import ("
+                lines.insert(import_block_start + 1, f"\t{old_import.replace('import ', '')}")
+                lines.insert(import_block_start + 2, f"\t{import_statement}")
+                lines.insert(import_block_start + 3, ")")
+        else:
+            # Find package declaration
+            for i, line in enumerate(lines):
+                if line.strip().startswith("package "):
+                    lines.insert(i + 2, import_statement)
+                    break
+
+    else:
+        # Default: add at top
+        lines.insert(0, import_statement)
+        lines.insert(1, "")
+
+    return '\n'.join(lines)
+
+
+# ============================================================================
+# Phase 3.5: Syntax Validation Pipeline Helper Functions
+# ============================================================================
+
+def _validate_code_for_language(code: str, language: str) -> tuple[bool, Optional[str]]:
+    """Validate code syntax for a specific language.
+
+    Args:
+        code: The code to validate
+        language: Programming language
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    lang = language.lower()
+
+    if lang == "python":
+        return validate_python_syntax(code)
+    elif lang in ("javascript", "js"):
+        return validate_javascript_syntax(code)
+    elif lang in ("typescript", "ts", "tsx"):
+        return validate_typescript_syntax(code)
+    elif lang == "java":
+        return validate_java_syntax(code)
+    else:
+        return (True, f"Validation not implemented for {language}")
+
+
+def _suggest_syntax_fix(error: Optional[str], language: str) -> Optional[str]:
+    """Suggest a fix based on a syntax error message.
+
+    Args:
+        error: The error message
+        language: Programming language
+
+    Returns:
+        Suggested fix or None
+    """
+    if not error:
+        return None
+
+    error_lower = error.lower()
+
+    # Common Python errors
+    if "unexpected indent" in error_lower:
+        return "Check indentation - use consistent spaces (4 spaces recommended)"
+    if "expected ':'" in error_lower or "expected an indented block" in error_lower:
+        return "Missing colon after function/class definition or control statement"
+    if "unexpected eof" in error_lower:
+        return "Code appears incomplete - check for missing closing brackets or quotes"
+    if "invalid syntax" in error_lower:
+        return "Check for typos, missing operators, or incorrect keywords"
+
+    # Common JS/TS errors
+    if "unexpected token" in error_lower:
+        return "Check for missing semicolons, brackets, or incorrect syntax"
+    if "unexpected end of input" in error_lower:
+        return "Code appears incomplete - check for unclosed brackets or strings"
+
+    # Generic suggestions
+    if "brace" in error_lower or "bracket" in error_lower:
+        return "Check for mismatched or missing brackets/braces"
+    if "quote" in error_lower or "string" in error_lower:
+        return "Check for unclosed or mismatched quotes"
+
+    return "Review the syntax around the indicated line"
 
 
 def run_mcp_server() -> None:  # pragma: no cover
