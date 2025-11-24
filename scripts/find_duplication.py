@@ -6,9 +6,12 @@ Usage:
     python scripts/find_duplication.py /path/to/project --language python
     python scripts/find_duplication.py /path/to/project --language javascript --construct-type class_definition
     python scripts/find_duplication.py /path/to/project --language python --min-similarity 0.9 --min-lines 10
+    python scripts/find_duplication.py /path/to/project --language python --analyze  # Use ranked analysis
+    python scripts/find_duplication.py /path/to/project --language python --detailed  # Show diff previews
 """
 
 import argparse
+import difflib
 import json
 import os
 import sys
@@ -40,15 +43,9 @@ def mock_field(**kwargs: Any) -> Any:
     return kwargs.get("default")
 
 
-# Mock the imports
+# Mock only MCP imports - don't mock pydantic as it breaks sentry_sdk
 sys.modules['mcp.server.fastmcp'] = type(sys)('mcp.server.fastmcp')
 sys.modules['mcp.server.fastmcp'].FastMCP = MockFastMCP  # type: ignore
-
-sys.modules['pydantic'] = type(sys)('pydantic')
-sys.modules['pydantic'].Field = mock_field  # type: ignore
-sys.modules['pydantic'].BaseModel = object  # type: ignore
-sys.modules['pydantic'].ConfigDict = dict  # type: ignore
-sys.modules['pydantic'].field_validator = lambda *args, **kwargs: lambda f: f  # type: ignore
 
 # Now import main
 import main  # noqa: E402
@@ -56,40 +53,182 @@ import main  # noqa: E402
 # Register the tools
 main.register_mcp_tools()
 
-# Get the tool function
+# Get the tool functions
 find_duplication = main.mcp.tools.get("find_duplication")  # type: ignore
+analyze_deduplication_candidates = main.mcp.tools.get("analyze_deduplication_candidates")  # type: ignore
+
+
+# ANSI color codes
+class Colors:
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    DIM = "\033[2m"
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    MAGENTA = "\033[35m"
+    CYAN = "\033[36m"
+    WHITE = "\033[37m"
+    BG_RED = "\033[41m"
+    BG_GREEN = "\033[42m"
+    BG_YELLOW = "\033[43m"
+
+
+class ColorPrinter:
+    """Helper for colored terminal output."""
+
+    def __init__(self, use_color: bool = True):
+        self.use_color = use_color
+
+    def colorize(self, text: str, *codes: str) -> str:
+        if not self.use_color:
+            return text
+        return "".join(codes) + text + Colors.RESET
+
+    def bold(self, text: str) -> str:
+        return self.colorize(text, Colors.BOLD)
+
+    def red(self, text: str) -> str:
+        return self.colorize(text, Colors.RED)
+
+    def green(self, text: str) -> str:
+        return self.colorize(text, Colors.GREEN)
+
+    def yellow(self, text: str) -> str:
+        return self.colorize(text, Colors.YELLOW)
+
+    def blue(self, text: str) -> str:
+        return self.colorize(text, Colors.BLUE)
+
+    def cyan(self, text: str) -> str:
+        return self.colorize(text, Colors.CYAN)
+
+    def magenta(self, text: str) -> str:
+        return self.colorize(text, Colors.MAGENTA)
+
+    def dim(self, text: str) -> str:
+        return self.colorize(text, Colors.DIM)
+
+
+# Global color printer (initialized in main)
+cp = ColorPrinter(use_color=True)
+
+
+def format_complexity_bar(score: float, width: int = 20) -> str:
+    """Create a visual bar representation of a complexity score."""
+    filled = int(score * width)
+    empty = width - filled
+
+    # Color based on score
+    if score >= 0.7:
+        bar_color = Colors.GREEN if cp.use_color else ""
+    elif score >= 0.4:
+        bar_color = Colors.YELLOW if cp.use_color else ""
+    else:
+        bar_color = Colors.RED if cp.use_color else ""
+
+    reset = Colors.RESET if cp.use_color else ""
+    bar = bar_color + "█" * filled + reset + "░" * empty
+    return f"[{bar}] {score:.1%}"
+
+
+def format_priority_level(score: float) -> str:
+    """Format priority level with color based on score."""
+    if score >= 0.7:
+        label = "HIGH"
+        return cp.red(cp.bold(f"[{label}]"))
+    elif score >= 0.4:
+        label = "MEDIUM"
+        return cp.yellow(f"[{label}]")
+    else:
+        label = "LOW"
+        return cp.green(f"[{label}]")
+
+
+def generate_diff_preview(instances: List[Dict[str, Any]], max_lines: int = 15) -> str:
+    """Generate a colored diff preview between instances."""
+    if len(instances) < 2:
+        return ""
+
+    # Get first two instances for comparison
+    code1 = instances[0].get('code_preview', '') or instances[0].get('code', '')
+    code2 = instances[1].get('code_preview', '') or instances[1].get('code', '')
+
+    if not code1 or not code2:
+        return ""
+
+    lines1 = code1.split('\n')[:max_lines]
+    lines2 = code2.split('\n')[:max_lines]
+
+    diff = list(difflib.unified_diff(
+        lines1, lines2,
+        fromfile=instances[0].get('file', 'file1'),
+        tofile=instances[1].get('file', 'file2'),
+        lineterm=''
+    ))
+
+    if not diff:
+        return cp.dim("  (identical code)")
+
+    result = []
+    for line in diff[:max_lines + 4]:  # Include header + context
+        if line.startswith('+++') or line.startswith('---'):
+            result.append(cp.bold(line))
+        elif line.startswith('+'):
+            result.append(cp.green(line))
+        elif line.startswith('-'):
+            result.append(cp.red(line))
+        elif line.startswith('@@'):
+            result.append(cp.cyan(line))
+        else:
+            result.append(line)
+
+    if len(diff) > max_lines + 4:
+        result.append(cp.dim(f"  ... ({len(diff) - max_lines - 4} more lines)"))
+
+    return '\n'.join(result)
 
 
 def format_summary(summary: Dict[str, Any]) -> None:
     """Format the summary section"""
     print("\n" + "=" * 80)
-    print("DUPLICATION ANALYSIS SUMMARY")
+    print(cp.bold("DUPLICATION ANALYSIS SUMMARY"))
     print("=" * 80)
     print(f"Total constructs analyzed:    {summary['total_constructs']}")
-    print(f"Duplicate groups found:       {summary['duplicate_groups']}")
+    print(f"Duplicate groups found:       {cp.yellow(str(summary['duplicate_groups']))}")
     print(f"Total duplicated lines:       {summary['total_duplicated_lines']}")
-    print(f"Potential line savings:       {summary['potential_line_savings']}")
+    print(f"Potential line savings:       {cp.green(str(summary['potential_line_savings']))}")
     print(f"Analysis time:                {summary['analysis_time_seconds']:.3f}s")
     print("=" * 80)
 
 
-def format_duplication_groups(groups: List[Dict[str, Any]]) -> None:
+def format_duplication_groups(groups: List[Dict[str, Any]], detailed: bool = False) -> None:
     """Format duplication groups"""
     if not groups:
         return
 
     print("\n" + "-" * 80)
-    print("DUPLICATION GROUPS")
+    print(cp.bold("DUPLICATION GROUPS"))
     print("-" * 80)
 
     for group in groups:
-        print(f"\n📦 Group {group['group_id']} (Similarity: {group['similarity_score']:.1%})")
+        group_id = group['group_id']
+        similarity = group['similarity_score']
+        print(f"\n{cp.cyan('Group ' + str(group_id))} (Similarity: {cp.yellow(f'{similarity:.1%}')})")
         print(f"   Found {len(group['instances'])} duplicate instances:")
         for instance in group['instances']:
-            print(f"   • {instance['file']}:{instance['lines']}")
-            if instance['code_preview']:
+            print(f"   {cp.dim('-')} {instance['file']}:{instance['lines']}")
+            if instance['code_preview'] and not detailed:
                 preview = instance['code_preview'][:100].replace('\n', ' ')
-                print(f"     Preview: {preview}...")
+                print(f"     {cp.dim('Preview:')} {preview}...")
+
+        if detailed and len(group['instances']) >= 2:
+            print(f"\n   {cp.bold('Diff Preview:')}")
+            diff = generate_diff_preview(group['instances'])
+            if diff:
+                for line in diff.split('\n'):
+                    print(f"   {line}")
 
 
 def format_refactoring_suggestions(suggestions: List[Dict[str, Any]]) -> None:
@@ -98,24 +237,119 @@ def format_refactoring_suggestions(suggestions: List[Dict[str, Any]]) -> None:
         return
 
     print("\n" + "-" * 80)
-    print("REFACTORING SUGGESTIONS")
+    print(cp.bold("REFACTORING SUGGESTIONS"))
     print("-" * 80)
 
     for suggestion in suggestions:
-        print(f"\n💡 Suggestion #{suggestion['group_id']}: {suggestion['type']}")
+        print(f"\n{cp.yellow('Suggestion #' + str(suggestion['group_id']))}: {suggestion['type']}")
         print(f"   {suggestion['description']}")
         print(f"   Duplicates: {suggestion['duplicate_count']} instances")
         print(f"   Lines per instance: {suggestion['lines_per_duplicate']}")
-        print(f"   Total duplicated: {suggestion['total_duplicated_lines']} lines")
+        print(f"   Total duplicated: {cp.green(str(suggestion['total_duplicated_lines']))} lines")
         print("\n   Locations:")
         for loc in suggestion['locations']:
-            print(f"   • {loc}")
+            print(f"   {cp.dim('-')} {loc}")
         print("\n   Recommendation:")
         print(f"   {suggestion['suggestion']}")
 
 
+def format_analyze_results(result: Dict[str, Any], detailed: bool = False) -> None:
+    """Format results from analyze_deduplication_candidates tool."""
+    metadata = result.get('analysis_metadata', {})
+    candidates = result.get('candidates', [])
+
+    # Summary header
+    print("\n" + "=" * 80)
+    print(cp.bold("DEDUPLICATION CANDIDATE ANALYSIS"))
+    print("=" * 80)
+    print(f"Project:                      {metadata.get('project_path', 'N/A')}")
+    print(f"Language:                     {metadata.get('language', 'N/A')}")
+    print(f"Total constructs analyzed:    {metadata.get('total_constructs_analyzed', 0)}")
+    print(f"Candidate groups found:       {cp.yellow(str(result.get('total_groups', 0)))}")
+    print(f"Total potential savings:      {cp.green(str(result.get('total_savings_potential', 0)))} lines")
+    print(f"Analysis time:                {metadata.get('analysis_time_seconds', 0):.3f}s")
+    print("=" * 80)
+
+    if not candidates:
+        print(f"\n{cp.green('No duplication candidates found.')}")
+        return
+
+    # Ranked candidates
+    print(f"\n{cp.bold('RANKED CANDIDATES')} (highest priority first)")
+    print("-" * 80)
+
+    for candidate in candidates:
+        rank = candidate.get('rank', '?')
+        priority = candidate.get('priority_score', 0)
+        similarity = candidate.get('similarity_score', 0)
+        instances = candidate.get('instance_count', 0)
+        savings = candidate.get('potential_savings', 0)
+        avg_lines = candidate.get('avg_lines_per_instance', 0)
+
+        # Header with rank and priority
+        print(f"\n{cp.bold(f'#{rank}')} {format_priority_level(priority)} Group {candidate.get('group_id', '?')}")
+
+        # Metrics
+        print(f"   Priority Score: {format_complexity_bar(priority)}")
+        print(f"   Similarity:     {similarity:.1%}")
+        print(f"   Instances:      {instances}")
+        print(f"   Lines/Instance: {avg_lines}")
+        print(f"   Savings:        {cp.green(str(savings))} lines")
+
+        # Files affected
+        files = candidate.get('files_affected', [])
+        if files:
+            print(f"\n   {cp.cyan('Files Affected:')}")
+            for f in files[:5]:  # Limit display
+                print(f"   {cp.dim('-')} {f}")
+            if len(files) > 5:
+                print(f"   {cp.dim(f'... and {len(files) - 5} more')}")
+
+        # Instances with locations
+        candidate_instances = candidate.get('instances', [])
+        if candidate_instances:
+            print(f"\n   {cp.cyan('Instances:')}")
+            for inst in candidate_instances[:5]:
+                file_path = inst.get('file', '')
+                start = inst.get('start_line', 0)
+                end = inst.get('end_line', 0)
+                print(f"   {cp.dim('-')} {file_path}:{start}-{end}")
+            if len(candidate_instances) > 5:
+                print(f"   {cp.dim(f'... and {len(candidate_instances) - 5} more')}")
+
+        # Recommendation
+        rec = candidate.get('recommendation', '')
+        if rec:
+            print(f"\n   {cp.yellow('Recommendation:')}")
+            # Wrap long recommendations
+            words = rec.split()
+            line = "   "
+            for word in words:
+                if len(line) + len(word) > 75:
+                    print(line)
+                    line = "   " + word
+                else:
+                    line += " " + word if line.strip() else word
+            if line.strip():
+                print(line)
+
+        # Detailed diff preview
+        if detailed and candidate_instances and len(candidate_instances) >= 2:
+            print(f"\n   {cp.bold('Diff Preview:')}")
+            diff = generate_diff_preview(candidate_instances)
+            if diff:
+                for line in diff.split('\n'):
+                    print(f"   {line}")
+
+    # Summary message
+    if result.get('message'):
+        print(f"\n{result['message']}")
+
+
 def main_cli() -> None:
     """Main CLI entry point"""
+    global cp
+
     parser = argparse.ArgumentParser(
         description="Detect duplicate code in a project using ast-grep",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -131,6 +365,18 @@ Examples:
   # Analyze Python methods, ignore small functions
   python scripts/find_duplication.py /path/to/project --language python \\
       --construct-type method_definition --min-lines 10
+
+  # Use ranked analysis with recommendations
+  python scripts/find_duplication.py /path/to/project --language python --analyze
+
+  # Show detailed output with diff previews
+  python scripts/find_duplication.py /path/to/project --language python --detailed
+
+  # Combine analysis and detailed output
+  python scripts/find_duplication.py /path/to/project --language python --analyze --detailed
+
+  # Disable colors for piping to file
+  python scripts/find_duplication.py /path/to/project --language python --no-color > report.txt
 
   # Output as JSON
   python scripts/find_duplication.py /path/to/project --language python --json
@@ -189,7 +435,43 @@ Examples:
         help="Output results as JSON instead of formatted text"
     )
 
+    parser.add_argument(
+        "--analyze", "-a",
+        action="store_true",
+        help="Use analyze_deduplication_candidates for ranked results with recommendations"
+    )
+
+    parser.add_argument(
+        "--detailed", "-d",
+        action="store_true",
+        help="Show detailed output including diff previews for duplicate groups"
+    )
+
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable colored output"
+    )
+
+    parser.add_argument(
+        "--max-candidates",
+        type=int,
+        default=100,
+        help="Maximum candidates to return when using --analyze (default: 100)"
+    )
+
+    parser.add_argument(
+        "--include-test-coverage",
+        action="store_true",
+        default=True,
+        help="Include test coverage in analysis (only with --analyze)"
+    )
+
     args = parser.parse_args()
+
+    # Initialize color printer
+    use_color = not args.no_color and sys.stdout.isatty() and not args.json
+    cp = ColorPrinter(use_color=use_color)
 
     # Validate project folder
     if not os.path.isabs(args.project_folder):
@@ -219,7 +501,8 @@ Examples:
     if not args.json:
         print(f"Analyzing: {args.project_folder}")
         print(f"Language: {args.language}")
-        print(f"Construct type: {args.construct_type}")
+        if not args.analyze:
+            print(f"Construct type: {args.construct_type}")
         print(f"Min similarity: {args.min_similarity:.1%}")
         print(f"Min lines: {args.min_lines}")
         if args.max_constructs > 0:
@@ -228,32 +511,57 @@ Examples:
             print("Max constructs: unlimited")
         if args.exclude_patterns:
             print(f"Excluding patterns: {', '.join(args.exclude_patterns)}")
+        if args.analyze:
+            print(f"Mode: {cp.cyan('Ranked Analysis')}")
+        if args.detailed:
+            print(f"Output: {cp.cyan('Detailed with diff previews')}")
         print("\nSearching for duplicates...")
 
     try:
-        # Call the find_duplication tool
-        result = find_duplication(
-            project_folder=args.project_folder,
-            language=args.language,
-            construct_type=args.construct_type,
-            min_similarity=args.min_similarity,
-            min_lines=args.min_lines,
-            max_constructs=args.max_constructs,
-            exclude_patterns=args.exclude_patterns
-        )
+        if args.analyze:
+            # Use analyze_deduplication_candidates tool
+            if analyze_deduplication_candidates is None:
+                print("Error: analyze_deduplication_candidates tool not available", file=sys.stderr)
+                sys.exit(1)
 
-        if args.json:
-            # Output as JSON
-            print(json.dumps(result, indent=2))
+            result = analyze_deduplication_candidates(
+                project_path=args.project_folder,
+                language=args.language,
+                min_similarity=args.min_similarity,
+                min_lines=args.min_lines,
+                max_candidates=args.max_candidates,
+                include_test_coverage=args.include_test_coverage,
+                exclude_patterns=args.exclude_patterns
+            )
+
+            if args.json:
+                print(json.dumps(result, indent=2))
+            else:
+                format_analyze_results(result, detailed=args.detailed)
         else:
-            # Format and display results
-            format_summary(result['summary'])
-            format_duplication_groups(result['duplication_groups'])
-            format_refactoring_suggestions(result['refactoring_suggestions'])
+            # Use original find_duplication tool
+            result = find_duplication(
+                project_folder=args.project_folder,
+                language=args.language,
+                construct_type=args.construct_type,
+                min_similarity=args.min_similarity,
+                min_lines=args.min_lines,
+                max_constructs=args.max_constructs,
+                exclude_patterns=args.exclude_patterns
+            )
 
-            # Print message
-            if result.get('message'):
-                print(f"\n{result['message']}")
+            if args.json:
+                # Output as JSON
+                print(json.dumps(result, indent=2))
+            else:
+                # Format and display results
+                format_summary(result['summary'])
+                format_duplication_groups(result['duplication_groups'], detailed=args.detailed)
+                format_refactoring_suggestions(result['refactoring_suggestions'])
+
+                # Print message
+                if result.get('message'):
+                    print(f"\n{result['message']}")
 
     except Exception as e:
         print(f"\nError: {e}", file=sys.stderr)
