@@ -16,7 +16,7 @@ doppler run -- uv run main.py    # Run with Doppler secrets (production)
 
 Single-file MCP server (`main.py`, ~4000 lines) combining ast-grep structural code search with Schema.org tools.
 
-**18 Tools:** Code search (6), Code rewrite (3), Schema.org (8), Testing (1)
+**21 Tools:** Code search (6), Code rewrite (3), Deduplication (3), Schema.org (8), Testing (1)
 
 **Dependencies:** ast-grep CLI (required), Doppler CLI (optional for secrets), Python 3.13+, uv package manager
 
@@ -94,6 +94,39 @@ rollback_rewrite(..., backup_id)  # Undo if needed
 ```
 
 **Backups:** `.ast-grep-backups/backup-YYYYMMDD-HHMMSS-mmm/`
+
+## Code Deduplication
+
+Enhanced duplication detection with intelligent analysis and automated refactoring.
+
+**Tools:**
+- `find_duplication` - Detect duplicate functions/classes/methods
+- `analyze_deduplication_candidates` - Rank duplicates by refactoring value
+- `apply_deduplication` - Apply refactoring with validation and backup
+
+**Workflow:**
+```python
+# 1. Find duplicates
+duplicates = find_duplication(project_folder="/path", language="python")
+
+# 2. Get ranked candidates
+candidates = analyze_deduplication_candidates(project_path="/path", language="python")
+
+# 3. Preview and apply
+preview = apply_deduplication(..., dry_run=True)   # Preview
+result = apply_deduplication(..., dry_run=False)   # Apply with backup
+```
+
+**CLI:**
+```bash
+# Basic detection
+uv run python scripts/find_duplication.py /path/to/project --language python
+
+# Ranked analysis with recommendations
+uv run python scripts/find_duplication.py /path/to/project --language python --analyze --detailed
+```
+
+**Docs:** See [DEDUPLICATION-GUIDE.md](DEDUPLICATION-GUIDE.md) for complete documentation.
 
 ## Architecture
 
@@ -173,7 +206,7 @@ mcp-docs/            # Reference docs for 30+ MCP servers in ecosystem
 dev/active/          # Feature planning docs (12 documents)
 ```
 
-**Key docs:** README.md, CLAUDE.md, SENTRY-INTEGRATION.md, DOPPLER-MIGRATION.md, CONFIGURATION.md, BENCHMARKING.md
+**Key docs:** README.md, CLAUDE.md, DEDUPLICATION-GUIDE.md, SENTRY-INTEGRATION.md, DOPPLER-MIGRATION.md, CONFIGURATION.md, BENCHMARKING.md
 
 **Repomix snapshots:** Kept in `mcp-docs/` and `tests/` for codebase analysis. Refresh after major changes: `repomix mcp-docs/`
 

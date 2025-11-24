@@ -3880,6 +3880,252 @@ def register_mcp_tools() -> None:  # pragma: no cover
             })
             raise
 
+    @mcp.tool()
+    def benchmark_deduplication(
+        iterations: int = Field(
+            default=10,
+            description="Number of iterations per benchmark (default: 10, more gives better statistics)"
+        ),
+        save_baseline: bool = Field(
+            default=False,
+            description="Save results as new baseline for regression detection"
+        ),
+        check_regression: bool = Field(
+            default=True,
+            description="Check results against baseline for performance regressions"
+        )
+    ) -> Dict[str, Any]:
+        """
+        Run performance benchmarks for deduplication functions.
+
+        Benchmarks the following operations:
+        - **scoring**: calculate_deduplication_score (should be < 1ms)
+        - **pattern_analysis**: rank_deduplication_candidates and analyze variations
+        - **code_generation**: generate_deduplication_recommendation
+        - **full_workflow**: create_enhanced_duplication_response
+
+        Returns statistical analysis including mean, std dev, min, and max times.
+        Can detect performance regressions against baseline metrics.
+
+        Regression Thresholds:
+        - scoring: 5%
+        - pattern_analysis: 15%
+        - code_generation: 10%
+        - full_workflow: 20%
+        - test_coverage: 15%
+
+        Example response:
+        ```json
+        {
+            "total_benchmarks": 4,
+            "results": [
+                {
+                    "name": "scoring",
+                    "iterations": 100,
+                    "mean_seconds": 0.000012,
+                    "std_dev_seconds": 0.000002,
+                    "min_seconds": 0.000009,
+                    "max_seconds": 0.000018
+                }
+            ],
+            "regression_detected": false
+        }
+        ```
+        """
+        import statistics
+        logger = get_logger("tool.benchmark_deduplication")
+        start_time = time.time()
+
+        logger.info(
+            "tool_invoked",
+            tool="benchmark_deduplication",
+            iterations=iterations,
+            save_baseline=save_baseline
+        )
+
+        try:
+            # Regression thresholds
+            THRESHOLDS = {
+                "pattern_analysis": 0.15,
+                "code_generation": 0.10,
+                "full_workflow": 0.20,
+                "scoring": 0.05,
+                "test_coverage": 0.15
+            }
+
+            results: List[Dict[str, Any]] = []
+
+            def run_timed_benchmark(
+                name: str,
+                func: Any,
+                iters: int,
+                *args: Any,
+                **kwargs: Any
+            ) -> Dict[str, Any]:
+                """Run a benchmark and collect statistics."""
+                times: List[float] = []
+                for _ in range(iters):
+                    t_start = time.perf_counter()
+                    func(*args, **kwargs)
+                    elapsed = time.perf_counter() - t_start
+                    times.append(elapsed)
+
+                return {
+                    "name": name,
+                    "iterations": iters,
+                    "mean_seconds": round(statistics.mean(times), 6),
+                    "std_dev_seconds": round(statistics.stdev(times) if len(times) > 1 else 0.0, 6),
+                    "min_seconds": round(min(times), 6),
+                    "max_seconds": round(max(times), 6)
+                }
+
+            # Benchmark 1: Scoring
+            test_cases = [
+                (100, 3, True, 2, 5),
+                (10, 8, False, 10, 50),
+                (50, 5, True, 5, 10),
+            ]
+
+            def run_scoring() -> None:
+                for lines, complexity, has_tests, files, calls in test_cases:
+                    calculate_deduplication_score(lines, complexity, has_tests, files, calls)
+
+            results.append(run_timed_benchmark("scoring", run_scoring, iterations * 10))
+
+            # Benchmark 2: Pattern Analysis (ranking)
+            candidates = [
+                {
+                    "lines_saved": i * 10,
+                    "complexity_score": (i % 10) + 1,
+                    "has_tests": i % 2 == 0,
+                    "affected_files": (i % 5) + 1,
+                    "external_call_sites": i * 2
+                }
+                for i in range(50)
+            ]
+
+            results.append(run_timed_benchmark(
+                "pattern_analysis",
+                rank_deduplication_candidates,
+                iterations * 5,
+                candidates
+            ))
+
+            # Benchmark 3: Code Generation (recommendations)
+            test_recs = [
+                (85.0, 3, 100, True, 3),
+                (45.0, 7, 20, False, 8),
+                (25.0, 9, 5, False, 15),
+            ]
+
+            def run_recommendations() -> None:
+                for score, complexity, lines, has_tests, files in test_recs:
+                    generate_deduplication_recommendation(score, complexity, lines, has_tests, files)
+
+            results.append(run_timed_benchmark(
+                "code_generation",
+                run_recommendations,
+                iterations * 5
+            ))
+
+            # Benchmark 4: Full Workflow
+            response_candidates = [
+                {
+                    "code": f"def helper_{i}(x, y): return x + y * {i}",
+                    "function_name": f"helper_{i}",
+                    "replacement": f"result = extracted_helper_{i}(x, y)",
+                    "similarity": 85.0 + i,
+                    "complexity": (i % 10) + 1,
+                    "files": [f"file_{i}.py"]
+                }
+                for i in range(20)
+            ]
+
+            results.append(run_timed_benchmark(
+                "full_workflow",
+                create_enhanced_duplication_response,
+                iterations,
+                response_candidates,
+                include_diffs=False,
+                include_colors=False
+            ))
+
+            # Check for regressions if requested
+            regression_detected = False
+            regression_errors: List[str] = []
+            baseline_file = "tests/dedup_benchmark_baseline.json"
+
+            if check_regression and os.path.exists(baseline_file):
+                with open(baseline_file, 'r') as f:
+                    baseline_data = json.load(f)
+                    baseline_map = {
+                        item["name"]: item
+                        for item in baseline_data.get("benchmarks", [])
+                    }
+
+                for result in results:
+                    name = result["name"]
+                    if name in baseline_map:
+                        baseline_mean = baseline_map[name].get("mean_seconds", 0)
+                        current_mean = result["mean_seconds"]
+                        threshold = THRESHOLDS.get(name, 0.10)
+
+                        if baseline_mean > 0:
+                            slowdown = (current_mean - baseline_mean) / baseline_mean
+                            if slowdown > threshold:
+                                regression_detected = True
+                                regression_errors.append(
+                                    f"{name}: {slowdown*100:.1f}% slower "
+                                    f"({baseline_mean:.6f}s -> {current_mean:.6f}s, "
+                                    f"threshold: {threshold*100:.0f}%)"
+                                )
+
+            # Save baseline if requested
+            if save_baseline:
+                baseline_data = {
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "benchmarks": results
+                }
+                os.makedirs(os.path.dirname(baseline_file) if os.path.dirname(baseline_file) else ".", exist_ok=True)
+                with open(baseline_file, 'w') as f:
+                    json.dump(baseline_data, f, indent=2)
+
+            execution_time = time.time() - start_time
+
+            logger.info(
+                "tool_completed",
+                tool="benchmark_deduplication",
+                total_benchmarks=len(results),
+                regression_detected=regression_detected,
+                execution_time_seconds=round(execution_time, 3)
+            )
+
+            return {
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "total_benchmarks": len(results),
+                "results": results,
+                "regression_detected": regression_detected,
+                "regression_errors": regression_errors,
+                "thresholds": THRESHOLDS,
+                "baseline_saved": save_baseline,
+                "execution_time_seconds": round(execution_time, 3)
+            }
+
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(
+                "tool_failed",
+                tool="benchmark_deduplication",
+                execution_time_seconds=round(execution_time, 3),
+                error=str(e)[:200]
+            )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "benchmark_deduplication",
+                "iterations": iterations,
+                "execution_time_seconds": round(execution_time, 3)
+            })
+            raise
+
 
 def format_matches_as_text(matches: List[dict[str, Any]]) -> str:
     """Convert JSON matches to LLM-friendly text format.

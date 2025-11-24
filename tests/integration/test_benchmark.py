@@ -20,10 +20,11 @@ Usage:
 
 import json
 import os
+import statistics
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 from unittest.mock import patch
 
 import pytest
@@ -498,3 +499,490 @@ class TestCIBenchmarks:
 
         if has_regression:
             pytest.fail("Performance regression detected:\n" + "\n".join(errors))
+
+
+# =============================================================================
+# Phase 6.4: Deduplication Performance Benchmarks
+# =============================================================================
+
+
+class DeduplicationBenchmarkResult:
+    """Store deduplication benchmark results with statistical analysis."""
+
+    def __init__(
+        self,
+        name: str,
+        times: List[float],
+        iterations: int
+    ):
+        self.name = name
+        self.times = times
+        self.iterations = iterations
+        self.mean = statistics.mean(times)
+        self.std_dev = statistics.stdev(times) if len(times) > 1 else 0.0
+        self.min_time = min(times)
+        self.max_time = max(times)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "iterations": self.iterations,
+            "mean_seconds": round(self.mean, 6),
+            "std_dev_seconds": round(self.std_dev, 6),
+            "min_seconds": round(self.min_time, 6),
+            "max_seconds": round(self.max_time, 6)
+        }
+
+
+class DeduplicationBenchmarkRunner:
+    """Run deduplication-specific benchmarks with statistical reporting."""
+
+    # Regression thresholds (max allowed slowdown from baseline)
+    THRESHOLDS = {
+        "pattern_analysis": 0.15,  # 15% slowdown allowed
+        "code_generation": 0.10,  # 10% slowdown allowed
+        "full_workflow": 0.20,    # 20% slowdown allowed
+        "scoring": 0.05,          # 5% slowdown allowed
+        "test_coverage": 0.15     # 15% slowdown allowed
+    }
+
+    def __init__(self, baseline_file: str = "tests/dedup_benchmark_baseline.json"):
+        self.baseline_file = baseline_file
+        self.results: List[DeduplicationBenchmarkResult] = []
+        self.baseline: Dict[str, Dict[str, float]] = {}
+        self._load_baseline()
+
+    def _load_baseline(self) -> None:
+        """Load baseline metrics from file."""
+        if os.path.exists(self.baseline_file):
+            with open(self.baseline_file, 'r') as f:
+                data = json.load(f)
+                self.baseline = {
+                    item["name"]: item
+                    for item in data.get("benchmarks", [])
+                }
+
+    def save_baseline(self) -> None:
+        """Save current results as new baseline."""
+        baseline_data = {
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "benchmarks": [r.to_dict() for r in self.results]
+        }
+        os.makedirs(os.path.dirname(self.baseline_file) if os.path.dirname(self.baseline_file) else ".", exist_ok=True)
+        with open(self.baseline_file, 'w') as f:
+            json.dump(baseline_data, f, indent=2)
+
+    def run_benchmark(
+        self,
+        name: str,
+        func: Callable[..., Any],
+        iterations: int = 10,
+        *args: Any,
+        **kwargs: Any
+    ) -> DeduplicationBenchmarkResult:
+        """Run a benchmark with multiple iterations and collect statistics."""
+        times: List[float] = []
+
+        for _ in range(iterations):
+            start = time.perf_counter()
+            func(*args, **kwargs)
+            elapsed = time.perf_counter() - start
+            times.append(elapsed)
+
+        result = DeduplicationBenchmarkResult(
+            name=name,
+            times=times,
+            iterations=iterations
+        )
+        self.results.append(result)
+        return result
+
+    def check_regression(self) -> Tuple[bool, List[str]]:
+        """Check for performance regressions against baseline."""
+        if not self.baseline:
+            return (False, ["No baseline found - skipping regression check"])
+
+        errors = []
+        for result in self.results:
+            if result.name not in self.baseline:
+                continue
+
+            baseline = self.baseline[result.name]
+            baseline_mean = baseline.get("mean_seconds", result.mean)
+            threshold = self.THRESHOLDS.get(result.name, 0.10)
+
+            if baseline_mean > 0:
+                slowdown = (result.mean - baseline_mean) / baseline_mean
+                if slowdown > threshold:
+                    errors.append(
+                        f"{result.name}: {slowdown*100:.1f}% slower "
+                        f"({baseline_mean:.6f}s -> {result.mean:.6f}s, "
+                        f"threshold: {threshold*100:.0f}%)"
+                    )
+
+        return (len(errors) > 0, errors)
+
+    def generate_report(self) -> Dict[str, Any]:
+        """Generate JSON benchmark report."""
+        has_regression, errors = self.check_regression()
+
+        return {
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "total_benchmarks": len(self.results),
+            "results": [r.to_dict() for r in self.results],
+            "regression_detected": has_regression,
+            "regression_errors": errors,
+            "thresholds": self.THRESHOLDS
+        }
+
+
+@pytest.fixture
+def dedup_benchmark_runner() -> DeduplicationBenchmarkRunner:
+    """Provide deduplication benchmark runner for tests."""
+    return DeduplicationBenchmarkRunner()
+
+
+class TestDeduplicationBenchmarks:
+    """Performance benchmarks for deduplication functions (Phase 6.4)."""
+
+    def test_benchmark_calculate_deduplication_score(
+        self,
+        dedup_benchmark_runner: DeduplicationBenchmarkRunner
+    ) -> None:
+        """Benchmark calculate_deduplication_score function."""
+        from main import calculate_deduplication_score
+
+        # Test with various inputs
+        test_cases = [
+            (100, 3, True, 2, 5),    # High value candidate
+            (10, 8, False, 10, 50),  # Low value candidate
+            (50, 5, True, 5, 10),    # Medium value candidate
+        ]
+
+        def run_scoring() -> None:
+            for lines, complexity, has_tests, files, calls in test_cases:
+                calculate_deduplication_score(lines, complexity, has_tests, files, calls)
+
+        result = dedup_benchmark_runner.run_benchmark(
+            "scoring",
+            run_scoring,
+            iterations=100  # Fast function, more iterations
+        )
+
+        # Scoring should be very fast (< 1ms per call)
+        assert result.mean < 0.001, f"Scoring too slow: {result.mean*1000:.3f}ms"
+
+    def test_benchmark_rank_deduplication_candidates(
+        self,
+        dedup_benchmark_runner: DeduplicationBenchmarkRunner
+    ) -> None:
+        """Benchmark rank_deduplication_candidates function."""
+        from main import rank_deduplication_candidates
+
+        # Create test candidates
+        candidates = [
+            {
+                "lines_saved": i * 10,
+                "complexity_score": (i % 10) + 1,
+                "has_tests": i % 2 == 0,
+                "affected_files": (i % 5) + 1,
+                "external_call_sites": i * 2
+            }
+            for i in range(50)  # 50 candidates
+        ]
+
+        result = dedup_benchmark_runner.run_benchmark(
+            "pattern_analysis",  # Ranking is part of pattern analysis
+            rank_deduplication_candidates,
+            50,  # iterations
+            candidates
+        )
+
+        # Should complete quickly for 50 candidates
+        assert result.mean < 0.01, f"Ranking too slow: {result.mean*1000:.3f}ms"
+
+    def test_benchmark_analyze_duplicate_variations(
+        self,
+        dedup_benchmark_runner: DeduplicationBenchmarkRunner
+    ) -> None:
+        """Benchmark analyze_duplicate_variations function."""
+        from main import analyze_duplicate_variations
+
+        # Create test duplicate group
+        group = [
+            {
+                "text": f'''def process_data_{i}(data):
+    result = []
+    for item in data:
+        if item > {i}:
+            result.append(item * {i + 1})
+    return result'''
+            }
+            for i in range(10)  # 10 duplicates in group
+        ]
+
+        result = dedup_benchmark_runner.run_benchmark(
+            "pattern_analysis",
+            analyze_duplicate_variations,
+            20,  # iterations
+            group,
+            "python"
+        )
+
+        # Pattern analysis should be reasonable
+        assert result.mean < 0.1, f"Variation analysis too slow: {result.mean*1000:.3f}ms"
+
+    def test_benchmark_get_test_coverage_for_files(
+        self,
+        dedup_benchmark_runner: DeduplicationBenchmarkRunner,
+        tmp_path: Path
+    ) -> None:
+        """Benchmark get_test_coverage_for_files function."""
+        from main import get_test_coverage_for_files
+
+        # Create test files
+        src_dir = tmp_path / "src"
+        test_dir = tmp_path / "tests"
+        src_dir.mkdir()
+        test_dir.mkdir()
+
+        file_paths = []
+        for i in range(10):
+            src_file = src_dir / f"module_{i}.py"
+            src_file.write_text(f"def func_{i}(): pass")
+            file_paths.append(str(src_file))
+
+            # Create corresponding test for half of them
+            if i % 2 == 0:
+                test_file = test_dir / f"test_module_{i}.py"
+                test_file.write_text(f"def test_func_{i}(): pass")
+
+        result = dedup_benchmark_runner.run_benchmark(
+            "test_coverage",
+            get_test_coverage_for_files,
+            10,  # iterations
+            file_paths,
+            "python",
+            str(tmp_path)
+        )
+
+        # Test coverage check should be reasonable
+        assert result.mean < 0.5, f"Test coverage check too slow: {result.mean*1000:.3f}ms"
+
+    def test_benchmark_generate_deduplication_recommendation(
+        self,
+        dedup_benchmark_runner: DeduplicationBenchmarkRunner
+    ) -> None:
+        """Benchmark generate_deduplication_recommendation function."""
+        from main import generate_deduplication_recommendation
+
+        # Test various scenarios
+        test_cases = [
+            (85.0, 3, 100, True, 3),   # High value
+            (45.0, 7, 20, False, 8),   # Medium value
+            (25.0, 9, 5, False, 15),   # Low value
+        ]
+
+        def run_recommendations() -> None:
+            for score, complexity, lines, has_tests, files in test_cases:
+                generate_deduplication_recommendation(score, complexity, lines, has_tests, files)
+
+        result = dedup_benchmark_runner.run_benchmark(
+            "code_generation",  # Recommendations include strategy generation
+            run_recommendations,
+            50  # iterations
+        )
+
+        # Should be fast
+        assert result.mean < 0.001, f"Recommendation too slow: {result.mean*1000:.3f}ms"
+
+    def test_benchmark_create_enhanced_duplication_response(
+        self,
+        dedup_benchmark_runner: DeduplicationBenchmarkRunner
+    ) -> None:
+        """Benchmark create_enhanced_duplication_response function."""
+        from main import create_enhanced_duplication_response
+
+        # Create test candidates
+        candidates = [
+            {
+                "code": f'''def helper_{i}(x, y):
+    result = x + y * {i}
+    return result''',
+                "function_name": f"helper_{i}",
+                "replacement": f"result = extracted_helper_{i}(x, y)",
+                "similarity": 85.0 + i,
+                "complexity": (i % 10) + 1,
+                "files": [f"file_{i}.py", f"file_{i+1}.py"]
+            }
+            for i in range(20)
+        ]
+
+        result = dedup_benchmark_runner.run_benchmark(
+            "full_workflow",  # This is a full response generation
+            create_enhanced_duplication_response,
+            10,  # iterations
+            candidates,
+            False,  # include_diffs
+            False   # include_colors
+        )
+
+        # Full workflow should complete in reasonable time
+        assert result.mean < 0.1, f"Response generation too slow: {result.mean*1000:.3f}ms"
+
+    def test_generate_dedup_benchmark_report(
+        self,
+        dedup_benchmark_runner: DeduplicationBenchmarkRunner
+    ) -> None:
+        """Generate benchmark report after running tests."""
+        # Add some test results
+        dedup_benchmark_runner.results.append(
+            DeduplicationBenchmarkResult(
+                name="test_scoring",
+                times=[0.0001, 0.00012, 0.00009],
+                iterations=3
+            )
+        )
+
+        report = dedup_benchmark_runner.generate_report()
+
+        assert "timestamp" in report
+        assert report["total_benchmarks"] == 1
+        assert len(report["results"]) == 1
+        assert "mean_seconds" in report["results"][0]
+        assert "std_dev_seconds" in report["results"][0]
+
+    def test_dedup_regression_detection(
+        self,
+        dedup_benchmark_runner: DeduplicationBenchmarkRunner
+    ) -> None:
+        """Test deduplication regression detection."""
+        # Add baseline
+        dedup_benchmark_runner.baseline["scoring"] = {
+            "name": "scoring",
+            "mean_seconds": 0.0001
+        }
+
+        # Add result with 4% regression (within 5% threshold)
+        dedup_benchmark_runner.results.append(
+            DeduplicationBenchmarkResult(
+                name="scoring",
+                times=[0.000104] * 10,
+                iterations=10
+            )
+        )
+
+        has_regression, errors = dedup_benchmark_runner.check_regression()
+        assert not has_regression, "Should not detect regression within threshold"
+
+        # Add result with 10% regression (exceeds 5% threshold)
+        dedup_benchmark_runner.results = []
+        dedup_benchmark_runner.results.append(
+            DeduplicationBenchmarkResult(
+                name="scoring",
+                times=[0.00011] * 10,
+                iterations=10
+            )
+        )
+
+        has_regression, errors = dedup_benchmark_runner.check_regression()
+        assert has_regression, "Should detect regression exceeding threshold"
+        assert len(errors) == 1
+
+
+def run_deduplication_benchmarks(
+    iterations: int = 10,
+    save_baseline: bool = False
+) -> Dict[str, Any]:
+    """Run all deduplication benchmarks and return results.
+
+    This function can be called programmatically from the MCP tool.
+
+    Args:
+        iterations: Number of iterations per benchmark
+        save_baseline: Whether to save results as new baseline
+
+    Returns:
+        Benchmark results as JSON-serializable dict
+    """
+    from main import (
+        calculate_deduplication_score,
+        rank_deduplication_candidates,
+        analyze_duplicate_variations,
+        generate_deduplication_recommendation,
+        create_enhanced_duplication_response
+    )
+
+    runner = DeduplicationBenchmarkRunner()
+
+    # Benchmark 1: Scoring
+    test_cases = [
+        (100, 3, True, 2, 5),
+        (10, 8, False, 10, 50),
+        (50, 5, True, 5, 10),
+    ]
+
+    def run_scoring() -> None:
+        for lines, complexity, has_tests, files, calls in test_cases:
+            calculate_deduplication_score(lines, complexity, has_tests, files, calls)
+
+    runner.run_benchmark("scoring", run_scoring, iterations * 10)
+
+    # Benchmark 2: Pattern Analysis (ranking)
+    candidates = [
+        {
+            "lines_saved": i * 10,
+            "complexity_score": (i % 10) + 1,
+            "has_tests": i % 2 == 0,
+            "affected_files": (i % 5) + 1,
+            "external_call_sites": i * 2
+        }
+        for i in range(50)
+    ]
+
+    runner.run_benchmark(
+        "pattern_analysis",
+        rank_deduplication_candidates,
+        iterations * 5,
+        candidates
+    )
+
+    # Benchmark 3: Code Generation (recommendations)
+    test_recs = [
+        (85.0, 3, 100, True, 3),
+        (45.0, 7, 20, False, 8),
+        (25.0, 9, 5, False, 15),
+    ]
+
+    def run_recommendations() -> None:
+        for score, complexity, lines, has_tests, files in test_recs:
+            generate_deduplication_recommendation(score, complexity, lines, has_tests, files)
+
+    runner.run_benchmark("code_generation", run_recommendations, iterations * 5)
+
+    # Benchmark 4: Full Workflow
+    response_candidates = [
+        {
+            "code": f"def helper_{i}(x, y): return x + y * {i}",
+            "function_name": f"helper_{i}",
+            "replacement": f"result = extracted_helper_{i}(x, y)",
+            "similarity": 85.0 + i,
+            "complexity": (i % 10) + 1,
+            "files": [f"file_{i}.py"]
+        }
+        for i in range(20)
+    ]
+
+    runner.run_benchmark(
+        "full_workflow",
+        create_enhanced_duplication_response,
+        iterations,
+        response_candidates,
+        False,  # include_diffs
+        False   # include_colors
+    )
+
+    if save_baseline:
+        runner.save_baseline()
+
+    return runner.generate_report()
