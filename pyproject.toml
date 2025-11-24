@@ -27,6 +27,9 @@ dev = [
 [project.scripts]
 ast-grep-server = "main:run_mcp_server"
 
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
@@ -67,4 +70,10 @@ strict = true
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
+mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = "ast_grep_mcp.*"
+ignore_missing_imports = false
 
