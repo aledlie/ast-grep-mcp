@@ -1,6 +1,6 @@
 """Data models for code complexity analysis."""
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import List
 
 
 @dataclass
@@ -9,17 +9,20 @@ class ComplexityMetrics:
     cyclomatic: int
     cognitive: int
     nesting_depth: int
-    line_count: int
+    lines: int
+    parameter_count: int = 0
 
 
 @dataclass
 class FunctionComplexity:
     """Complete analysis result for one function."""
-    name: str
     file_path: str
-    line_number: int
+    function_name: str
+    start_line: int
+    end_line: int
     metrics: ComplexityMetrics
-    exceeds_thresholds: bool
+    language: str
+    exceeds: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -27,5 +30,5 @@ class ComplexityThresholds:
     """Configurable thresholds with sensible defaults."""
     cyclomatic: int = 10
     cognitive: int = 15
-    nesting: int = 4
-    length: int = 50
+    nesting_depth: int = 4
+    lines: int = 50
