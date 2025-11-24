@@ -30,6 +30,192 @@ CACHE_ENABLED: bool = True
 CACHE_SIZE: int = 100
 CACHE_TTL: int = 300  # seconds (5 minutes default)
 
+# Code generation templates for Phase 2 - Code Generation Engine
+# Used for extracting duplicates into reusable helper classes
+
+PYTHON_CLASS_TEMPLATE: str = '''{decorators}class {name}{bases}:
+{docstring}{class_vars}{methods}'''
+
+# Helper functions for template formatting
+def format_python_class(
+    name: str,
+    methods: str,
+    decorators: Optional[str] = None,
+    bases: Optional[List[str]] = None,
+    docstring: Optional[str] = None,
+    class_vars: Optional[str] = None,
+) -> str:
+    """Format a Python class using the template.
+
+    Args:
+        name: Class name
+        methods: Formatted method definitions (already indented)
+        decorators: Optional decorator strings (e.g., "@dataclass\\n")
+        bases: Optional list of base classes for inheritance
+        docstring: Optional class-level docstring
+        class_vars: Optional class variable definitions
+
+    Returns:
+        Formatted Python class string
+    """
+    # Format decorators
+    decorator_str = f"{decorators}\n" if decorators else ""
+
+    # Format base classes
+    bases_str = f"({', '.join(bases)})" if bases else ""
+
+    # Format docstring with proper indentation
+    docstring_str = f'    """{docstring}"""\n\n' if docstring else ""
+
+    # Format class variables with proper indentation
+    class_vars_str = f"{class_vars}\n\n" if class_vars else ""
+
+    # Ensure methods are properly indented (4 spaces)
+    if methods and not methods.startswith("    "):
+        methods = "\n".join(f"    {line}" if line.strip() else line
+                          for line in methods.split("\n"))
+
+    return PYTHON_CLASS_TEMPLATE.format(
+        decorators=decorator_str,
+        name=name,
+        bases=bases_str,
+        docstring=docstring_str,
+        class_vars=class_vars_str,
+        methods=methods,
+    )
+
+
+def format_java_code(code: str) -> str:
+    """Format Java code using google-java-format or basic formatting fallback.
+
+    Attempts to use google-java-format for professional formatting. Falls back
+    to basic formatting rules if the tool is not available.
+
+    Args:
+        code: Java source code string to format
+
+    Returns:
+        Formatted Java code string
+
+    Examples:
+        >>> format_java_code("public class Foo{int x;}")
+        'public class Foo {\\n    int x;\\n}'
+    """
+    import re
+    import shutil
+    import subprocess
+    import tempfile
+
+    # Try google-java-format if available
+    if shutil.which("google-java-format"):
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode='w', suffix='.java', delete=False
+            ) as f:
+                f.write(code)
+                temp_path = f.name
+
+            result = subprocess.run(
+                ["google-java-format", temp_path],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            # Clean up temp file
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+
+            if result.returncode == 0:
+                return result.stdout
+
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError):
+            pass  # Fall through to basic formatting
+
+    # Basic formatting fallback
+    lines = code.split('\n')
+    formatted_lines: list[str] = []
+    indent_level = 0
+    import_lines: list[str] = []
+    non_import_lines: list[str] = []
+    in_imports = False
+
+    # First pass: separate imports from other code
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith('import '):
+            import_lines.append(stripped)
+            in_imports = True
+        elif stripped.startswith('package '):
+            non_import_lines.append(stripped)
+        elif stripped:
+            if in_imports and import_lines:
+                in_imports = False
+            non_import_lines.append(stripped)
+        elif not in_imports:
+            non_import_lines.append('')
+
+    # Sort imports: java.* first, then javax.*, then others
+    def import_sort_key(imp: str) -> tuple[int, str]:
+        name = imp.replace('import ', '').replace('static ', '').strip().rstrip(';')
+        if name.startswith('java.'):
+            return (0, name)
+        elif name.startswith('javax.'):
+            return (1, name)
+        else:
+            return (2, name)
+
+    import_lines.sort(key=import_sort_key)
+
+    # Reconstruct with sorted imports
+    all_lines: list[str] = []
+    found_package = False
+    for line in non_import_lines:
+        if line.startswith('package '):
+            all_lines.append(line)
+            found_package = True
+            if import_lines:
+                all_lines.append('')  # Blank line after package
+                all_lines.extend(import_lines)
+                all_lines.append('')  # Blank line after imports
+        else:
+            all_lines.append(line)
+
+    if not found_package and import_lines:
+        all_lines = import_lines + [''] + all_lines
+
+    # Second pass: apply indentation and brace formatting
+    for line in all_lines:
+        stripped = line.strip()
+        if not stripped:
+            formatted_lines.append('')
+            continue
+
+        # Decrease indent for closing braces
+        if stripped.startswith('}') or stripped.startswith(')'):
+            indent_level = max(0, indent_level - 1)
+
+        # Handle lines that both close and open (e.g., "} else {")
+        temp_indent = indent_level
+        if stripped.startswith('}') and '{' in stripped:
+            temp_indent = max(0, indent_level)
+
+        # Apply indentation (4 spaces)
+        formatted_line = '    ' * temp_indent + stripped
+
+        # Ensure space before opening brace
+        formatted_line = re.sub(r'(\S)\{', r'\1 {', formatted_line)
+
+        formatted_lines.append(formatted_line)
+
+        # Increase indent for opening braces
+        open_braces = stripped.count('{') - stripped.count('}')
+        indent_level = max(0, indent_level + open_braces)
+
+    return '\n'.join(formatted_lines)
+
 
 def configure_logging(log_level: str = "INFO", log_file: Optional[str] = None) -> None:
     """Configure structured logging with JSON output.
@@ -206,6 +392,58 @@ class NoMatchesError(AstGrepError):
             "  - For relational rules (inside/has), try adding 'stopBy: end'\n"
             "  - Check that the language is correct\n"
         )
+
+
+# Code generation templates for Phase 2 (Code Generation Engine)
+# These templates are used by the duplication detection system to generate
+# refactored code that consolidates duplicate patterns.
+
+TYPESCRIPT_CLASS_TEMPLATE: str = """{jsdoc}{export}{abstract}class {name}{type_params}{extends}{implements} {{
+{properties}{constructor}{methods}}}
+"""
+
+def format_typescript_class(
+    name: str,
+    *,
+    export: bool = False,
+    abstract: bool = False,
+    type_params: Optional[str] = None,
+    extends: Optional[str] = None,
+    implements: Optional[List[str]] = None,
+    jsdoc: Optional[str] = None,
+    properties: Optional[List[str]] = None,
+    constructor: Optional[str] = None,
+    methods: Optional[List[str]] = None,
+) -> str:
+    """Format a TypeScript class using the template.
+
+    Args:
+        name: Class name
+        export: Whether to export the class
+        abstract: Whether the class is abstract
+        type_params: Generic type parameters (e.g., "<T, U>")
+        extends: Parent class name
+        implements: List of interface names to implement
+        jsdoc: JSDoc comment block (without leading newline)
+        properties: List of property declarations with indentation
+        constructor: Constructor code with indentation
+        methods: List of method implementations with indentation
+
+    Returns:
+        Formatted TypeScript class code
+    """
+    return TYPESCRIPT_CLASS_TEMPLATE.format(
+        jsdoc=f"{jsdoc}\n" if jsdoc else "",
+        export="export " if export else "",
+        abstract="abstract " if abstract else "",
+        name=name,
+        type_params=type_params if type_params else "",
+        extends=f" extends {extends}" if extends else "",
+        implements=f" implements {', '.join(implements)}" if implements else "",
+        properties="\n".join(properties) + "\n\n" if properties else "",
+        constructor=constructor + "\n\n" if constructor else "",
+        methods="\n\n".join(methods) + "\n" if methods else "",
+    )
 
 
 # Query result cache with TTL and LRU eviction
@@ -5439,6 +5677,89 @@ def generate_parameter_names_for_variations(
     return param_names
 
 
+# =============================================================================
+# Code Generation Templates
+# =============================================================================
+
+# Java method template with support for annotations, generics, and throws clause
+JAVA_METHOD_TEMPLATE: str = """{javadoc}{annotations}{modifiers}{type_params}{return_type} {name}({params}){throws} {{
+{body}
+}}"""
+
+
+def format_java_method(
+    name: str,
+    params: str,
+    body: str,
+    return_type: str = "void",
+    modifiers: Optional[List[str]] = None,
+    annotations: Optional[List[str]] = None,
+    type_params: Optional[str] = None,
+    throws: Optional[List[str]] = None,
+    javadoc: Optional[str] = None,
+) -> str:
+    """Format a Java method using the template.
+
+    Args:
+        name: Method name
+        params: Parameter list (e.g., "String name, int age")
+        body: Method body (will be indented with 4 spaces)
+        return_type: Return type (default: "void")
+        modifiers: Optional list of modifiers ["public", "static", "final"]
+        annotations: Optional list of annotations ["@Override", "@Deprecated"]
+        type_params: Optional type parameters (e.g., "<T extends Comparable<T>>")
+        throws: Optional list of exceptions ["IOException", "SQLException"]
+        javadoc: Optional Javadoc comment (without /** */)
+
+    Returns:
+        Formatted Java method string
+    """
+    # Format annotations (each on its own line)
+    annotations_str = ""
+    if annotations:
+        annotations_str = "\n".join(annotations) + "\n"
+
+    # Format modifiers (space-separated)
+    modifiers_str = ""
+    if modifiers:
+        modifiers_str = " ".join(modifiers) + " "
+
+    # Format type parameters
+    type_params_str = ""
+    if type_params:
+        type_params_str = type_params + " "
+
+    # Format throws clause
+    throws_str = ""
+    if throws:
+        throws_str = " throws " + ", ".join(throws)
+
+    # Format Javadoc
+    javadoc_str = ""
+    if javadoc:
+        javadoc_lines = javadoc.strip().split("\n")
+        javadoc_str = "/**\n"
+        for line in javadoc_lines:
+            javadoc_str += f" * {line}\n"
+        javadoc_str += " */\n"
+
+    # Indent body with 4 spaces
+    body_lines = body.strip().split("\n")
+    indented_body = "\n".join("    " + line if line.strip() else "" for line in body_lines)
+
+    return JAVA_METHOD_TEMPLATE.format(
+        javadoc=javadoc_str,
+        annotations=annotations_str,
+        modifiers=modifiers_str,
+        type_params=type_params_str,
+        return_type=return_type,
+        name=name,
+        params=params,
+        throws=throws_str,
+        body=indented_body,
+    )
+
+
 def identify_varying_expressions(
     code1: str,
     code2: str,
@@ -5794,6 +6115,324 @@ def get_complexity_level(score: float) -> Dict[str, str]:
         }
 
 
+# =============================================================================
+# Code Generation Templates - Phase 2 (Code Generation Engine)
+# =============================================================================
+
+# TypeScript function declaration template
+# Placeholders: {export}, {async}, {name}, {type_params}, {params}, {return_type}, {jsdoc}, {body}
+TYPESCRIPT_FUNCTION_TEMPLATE: str = """{jsdoc}{export}function {name}{type_params}({params}){return_type} {{
+{body}
+}}"""
+
+# TypeScript async function declaration template
+TYPESCRIPT_ASYNC_FUNCTION_TEMPLATE: str = """{jsdoc}{export}async function {name}{type_params}({params}){return_type} {{
+{body}
+}}"""
+
+# TypeScript arrow function template
+TYPESCRIPT_ARROW_FUNCTION_TEMPLATE: str = """{jsdoc}{export}const {name} = {async}{type_params}({params}){return_type} => {{
+{body}
+}};"""
+
+# JavaScript function declaration template (no type annotations)
+# Placeholders: {export}, {async}, {name}, {params}, {jsdoc}, {body}
+JAVASCRIPT_FUNCTION_TEMPLATE: str = """{jsdoc}{export}function {name}({params}) {{
+{body}
+}}"""
+
+# JavaScript async function declaration template
+JAVASCRIPT_ASYNC_FUNCTION_TEMPLATE: str = """{jsdoc}{export}async function {name}({params}) {{
+{body}
+}}"""
+
+# JavaScript arrow function template
+JAVASCRIPT_ARROW_FUNCTION_TEMPLATE: str = """{jsdoc}{export}const {name} = {async}({params}) => {{
+{body}
+}};"""
+
+
+def format_typescript_function(
+    name: str,
+    params: List[Tuple[str, str]],
+    body: str,
+    return_type: str = "void",
+    export: bool = False,
+    is_async: bool = False,
+    type_params: Optional[List[str]] = None,
+    jsdoc: Optional[str] = None,
+    use_arrow: bool = False
+) -> str:
+    """Generate a TypeScript function from template.
+
+    Args:
+        name: Function name
+        params: List of (param_name, param_type) tuples
+        body: Function body (will be indented)
+        return_type: Return type annotation (default "void")
+        export: Whether to export the function
+        is_async: Whether function is async
+        type_params: Optional generic type parameters (e.g., ["T", "U"])
+        jsdoc: Optional JSDoc comment block
+        use_arrow: Use arrow function syntax instead of declaration
+
+    Returns:
+        Formatted TypeScript function string
+    """
+    # Format placeholders
+    export_str = "export " if export else ""
+    async_str = "async " if is_async else ""
+
+    # Format type parameters
+    type_params_str = ""
+    if type_params:
+        type_params_str = f"<{', '.join(type_params)}>"
+
+    # Format parameters with types
+    params_str = ", ".join(f"{p[0]}: {p[1]}" for p in params)
+
+    # Format return type
+    return_type_str = f": {return_type}" if return_type else ""
+    if is_async and return_type and not return_type.startswith("Promise"):
+        return_type_str = f": Promise<{return_type}>"
+
+    # Format JSDoc
+    jsdoc_str = f"{jsdoc}\n" if jsdoc else ""
+
+    # Indent body (2 spaces for JS/TS convention)
+    indented_body = "\n".join(f"  {line}" if line.strip() else line
+                               for line in body.split("\n"))
+
+    if use_arrow:
+        return TYPESCRIPT_ARROW_FUNCTION_TEMPLATE.format(
+            jsdoc=jsdoc_str,
+            export=export_str,
+            name=name,
+            **{"async": async_str},
+            type_params=type_params_str,
+            params=params_str,
+            return_type=return_type_str,
+            body=indented_body
+        )
+    elif is_async:
+        return TYPESCRIPT_ASYNC_FUNCTION_TEMPLATE.format(
+            jsdoc=jsdoc_str,
+            export=export_str,
+            name=name,
+            type_params=type_params_str,
+            params=params_str,
+            return_type=return_type_str,
+            body=indented_body
+        )
+    else:
+        return TYPESCRIPT_FUNCTION_TEMPLATE.format(
+            jsdoc=jsdoc_str,
+            export=export_str,
+            name=name,
+            type_params=type_params_str,
+            params=params_str,
+            return_type=return_type_str,
+            body=indented_body
+        )
+
+
+def format_javascript_function(
+    name: str,
+    params: List[str],
+    body: str,
+    export: bool = False,
+    is_async: bool = False,
+    jsdoc: Optional[str] = None,
+    use_arrow: bool = False
+) -> str:
+    """Generate a JavaScript function from template.
+
+    Args:
+        name: Function name
+        params: List of parameter names
+        body: Function body (will be indented)
+        export: Whether to export the function
+        is_async: Whether function is async
+        jsdoc: Optional JSDoc comment block
+        use_arrow: Use arrow function syntax instead of declaration
+
+    Returns:
+        Formatted JavaScript function string
+    """
+    # Format placeholders
+    export_str = "export " if export else ""
+    async_str = "async " if is_async else ""
+
+    # Format parameters (no types)
+    params_str = ", ".join(params)
+
+    # Format JSDoc
+    jsdoc_str = f"{jsdoc}\n" if jsdoc else ""
+
+    # Indent body (2 spaces for JS/TS convention)
+    indented_body = "\n".join(f"  {line}" if line.strip() else line
+                               for line in body.split("\n"))
+
+    if use_arrow:
+        return JAVASCRIPT_ARROW_FUNCTION_TEMPLATE.format(
+            jsdoc=jsdoc_str,
+            export=export_str,
+            name=name,
+            **{"async": async_str},
+            params=params_str,
+            body=indented_body
+        )
+    elif is_async:
+        return JAVASCRIPT_ASYNC_FUNCTION_TEMPLATE.format(
+            jsdoc=jsdoc_str,
+            export=export_str,
+            name=name,
+            params=params_str,
+            body=indented_body
+        )
+    else:
+        return JAVASCRIPT_FUNCTION_TEMPLATE.format(
+            jsdoc=jsdoc_str,
+            export=export_str,
+            name=name,
+            params=params_str,
+            body=indented_body
+        )
+
+
+def format_typescript_code(code: str) -> str:
+    """Format TypeScript code using prettier-style formatting.
+
+    Uses prettier CLI if available, otherwise falls back to basic formatting rules.
+    Applies consistent styling: semicolons, single quotes, trailing commas,
+    and 2-space indentation.
+
+    Args:
+        code: Raw TypeScript code string to format
+
+    Returns:
+        Formatted TypeScript code string
+    """
+    import shutil
+    import tempfile
+
+    logger = get_logger("format.typescript")
+
+    # Try prettier first
+    prettier_path = shutil.which("prettier")
+    if prettier_path:
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode='w',
+                suffix='.ts',
+                delete=False
+            ) as tmp_file:
+                tmp_file.write(code)
+                tmp_file_path = tmp_file.name
+
+            try:
+                result = subprocess.run(
+                    [
+                        prettier_path,
+                        "--parser", "typescript",
+                        "--single-quote",
+                        "--trailing-comma", "all",
+                        "--tab-width", "2",
+                        "--semi",
+                        tmp_file_path
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+
+                if result.returncode == 0:
+                    logger.debug("formatted_with_prettier", code_length=len(code))
+                    return result.stdout
+                else:
+                    logger.warning(
+                        "prettier_failed",
+                        stderr=result.stderr,
+                        returncode=result.returncode
+                    )
+            finally:
+                import os
+                os.unlink(tmp_file_path)
+
+        except subprocess.TimeoutExpired:
+            logger.warning("prettier_timeout")
+        except Exception as e:
+            logger.warning("prettier_error", error=str(e))
+
+    # Fallback: basic formatting
+    logger.debug("using_basic_formatting", reason="prettier_unavailable")
+    lines = code.split('\n')
+    formatted_lines = []
+
+    for line in lines:
+        if '`' not in line:
+            formatted_line = _convert_quotes_to_single(line)
+        else:
+            formatted_line = line
+
+        stripped = formatted_line.rstrip()
+        if stripped and not stripped.endswith(('{', '}', '(', ',', ';', ':', '//')):
+            if not stripped.startswith(('if', 'else', 'for', 'while', 'switch', 'try', 'catch', 'finally', '//', '/*', '*')):
+                formatted_line = stripped + ';'
+
+        leading_spaces = len(line) - len(line.lstrip())
+        if leading_spaces > 0:
+            indent_level = leading_spaces // 4 if leading_spaces >= 4 else leading_spaces // 2
+            if leading_spaces % 4 == 0:
+                indent_level = leading_spaces // 4
+            elif leading_spaces % 2 == 0:
+                indent_level = leading_spaces // 2
+            formatted_line = '  ' * indent_level + formatted_line.lstrip()
+
+        formatted_lines.append(formatted_line)
+
+    return '\n'.join(formatted_lines)
+
+
+def _convert_quotes_to_single(line: str) -> str:
+    """Convert double-quoted strings to single quotes in a line."""
+    result = []
+    i = 0
+    in_string = False
+    string_char = None
+
+    while i < len(line):
+        char = line[i]
+        if not in_string:
+            if char == '"':
+                result.append("'")
+                in_string = True
+                string_char = '"'
+            elif char == "'":
+                result.append(char)
+                in_string = True
+                string_char = "'"
+            else:
+                result.append(char)
+        else:
+            if char == '\\' and i + 1 < len(line):
+                next_char = line[i + 1]
+                if next_char == string_char:
+                    result.append("\\'")
+                    i += 1
+                else:
+                    result.append(char)
+            elif char == string_char:
+                result.append("'" if string_char == '"' else char)
+                in_string = False
+                string_char = None
+            else:
+                result.append(char)
+        i += 1
+
+    return ''.join(result)
+
+
 def identify_varying_literals(
     code1: str,
     code2: str,
@@ -6032,6 +6671,718 @@ def analyze_duplicate_group_literals(
         "variations": formatted_variations,
         "suggested_parameters": suggested_params
     }
+
+
+# =============================================================================
+# Phase 2: Code Generation Engine - Function Templates
+# =============================================================================
+
+@dataclass
+class FunctionTemplate:
+    """Template for generating extracted functions from duplicate code.
+
+    This dataclass holds all the components needed to generate a function
+    that consolidates duplicate code patterns.
+
+    Attributes:
+        name: Function name (valid Python identifier)
+        parameters: List of tuples (param_name, param_type) for function signature
+        body: The function body code (properly indented)
+        return_type: Optional return type annotation
+        docstring: Optional docstring describing the function
+        decorators: Optional list of decorator strings (without @)
+    """
+    name: str
+    parameters: List[Tuple[str, Optional[str]]]
+    body: str
+    return_type: Optional[str] = None
+    docstring: Optional[str] = None
+    decorators: Optional[List[str]] = None
+
+    def format_params(self) -> str:
+        """Format parameters for function signature.
+
+        Returns:
+            Formatted parameter string like 'param1: str, param2: int'
+        """
+        parts = []
+        for param_name, param_type in self.parameters:
+            if param_type:
+                parts.append(f"{param_name}: {param_type}")
+            else:
+                parts.append(param_name)
+        return ", ".join(parts)
+
+    def format_decorators(self) -> str:
+        """Format decorators for placement above function definition.
+
+        Returns:
+            Formatted decorator lines with @ prefix, each on own line
+        """
+        if not self.decorators:
+            return ""
+        return "\n".join(f"@{dec}" for dec in self.decorators) + "\n"
+
+    def format_return_type(self) -> str:
+        """Format return type annotation.
+
+        Returns:
+            ' -> Type' if return_type is set, empty string otherwise
+        """
+        if self.return_type:
+            return f" -> {self.return_type}"
+        return ""
+
+    def format_docstring(self) -> str:
+        """Format docstring with proper indentation.
+
+        Returns:
+            Indented docstring with triple quotes, or empty string
+        """
+        if not self.docstring:
+            return ""
+        # Format docstring with proper indentation
+        lines = self.docstring.split('\n')
+        if len(lines) == 1:
+            return f'    """{self.docstring}"""\n'
+        # Multi-line docstring
+        indented_lines = [lines[0]] + [f"    {line}" if line.strip() else "" for line in lines[1:]]
+        return f'    """{chr(10).join(indented_lines)}"""\n'
+
+    def generate(self) -> str:
+        """Generate the complete function code.
+
+        Returns:
+            Complete Python function as a string
+        """
+        decorators = self.format_decorators()
+        params = self.format_params()
+        return_annotation = self.format_return_type()
+        docstring = self.format_docstring()
+
+        # Ensure body is properly indented (4 spaces)
+        body_lines = self.body.split('\n')
+        indented_body = '\n'.join(
+            f"    {line}" if line.strip() else line
+            for line in body_lines
+        )
+
+        return f"{decorators}def {self.name}({params}){return_annotation}:\n{docstring}{indented_body}"
+
+
+# Template string for Python function generation with placeholders
+PYTHON_FUNCTION_TEMPLATE = """{decorators}def {name}({params}){return_type}:
+{docstring}{body}"""
+
+
+def render_python_function(
+    name: str,
+    params: str,
+    body: str,
+    return_type: Optional[str] = None,
+    docstring: Optional[str] = None,
+    decorators: Optional[List[str]] = None
+) -> str:
+    """Render a Python function using the template.
+
+    This is a convenience function for generating Python functions without
+    creating a FunctionTemplate instance.
+
+    Args:
+        name: Function name
+        params: Formatted parameter string (e.g., 'x: int, y: str')
+        body: Function body (will be indented if not already)
+        return_type: Optional return type (without '-> ')
+        docstring: Optional docstring content (without triple quotes)
+        decorators: Optional list of decorator names (without @)
+
+    Returns:
+        Complete Python function as a string
+
+    Example:
+        >>> render_python_function(
+        ...     name="add",
+        ...     params="a: int, b: int",
+        ...     body="return a + b",
+        ...     return_type="int",
+        ...     docstring="Add two numbers."
+        ... )
+        'def add(a: int, b: int) -> int:\\n    \"\"\"Add two numbers.\"\"\"\\n    return a + b'
+    """
+    # Format decorators
+    dec_str = ""
+    if decorators:
+        dec_str = "\n".join(f"@{dec}" for dec in decorators) + "\n"
+
+    # Format return type
+    ret_str = f" -> {return_type}" if return_type else ""
+
+    # Format docstring
+    doc_str = ""
+    if docstring:
+        doc_lines = docstring.split('\n')
+        if len(doc_lines) == 1:
+            doc_str = f'    """{docstring}"""\n'
+        else:
+            indented = '\n'.join(f"    {line}" if line.strip() else "" for line in doc_lines)
+            doc_str = f'    """{indented}"""\n'
+
+    # Indent body if needed
+    body_lines = body.split('\n')
+    indented_body = '\n'.join(
+        f"    {line}" if line.strip() and not line.startswith('    ') else line
+        for line in body_lines
+    )
+
+    return PYTHON_FUNCTION_TEMPLATE.format(
+        decorators=dec_str,
+        name=name,
+        params=params,
+        return_type=ret_str,
+        docstring=doc_str,
+        body=indented_body
+    )
+
+
+def preserve_call_site_indentation(original_code: str, replacement_call: str) -> str:
+    """Preserve the indentation of original code when replacing with a function call.
+
+    Detects the indentation level (tabs or spaces) of the original duplicate code
+    and applies the same indentation to the replacement call, handling both
+    single-line and multi-line replacements.
+
+    Args:
+        original_code: The original duplicate code block being replaced.
+            Used to detect the indentation pattern.
+        replacement_call: The function call that will replace the duplicate code.
+            May be single or multi-line.
+
+    Returns:
+        The replacement call with proper indentation applied to all lines.
+
+    Examples:
+        >>> preserve_call_site_indentation("    x = 1", "process_data()")
+        '    process_data()'
+
+        >>> preserve_call_site_indentation("\\t\\tif True:", "check_condition(\\n    value)")
+        '\\t\\tcheck_condition(\\n\\t\\t    value)'
+
+        >>> preserve_call_site_indentation("  result = compute()", "helper(\\n    arg1,\\n    arg2\\n)")
+        '  helper(\\n      arg1,\\n      arg2\\n  )'
+    """
+    if not original_code or not replacement_call:
+        return replacement_call
+
+    # Extract leading whitespace from first non-empty line of original code
+    indent = ""
+    for line in original_code.split('\n'):
+        if line.strip():  # First non-empty line
+            # Get the leading whitespace (preserves tabs/spaces as-is)
+            indent = line[:len(line) - len(line.lstrip())]
+            break
+
+    # If no indentation found, return replacement as-is
+    if not indent:
+        return replacement_call
+
+    # Apply indentation to each line of the replacement
+    replacement_lines = replacement_call.split('\n')
+    indented_lines = []
+
+    for i, line in enumerate(replacement_lines):
+        if i == 0:
+            # First line gets the base indentation
+            indented_lines.append(indent + line.lstrip() if line.strip() else line)
+        else:
+            # Subsequent lines: preserve their relative indentation and add base
+            if line.strip():
+                # Get existing indentation of this line
+                existing_indent = line[:len(line) - len(line.lstrip())]
+                indented_lines.append(indent + existing_indent + line.lstrip())
+            else:
+                # Empty lines stay empty
+                indented_lines.append(line)
+
+    return '\n'.join(indented_lines)
+
+
+
+def detect_import_insertion_point(file_content: str, language: str) -> int:
+    """Detect the optimal line number for inserting a new import statement.
+
+    Analyzes the file structure to find where new imports should be added,
+    respecting language-specific conventions for import organization.
+
+    Args:
+        file_content: The complete content of the source file
+        language: Programming language ('python', 'typescript', 'javascript', 'java')
+
+    Returns:
+        Line number (1-indexed) where the new import should be inserted.
+        Returns 1 if no existing imports are found.
+
+    Examples:
+        >>> content = "import os\\nimport sys\\n\\ndef main():\\n    pass"
+        >>> detect_import_insertion_point(content, "python")
+        3
+
+        >>> content = "package com.example;\\n\\nimport java.util.List;\\n\\npublic class Foo {}"
+        >>> detect_import_insertion_point(content, "java")
+        4
+    """
+    if not file_content:
+        return 1
+
+    lines = file_content.split('\n')
+    language = language.lower()
+
+    if language == "python":
+        return _detect_python_import_point(lines)
+    elif language in ("typescript", "javascript"):
+        return _detect_js_import_point(lines)
+    elif language == "java":
+        return _detect_java_import_point(lines)
+    else:
+        # Default: find last import-like line
+        return _detect_generic_import_point(lines)
+
+
+def _detect_python_import_point(lines: List[str]) -> int:
+    """Find import insertion point for Python files.
+
+    Handles:
+    - Module docstrings at the top
+    - __future__ imports (must be first)
+    - Regular imports and from imports
+    - Blank lines between import groups
+    """
+    last_import_line = 0
+    in_docstring = False
+    docstring_delimiter = None
+
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+
+        # Track docstrings
+        if not in_docstring:
+            if stripped.startswith('"""') or stripped.startswith("'''"):
+                docstring_delimiter = stripped[:3]
+                if stripped.count(docstring_delimiter) >= 2:
+                    # Single-line docstring
+                    continue
+                in_docstring = True
+                continue
+        else:
+            if docstring_delimiter and docstring_delimiter in stripped:
+                in_docstring = False
+                docstring_delimiter = None
+            continue
+
+        # Skip comments and empty lines at the top
+        if stripped.startswith('#') or not stripped:
+            continue
+
+        # Check for import statements
+        if stripped.startswith('import ') or stripped.startswith('from '):
+            last_import_line = i
+        elif last_import_line > 0:
+            # First non-import code after imports
+            break
+
+    return last_import_line + 1 if last_import_line > 0 else 1
+
+
+def _detect_js_import_point(lines: List[str]) -> int:
+    """Find import insertion point for TypeScript/JavaScript files.
+
+    Handles:
+    - ES6 import statements
+    - CommonJS require statements
+    - 'use strict' directives
+    - Type imports in TypeScript
+    """
+    last_import_line = 0
+
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+
+        # Skip empty lines and comments
+        if not stripped or stripped.startswith('//') or stripped.startswith('/*'):
+            continue
+
+        # Skip 'use strict' directive
+        if stripped in ('"use strict";', "'use strict';"):
+            if last_import_line == 0:
+                last_import_line = i
+            continue
+
+        # Check for import/require statements
+        if (stripped.startswith('import ') or
+            stripped.startswith('import{') or
+            stripped.startswith('import type ') or
+            'require(' in stripped and ('const ' in stripped or 'let ' in stripped or 'var ' in stripped)):
+            last_import_line = i
+        elif last_import_line > 0 and not stripped.startswith('export '):
+            # First non-import, non-export code
+            # Allow exports at top (TypeScript re-exports)
+            if not stripped.startswith('export '):
+                break
+
+    return last_import_line + 1 if last_import_line > 0 else 1
+
+
+def _detect_java_import_point(lines: List[str]) -> int:
+    """Find import insertion point for Java files.
+
+    Handles:
+    - Package declarations
+    - Import statements
+    - Static imports
+    """
+    last_import_line = 0
+    found_package = False
+
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+
+        # Skip empty lines and comments
+        if not stripped or stripped.startswith('//') or stripped.startswith('/*'):
+            continue
+
+        # Package declaration
+        if stripped.startswith('package '):
+            found_package = True
+            if last_import_line == 0:
+                last_import_line = i
+            continue
+
+        # Import statements
+        if stripped.startswith('import '):
+            last_import_line = i
+        elif last_import_line > 0:
+            # First non-import code (likely class/interface declaration)
+            break
+
+    # If we found a package but no imports, insert after package line
+    if found_package and last_import_line > 0:
+        return last_import_line + 1
+
+    return last_import_line + 1 if last_import_line > 0 else 1
+
+
+def _detect_generic_import_point(lines: List[str]) -> int:
+    """Generic import detection for unsupported languages.
+
+    Looks for common import patterns across languages.
+    """
+    last_import_line = 0
+
+    import_patterns = [
+        'import ', 'from ', 'require(', 'include ', 'using ',
+        '#include', 'use ', 'load '
+    ]
+
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+
+        if not stripped:
+            continue
+
+        # Check if line contains any import pattern
+        if any(stripped.startswith(pattern) or pattern in stripped
+               for pattern in import_patterns):
+            last_import_line = i
+        elif last_import_line > 0:
+            break
+
+    return last_import_line + 1 if last_import_line > 0 else 1
+
+
+# =============================================================================
+# Language Formatters - Code Style Formatting
+# =============================================================================
+
+def format_python_code(code: str, line_length: int = 88) -> str:
+    """Format Python code using black-style formatting.
+
+    Attempts to use the black library for formatting if available.
+    Falls back to basic formatting rules when black is not installed.
+
+    Args:
+        code: The Python code string to format
+        line_length: Maximum line length (default 88, black's default)
+
+    Returns:
+        Formatted Python code string
+
+    Examples:
+        >>> format_python_code("def foo(a,b,c): return a+b+c")
+        'def foo(a, b, c):\\n    return a + b + c\\n'
+
+        >>> format_python_code("import sys,os,re")
+        'import os\\nimport re\\nimport sys\\n'
+    """
+    try:
+        # Try to use black if available
+        import black
+        from black import Mode, TargetVersion
+
+        mode = Mode(
+            target_versions={TargetVersion.PY310, TargetVersion.PY311, TargetVersion.PY312},
+            line_length=line_length,
+            string_normalization=True,
+            is_pyi=False,
+            magic_trailing_comma=True,
+        )
+
+        try:
+            formatted = black.format_str(code, mode=mode)
+            return formatted
+        except black.InvalidInput:
+            # If black can't parse it, fall back to basic formatting
+            pass
+    except ImportError:
+        # black not available, use basic formatting
+        pass
+
+    # Basic formatting fallback
+    return _basic_python_format(code, line_length)
+
+
+def _basic_python_format(code: str, line_length: int = 88) -> str:
+    """Basic Python formatting when black is not available.
+
+    Provides minimal formatting including:
+    - Sorting and splitting import statements
+    - Adding spaces around operators
+    - Normalizing whitespace
+    - Handling trailing commas in function arguments
+
+    Args:
+        code: The Python code string to format
+        line_length: Maximum line length for wrapping
+
+    Returns:
+        Basically formatted Python code string
+    """
+    lines = code.split('\n')
+    formatted_lines: List[str] = []
+    import_lines: List[str] = []
+    in_imports = False
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Collect imports for sorting
+        if stripped.startswith('import ') or stripped.startswith('from '):
+            # Handle multi-import statements (import sys, os, re)
+            if stripped.startswith('import ') and ',' in stripped:
+                # Split into individual imports
+                modules = stripped[7:].split(',')
+                for module in modules:
+                    module = module.strip()
+                    if module:
+                        import_lines.append(f'import {module}')
+            else:
+                import_lines.append(stripped)
+            in_imports = True
+            continue
+        elif in_imports and stripped:
+            # End of import block, output sorted imports
+            in_imports = False
+            # Sort imports: standard library style (from imports after regular imports)
+            regular_imports = sorted([i for i in import_lines if i.startswith('import ')])
+            from_imports = sorted([i for i in import_lines if i.startswith('from ')])
+            formatted_lines.extend(regular_imports)
+            if regular_imports and from_imports:
+                formatted_lines.append('')  # Blank line between import types
+            formatted_lines.extend(from_imports)
+            if import_lines:
+                formatted_lines.append('')  # Blank line after imports
+            import_lines = []
+
+        if not in_imports:
+            # Basic formatting for non-import lines
+            formatted_line = _format_python_line(stripped, line_length)
+            # Preserve indentation
+            indent = len(line) - len(line.lstrip())
+            if formatted_line:
+                formatted_lines.append(' ' * indent + formatted_line)
+            else:
+                formatted_lines.append('')
+
+    # Handle any remaining imports at end of file
+    if import_lines:
+        regular_imports = sorted([i for i in import_lines if i.startswith('import ')])
+        from_imports = sorted([i for i in import_lines if i.startswith('from ')])
+        formatted_lines.extend(regular_imports)
+        if regular_imports and from_imports:
+            formatted_lines.append('')
+        formatted_lines.extend(from_imports)
+
+    result = '\n'.join(formatted_lines)
+
+    # Ensure trailing newline
+    if result and not result.endswith('\n'):
+        result += '\n'
+
+    return result
+
+
+def _format_python_line(line: str, line_length: int = 88) -> str:
+    """Format a single line of Python code.
+
+    Args:
+        line: A single line of Python code (stripped)
+        line_length: Maximum line length
+
+    Returns:
+        Formatted line
+    """
+    if not line:
+        return ''
+
+    # Add spaces around operators
+    operators = ['==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '//=', '%=',
+                 '**=', '&=', '|=', '^=', '>>=', '<<=', '->', ':=']
+    for op in operators:
+        # Don't add spaces if already present
+        line = line.replace(f' {op} ', f'__TEMP_OP_{op}__')
+        line = line.replace(op, f' {op} ')
+        line = line.replace(f'__TEMP_OP_{op}__', f' {op} ')
+
+    # Single-char operators (avoid breaking compound operators)
+    for op in ['=', '+', '-', '*', '/', '%', '<', '>', '&', '|', '^']:
+        # Skip if part of compound operator
+        if f' {op} ' not in line and op in line:
+            # Be careful not to break strings or comments
+            new_line = ''
+            in_string = False
+            string_char = ''
+            i = 0
+            while i < len(line):
+                char = line[i]
+                if char in '"\'':
+                    if not in_string:
+                        in_string = True
+                        string_char = char
+                    elif char == string_char and (i == 0 or line[i-1] != '\\'):
+                        in_string = False
+
+                if not in_string and char == op:
+                    # Check it's not part of compound operator
+                    prev_char = line[i-1] if i > 0 else ''
+                    next_char = line[i+1] if i < len(line) - 1 else ''
+
+                    if prev_char not in '=!<>+-*/%&|^' and next_char not in '=':
+                        if prev_char != ' ':
+                            new_line += ' '
+                        new_line += char
+                        if next_char != ' ' and next_char:
+                            new_line += ' '
+                            i += 1
+                            continue
+
+                new_line += char
+                i += 1
+            line = new_line if new_line else line
+
+    # Format function arguments with trailing commas
+    if '(' in line and ')' in line and ',' in line:
+        line = _format_function_args(line, line_length)
+
+    # Normalize multiple spaces to single space (except indentation)
+    while '  ' in line:
+        line = line.replace('  ', ' ')
+
+    return line
+
+
+def _format_function_args(line: str, line_length: int = 88) -> str:
+    """Format function arguments, adding trailing commas for long signatures.
+
+    Args:
+        line: Line containing function call or definition
+        line_length: Maximum line length
+
+    Returns:
+        Formatted line with proper trailing commas
+    """
+    # Find function call/definition
+    paren_start = line.find('(')
+    paren_end = line.rfind(')')
+
+    if paren_start == -1 or paren_end == -1 or paren_end <= paren_start:
+        return line
+
+    prefix = line[:paren_start + 1]
+    args_str = line[paren_start + 1:paren_end]
+    suffix = line[paren_end:]
+
+    # Split arguments, respecting nested parens/brackets
+    args = _split_function_args(args_str)
+
+    if not args:
+        return line
+
+    # Format each argument
+    formatted_args = [arg.strip() for arg in args]
+
+    # Check if it fits on one line
+    single_line = prefix + ', '.join(formatted_args) + suffix
+    if len(single_line) <= line_length:
+        return single_line
+
+    # Multi-line format with trailing comma (black style)
+    # Note: actual indentation would be handled by the caller
+    formatted_args_str = ', '.join(formatted_args)
+    if not formatted_args_str.endswith(','):
+        formatted_args_str += ','
+
+    return prefix + formatted_args_str + suffix
+
+
+def _split_function_args(args_str: str) -> List[str]:
+    """Split function arguments respecting nested structures.
+
+    Args:
+        args_str: The arguments string without outer parentheses
+
+    Returns:
+        List of individual arguments
+    """
+    args: List[str] = []
+    current_arg = ''
+    depth = 0
+    in_string = False
+    string_char = ''
+
+    for i, char in enumerate(args_str):
+        if char in '"\'':
+            if not in_string:
+                in_string = True
+                string_char = char
+            elif char == string_char and (i == 0 or args_str[i-1] != '\\'):
+                in_string = False
+
+        if not in_string:
+            if char in '([{':
+                depth += 1
+            elif char in ')]}':
+                depth -= 1
+            elif char == ',' and depth == 0:
+                args.append(current_arg)
+                current_arg = ''
+                continue
+
+        current_arg += char
+
+    if current_arg.strip():
+        args.append(current_arg)
+
+    return args
+
+
 # =============================================================================
 # Complex Parameter Type Inference for Extracted Functions
 # =============================================================================
@@ -6763,6 +8114,1887 @@ def generate_function_signature(
         param_str = ", ".join(p["name"] for p in parameters)
         return f"{function_name}({param_str})"
 
+
+def generate_function_body(
+    sample_code: str,
+    parameters: List["ParameterInfo"],
+    language: str = "python"
+) -> str:
+    """Generate function body by transforming sample code to use parameters.
+
+    Takes sample duplicate code and replaces hardcoded literal values with
+    parameter references based on the provided parameter information.
+
+    Args:
+        sample_code: The sample code to transform into a function body
+        parameters: List of ParameterInfo objects with values to replace
+        language: Target language for indentation (python, javascript, typescript, java)
+
+    Returns:
+        Transformed code with proper indentation and parameter substitutions
+
+    Example:
+        >>> params = [ParameterInfo("name", default_value='"John"')]
+        >>> sample = 'print("Hello, John")'
+        >>> generate_function_body(sample, params, "python")
+        '    print(f"Hello, {name}")'
+    """
+    # Determine indentation based on language
+    if language in ("python", "java"):
+        indent = "    "  # 4 spaces
+    else:  # javascript, typescript
+        indent = "  "  # 2 spaces
+
+    # Start with the sample code
+    body = sample_code
+
+    # Build mapping of literal values to parameter names
+    replacements: List[tuple[str, str, str]] = []  # (literal, param_name, param_type)
+
+    for param in parameters:
+        if param.default_value is not None:
+            literal = param.default_value
+            param_name = param.name
+
+            # Determine type for proper replacement syntax
+            if language == "python":
+                param_type = param.python_type
+            elif language in ("typescript", "javascript"):
+                param_type = param.typescript_type
+            else:
+                param_type = param.java_type
+
+            replacements.append((literal, param_name, param_type))
+
+    # Sort replacements by length (longest first) to avoid partial replacements
+    replacements.sort(key=lambda x: len(x[0]), reverse=True)
+
+    # Apply replacements
+    for literal, param_name, param_type in replacements:
+        if not literal:
+            continue
+
+        # Handle string literals
+        if (literal.startswith('"') and literal.endswith('"')) or \
+           (literal.startswith("'") and literal.endswith("'")):
+
+            inner_value = literal[1:-1]  # Remove quotes
+            quote_char = literal[0]
+
+            if language == "python":
+                # Replace string in f-string format or direct substitution
+                # Try to replace within existing strings first
+                body = body.replace(inner_value, f"{{{param_name}}}")
+                # Also replace the full literal with the parameter
+                body = body.replace(literal, param_name)
+
+            elif language in ("typescript", "javascript"):
+                # Use template literals
+                body = body.replace(inner_value, f"${{{param_name}}}")
+                body = body.replace(literal, param_name)
+
+            else:  # java
+                # Use string concatenation
+                body = body.replace(literal, param_name)
+        else:
+            # Numeric or other literals - direct replacement
+            body = body.replace(literal, param_name)
+
+    # Handle multi-line code blocks - indent each line
+    lines = body.split('\n')
+    indented_lines = []
+
+    for line in lines:
+        if line.strip():  # Non-empty line
+            # Preserve existing indentation relative to base
+            stripped = line.lstrip()
+            existing_indent = len(line) - len(stripped)
+
+            # Add function body indentation plus any existing indentation
+            if existing_indent > 0:
+                # Convert existing indentation to consistent format
+                relative_indent = " " * existing_indent
+                indented_lines.append(indent + relative_indent + stripped)
+            else:
+                indented_lines.append(indent + stripped)
+        else:
+            # Empty line - preserve it
+            indented_lines.append("")
+
+    return '\n'.join(indented_lines)
+
+
+# =============================================================================
+# Phase 2: Code Generation Engine - Template Variable Substitution
+# =============================================================================
+
+class ParameterInfo:
+    """Represents a parameter for code generation with type information."""
+
+    def __init__(
+        self,
+        name: str,
+        python_type: str = "Any",
+        typescript_type: str = "any",
+        java_type: str = "Object",
+        default_value: Optional[str] = None,
+        is_optional: bool = False,
+        description: str = ""
+    ):
+        self.name = name
+        self.python_type = python_type
+        self.typescript_type = typescript_type
+        self.java_type = java_type
+        self.default_value = default_value
+        self.is_optional = is_optional
+        self.description = description
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation."""
+        return {
+            "name": self.name,
+            "python_type": self.python_type,
+            "typescript_type": self.typescript_type,
+            "java_type": self.java_type,
+            "default_value": self.default_value,
+            "is_optional": self.is_optional,
+            "description": self.description
+        }
+
+
+def format_python_params(params: List[ParameterInfo]) -> str:
+    """Format parameters for Python function signature.
+
+    Args:
+        params: List of ParameterInfo objects
+
+    Returns:
+        Formatted parameter string like "name: str, age: int = 0"
+    """
+    if not params:
+        return ""
+
+    formatted = []
+    # Sort to put required params first, then optional
+    required = [p for p in params if not p.is_optional]
+    optional = [p for p in params if p.is_optional]
+
+    for param in required:
+        formatted.append(f"{param.name}: {param.python_type}")
+
+    for param in optional:
+        if param.default_value is not None:
+            formatted.append(f"{param.name}: {param.python_type} = {param.default_value}")
+        else:
+            formatted.append(f"{param.name}: Optional[{param.python_type}] = None")
+
+    return ", ".join(formatted)
+
+
+def format_typescript_params(params: List[ParameterInfo]) -> str:
+    """Format parameters for TypeScript function signature.
+
+    Args:
+        params: List of ParameterInfo objects
+
+    Returns:
+        Formatted parameter string like "name: string, age?: number"
+    """
+    if not params:
+        return ""
+
+    formatted = []
+    # Sort to put required params first, then optional
+    required = [p for p in params if not p.is_optional]
+    optional = [p for p in params if p.is_optional]
+
+    for param in required:
+        formatted.append(f"{param.name}: {param.typescript_type}")
+
+    for param in optional:
+        if param.default_value is not None:
+            formatted.append(f"{param.name}: {param.typescript_type} = {param.default_value}")
+        else:
+            formatted.append(f"{param.name}?: {param.typescript_type}")
+
+    return ", ".join(formatted)
+
+
+def format_javascript_code(code: str) -> str:
+    """Format JavaScript code using prettier with babel parser.
+
+    Attempts to use prettier for formatting JavaScript code. Falls back to
+    basic indentation-preserving formatting if prettier is not available.
+
+    Args:
+        code: JavaScript code string to format
+
+    Returns:
+        Formatted JavaScript code string
+
+    Examples:
+        >>> format_javascript_code("const x=1;function foo(){return x}")
+        'const x = 1;\\nfunction foo() {\\n  return x;\\n}'
+    """
+    import shutil
+
+    # Try prettier first
+    prettier_path = shutil.which("prettier")
+    if prettier_path:
+        try:
+            result = subprocess.run(
+                [prettier_path, "--parser", "babel", "--stdin-filepath", "input.js"],
+                input=code,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode == 0:
+                return result.stdout.rstrip()
+        except (subprocess.TimeoutExpired, OSError):
+            pass  # Fall through to basic formatting
+
+    # Basic fallback formatting
+    # Add newlines after semicolons and braces for readability
+    formatted = code
+
+    # Add spaces around operators
+    for op in ["=", "===", "!==", "==", "!=", ">=", "<=", "=>", "&&", "||"]:
+        formatted = formatted.replace(op, f" {op} ")
+
+    # Clean up multiple spaces
+    while "  " in formatted:
+        formatted = formatted.replace("  ", " ")
+
+    # Add newlines after statement terminators (basic heuristic)
+    formatted = formatted.replace(";", ";\n")
+    formatted = formatted.replace("{", " {\n")
+    formatted = formatted.replace("}", "\n}\n")
+
+    # Clean up multiple newlines
+    while "\n\n\n" in formatted:
+        formatted = formatted.replace("\n\n\n", "\n\n")
+
+    return formatted.strip()
+
+
+def format_java_params(params: List[ParameterInfo]) -> str:
+    """Format parameters for Java method signature.
+
+    Args:
+        params: List of ParameterInfo objects
+
+    Returns:
+        Formatted parameter string like "String name, int age"
+    """
+    if not params:
+        return ""
+
+    formatted = []
+    for param in params:
+        # Java doesn't support default params natively, but we can add @Nullable
+        if param.is_optional:
+            formatted.append(f"@Nullable {param.java_type} {param.name}")
+        else:
+            formatted.append(f"{param.java_type} {param.name}")
+
+    return ", ".join(formatted)
+
+
+def format_js_destructuring_args(
+    parameters: List[ParameterInfo],
+    values: List[str]
+) -> str:
+    """Generate JavaScript object destructuring pattern from parameters and values.
+
+    Creates object destructuring syntax for JavaScript/TypeScript function calls,
+    supporting default values, renamed properties, and nested destructuring.
+
+    Args:
+        parameters: List of ParameterInfo objects describing the parameters
+        values: List of argument values corresponding to each parameter
+
+    Returns:
+        Formatted destructuring pattern like "{ name, age = 0 }" or
+        "{ name: userName, config: { timeout } }"
+
+    Examples:
+        Basic destructuring:
+        >>> params = [ParameterInfo("name"), ParameterInfo("age")]
+        >>> format_js_destructuring_args(params, ['"Alice"', "25"])
+        '{ name, age }'
+
+        With default values:
+        >>> params = [ParameterInfo("name"), ParameterInfo("age", default_value="0")]
+        >>> format_js_destructuring_args(params, ['"Alice"', ""])
+        '{ name, age = 0 }'
+
+        With renamed properties (value contains ":"):
+        >>> params = [ParameterInfo("name")]
+        >>> format_js_destructuring_args(params, ["userName"])
+        '{ name: userName }'
+
+        With nested destructuring (value contains "{"):
+        >>> params = [ParameterInfo("config")]
+        >>> format_js_destructuring_args(params, ["{ timeout, retries }"])
+        '{ config: { timeout, retries } }'
+    """
+    if not parameters:
+        return "{ }"
+
+    destructured = []
+
+    for i, param in enumerate(parameters):
+        value = values[i] if i < len(values) else ""
+
+        # Handle nested destructuring (value contains curly braces)
+        if value and value.strip().startswith("{"):
+            destructured.append(f"{param.name}: {value.strip()}")
+        # Handle renamed properties (value is a simple identifier, not a literal)
+        elif value and not value.startswith('"') and not value.startswith("'") and not value.isdigit() and value != param.name:
+            # Check if it's a valid identifier (not a complex expression)
+            if value.replace("_", "").replace("$", "").isalnum() or value.isidentifier():
+                destructured.append(f"{param.name}: {value}")
+            else:
+                # Complex expression - just use the parameter name
+                destructured.append(param.name)
+        # Handle default values
+        elif not value and param.default_value:
+            destructured.append(f"{param.name} = {param.default_value}")
+        # Handle empty value with no default
+        elif not value:
+            destructured.append(param.name)
+        # Simple case - just the parameter name
+        else:
+            destructured.append(param.name)
+
+    return "{ " + ", ".join(destructured) + " }"
+
+
+def generate_docstring(
+    description: str,
+    parameters: List[ParameterInfo],
+    return_type: Optional[str],
+    language: str
+) -> str:
+    """Generate documentation string for a function in the target language format.
+
+    Creates properly formatted documentation based on the language:
+    - Python: Google-style docstring with Args and Returns sections
+    - TypeScript/JavaScript: JSDoc with @param and @returns tags
+    - Java: Javadoc with @param and @return tags
+
+    Args:
+        description: Brief description of what the function does
+        parameters: List of ParameterInfo objects describing each parameter
+        return_type: Return type annotation (None for void/no return)
+        language: Target language ('python', 'typescript', 'javascript', 'java')
+
+    Returns:
+        Formatted documentation string with proper indentation and syntax
+
+    Examples:
+        >>> params = [ParameterInfo("name", "str", description="User name")]
+        >>> generate_docstring("Get user", params, "User", "python")
+        '\"\"\"Get user.\\n\\nArgs:\\n    name: User name\\n\\nReturns:\\n    User\\n\"\"\"'
+    """
+    lang_lower = language.lower()
+
+    if lang_lower == "python":
+        return _generate_python_docstring(description, parameters, return_type)
+    elif lang_lower in ("typescript", "javascript"):
+        return _generate_jsdoc(description, parameters, return_type)
+    elif lang_lower == "java":
+        return _generate_javadoc(description, parameters, return_type)
+    else:
+        # Default to Python-style for unknown languages
+        return _generate_python_docstring(description, parameters, return_type)
+
+
+def _generate_python_docstring(
+    description: str,
+    parameters: List[ParameterInfo],
+    return_type: Optional[str]
+) -> str:
+    """Generate Google-style Python docstring.
+
+    Args:
+        description: Function description
+        parameters: List of parameter info
+        return_type: Return type (None if no return)
+
+    Returns:
+        Formatted Python docstring
+    """
+    lines = ['"""' + description + "."]
+
+    # Add Args section if there are parameters
+    if parameters:
+        lines.append("")
+        lines.append("Args:")
+        for param in parameters:
+            # Format: name: Description
+            param_line = f"    {param.name}"
+            if param.description:
+                param_line += f": {param.description}"
+            else:
+                # Include type info if no description
+                type_str = param.python_type or "Any"
+                if param.is_optional:
+                    param_line += f" (optional): {type_str}"
+                else:
+                    param_line += f": {type_str}"
+            lines.append(param_line)
+
+    # Add Returns section if there's a return type
+    if return_type and return_type.lower() not in ("none", "void"):
+        lines.append("")
+        lines.append("Returns:")
+        lines.append(f"    {return_type}")
+
+    lines.append('"""')
+    return "\n".join(lines)
+
+
+def _generate_jsdoc(
+    description: str,
+    parameters: List[ParameterInfo],
+    return_type: Optional[str]
+) -> str:
+    """Generate JSDoc comment for TypeScript/JavaScript.
+
+    Args:
+        description: Function description
+        parameters: List of parameter info
+        return_type: Return type (None if no return)
+
+    Returns:
+        Formatted JSDoc comment
+    """
+    lines = ["/**", f" * {description}."]
+
+    # Add @param tags
+    if parameters:
+        lines.append(" *")
+        for param in parameters:
+            type_str = param.typescript_type or "any"
+            # JSDoc format: @param {type} name - Description
+            if param.is_optional:
+                param_tag = f" * @param {{{type_str}}} [{param.name}]"
+            else:
+                param_tag = f" * @param {{{type_str}}} {param.name}"
+
+            if param.description:
+                param_tag += f" - {param.description}"
+            lines.append(param_tag)
+
+    # Add @returns tag if there's a return type
+    if return_type and return_type.lower() not in ("void", "undefined"):
+        lines.append(f" * @returns {{{return_type}}}")
+
+    lines.append(" */")
+    return "\n".join(lines)
+
+
+def _generate_javadoc(
+    description: str,
+    parameters: List[ParameterInfo],
+    return_type: Optional[str]
+) -> str:
+    """Generate Javadoc comment for Java.
+
+    Args:
+        description: Method description
+        parameters: List of parameter info
+        return_type: Return type (None if no return)
+
+    Returns:
+        Formatted Javadoc comment
+    """
+    lines = ["/**", f" * {description}."]
+
+    # Add @param tags
+    if parameters:
+        lines.append(" *")
+        for param in parameters:
+            # Javadoc format: @param name description
+            param_tag = f" * @param {param.name}"
+            if param.description:
+                param_tag += f" {param.description}"
+            elif param.java_type:
+                # Use type hint as description fallback
+                optional_marker = " (optional)" if param.is_optional else ""
+                param_tag += f" the {param.java_type}{optional_marker}"
+            lines.append(param_tag)
+
+    # Add @return tag if there's a return type
+    if return_type and return_type.lower() != "void":
+        lines.append(f" * @return {return_type}")
+
+    lines.append(" */")
+    return "\n".join(lines)
+
+
+def format_arguments_for_call(
+    parameters: List[ParameterInfo],
+    values: List[str],
+    language: str,
+    style: str = "positional"
+) -> str:
+    """Format argument values for a function/method call based on language and style.
+
+    Generates argument strings for calling functions with different argument
+    passing conventions based on the target language and preferred style.
+
+    Args:
+        parameters: List of ParameterInfo objects describing the parameters
+        values: List of argument values to pass (must match parameter count for positional)
+        language: Target language ('python', 'typescript', 'javascript', 'java')
+        style: Argument passing style:
+            - 'positional': Pass arguments by position (all languages)
+            - 'named': Pass arguments by name (Python kwargs, TS/JS object)
+            - 'mixed': Mix of positional and named (Python only)
+
+    Returns:
+        Formatted argument string for function call
+
+    Examples:
+        >>> params = [ParameterInfo("name", python_type="str"),
+        ...           ParameterInfo("age", python_type="int", default_value="0")]
+        >>> format_arguments_for_call(params, ['"Alice"', "25"], "python", "positional")
+        '"Alice", 25'
+        >>> format_arguments_for_call(params, ['"Alice"', "25"], "python", "named")
+        'name="Alice", age=25'
+        >>> format_arguments_for_call(params, ['"Alice"'], "python", "positional")
+        '"Alice"'
+        >>> format_arguments_for_call(params, ['"Bob"', "30"], "typescript", "named")
+        '{ name: "Bob", age: 30 }'
+    """
+    if not parameters:
+        return ""
+
+    language_lower = language.lower()
+
+    # Handle positional style (all languages)
+    if style == "positional":
+        # Only include values up to the number provided
+        # This allows omitting trailing defaults
+        return ", ".join(values)
+
+    # Handle named style
+    if style == "named":
+        if language_lower == "python":
+            # Python keyword arguments
+            args = []
+            for i, param in enumerate(parameters):
+                if i < len(values):
+                    # Skip if value matches default
+                    if param.default_value is not None and values[i] == param.default_value:
+                        continue
+                    args.append(f"{param.name}={values[i]}")
+                elif param.default_value is None and not param.is_optional:
+                    # Required param without value - use placeholder
+                    args.append(f"{param.name}=...")
+            return ", ".join(args)
+
+        elif language_lower in ("typescript", "javascript"):
+            # TypeScript/JavaScript object destructuring pattern
+            args = []
+            for i, param in enumerate(parameters):
+                if i < len(values):
+                    # Skip if value matches default
+                    if param.default_value is not None and values[i] == param.default_value:
+                        continue
+                    args.append(f"{param.name}: {values[i]}")
+                elif param.default_value is None and not param.is_optional:
+                    # Required param without value
+                    args.append(f"{param.name}: undefined")
+            if args:
+                return "{ " + ", ".join(args) + " }"
+            return "{}"
+
+        elif language_lower == "java":
+            # Java doesn't support named arguments, fall back to positional
+            return ", ".join(values)
+
+        else:
+            # Unknown language, use positional
+            return ", ".join(values)
+
+    # Handle mixed style (Python only)
+    if style == "mixed":
+        if language_lower == "python":
+            # First half positional, second half named
+            # Required params positional, optional params named
+            positional_args = []
+            named_args = []
+
+            for i, param in enumerate(parameters):
+                if i >= len(values):
+                    break
+
+                if not param.is_optional:
+                    # Required params are positional
+                    positional_args.append(values[i])
+                else:
+                    # Optional params are named (skip defaults)
+                    if param.default_value is not None and values[i] == param.default_value:
+                        continue
+                    named_args.append(f"{param.name}={values[i]}")
+
+            all_args = positional_args + named_args
+            return ", ".join(all_args)
+        else:
+            # Mixed not supported for other languages, use positional
+            return ", ".join(values)
+
+    # Unknown style, fall back to positional
+    return ", ".join(values)
+
+
+def format_python_keyword_args(
+    parameters: List[ParameterInfo],
+    values: List[str]
+) -> str:
+    """Format Python function call arguments with full PEP 570/3102 support.
+
+    Handles advanced Python argument syntax including:
+    - Positional-only parameters (before /)
+    - Regular positional-or-keyword parameters
+    - *args (variadic positional)
+    - Keyword-only parameters (after *)
+    - **kwargs (variadic keyword)
+    - Default values
+
+    Parameter markers are detected by special names:
+    - "/" indicates end of positional-only params
+    - "*" indicates start of keyword-only params (without args)
+    - "*args" for variadic positional arguments
+    - "**kwargs" for variadic keyword arguments
+
+    Args:
+        parameters: List of ParameterInfo objects describing parameters.
+                   Special marker params have names "/", "*", "*args", "**kwargs".
+        values: List of argument values to pass. Values for marker params
+               like "/" and "*" should be empty strings and will be skipped.
+
+    Returns:
+        Formatted argument string for Python function call.
+
+    Examples:
+        >>> # Simple positional args
+        >>> params = [ParameterInfo("x"), ParameterInfo("y")]
+        >>> format_python_keyword_args(params, ["1", "2"])
+        '1, 2'
+
+        >>> # Positional-only args (before /)
+        >>> params = [ParameterInfo("x"), ParameterInfo("/"), ParameterInfo("y")]
+        >>> format_python_keyword_args(params, ["1", "", "2"])
+        '1, y=2'
+
+        >>> # Keyword-only args (after *)
+        >>> params = [ParameterInfo("x"), ParameterInfo("*"), ParameterInfo("y")]
+        >>> format_python_keyword_args(params, ["1", "", "2"])
+        '1, y=2'
+
+        >>> # With *args and **kwargs
+        >>> params = [ParameterInfo("x"), ParameterInfo("*args"), ParameterInfo("y"), ParameterInfo("**kwargs")]
+        >>> format_python_keyword_args(params, ["1", "*extra", "2", "**opts"])
+        '1, *extra, y=2, **opts'
+
+        >>> # With default values - skip if value matches default
+        >>> params = [ParameterInfo("x", default_value="0"), ParameterInfo("y")]
+        >>> format_python_keyword_args(params, ["0", "2"])
+        'y=2'
+    """
+    if not parameters or not values:
+        return ""
+
+    result_args: List[str] = []
+
+    # Track argument mode
+    seen_positional_only_marker = False  # After "/" - remaining args can be keyword
+    seen_keyword_only_marker = False  # After "*" or "*args" - must use keyword syntax
+
+    # Collect positional-only args (before /)
+    positional_only_args: List[tuple[str, str, Optional[str]]] = []
+    # Collect regular args (between / and *)
+    regular_args: List[tuple[str, str, Optional[str]]] = []
+    # Collect keyword-only args (after *)
+    keyword_only_args: List[tuple[str, str, Optional[str]]] = []
+    # Track *args and **kwargs
+    variadic_args: Optional[str] = None
+    variadic_kwargs: Optional[str] = None
+
+    value_idx = 0
+
+    for param in parameters:
+        if value_idx >= len(values):
+            break
+
+        value = values[value_idx]
+        value_idx += 1
+
+        # Handle special markers
+        if param.name == "/":
+            seen_positional_only_marker = True
+            continue
+        elif param.name == "*":
+            seen_keyword_only_marker = True
+            continue
+        elif param.name == "*args" or (param.name.startswith("*") and not param.name.startswith("**")):
+            seen_keyword_only_marker = True
+            if value and value != "":
+                variadic_args = value
+            continue
+        elif param.name == "**kwargs" or param.name.startswith("**"):
+            if value and value != "":
+                variadic_kwargs = value
+            continue
+
+        # Skip if value matches default (optimization)
+        if param.default_value is not None and value == param.default_value:
+            continue
+
+        # Categorize the argument
+        if not seen_positional_only_marker and not seen_keyword_only_marker:
+            # Before any markers - collect for later categorization
+            positional_only_args.append((param.name, value, param.default_value))
+        elif seen_positional_only_marker and not seen_keyword_only_marker:
+            # Between / and * - regular positional-or-keyword
+            regular_args.append((param.name, value, param.default_value))
+        else:
+            # After * - keyword-only
+            keyword_only_args.append((param.name, value, param.default_value))
+
+    # Check if there's a / marker to determine if early args are positional-only
+    has_positional_only = any(p.name == "/" for p in parameters)
+
+    # Build the result
+    if has_positional_only:
+        # Args before / are passed positionally
+        for name, value, default in positional_only_args:
+            if value:
+                result_args.append(value)
+    else:
+        # No / marker - use positional for these args
+        for name, value, default in positional_only_args:
+            if value:
+                result_args.append(value)
+
+    # Regular args (between / and *) - can be positional or keyword
+    for name, value, default in regular_args:
+        if value:
+            if default is not None:
+                # Has default - use keyword style
+                result_args.append(f"{name}={value}")
+            else:
+                # No default - positional is fine
+                result_args.append(value)
+
+    # Add *args if present
+    if variadic_args:
+        result_args.append(variadic_args)
+
+    # Keyword-only args - must use keyword syntax
+    for name, value, default in keyword_only_args:
+        if value:
+            result_args.append(f"{name}={value}")
+
+    # Add **kwargs if present
+    if variadic_kwargs:
+        result_args.append(variadic_kwargs)
+
+    return ", ".join(result_args)
+
+
+def substitute_template_variables(
+    template: str,
+    variables: Dict[str, str],
+    strict: bool = False
+) -> str:
+    """Substitute variables into a code template.
+
+    Handles variable substitution with support for:
+    - Simple variables: {{variable_name}}
+    - Conditional sections: {{#if condition}}content{{/if}}
+    - List variables: {{#each items}}{{.}}{{/each}}
+    - Optional sections that clean up whitespace when empty
+
+    Args:
+        template: Template string with {{variable}} placeholders
+        variables: Dictionary mapping variable names to values
+        strict: If True, raise error for missing variables; if False, use empty string
+
+    Returns:
+        Template with all variables substituted
+
+    Raises:
+        ValueError: If strict=True and a required variable is missing
+
+    Examples:
+        >>> substitute_template_variables("Hello {{name}}!", {"name": "World"})
+        'Hello World!'
+
+        >>> substitute_template_variables("{{#if show}}visible{{/if}}", {"show": "true"})
+        'visible'
+
+        >>> substitute_template_variables("{{#each items}}{{.}}, {{/each}}", {"items": "a,b,c"})
+        'a, b, c, '
+    """
+    import re
+
+    result = template
+
+    # Process conditional sections first: {{#if var}}content{{/if}}
+    def process_conditional(match: re.Match) -> str:
+        var_name = match.group(1)
+        content = match.group(2)
+
+        # Check if variable exists and is truthy
+        if var_name in variables:
+            value = variables[var_name]
+            # Truthy check: non-empty string, not "false", not "0", not "none"
+            if value and value.lower() not in ("false", "0", "none", "null", ""):
+                # Recursively process the content
+                return substitute_template_variables(content, variables, strict)
+
+        return ""
+
+    # Match {{#if var_name}}...{{/if}}
+    conditional_pattern = r'\{\{#if\s+(\w+)\}\}(.*?)\{\{/if\}\}'
+    result = re.sub(conditional_pattern, process_conditional, result, flags=re.DOTALL)
+
+    # Process inverse conditionals: {{#unless var}}content{{/unless}}
+    def process_unless(match: re.Match) -> str:
+        var_name = match.group(1)
+        content = match.group(2)
+
+        # Check if variable doesn't exist or is falsy
+        if var_name not in variables:
+            return substitute_template_variables(content, variables, strict)
+
+        value = variables[var_name]
+        if not value or value.lower() in ("false", "0", "none", "null", ""):
+            return substitute_template_variables(content, variables, strict)
+
+        return ""
+
+    unless_pattern = r'\{\{#unless\s+(\w+)\}\}(.*?)\{\{/unless\}\}'
+    result = re.sub(unless_pattern, process_unless, result, flags=re.DOTALL)
+
+    # Process each loops: {{#each var}}content with {{.}}{{/each}}
+    def process_each(match: re.Match) -> str:
+        var_name = match.group(1)
+        content = match.group(2)
+
+        if var_name not in variables:
+            if strict:
+                raise ValueError(f"Missing list variable: {var_name}")
+            return ""
+
+        # Split value by comma for list
+        items = [item.strip() for item in variables[var_name].split(",") if item.strip()]
+
+        if not items:
+            return ""
+
+        results = []
+        for item in items:
+            # Replace {{.}} with the current item
+            item_content = content.replace("{{.}}", item)
+            # Also support {{@index}} for index
+            item_content = re.sub(r'\{\{@index\}\}', str(items.index(item)), item_content)
+            results.append(item_content)
+
+        return "".join(results)
+
+    each_pattern = r'\{\{#each\s+(\w+)\}\}(.*?)\{\{/each\}\}'
+    result = re.sub(each_pattern, process_each, result, flags=re.DOTALL)
+
+    # Process simple variable substitution: {{var_name}}
+    def process_variable(match: re.Match) -> str:
+        var_name = match.group(1)
+
+        if var_name in variables:
+            return variables[var_name]
+
+        if strict:
+            raise ValueError(f"Missing required variable: {var_name}")
+
+        return ""
+
+    # Match {{variable_name}} but not {{#...}} or {{/...}} or {{.}} or {{@...}}
+    variable_pattern = r'\{\{(?!#|/|\.|\@)(\w+)\}\}'
+    result = re.sub(variable_pattern, process_variable, result)
+
+    # Clean up extra whitespace from empty optional sections
+    result = _clean_template_whitespace(result)
+
+    return result
+
+
+def _clean_template_whitespace(content: str) -> str:
+    """Clean up extra whitespace left by empty optional sections.
+
+    Args:
+        content: Content with potential extra whitespace
+
+    Returns:
+        Cleaned content with normalized whitespace
+    """
+    import re
+
+    # Remove lines that are only whitespace (but preserve intentional blank lines)
+    lines = content.split('\n')
+    cleaned_lines = []
+    prev_blank = False
+
+    for line in lines:
+        is_blank = not line.strip()
+
+        # Skip consecutive blank lines
+        if is_blank and prev_blank:
+            continue
+
+        cleaned_lines.append(line)
+        prev_blank = is_blank
+
+    result = '\n'.join(cleaned_lines)
+
+    # Remove trailing whitespace from lines
+    result = re.sub(r'[ \t]+$', '', result, flags=re.MULTILINE)
+
+    # Remove multiple consecutive blank lines (more than 2)
+    result = re.sub(r'\n{3,}', '\n\n', result)
+
+    # Remove leading/trailing blank lines
+    result = result.strip()
+
+    return result
+
+
+def generate_type_annotations(
+    parameters: List[ParameterInfo],
+    return_type: Optional[str],
+    language: str
+) -> Dict[str, str]:
+    """Generate formatted type annotations for a given language.
+
+    Creates properly formatted type strings for parameters and return types,
+    with support for Python type hints, TypeScript types, and Java generics.
+
+    Args:
+        parameters: List of ParameterInfo objects with type information
+        return_type: Return type string, or None for void/no return
+        language: Target language ('python', 'typescript', 'java', 'javascript')
+
+    Returns:
+        Dictionary with 'params' and 'return' keys containing formatted type strings.
+        - 'params': Formatted parameter types (e.g., "name: str, count: int")
+        - 'return': Formatted return type (e.g., "-> str" for Python, ": string" for TS)
+
+    Examples:
+        >>> params = [ParameterInfo("name", "string"), ParameterInfo("count", "integer")]
+        >>> generate_type_annotations(params, "string", "python")
+        {'params': 'name: str, count: int', 'return': '-> str'}
+
+        >>> generate_type_annotations(params, "string", "typescript")
+        {'params': 'name: string, count: number', 'return': ': string'}
+
+        >>> generate_type_annotations(params, None, "java")
+        {'params': 'String name, int count', 'return': 'void'}
+    """
+    import re
+
+    # Type mappings between languages
+    python_to_typescript: Dict[str, str] = {
+        "str": "string",
+        "int": "number",
+        "float": "number",
+        "bool": "boolean",
+        "None": "void",
+        "list": "Array",
+        "dict": "object",
+        "Any": "any",
+    }
+
+    python_to_java: Dict[str, str] = {
+        "str": "String",
+        "int": "int",
+        "float": "double",
+        "bool": "boolean",
+        "None": "void",
+        "list": "List",
+        "dict": "Map",
+        "Any": "Object",
+    }
+
+    typescript_to_python: Dict[str, str] = {
+        "string": "str",
+        "number": "int",
+        "boolean": "bool",
+        "void": "None",
+        "any": "Any",
+        "object": "dict",
+        "undefined": "None",
+        "null": "None",
+    }
+
+    java_to_python: Dict[str, str] = {
+        "String": "str",
+        "int": "int",
+        "Integer": "int",
+        "long": "int",
+        "Long": "int",
+        "double": "float",
+        "Double": "float",
+        "float": "float",
+        "Float": "float",
+        "boolean": "bool",
+        "Boolean": "bool",
+        "void": "None",
+        "Object": "Any",
+    }
+
+    def normalize_to_python(type_str: str) -> str:
+        """Normalize a type string to Python type hint format."""
+        if not type_str:
+            return "Any"
+
+        # Already Python format
+        if type_str in ("str", "int", "float", "bool", "None", "Any"):
+            return type_str
+
+        # Check TypeScript mappings
+        if type_str.lower() in typescript_to_python:
+            return typescript_to_python[type_str.lower()]
+
+        # Check Java mappings
+        if type_str in java_to_python:
+            return java_to_python[type_str]
+
+        # Handle generic types like List<String>, Array<string>
+
+        # TypeScript Array<T> -> list[T]
+        array_match = re.match(r"Array<(.+)>", type_str)
+        if array_match:
+            inner = normalize_to_python(array_match.group(1))
+            return f"list[{inner}]"
+
+        # Java List<T> -> list[T]
+        list_match = re.match(r"List<(.+)>", type_str)
+        if list_match:
+            inner = normalize_to_python(list_match.group(1))
+            return f"list[{inner}]"
+
+        # TypeScript union with undefined -> Optional
+        if " | undefined" in type_str or " | null" in type_str:
+            base = type_str.replace(" | undefined", "").replace(" | null", "")
+            inner = normalize_to_python(base)
+            return f"Optional[{inner}]"
+
+        # Java Optional<T> -> Optional[T]
+        optional_match = re.match(r"Optional<(.+)>", type_str)
+        if optional_match:
+            inner = normalize_to_python(optional_match.group(1))
+            return f"Optional[{inner}]"
+
+        # Handle Python list[T] format
+        python_list_match = re.match(r"list\[(.+)\]", type_str)
+        if python_list_match:
+            inner = normalize_to_python(python_list_match.group(1))
+            return f"list[{inner}]"
+
+        # Handle Python Optional[T] format
+        python_optional_match = re.match(r"Optional\[(.+)\]", type_str)
+        if python_optional_match:
+            inner = normalize_to_python(python_optional_match.group(1))
+            return f"Optional[{inner}]"
+
+        return type_str
+
+    def convert_to_typescript(python_type: str) -> str:
+        """Convert Python type to TypeScript type."""
+        if not python_type or python_type == "Any":
+            return "any"
+
+        # Direct mapping
+        if python_type in python_to_typescript:
+            return python_to_typescript[python_type]
+
+        # list[T] -> Array<T>
+        list_match = re.match(r"list\[(.+)\]", python_type)
+        if list_match:
+            inner = convert_to_typescript(list_match.group(1))
+            return f"Array<{inner}>"
+
+        # Optional[T] -> T | undefined
+        optional_match = re.match(r"Optional\[(.+)\]", python_type)
+        if optional_match:
+            inner = convert_to_typescript(optional_match.group(1))
+            return f"{inner} | undefined"
+
+        return python_type
+
+    def convert_to_java(python_type: str) -> str:
+        """Convert Python type to Java type."""
+        if not python_type or python_type == "Any":
+            return "Object"
+
+        # Direct mapping
+        if python_type in python_to_java:
+            return python_to_java[python_type]
+
+        # list[T] -> List<T>
+        list_match = re.match(r"list\[(.+)\]", python_type)
+        if list_match:
+            inner = convert_to_java(list_match.group(1))
+            return f"List<{inner}>"
+
+        # Optional[T] -> Optional<T>
+        optional_match = re.match(r"Optional\[(.+)\]", python_type)
+        if optional_match:
+            inner = convert_to_java(optional_match.group(1))
+            return f"Optional<{inner}>"
+
+        return python_type
+
+    # Format parameter types
+    lang = language.lower()
+    param_parts: List[str] = []
+
+    for param in parameters:
+        # Get the type from ParameterInfo based on language
+        if lang == "python":
+            param_type = param.python_type
+        elif lang in ("typescript", "javascript"):
+            param_type = param.typescript_type
+        elif lang == "java":
+            param_type = param.java_type
+        else:
+            param_type = param.python_type
+
+        # Normalize to Python first for conversion
+        normalized = normalize_to_python(param_type)
+
+        # Convert to target language
+        if lang == "python":
+            final_type = normalized
+            if param.is_optional and not normalized.startswith("Optional"):
+                final_type = f"Optional[{normalized}]"
+            param_parts.append(f"{param.name}: {final_type}")
+        elif lang in ("typescript", "javascript"):
+            final_type = convert_to_typescript(normalized)
+            opt_marker = "?" if param.is_optional else ""
+            param_parts.append(f"{param.name}{opt_marker}: {final_type}")
+        elif lang == "java":
+            final_type = convert_to_java(normalized)
+            param_parts.append(f"{final_type} {param.name}")
+
+    # Format return type
+    if return_type:
+        normalized_return = normalize_to_python(return_type)
+    else:
+        normalized_return = "None"
+
+    if lang == "python":
+        return_str = f"-> {normalized_return}"
+    elif lang in ("typescript", "javascript"):
+        ts_return = convert_to_typescript(normalized_return)
+        return_str = f": {ts_return}"
+    elif lang == "java":
+        java_return = convert_to_java(normalized_return)
+        return_str = java_return
+    else:
+        return_str = normalized_return
+
+    return {
+        "params": ", ".join(param_parts),
+        "return": return_str
+    }
+
+
+def generate_function_signature(
+    name: str,
+    parameters: List[ParameterInfo],
+    return_type: Optional[str],
+    language: str,
+    is_async: bool = False,
+    type_parameters: Optional[List[str]] = None,
+    access_modifier: str = "public"
+) -> str:
+    """Generate a function/method signature for the specified language.
+
+    Creates just the signature line (not the body) for a function or method,
+    handling language-specific syntax including async functions and generics.
+
+    Args:
+        name: The function/method name
+        parameters: List of ParameterInfo objects describing parameters
+        return_type: Return type annotation (None for void/no return type)
+        language: Target language ('python', 'typescript', 'javascript', 'java')
+        is_async: Whether this is an async function (JS/TS only)
+        type_parameters: Generic type parameters (e.g., ['T', 'K extends string'])
+        access_modifier: Java access modifier ('public', 'private', 'protected')
+
+    Returns:
+        The function signature string (without body/braces)
+
+    Raises:
+        ValueError: If language is not supported
+
+    Examples:
+        >>> params = [ParameterInfo("name", python_type="str", typescript_type="string")]
+        >>> generate_function_signature("greet", params, "str", "python")
+        'def greet(name: str) -> str:'
+
+        >>> generate_function_signature("greet", params, "string", "typescript", is_async=True)
+        'async function greet(name: string): string'
+
+        >>> generate_function_signature("greet", params, "String", "java")
+        'public String greet(String name)'
+    """
+    language = language.lower()
+    supported_languages = ("python", "typescript", "javascript", "java")
+
+    if language not in supported_languages:
+        raise ValueError(
+            f"Unsupported language: {language}. "
+            f"Supported: {', '.join(supported_languages)}"
+        )
+
+    # Format type parameters for generics
+    generics_str = ""
+    if type_parameters:
+        generics_str = f"<{', '.join(type_parameters)}>"
+
+    if language == "python":
+        params_str = format_python_params(parameters)
+        return_annotation = f" -> {return_type}" if return_type else ""
+        async_prefix = "async " if is_async else ""
+        return f"{async_prefix}def {name}{generics_str}({params_str}){return_annotation}:"
+
+    elif language in ("typescript", "javascript"):
+        params_str = format_typescript_params(parameters)
+        async_prefix = "async " if is_async else ""
+
+        if language == "typescript":
+            return_annotation = f": {return_type}" if return_type else ": void"
+            return f"{async_prefix}function {name}{generics_str}({params_str}){return_annotation}"
+        else:
+            # JavaScript doesn't have type annotations
+            return f"{async_prefix}function {name}({params_str})"
+
+    elif language == "java":
+        params_str = format_java_params(parameters)
+        return_type_str = return_type if return_type else "void"
+        # Java: [modifier] [generics] return_type name(params)
+        if generics_str:
+            return f"{access_modifier} {generics_str} {return_type_str} {name}({params_str})"
+        else:
+            return f"{access_modifier} {return_type_str} {name}({params_str})"
+
+    # Should never reach here due to earlier validation
+    return ""
+
+
+def generate_python_function(
+    name: str,
+    params: List[ParameterInfo],
+    body: str,
+    return_type: str = "None",
+    decorators: Optional[List[str]] = None,
+    docstring: Optional[str] = None,
+    is_async: bool = False
+) -> str:
+    """Generate a complete Python function from parameters.
+
+    Args:
+        name: Function name
+        params: List of ParameterInfo for parameters
+        body: Function body (will be indented)
+        return_type: Return type annotation
+        decorators: Optional list of decorator strings (without @)
+        docstring: Optional docstring content
+        is_async: Whether function is async
+
+    Returns:
+        Complete Python function as string
+    """
+    lines = []
+
+    # Add decorators
+    if decorators:
+        for dec in decorators:
+            lines.append(f"@{dec}")
+
+    # Build function signature
+    async_prefix = "async " if is_async else ""
+    param_str = format_python_params(params)
+    lines.append(f"{async_prefix}def {name}({param_str}) -> {return_type}:")
+
+    # Add docstring
+    if docstring:
+        lines.append(f'    """')
+        for doc_line in docstring.split('\n'):
+            lines.append(f'    {doc_line}')
+        lines.append(f'    """')
+
+    # Add body (ensure proper indentation)
+    for body_line in body.split('\n'):
+        if body_line.strip():
+            lines.append(f'    {body_line}')
+        else:
+            lines.append('')
+
+    return '\n'.join(lines)
+
+
+def generate_typescript_function(
+    name: str,
+    params: List[ParameterInfo],
+    body: str,
+    return_type: str = "void",
+    is_async: bool = False,
+    is_export: bool = True,
+    jsdoc: Optional[str] = None
+) -> str:
+    """Generate a complete TypeScript function from parameters.
+
+    Args:
+        name: Function name
+        params: List of ParameterInfo for parameters
+        body: Function body (will be indented)
+        return_type: Return type annotation
+        is_async: Whether function is async
+        is_export: Whether to export the function
+        jsdoc: Optional JSDoc comment content
+
+    Returns:
+        Complete TypeScript function as string
+    """
+    lines = []
+
+    # Add JSDoc
+    if jsdoc:
+        lines.append('/**')
+        for doc_line in jsdoc.split('\n'):
+            lines.append(f' * {doc_line}')
+        lines.append(' */')
+
+    # Build function signature
+    export_prefix = "export " if is_export else ""
+    async_prefix = "async " if is_async else ""
+    param_str = format_typescript_params(params)
+
+    # Handle async return type
+    actual_return = f"Promise<{return_type}>" if is_async and return_type != "void" else return_type
+
+    lines.append(f"{export_prefix}{async_prefix}function {name}({param_str}): {actual_return} {{")
+
+    # Add body (ensure proper indentation)
+    for body_line in body.split('\n'):
+        if body_line.strip():
+            lines.append(f'  {body_line}')
+        else:
+            lines.append('')
+
+    lines.append('}')
+
+    return '\n'.join(lines)
+
+
+def generate_java_method(
+    name: str,
+    params: List[ParameterInfo],
+    body: str,
+    return_type: str = "void",
+    modifiers: str = "public",
+    annotations: Optional[List[str]] = None,
+    javadoc: Optional[str] = None,
+    throws: Optional[List[str]] = None
+) -> str:
+    """Generate a complete Java method from parameters.
+
+    Args:
+        name: Method name
+        params: List of ParameterInfo for parameters
+        body: Method body (will be indented)
+        return_type: Return type
+        modifiers: Access modifiers (public, private, etc.)
+        annotations: Optional list of annotation strings (without @)
+        javadoc: Optional Javadoc comment content
+        throws: Optional list of exception types
+
+    Returns:
+        Complete Java method as string
+    """
+    lines = []
+
+    # Add Javadoc
+    if javadoc:
+        lines.append('/**')
+        for doc_line in javadoc.split('\n'):
+            lines.append(f' * {doc_line}')
+        lines.append(' */')
+
+    # Add annotations
+    if annotations:
+        for ann in annotations:
+            lines.append(f"@{ann}")
+
+    # Build method signature
+    param_str = format_java_params(params)
+    throws_clause = f" throws {', '.join(throws)}" if throws else ""
+
+    lines.append(f"{modifiers} {return_type} {name}({param_str}){throws_clause} {{")
+
+    # Add body (ensure proper indentation)
+    for body_line in body.split('\n'):
+        if body_line.strip():
+            lines.append(f'    {body_line}')
+        else:
+            lines.append('')
+
+    lines.append('}')
+
+    return '\n'.join(lines)
+
+
+def generate_javascript_function(
+    name: str,
+    params: List[ParameterInfo],
+    body: str,
+    is_async: bool = False,
+    is_export: bool = True,
+    jsdoc: Optional[str] = None
+) -> str:
+    """Generate a complete JavaScript function from parameters.
+
+    Args:
+        name: Function name
+        params: List of ParameterInfo for parameters
+        body: Function body (will be indented)
+        is_async: Whether function is async
+        is_export: Whether to export the function
+        jsdoc: Optional JSDoc comment content
+
+    Returns:
+        Complete JavaScript function as string
+    """
+    lines = []
+
+    # Add JSDoc
+    if jsdoc:
+        lines.append('/**')
+        for doc_line in jsdoc.split('\n'):
+            lines.append(f' * {doc_line}')
+        lines.append(' */')
+
+    # Build function signature (JS doesn't have type annotations in standard syntax)
+    export_prefix = "export " if is_export else ""
+    async_prefix = "async " if is_async else ""
+
+    # Format params without types for JS
+    param_names = []
+    required = [p for p in params if not p.is_optional]
+    optional = [p for p in params if p.is_optional]
+
+    for param in required:
+        param_names.append(param.name)
+
+    for param in optional:
+        if param.default_value is not None:
+            param_names.append(f"{param.name} = {param.default_value}")
+        else:
+            param_names.append(param.name)
+
+    param_str = ", ".join(param_names)
+
+    lines.append(f"{export_prefix}{async_prefix}function {name}({param_str}) {{")
+
+    # Add body (ensure proper indentation)
+    for body_line in body.split('\n'):
+        if body_line.strip():
+            lines.append(f'  {body_line}')
+        else:
+            lines.append('')
+
+    lines.append('}')
+
+    return '\n'.join(lines)
+
+
+def detect_return_value(code: str, language: str) -> tuple[bool, Optional[str]]:
+    """Detect if code contains return statements and infer the return type.
+
+    Analyzes code to detect explicit return statements and implicit returns
+    (like last expressions in JavaScript arrow functions). Attempts to infer
+    the return type from the returned expression.
+
+    Args:
+        code: The code to analyze for return values
+        language: Programming language ('python', 'typescript', 'javascript', 'java')
+
+    Returns:
+        Tuple of (has_return, inferred_type) where:
+        - has_return: True if code contains explicit or implicit return
+        - inferred_type: Inferred type string or None if cannot be determined
+    """
+    if not code or not code.strip():
+        return (False, None)
+
+    lang = language.lower()
+    lines = code.strip().split('\n')
+
+    # Check for explicit return statements
+    has_explicit_return = False
+    returned_expression: Optional[str] = None
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith('return '):
+            has_explicit_return = True
+            # Extract the returned expression
+            returned_expression = stripped[7:].rstrip(';').strip()
+            break
+        elif stripped == 'return' or stripped == 'return;':
+            has_explicit_return = True
+            returned_expression = None
+            break
+
+    # Check for implicit returns (JS arrow functions with expression body)
+    has_implicit_return = False
+    if not has_explicit_return and lang in ('javascript', 'typescript'):
+        # Single expression without braces is an implicit return
+        # Check if we have a single line that's not a statement
+        if len(lines) == 1:
+            single_line = lines[0].strip()
+            # Not a control structure or declaration
+            if not any(single_line.startswith(kw) for kw in
+                      ['if', 'for', 'while', 'switch', 'const', 'let', 'var', 'function', 'class', '{']):
+                has_implicit_return = True
+                returned_expression = single_line.rstrip(';')
+
+    has_return = has_explicit_return or has_implicit_return
+
+    # Infer type from returned expression
+    inferred_type: Optional[str] = None
+
+    if returned_expression:
+        expr = returned_expression.strip()
+
+        # Literal type inference
+        if expr in ('true', 'false', 'True', 'False'):
+            inferred_type = 'boolean' if lang in ('javascript', 'typescript') else 'bool'
+        elif expr == 'null' or expr == 'None':
+            inferred_type = 'null' if lang in ('javascript', 'typescript') else 'None'
+        elif expr == 'undefined':
+            inferred_type = 'undefined'
+        elif expr.startswith('"') or expr.startswith("'") or expr.startswith('`'):
+            inferred_type = 'string' if lang in ('javascript', 'typescript') else 'str'
+        elif expr.startswith('['):
+            if lang == 'python':
+                inferred_type = 'list'
+            elif lang == 'java':
+                inferred_type = 'List'
+            else:
+                inferred_type = 'array'
+        elif expr.startswith('{'):
+            if lang == 'python':
+                inferred_type = 'dict'
+            elif lang == 'java':
+                inferred_type = 'Map'
+            else:
+                inferred_type = 'object'
+        elif expr.replace('.', '').replace('-', '').isdigit():
+            # Numeric literal
+            if '.' in expr:
+                inferred_type = 'number' if lang in ('javascript', 'typescript') else 'float'
+            else:
+                inferred_type = 'number' if lang in ('javascript', 'typescript') else 'int'
+        elif expr.startswith('new '):
+            # Constructor call - extract class name
+            class_match = expr[4:].split('(')[0].strip()
+            if class_match:
+                inferred_type = class_match
+        elif expr.startswith('await '):
+            # Async call - indicate it's a Promise result
+            inferred_type = 'Promise'
+        elif '(' in expr:
+            # Function call - cannot determine type without more context
+            inferred_type = None
+
+    return (has_return, inferred_type)
+
+
+def generate_replacement_call(
+    function_name: str,
+    arguments: list[str],
+    language: str,
+    is_method: bool = False,
+    object_name: Optional[str] = None
+) -> str:
+    """Generate a function call to replace duplicate code.
+
+    Creates the appropriate function/method call syntax for the target language
+    that will replace the duplicated code block.
+
+    Args:
+        function_name: Name of the extracted function to call
+        arguments: List of argument expressions to pass
+        language: Target programming language
+        is_method: Whether this is a method call (obj.method()) vs function call
+        object_name: Object/instance name for method calls (required if is_method=True)
+
+    Returns:
+        Formatted function call string appropriate for the language
+
+    Examples:
+        >>> generate_replacement_call("processData", ["items", "config"], "python")
+        'processData(items, config)'
+        >>> generate_replacement_call("fetch", ["url"], "typescript", is_method=True, object_name="this")
+        'this.fetch(url)'
+        >>> generate_replacement_call("getData", [], "go")
+        'getData()'
+    """
+    # Format argument list
+    args_str = ", ".join(arguments)
+
+    # Build the call based on method vs function
+    if is_method and object_name:
+        base_call = f"{object_name}.{function_name}"
+    else:
+        base_call = function_name
+
+    # Language-specific formatting
+    if language in ("python", "javascript", "typescript", "java", "go", "rust", "c", "cpp"):
+        # Standard parentheses call syntax
+        return f"{base_call}({args_str})"
+
+    elif language == "ruby":
+        # Ruby allows omitting parentheses for no-arg calls
+        if arguments:
+            return f"{base_call}({args_str})"
+        else:
+            return base_call
+
+    elif language == "kotlin":
+        # Kotlin standard call syntax
+        return f"{base_call}({args_str})"
+
+    elif language == "swift":
+        # Swift standard call syntax
+        return f"{base_call}({args_str})"
+
+    elif language == "scala":
+        # Scala allows omitting parentheses for no-arg calls
+        if arguments:
+            return f"{base_call}({args_str})"
+        else:
+            return base_call
+
+    else:
+        # Default: standard call syntax
+        return f"{base_call}({args_str})"
+
+
+def identify_unused_imports(
+    file_content: str,
+    removed_code: str,
+    language: str
+) -> list[str]:
+    """Identify imports that were only used in removed duplicate code.
+
+    Analyzes file content and removed code to find imports that are no longer
+    needed after duplicate code removal. Uses conservative analysis to only
+    flag imports that are definitely unused.
+
+    Args:
+        file_content: Full content of the file after duplicate removal
+        removed_code: The code that was removed (duplicate section)
+        language: Programming language ('python', 'typescript', 'javascript', 'java')
+
+    Returns:
+        List of import statements that can be safely removed
+
+    Example:
+        >>> content = "import os\\n\\ndef main():\\n    pass"
+        >>> removed = "path = os.path.join('a', 'b')"
+        >>> identify_unused_imports(content, removed, "python")
+        ['import os']
+    """
+    logger = get_logger("codegen.unused_imports")
+
+    if not file_content or not removed_code:
+        return []
+
+    lang_lower = language.lower()
+    unused_imports: list[str] = []
+
+    # Extract identifiers used in removed code
+    removed_identifiers = _extract_identifiers(removed_code, lang_lower)
+
+    if not removed_identifiers:
+        return []
+
+    # Extract identifiers used in remaining content (excluding imports)
+    content_without_imports = _remove_import_lines(file_content, lang_lower)
+    remaining_identifiers = _extract_identifiers(content_without_imports, lang_lower)
+
+    # Extract import statements and their imported names
+    imports_with_names = _extract_imports_with_names(file_content, lang_lower)
+
+    for import_stmt, imported_names in imports_with_names:
+        # Check if any imported name was used in removed code
+        # but NOT used in remaining code
+        used_in_removed = any(name in removed_identifiers for name in imported_names)
+        used_in_remaining = any(name in remaining_identifiers for name in imported_names)
+
+        if used_in_removed and not used_in_remaining:
+            # Conservative check: ensure ALL names from this import are unused
+            all_names_unused = all(name not in remaining_identifiers for name in imported_names)
+            if all_names_unused:
+                unused_imports.append(import_stmt)
+                logger.debug(
+                    "identified_unused_import",
+                    import_stmt=import_stmt[:80],
+                    imported_names=list(imported_names)[:5]
+                )
+
+    logger.info(
+        "unused_imports_identified",
+        language=language,
+        total_imports=len(imports_with_names),
+        unused_count=len(unused_imports)
+    )
+
+    return unused_imports
+
+
+def _extract_identifiers(code: str, language: str) -> set[str]:
+    """Extract all identifiers from code using regex patterns."""
+    import re
+
+    # Remove string literals to avoid false matches
+    if language in ("python",):
+        code = re.sub(r'"""[\s\S]*?"""', '', code)
+        code = re.sub(r"'''[\s\S]*?'''", '', code)
+        code = re.sub(r'"[^"]*"', '', code)
+        code = re.sub(r"'[^']*'", '', code)
+    elif language in ("typescript", "javascript", "java"):
+        code = re.sub(r'`[\s\S]*?`', '', code)
+        code = re.sub(r'"[^"]*"', '', code)
+        code = re.sub(r"'[^']*'", '', code)
+
+    # Remove comments
+    if language == "python":
+        code = re.sub(r'#.*$', '', code, flags=re.MULTILINE)
+    elif language in ("typescript", "javascript", "java"):
+        code = re.sub(r'//.*$', '', code, flags=re.MULTILINE)
+        code = re.sub(r'/\*[\s\S]*?\*/', '', code)
+
+    # Extract identifiers
+    identifiers = set(re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', code))
+    return identifiers
+
+
+def _remove_import_lines(content: str, language: str) -> str:
+    """Remove import/require lines from content."""
+    lines = content.split('\n')
+    filtered_lines = []
+
+    for line in lines:
+        stripped = line.strip()
+        is_import = False
+
+        if language == "python":
+            is_import = stripped.startswith('import ') or stripped.startswith('from ')
+        elif language in ("typescript", "javascript"):
+            is_import = (
+                stripped.startswith('import ') or
+                'require(' in stripped or
+                stripped.startswith('export ')
+            )
+        elif language == "java":
+            is_import = stripped.startswith('import ')
+
+        if not is_import:
+            filtered_lines.append(line)
+
+    return '\n'.join(filtered_lines)
+
+
+def _extract_imports_with_names(content: str, language: str) -> list[tuple[str, set[str]]]:
+    """Extract import statements and the names they import."""
+    import re
+
+    results: list[tuple[str, set[str]]] = []
+
+    if language == "python":
+        # Pattern: import module
+        for match in re.finditer(r'^(import\s+([\w.]+(?:\s+as\s+\w+)?(?:\s*,\s*[\w.]+(?:\s+as\s+\w+)?)*))\s*$', content, re.MULTILINE):
+            stmt = match.group(1)
+            names: set[str] = set()
+            for item in re.findall(r'([\w.]+)(?:\s+as\s+(\w+))?', match.group(2)):
+                module, alias = item
+                names.add(alias if alias else module.split('.')[-1])
+            if names:
+                results.append((stmt, names))
+
+        # Pattern: from module import names
+        for match in re.finditer(r'^(from\s+[\w.]+\s+import\s+(.+?))\s*$', content, re.MULTILINE):
+            stmt = match.group(1)
+            names_part = match.group(2).strip('()')
+            names = set()
+            for item in re.findall(r'(\w+)(?:\s+as\s+(\w+))?', names_part):
+                name, alias = item
+                names.add(alias if alias else name)
+            if names:
+                results.append((stmt, names))
+
+    elif language in ("typescript", "javascript"):
+        # import name from 'source'
+        for match in re.finditer(r'^(import\s+(\w+)\s+from\s+[\'"][^\'"]+[\'"])\s*;?\s*$', content, re.MULTILINE):
+            results.append((match.group(1), {match.group(2)}))
+
+        # import { names } from 'source'
+        for match in re.finditer(r'^(import\s+\{([^}]+)\}\s+from\s+[\'"][^\'"]+[\'"])\s*;?\s*$', content, re.MULTILINE):
+            names = set()
+            for item in re.findall(r'(\w+)(?:\s+as\s+(\w+))?', match.group(2)):
+                name, alias = item
+                names.add(alias if alias else name)
+            if names:
+                results.append((match.group(1), names))
+
+        # import * as name from 'source'
+        for match in re.finditer(r'^(import\s+\*\s+as\s+(\w+)\s+from\s+[\'"][^\'"]+[\'"])\s*;?\s*$', content, re.MULTILINE):
+            results.append((match.group(1), {match.group(2)}))
+
+        # const name = require('source')
+        for match in re.finditer(r'^(const\s+(\w+)\s*=\s*require\s*\([\'"][^\'"]+[\'"]\))\s*;?\s*$', content, re.MULTILINE):
+            results.append((match.group(1), {match.group(2)}))
+
+        # const { names } = require('source')
+        for match in re.finditer(r'^(const\s+\{([^}]+)\}\s*=\s*require\s*\([\'"][^\'"]+[\'"]\))\s*;?\s*$', content, re.MULTILINE):
+            names = set()
+            for item in re.findall(r'(\w+)(?:\s*:\s*(\w+))?', match.group(2)):
+                name, alias = item
+                names.add(alias if alias else name)
+            if names:
+                results.append((match.group(1), names))
+
+    elif language == "java":
+        # import package.Class;
+        for match in re.finditer(r'^(import\s+(?:static\s+)?([\w.]+))\s*;\s*$', content, re.MULTILINE):
+            class_name = match.group(2).split('.')[-1]
+            if class_name != '*':
+                results.append((match.group(1), {class_name}))
+
+    return results
+
+
 def extract_imports_from_files(
     file_paths: List[str],
     language: str
@@ -7217,6 +10449,127 @@ def detect_import_variations(
     }
 
 
+def generate_import_statement(
+    module_path: str,
+    items: list[str],
+    language: str,
+    default_import: Optional[str] = None,
+    use_require: bool = False
+) -> str:
+    """Generate an import statement for the specified language.
+
+    Creates properly formatted import statements for various programming languages,
+    supporting both named imports and default imports.
+
+    Args:
+        module_path: The module or package path to import from
+        items: List of items to import (named imports)
+        language: Programming language (python, typescript, javascript, java, go, rust)
+        default_import: Optional default import name (for JS/TS default exports)
+        use_require: If True, use CommonJS require() syntax for JavaScript
+
+    Returns:
+        Formatted import statement string for the specified language
+
+    Examples:
+        >>> generate_import_statement("os.path", ["join", "dirname"], "python")
+        'from os.path import join, dirname'
+
+        >>> generate_import_statement("react", ["useState", "useEffect"], "typescript")
+        "import { useState, useEffect } from 'react'"
+
+        >>> generate_import_statement("react", [], "typescript", default_import="React")
+        "import React from 'react'"
+
+        >>> generate_import_statement("com.example.util", ["StringUtils"], "java")
+        'import com.example.util.StringUtils;'
+    """
+    lang_lower = language.lower()
+
+    if lang_lower == "python":
+        if not items:
+            return f"import {module_path}"
+        elif len(items) == 1 and items[0] == "*":
+            return f"from {module_path} import *"
+        else:
+            items_str = ", ".join(items)
+            return f"from {module_path} import {items_str}"
+
+    elif lang_lower in ("typescript", "javascript", "tsx", "jsx"):
+        if use_require and lang_lower in ("javascript", "jsx"):
+            if not items and default_import:
+                return f"const {default_import} = require('{module_path}')"
+            elif items:
+                items_str = ", ".join(items)
+                return f"const {{ {items_str} }} = require('{module_path}')"
+            else:
+                return f"require('{module_path}')"
+        else:
+            parts = []
+            if default_import and items:
+                items_str = ", ".join(items)
+                parts.append(f"import {default_import}, {{ {items_str} }} from '{module_path}'")
+            elif default_import:
+                parts.append(f"import {default_import} from '{module_path}'")
+            elif items:
+                if len(items) == 1 and items[0] == "*":
+                    alias = module_path.split("/")[-1].replace("-", "_").replace(".", "_")
+                    parts.append(f"import * as {alias} from '{module_path}'")
+                else:
+                    items_str = ", ".join(items)
+                    parts.append(f"import {{ {items_str} }} from '{module_path}'")
+            else:
+                parts.append(f"import '{module_path}'")
+            return parts[0] if parts else f"import '{module_path}'"
+
+    elif lang_lower == "java":
+        if not items or (len(items) == 1 and items[0] == "*"):
+            return f"import {module_path}.*;"
+        else:
+            statements = [f"import {module_path}.{item};" for item in items]
+            return "\n".join(statements)
+
+    elif lang_lower == "go":
+        if default_import:
+            return f'import {default_import} "{module_path}"'
+        else:
+            return f'import "{module_path}"'
+
+    elif lang_lower == "rust":
+        if not items:
+            return f"use {module_path};"
+        elif len(items) == 1:
+            if items[0] == "*":
+                return f"use {module_path}::*;"
+            else:
+                return f"use {module_path}::{items[0]};"
+        else:
+            items_str = ", ".join(items)
+            return f"use {module_path}::{{{items_str}}};"
+
+    elif lang_lower in ("c", "cpp", "c++"):
+        if module_path.startswith("<") or module_path.endswith(">"):
+            return f"#include {module_path}"
+        elif module_path.endswith(".h") or module_path.endswith(".hpp"):
+            return f'#include "{module_path}"'
+        else:
+            return f"#include <{module_path}>"
+
+    elif lang_lower == "csharp" or lang_lower == "c#":
+        if items:
+            statements = [f"using static {module_path}.{item};" for item in items]
+            return "\n".join(statements)  # C# static imports
+        else:
+            return f"using {module_path};"
+
+    else:
+        if items:
+            items_str = ", ".join(items)
+            return f"// Import {items_str} from {module_path}"
+        else:
+            return f"// Import {module_path}"
+
+
 def analyze_import_overlap(
     file_imports: Dict[str, List[str]],
     duplicate_code: Optional[str] = None
@@ -7627,6 +10980,151 @@ def _is_builtin(name: str, language: str) -> bool:
     return name in lang_builtins
 
 
+def resolve_import_path(
+    source_file: str,
+    target_file: str,
+    language: str,
+    prefer_relative: bool = True
+) -> str:
+    """Calculate the import path from source file to target file.
+
+    Generates the appropriate import path based on language conventions:
+    - Python: relative (from .module import X) or absolute (from package.module import X)
+    - TypeScript/JavaScript: relative (./path) or absolute (@package/path)
+    - Java: always absolute (package.Class)
+
+    Args:
+        source_file: Path to the file that will contain the import
+        target_file: Path to the file being imported
+        language: Programming language (python, typescript, javascript, java, etc.)
+        prefer_relative: If True, prefer relative imports where supported
+
+    Returns:
+        Import path string appropriate for the language
+
+    Examples:
+        >>> resolve_import_path("/src/utils/helper.py", "/src/models/user.py", "python")
+        "from ..models.user import user"
+        >>> resolve_import_path("/src/index.ts", "/src/utils/helper.ts", "typescript")
+        "./utils/helper"
+    """
+    source_path = os.path.abspath(source_file)
+    target_path = os.path.abspath(target_file)
+
+    source_dir = os.path.dirname(source_path)
+    target_dir = os.path.dirname(target_path)
+    target_basename = os.path.splitext(os.path.basename(target_path))[0]
+
+    lang_lower = language.lower()
+
+    # Java always uses absolute package paths
+    if lang_lower == "java":
+        # Extract package from file path (e.g., src/main/java/com/example/MyClass.java)
+        # Look for common Java source roots
+        java_roots = ["src/main/java/", "src/test/java/", "src/", "java/"]
+        package_path = target_path
+
+        for root in java_roots:
+            if root in target_path:
+                package_path = target_path.split(root, 1)[-1]
+                break
+
+        # Convert path to package notation
+        package_parts = package_path.replace(os.sep, "/").replace("/", ".").rsplit(".", 1)
+        if len(package_parts) > 1:
+            return package_parts[0]  # Remove file extension
+        return target_basename
+
+    # Python imports
+    if lang_lower == "python":
+        if prefer_relative:
+            # Calculate relative path
+            rel_path = os.path.relpath(target_dir, source_dir)
+
+            if rel_path == ".":
+                # Same directory
+                return f"from .{target_basename} import {target_basename}"
+            elif rel_path.startswith(".."):
+                # Parent directory or sibling
+                dots = rel_path.count("..") + 1
+                remaining = rel_path.replace("..", "").strip(os.sep)
+                if remaining:
+                    module_path = remaining.replace(os.sep, ".")
+                    return f"from {'.' * dots}{module_path}.{target_basename} import {target_basename}"
+                else:
+                    return f"from {'.' * dots}{target_basename} import {target_basename}"
+            else:
+                # Subdirectory
+                module_path = rel_path.replace(os.sep, ".")
+                return f"from .{module_path}.{target_basename} import {target_basename}"
+        else:
+            # Absolute import - try to find package root
+            # Look for __init__.py to determine package boundaries
+            package_parts = []
+            current = target_dir
+            while current and current != os.path.dirname(current):
+                init_file = os.path.join(current, "__init__.py")
+                if os.path.exists(init_file):
+                    package_parts.insert(0, os.path.basename(current))
+                    current = os.path.dirname(current)
+                else:
+                    break
+
+            if package_parts:
+                package_path = ".".join(package_parts)
+                return f"from {package_path}.{target_basename} import {target_basename}"
+            else:
+                return f"import {target_basename}"
+
+    # TypeScript/JavaScript imports
+    if lang_lower in ["typescript", "javascript", "tsx", "jsx"]:
+        if prefer_relative:
+            rel_path = os.path.relpath(target_path, source_dir)
+            # Normalize to forward slashes
+            rel_path = rel_path.replace(os.sep, "/")
+            # Remove file extension
+            rel_path = os.path.splitext(rel_path)[0]
+            # Ensure relative path prefix
+            if not rel_path.startswith("."):
+                rel_path = "./" + rel_path
+            return rel_path
+        else:
+            # Absolute import - try to find package.json to determine package name
+            # Look for common patterns like @scope/package or src/ aliases
+            package_json_path = None
+            current = target_dir
+            while current and current != os.path.dirname(current):
+                pj = os.path.join(current, "package.json")
+                if os.path.exists(pj):
+                    package_json_path = current
+                    break
+                current = os.path.dirname(current)
+
+            if package_json_path:
+                # Get relative path from package root
+                rel_from_pkg = os.path.relpath(target_path, package_json_path)
+                rel_from_pkg = rel_from_pkg.replace(os.sep, "/")
+                rel_from_pkg = os.path.splitext(rel_from_pkg)[0]
+
+                # Check for common path aliases (src -> @/)
+                if rel_from_pkg.startswith("src/"):
+                    return "@/" + rel_from_pkg[4:]
+
+                return rel_from_pkg
+            else:
+                # Fall back to relative
+                rel_path = os.path.relpath(target_path, source_dir)
+                rel_path = rel_path.replace(os.sep, "/")
+                rel_path = os.path.splitext(rel_path)[0]
+                if not rel_path.startswith("."):
+                    rel_path = "./" + rel_path
+                return rel_path
+
+    # Default fallback for other languages
+    rel_path = os.path.relpath(target_path, source_dir)
+    return rel_path.replace(os.sep, "/")
+
+
 def get_supported_languages() -> List[str]:
     """Get all supported languages as a field description string."""
     languages = [  # https://ast-grep.github.io/reference/languages.html
@@ -8033,6 +11531,214 @@ def stream_ast_grep_results(
                 process.wait()
 
 # ============================================================================
+# Syntax Validators
+# ============================================================================
+
+def validate_python_syntax(code: str) -> tuple[bool, str | None]:
+    """Validate Python code syntax using the ast module.
+
+    Uses ast.parse() to check if the provided code is syntactically valid Python.
+    This validates the code without executing it.
+
+    Args:
+        code: Python source code string to validate
+
+    Returns:
+        A tuple of (is_valid, error_message):
+        - (True, None) if the code is syntactically valid
+        - (False, error_message) if invalid, with detailed error including
+          line number and column position
+
+    Examples:
+        >>> validate_python_syntax("x = 1")
+        (True, None)
+        >>> valid, err = validate_python_syntax("def foo(")
+        >>> valid
+        False
+        >>> "line 1" in err.lower()
+        True
+    """
+    import ast
+
+    try:
+        ast.parse(code)
+        return (True, None)
+    except SyntaxError as e:
+        # Build detailed error message with line and column info
+        line_info = f"line {e.lineno}" if e.lineno else "unknown line"
+        col_info = f", column {e.offset}" if e.offset else ""
+        error_msg = f"SyntaxError at {line_info}{col_info}: {e.msg}"
+
+        # Include the problematic text if available
+        if e.text:
+            error_msg += f"\n  {e.text.rstrip()}"
+            if e.offset:
+                error_msg += f"\n  {' ' * (e.offset - 1)}^"
+
+        return (False, error_msg)
+
+
+def validate_javascript_syntax(code: str) -> tuple[bool, str | None]:
+    """Validate JavaScript syntax using Node.js.
+
+    Uses Node.js vm module to parse JavaScript code and check for syntax errors.
+    Supports ES6+ syntax including modules, async/await, and modern features.
+
+    Args:
+        code: JavaScript source code to validate
+
+    Returns:
+        A tuple of (is_valid, error_message):
+        - (True, None) if the code is syntactically valid
+        - (False, error_message) if invalid, with detailed error including
+          line number when available
+
+    Examples:
+        >>> validate_javascript_syntax("const x = 1;")
+        (True, None)
+        >>> valid, err = validate_javascript_syntax("const x = ")
+        >>> valid
+        False
+    """
+    try:
+        # Use Node.js vm module to parse code - supports ES6+ syntax
+        node_code = f"""
+const vm = require('vm');
+try {{
+    new vm.Script({json.dumps(code)}, {{ filename: 'validate.js' }});
+    process.exit(0);
+}} catch(e) {{
+    // Parse the error for line/column info
+    const lineMatch = e.stack && e.stack.match(/:(\d+)(?::\\d+)?/);
+    let errorMsg = e.message;
+    if (lineMatch) {{
+        errorMsg = `Line ${{lineMatch[1]}}: ${{errorMsg}}`;
+    }}
+    console.error(errorMsg);
+    process.exit(1);
+}}
+"""
+        result = subprocess.run(
+            ["node", "-e", node_code],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        if result.returncode == 0:
+            return (True, None)
+        else:
+            error_msg = result.stderr.strip() or result.stdout.strip()
+            return (False, error_msg if error_msg else "Unknown syntax error")
+
+    except FileNotFoundError:
+        return (False, "Node.js not found - install Node.js for JavaScript validation")
+    except subprocess.TimeoutExpired:
+        return (False, "Validation timed out")
+    except Exception as e:
+        return (False, f"Validation error: {str(e)}")
+
+
+def validate_typescript_syntax(code: str) -> tuple[bool, str | None]:
+    """Validate TypeScript syntax using tsc (TypeScript compiler).
+
+    Uses the TypeScript compiler to check syntax without emitting output.
+    Validates type annotations, interfaces, generics, and TypeScript-specific syntax.
+
+    Args:
+        code: TypeScript source code to validate
+
+    Returns:
+        A tuple of (is_valid, error_message):
+        - (True, None) if the code is syntactically valid
+        - (False, error_message) if invalid, with detailed error including
+          line and column numbers
+
+    Examples:
+        >>> validate_typescript_syntax("const x: number = 1;")
+        (True, None)
+        >>> valid, err = validate_typescript_syntax("const x: = 1;")
+        >>> valid
+        False
+    """
+    import tempfile
+    import re
+
+    try:
+        # Write code to a temporary file for tsc to check
+        with tempfile.NamedTemporaryFile(
+            mode='w',
+            suffix='.ts',
+            delete=False,
+            encoding='utf-8'
+        ) as tmp_file:
+            tmp_file.write(code)
+            tmp_path = tmp_file.name
+
+        try:
+            # Run tsc with --noEmit to check syntax without generating output
+            result = subprocess.run(
+                [
+                    "tsc",
+                    "--noEmit",
+                    "--skipLibCheck",
+                    "--target", "ES2020",
+                    "--module", "ESNext",
+                    "--moduleResolution", "node",
+                    "--esModuleInterop",
+                    tmp_path
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if result.returncode == 0:
+                return (True, None)
+            else:
+                # Parse tsc error output for meaningful messages
+                error_output = result.stdout.strip() or result.stderr.strip()
+
+                if not error_output:
+                    return (False, "Unknown TypeScript syntax error")
+
+                # Extract errors with line info
+                # tsc format: file.ts(line,col): error TS####: message
+                lines = error_output.split('\n')
+                errors = []
+
+                for line in lines:
+                    # Match pattern like: validate.ts(5,10): error TS1005: ';' expected.
+                    match = re.match(r'.*?\((\d+),(\d+)\):\s*error\s+TS\d+:\s*(.+)', line)
+                    if match:
+                        line_num, col, msg = match.groups()
+                        errors.append(f"Line {line_num}, Col {col}: {msg}")
+                    elif line.strip() and not line.startswith(' '):
+                        # Fallback for other error formats
+                        errors.append(line.strip())
+
+                if errors:
+                    # Return first few errors to keep message concise
+                    return (False, "; ".join(errors[:3]))
+                else:
+                    return (False, error_output[:500])
+
+        finally:
+            # Clean up temporary file
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+    except FileNotFoundError:
+        return (False, "TypeScript compiler (tsc) not found - install with: npm install -g typescript")
+    except subprocess.TimeoutExpired:
+        return (False, "Validation timed out")
+    except Exception as e:
+        return (False, f"Validation error: {str(e)}")
+
+
+# ============================================================================
 # Syntax Validation for Code Rewrites
 # ============================================================================
 
@@ -8114,6 +11820,556 @@ try {{
         result["valid"] = False
         result["error"] = f"Validation error: {str(e)}"
         return result
+
+
+def validate_java_syntax(code: str) -> tuple[bool, str | None]:
+    """Validate Java syntax using javac compiler.
+
+    Uses javac with syntax-only flag to check for compilation errors
+    without generating class files.
+
+    Args:
+        code: Java source code to validate
+
+    Returns:
+        Tuple of (is_valid, error_message).
+        Returns (True, None) if syntax is valid.
+        Returns (False, error_message) if syntax is invalid.
+    """
+    import tempfile
+
+    # Create temporary file for javac
+    with tempfile.NamedTemporaryFile(
+        mode='w',
+        suffix='.java',
+        delete=False,
+        encoding='utf-8'
+    ) as tmp_file:
+        tmp_file.write(code)
+        tmp_path = tmp_file.name
+
+    try:
+        # Run javac with -Xlint:none to suppress warnings, -proc:none to skip annotation processing
+        result = subprocess.run(
+            ["javac", "-Xlint:none", "-proc:none", "-d", "/dev/null", tmp_path],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        if result.returncode == 0:
+            return (True, None)
+
+        # Parse error output for detailed message
+        error_output = result.stderr.strip()
+        if not error_output:
+            error_output = result.stdout.strip()
+
+        if error_output:
+            # Extract error details from javac output
+            # Format: filename.java:line: error: message
+            lines = error_output.split('\n')
+            error_messages = []
+
+            for line in lines:
+                # Skip pointer lines (^ symbols) and blank lines
+                if line.strip() == '^' or not line.strip():
+                    continue
+                # Extract the actual error message
+                if '.java:' in line:
+                    # Parse line number and message
+                    try:
+                        parts = line.split(':', 3)
+                        if len(parts) >= 4:
+                            line_num = parts[1]
+                            msg = parts[3].strip() if len(parts) > 3 else parts[2].strip()
+                            error_messages.append(f"Line {line_num}: {msg}")
+                        else:
+                            error_messages.append(line)
+                    except (IndexError, ValueError):
+                        error_messages.append(line)
+                elif 'error:' in line.lower():
+                    error_messages.append(line.strip())
+
+            if error_messages:
+                return (False, "; ".join(error_messages[:5]))  # Limit to first 5 errors
+
+            return (False, error_output[:500])  # Truncate long output
+
+        return (False, "Java compilation failed with unknown error")
+
+    except FileNotFoundError:
+        return (False, "javac not found - Java JDK required for syntax validation")
+    except subprocess.TimeoutExpired:
+        return (False, "Java syntax validation timed out (30s)")
+    except Exception as e:
+        return (False, f"Java validation error: {str(e)}")
+    finally:
+        # Clean up temporary file
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+
+def format_generated_code(code: str, language: str) -> str:
+    """Format generated code using language-specific formatters.
+
+    Dispatches to the appropriate formatter based on language. Returns code
+    as-is if the language is unknown or formatting fails. Integrates with
+    syntax validation by formatting code before validation checks.
+
+    Args:
+        code: The generated code string to format
+        language: Programming language identifier (python, javascript, typescript, etc.)
+
+    Returns:
+        Formatted code string, or original code if formatting is not available
+        or fails for the specified language
+
+    Examples:
+        >>> formatted = format_generated_code("x=1", "python")
+        >>> formatted  # Would be "x = 1" if black available
+        'x=1'
+        >>> format_generated_code("const x=1;", "unknown_lang")
+        'const x=1;'
+    """
+    language_lower = language.lower()
+
+    # Dispatch to appropriate formatter based on language
+    formatters: dict[str, str] = {
+        "python": "black",
+        "javascript": "prettier",
+        "typescript": "prettier",
+        "tsx": "prettier",
+        "jsx": "prettier",
+        "json": "prettier",
+        "css": "prettier",
+        "html": "prettier",
+        "yaml": "prettier",
+        "markdown": "prettier",
+        "go": "gofmt",
+        "rust": "rustfmt",
+        "java": "google-java-format",
+        "c": "clang-format",
+        "cpp": "clang-format",
+        "csharp": "dotnet-format",
+    }
+
+    formatter = formatters.get(language_lower)
+
+    if not formatter:
+        logger.debug(
+            "format_skipped",
+            language=language,
+            reason="no_formatter_available"
+        )
+        return code
+
+    try:
+        # Python formatting with black
+        if formatter == "black":
+            result = subprocess.run(
+                ["black", "--quiet", "-"],
+                input=code,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                logger.info(
+                    "format_success",
+                    language=language,
+                    formatter=formatter
+                )
+                return result.stdout
+            else:
+                logger.warning(
+                    "format_failed",
+                    language=language,
+                    formatter=formatter,
+                    error=result.stderr.strip()
+                )
+                return code
+
+        # JavaScript/TypeScript/JSON/CSS/HTML/YAML/Markdown formatting with prettier
+        elif formatter == "prettier":
+            parser_map = {
+                "javascript": "babel",
+                "typescript": "typescript",
+                "tsx": "typescript",
+                "jsx": "babel",
+                "json": "json",
+                "css": "css",
+                "html": "html",
+                "yaml": "yaml",
+                "markdown": "markdown",
+            }
+            parser = parser_map.get(language_lower, "babel")
+
+            result = subprocess.run(
+                ["prettier", "--parser", parser],
+                input=code,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                logger.info(
+                    "format_success",
+                    language=language,
+                    formatter=formatter,
+                    parser=parser
+                )
+                return result.stdout
+            else:
+                logger.warning(
+                    "format_failed",
+                    language=language,
+                    formatter=formatter,
+                    error=result.stderr.strip()
+                )
+                return code
+
+        # Go formatting with gofmt
+        elif formatter == "gofmt":
+            result = subprocess.run(
+                ["gofmt"],
+                input=code,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                logger.info(
+                    "format_success",
+                    language=language,
+                    formatter=formatter
+                )
+                return result.stdout
+            else:
+                logger.warning(
+                    "format_failed",
+                    language=language,
+                    formatter=formatter,
+                    error=result.stderr.strip()
+                )
+                return code
+
+        # Rust formatting with rustfmt
+        elif formatter == "rustfmt":
+            result = subprocess.run(
+                ["rustfmt"],
+                input=code,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                logger.info(
+                    "format_success",
+                    language=language,
+                    formatter=formatter
+                )
+                return result.stdout
+            else:
+                logger.warning(
+                    "format_failed",
+                    language=language,
+                    formatter=formatter,
+                    error=result.stderr.strip()
+                )
+                return code
+
+        # C/C++ formatting with clang-format
+        elif formatter == "clang-format":
+            result = subprocess.run(
+                ["clang-format"],
+                input=code,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                logger.info(
+                    "format_success",
+                    language=language,
+                    formatter=formatter
+                )
+                return result.stdout
+            else:
+                logger.warning(
+                    "format_failed",
+                    language=language,
+                    formatter=formatter,
+                    error=result.stderr.strip()
+                )
+                return code
+
+        # Java formatting with google-java-format
+        elif formatter == "google-java-format":
+            result = subprocess.run(
+                ["google-java-format", "-"],
+                input=code,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                logger.info(
+                    "format_success",
+                    language=language,
+                    formatter=formatter
+                )
+                return result.stdout
+            else:
+                logger.warning(
+                    "format_failed",
+                    language=language,
+                    formatter=formatter,
+                    error=result.stderr.strip()
+                )
+                return code
+
+        # C# formatting with dotnet-format (requires file, not stdin)
+        elif formatter == "dotnet-format":
+            logger.debug(
+                "format_skipped",
+                language=language,
+                formatter=formatter,
+                reason="stdin_not_supported"
+            )
+            return code
+
+        else:
+            logger.debug(
+                "format_skipped",
+                language=language,
+                formatter=formatter,
+                reason="formatter_not_implemented"
+            )
+            return code
+
+    except FileNotFoundError:
+        logger.debug(
+            "format_skipped",
+            language=language,
+            formatter=formatter,
+            reason="formatter_not_installed"
+        )
+        return code
+    except subprocess.TimeoutExpired:
+        logger.warning(
+            "format_timeout",
+            language=language,
+            formatter=formatter,
+            timeout_seconds=10
+        )
+        return code
+    except Exception as e:
+        logger.warning(
+            "format_error",
+            language=language,
+            formatter=formatter,
+            error=str(e)
+        )
+        return code
+
+
+def format_validation_error(error: str, code: str, language: str) -> str:
+    """Format a validation error with context and visual pointers.
+
+    Args:
+        error: The error message from the validator
+        code: The source code that failed validation
+        language: Programming language of the code
+
+    Returns:
+        Formatted error message with code snippet, pointer, and suggestions
+    """
+    import re
+
+    lines = code.split('\n')
+    formatted_parts: List[str] = []
+
+    # Extract line and column from error message
+    line_num: int | None = None
+    col_num: int | None = None
+
+    # Common error patterns for different languages
+    patterns = [
+        r'[Ll]ine (\d+)(?:, column (\d+))?',  # Line 5, column 10
+        r'(\d+):(\d+)',  # 5:10
+        r'at line (\d+)',  # at line 5
+        r'\((\d+),\s*(\d+)\)',  # (5, 10)
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, error)
+        if match:
+            line_num = int(match.group(1))
+            if match.lastindex and match.lastindex >= 2 and match.group(2):
+                col_num = int(match.group(2))
+            break
+
+    # Build header
+    formatted_parts.append(f"=== Validation Error ({language}) ===")
+    formatted_parts.append(f"Error: {error}")
+    formatted_parts.append("")
+
+    # Show code snippet with context if we have line info
+    if line_num and 1 <= line_num <= len(lines):
+        context_before = 2
+        context_after = 2
+
+        start_line = max(1, line_num - context_before)
+        end_line = min(len(lines), line_num + context_after)
+
+        formatted_parts.append("Code snippet:")
+        formatted_parts.append("-" * 40)
+
+        for i in range(start_line, end_line + 1):
+            line_content = lines[i - 1]
+            marker = ">>>" if i == line_num else "   "
+            formatted_parts.append(f"{marker} {i:4d} | {line_content}")
+
+            # Add pointer to error column
+            if i == line_num and col_num:
+                pointer_pos = col_num - 1
+                pointer_line = "   " + "     " + " " * pointer_pos + "^"
+                formatted_parts.append(pointer_line)
+
+        formatted_parts.append("-" * 40)
+
+    # Add suggested fixes for common errors
+    suggestions = _get_error_suggestions(error, language)
+    if suggestions:
+        formatted_parts.append("")
+        formatted_parts.append("Suggested fixes:")
+        for suggestion in suggestions:
+            formatted_parts.append(f"  - {suggestion}")
+
+    return '\n'.join(formatted_parts)
+
+
+def _get_error_suggestions(error: str, language: str) -> List[str]:
+    """Get suggested fixes for common validation errors.
+
+    Args:
+        error: The error message
+        language: Programming language
+
+    Returns:
+        List of suggestion strings
+    """
+    suggestions: List[str] = []
+    error_lower = error.lower()
+
+    # Common Python errors
+    if language == "python":
+        if "unexpected indent" in error_lower:
+            suggestions.append("Check indentation - use consistent spaces (4) or tabs")
+            suggestions.append("Ensure previous line ends correctly (no trailing backslash)")
+        elif "expected ':'" in error_lower or ("invalid syntax" in error_lower and ":" in error):
+            suggestions.append("Add colon after if/for/while/def/class statements")
+        elif "unterminated string" in error_lower:
+            suggestions.append("Close string with matching quote character")
+            suggestions.append("Use triple quotes for multi-line strings")
+        elif "unmatched" in error_lower:
+            suggestions.append("Check for matching parentheses, brackets, or braces")
+        elif "invalid syntax" in error_lower:
+            suggestions.append("Check for missing commas between list/dict items")
+            suggestions.append("Verify proper operator usage (= vs ==)")
+
+    # Common JavaScript/TypeScript errors
+    elif language in ["javascript", "typescript", "jsx", "tsx"]:
+        if "unexpected token" in error_lower:
+            suggestions.append("Check for missing semicolons or commas")
+            suggestions.append("Verify proper bracket/brace matching")
+        elif "unterminated" in error_lower:
+            suggestions.append("Close string literals with matching quotes")
+            suggestions.append("Close template literals with backtick")
+        elif "missing" in error_lower and ")" in error:
+            suggestions.append("Add missing closing parenthesis")
+
+    # Common Java errors
+    elif language == "java":
+        if "';' expected" in error_lower or "expected" in error_lower:
+            suggestions.append("Check for missing semicolons at end of statements")
+        elif "class" in error_lower and "public" in error_lower:
+            suggestions.append("Ensure class name matches filename")
+        elif "cannot find symbol" in error_lower:
+            suggestions.append("Check import statements and variable declarations")
+
+    # Common brace-based language errors
+    if language in ["c", "cpp", "csharp", "java", "rust", "go"]:
+        if "brace" in error_lower or "{" in error or "}" in error:
+            suggestions.append("Check for matching opening and closing braces")
+            suggestions.append("Verify all function/class/block bodies are properly closed")
+        if "semicolon" in error_lower:
+            suggestions.append("Add semicolon at end of statement")
+
+    return suggestions
+
+
+def validate_generated_code(code: str, language: str) -> tuple[bool, str | None]:
+    """Validate generated code and return formatted error if invalid.
+
+    Dispatcher function that validates code for different languages and
+    returns a user-friendly error message on failure.
+
+    Args:
+        code: The generated source code to validate
+        language: Programming language (python, javascript, typescript, java, etc.)
+
+    Returns:
+        Tuple of (is_valid, error_message). error_message is None if valid,
+        otherwise contains formatted error with context and suggestions.
+
+    Examples:
+        >>> valid, err = validate_generated_code("x = 1", "python")
+        >>> valid
+        True
+        >>> valid, err = validate_generated_code("def foo(", "python")
+        >>> valid
+        False
+        >>> "Suggested fixes" in err
+        True
+    """
+    # Python validation
+    if language == "python":
+        is_valid, error = validate_python_syntax(code)
+        if not is_valid and error:
+            return (False, format_validation_error(error, code, language))
+        return (is_valid, error)
+
+    # JavaScript/TypeScript validation
+    elif language in ["javascript", "typescript", "tsx", "jsx"]:
+        is_valid, error = validate_javascript_syntax(code)
+        if not is_valid and error:
+            return (False, format_validation_error(error, code, language))
+        return (is_valid, error)
+
+    # Java validation
+    elif language == "java":
+        is_valid, error = validate_java_syntax(code)
+        if not is_valid and error:
+            return (False, format_validation_error(error, code, language))
+        return (is_valid, error)
+
+    # Brace-based languages - basic validation
+    elif language in ["c", "cpp", "csharp", "rust", "go"]:
+        open_braces = code.count('{')
+        close_braces = code.count('}')
+        if open_braces != close_braces:
+            error_msg = f"Mismatched braces: {open_braces} '{{' vs {close_braces} '}}'"
+            formatted = format_validation_error(error_msg, code, language)
+            return (False, formatted)
+        return (True, None)
+
+    # Unsupported languages - return valid with no error
+    else:
+        return (True, None)
 
 
 def validate_rewrites(modified_files: List[str], language: str) -> Dict[str, Any]:
