@@ -21,10 +21,14 @@ from ast_grep_mcp.core.config import (
     CACHE_ENABLED,
     CACHE_SIZE,
     CACHE_TTL,
-    CustomLanguageConfig,
-    AstGrepConfig,
     validate_config_file,
     parse_args_and_get_config,
+)
+
+# These are actually in models.config
+from ast_grep_mcp.models.config import (
+    CustomLanguageConfig,
+    AstGrepConfig,
 )
 
 from ast_grep_mcp.core.sentry import (
