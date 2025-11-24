@@ -14,9 +14,9 @@ doppler run -- uv run main.py    # Run with Doppler secrets (production)
 
 ## Project Overview
 
-Single-file MCP server (`main.py`, ~20,000 lines) combining ast-grep structural code search with Schema.org tools and enhanced deduplication.
+Single-file MCP server (`main.py`, ~19,500 lines) combining ast-grep structural code search with Schema.org tools, enhanced deduplication, and code quality standards.
 
-**24 Tools:** Code search (6), Code rewrite (3), Deduplication (4), Schema.org (8), Complexity (2), Testing (1)
+**27 Tools:** Code search (6), Code rewrite (3), Deduplication (4), Schema.org (8), Complexity (2), Code Quality (3), Testing (1)
 
 **Dependencies:** ast-grep CLI (required), Doppler CLI (optional for secrets), Python 3.13+, uv package manager
 
@@ -149,6 +149,70 @@ detect_code_smells(
 
 **Severity Levels:** Each smell is rated high/medium/low based on how far it exceeds thresholds.
 
+## Code Quality & Standards - Phase 1: Rule Definition System
+
+Create and manage custom linting rules using ast-grep patterns.
+
+**Tools:**
+- `create_linting_rule` - Create custom linting rules
+- `list_rule_templates` - Browse 24+ pre-built rule templates
+
+**Create Custom Rules:**
+```python
+create_linting_rule(
+    rule_name="no-console-log",
+    description="Disallow console.log in production code",
+    pattern="console.log($$$)",
+    severity="warning",  # error, warning, or info
+    language="typescript",
+    suggested_fix="Use proper logging framework",
+    note="console.log should only be used during development",
+    save_to_project=True,
+    project_folder="/path/to/project"
+)
+```
+
+**Use Templates:**
+```python
+# List available templates
+list_rule_templates(language="python", category="security")
+
+# Create rule from template
+create_linting_rule(
+    rule_name="no-bare-except",
+    use_template="no-bare-except",  # Uses template as base
+    save_to_project=True,
+    project_folder="/path/to/project"
+)
+```
+
+**24 Pre-built Templates:**
+- **JavaScript/TypeScript (13)**: no-var, no-console-log, no-double-equals, no-empty-catch, no-any-type, prefer-const, no-unused-vars, no-magic-numbers, no-todo-comments, no-fixme-comments, no-debugger, no-hardcoded-credentials, no-sql-injection
+- **Python (7)**: no-bare-except, no-mutable-defaults, no-eval-exec, no-print-production, require-type-hints, no-string-exception, no-assert-production
+- **Java (4)**: no-system-out, proper-exception-handling, no-empty-finally, no-instanceof-object
+
+**Categories:** general, security, performance, style
+
+**Workflow:**
+1. Browse templates with `list_rule_templates()`
+2. Create custom rule or use template with `create_linting_rule()`
+3. Rules saved to `.ast-grep-rules/` directory in project
+4. Pattern syntax validated automatically
+5. YAML file generated for ast-grep integration
+
+**Rule Validation:**
+- Pattern syntax checked against ast-grep
+- Severity must be: error, warning, or info
+- Language must be supported by ast-grep
+- ID must be kebab-case (e.g., 'no-console-log')
+- Returns validation results with errors/warnings
+
+**Storage:**
+- Rules saved as YAML files in `.ast-grep-rules/{rule-id}.yml`
+- Compatible with standard ast-grep tooling
+- Can be checked into version control
+- Shared across team
+
 ## Code Rewrite
 
 Safe transformations with automatic backups and syntax validation.
@@ -259,6 +323,49 @@ python scripts/run_benchmarks.py --check-regression  # CI check
 ```
 
 ## Recent Updates
+
+### 2025-11-24: Code Quality & Standards - Phase 1: Rule Definition System
+
+**New feature** - Create and manage custom linting rules using ast-grep patterns.
+
+**New MCP tools:**
+
+1. **`create_linting_rule`** - Create custom linting rules
+   - Define custom code quality rules with ast-grep patterns
+   - Template support (24 pre-built templates)
+   - Pattern validation against ast-grep
+   - Save rules to project's `.ast-grep-rules/` directory
+   - YAML generation for ast-grep integration
+   - Comprehensive validation (severity, language, ID format, pattern syntax)
+
+2. **`list_rule_templates`** - Browse pre-built rule templates
+   - 24 templates across JavaScript/TypeScript, Python, Java
+   - Filter by language or category
+   - Categories: general, security, performance, style
+   - Each template includes pattern, message, fix suggestion, and note
+
+**Components added:**
+- Data classes: `LintingRule`, `RuleTemplate`, `RuleValidationResult`
+- Exception classes: `RuleValidationError`, `RuleStorageError`
+- Rule templates: `RULE_TEMPLATES` dictionary with 24 templates
+- Helper functions: `_validate_rule_pattern`, `_validate_rule_definition`, `_save_rule_to_project`, `_load_rule_from_file`, `_get_available_templates`
+
+**Template breakdown:**
+- JavaScript/TypeScript: 13 templates (no-var, no-console-log, no-double-equals, etc.)
+- Python: 7 templates (no-bare-except, no-mutable-defaults, no-eval-exec, etc.)
+- Java: 4 templates (no-system-out, proper-exception-handling, etc.)
+
+**Features:**
+- Pattern syntax validation using ast-grep dry-run
+- Kebab-case ID validation
+- Severity validation (error, warning, info)
+- Language validation against supported languages
+- Optional fix suggestions
+- Save to project with automatic directory creation
+- Load from YAML files
+- Template filtering by language/category
+
+**Lines added:** ~969 lines to main.py
 
 ### 2025-11-24: Code Analysis & Metrics (Phases 1-2)
 
