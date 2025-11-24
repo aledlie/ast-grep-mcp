@@ -4,14 +4,19 @@ import difflib
 import hashlib
 import json
 import os
+import platform
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 import time
 from collections import OrderedDict
-from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
+from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, Generator, List, Literal, Optional, Set, Tuple, cast
 
 import httpx
@@ -3751,6 +3756,297 @@ def register_mcp_tools() -> None:  # pragma: no cover
                 "query_count": len(queries),
                 "deduplicate": deduplicate,
                 "output_format": output_format,
+                "execution_time_seconds": round(execution_time, 3)
+            })
+            raise
+
+    @mcp.tool()
+    def analyze_complexity(
+        project_folder: str = Field(description="The absolute path to the project folder to analyze"),
+        language: str = Field(description="The programming language (python, typescript, javascript, java)"),
+        include_patterns: List[str] = Field(
+            default_factory=lambda: ["**/*"],
+            description="Glob patterns for files to include (e.g., ['src/**/*.py'])"
+        ),
+        exclude_patterns: List[str] = Field(
+            default_factory=lambda: ["**/node_modules/**", "**/__pycache__/**", "**/venv/**", "**/.venv/**", "**/site-packages/**"],
+            description="Glob patterns for files to exclude"
+        ),
+        cyclomatic_threshold: int = Field(default=10, description="Cyclomatic complexity threshold (default: 10)"),
+        cognitive_threshold: int = Field(default=15, description="Cognitive complexity threshold (default: 15)"),
+        nesting_threshold: int = Field(default=4, description="Maximum nesting depth threshold (default: 4)"),
+        length_threshold: int = Field(default=50, description="Function length threshold in lines (default: 50)"),
+        store_results: bool = Field(default=True, description="Store results in database for trend tracking"),
+        include_trends: bool = Field(default=False, description="Include historical trend data in response"),
+        max_threads: int = Field(default=4, description="Number of parallel threads for analysis (default: 4)")
+    ) -> Dict[str, Any]:
+        """
+        Analyze code complexity metrics for functions in a project.
+
+        Calculates cyclomatic complexity, cognitive complexity, nesting depth, and function length
+        for all functions in the specified project. Returns a summary with only functions that
+        exceed the configured thresholds.
+
+        Metrics:
+        - Cyclomatic Complexity: McCabe's cyclomatic complexity (decision points + 1)
+        - Cognitive Complexity: SonarSource cognitive complexity with nesting penalties
+        - Nesting Depth: Maximum indentation depth within a function
+        - Function Length: Number of lines in the function
+
+        Example usage:
+          analyze_complexity(project_folder="/path/to/project", language="python")
+          analyze_complexity(project_folder="/path/to/project", language="typescript", cyclomatic_threshold=15)
+        """
+        logger = get_logger("tool.analyze_complexity")
+        start_time = time.time()
+
+        logger.info(
+            "tool_invoked",
+            tool="analyze_complexity",
+            project_folder=project_folder,
+            language=language,
+            cyclomatic_threshold=cyclomatic_threshold,
+            cognitive_threshold=cognitive_threshold,
+            nesting_threshold=nesting_threshold,
+            length_threshold=length_threshold,
+            max_threads=max_threads
+        )
+
+        try:
+            # Validate language
+            supported_langs = ["python", "typescript", "javascript", "java"]
+            if language.lower() not in supported_langs:
+                raise ValueError(f"Unsupported language '{language}'. Supported: {', '.join(supported_langs)}")
+
+            # Set up thresholds
+            thresholds = ComplexityThresholds(
+                cyclomatic=cyclomatic_threshold,
+                cognitive=cognitive_threshold,
+                nesting_depth=nesting_threshold,
+                lines=length_threshold
+            )
+
+            # Find files to analyze
+            import glob
+            project_path = Path(project_folder)
+            if not project_path.exists():
+                raise ValueError(f"Project folder does not exist: {project_folder}")
+
+            # Get language-specific file extensions
+            lang_extensions = {
+                "python": [".py"],
+                "typescript": [".ts", ".tsx"],
+                "javascript": [".js", ".jsx"],
+                "java": [".java"]
+            }
+            extensions = lang_extensions.get(language.lower(), [".py"])
+
+            # Find all matching files
+            all_files: Set[str] = set()
+            for pattern in include_patterns:
+                for ext in extensions:
+                    glob_pattern = str(project_path / pattern)
+                    if not glob_pattern.endswith(ext):
+                        if glob_pattern.endswith("*"):
+                            glob_pattern = glob_pattern[:-1] + f"*{ext}"
+                        else:
+                            glob_pattern = glob_pattern + f"/**/*{ext}"
+                    for file_path in glob.glob(glob_pattern, recursive=True):
+                        all_files.add(file_path)
+
+            # Filter excluded files
+            files_to_analyze: List[str] = []
+            for file_path in all_files:
+                excluded = False
+                for exclude_pattern in exclude_patterns:
+                    if any(part in file_path for part in exclude_pattern.replace("**", "").replace("*", "").split("/")):
+                        excluded = True
+                        break
+                if not excluded:
+                    files_to_analyze.append(file_path)
+
+            logger.info(
+                "files_found",
+                total_files=len(files_to_analyze),
+                include_patterns=include_patterns,
+                exclude_patterns=exclude_patterns
+            )
+
+            if not files_to_analyze:
+                execution_time = time.time() - start_time
+                return {
+                    "summary": {
+                        "total_functions": 0,
+                        "total_files": 0,
+                        "exceeding_threshold": 0,
+                        "analysis_time_seconds": round(execution_time, 3)
+                    },
+                    "functions": [],
+                    "message": f"No {language} files found in project matching the include patterns"
+                }
+
+            # Analyze files in parallel
+            all_functions: List[FunctionComplexity] = []
+
+            def analyze_single_file(file_path: str) -> List[FunctionComplexity]:
+                return analyze_file_complexity(file_path, language.lower(), thresholds)
+
+            with ThreadPoolExecutor(max_workers=max_threads) as executor:
+                futures = {executor.submit(analyze_single_file, f): f for f in files_to_analyze}
+                for future in as_completed(futures):
+                    try:
+                        result = future.result()
+                        all_functions.extend(result)
+                    except Exception as e:
+                        file_path = futures[future]
+                        logger.warning("file_analysis_failed", file=file_path, error=str(e))
+
+            # Filter to only functions exceeding thresholds
+            exceeding_functions = [f for f in all_functions if f.exceeds]
+
+            # Sort by combined complexity score (highest first)
+            exceeding_functions.sort(
+                key=lambda f: f.metrics.cyclomatic + f.metrics.cognitive,
+                reverse=True
+            )
+
+            # Calculate summary statistics
+            total_functions = len(all_functions)
+            if total_functions > 0:
+                avg_cyclomatic = sum(f.metrics.cyclomatic for f in all_functions) / total_functions
+                avg_cognitive = sum(f.metrics.cognitive for f in all_functions) / total_functions
+                max_cyclomatic = max(f.metrics.cyclomatic for f in all_functions)
+                max_cognitive = max(f.metrics.cognitive for f in all_functions)
+                max_nesting = max(f.metrics.nesting_depth for f in all_functions)
+            else:
+                avg_cyclomatic = avg_cognitive = 0
+                max_cyclomatic = max_cognitive = max_nesting = 0
+
+            execution_time = time.time() - start_time
+            duration_ms = int(execution_time * 1000)
+
+            # Build results dict for storage
+            results_data = {
+                "total_functions": total_functions,
+                "total_files": len(files_to_analyze),
+                "avg_cyclomatic": round(avg_cyclomatic, 2),
+                "avg_cognitive": round(avg_cognitive, 2),
+                "max_cyclomatic": max_cyclomatic,
+                "max_cognitive": max_cognitive,
+                "max_nesting": max_nesting,
+                "violation_count": len(exceeding_functions),
+                "duration_ms": duration_ms
+            }
+
+            # Store results if requested
+            run_id = None
+            stored_at = None
+            if store_results:
+                try:
+                    storage = ComplexityStorage()
+                    # Get git info
+                    commit_hash = None
+                    branch_name = None
+                    try:
+                        commit_result = subprocess.run(
+                            ["git", "rev-parse", "HEAD"],
+                            cwd=project_folder, capture_output=True, text=True, timeout=5
+                        )
+                        if commit_result.returncode == 0:
+                            commit_hash = commit_result.stdout.strip() or None
+                        branch_result = subprocess.run(
+                            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                            cwd=project_folder, capture_output=True, text=True, timeout=5
+                        )
+                        if branch_result.returncode == 0:
+                            branch_name = branch_result.stdout.strip() or None
+                    except Exception:
+                        pass
+
+                    run_id = storage.store_analysis_run(
+                        project_folder, results_data, all_functions, commit_hash, branch_name
+                    )
+                    stored_at = str(storage.db_path)
+                except Exception as e:
+                    logger.warning("storage_failed", error=str(e))
+
+            # Get trends if requested
+            trends = None
+            if include_trends:
+                try:
+                    storage = ComplexityStorage()
+                    trends = storage.get_project_trends(project_folder, days=30)
+                except Exception as e:
+                    logger.warning("trends_failed", error=str(e))
+
+            logger.info(
+                "tool_completed",
+                tool="analyze_complexity",
+                execution_time_seconds=round(execution_time, 3),
+                total_functions=total_functions,
+                exceeding_threshold=len(exceeding_functions),
+                status="success"
+            )
+
+            # Format response
+            response: Dict[str, Any] = {
+                "summary": {
+                    "total_functions": total_functions,
+                    "total_files": len(files_to_analyze),
+                    "exceeding_threshold": len(exceeding_functions),
+                    "avg_cyclomatic": round(avg_cyclomatic, 2),
+                    "avg_cognitive": round(avg_cognitive, 2),
+                    "max_cyclomatic": max_cyclomatic,
+                    "max_cognitive": max_cognitive,
+                    "max_nesting": max_nesting,
+                    "analysis_time_seconds": round(execution_time, 3)
+                },
+                "thresholds": {
+                    "cyclomatic": cyclomatic_threshold,
+                    "cognitive": cognitive_threshold,
+                    "nesting_depth": nesting_threshold,
+                    "length": length_threshold
+                },
+                "functions": [
+                    {
+                        "name": f.function_name,
+                        "file": f.file_path,
+                        "lines": f"{f.start_line}-{f.end_line}",
+                        "cyclomatic": f.metrics.cyclomatic,
+                        "cognitive": f.metrics.cognitive,
+                        "nesting_depth": f.metrics.nesting_depth,
+                        "length": f.metrics.lines,
+                        "exceeds": f.exceeds
+                    }
+                    for f in exceeding_functions
+                ],
+                "message": f"Found {len(exceeding_functions)} function(s) exceeding complexity thresholds out of {total_functions} total"
+            }
+
+            if run_id:
+                response["storage"] = {
+                    "run_id": run_id,
+                    "stored_at": stored_at
+                }
+
+            if trends:
+                response["trends"] = trends
+
+            return response
+
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(
+                "tool_failed",
+                tool="analyze_complexity",
+                execution_time_seconds=round(execution_time, 3),
+                error=str(e)[:200],
+                status="failed"
+            )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "analyze_complexity",
+                "project_folder": project_folder,
+                "language": language,
                 "execution_time_seconds": round(execution_time, 3)
             })
             raise
@@ -15781,6 +16077,635 @@ def create_enhanced_duplication_response(
             "generated_at": datetime.now().isoformat()
         }
     }
+
+
+# =============================================================================
+# COMPLEXITY ANALYSIS - Phase 1 (Code Analysis & Metrics)
+# =============================================================================
+
+# Complexity analysis data classes
+@dataclass
+class ComplexityMetrics:
+    """Immutable metrics container for a single function."""
+    cyclomatic: int
+    cognitive: int
+    nesting_depth: int
+    lines: int
+    parameter_count: int = 0
+
+
+@dataclass
+class FunctionComplexity:
+    """Complete analysis result for one function."""
+    file_path: str
+    function_name: str
+    start_line: int
+    end_line: int
+    metrics: ComplexityMetrics
+    language: str
+    exceeds: List[str] = field(default_factory=list)
+
+
+@dataclass
+class ComplexityThresholds:
+    """Configurable thresholds with sensible defaults."""
+    cyclomatic: int = 10
+    cognitive: int = 15
+    nesting_depth: int = 4
+    lines: int = 50
+
+
+# Language-specific AST patterns for complexity analysis
+COMPLEXITY_PATTERNS: Dict[str, Dict[str, Any]] = {
+    "python": {
+        "function": "def $NAME($$$)",
+        "async_function": "async def $NAME($$$)",
+        "branches": [
+            "if $COND:",
+            "elif $COND:",
+            "for $VAR in $ITER:",
+            "while $COND:",
+            "except $TYPE:",
+            "except:",
+            "with $CTX:",
+            "case $PATTERN:",
+        ],
+        "logical_operators": [
+            "$A and $B",
+            "$A or $B",
+        ],
+        "nesting_constructs": ["if", "for", "while", "with", "try", "match"],
+    },
+    "typescript": {
+        "function": "function $NAME($$$) { $$$ }",
+        "arrow_function": "const $NAME = ($$$) => { $$$ }",
+        "method": "$NAME($$$) { $$$ }",
+        "branches": [
+            "if ($COND) { $$$ }",
+            "for ($INIT; $COND; $INC) { $$$ }",
+            "for ($VAR of $ITER) { $$$ }",
+            "for ($VAR in $OBJ) { $$$ }",
+            "while ($COND) { $$$ }",
+            "switch ($EXPR) { $$$ }",
+            "case $VAL:",
+            "catch ($ERR) { $$$ }",
+            "$COND ? $A : $B",
+        ],
+        "logical_operators": [
+            "$A && $B",
+            "$A || $B",
+            "$A ?? $B",
+        ],
+        "nesting_constructs": ["if", "for", "while", "switch", "try"],
+    },
+    "javascript": {
+        "function": "function $NAME($$$) { $$$ }",
+        "arrow_function": "const $NAME = ($$$) => { $$$ }",
+        "method": "$NAME($$$) { $$$ }",
+        "branches": [
+            "if ($COND) { $$$ }",
+            "for ($INIT; $COND; $INC) { $$$ }",
+            "for ($VAR of $ITER) { $$$ }",
+            "for ($VAR in $OBJ) { $$$ }",
+            "while ($COND) { $$$ }",
+            "switch ($EXPR) { $$$ }",
+            "case $VAL:",
+            "catch ($ERR) { $$$ }",
+            "$COND ? $A : $B",
+        ],
+        "logical_operators": [
+            "$A && $B",
+            "$A || $B",
+            "$A ?? $B",
+        ],
+        "nesting_constructs": ["if", "for", "while", "switch", "try"],
+    },
+    "java": {
+        "function": "$TYPE $NAME($$$) { $$$ }",
+        "branches": [
+            "if ($COND) { $$$ }",
+            "for ($INIT; $COND; $INC) { $$$ }",
+            "for ($TYPE $VAR : $ITER) { $$$ }",
+            "while ($COND) { $$$ }",
+            "switch ($EXPR) { $$$ }",
+            "case $VAL:",
+            "catch ($TYPE $VAR) { $$$ }",
+            "$COND ? $A : $B",
+        ],
+        "logical_operators": [
+            "$A && $B",
+            "$A || $B",
+        ],
+        "nesting_constructs": ["if", "for", "while", "switch", "try"],
+    },
+}
+
+
+def get_complexity_patterns(language: str) -> Dict[str, Any]:
+    """Get AST patterns for a specific language.
+
+    Args:
+        language: Programming language name
+
+    Returns:
+        Dictionary of patterns for the language
+    """
+    lang_lower = language.lower()
+    if lang_lower in COMPLEXITY_PATTERNS:
+        return COMPLEXITY_PATTERNS[lang_lower]
+    # Default to Python patterns
+    return COMPLEXITY_PATTERNS["python"]
+
+
+def count_pattern_matches(code: str, pattern: str, language: str) -> int:
+    """Count occurrences of an AST pattern in code using ast-grep.
+
+    Args:
+        code: Source code to analyze
+        pattern: ast-grep pattern to search for
+        language: Programming language
+
+    Returns:
+        Number of matches found
+    """
+    try:
+        result = subprocess.run(
+            ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json"],
+            input=code,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            matches = json.loads(result.stdout)
+            return len(matches) if isinstance(matches, list) else 0
+        return 0
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, Exception):
+        return 0
+
+
+def calculate_cyclomatic_complexity(code: str, language: str) -> int:
+    """Calculate McCabe cyclomatic complexity.
+
+    Cyclomatic complexity = E - N + 2P
+    Simplified: 1 + number of decision points
+
+    Args:
+        code: Function source code
+        language: Programming language
+
+    Returns:
+        Cyclomatic complexity score (minimum 1)
+    """
+    complexity = 1  # Base complexity
+
+    # Language-specific keywords that represent decision points
+    if language.lower() == "python":
+        # Count decision keywords
+        keywords = ['if ', 'elif ', 'for ', 'while ', 'except ', 'except:', 'with ', 'case ']
+        operators = [' and ', ' or ']
+    elif language.lower() in ["typescript", "javascript"]:
+        keywords = ['if ', 'if(', 'for ', 'for(', 'while ', 'while(', 'switch ', 'switch(', 'case ', 'catch ', 'catch(', '? ']
+        operators = [' && ', ' || ', ' ?? ']
+    elif language.lower() == "java":
+        keywords = ['if ', 'if(', 'for ', 'for(', 'while ', 'while(', 'switch ', 'switch(', 'case ', 'catch ', 'catch(']
+        operators = [' && ', ' || ']
+    else:
+        # Default to Python-style
+        keywords = ['if ', 'elif ', 'for ', 'while ', 'except ', 'case ']
+        operators = [' and ', ' or ']
+
+    # Count keywords
+    for keyword in keywords:
+        complexity += code.count(keyword)
+
+    # Count logical operators
+    for op in operators:
+        complexity += code.count(op)
+
+    return complexity
+
+
+def calculate_cognitive_complexity(code: str, language: str) -> int:
+    """Calculate cognitive complexity with nesting penalties.
+
+    Based on SonarSource cognitive complexity:
+    - +1 for each control flow break
+    - +1 for each nesting level when nested
+
+    Args:
+        code: Function source code
+        language: Programming language
+
+    Returns:
+        Cognitive complexity score
+    """
+    patterns = get_complexity_patterns(language)
+    complexity = 0
+
+    # Simple heuristic: count branches and add nesting penalty
+    lines = code.split('\n')
+    nesting_level = 0
+    base_indent = None
+
+    nesting_keywords = patterns.get("nesting_constructs", [])
+
+    for line in lines:
+        stripped = line.lstrip()
+        if not stripped:
+            continue
+
+        # Calculate current indentation
+        indent = len(line) - len(stripped)
+        if base_indent is None and stripped:
+            base_indent = indent
+
+        # Estimate nesting level from indentation
+        if base_indent is not None:
+            indent_diff = indent - base_indent
+            # Assume 4 spaces or 1 tab per level
+            current_nesting = max(0, indent_diff // 4)
+        else:
+            current_nesting = 0
+
+        # Check for control flow keywords
+        for keyword in nesting_keywords:
+            if stripped.startswith(keyword + ' ') or stripped.startswith(keyword + '(') or stripped.startswith(keyword + ':'):
+                # Base increment
+                complexity += 1
+                # Nesting penalty
+                complexity += current_nesting
+                break
+
+        # Check for logical operators in line
+        if ' and ' in stripped or ' or ' in stripped or '&&' in stripped or '||' in stripped:
+            complexity += 1
+
+    return complexity
+
+
+def calculate_nesting_depth(code: str, language: str) -> int:
+    """Calculate maximum nesting depth.
+
+    Args:
+        code: Function source code
+        language: Programming language
+
+    Returns:
+        Maximum nesting depth
+    """
+    lines = code.split('\n')
+    max_depth = 0
+    base_indent = None
+
+    for line in lines:
+        stripped = line.lstrip()
+        if not stripped:
+            continue
+
+        indent = len(line) - len(stripped)
+        if base_indent is None:
+            base_indent = indent
+            continue
+
+        # Calculate depth from indentation difference
+        indent_diff = indent - base_indent
+        depth = max(0, indent_diff // 4)  # Assume 4 spaces per level
+        max_depth = max(max_depth, depth)
+
+    return max_depth
+
+
+def extract_functions_from_file(file_path: str, language: str) -> List[Dict[str, Any]]:
+    """Extract all functions from a file using ast-grep.
+
+    Args:
+        file_path: Path to source file
+        language: Programming language
+
+    Returns:
+        List of function matches with metadata
+    """
+    patterns = get_complexity_patterns(language)
+    all_functions: List[Dict[str, Any]] = []
+
+    # Get all function patterns for this language
+    function_patterns = []
+    if "function" in patterns:
+        function_patterns.append(patterns["function"])
+    if "async_function" in patterns:
+        function_patterns.append(patterns["async_function"])
+    if "arrow_function" in patterns:
+        function_patterns.append(patterns["arrow_function"])
+    if "method" in patterns:
+        function_patterns.append(patterns["method"])
+
+    for pattern in function_patterns:
+        try:
+            result = subprocess.run(
+                ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                matches = json.loads(result.stdout)
+                if isinstance(matches, list):
+                    all_functions.extend(matches)
+        except (subprocess.TimeoutExpired, json.JSONDecodeError, Exception) as e:
+            logger = get_logger("complexity.extract")
+            logger.warning("extract_functions_failed", file=file_path, error=str(e))
+
+    return all_functions
+
+
+def analyze_file_complexity(
+    file_path: str,
+    language: str,
+    thresholds: ComplexityThresholds
+) -> List[FunctionComplexity]:
+    """Analyze complexity of all functions in a file.
+
+    Args:
+        file_path: Path to source file
+        language: Programming language
+        thresholds: Complexity thresholds
+
+    Returns:
+        List of FunctionComplexity objects
+    """
+    results: List[FunctionComplexity] = []
+
+    try:
+        functions = extract_functions_from_file(file_path, language)
+
+        for func in functions:
+            code = func.get("text", "")
+            if not code:
+                continue
+
+            # Extract function name from match
+            # Try to get from metaVariables or parse from code
+            func_name = "unknown"
+            meta_vars = func.get("metaVariables", {})
+            if "NAME" in meta_vars:
+                name_data = meta_vars["NAME"]
+                if isinstance(name_data, dict):
+                    func_name = name_data.get("text", "unknown")
+                elif isinstance(name_data, str):
+                    func_name = name_data
+
+            # Get line numbers
+            range_info = func.get("range", {})
+            start_line = range_info.get("start", {}).get("line", 0) + 1
+            end_line = range_info.get("end", {}).get("line", 0) + 1
+
+            # Calculate metrics
+            cyclomatic = calculate_cyclomatic_complexity(code, language)
+            cognitive = calculate_cognitive_complexity(code, language)
+            nesting = calculate_nesting_depth(code, language)
+            lines = len(code.split('\n'))
+
+            # Count parameters (simple heuristic)
+            param_count = 0
+            if '(' in code and ')' in code:
+                param_section = code[code.index('('):code.index(')')]
+                if param_section.strip('()'):
+                    param_count = param_section.count(',') + 1
+
+            metrics = ComplexityMetrics(
+                cyclomatic=cyclomatic,
+                cognitive=cognitive,
+                nesting_depth=nesting,
+                lines=lines,
+                parameter_count=param_count
+            )
+
+            # Check which thresholds are exceeded
+            exceeds: List[str] = []
+            if cyclomatic > thresholds.cyclomatic:
+                exceeds.append("cyclomatic")
+            if cognitive > thresholds.cognitive:
+                exceeds.append("cognitive")
+            if nesting > thresholds.nesting_depth:
+                exceeds.append("nesting")
+            if lines > thresholds.lines:
+                exceeds.append("length")
+
+            results.append(FunctionComplexity(
+                file_path=file_path,
+                function_name=func_name,
+                start_line=start_line,
+                end_line=end_line,
+                metrics=metrics,
+                language=language,
+                exceeds=exceeds
+            ))
+
+    except Exception as e:
+        logger = get_logger("complexity.analyze")
+        logger.error("analyze_file_failed", file=file_path, error=str(e))
+
+    return results
+
+
+# =============================================================================
+# Complexity Storage - SQLite Database
+# =============================================================================
+
+COMPLEXITY_DB_SCHEMA = '''
+CREATE TABLE IF NOT EXISTS projects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_path TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS analysis_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    commit_hash TEXT,
+    branch_name TEXT,
+    run_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    total_functions INTEGER NOT NULL DEFAULT 0,
+    total_files INTEGER NOT NULL DEFAULT 0,
+    avg_cyclomatic REAL,
+    avg_cognitive REAL,
+    max_cyclomatic INTEGER,
+    max_cognitive INTEGER,
+    max_nesting INTEGER,
+    threshold_violations INTEGER DEFAULT 0,
+    analysis_duration_ms INTEGER,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS function_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id INTEGER NOT NULL,
+    file_path TEXT NOT NULL,
+    function_name TEXT NOT NULL,
+    start_line INTEGER NOT NULL,
+    end_line INTEGER NOT NULL,
+    cyclomatic_complexity INTEGER NOT NULL,
+    cognitive_complexity INTEGER NOT NULL,
+    nesting_depth INTEGER NOT NULL,
+    line_count INTEGER NOT NULL,
+    parameter_count INTEGER,
+    exceeds_threshold TEXT,
+    FOREIGN KEY (run_id) REFERENCES analysis_runs(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_runs_project_timestamp ON analysis_runs(project_id, run_timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_runs_commit ON analysis_runs(commit_hash);
+CREATE INDEX IF NOT EXISTS idx_function_metrics_run ON function_metrics(run_id);
+CREATE INDEX IF NOT EXISTS idx_function_metrics_complexity ON function_metrics(cyclomatic_complexity DESC);
+'''
+
+
+class ComplexityStorage:
+    """SQLite storage for complexity analysis results."""
+
+    def __init__(self, db_path: Optional[Path] = None):
+        self.db_path = db_path or self._get_default_db_path()
+        self._init_db()
+
+    def _get_default_db_path(self) -> Path:
+        """Get default database path in user's data directory."""
+        if platform.system() == "Darwin":
+            base = Path.home() / "Library" / "Application Support" / "ast-grep-mcp"
+        elif platform.system() == "Windows":
+            base = Path(os.environ.get("APPDATA", str(Path.home()))) / "ast-grep-mcp"
+        else:
+            base = Path.home() / ".local" / "share" / "ast-grep-mcp"
+
+        base.mkdir(parents=True, exist_ok=True)
+        return base / "complexity.db"
+
+    @contextmanager
+    def _get_connection(self) -> Generator[sqlite3.Connection, None, None]:
+        """Context manager for database connections."""
+        conn = sqlite3.connect(str(self.db_path), timeout=30.0)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA journal_mode = WAL")
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def _init_db(self) -> None:
+        """Initialize database schema."""
+        with self._get_connection() as conn:
+            conn.executescript(COMPLEXITY_DB_SCHEMA)
+
+    def get_or_create_project(self, project_path: str) -> int:
+        """Get or create project entry, return project ID."""
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT id FROM projects WHERE project_path = ?",
+                (project_path,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return int(row["id"])
+
+            cursor = conn.execute(
+                "INSERT INTO projects (project_path, name) VALUES (?, ?)",
+                (project_path, Path(project_path).name)
+            )
+            return cursor.lastrowid or 0
+
+    def store_analysis_run(
+        self,
+        project_path: str,
+        results: Dict[str, Any],
+        functions: List[FunctionComplexity],
+        commit_hash: Optional[str] = None,
+        branch_name: Optional[str] = None
+    ) -> int:
+        """Store complete analysis run with all metrics."""
+        project_id = self.get_or_create_project(project_path)
+
+        with self._get_connection() as conn:
+            # Insert analysis run
+            cursor = conn.execute('''
+                INSERT INTO analysis_runs (
+                    project_id, commit_hash, branch_name,
+                    total_functions, total_files,
+                    avg_cyclomatic, avg_cognitive,
+                    max_cyclomatic, max_cognitive, max_nesting,
+                    threshold_violations, analysis_duration_ms
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                project_id, commit_hash, branch_name,
+                results.get("total_functions", 0),
+                results.get("total_files", 0),
+                results.get("avg_cyclomatic"),
+                results.get("avg_cognitive"),
+                results.get("max_cyclomatic"),
+                results.get("max_cognitive"),
+                results.get("max_nesting"),
+                results.get("violation_count", 0),
+                results.get("duration_ms")
+            ))
+            run_id = cursor.lastrowid or 0
+
+            # Bulk insert function metrics
+            function_data = [
+                (
+                    run_id, f.file_path, f.function_name,
+                    f.start_line, f.end_line,
+                    f.metrics.cyclomatic, f.metrics.cognitive,
+                    f.metrics.nesting_depth, f.metrics.lines,
+                    f.metrics.parameter_count,
+                    ",".join(f.exceeds) if f.exceeds else None
+                )
+                for f in functions
+            ]
+
+            if function_data:
+                conn.executemany('''
+                    INSERT INTO function_metrics (
+                        run_id, file_path, function_name,
+                        start_line, end_line,
+                        cyclomatic_complexity, cognitive_complexity,
+                        nesting_depth, line_count, parameter_count,
+                        exceeds_threshold
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', function_data)
+
+            return run_id
+
+    def get_project_trends(
+        self,
+        project_path: str,
+        days: int = 30
+    ) -> List[Dict[str, Any]]:
+        """Get complexity trends for a project over time."""
+        with self._get_connection() as conn:
+            cursor = conn.execute('''
+                SELECT
+                    ar.run_timestamp,
+                    ar.commit_hash,
+                    ar.branch_name,
+                    ar.total_functions,
+                    ar.avg_cyclomatic,
+                    ar.avg_cognitive,
+                    ar.max_cyclomatic,
+                    ar.max_cognitive,
+                    ar.threshold_violations
+                FROM analysis_runs ar
+                JOIN projects p ON ar.project_id = p.id
+                WHERE p.project_path = ?
+                    AND ar.run_timestamp >= datetime('now', ?)
+                ORDER BY ar.run_timestamp ASC
+            ''', (project_path, f'-{days} days'))
+            return [dict(row) for row in cursor.fetchall()]
 
 
 def run_mcp_server() -> None:  # pragma: no cover
