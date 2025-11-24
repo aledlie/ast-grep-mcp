@@ -9,7 +9,7 @@ COMPLETED
 
 IN PROGRESS
 ===========
-[########--] enhanced-duplication-detection  (Phase 1 Complete)
+[########--] enhanced-duplication-detection  (Phase 2 Complete)
 
 PLANNING PHASE
 ==============
