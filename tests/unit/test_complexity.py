@@ -4,6 +4,7 @@ import os
 import sys
 import pytest
 import tempfile
+import time
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -620,3 +621,181 @@ def func():
         # Both should work (though tabs may give different depth)
         result_spaces = calculate_nesting_depth(code_spaces, "python")
         assert result_spaces >= 1
+
+
+class TestBenchmark:
+    """Performance benchmark tests for complexity analysis."""
+
+    def _generate_function(self, idx: int, complexity: str = "medium") -> str:
+        """Generate a synthetic function with specified complexity.
+
+        Args:
+            idx: Function index for unique naming
+            complexity: 'simple', 'medium', or 'complex'
+
+        Returns:
+            Python function code string
+        """
+        if complexity == "simple":
+            return f"""
+def func_{idx}(x):
+    return x * 2
+"""
+        elif complexity == "complex":
+            return f"""
+def func_{idx}(a, b, c, d):
+    result = 0
+    for i in range(a):
+        if i % 2 == 0:
+            for j in range(b):
+                if j > c:
+                    result += i * j
+                elif j < d:
+                    result -= i
+                else:
+                    try:
+                        result += i / j
+                    except ZeroDivisionError:
+                        result = 0
+    return result
+"""
+        else:  # medium
+            return f"""
+def func_{idx}(x, y):
+    if x > 0:
+        if y > 0:
+            return x + y
+        else:
+            return x - y
+    elif x < 0:
+        return -x
+    else:
+        for i in range(y):
+            if i % 2 == 0:
+                x += i
+        return x
+"""
+
+    def test_cyclomatic_1000_functions(self):
+        """Benchmark: Calculate cyclomatic complexity for 1000 functions in <10s."""
+        # Generate 1000 functions (mix of complexities)
+        functions = []
+        for i in range(1000):
+            if i % 3 == 0:
+                functions.append(self._generate_function(i, "simple"))
+            elif i % 3 == 1:
+                functions.append(self._generate_function(i, "medium"))
+            else:
+                functions.append(self._generate_function(i, "complex"))
+
+        start_time = time.time()
+
+        for code in functions:
+            calculate_cyclomatic_complexity(code, "python")
+
+        elapsed = time.time() - start_time
+
+        assert elapsed < 10.0, f"Cyclomatic complexity for 1000 functions took {elapsed:.2f}s (>10s)"
+        print(f"\nCyclomatic complexity benchmark: {elapsed:.2f}s for 1000 functions")
+
+    def test_cognitive_1000_functions(self):
+        """Benchmark: Calculate cognitive complexity for 1000 functions in <10s."""
+        functions = []
+        for i in range(1000):
+            if i % 3 == 0:
+                functions.append(self._generate_function(i, "simple"))
+            elif i % 3 == 1:
+                functions.append(self._generate_function(i, "medium"))
+            else:
+                functions.append(self._generate_function(i, "complex"))
+
+        start_time = time.time()
+
+        for code in functions:
+            calculate_cognitive_complexity(code, "python")
+
+        elapsed = time.time() - start_time
+
+        assert elapsed < 10.0, f"Cognitive complexity for 1000 functions took {elapsed:.2f}s (>10s)"
+        print(f"\nCognitive complexity benchmark: {elapsed:.2f}s for 1000 functions")
+
+    def test_nesting_depth_1000_functions(self):
+        """Benchmark: Calculate nesting depth for 1000 functions in <10s."""
+        functions = []
+        for i in range(1000):
+            if i % 3 == 0:
+                functions.append(self._generate_function(i, "simple"))
+            elif i % 3 == 1:
+                functions.append(self._generate_function(i, "medium"))
+            else:
+                functions.append(self._generate_function(i, "complex"))
+
+        start_time = time.time()
+
+        for code in functions:
+            calculate_nesting_depth(code, "python")
+
+        elapsed = time.time() - start_time
+
+        assert elapsed < 10.0, f"Nesting depth for 1000 functions took {elapsed:.2f}s (>10s)"
+        print(f"\nNesting depth benchmark: {elapsed:.2f}s for 1000 functions")
+
+    def test_all_metrics_1000_functions(self):
+        """Benchmark: All complexity metrics for 1000 functions in <10s."""
+        functions = []
+        for i in range(1000):
+            if i % 3 == 0:
+                functions.append(self._generate_function(i, "simple"))
+            elif i % 3 == 1:
+                functions.append(self._generate_function(i, "medium"))
+            else:
+                functions.append(self._generate_function(i, "complex"))
+
+        start_time = time.time()
+
+        for code in functions:
+            calculate_cyclomatic_complexity(code, "python")
+            calculate_cognitive_complexity(code, "python")
+            calculate_nesting_depth(code, "python")
+
+        elapsed = time.time() - start_time
+
+        assert elapsed < 10.0, f"All metrics for 1000 functions took {elapsed:.2f}s (>10s)"
+        print(f"\nAll metrics benchmark: {elapsed:.2f}s for 1000 functions")
+
+    @pytest.mark.slow
+    def test_file_analysis_100_files(self):
+        """Benchmark: Analyze 100 files with multiple functions each."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create 100 files with 10 functions each
+            file_paths = []
+            for file_idx in range(100):
+                file_path = Path(tmpdir) / f"module_{file_idx}.py"
+
+                content = []
+                for func_idx in range(10):
+                    global_idx = file_idx * 10 + func_idx
+                    if func_idx % 3 == 0:
+                        content.append(self._generate_function(global_idx, "simple"))
+                    elif func_idx % 3 == 1:
+                        content.append(self._generate_function(global_idx, "medium"))
+                    else:
+                        content.append(self._generate_function(global_idx, "complex"))
+
+                file_path.write_text("\n".join(content))
+                file_paths.append(str(file_path))
+
+            start_time = time.time()
+
+            thresholds = ComplexityThresholds()
+            total_functions = 0
+            for file_path in file_paths:
+                results = analyze_file_complexity(file_path, "python", thresholds)
+                total_functions += len(results)
+
+            elapsed = time.time() - start_time
+
+            # 100 files * 10 functions = 1000 functions
+            # Should still complete in <10s
+            assert elapsed < 10.0, f"File analysis for {total_functions} functions took {elapsed:.2f}s (>10s)"
+            print(f"\nFile analysis benchmark: {elapsed:.2f}s for {total_functions} functions in 100 files")
