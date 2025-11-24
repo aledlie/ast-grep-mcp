@@ -16,7 +16,7 @@ doppler run -- uv run main.py    # Run with Doppler secrets (production)
 
 Single-file MCP server (`main.py`, ~20,000 lines) combining ast-grep structural code search with Schema.org tools and enhanced deduplication.
 
-**22 Tools:** Code search (6), Code rewrite (3), Deduplication (4), Schema.org (8), Testing (1)
+**23 Tools:** Code search (6), Code rewrite (3), Deduplication (4), Schema.org (8), Complexity (1), Testing (1)
 
 **Dependencies:** ast-grep CLI (required), Doppler CLI (optional for secrets), Python 3.13+, uv package manager
 
@@ -88,8 +88,36 @@ export SENTRY_ENVIRONMENT="production"
 - `test_recommendation_engine.py` - Recommendations (27 tests)
 - `test_enhanced_reporting.py` - UI/reporting (39 tests)
 - `test_benchmark.py` - Performance regression
+- `test_complexity.py` - Complexity analysis (46 tests)
 
 **Run specific:** `uv run pytest tests/unit/test_ranking.py -v`
+
+## Code Complexity Analysis
+
+Analyze cyclomatic complexity, cognitive complexity, nesting depth, and function length.
+
+**Tool:** `analyze_complexity`
+
+```python
+analyze_complexity(
+    project_folder="/path/to/project",
+    language="python",  # python, typescript, javascript, java
+    cyclomatic_threshold=10,
+    cognitive_threshold=15,
+    nesting_threshold=4,
+    length_threshold=50,
+    store_results=True,  # SQLite storage for trends
+    include_trends=False
+)
+```
+
+**Metrics:**
+- **Cyclomatic**: McCabe's cyclomatic complexity (decision points + 1)
+- **Cognitive**: SonarSource-style with nesting penalties
+- **Nesting**: Maximum indentation depth
+- **Length**: Lines per function
+
+**Storage:** Results stored in SQLite at `~/.local/share/ast-grep-mcp/complexity.db` (Linux) or equivalent platform location for trend tracking.
 
 ## Code Rewrite
 
@@ -201,6 +229,27 @@ python scripts/run_benchmarks.py --check-regression  # CI check
 ```
 
 ## Recent Updates
+
+### 2025-11-24: Code Complexity Analysis (Phase 1)
+
+**New feature** - Code analysis and metrics tool for measuring function complexity.
+
+**New MCP tool:** `analyze_complexity`
+- Calculates cyclomatic complexity, cognitive complexity, nesting depth, function length
+- Supports Python, TypeScript, JavaScript, Java
+- Parallel processing via ThreadPoolExecutor for performance
+- SQLite storage for trend tracking
+- Configurable thresholds (default: cyclomatic=10, cognitive=15, nesting=4, lines=50)
+
+**Components added:**
+- Data classes: `ComplexityMetrics`, `FunctionComplexity`, `ComplexityThresholds`
+- Language patterns: `COMPLEXITY_PATTERNS` for 4 languages
+- Storage: `ComplexityStorage` class with SQLite schema
+- Functions: `calculate_cyclomatic_complexity`, `calculate_cognitive_complexity`, `calculate_nesting_depth`, `analyze_file_complexity`
+
+**Testing:** 46 new unit tests in `tests/unit/test_complexity.py`
+
+**Lines added:** ~926 lines to main.py (15,797 → 16,707)
 
 ### 2025-11-23: Enhanced Deduplication System (Phases 1-6)
 
