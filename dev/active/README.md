@@ -7,9 +7,9 @@ COMPLETED
 =========
 [##########] repository-organization-analyzer
 
-READY TO EXECUTE
-================
-[##########] enhanced-duplication-detection
+IN PROGRESS
+===========
+[########--] enhanced-duplication-detection  (Phase 1 Complete)
 
 PLANNING PHASE
 ==============
