@@ -16,7 +16,7 @@ doppler run -- uv run main.py    # Run with Doppler secrets (production)
 
 Single-file MCP server (`main.py`, ~20,000 lines) combining ast-grep structural code search with Schema.org tools and enhanced deduplication.
 
-**23 Tools:** Code search (6), Code rewrite (3), Deduplication (4), Schema.org (8), Complexity (1), Testing (1)
+**24 Tools:** Code search (6), Code rewrite (3), Deduplication (4), Schema.org (8), Complexity (2), Testing (1)
 
 **Dependencies:** ast-grep CLI (required), Doppler CLI (optional for secrets), Python 3.13+, uv package manager
 
@@ -88,7 +88,8 @@ export SENTRY_ENVIRONMENT="production"
 - `test_recommendation_engine.py` - Recommendations (27 tests)
 - `test_enhanced_reporting.py` - UI/reporting (39 tests)
 - `test_benchmark.py` - Performance regression
-- `test_complexity.py` - Complexity analysis (46 tests)
+- `test_complexity.py` - Complexity analysis (51 tests)
+- `test_code_smells.py` - Code smell detection (27 tests)
 
 **Run specific:** `uv run pytest tests/unit/test_ranking.py -v`
 
@@ -118,6 +119,35 @@ analyze_complexity(
 - **Length**: Lines per function
 
 **Storage:** Results stored in SQLite at `~/.local/share/ast-grep-mcp/complexity.db` (Linux) or equivalent platform location for trend tracking.
+
+## Code Smell Detection
+
+Detect common code smells and anti-patterns in your codebase.
+
+**Tool:** `detect_code_smells`
+
+```python
+detect_code_smells(
+    project_folder="/path/to/project",
+    language="python",  # python, typescript, javascript, java
+    long_function_lines=50,
+    parameter_count=5,
+    nesting_depth=4,
+    class_lines=300,
+    class_methods=20,
+    detect_magic_numbers=True,
+    severity_filter="all"  # all, high, medium, low
+)
+```
+
+**Smells Detected:**
+- **Long Functions**: Functions exceeding line threshold
+- **Parameter Bloat**: Functions with too many parameters (>5)
+- **Deep Nesting**: Excessive nesting depth (>4)
+- **Large Classes**: Classes with too many lines/methods
+- **Magic Numbers**: Hard-coded literals (excludes 0, 1, -1, 2, 10, 100)
+
+**Severity Levels:** Each smell is rated high/medium/low based on how far it exceeds thresholds.
 
 ## Code Rewrite
 
@@ -230,26 +260,44 @@ python scripts/run_benchmarks.py --check-regression  # CI check
 
 ## Recent Updates
 
-### 2025-11-24: Code Complexity Analysis (Phase 1)
+### 2025-11-24: Code Analysis & Metrics (Phases 1-2)
 
-**New feature** - Code analysis and metrics tool for measuring function complexity.
+**New features** - Code complexity analysis and code smell detection tools.
 
-**New MCP tool:** `analyze_complexity`
-- Calculates cyclomatic complexity, cognitive complexity, nesting depth, function length
-- Supports Python, TypeScript, JavaScript, Java
-- Parallel processing via ThreadPoolExecutor for performance
-- SQLite storage for trend tracking
-- Configurable thresholds (default: cyclomatic=10, cognitive=15, nesting=4, lines=50)
+**New MCP tools:**
+
+1. **`analyze_complexity`** - Measures function complexity metrics
+   - Cyclomatic complexity, cognitive complexity, nesting depth, function length
+   - Supports Python, TypeScript, JavaScript, Java
+   - Parallel processing via ThreadPoolExecutor
+   - SQLite storage for trend tracking
+   - Configurable thresholds (default: cyclomatic=10, cognitive=15, nesting=4, lines=50)
+
+2. **`detect_code_smells`** - Identifies code quality issues
+   - Long functions, parameter bloat, deep nesting, large classes, magic numbers
+   - Severity ratings (high/medium/low)
+   - Actionable suggestions for each smell
+   - Parallel file processing
+
+**Key improvements:**
+- **Cognitive complexity algorithm** - Improved to follow SonarSource specification:
+  - Proper logical operator sequence counting (a && b || c = +2)
+  - else if doesn't add nesting penalty
+  - Comment skipping for accuracy
+- **Benchmark tests** - 5 new tests verifying <10s for 1000 functions
 
 **Components added:**
 - Data classes: `ComplexityMetrics`, `FunctionComplexity`, `ComplexityThresholds`
 - Language patterns: `COMPLEXITY_PATTERNS` for 4 languages
 - Storage: `ComplexityStorage` class with SQLite schema
+- Helper functions: `_extract_classes_from_file`, `_count_function_parameters`, `_find_magic_numbers`
 - Functions: `calculate_cyclomatic_complexity`, `calculate_cognitive_complexity`, `calculate_nesting_depth`, `analyze_file_complexity`
 
-**Testing:** 46 new unit tests in `tests/unit/test_complexity.py`
+**Testing:** 78 new unit tests
+- `test_complexity.py` - 51 tests (complexity analysis + benchmarks)
+- `test_code_smells.py` - 27 tests (smell detection)
 
-**Lines added:** ~926 lines to main.py (15,797 → 16,707)
+**Lines added:** ~1,200 lines to main.py
 
 ### 2025-11-23: Enhanced Deduplication System (Phases 1-6)
 
