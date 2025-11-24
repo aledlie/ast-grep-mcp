@@ -2251,7 +2251,7 @@ def register_mcp_tools() -> None:  # pragma: no cover
 
                 # Create deduplication-specific backup with metadata
                 backup_id = create_deduplication_backup(
-                    files_to_backup=[f for f in all_affected_files if os.path.exists(f)],
+                    files_to_backup=[fp for fp in all_affected_files if os.path.exists(fp)],
                     project_folder=project_folder,
                     duplicate_group_id=group_id,
                     strategy=strategy,
@@ -4767,6 +4767,7 @@ def detect_conditional_variations(
             - refactoring_suggestion: Suggestion for unifying the conditionals
     """
     import re
+    logger = get_logger("detect_conditional_variations")
 
     result: Dict[str, Any] = {
         "condition_differences": [],
@@ -5015,9 +5016,9 @@ class AlignmentSegment:
     block2_end: int    # End line in block 2 (exclusive)
     block1_text: str   # Text from block 1
     block2_text: str   # Text from block 2
-    metadata: Dict[str, Any] = None  # Multi-line info, construct types, etc.
+    metadata: Optional[Dict[str, Any]] = None  # Multi-line info, construct types, etc.
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize metadata if not provided."""
         if self.metadata is None:
             self.metadata = {}
@@ -5145,7 +5146,7 @@ class DiffTreeNode:
     children: List['DiffTreeNode']  # Child nodes for nested structures
     metadata: Dict[str, Any]  # Additional metadata (line numbers, similarity, etc.)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Ensure children is a mutable list."""
         if self.children is None:
             self.children = []
@@ -5608,7 +5609,7 @@ def format_alignment_diff(result: AlignmentResult, context_lines: int = 0) -> st
 
         elif seg.segment_type == 'divergent':
             # Build header with multi-line construct annotations
-            header_suffix = _format_multiline_annotations(seg.metadata)
+            header_suffix = _format_multiline_annotations(seg.metadata or {})
             output_parts.append(f"--- Block 1 [{seg.block1_start+1}-{seg.block1_end}]{header_suffix} ---")
             for line in seg.block1_text.split('\n'):
                 output_parts.append(f"- {line}")
@@ -5617,13 +5618,13 @@ def format_alignment_diff(result: AlignmentResult, context_lines: int = 0) -> st
                 output_parts.append(f"+ {line}")
 
         elif seg.segment_type == 'deleted':
-            header_suffix = _format_multiline_annotations(seg.metadata)
+            header_suffix = _format_multiline_annotations(seg.metadata or {})
             output_parts.append(f"--- Block 1 [{seg.block1_start+1}-{seg.block1_end}] (deleted){header_suffix} ---")
             for line in seg.block1_text.split('\n'):
                 output_parts.append(f"- {line}")
 
         elif seg.segment_type == 'inserted':
-            header_suffix = _format_multiline_annotations(seg.metadata)
+            header_suffix = _format_multiline_annotations(seg.metadata or {})
             output_parts.append(f"+++ Block 2 [{seg.block2_start+1}-{seg.block2_end}] (inserted){header_suffix} +++")
             for line in seg.block2_text.split('\n'):
                 output_parts.append(f"+ {line}")
@@ -8047,7 +8048,7 @@ def format_python_code(code: str, line_length: int = 88) -> str:
         )
 
         try:
-            formatted = black.format_str(code, mode=mode)
+            formatted: str = black.format_str(code, mode=mode)
             return formatted
         except black.InvalidInput:
             # If black can't parse it, fall back to basic formatting
@@ -8368,7 +8369,7 @@ def infer_parameter_type(
             name=base_type.get("name", "param"),
             python_type=base_type["python_type"],
             typescript_type=base_type["typescript_type"],
-            is_generic=base_type.get("is_generic", False),
+            is_generic=bool(base_type.get("is_generic", False)),
             is_union=False
         )
     else:
@@ -8701,7 +8702,7 @@ def extract_nested_call_variations(
     return variations
 
 
-def _infer_single_value_type(value: str, language: str) -> Dict[str, str]:
+def _infer_single_value_type(value: str, language: str) -> Dict[str, Any]:
     """Infer the type of a single value."""
     value = value.strip()
 
@@ -8865,7 +8866,7 @@ def _infer_dict_types(value: str, language: str) -> Tuple[Dict[str, str], Dict[s
     )
 
 
-def _parse_generic_type(value: str) -> Optional[Dict[str, str]]:
+def _parse_generic_type(value: str) -> Optional[Dict[str, Any]]:
     """Parse explicit generic type annotations like List[str], Dict[str, int]."""
     import re
     generic_pattern = r'^(\w+)\[(.+)\]$'
@@ -8907,7 +8908,7 @@ def _suggest_param_name_from_type(type_name: str) -> str:
     return name_mapping.get(type_name, "value")
 
 
-def _infer_from_identifier_name(identifier: str) -> Dict[str, str]:
+def _infer_from_identifier_name(identifier: str) -> Dict[str, Any]:
     """Infer type from identifier naming conventions."""
     lower_id = identifier.lower()
 
@@ -9003,13 +9004,13 @@ def _generate_parameter_name(original_name: str, param_type: ParameterType) -> s
     return "param"
 
 
-def generate_function_signature(
+def generate_simple_function_signature(
     function_name: str,
     parameters: List[Dict[str, Any]],
     return_type: str = "None",
     language: str = "python"
 ) -> str:
-    """Generate a function signature with inferred parameter types."""
+    """Generate a simple function signature with inferred parameter types."""
     if language == "python":
         params = [f"{p['name']}: {p['python_type']}" for p in parameters]
         param_str = ", ".join(params)
@@ -9858,7 +9859,7 @@ def substitute_template_variables(
     result = template
 
     # Process conditional sections first: {{#if var}}content{{/if}}
-    def process_conditional(match: re.Match) -> str:
+    def process_conditional(match: re.Match[str]) -> str:
         var_name = match.group(1)
         content = match.group(2)
 
@@ -9877,7 +9878,7 @@ def substitute_template_variables(
     result = re.sub(conditional_pattern, process_conditional, result, flags=re.DOTALL)
 
     # Process inverse conditionals: {{#unless var}}content{{/unless}}
-    def process_unless(match: re.Match) -> str:
+    def process_unless(match: re.Match[str]) -> str:
         var_name = match.group(1)
         content = match.group(2)
 
@@ -9895,7 +9896,7 @@ def substitute_template_variables(
     result = re.sub(unless_pattern, process_unless, result, flags=re.DOTALL)
 
     # Process each loops: {{#each var}}content with {{.}}{{/each}}
-    def process_each(match: re.Match) -> str:
+    def process_each(match: re.Match[str]) -> str:
         var_name = match.group(1)
         content = match.group(2)
 
@@ -9924,7 +9925,7 @@ def substitute_template_variables(
     result = re.sub(each_pattern, process_each, result, flags=re.DOTALL)
 
     # Process simple variable substitution: {{var_name}}
-    def process_variable(match: re.Match) -> str:
+    def process_variable(match: re.Match[str]) -> str:
         var_name = match.group(1)
 
         if var_name in variables:
@@ -11278,7 +11279,7 @@ def detect_import_variations(
             continue
 
         # Group by files and their imported names
-        file_names: Dict[str, set] = {}
+        file_names: Dict[str, Set[str]] = {}
         for file_path, parsed in file_parsed_list:
             names = {n["name"] for n in parsed["names"]} if parsed["names"] else set()
             if file_path not in file_names:
@@ -11518,13 +11519,13 @@ def analyze_import_overlap(
         }
 
     # Convert lists to sets for efficient operations
-    import_sets: Dict[str, set] = {
+    import_sets: Dict[str, Set[str]] = {
         file_path: set(imports)
         for file_path, imports in file_imports.items()
     }
 
     # Get all unique imports across all files
-    all_imports: set = set()
+    all_imports: Set[str] = set()
     for imports in import_sets.values():
         all_imports.update(imports)
 
@@ -11550,7 +11551,7 @@ def analyze_import_overlap(
     # Find unique imports per file (not in any other file)
     unique_imports_by_file: Dict[str, List[str]] = {}
     for file_path, file_import_set in import_sets.items():
-        other_imports: set = set()
+        other_imports: Set[str] = set()
         for other_path, other_set in import_sets.items():
             if other_path != file_path:
                 other_imports.update(other_set)
@@ -11597,7 +11598,7 @@ def analyze_import_overlap(
     }
 
 
-def _identify_required_imports(code: str, all_imports: set, shared_imports: List[str]) -> List[str]:
+def _identify_required_imports(code: str, all_imports: Set[str], shared_imports: List[str]) -> List[str]:
     """Identify imports likely required by a code snippet."""
     import re
     required: List[str] = []
@@ -11619,10 +11620,10 @@ def _identify_required_imports(code: str, all_imports: set, shared_imports: List
     return required
 
 
-def _extract_imported_names(import_stmt: str) -> set:
+def _extract_imported_names(import_stmt: str) -> Set[str]:
     """Extract the names made available by an import statement."""
     import re
-    names: set = set()
+    names: Set[str] = set()
 
     # Python: import module
     if match := re.match(r'^import\s+([\w.]+)(?:\s+as\s+(\w+))?', import_stmt):
@@ -11859,7 +11860,7 @@ def _is_imported_call(call_name: str, imports: List[str], language: str) -> bool
 
 def _is_builtin(name: str, language: str) -> bool:
     """Check if a name is a language builtin."""
-    builtins: Dict[str, set] = {
+    builtins: Dict[str, Set[str]] = {
         "python": {
             "print", "len", "range", "str", "int", "float", "list", "dict", "set",
             "tuple", "bool", "type", "isinstance", "hasattr", "getattr", "setattr",
@@ -12845,6 +12846,7 @@ def format_generated_code(code: str, language: str) -> str:
         >>> format_generated_code("const x=1;", "unknown_lang")
         'const x=1;'
     """
+    logger = get_logger("format_code")
     language_lower = language.lower()
 
     # Dispatch to appropriate formatter based on language
@@ -14015,10 +14017,10 @@ def _plan_file_modification_order(
 # ============================================================================
 
 def analyze_deduplication_impact(
-    duplicate_group: dict,
+    duplicate_group: Dict[str, Any],
     project_root: str,
     language: str
-) -> dict:
+) -> Dict[str, Any]:
     """Analyze the impact of applying deduplication to a duplicate group.
 
     Uses ast-grep to find external references to the duplicated code and
@@ -14135,7 +14137,7 @@ def _extract_function_names_from_code(code: str, language: str) -> List[str]:
     Returns:
         List of extracted names
     """
-    names = []
+    names: List[str] = []
 
     if not code:
         return names
@@ -14201,7 +14203,7 @@ def _find_external_call_sites(
     project_root: str,
     language: str,
     exclude_files: List[str]
-) -> List[dict]:
+) -> List[Dict[str, Any]]:
     """Find call sites for functions outside the duplicate locations.
 
     Uses ast-grep to search for function calls.
@@ -14215,7 +14217,7 @@ def _find_external_call_sites(
     Returns:
         List of call site info dicts with file, line, column, context
     """
-    call_sites = []
+    call_sites: List[Dict[str, Any]] = []
 
     if not function_names:
         return call_sites
@@ -14280,7 +14282,7 @@ def _find_import_references(
     project_root: str,
     language: str,
     exclude_files: List[str]
-) -> List[dict]:
+) -> List[Dict[str, Any]]:
     """Find import statements that reference the duplicated code.
 
     Args:
@@ -14292,7 +14294,7 @@ def _find_import_references(
     Returns:
         List of import reference info dicts
     """
-    import_refs = []
+    import_refs: List[Dict[str, Any]] = []
 
     if not function_names:
         return import_refs
@@ -14357,7 +14359,7 @@ def _estimate_lines_changed(
     duplicate_count: int,
     lines_per_duplicate: int,
     external_call_sites: int
-) -> dict:
+) -> Dict[str, Any]:
     """Estimate the number of lines that would change during deduplication.
 
     Args:
@@ -14405,10 +14407,10 @@ def _estimate_lines_changed(
 def _assess_breaking_change_risk(
     function_names: List[str],
     files_in_group: List[str],
-    external_call_sites: List[dict],
+    external_call_sites: List[Dict[str, Any]],
     project_root: str,
     language: str
-) -> dict:
+) -> Dict[str, Any]:
     """Assess the risk of breaking changes from deduplication.
 
     Args:
@@ -14977,7 +14979,7 @@ def _generate_dedup_refactoring_strategies(
     Returns:
         List of strategy dictionaries with name, description, suitability_score
     """
-    strategies = []
+    strategies: List[Dict[str, Any]] = []
 
     # Strategy 1: Extract Function
     # Best for simple, stateless duplicates
