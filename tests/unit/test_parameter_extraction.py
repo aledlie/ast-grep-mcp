@@ -25,15 +25,6 @@ from main import (
 )
 
 from ast_grep_mcp.features.deduplication.analyzer import PatternAnalyzer
-    identify_varying_literals,
-    identify_varying_identifiers,
-    generate_parameter_name,
-    infer_parameter_type,
-    ParameterType,
-    _infer_single_value_type,
-    _detect_nested_function_call,
-    _infer_from_identifier_name,
-)
 
 
 class TestIdentifyVaryingLiterals:

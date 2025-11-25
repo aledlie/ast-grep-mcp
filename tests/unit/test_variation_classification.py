@@ -19,12 +19,6 @@ from main import (
 )
 
 from ast_grep_mcp.features.deduplication.analyzer import PatternAnalyzer
-    classify_variation,
-    classify_variations,
-    detect_conditional_variations,
-    VariationCategory,
-    VariationSeverity,
-)
 
 
 class TestClassifyVariation:

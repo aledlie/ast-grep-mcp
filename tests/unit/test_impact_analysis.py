@@ -26,13 +26,6 @@ from main import (
     _find_external_call_sites,
     _find_import_references,
 )
-    analyze_deduplication_impact,
-    _extract_function_names_from_code,
-    _find_external_call_sites,
-    _find_import_references,
-    _estimate_lines_changed,
-    _assess_breaking_change_risk,
-)
 
 
 class TestExtractFunctionNamesFromCode:

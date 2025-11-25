@@ -23,15 +23,6 @@ from main import (
 )
 
 from ast_grep_mcp.features.deduplication.analyzer import PatternAnalyzer
-    align_code_blocks,
-    AlignmentResult,
-    AlignmentSegment,
-    DiffTree,
-    DiffTreeNode,
-    build_diff_tree,
-    build_nested_diff_tree,
-    format_alignment_diff,
-)
 
 
 class TestAlignCodeBlocksIdentical:

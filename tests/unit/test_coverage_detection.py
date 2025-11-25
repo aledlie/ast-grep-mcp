@@ -21,12 +21,6 @@ from main import (
     _check_test_file_references_source,
     _get_potential_test_paths,
 )
-    find_test_file_patterns,
-    has_test_coverage,
-    get_test_coverage_for_files,
-    _get_potential_test_paths,
-    _check_test_file_references_source,
-)
 
 
 class TestFindTestFilePatterns:

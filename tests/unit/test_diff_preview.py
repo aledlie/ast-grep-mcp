@@ -22,13 +22,6 @@ from main import (
     generate_file_diff,
     generate_multi_file_diff,
 )
-    generate_file_diff,
-    generate_multi_file_diff,
-    diff_preview_to_dict,
-    generate_diff_from_file_paths,
-    FileDiff,
-    DiffPreview,
-)
 
 
 class TestGenerateFileDiff:

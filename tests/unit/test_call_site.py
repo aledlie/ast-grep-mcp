@@ -22,11 +22,6 @@ from main import (
 )
 
 from ast_grep_mcp.features.deduplication.generator import CodeGenerator
-    generate_replacement_call,
-    preserve_call_site_indentation,
-    format_arguments_for_call,
-    ParameterInfo,
-)
 
 
 class TestGenerateReplacementCall:

@@ -29,18 +29,6 @@ from main import (
 )
 
 from ast_grep_mcp.features.deduplication.generator import CodeGenerator
-    detect_import_insertion_point,
-    generate_import_statement,
-    identify_unused_imports,
-    resolve_import_path,
-    _detect_python_import_point,
-    _detect_js_import_point,
-    _detect_java_import_point,
-    _detect_generic_import_point,
-    _extract_identifiers,
-    _remove_import_lines,
-    _extract_imports_with_names,
-)
 
 
 class TestDetectImportInsertionPoint:

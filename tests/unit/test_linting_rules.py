@@ -47,6 +47,7 @@ def mock_field(**kwargs: Any) -> Any:
 with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
     with patch("pydantic.Field", mock_field):
         import main
+
 from ast_grep_mcp.features.quality.rules import RULE_TEMPLATES
 from main import (
     LintingRule,
@@ -60,25 +61,6 @@ from main import (
     _validate_rule_definition,
     _validate_rule_pattern,
 )
-            LintingRule,
-            RuleTemplate,
-            RuleValidationResult,
-            RuleValidationError,
-            RuleStorageError,
-            RULE_TEMPLATES,
-            _validate_rule_pattern,
-            _validate_rule_definition,
-            _save_rule_to_project,
-            _load_rule_from_file,
-            _get_available_templates,
-        )
-
-        # Call register_mcp_tools to define the tool functions
-        main.register_mcp_tools()
-
-        # Extract the tool functions from the mocked mcp instance
-        create_linting_rule = main.mcp.tools.get("create_linting_rule")  # type: ignore
-        list_rule_templates = main.mcp.tools.get("list_rule_templates")  # type: ignore
 
 
 class TestLintingRuleDataClass:

@@ -17,11 +17,6 @@ from main import (
     detect_internal_dependencies,
     extract_imports_from_files,
 )
-    extract_imports_from_files,
-    detect_import_variations,
-    analyze_import_overlap,
-    detect_internal_dependencies,
-)
 
 
 class TestExtractImportsFromFiles:

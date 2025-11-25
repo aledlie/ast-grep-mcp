@@ -50,6 +50,7 @@ def mock_field(**kwargs: Any) -> Any:
 with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
     with patch("pydantic.Field", mock_field):
         import main
+
 from ast_grep_mcp.features.quality.rules import RULE_TEMPLATES
 from main import (
     EnforcementResult,
@@ -73,34 +74,12 @@ from main import (
     _should_exclude_file,
     _template_to_linting_rule,
 )
-            RuleViolation,
-            RuleSet,
-            EnforcementResult,
-            RuleExecutionContext,
-            RULE_SETS,
-            LintingRule,
-            RuleTemplate,
-            RULE_TEMPLATES,
-            _template_to_linting_rule,
-            _load_custom_rules,
-            _load_rule_set,
-            _parse_match_to_violation,
-            _should_exclude_file,
-            _execute_rule,
-            _execute_rules_batch,
-            _group_violations_by_file,
-            _group_violations_by_severity,
-            _group_violations_by_rule,
-            _filter_violations_by_severity,
-            _format_violation_report,
-            _load_rule_from_file,
-        )
 
-        # Call register_mcp_tools to define the tool functions
-        main.register_mcp_tools()
+# Call register_mcp_tools to define the tool functions
+main.register_mcp_tools()
 
-        # Extract the tool functions from the mocked mcp instance
-        enforce_standards = main.mcp.tools.get("enforce_standards")  # type: ignore
+# Extract the tool functions from the mocked mcp instance
+enforce_standards = main.mcp.tools.get("enforce_standards")  # type: ignore
 
 
 class TestRuleViolationDataClass:

@@ -43,6 +43,8 @@ def mock_field(**kwargs: Any) -> Any:
 # Import with mocked decorators
 with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
     with patch("pydantic.Field", mock_field):
+        import main
+
 from ast_grep_mcp.models.deduplication import ParameterInfo
 from main import (
     format_java_params,
@@ -59,20 +61,6 @@ from main import (
 )
 
 from ast_grep_mcp.features.deduplication.generator import CodeGenerator
-            ParameterInfo,
-            detect_return_value,
-            format_java_params,
-            format_python_params,
-            format_typescript_params,
-            generate_docstring,
-            generate_function_body,
-            generate_function_signature,
-            generate_java_method,
-            generate_javascript_function,
-            generate_python_function,
-            generate_type_annotations,
-            generate_typescript_function,
-        )
 
 
 # =============================================================================

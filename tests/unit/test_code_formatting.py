@@ -27,14 +27,6 @@ from main import (
     format_java_code,
     format_javascript_code,
 )
-    format_python_code,
-    format_typescript_code,
-    format_javascript_code,
-    format_java_code,
-    format_generated_code,
-    _basic_python_format,
-    _format_python_line,
-)
 
 # Create a mock logger on the main module for format_generated_code tests
 # This is needed because format_generated_code uses logger without defining it

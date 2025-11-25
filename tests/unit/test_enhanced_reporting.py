@@ -20,11 +20,6 @@ from ast_grep_mcp.features.deduplication.reporting import (
     visualize_complexity,
 )
 from ast_grep_mcp.utils.formatters import format_diff_with_colors
-    format_diff_with_colors,
-    generate_before_after_example,
-    visualize_complexity,
-    create_enhanced_duplication_response,
-)
 
 
 class TestFormatDiffWithColors:

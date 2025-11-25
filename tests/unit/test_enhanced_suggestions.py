@@ -22,10 +22,6 @@ from main import (
 )
 
 from ast_grep_mcp.features.deduplication.ranker import DuplicationRanker
-    generate_refactoring_suggestions,
-    calculate_refactoring_complexity,
-    _generate_refactoring_strategies,
-)
 
 
 class TestEnhancedSuggestions:

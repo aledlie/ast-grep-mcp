@@ -16,23 +16,11 @@ from ast_grep_mcp.features.complexity.analyzer import (
     calculate_cognitive_complexity,
     calculate_cyclomatic_complexity,
 )
-from ast_grep_mcp.features.complexity.metrics import ComplexityMetrics
+from ast_grep_mcp.models.complexity import ComplexityMetrics, ComplexityThresholds, FunctionComplexity
 from main import (
     ComplexityStorage,
-    ComplexityThresholds,
-    FunctionComplexity,
     calculate_nesting_depth,
     get_complexity_patterns,
-)
-    calculate_cyclomatic_complexity,
-    calculate_cognitive_complexity,
-    calculate_nesting_depth,
-    get_complexity_patterns,
-    ComplexityMetrics,
-    FunctionComplexity,
-    ComplexityThresholds,
-    ComplexityStorage,
-    analyze_file_complexity,
 )
 
 

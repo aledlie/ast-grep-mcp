@@ -45,17 +45,19 @@ def mock_field(**kwargs: Any) -> Any:
 # Patch imports before loading main
 with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
     with patch("pydantic.Field", mock_field):
-        from main import (
-            FunctionTemplate,
-            render_python_function,
-            substitute_template_variables,
-            preserve_call_site_indentation,
-            detect_import_insertion_point,
-            _detect_python_import_point,
-            _detect_js_import_point,
-            _detect_java_import_point,
-            _clean_template_whitespace,
-        )
+        import main
+
+from ast_grep_mcp.models.deduplication import FunctionTemplate
+from main import (
+    render_python_function,
+    substitute_template_variables,
+    detect_import_insertion_point,
+    _detect_python_import_point,
+    _detect_js_import_point,
+    _detect_java_import_point,
+    _clean_template_whitespace,
+    preserve_call_site_indentation,
+)
 
 
 class TestFunctionTemplate:

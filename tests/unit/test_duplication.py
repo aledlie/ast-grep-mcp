@@ -42,17 +42,6 @@ from main import (
 )
 
 from ast_grep_mcp.features.deduplication.detector import DuplicationDetector
-            calculate_similarity,
-            generate_refactoring_suggestions,
-            group_duplicates,
-            normalize_code,
-        )
-
-        # Call register_mcp_tools to define the tool functions
-        main.register_mcp_tools()
-
-        # Extract the tool function from the mocked mcp instance
-        find_duplication = main.mcp.tools.get("find_duplication")  # type: ignore
 
 
 class TestNormalizeCode:
