@@ -650,26 +650,55 @@ def register_mcp_tools() -> None:
     """Legacy registration function for backward compatibility with tests.
 
     In the new architecture, tools are registered via register_all_tools
-    in the server.registry module.
+    in the server.registry module. For backward compatibility with tests,
+    we directly import and register the tool implementation functions.
     """
-    from ast_grep_mcp.server.registry import register_all_tools
-    from mcp.server.fastmcp import FastMCP
+    # Import tool implementations - these are the functions that contain the actual logic
+    # Deduplication tools (these are exported from tools.py)
+    from ast_grep_mcp.features.deduplication.tools import (
+        find_duplication_tool,
+        analyze_deduplication_candidates_tool,
+        apply_deduplication_tool,
+        benchmark_deduplication_tool,
+    )
 
-    # Create a temporary MCP instance to get tool functions
-    temp_mcp = FastMCP("ast-grep-test")
-    register_all_tools(temp_mcp)
+    # Search service implementations (these are the _impl functions)
+    from ast_grep_mcp.features.search.service import (
+        dump_syntax_tree_impl,
+        test_match_code_rule_impl,
+        find_code_impl,
+        find_code_by_rule_impl,
+    )
 
-    # Extract tool functions for backward compatibility
-    # This is a hack - we're reaching into the private attributes
-    if hasattr(temp_mcp, '_tool_manager') and hasattr(temp_mcp._tool_manager, '_tools'):
-        for tool_name, tool_info in temp_mcp._tool_manager._tools.items():
-            # Get the actual function from the tool info
-            if hasattr(tool_info, 'fn'):
-                mcp.tools._tools[tool_name] = tool_info.fn
-            elif hasattr(tool_info, 'handler'):
-                mcp.tools._tools[tool_name] = tool_info.handler
-            elif callable(tool_info):
-                mcp.tools._tools[tool_name] = tool_info
+    # Rewrite service implementations
+    from ast_grep_mcp.features.rewrite.service import (
+        rewrite_code_impl,
+        list_backups_impl,
+    )
+    from ast_grep_mcp.features.rewrite.backup import restore_backup
+
+    # Register all tools in the MockTools dictionary
+    # Deduplication tools (4)
+    mcp.tools._tools["find_duplication"] = find_duplication_tool
+    mcp.tools._tools["analyze_deduplication_candidates"] = analyze_deduplication_candidates_tool
+    mcp.tools._tools["apply_deduplication"] = apply_deduplication_tool
+    mcp.tools._tools["benchmark_deduplication"] = benchmark_deduplication_tool
+
+    # Search tools (4)
+    mcp.tools._tools["dump_syntax_tree"] = dump_syntax_tree_impl
+    mcp.tools._tools["test_match_code_rule"] = test_match_code_rule_impl
+    mcp.tools._tools["find_code"] = find_code_impl
+    mcp.tools._tools["find_code_by_rule"] = find_code_by_rule_impl
+
+    # Rewrite tools (3)
+    mcp.tools._tools["rewrite_code"] = rewrite_code_impl
+    mcp.tools._tools["list_backups"] = list_backups_impl
+    mcp.tools._tools["rollback_rewrite"] = restore_backup
+
+    # Note: Schema.org, Complexity, and Quality tools are not included as they use
+    # nested function definitions within register_*_tools() that cannot be
+    # easily imported. Tests for these tools will need to be updated to import
+    # directly from the modular structure or use integration testing.
 
     # Mark as registered
     mcp.tools._registered = True
