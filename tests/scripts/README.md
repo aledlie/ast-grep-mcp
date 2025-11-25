@@ -36,22 +36,130 @@ python tests/scripts/score_test_file.py --all --json > scores.json
 - **25-39**: DEFER - Keep using setup_method
 - **<25**: SKIP - Not worth refactoring
 
-### Future Scripts (Phase 1)
+### track_fixture_metrics.py
 
-#### track_fixture_metrics.py
-Track fixture adoption rates and usage statistics
+**Purpose:** Track fixture adoption rates and usage statistics
 
-#### detect_fixture_patterns.py
-Identify common patterns that could become fixtures
+**Usage:**
+```bash
+# Current metrics
+python tests/scripts/track_fixture_metrics.py
 
-#### validate_refactoring.py
-Validate that refactored tests work correctly
+# Detailed breakdown
+python tests/scripts/track_fixture_metrics.py --detailed
 
-#### benchmark_fixtures.py
-Measure fixture performance overhead
+# View historical trend
+python tests/scripts/track_fixture_metrics.py --history
+
+# Save to history file
+python tests/scripts/track_fixture_metrics.py --save
+
+# JSON output
+python tests/scripts/track_fixture_metrics.py --json
+```
+
+**Metrics Tracked:**
+- Fixture adoption rate (% of tests using fixtures)
+- Per-fixture usage counts
+- Test file categories (fixture-based, setup_method, mixed, neither)
+- Trend tracking over time
+
+### detect_fixture_patterns.py
+
+**Purpose:** Identify common patterns that could become fixtures
+
+**Usage:**
+```bash
+# Detect patterns (default threshold: 3 occurrences)
+python tests/scripts/detect_fixture_patterns.py
+
+# Lower threshold
+python tests/scripts/detect_fixture_patterns.py --threshold 2
+
+# Detailed with suggested implementations
+python tests/scripts/detect_fixture_patterns.py --detailed
+
+# JSON output
+python tests/scripts/detect_fixture_patterns.py --json
+```
+
+**Patterns Detected:**
+- Repeated temporary directory creation
+- Common file creation patterns
+- Mock subprocess patterns
+- Cache initialization patterns
+- Repeated imports
+
+**Output:**
+- Pattern type and description
+- Occurrence count and file count
+- Fixture value score (0-10)
+- Suggested fixture name and implementation
+
+### validate_refactoring.py
+
+**Purpose:** Validate that refactored tests work correctly
+
+**Usage:**
+```bash
+# Basic validation
+python tests/scripts/validate_refactoring.py tests/unit/test_cache.py
+
+# Compare against baseline
+python tests/scripts/validate_refactoring.py tests/unit/test_cache.py --baseline baseline.json
+
+# Include performance check
+python tests/scripts/validate_refactoring.py tests/unit/test_cache.py --performance
+
+# Save new baseline
+python tests/scripts/validate_refactoring.py tests/unit/test_cache.py --save-baseline baseline.json
+
+# JSON output
+python tests/scripts/validate_refactoring.py tests/unit/test_cache.py --json
+```
+
+**Validation Checks:**
+- ✓ Tests collect successfully
+- ✓ All tests pass
+- ✓ Same number of tests as baseline
+- ✓ Performance within 20% of baseline
+- ✓ No increase in warnings
+
+### benchmark_fixtures.py
+
+**Purpose:** Measure fixture performance overhead
+
+**Usage:**
+```bash
+# Benchmark all fixtures
+python tests/scripts/benchmark_fixtures.py
+
+# Benchmark specific fixture
+python tests/scripts/benchmark_fixtures.py --fixture temp_dir
+
+# Detailed breakdown
+python tests/scripts/benchmark_fixtures.py --detailed
+
+# More iterations for accuracy
+python tests/scripts/benchmark_fixtures.py --iterations 5
+
+# JSON output
+python tests/scripts/benchmark_fixtures.py --json
+```
+
+**Measurements:**
+- Setup time (ms)
+- Teardown time (ms)
+- Total overhead (ms)
+- Pass/fail threshold (<100ms is good)
+
+**Thresholds:**
+- **Good**: <100ms overhead
+- **Slow**: ≥100ms overhead (needs optimization)
 
 ## Quick Examples
 
+### Scoring & Prioritization
 ```bash
 # Find high-priority files to refactor
 python tests/scripts/score_test_file.py --all | grep "HIGH PRIORITY"
@@ -61,6 +169,45 @@ python tests/scripts/score_test_file.py tests/unit/test_rewrite.py --detailed
 
 # Export all scores for tracking
 python tests/scripts/score_test_file.py --all --json > baseline_scores.json
+```
+
+### Metrics Tracking
+```bash
+# Check current adoption rate
+python tests/scripts/track_fixture_metrics.py
+
+# Save metrics to history
+python tests/scripts/track_fixture_metrics.py --save
+
+# View trend over time
+python tests/scripts/track_fixture_metrics.py --history
+```
+
+### Pattern Detection
+```bash
+# Find common patterns
+python tests/scripts/detect_fixture_patterns.py --detailed
+
+# Look for patterns with lower threshold
+python tests/scripts/detect_fixture_patterns.py --threshold 2 --detailed
+```
+
+### Validation Workflow
+```bash
+# Before refactoring: save baseline
+python tests/scripts/validate_refactoring.py tests/unit/test_cache.py --save-baseline before.json
+
+# After refactoring: validate against baseline
+python tests/scripts/validate_refactoring.py tests/unit/test_cache.py --baseline before.json --performance
+```
+
+### Performance Monitoring
+```bash
+# Benchmark all fixtures
+python tests/scripts/benchmark_fixtures.py --detailed
+
+# Check specific fixture
+python tests/scripts/benchmark_fixtures.py --fixture temp_dir --iterations 10
 ```
 
 ## Baseline Scores
