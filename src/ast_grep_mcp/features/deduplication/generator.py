@@ -10,6 +10,8 @@ import subprocess
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from ...core.logging import get_logger
+from ...models.deduplication import FunctionTemplate
+from ...utils.formatters import format_generated_code
 
 
 class CodeGenerator:
@@ -52,27 +54,48 @@ class CodeGenerator:
             language=self.language
         )
 
-        # template = self.templates.get_function_template(self.language)  # TODO: Implement templates
-
-        # Format parameters
+        # Use template system for Python
         if self.language == "python":
-            param_list = self._format_python_parameters(parameters)
-            return_annotation = f" -> {return_type}" if return_type else ""
+            # Convert parameter dicts to tuples for FunctionTemplate
+            param_tuples = [
+                (p["name"], p.get("type"))
+                for p in parameters
+            ]
 
-            function_code = f"def {function_name}({param_list}){return_annotation}:\n"
+            # Create and use template
+            template = FunctionTemplate(
+                name=function_name,
+                parameters=param_tuples,
+                body=body,
+                return_type=return_type,
+                docstring=docstring
+            )
 
-            if docstring:
-                function_code += f'    """{docstring}"""\n'
-
-            # Indent body
-            indented_body = "\n".join(f"    {line}" for line in body.split("\n"))
-            function_code += indented_body
+            function_code = template.generate()
 
         elif self.language in ["javascript", "typescript"]:
+            # Use render function for JS/TS
             param_list = self._format_js_parameters(parameters)
             type_annotation = f": {return_type}" if return_type and self.language == "typescript" else ""
 
             function_code = f"function {function_name}({param_list}){type_annotation} {{\n"
+
+            if docstring:
+                function_code += f"    // {docstring}\n"
+
+            # Indent body
+            indented_body = "\n".join(f"    {line}" for line in body.split("\n"))
+            function_code += indented_body + "\n}"
+
+        elif self.language == "java":
+            # Java method generation
+            param_list = ", ".join(
+                f"{p.get('type', 'Object')} {p['name']}"
+                for p in parameters
+            )
+            return_annotation = return_type if return_type else "void"
+
+            function_code = f"public {return_annotation} {function_name}({param_list}) {{\n"
 
             if docstring:
                 function_code += f"    // {docstring}\n"
@@ -87,7 +110,24 @@ class CodeGenerator:
             function_code = f"function {function_name}({param_list}) {{\n"
             function_code += body + "\n}"
 
-        return function_code  # TODO: Add code formatting
+        # Format the generated code before returning
+        try:
+            function_code = format_generated_code(function_code, self.language)
+            self.logger.info(
+                "formatted_generated_function",
+                function_name=function_name,
+                language=self.language
+            )
+        except Exception as e:
+            # If formatting fails, return unformatted code
+            self.logger.warning(
+                "formatting_failed",
+                function_name=function_name,
+                language=self.language,
+                error=str(e)
+            )
+
+        return function_code
 
     def generate_function_call(
         self,
@@ -349,3 +389,313 @@ class CodeGenerator:
 
         # Default: assume valid
         return True, None
+
+    def render_python_function(
+        self,
+        name: str,
+        params: str,
+        body: str,
+        return_type: Optional[str] = None,
+        docstring: Optional[str] = None,
+        decorators: Optional[List[str]] = None
+    ) -> str:
+        """
+        Render a Python function from components.
+
+        Args:
+            name: Function name
+            params: Formatted parameter string
+            body: Function body code
+            return_type: Optional return type annotation
+            docstring: Optional function docstring
+            decorators: Optional list of decorator strings
+
+        Returns:
+            Complete Python function code
+        """
+        lines = []
+
+        # Add decorators
+        if decorators:
+            for decorator in decorators:
+                lines.append(f"@{decorator}")
+
+        # Add function signature
+        return_annotation = f" -> {return_type}" if return_type else ""
+        lines.append(f"def {name}({params}){return_annotation}:")
+
+        # Add docstring
+        if docstring:
+            if "\n" in docstring:
+                lines.append(f'    """{docstring}"""')
+            else:
+                lines.append(f'    """{docstring}"""')
+
+        # Add body (strip existing indentation and re-indent)
+        body_lines = body.split("\n")
+        for line in body_lines:
+            stripped = line.lstrip()
+            if stripped:
+                # Preserve relative indentation
+                original_indent = len(line) - len(stripped)
+                relative_indent = original_indent - (len(body_lines[0]) - len(body_lines[0].lstrip()))
+                indent = "    " + " " * max(0, relative_indent)
+                lines.append(indent + stripped)
+            else:
+                lines.append("")
+
+        return "\n".join(lines)
+
+    def substitute_template_variables(
+        self,
+        template: str,
+        variables: Dict[str, str],
+        strict: bool = False
+    ) -> str:
+        """
+        Substitute template variables in a string template.
+
+        Supports:
+        - Simple variables: {{name}}
+        - Conditionals: {{#if var}}...{{/if}}, {{#unless var}}...{{/unless}}
+        - Loops: {{#each items}}{{.}}{{/each}}
+
+        Args:
+            template: Template string with {{variable}} placeholders
+            variables: Dictionary of variable values
+            strict: If True, raise error on missing variables
+
+        Returns:
+            Template with variables substituted
+
+        Raises:
+            ValueError: If strict=True and required variable is missing
+        """
+        result = template
+
+        # Process conditionals (if/unless)
+        def process_conditional(match: re.Match[str]) -> str:
+            condition_type = match.group(1)  # 'if' or 'unless'
+            var_name = match.group(2)
+            content = match.group(3)
+
+            var_value = variables.get(var_name, "")
+            is_truthy = var_value and var_value.lower() not in ("false", "0", "")
+
+            if condition_type == "if":
+                return content if is_truthy else ""
+            else:  # unless
+                return "" if is_truthy else content
+
+        # Process {{#if var}}...{{/if}} and {{#unless var}}...{{/unless}}
+        result = re.sub(
+            r'\{\{#(if|unless)\s+(\w+)\}\}(.*?)\{\{/\1\}\}',
+            process_conditional,
+            result,
+            flags=re.DOTALL
+        )
+
+        # Process loops {{#each items}}{{.}}{{/each}}
+        def process_each(match: re.Match[str]) -> str:
+            var_name = match.group(1)
+            loop_content = match.group(2)
+
+            if var_name not in variables:
+                if strict:
+                    raise ValueError(f"Missing list variable: {var_name}")
+                return ""
+
+            items = variables[var_name].split(",") if variables[var_name] else []
+            result = "".join(loop_content.replace("{{.}}", item.strip()) for item in items)
+            # Remove trailing space if the loop content ends with a space
+            if loop_content.endswith(" ") and result.endswith(" "):
+                result = result.rstrip()
+            return result
+
+        result = re.sub(
+            r'\{\{#each\s+(\w+)\}\}(.*?)\{\{/each\}\}',
+            process_each,
+            result,
+            flags=re.DOTALL
+        )
+
+        # Process simple variables {{var}}
+        def substitute_var(match: re.Match[str]) -> str:
+            var_name = match.group(1)
+            if var_name not in variables:
+                if strict:
+                    raise ValueError(f"Missing required variable: {var_name}")
+                return ""
+            return variables[var_name]
+
+        result = re.sub(r'\{\{(\w+)\}\}', substitute_var, result)
+
+        return result
+
+    def preserve_call_site_indentation(self, original_code: str, replacement: str) -> str:
+        """
+        Preserve the indentation from the original code when replacing it.
+
+        Args:
+            original_code: Original code with indentation
+            replacement: Replacement code to indent
+
+        Returns:
+            Replacement code with original indentation preserved
+        """
+        if not original_code or not replacement:
+            return replacement
+
+        # Extract indentation from original
+        indent = ""
+        for char in original_code:
+            if char in " \t":
+                indent += char
+            else:
+                break
+
+        # Apply indentation to replacement
+        if "\n" in replacement:
+            lines = replacement.split("\n")
+            indented_lines = [indent + line if line.strip() else "" for line in lines]
+            return "\n".join(indented_lines)
+        else:
+            return indent + replacement
+
+    def detect_import_insertion_point(self, content: str, language: str) -> int:
+        """
+        Detect where to insert import statements in a file.
+
+        Args:
+            content: File content
+            language: Programming language
+
+        Returns:
+            Line number (1-indexed) where imports should be inserted
+        """
+        lines = content.split("\n")
+
+        if language == "python":
+            return self._detect_python_import_point(lines)
+        elif language in ["javascript", "typescript"]:
+            return self._detect_js_import_point(lines)
+        elif language == "java":
+            return self._detect_java_import_point(lines)
+        else:
+            # Generic: after first line
+            return 1
+
+    def _detect_python_import_point(self, lines: List[str]) -> int:
+        """Find import insertion point for Python files."""
+        # Handle empty file
+        if not lines or (len(lines) == 1 and not lines[0].strip()):
+            return 1
+
+        i = 0
+        in_docstring = False
+        docstring_quotes = None
+
+        # Skip module docstring
+        while i < len(lines):
+            line = lines[i].strip()
+            if not line or line.startswith("#"):
+                i += 1
+                continue
+
+            # Check for docstring
+            if line.startswith('"""') or line.startswith("'''"):
+                if not in_docstring:
+                    docstring_quotes = line[:3]
+                    in_docstring = True
+                    if line.count(docstring_quotes) >= 2:
+                        in_docstring = False
+                        i += 1
+                        break
+                elif docstring_quotes in line:
+                    in_docstring = False
+                    i += 1
+                    break
+                i += 1
+                continue
+
+            if in_docstring:
+                i += 1
+                continue
+
+            break
+
+        # Skip comments
+        while i < len(lines) and lines[i].strip().startswith("#"):
+            i += 1
+
+        # Skip existing imports
+        last_import = i
+        while i < len(lines):
+            line = lines[i].strip()
+            if line.startswith("import ") or line.startswith("from "):
+                last_import = i + 1
+            elif line and not line.startswith("#"):
+                break
+            i += 1
+
+        return last_import + 1
+
+    def _detect_js_import_point(self, lines: List[str]) -> int:
+        """Find import insertion point for JavaScript/TypeScript files."""
+        i = 0
+
+        # Skip 'use strict' directive
+        while i < len(lines):
+            line = lines[i].strip()
+            if line in ('"use strict";', "'use strict';"):
+                i += 1
+                # Skip blank line after directive
+                if i < len(lines) and not lines[i].strip():
+                    i += 1
+                break
+            if line:
+                break
+            i += 1
+
+        # Skip existing imports
+        last_import = i
+        while i < len(lines):
+            line = lines[i].strip()
+            if (line.startswith("import ") or
+                line.startswith("const ") and "require(" in line or
+                line.startswith("var ") and "require(" in line):
+                last_import = i + 1
+            elif line and not line.startswith("//"):
+                break
+            i += 1
+
+        return last_import + 1
+
+    def _detect_java_import_point(self, lines: List[str]) -> int:
+        """Find import insertion point for Java files."""
+        i = 0
+
+        # Skip package declaration
+        while i < len(lines):
+            line = lines[i].strip()
+            if line.startswith("package "):
+                i += 1
+                # Skip blank lines after package
+                while i < len(lines) and not lines[i].strip():
+                    i += 1
+                break
+            if line and not line.startswith("//"):
+                break
+            i += 1
+
+        # Skip existing imports
+        last_import = i
+        while i < len(lines):
+            line = lines[i].strip()
+            if line.startswith("import "):
+                last_import = i + 1
+            elif line and not line.startswith("//"):
+                break
+            i += 1
+
+        return last_import + 1

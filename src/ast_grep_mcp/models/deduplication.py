@@ -198,6 +198,76 @@ class FunctionTemplate:
         if self.decorators is None:
             self.decorators = []
 
+    def format_params(self) -> str:
+        """Format parameters as a comma-separated string for function signature.
+
+        Returns:
+            Formatted parameter string like "a: int, b, c: str"
+        """
+        parts = []
+        for param_name, param_type in self.parameters:
+            if param_type:
+                parts.append(f"{param_name}: {param_type}")
+            else:
+                parts.append(param_name)
+        return ", ".join(parts)
+
+    def format_decorators(self) -> str:
+        """Format decorators as lines with @ prefix.
+
+        Returns:
+            Decorator lines with newlines, or empty string if no decorators
+        """
+        if not self.decorators:
+            return ""
+        return "\n".join(f"@{dec}" for dec in self.decorators) + "\n"
+
+    def format_return_type(self) -> str:
+        """Format return type annotation.
+
+        Returns:
+            Return type string like " -> int" or empty string if no return type
+        """
+        if self.return_type:
+            return f" -> {self.return_type}"
+        return ""
+
+    def generate(self) -> str:
+        """Generate the complete function code from the template.
+
+        Returns:
+            Formatted Python function code
+        """
+        lines = []
+
+        # Add decorators
+        if self.decorators:
+            lines.append(self.format_decorators().rstrip())
+
+        # Add function signature
+        params = self.format_params()
+        return_annotation = self.format_return_type()
+        lines.append(f"def {self.name}({params}){return_annotation}:")
+
+        # Add docstring
+        if self.docstring:
+            if "\n" in self.docstring:
+                # Multi-line docstring
+                lines.append(f'    """{self.docstring}"""')
+            else:
+                # Single-line docstring
+                lines.append(f'    """{self.docstring}"""')
+
+        # Add body (ensure proper indentation)
+        body_lines = self.body.split("\n")
+        for line in body_lines:
+            if line.strip():  # Only indent non-empty lines
+                lines.append(f"    {line}")
+            else:
+                lines.append("")
+
+        return "\n".join(lines)
+
 
 class ParameterType:
     """Represents an inferred type for an extracted parameter."""
