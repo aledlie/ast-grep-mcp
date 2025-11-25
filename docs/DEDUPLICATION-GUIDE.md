@@ -2,7 +2,10 @@
 
 This guide covers the enhanced code deduplication system in ast-grep-mcp, which provides intelligent detection, analysis, and automated refactoring of duplicate code.
 
-**Last Updated:** 2025-11-23
+**Last Updated:** 2025-11-24
+**Architecture:** Modular (v2.0) - See [MODULE-GUIDE.md](MODULE-GUIDE.md) for implementation details
+
+> **Note:** This guide uses MCP tool names. For direct module imports in custom scripts, see the [Module Architecture](#module-architecture) section.
 
 ---
 
@@ -15,7 +18,8 @@ This guide covers the enhanced code deduplication system in ast-grep-mcp, which 
 5. [CLI Usage](#cli-usage)
 6. [Workflow Examples](#workflow-examples)
 7. [API Reference](#api-reference)
-8. [Troubleshooting](#troubleshooting)
+8. [Module Architecture](#module-architecture)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -764,6 +768,120 @@ def validate_syntax(code: str, language: str) -> Dict:
         {"valid": bool, "errors": List[str]}
     """
 ```
+
+---
+
+## Module Architecture
+
+The deduplication feature is implemented as a modular system under `src/ast_grep_mcp/features/deduplication/`:
+
+### Module Structure
+
+```
+features/deduplication/
+├── __init__.py          # Public API exports
+├── detector.py          # DuplicationDetector class (547 lines)
+├── analyzer.py          # PatternAnalyzer, variation analysis (582 lines)
+├── generator.py         # CodeGenerator for refactoring (351 lines)
+├── ranker.py            # DuplicationRanker scoring (201 lines)
+├── applicator.py        # Multi-file orchestration (632 lines)
+├── coverage.py          # Test coverage detection (392 lines)
+├── impact.py            # Impact analysis (507 lines)
+├── recommendations.py   # Recommendation engine (186 lines)
+├── reporting.py         # Enhanced reporting with diffs (400 lines)
+├── benchmark.py         # Performance benchmarking (290 lines)
+└── tools.py             # MCP tool definitions (274 lines)
+```
+
+### Direct Module Imports
+
+For custom scripts (not using MCP tools), import from modules directly:
+
+**Detector:**
+```python
+from ast_grep_mcp.features.deduplication.detector import DuplicationDetector
+
+detector = DuplicationDetector(
+    project_folder="/path/to/project",
+    language="python"
+)
+duplicates = detector.find_duplicates()
+```
+
+**Analyzer:**
+```python
+from ast_grep_mcp.features.deduplication.analyzer import PatternAnalyzer
+
+analyzer = PatternAnalyzer()
+variations = analyzer.analyze_variations(duplicate_group)
+```
+
+**Ranker:**
+```python
+from ast_grep_mcp.features.deduplication.ranker import DuplicationRanker
+
+ranker = DuplicationRanker()
+candidates = ranker.rank_candidates(duplicate_groups)
+```
+
+**Applicator:**
+```python
+from ast_grep_mcp.features.deduplication.applicator import DeduplicationApplicator
+
+applicator = DeduplicationApplicator(project_folder="/path")
+result = applicator.apply_refactoring(plan, dry_run=True)
+```
+
+**Coverage Detection:**
+```python
+from ast_grep_mcp.features.deduplication.coverage import has_test_coverage
+
+covered = has_test_coverage(
+    file_path="/path/to/module.py",
+    project_folder="/path/to/project",
+    language="python"
+)
+```
+
+**Impact Analysis:**
+```python
+from ast_grep_mcp.features.deduplication.impact import analyze_deduplication_impact
+
+impact = analyze_deduplication_impact(
+    duplicate_group=group,
+    project_folder="/path",
+    language="python"
+)
+```
+
+### Data Models
+
+Import deduplication models from `models/deduplication.py`:
+
+```python
+from ast_grep_mcp.models.deduplication import (
+    DuplicateInstance,
+    DuplicateGroup,
+    DeduplicationCandidate,
+    RefactoringPlan,
+    ParameterMapping
+)
+```
+
+### Backward Compatibility
+
+Old imports from `main.py` still work but are deprecated:
+
+```python
+# Old (deprecated)
+from main import DuplicationDetector, PatternAnalyzer
+
+# New (recommended)
+from ast_grep_mcp.features.deduplication.detector import DuplicationDetector
+from ast_grep_mcp.features.deduplication.analyzer import PatternAnalyzer
+```
+
+See [MIGRATION-FROM-MONOLITH.md](MIGRATION-FROM-MONOLITH.md) for migration details.
 
 ---
 

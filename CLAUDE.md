@@ -7,18 +7,22 @@ This file provides guidance to Claude Code when working with this repository.
 ```bash
 uv sync                          # Install dependencies
 uv run pytest                    # Run all tests (1,150+)
-uv run ruff check . && mypy main.py  # Lint and type check
+uv run ruff check . && mypy src/  # Lint and type check
 uv run main.py                   # Run MCP server locally
 doppler run -- uv run main.py    # Run with Doppler secrets (production)
 ```
 
 ## Project Overview
 
-Single-file MCP server (`main.py`, ~19,500 lines) combining ast-grep structural code search with Schema.org tools, enhanced deduplication, and code quality standards.
+Modular MCP server with 46 modules combining ast-grep structural code search with Schema.org tools, enhanced deduplication, and code quality standards.
 
-**27 Tools:** Code search (6), Code rewrite (3), Deduplication (4), Schema.org (8), Complexity (2), Code Quality (3), Testing (1)
+**Architecture:** Clean modular design with 152-line entry point (`main.py`) and organized features under `src/ast_grep_mcp/` (core, models, utils, features, server).
+
+**27 Tools:** Code search (4), Code rewrite (3), Deduplication (4), Schema.org (8), Complexity (2), Code Quality (3), Testing (3)
 
 **Dependencies:** ast-grep CLI (required), Doppler CLI (optional for secrets), Python 3.13+, uv package manager
+
+**Recent Refactoring:** Successfully migrated from monolithic 19,477-line main.py to clean modular structure (99.2% reduction).
 
 ## Sentry & Doppler Setup
 
@@ -276,28 +280,135 @@ uv run python scripts/find_duplication.py /path/to/project --language python --n
 
 ## Architecture
 
-**Single-file design** (`main.py`, ~20,000 lines) with all functionality integrated.
+**Modular design** with 46 modules organized under `src/ast_grep_mcp/`. Main entry point (`main.py`, 152 lines) provides backward compatibility and server startup.
 
-**Key components:**
+### Module Structure
+
+```
+src/ast_grep_mcp/
+├── core/           # Core infrastructure (6 modules, ~1,000 lines)
+├── models/         # Data models (5 modules, ~800 lines)
+├── utils/          # Utilities (4 modules, ~800 lines)
+├── features/       # Feature modules (27 modules, ~9,000 lines)
+│   ├── search/     # Code search (2 modules)
+│   ├── rewrite/    # Code rewrite (3 modules)
+│   ├── schema/     # Schema.org integration (2 modules)
+│   ├── deduplication/  # Deduplication (12 modules)
+│   ├── complexity/     # Complexity analysis (4 modules)
+│   └── quality/        # Code quality (5 modules)
+└── server/         # MCP server (3 modules, ~60 lines)
+```
+
+### Core (`src/ast_grep_mcp/core/`)
+
+- **`config.py`** (237 lines) - Configuration management, environment variables
+- **`cache.py`** (137 lines) - LRU + TTL caching for search results
+- **`executor.py`** (426 lines) - ast-grep subprocess execution (streaming & non-streaming)
+- **`logging.py`** (52 lines) - Structured logging with structlog
+- **`sentry.py`** (61 lines) - Error tracking integration (optional)
+- **`exceptions.py`** (83 lines) - Custom exception hierarchy
+
+### Models (`src/ast_grep_mcp/models/`)
+
+Data classes and type definitions:
+- **`config.py`** (49 lines) - Configuration dataclasses
+- **`deduplication.py`** (435 lines) - 10+ deduplication data structures
+- **`complexity.py`** (31 lines) - Complexity metrics models
+- **`standards.py`** (235 lines) - Linting and quality models
+- **`base.py`** (6 lines) - Base types and utilities
+
+### Utils (`src/ast_grep_mcp/utils/`)
+
+Shared utilities:
+- **`templates.py`** (507 lines) - Code generation templates for refactoring
+- **`formatters.py`** (215 lines) - Output formatting, diff generation
+- **`text.py`** (51 lines) - Text processing utilities
+- **`validation.py`** (13 lines) - Validation helpers
+
+### Features (`src/ast_grep_mcp/features/`)
+
+#### Search Feature (`features/search/`)
+- **`service.py`** (454 lines) - Search implementations (find_code, find_by_rule, dump_syntax_tree)
+- **`tools.py`** (175 lines) - 4 MCP tool definitions
+
+#### Rewrite Feature (`features/rewrite/`)
+- **`backup.py`** (391 lines) - Backup management with rollback
+- **`service.py`** (476 lines) - Code rewrite logic with syntax validation
+- **`tools.py`** (118 lines) - 3 MCP tool definitions
+
+#### Schema Feature (`features/schema/`)
+- **`client.py`** (524 lines) - Schema.org API client (fetches vocabulary, indexes ~2600+ types)
+- **`tools.py`** (498 lines) - 8 MCP tool definitions
+
+#### Deduplication Feature (`features/deduplication/`)
+
+Complete duplication detection and refactoring system:
+- **`detector.py`** (547 lines) - DuplicationDetector class (hash-based bucketing, reduces O(n²) by 83%)
+- **`analyzer.py`** (582 lines) - PatternAnalyzer, variation classification, AST-based diff
+- **`generator.py`** (351 lines) - CodeGenerator for refactoring (language-specific templates)
+- **`ranker.py`** (201 lines) - DuplicationRanker scoring (weighted algorithm)
+- **`applicator.py`** (632 lines) - Multi-file orchestration, backup integration
+- **`coverage.py`** (392 lines) - Test coverage detection (9+ languages)
+- **`impact.py`** (507 lines) - Impact analysis, breaking change risk assessment
+- **`recommendations.py`** (186 lines) - Recommendation engine (extract_function, extract_class, inline)
+- **`reporting.py`** (400 lines) - Enhanced reporting with color-coded diffs
+- **`benchmark.py`** (290 lines) - Performance benchmarking, regression detection
+- **`tools.py`** (274 lines) - 4 MCP tool definitions
+
+#### Complexity Feature (`features/complexity/`)
+- **`analyzer.py`** - Complexity calculations (cyclomatic, cognitive, nesting)
+- **`metrics.py`** - Complexity metrics classes
+- **`storage.py`** - SQLite storage for trend tracking
+- **`tools.py`** - 2 MCP tool definitions
+
+#### Quality Feature (`features/quality/`)
+- **`smells.py`** - Code smell detection (long functions, parameter bloat, etc.)
+- **`rules.py`** - 24+ linting rule templates
+- **`validator.py`** - Rule validation against ast-grep
+- **`enforcer.py`** - Standards enforcement
+- **`tools.py`** - 3 MCP tool definitions
+
+### Server (`src/ast_grep_mcp/server/`)
+- **`registry.py`** (32 lines) - Central tool registration
+- **`runner.py`** (25 lines) - MCP server entry point
+
+### Key Technical Details
+
 - **Execution:** Non-streaming (`subprocess.run`) vs streaming (`subprocess.Popen` with line-by-line parsing)
 - **Output formats:** `text` (default, 75% fewer tokens) or `json` (full metadata)
 - **Caching:** LRU + TTL for `find_code`/`find_code_by_rule` (config: `--cache-size`, `--cache-ttl`)
 - **Parallel execution:** `--threads N` for 50-70% speedup on large projects
-- **Duplication:** Hash-based bucketing reduces O(n²) comparisons 83%
-- **Schema.org:** Client fetches vocabulary on first use, indexes ~2600+ types in memory
 - **Logging:** Structured JSON via structlog to stderr
 
-**Deduplication architecture (Phases 1-6):**
-- **Pattern Analysis:** AST-based diff, parameter extraction, variation classification, complexity scoring
-- **Code Generation:** Language-specific templates, function generation, import management, formatters
-- **Application:** Multi-file orchestration, backup integration, syntax validation, rollback
-- **Ranking:** Weighted scoring, test coverage detection, impact analysis, recommendations
-- **Reporting:** Color-coded diffs, before/after examples, complexity visualization, CLI enhancement
+### Import Patterns
+
+**Backward compatibility (temporary):**
+```python
+# Old pattern (still works via main.py re-exports)
+from main import find_code, rewrite_code
+```
+
+**New modular pattern (recommended):**
+```python
+# Import from service modules
+from ast_grep_mcp.features.search.service import find_code_impl
+from ast_grep_mcp.features.rewrite.service import rewrite_code_impl
+
+# Or import tool wrappers
+from ast_grep_mcp.features.search.tools import find_code
+from ast_grep_mcp.features.rewrite.tools import rewrite_code
+
+# Import core components
+from ast_grep_mcp.core.config import get_config
+from ast_grep_mcp.core.cache import get_cache
+from ast_grep_mcp.core.executor import execute_ast_grep
+```
 
 **Testing pattern:**
 - MockFastMCP extracts tools
 - Mock `Popen` for streaming, `run` for file modifications
 - Clear cache in `setup_method()` for isolation
+- Tests currently use backward compatibility layer in `main.py`
 
 ## Development Notes
 
@@ -323,6 +434,47 @@ python scripts/run_benchmarks.py --check-regression  # CI check
 ```
 
 ## Recent Updates
+
+### 2025-11-24: Modular Architecture Refactoring (Phases 0-10)
+
+**Major achievement** - Successfully refactored from monolithic architecture to clean modular design.
+
+**Migration results:**
+- **99.2% code reduction** in main.py (19,477 → 152 lines)
+- **46 new modules** created under `src/ast_grep_mcp/`
+- **10 phases completed** over 13 days
+- **Zero breaking changes** - backward compatibility maintained via main.py re-exports
+
+**Phases completed:**
+1. **Phase 0:** Project setup - Created directory structure, initialized modules
+2. **Phase 1:** Core infrastructure - 6 modules (~1,000 lines): config, cache, executor, logging, sentry, exceptions
+3. **Phase 2:** Data models - 5 modules (~800 lines): config, deduplication, complexity, standards models
+4. **Phase 3:** Utilities - 4 modules (~800 lines): templates, formatters, text, validation
+5. **Phase 4:** Search feature - 2 modules (~600 lines): search service + tools
+6. **Phase 5:** Rewrite feature - 3 modules (~1,000 lines): backup, service, tools
+7. **Phase 6:** Schema feature - 2 modules (~1,000 lines): client, tools
+8. **Phase 7:** Deduplication feature - 12 modules (~4,400 lines): detector, analyzer, ranker, generator, applicator, coverage, impact, recommendations, reporting, benchmark, tools
+9. **Phase 8:** Complexity feature - 4 modules (~800 lines): analyzer, metrics, storage, tools
+10. **Phase 9:** Quality feature - 5 modules (~1,000 lines): smells, rules, validator, enforcer, tools
+11. **Phase 10:** Server integration - 3 modules (~60 lines): registry, runner
+
+**What changed:**
+- All code moved to `src/ast_grep_mcp/` directory structure
+- Clean separation of concerns (core, models, utils, features, server)
+- Entry point (`main.py`) now 152 lines (down from 19,477)
+- Backward compatibility layer preserves existing test suite
+- All 27 MCP tools registered via central registry
+
+**Benefits:**
+- Easier navigation and code discovery
+- Clear module boundaries and responsibilities
+- Better testability and maintainability
+- Foundation for future features
+- No performance impact
+
+**Migration guide:** See [docs/MIGRATION-FROM-MONOLITH.md](docs/MIGRATION-FROM-MONOLITH.md) (coming soon)
+
+**Module guide:** See [docs/MODULE-GUIDE.md](docs/MODULE-GUIDE.md) (coming soon)
 
 ### 2025-11-24: Code Quality & Standards - Phase 1: Rule Definition System
 
@@ -455,18 +607,34 @@ python scripts/run_benchmarks.py --check-regression  # CI check
 ## Repository Structure
 
 ```
-main.py              # Single-file server (~20,000 lines, 22 tools)
+main.py              # Entry point + backward compatibility (152 lines)
+src/ast_grep_mcp/    # Modular codebase (46 modules, ~11,500 lines)
+  ├── core/          # Core infrastructure (6 modules)
+  ├── models/        # Data models (5 modules)
+  ├── utils/         # Utilities (4 modules)
+  ├── features/      # Feature modules (27 modules)
+  │   ├── search/
+  │   ├── rewrite/
+  │   ├── schema/
+  │   ├── deduplication/
+  │   ├── complexity/
+  │   └── quality/
+  └── server/        # MCP server (3 modules)
 tests/               # 1,150+ tests
   unit/              # Unit tests (mocked)
   integration/       # Integration tests (requires ast-grep)
 scripts/             # Standalone tools (duplication, benchmarks, schema tools)
 docs/                # Main documentation
 mcp-docs/            # Reference docs for 30+ MCP servers in ecosystem
-dev/active/          # Feature planning docs (12 documents)
-todos/               # Phase tracking (6 completed phases)
+dev/active/          # Feature planning docs
+todos/               # Phase tracking docs
 ```
 
-**Key docs:** README.md, CLAUDE.md, DEDUPLICATION-GUIDE.md, SENTRY-INTEGRATION.md, DOPPLER-MIGRATION.md, CONFIGURATION.md, BENCHMARKING.md
+**Key docs:**
+- **Project:** README.md, CLAUDE.md
+- **Features:** DEDUPLICATION-GUIDE.md
+- **Infrastructure:** SENTRY-INTEGRATION.md, DOPPLER-MIGRATION.md, CONFIGURATION.md, BENCHMARKING.md
+- **Architecture:** MODULE-GUIDE.md (coming soon), MIGRATION-FROM-MONOLITH.md (coming soon)
 
 **Repomix snapshots:** Kept in `mcp-docs/` and `tests/` for codebase analysis. Refresh after major changes: `repomix mcp-docs/`
 
