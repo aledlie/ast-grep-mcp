@@ -275,6 +275,10 @@ class MockTools:
         self._ensure_registered()
         return self._tools[key]
 
+    def __setitem__(self, key: str, value):
+        """Set a tool by name."""
+        self._tools[key] = value
+
     def __contains__(self, key: str) -> bool:
         """Check if a tool exists."""
         self._ensure_registered()
