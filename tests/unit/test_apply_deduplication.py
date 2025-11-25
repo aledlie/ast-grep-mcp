@@ -321,7 +321,7 @@ class TestBackupIntegration:
         with open(self.test_file1, "r") as f:
             restored_content = f.read()
         assert restored_content == self.original_content1
-        assert self.test_file1 in restored
+        assert self.test_file1 in restored["restored_files"]
 
     def test_multi_file_backup_and_rollback(self) -> None:
         """Test backup and rollback with multiple files."""
@@ -355,7 +355,7 @@ class TestBackupIntegration:
             assert f.read() == self.original_content1
         with open(self.test_file2, "r") as f:
             assert f.read() == self.original_content2
-        assert len(restored) == 2
+        assert len(restored["restored_files"]) == 2
 
     def test_no_backup_when_backup_false(self) -> None:
         """Test that no backup is created when backup=False."""
