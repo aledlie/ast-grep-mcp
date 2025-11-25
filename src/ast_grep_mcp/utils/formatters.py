@@ -1,12 +1,15 @@
 """Code formatting utilities for display and output.
 
 This module provides formatting functions for matches, diffs, complexity
-visualization, and before/after code examples.
+visualization, and before/after code examples, plus language-specific code formatters.
 """
 
 import os
 import re
 import difflib
+import shutil
+import subprocess
+import tempfile
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional, Tuple
 
@@ -483,3 +486,427 @@ def generate_multi_file_diff(
         combined_diff=combined_diff,
         summary=summary
     )
+
+
+# ============================================================================
+# Code Formatting Functions
+# ============================================================================
+
+def format_python_code(code: str, line_length: int = 88) -> str:
+    """Format Python code using Black-style formatting.
+
+    Attempts to use the 'black' library if available, otherwise falls back
+    to basic Python formatting.
+
+    Args:
+        code: Python code to format
+        line_length: Maximum line length (default: 88, Black's default)
+
+    Returns:
+        Formatted Python code
+    """
+    try:
+        import black
+
+        # Use Black's formatting
+        mode = black.Mode(
+            target_versions=set(),
+            line_length=line_length,
+            string_normalization=True,
+            is_pyi=False,
+        )
+
+        try:
+            formatted = black.format_str(code, mode=mode)
+            return formatted
+        except Exception:
+            # Black formatting failed, fall back to basic formatting
+            return _basic_python_format(code, line_length)
+
+    except ImportError:
+        # Black not available, use basic formatting
+        return _basic_python_format(code, line_length)
+
+
+def _basic_python_format(code: str, line_length: int = 88) -> str:
+    """Basic Python formatting when Black is not available.
+
+    Provides simple formatting improvements:
+    - Sorts and separates imports
+    - Adds spaces around operators
+    - Normalizes whitespace
+    - Ensures trailing newline
+
+    Args:
+        code: Python code to format
+        line_length: Maximum line length hint (not strictly enforced)
+
+    Returns:
+        Formatted Python code
+    """
+    if not code.strip():
+        return "\n"
+
+    lines = code.split('\n')
+    formatted_lines = []
+    import_lines = []
+    from_import_lines = []
+    in_imports = True
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Handle imports
+        if stripped.startswith('import ') and in_imports:
+            # Split multi-imports like "import os, sys"
+            if ',' in stripped:
+                parts = stripped.replace('import ', '').split(',')
+                for part in parts:
+                    import_lines.append(f'import {part.strip()}')
+            else:
+                import_lines.append(stripped)
+            continue
+
+        elif stripped.startswith('from ') and in_imports:
+            from_import_lines.append(stripped)
+            continue
+
+        elif stripped and in_imports:
+            # End of import section
+            in_imports = False
+
+            # Add sorted imports
+            if import_lines or from_import_lines:
+                formatted_lines.extend(sorted(import_lines))
+                if import_lines and from_import_lines:
+                    formatted_lines.append('')  # Blank line between import types
+                formatted_lines.extend(sorted(from_import_lines))
+                formatted_lines.append('')  # Blank line after imports
+
+        # Format the line
+        if not in_imports:
+            formatted_lines.append(_format_python_line(line))
+
+    # Handle case where file is only imports
+    if in_imports and (import_lines or from_import_lines):
+        formatted_lines.extend(sorted(import_lines))
+        if import_lines and from_import_lines:
+            formatted_lines.append('')
+        formatted_lines.extend(sorted(from_import_lines))
+
+    result = '\n'.join(formatted_lines)
+
+    # Ensure trailing newline
+    if not result.endswith('\n'):
+        result += '\n'
+
+    return result
+
+
+def _format_python_line(line: str) -> str:
+    """Format a single Python line with basic improvements.
+
+    Args:
+        line: Single line of Python code
+
+    Returns:
+        Formatted line
+    """
+    if not line.strip():
+        return ''
+
+    # Preserve indentation
+    stripped = line.lstrip()
+    indent = line[:len(line) - len(stripped)]
+
+    # Add spaces around operators (simple approach)
+    # This is a very basic implementation - Black does this much better
+    formatted = stripped
+
+    # Handle common operators
+    operators = ['=', '+', '-', '*', '/', '<', '>', '==', '!=', '<=', '>=']
+    for op in operators:
+        # Skip if operator is in a string
+        if f'"{op}"' in formatted or f"'{op}'" in formatted:
+            continue
+
+        # Add spaces around operator if not already present
+        pattern = rf'(\S){re.escape(op)}(\S)'
+        formatted = re.sub(pattern, rf'\1 {op} \2', formatted)
+
+    # Normalize multiple spaces to single space (except at start of line)
+    formatted = re.sub(r'  +', ' ', formatted)
+
+    return indent + formatted
+
+
+def format_typescript_code(code: str, line_length: int = 80) -> str:
+    """Format TypeScript code using Prettier if available.
+
+    Args:
+        code: TypeScript code to format
+        line_length: Maximum line length (default: 80)
+
+    Returns:
+        Formatted TypeScript code
+    """
+    prettier_path = shutil.which('prettier')
+
+    if prettier_path:
+        try:
+            # Create temporary file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.ts', delete=False) as f:
+                f.write(code)
+                temp_path = f.name
+
+            try:
+                # Run prettier
+                result = subprocess.run(
+                    [
+                        prettier_path,
+                        '--parser', 'typescript',
+                        '--print-width', str(line_length),
+                        '--single-quote',
+                        '--trailing-comma', 'es5',
+                        '--arrow-parens', 'always',
+                        temp_path
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+
+                if result.returncode == 0:
+                    return result.stdout
+                else:
+                    # Prettier failed, use fallback
+                    return _basic_typescript_format(code)
+
+            finally:
+                # Clean up temp file
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+
+        except (subprocess.TimeoutExpired, Exception):
+            # Prettier execution failed
+            return _basic_typescript_format(code)
+
+    else:
+        # Prettier not available
+        return _basic_typescript_format(code)
+
+
+def format_javascript_code(code: str, line_length: int = 80) -> str:
+    """Format JavaScript code using Prettier if available.
+
+    Args:
+        code: JavaScript code to format
+        line_length: Maximum line length (default: 80)
+
+    Returns:
+        Formatted JavaScript code
+    """
+    prettier_path = shutil.which('prettier')
+
+    if prettier_path:
+        try:
+            # Create temporary file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
+                f.write(code)
+                temp_path = f.name
+
+            try:
+                # Run prettier with babel parser for JavaScript
+                result = subprocess.run(
+                    [
+                        prettier_path,
+                        '--parser', 'babel',
+                        '--print-width', str(line_length),
+                        '--single-quote',
+                        '--trailing-comma', 'es5',
+                        '--arrow-parens', 'always',
+                        temp_path
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+
+                if result.returncode == 0:
+                    return result.stdout
+                else:
+                    return _basic_javascript_format(code)
+
+            finally:
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+
+        except (subprocess.TimeoutExpired, Exception):
+            return _basic_javascript_format(code)
+
+    else:
+        return _basic_javascript_format(code)
+
+
+def _basic_typescript_format(code: str) -> str:
+    """Basic TypeScript formatting fallback.
+
+    Args:
+        code: TypeScript code to format
+
+    Returns:
+        Formatted code with basic improvements
+    """
+    if not code.strip():
+        return code
+
+    lines = code.split('\n')
+    formatted_lines = []
+
+    for line in lines:
+        # Preserve indentation
+        stripped = line.lstrip()
+        indent = line[:len(line) - len(stripped)]
+
+        # Basic formatting
+        formatted = stripped
+
+        # Add semicolons if missing (simple heuristic)
+        if formatted and not formatted.endswith((';', '{', '}', ',')):
+            if any(keyword in formatted for keyword in ['const ', 'let ', 'var ', 'return ']):
+                formatted += ';'
+
+        formatted_lines.append(indent + formatted if formatted else '')
+
+    result = '\n'.join(formatted_lines)
+
+    if not result.endswith('\n'):
+        result += '\n'
+
+    return result
+
+
+def _basic_javascript_format(code: str) -> str:
+    """Basic JavaScript formatting fallback.
+
+    Args:
+        code: JavaScript code to format
+
+    Returns:
+        Formatted code with basic improvements
+    """
+    # JavaScript and TypeScript basic formatting is the same
+    return _basic_typescript_format(code)
+
+
+def format_java_code(code: str) -> str:
+    """Format Java code using google-java-format if available.
+
+    Args:
+        code: Java code to format
+
+    Returns:
+        Formatted Java code
+    """
+    # Check for google-java-format
+    formatter_path = shutil.which('google-java-format')
+
+    if formatter_path:
+        try:
+            # Create temporary file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.java', delete=False) as f:
+                f.write(code)
+                temp_path = f.name
+
+            try:
+                # Run google-java-format
+                result = subprocess.run(
+                    [formatter_path, '--replace', temp_path],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+
+                # Read formatted code
+                with open(temp_path, 'r') as f:
+                    formatted = f.read()
+
+                return formatted
+
+            finally:
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+
+        except (subprocess.TimeoutExpired, Exception):
+            return _basic_java_format(code)
+
+    else:
+        return _basic_java_format(code)
+
+
+def _basic_java_format(code: str) -> str:
+    """Basic Java formatting fallback.
+
+    Args:
+        code: Java code to format
+
+    Returns:
+        Formatted code with basic improvements
+    """
+    if not code.strip():
+        return code
+
+    lines = code.split('\n')
+    formatted_lines = []
+
+    for line in lines:
+        # Preserve indentation
+        stripped = line.lstrip()
+        indent = line[:len(line) - len(stripped)]
+
+        # Basic formatting
+        formatted = stripped
+
+        # Ensure proper spacing around braces
+        formatted = formatted.replace('){', ') {')
+        formatted = formatted.replace('}{', '} {')
+
+        formatted_lines.append(indent + formatted if formatted else '')
+
+    result = '\n'.join(formatted_lines)
+
+    if not result.endswith('\n'):
+        result += '\n'
+
+    return result
+
+
+def format_generated_code(code: str, language: str, line_length: int = 88) -> str:
+    """Format generated code based on language.
+
+    Dispatcher function that routes to language-specific formatters.
+
+    Args:
+        code: Code to format
+        language: Programming language (python, typescript, javascript, java)
+        line_length: Maximum line length
+
+    Returns:
+        Formatted code
+
+    Raises:
+        ValueError: If language is not supported
+    """
+    language = language.lower()
+
+    if language == 'python':
+        return format_python_code(code, line_length)
+    elif language == 'typescript':
+        return format_typescript_code(code, line_length)
+    elif language == 'javascript':
+        return format_javascript_code(code, line_length)
+    elif language == 'java':
+        return format_java_code(code)
+    else:
+        # Unknown language, return as-is
+        return code
