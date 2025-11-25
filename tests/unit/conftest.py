@@ -112,6 +112,22 @@ def rollback_rewrite_tool(mcp_main):
     return tool
 
 
+@pytest.fixture(scope="module")
+def analyze_complexity_tool(mcp_main):
+    """Get analyze_complexity tool function."""
+    tool = mcp_main.mcp.tools.get("analyze_complexity")
+    assert tool is not None, "analyze_complexity tool not registered"
+    return tool
+
+
+@pytest.fixture(scope="module")
+def test_sentry_integration_tool(mcp_main):
+    """Get test_sentry_integration tool function."""
+    tool = mcp_main.mcp.tools.get("test_sentry_integration")
+    assert tool is not None, "test_sentry_integration tool not registered"
+    return tool
+
+
 # File Setup Fixtures
 
 @pytest.fixture
