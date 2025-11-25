@@ -6,8 +6,7 @@ including function extraction, parameter inference, and import generation.
 """
 
 import re
-import subprocess
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from ...core.logging import get_logger
 from ...models.deduplication import FunctionTemplate
@@ -331,15 +330,15 @@ class CodeGenerator:
 
         # Add module docstring
         if self.language == "python":
-            module_code.append(f'"""')
+            module_code.append('"""')
             module_code.append(f'{module_name} - Extracted common functionality')
-            module_code.append(f'"""')
+            module_code.append('"""')
             module_code.append('')
 
         elif self.language in ["javascript", "typescript"]:
-            module_code.append(f'/**')
+            module_code.append('/**')
             module_code.append(f' * {module_name} - Extracted common functionality')
-            module_code.append(f' */')
+            module_code.append(' */')
             module_code.append('')
 
         # Add imports

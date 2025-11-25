@@ -1,5 +1,6 @@
 """Configuration models for ast-grep MCP server."""
 from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, ConfigDict, field_validator
 
 

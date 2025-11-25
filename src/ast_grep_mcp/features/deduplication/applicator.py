@@ -1,11 +1,11 @@
 """Apply deduplication refactoring with validation and rollback."""
 
-import os
-import json
-import shutil
 import hashlib
+import json
+import os
+import shutil
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 from ...core.logging import get_logger
 from .generator import CodeGenerator

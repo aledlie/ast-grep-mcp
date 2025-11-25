@@ -3,6 +3,7 @@ import argparse
 import os
 import sys
 from typing import Any, Optional
+
 import yaml
 
 from ast_grep_mcp.core.exceptions import ConfigurationError

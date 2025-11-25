@@ -10,7 +10,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-from typing import List, Optional, Tuple, Any
+from typing import List, Optional, Tuple
 
 # =============================================================================
 # Python Templates

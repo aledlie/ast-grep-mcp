@@ -1,10 +1,10 @@
 """Impact analysis for deduplication refactoring."""
 
+import json
 import os
 import re
-import json
 import subprocess
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List
 
 from ...core import run_ast_grep
 from ...core.logging import get_logger
@@ -215,8 +215,6 @@ class ImpactAnalyzer:
 
         if not function_names:
             return call_sites
-
-        lang = language.lower()
 
         for func_name in function_names[:10]:  # Limit to prevent too many searches
             # Build call pattern based on language

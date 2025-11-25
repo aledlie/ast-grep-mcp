@@ -5,7 +5,6 @@ and other text processing operations.
 """
 
 import difflib
-from typing import Optional
 
 
 def normalize_code(code: str) -> str:

@@ -5,15 +5,12 @@ This module provides the core functionality for detecting duplicate code
 in a codebase using ast-grep pattern matching and similarity analysis.
 """
 
-import json
-import os
-import subprocess
 import time
-from typing import Any, Dict, List, Optional, Tuple
 from difflib import SequenceMatcher
+from typing import Any, Dict, List, Optional
 
-from ...core.logging import get_logger
 from ...core.executor import stream_ast_grep_results
+from ...core.logging import get_logger
 
 
 class DuplicationDetector:

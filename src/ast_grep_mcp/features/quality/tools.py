@@ -8,31 +8,19 @@ This module registers MCP tools for:
 """
 
 import time
-import yaml
 from typing import Any, Dict, List, Optional
+
+import sentry_sdk
+import yaml
+from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-from mcp.server.fastmcp import FastMCP
-
 from ast_grep_mcp.core.logging import get_logger
+from ast_grep_mcp.features.quality.enforcer import enforce_standards_impl, format_violation_report
+from ast_grep_mcp.features.quality.rules import RULE_TEMPLATES, create_rule_from_template, get_available_templates, save_rule_to_project
 from ast_grep_mcp.features.quality.smells import detect_code_smells_impl
-from ast_grep_mcp.features.quality.rules import (
-    RULE_TEMPLATES,
-    get_available_templates,
-    create_rule_from_template,
-    save_rule_to_project
-)
 from ast_grep_mcp.features.quality.validator import validate_rule_definition
-from ast_grep_mcp.features.quality.enforcer import (
-    enforce_standards_impl,
-    format_violation_report
-)
-from ast_grep_mcp.models.standards import (
-    LintingRule,
-    RuleValidationError,
-    RuleStorageError
-)
-import sentry_sdk
+from ast_grep_mcp.models.standards import LintingRule, RuleStorageError, RuleValidationError
 
 
 def register_quality_tools(mcp: FastMCP) -> None:

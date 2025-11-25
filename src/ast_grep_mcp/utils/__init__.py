@@ -8,45 +8,44 @@ This module provides various utility functions for:
 """
 
 # Template utilities
+# Formatting utilities
+from .formatters import (
+    DiffPreview,
+    FileDiff,
+    format_diff_with_colors,
+    format_matches_as_text,
+    generate_before_after_example,
+    generate_file_diff,
+    generate_multi_file_diff,
+    visualize_complexity,
+)
 from .templates import (
+    JAVA_METHOD_TEMPLATE,
+    JAVASCRIPT_ARROW_FUNCTION_TEMPLATE,
+    JAVASCRIPT_ASYNC_FUNCTION_TEMPLATE,
+    JAVASCRIPT_FUNCTION_TEMPLATE,
     # Templates
     PYTHON_CLASS_TEMPLATE,
-    JAVA_METHOD_TEMPLATE,
+    TYPESCRIPT_ARROW_FUNCTION_TEMPLATE,
+    TYPESCRIPT_ASYNC_FUNCTION_TEMPLATE,
     TYPESCRIPT_CLASS_TEMPLATE,
     TYPESCRIPT_FUNCTION_TEMPLATE,
-    TYPESCRIPT_ASYNC_FUNCTION_TEMPLATE,
-    TYPESCRIPT_ARROW_FUNCTION_TEMPLATE,
-    JAVASCRIPT_FUNCTION_TEMPLATE,
-    JAVASCRIPT_ASYNC_FUNCTION_TEMPLATE,
-    JAVASCRIPT_ARROW_FUNCTION_TEMPLATE,
-    # Python formatting
-    format_python_class,
     # Java formatting
     format_java_code,
     format_java_method,
+    # JavaScript formatting
+    format_javascript_function,
+    # Python formatting
+    format_python_class,
     # TypeScript formatting
     format_typescript_class,
     format_typescript_function,
-    # JavaScript formatting
-    format_javascript_function,
-)
-
-# Formatting utilities
-from .formatters import (
-    format_matches_as_text,
-    format_diff_with_colors,
-    generate_before_after_example,
-    visualize_complexity,
-    generate_file_diff,
-    generate_multi_file_diff,
-    FileDiff,
-    DiffPreview,
 )
 
 # Text utilities
 from .text import (
-    normalize_code,
     calculate_similarity,
+    normalize_code,
 )
 
 # Validation utilities

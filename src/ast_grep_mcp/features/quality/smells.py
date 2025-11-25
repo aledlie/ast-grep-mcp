@@ -10,19 +10,16 @@ This module provides functionality to detect common code smells and anti-pattern
 Each smell includes severity ratings and actionable suggestions.
 """
 
+import json
 import re
 import subprocess
-import json
-from pathlib import Path
-from typing import Any, Dict, List
 from concurrent.futures import ThreadPoolExecutor
 from fnmatch import fnmatch
+from pathlib import Path
+from typing import Any, Dict, List
 
 from ast_grep_mcp.core.logging import get_logger
-from ast_grep_mcp.features.complexity.analyzer import (
-    calculate_nesting_depth,
-    extract_functions_from_file
-)
+from ast_grep_mcp.features.complexity.analyzer import calculate_nesting_depth, extract_functions_from_file
 
 
 def detect_code_smells_impl(

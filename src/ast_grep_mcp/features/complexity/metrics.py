@@ -15,8 +15,6 @@ import re
 import subprocess
 from typing import Any, Dict
 
-from ast_grep_mcp.core.logging import get_logger
-
 # =============================================================================
 # COMPLEXITY PATTERNS
 # =============================================================================

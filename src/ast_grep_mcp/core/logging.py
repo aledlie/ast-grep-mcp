@@ -1,6 +1,7 @@
 """Logging configuration for ast-grep MCP server."""
 import sys
 from typing import Any, List, Optional
+
 import structlog
 
 

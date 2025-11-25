@@ -1,10 +1,10 @@
 """Performance benchmarking for deduplication functions."""
 
-import os
 import json
-import time
+import os
 import statistics
-from typing import Dict, List, Any, Callable, Optional
+import time
+from typing import Any, Callable, Dict, List
 
 from ...core.logging import get_logger
 from .ranker import calculate_deduplication_score, rank_deduplication_candidates

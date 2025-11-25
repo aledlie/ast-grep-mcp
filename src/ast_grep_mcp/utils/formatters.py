@@ -4,14 +4,14 @@ This module provides formatting functions for matches, diffs, complexity
 visualization, and before/after code examples, plus language-specific code formatters.
 """
 
+import difflib
 import os
 import re
-import difflib
 import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -820,7 +820,7 @@ def format_java_code(code: str) -> str:
 
             try:
                 # Run google-java-format
-                result = subprocess.run(
+                _ = subprocess.run(
                     [formatter_path, '--replace', temp_path],
                     capture_output=True,
                     text=True,

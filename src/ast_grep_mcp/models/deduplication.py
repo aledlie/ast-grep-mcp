@@ -1,5 +1,5 @@
 """Data models for code deduplication functionality."""
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 

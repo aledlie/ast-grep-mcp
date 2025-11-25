@@ -2,12 +2,12 @@
 
 from mcp.server.fastmcp import FastMCP
 
-from ast_grep_mcp.features.search.tools import register_search_tools
-from ast_grep_mcp.features.rewrite.tools import register_rewrite_tools
-from ast_grep_mcp.features.deduplication.tools import register_deduplication_tools
 from ast_grep_mcp.features.complexity.tools import register_complexity_tools
+from ast_grep_mcp.features.deduplication.tools import register_deduplication_tools
 from ast_grep_mcp.features.quality.tools import register_quality_tools
+from ast_grep_mcp.features.rewrite.tools import register_rewrite_tools
 from ast_grep_mcp.features.schema.tools import register_schema_tools
+from ast_grep_mcp.features.search.tools import register_search_tools
 
 
 def register_all_tools(mcp: FastMCP) -> None:

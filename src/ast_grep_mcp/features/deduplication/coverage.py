@@ -1,9 +1,9 @@
 """Test coverage detection for deduplication analysis."""
 
-import os
 import glob as glob_module
+import os
 import re as regex_module
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from ...core.logging import get_logger
 

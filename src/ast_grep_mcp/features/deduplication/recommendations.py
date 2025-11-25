@@ -1,6 +1,6 @@
 """Recommendation engine for deduplication refactoring."""
 
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 
 class RecommendationEngine:

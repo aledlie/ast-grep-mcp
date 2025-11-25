@@ -10,10 +10,11 @@ import re
 import subprocess
 from typing import Any, Dict, List
 
-from ast_grep_mcp.core.executor import run_ast_grep, get_supported_languages
+import sentry_sdk
+
+from ast_grep_mcp.core.executor import get_supported_languages, run_ast_grep
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.standards import LintingRule, RuleValidationResult
-import sentry_sdk
 
 
 def validate_rule_pattern(pattern: str, language: str) -> RuleValidationResult:
@@ -43,7 +44,7 @@ def validate_rule_pattern(pattern: str, language: str) -> RuleValidationResult:
 
         # Try to run ast-grep with the pattern
         with sentry_sdk.start_span(op="validate_pattern", description="Test ast-grep pattern"):
-            result = run_ast_grep(
+            _ = run_ast_grep(
                 "run",
                 ["--pattern", pattern, "--lang", language],
                 input=test_code,

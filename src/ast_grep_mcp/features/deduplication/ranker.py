@@ -194,11 +194,11 @@ class DuplicationRanker:
         if score >= 80:
             return f"Immediate refactoring recommended. Will save {lines_saved} lines across {instance_count} instances."
         elif score >= 60:
-            return f"High-value refactoring opportunity. Consider prioritizing in next sprint."
+            return "High-value refactoring opportunity. Consider prioritizing in next sprint."
         elif score >= 40:
-            return f"Moderate refactoring value. Include in technical debt backlog."
+            return "Moderate refactoring value. Include in technical debt backlog."
         else:
-            return f"Low priority. Consider deferring unless part of larger refactoring."
+            return "Low priority. Consider deferring unless part of larger refactoring."
 
 
 # Standalone functions for backward compatibility and convenience

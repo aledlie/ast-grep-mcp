@@ -5,19 +5,15 @@ These functions wrap the underlying deduplication modules to provide
 a clean API for the MCP server.
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 from ...core.logging import get_logger
-from .detector import DuplicationDetector
-from .analyzer import PatternAnalyzer
-from .generator import CodeGenerator
-from .ranker import DuplicationRanker
-from .coverage import TestCoverageDetector
-from .impact import ImpactAnalyzer
-from .recommendations import RecommendationEngine
 from .applicator import DeduplicationApplicator
-from .reporting import DuplicationReporter
 from .benchmark import DeduplicationBenchmark
+from .coverage import TestCoverageDetector
+from .detector import DuplicationDetector
+from .ranker import DuplicationRanker
+from .recommendations import RecommendationEngine
 
 
 def find_duplication_tool(

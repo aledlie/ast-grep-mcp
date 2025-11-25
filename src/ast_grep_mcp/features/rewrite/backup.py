@@ -5,8 +5,7 @@ import json
 import os
 import shutil
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from ast_grep_mcp.core.logging import get_logger
 

@@ -7,15 +7,14 @@ This module provides:
 - Rule CRUD operations
 """
 
-import yaml
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ast_grep_mcp.core.logging import get_logger
-from ast_grep_mcp.core.sentry import capture_exception
-from ast_grep_mcp.models.standards import LintingRule, RuleTemplate, RuleStorageError
 import sentry_sdk
+import yaml
 
+from ast_grep_mcp.core.logging import get_logger
+from ast_grep_mcp.models.standards import LintingRule, RuleStorageError, RuleTemplate
 
 # =============================================================================
 # Pre-built rule templates library (24 templates)

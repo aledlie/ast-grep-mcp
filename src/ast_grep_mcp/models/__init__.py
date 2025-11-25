@@ -1,6 +1,12 @@
 """Data models for ast-grep MCP server."""
 
 # Config models
+# Complexity models
+from ast_grep_mcp.models.complexity import (
+    ComplexityMetrics,
+    ComplexityThresholds,
+    FunctionComplexity,
+)
 from ast_grep_mcp.models.config import (
     AstGrepConfig,
     CustomLanguageConfig,
@@ -20,13 +26,6 @@ from ast_grep_mcp.models.deduplication import (
     ParameterType,
     VariationCategory,
     VariationSeverity,
-)
-
-# Complexity models
-from ast_grep_mcp.models.complexity import (
-    ComplexityMetrics,
-    ComplexityThresholds,
-    FunctionComplexity,
 )
 
 # Standards models

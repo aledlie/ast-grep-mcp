@@ -2,18 +2,16 @@
 
 import json
 import time
-from typing import Any, Dict, List, Literal, Optional, Union, cast
+from typing import Any, Dict, List, Literal, Union, cast
 
 import sentry_sdk
 import yaml
-from pydantic import Field
 
 from ast_grep_mcp.core.cache import get_query_cache
 from ast_grep_mcp.core.config import CACHE_ENABLED
-from ast_grep_mcp.core.exceptions import AstGrepError, InvalidYAMLError, NoMatchesError
+from ast_grep_mcp.core.exceptions import InvalidYAMLError, NoMatchesError
 from ast_grep_mcp.core.executor import (
     filter_files_by_size,
-    get_supported_languages,
     run_ast_grep,
     stream_ast_grep_results,
 )
@@ -383,7 +381,7 @@ def find_code_by_rule_impl(
     json_arg = ["--json"] if output_format == "json" else []
 
     # Check cache first (only for non-streaming cases)
-    cache = get_cache()
+    cache = get_query_cache()
     cache_key_parts = ["scan", yaml_rule, output_format, project_folder]
     if CACHE_ENABLED and cache and max_results == 0:
         cached_result = cache.get("scan", cache_key_parts, project_folder)
@@ -395,7 +393,7 @@ def find_code_by_rule_impl(
         if max_results > 0:
             # Use streaming for limited results
             matches = []
-            for match in run_ast_grep_streaming(
+            for match in stream_ast_grep_results(
                 "scan",
                 ["--inline-rules", yaml_rule, *json_arg, project_folder],
                 max_results=max_results
