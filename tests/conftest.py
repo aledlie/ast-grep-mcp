@@ -983,3 +983,90 @@ Test with complexity:
         thresholds = sample_complexity_thresholds
         analyze(code, thresholds)
 """
+
+
+# ============================================================================
+# Code Rewrite Fixtures
+# ============================================================================
+
+@pytest.fixture
+def rewrite_sample_file(temp_dir):
+    """Create a sample Python file for rewrite testing.
+
+    Creates sample.py with basic rewriteable content.
+
+    Args:
+        temp_dir: Temporary directory fixture
+
+    Returns:
+        str: Path to the created sample file
+
+    Usage:
+        def test_rewrite(rewrite_sample_file):
+            result = rewrite_code(rewrite_sample_file, ...)
+    """
+    import os
+
+    sample_file = os.path.join(temp_dir, "sample.py")
+    with open(sample_file, "w") as f:
+        f.write("def hello():\n    print('hello')\n")
+
+    return sample_file
+
+
+@pytest.fixture
+def rewrite_tools(mcp_tools):
+    """Provide easy access to rewrite MCP tools.
+
+    Returns a dict with rewrite_code, rollback_rewrite, and list_backups tools.
+
+    Args:
+        mcp_tools: MCP tools accessor fixture
+
+    Returns:
+        dict: Dictionary with 'rewrite_code', 'rollback_rewrite', 'list_backups' keys
+
+    Usage:
+        def test_rewrite(rewrite_tools):
+            result = rewrite_tools['rewrite_code'](...)
+            backups = rewrite_tools['list_backups'](...)
+    """
+    return {
+        'rewrite_code': mcp_tools('rewrite_code'),
+        'rollback_rewrite': mcp_tools('rollback_rewrite'),
+        'list_backups': mcp_tools('list_backups')
+    }
+
+
+@pytest.fixture
+def rewrite_test_files(temp_dir):
+    """Create multiple test files for backup/restore testing.
+
+    Creates file1.py and file2.py with distinct content.
+
+    Args:
+        temp_dir: Temporary directory fixture
+
+    Returns:
+        dict: Dictionary with 'file1' and 'file2' paths, plus 'project_folder'
+
+    Usage:
+        def test_backup(rewrite_test_files):
+            files = rewrite_test_files
+            backup_id = create_backup([files['file1'], files['file2']], ...)
+    """
+    import os
+
+    file1 = os.path.join(temp_dir, "file1.py")
+    file2 = os.path.join(temp_dir, "file2.py")
+
+    with open(file1, "w") as f:
+        f.write("print('file1')\n")
+    with open(file2, "w") as f:
+        f.write("print('file2')\n")
+
+    return {
+        'file1': file1,
+        'file2': file2,
+        'project_folder': temp_dir
+    }
