@@ -58,19 +58,15 @@ from main import (
     get_supported_languages,
     validate_config_file,
 )
-            format_matches_as_text,
-            run_ast_grep,
-            run_command,
-        )
 
-        # Call register_mcp_tools to define the tool functions
-        main.register_mcp_tools()
+# Call register_mcp_tools to define the tool functions
+main.register_mcp_tools()
 
-        # Extract the tool functions from the mocked mcp instance
-        dump_syntax_tree = main.mcp.tools.get("dump_syntax_tree")  # type: ignore
-        find_code = main.mcp.tools.get("find_code")  # type: ignore
-        find_code_by_rule = main.mcp.tools.get("find_code_by_rule")  # type: ignore
-        match_code_rule = main.mcp.tools.get("test_match_code_rule")  # type: ignore
+# Extract the tool functions from the mocked mcp instance
+dump_syntax_tree = main.mcp.tools.get("dump_syntax_tree")  # type: ignore
+find_code = main.mcp.tools.get("find_code")  # type: ignore
+find_code_by_rule = main.mcp.tools.get("find_code_by_rule")  # type: ignore
+match_code_rule = main.mcp.tools.get("test_match_code_rule")  # type: ignore
 
 
 class TestDumpSyntaxTree:
