@@ -12,9 +12,7 @@ Tests cover:
 
 import json
 import os
-import shutil
 import sys
-import tempfile
 from typing import Any, Dict
 from unittest.mock import patch
 
@@ -54,57 +52,16 @@ with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
 class TestApplyDeduplication:
     """Tests for apply_deduplication MCP tool."""
 
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.project_folder = self.temp_dir
-
-        # Create sample Python file
-        self.test_file = os.path.join(self.temp_dir, "sample.py")
-        with open(self.test_file, "w") as f:
-            f.write("def hello():\n    print('hello')\n")
-
-        # Create another sample file
-        self.test_file2 = os.path.join(self.temp_dir, "sample2.py")
-        with open(self.test_file2, "w") as f:
-            f.write("def world():\n    print('world')\n")
-
-        # Get tool function
-        self.apply_deduplication = main.mcp.tools.get("apply_deduplication")  # type: ignore
-        assert self.apply_deduplication is not None, "apply_deduplication tool not registered"
-
-    def teardown_method(self) -> None:
-        """Clean up test fixtures."""
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
-    def _create_refactoring_plan(self, files: list[str], new_content: str = "") -> Dict[str, Any]:
-        """Helper to create a valid refactoring plan."""
-        replacements = {}
-        for f in files:
-            replacements[f] = {
-                "new_content": new_content or f"# Modified: {f}\n",
-                "changes": [{"line": 1, "old": "original", "new": "modified"}]
-            }
-        return {
-            "strategy": "extract_function",
-            "files_affected": files,
-            "generated_code": {
-                "extracted_function": "def common_func():\n    pass\n",
-                "replacements": replacements
-            },
-            "language": "python"
-        }
-
-    def test_tool_registered(self) -> None:
+    def test_tool_registered(self, apply_deduplication_tool) -> None:
         """Test that apply_deduplication tool is registered."""
-        assert "apply_deduplication" in main.mcp.tools  # type: ignore
-        assert callable(main.mcp.tools["apply_deduplication"])  # type: ignore
+        assert apply_deduplication_tool is not None
+        assert callable(apply_deduplication_tool)
 
-    def test_dry_run_returns_correct_structure(self) -> None:
+    def test_dry_run_returns_correct_structure(self, project_folder, simple_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that dry_run mode returns expected response structure."""
-        plan = self._create_refactoring_plan([self.test_file])
-        result = self.apply_deduplication(
-            project_folder=self.project_folder,
+        plan = refactoring_plan_factory(files=[simple_test_files["file1"]])
+        result = apply_deduplication_tool(
+            project_folder=str(project_folder),
             group_id=1,
             refactoring_plan=plan,
             dry_run=True
@@ -117,11 +74,11 @@ class TestApplyDeduplication:
         assert "changes_preview" in result
         assert result["group_id"] == 1
 
-    def test_apply_mode_returns_correct_structure(self) -> None:
+    def test_apply_mode_returns_correct_structure(self, project_folder, simple_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that apply mode returns expected response structure."""
-        plan = self._create_refactoring_plan([self.test_file])
-        result = self.apply_deduplication(
-            project_folder=self.project_folder,
+        plan = refactoring_plan_factory(files=[simple_test_files["file1"]])
+        result = apply_deduplication_tool(
+            project_folder=str(project_folder),
             group_id=1,
             refactoring_plan=plan,
             dry_run=False,
@@ -136,36 +93,36 @@ class TestApplyDeduplication:
         assert "files_modified" in result
         assert "validation" in result
 
-    def test_validates_project_folder_exists(self) -> None:
+    def test_validates_project_folder_exists(self, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that non-existent project folders are rejected."""
-        plan = self._create_refactoring_plan(["/some/file.py"])
+        plan = refactoring_plan_factory(files=["/some/file.py"])
         with pytest.raises(ValueError, match="does not exist"):
-            self.apply_deduplication(
+            apply_deduplication_tool(
                 project_folder="/non/existent/path",
                 group_id=1,
                 refactoring_plan=plan,
                 dry_run=True
             )
 
-    def test_validates_refactoring_plan_required(self) -> None:
+    def test_validates_refactoring_plan_required(self, project_folder, apply_deduplication_tool) -> None:
         """Test that empty refactoring plan is rejected."""
         with pytest.raises(ValueError, match="refactoring_plan is required"):
-            self.apply_deduplication(
-                project_folder=self.project_folder,
+            apply_deduplication_tool(
+                project_folder=str(project_folder),
                 group_id=1,
                 refactoring_plan={},
                 dry_run=True
             )
 
-    def test_no_files_affected_returns_no_changes(self) -> None:
+    def test_no_files_affected_returns_no_changes(self, project_folder, apply_deduplication_tool) -> None:
         """Test handling when no files are affected."""
         plan = {
             "strategy": "extract_function",
             "files_affected": [],
             "generated_code": {}
         }
-        result = self.apply_deduplication(
-            project_folder=self.project_folder,
+        result = apply_deduplication_tool(
+            project_folder=str(project_folder),
             group_id=1,
             refactoring_plan=plan,
             dry_run=True
@@ -176,55 +133,16 @@ class TestApplyDeduplication:
 class TestBackupIntegration:
     """Tests for Phase 3.2 backup integration in apply_deduplication."""
 
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.project_folder = self.temp_dir
-
-        # Create sample Python files
-        self.test_file1 = os.path.join(self.temp_dir, "file1.py")
-        self.original_content1 = "def func1():\n    print('original1')\n"
-        with open(self.test_file1, "w") as f:
-            f.write(self.original_content1)
-
-        self.test_file2 = os.path.join(self.temp_dir, "file2.py")
-        self.original_content2 = "def func2():\n    print('original2')\n"
-        with open(self.test_file2, "w") as f:
-            f.write(self.original_content2)
-
-        # Get tool functions
-        self.apply_deduplication = main.mcp.tools.get("apply_deduplication")  # type: ignore
-        assert self.apply_deduplication is not None
-
-    def teardown_method(self) -> None:
-        """Clean up test fixtures."""
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
-    def _create_plan_with_content(self, files: list[str], new_contents: list[str]) -> Dict[str, Any]:
-        """Create a refactoring plan with specific new content."""
-        replacements = {}
-        for f, content in zip(files, new_contents):
-            replacements[f] = {
-                "new_content": content,
-                "changes": [{"line": 1, "old": "original", "new": "modified"}]
-            }
-        return {
-            "strategy": "extract_function",
-            "files_affected": files,
-            "generated_code": {
-                "extracted_function": "",
-                "replacements": replacements
-            },
-            "language": "python"
-        }
-
-    def test_backup_created_on_apply(self) -> None:
+    def test_backup_created_on_apply(self, project_folder, backup_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that backup is created when applying changes."""
         new_content = "def func1():\n    print('modified')\n"
-        plan = self._create_plan_with_content([self.test_file1], [new_content])
+        plan = refactoring_plan_factory(
+            files=[backup_test_files["file1"]],
+            new_contents=[new_content]
+        )
 
-        result = self.apply_deduplication(
-            project_folder=self.project_folder,
+        result = apply_deduplication_tool(
+            project_folder=str(project_folder),
             group_id=1,
             refactoring_plan=plan,
             dry_run=False,
@@ -236,20 +154,23 @@ class TestBackupIntegration:
         assert result["backup_id"].startswith("dedup-backup-")
 
         # Verify backup directory exists
-        backup_dir = os.path.join(self.project_folder, ".ast-grep-backups", result["backup_id"])
+        backup_dir = os.path.join(str(project_folder), ".ast-grep-backups", result["backup_id"])
         assert os.path.isdir(backup_dir)
 
         # Verify metadata exists
         metadata_path = os.path.join(backup_dir, "backup-metadata.json")
         assert os.path.isfile(metadata_path)
 
-    def test_backup_metadata_contains_deduplication_info(self) -> None:
+    def test_backup_metadata_contains_deduplication_info(self, project_folder, backup_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that backup metadata includes deduplication-specific info."""
         new_content = "def func1():\n    print('modified')\n"
-        plan = self._create_plan_with_content([self.test_file1], [new_content])
+        plan = refactoring_plan_factory(
+            files=[backup_test_files["file1"]],
+            new_contents=[new_content]
+        )
 
-        result = self.apply_deduplication(
-            project_folder=self.project_folder,
+        result = apply_deduplication_tool(
+            project_folder=str(project_folder),
             group_id=42,
             refactoring_plan=plan,
             dry_run=False,
@@ -258,7 +179,7 @@ class TestBackupIntegration:
 
         # Read and verify metadata
         metadata_path = os.path.join(
-            self.project_folder, ".ast-grep-backups",
+            str(project_folder), ".ast-grep-backups",
             result["backup_id"], "backup-metadata.json"
         )
         with open(metadata_path, "r") as f:
@@ -270,13 +191,16 @@ class TestBackupIntegration:
         assert metadata["deduplication_metadata"]["strategy"] == "extract_function"
         assert "original_hashes" in metadata["deduplication_metadata"]
 
-    def test_backup_preserves_original_files(self) -> None:
+    def test_backup_preserves_original_files(self, project_folder, backup_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that backup contains the original file content."""
         new_content = "def func1():\n    print('modified')\n"
-        plan = self._create_plan_with_content([self.test_file1], [new_content])
+        plan = refactoring_plan_factory(
+            files=[backup_test_files["file1"]],
+            new_contents=[new_content]
+        )
 
-        result = self.apply_deduplication(
-            project_folder=self.project_folder,
+        result = apply_deduplication_tool(
+            project_folder=str(project_folder),
             group_id=1,
             refactoring_plan=plan,
             dry_run=False,
@@ -284,7 +208,7 @@ class TestBackupIntegration:
         )
 
         # Find backup file
-        backup_dir = os.path.join(self.project_folder, ".ast-grep-backups", result["backup_id"])
+        backup_dir = os.path.join(str(project_folder), ".ast-grep-backups", result["backup_id"])
         backup_file = os.path.join(backup_dir, "file1.py")
 
         assert os.path.isfile(backup_file)
@@ -292,16 +216,19 @@ class TestBackupIntegration:
         # Verify backup contains original content
         with open(backup_file, "r") as f:
             backup_content = f.read()
-        assert backup_content == self.original_content1
+        assert backup_content == backup_test_files["original_content1"]
 
-    def test_rollback_restores_original_content(self) -> None:
+    def test_rollback_restores_original_content(self, project_folder, backup_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that rollback restores original file content."""
         new_content = "def func1():\n    print('modified')\n"
-        plan = self._create_plan_with_content([self.test_file1], [new_content])
+        plan = refactoring_plan_factory(
+            files=[backup_test_files["file1"]],
+            new_contents=[new_content]
+        )
 
         # Apply changes
-        result = self.apply_deduplication(
-            project_folder=self.project_folder,
+        result = apply_deduplication_tool(
+            project_folder=str(project_folder),
             group_id=1,
             refactoring_plan=plan,
             dry_run=False,
@@ -311,30 +238,30 @@ class TestBackupIntegration:
         backup_id = result["backup_id"]
 
         # Verify file was modified
-        with open(self.test_file1, "r") as f:
+        with open(backup_test_files["file1"], "r") as f:
             assert f.read() == new_content
 
         # Rollback
-        restored = main.restore_from_backup(backup_id, self.project_folder)
+        restored = main.restore_from_backup(backup_id, str(project_folder))
 
         # Verify original content restored
-        with open(self.test_file1, "r") as f:
+        with open(backup_test_files["file1"], "r") as f:
             restored_content = f.read()
-        assert restored_content == self.original_content1
-        assert self.test_file1 in restored["restored_files"]
+        assert restored_content == backup_test_files["original_content1"]
+        assert backup_test_files["file1"] in restored["restored_files"]
 
-    def test_multi_file_backup_and_rollback(self) -> None:
+    def test_multi_file_backup_and_rollback(self, project_folder, backup_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test backup and rollback with multiple files."""
         new_content1 = "# Modified file 1\n"
         new_content2 = "# Modified file 2\n"
-        plan = self._create_plan_with_content(
-            [self.test_file1, self.test_file2],
-            [new_content1, new_content2]
+        plan = refactoring_plan_factory(
+            files=[backup_test_files["file1"], backup_test_files["file2"]],
+            new_contents=[new_content1, new_content2]
         )
 
         # Apply changes
-        result = self.apply_deduplication(
-            project_folder=self.project_folder,
+        result = apply_deduplication_tool(
+            project_folder=str(project_folder),
             group_id=1,
             refactoring_plan=plan,
             dry_run=False,
@@ -342,28 +269,31 @@ class TestBackupIntegration:
         )
 
         # Verify both files modified
-        with open(self.test_file1, "r") as f:
+        with open(backup_test_files["file1"], "r") as f:
             assert f.read() == new_content1
-        with open(self.test_file2, "r") as f:
+        with open(backup_test_files["file2"], "r") as f:
             assert f.read() == new_content2
 
         # Rollback
-        restored = main.restore_from_backup(result["backup_id"], self.project_folder)
+        restored = main.restore_from_backup(result["backup_id"], str(project_folder))
 
         # Verify both files restored
-        with open(self.test_file1, "r") as f:
-            assert f.read() == self.original_content1
-        with open(self.test_file2, "r") as f:
-            assert f.read() == self.original_content2
+        with open(backup_test_files["file1"], "r") as f:
+            assert f.read() == backup_test_files["original_content1"]
+        with open(backup_test_files["file2"], "r") as f:
+            assert f.read() == backup_test_files["original_content2"]
         assert len(restored["restored_files"]) == 2
 
-    def test_no_backup_when_backup_false(self) -> None:
+    def test_no_backup_when_backup_false(self, project_folder, backup_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that no backup is created when backup=False."""
         new_content = "def func1():\n    print('modified')\n"
-        plan = self._create_plan_with_content([self.test_file1], [new_content])
+        plan = refactoring_plan_factory(
+            files=[backup_test_files["file1"]],
+            new_contents=[new_content]
+        )
 
-        result = self.apply_deduplication(
-            project_folder=self.project_folder,
+        result = apply_deduplication_tool(
+            project_folder=str(project_folder),
             group_id=1,
             refactoring_plan=plan,
             dry_run=False,
@@ -374,18 +304,21 @@ class TestBackupIntegration:
         assert result["backup_id"] is None
 
         # Verify no backup directory created
-        backup_dir = os.path.join(self.project_folder, ".ast-grep-backups")
+        backup_dir = os.path.join(str(project_folder), ".ast-grep-backups")
         if os.path.exists(backup_dir):
             # Should be empty if exists
             assert len(os.listdir(backup_dir)) == 0
 
-    def test_backup_id_in_rollback_command(self) -> None:
+    def test_backup_id_in_rollback_command(self, project_folder, backup_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that response includes rollback command with backup_id."""
         new_content = "# Modified\n"
-        plan = self._create_plan_with_content([self.test_file1], [new_content])
+        plan = refactoring_plan_factory(
+            files=[backup_test_files["file1"]],
+            new_contents=[new_content]
+        )
 
-        result = self.apply_deduplication(
-            project_folder=self.project_folder,
+        result = apply_deduplication_tool(
+            project_folder=str(project_folder),
             group_id=1,
             refactoring_plan=plan,
             dry_run=False,
@@ -400,79 +333,24 @@ class TestBackupIntegration:
 class TestPhase33MultiFileOrchestration:
     """Tests for Phase 3.3 Multi-File Orchestration in apply_deduplication."""
 
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.project_folder = self.temp_dir
-
-        # Create subdirectory structure
-        self.src_dir = os.path.join(self.temp_dir, "src")
-        os.makedirs(self.src_dir)
-
-        # Create sample Python files with imports
-        self.test_file1 = os.path.join(self.src_dir, "file1.py")
-        self.original_content1 = "import os\n\ndef func1():\n    return os.getcwd()\n"
-        with open(self.test_file1, "w") as f:
-            f.write(self.original_content1)
-
-        self.test_file2 = os.path.join(self.src_dir, "file2.py")
-        self.original_content2 = "import os\n\ndef func2():\n    return os.getcwd()\n"
-        with open(self.test_file2, "w") as f:
-            f.write(self.original_content2)
-
-        # Get tool function
-        self.apply_deduplication = main.mcp.tools.get("apply_deduplication")  # type: ignore
-        assert self.apply_deduplication is not None
-
-    def teardown_method(self) -> None:
-        """Clean up test fixtures."""
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
-    def _create_plan_with_extraction(
-        self,
-        files: list[str],
-        new_contents: list[str],
-        extracted_function: str = "",
-        extract_to_file: str = "",
-        function_name: str = "extracted_func"
-    ) -> Dict[str, Any]:
-        """Create a refactoring plan with extracted function."""
-        replacements = {}
-        for f, content in zip(files, new_contents):
-            replacements[f] = {
-                "new_content": content,
-                "changes": [{"line": 1, "old": "original", "new": "modified"}]
-            }
-        return {
-            "strategy": "extract_function",
-            "files_affected": files,
-            "generated_code": {
-                "extracted_function": extracted_function,
-                "extract_to_file": extract_to_file,
-                "function_name": function_name,
-                "replacements": replacements
-            },
-            "language": "python"
-        }
-
-    def test_orchestration_creates_extracted_function_file(self) -> None:
+    def test_orchestration_creates_extracted_function_file(self, project_folder, orchestration_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that orchestration creates new file for extracted function."""
         extracted_func = "def get_cwd():\n    import os\n    return os.getcwd()\n"
-        target_file = os.path.join(self.src_dir, "utils.py")
+        target_file = os.path.join(orchestration_test_files["src_dir"], "utils.py")
 
         new_content1 = "from utils import get_cwd\n\ndef func1():\n    return get_cwd()\n"
         new_content2 = "from utils import get_cwd\n\ndef func2():\n    return get_cwd()\n"
 
-        plan = self._create_plan_with_extraction(
-            files=[self.test_file1, self.test_file2],
+        plan = refactoring_plan_factory(
+            files=[orchestration_test_files["file1"], orchestration_test_files["file2"]],
             new_contents=[new_content1, new_content2],
             extracted_function=extracted_func,
             extract_to_file=target_file,
             function_name="get_cwd"
         )
 
-        result = self.apply_deduplication(
-            project_folder=self.project_folder,
+        result = apply_deduplication_tool(
+            project_folder=str(project_folder),
             group_id=1,
             refactoring_plan=plan,
             dry_run=False,
@@ -487,20 +365,20 @@ class TestPhase33MultiFileOrchestration:
             content = f.read()
         assert "def get_cwd():" in content
 
-    def test_orchestration_creates_file_before_updates(self) -> None:
+    def test_orchestration_creates_file_before_updates(self, project_folder, orchestration_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that extracted function file is created before updating source files."""
         extracted_func = "def common_func():\n    pass\n"
-        target_file = os.path.join(self.src_dir, "_common.py")
+        target_file = os.path.join(orchestration_test_files["src_dir"], "_common.py")
 
-        plan = self._create_plan_with_extraction(
-            files=[self.test_file1],
+        plan = refactoring_plan_factory(
+            files=[orchestration_test_files["file1"]],
             new_contents=["# Modified\n"],
             extracted_function=extracted_func,
             extract_to_file=target_file
         )
 
-        result = self.apply_deduplication(
-            project_folder=self.project_folder,
+        result = apply_deduplication_tool(
+            project_folder=str(project_folder),
             group_id=1,
             refactoring_plan=plan,
             dry_run=False,
@@ -511,18 +389,18 @@ class TestPhase33MultiFileOrchestration:
 
         # Both files should be in modified list, with target first
         assert target_file in result["files_modified"]
-        assert self.test_file1 in result["files_modified"]
+        assert orchestration_test_files["file1"] in result["files_modified"]
 
-    def test_orchestration_atomic_rollback_on_failure(self) -> None:
+    def test_orchestration_atomic_rollback_on_failure(self, project_folder, orchestration_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that all changes are rolled back on failure."""
         extracted_func = "def common_func():\n    pass\n"
-        target_file = os.path.join(self.src_dir, "utils.py")
+        target_file = os.path.join(orchestration_test_files["src_dir"], "utils.py")
 
         # First file will succeed, second will have invalid path
-        non_existent = os.path.join(self.temp_dir, "nonexistent", "deep", "file.py")
+        non_existent = os.path.join(str(project_folder), "nonexistent", "deep", "file.py")
 
-        plan = self._create_plan_with_extraction(
-            files=[self.test_file1],
+        plan = refactoring_plan_factory(
+            files=[orchestration_test_files["file1"]],
             new_contents=["# Modified file 1\n"],
             extracted_function=extracted_func,
             extract_to_file=target_file
@@ -534,8 +412,8 @@ class TestPhase33MultiFileOrchestration:
         }
         plan["files_affected"].append(non_existent)
 
-        result = self.apply_deduplication(
-            project_folder=self.project_folder,
+        result = apply_deduplication_tool(
+            project_folder=str(project_folder),
             group_id=1,
             refactoring_plan=plan,
             dry_run=False,
@@ -546,28 +424,28 @@ class TestPhase33MultiFileOrchestration:
         assert result["status"] == "success"
 
         # Verify file1 was modified
-        with open(self.test_file1, "r") as f:
+        with open(orchestration_test_files["file1"], "r") as f:
             assert "Modified" in f.read()
 
-    def test_orchestration_appends_to_existing_file(self) -> None:
+    def test_orchestration_appends_to_existing_file(self, project_folder, orchestration_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that extracted function is appended to existing file."""
         # Create existing utils file
-        target_file = os.path.join(self.src_dir, "utils.py")
+        target_file = os.path.join(orchestration_test_files["src_dir"], "utils.py")
         existing_content = "# Existing utilities\n\ndef existing_func():\n    pass\n"
         with open(target_file, "w") as f:
             f.write(existing_content)
 
         extracted_func = "def new_func():\n    pass\n"
 
-        plan = self._create_plan_with_extraction(
-            files=[self.test_file1],
+        plan = refactoring_plan_factory(
+            files=[orchestration_test_files["file1"]],
             new_contents=["# Modified\n"],
             extracted_function=extracted_func,
             extract_to_file=target_file
         )
 
-        result = self.apply_deduplication(
-            project_folder=self.project_folder,
+        result = apply_deduplication_tool(
+            project_folder=str(project_folder),
             group_id=1,
             refactoring_plan=plan,
             dry_run=False,
@@ -582,24 +460,24 @@ class TestPhase33MultiFileOrchestration:
         assert "existing_func" in content
         assert "new_func" in content
 
-    def test_orchestration_handles_multiple_files_atomically(self) -> None:
+    def test_orchestration_handles_multiple_files_atomically(self, project_folder, orchestration_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test atomic modification of multiple files."""
         extracted_func = "def shared_func():\n    return 42\n"
-        target_file = os.path.join(self.src_dir, "_shared.py")
+        target_file = os.path.join(orchestration_test_files["src_dir"], "_shared.py")
 
         new_content1 = "def func1():\n    from _shared import shared_func\n    return shared_func()\n"
         new_content2 = "def func2():\n    from _shared import shared_func\n    return shared_func()\n"
 
-        plan = self._create_plan_with_extraction(
-            files=[self.test_file1, self.test_file2],
+        plan = refactoring_plan_factory(
+            files=[orchestration_test_files["file1"], orchestration_test_files["file2"]],
             new_contents=[new_content1, new_content2],
             extracted_function=extracted_func,
             extract_to_file=target_file,
             function_name="shared_func"
         )
 
-        result = self.apply_deduplication(
-            project_folder=self.project_folder,
+        result = apply_deduplication_tool(
+            project_folder=str(project_folder),
             group_id=1,
             refactoring_plan=plan,
             dry_run=False,
@@ -611,30 +489,22 @@ class TestPhase33MultiFileOrchestration:
 
         # Verify all files exist and have correct content
         assert os.path.isfile(target_file)
-        with open(self.test_file1, "r") as f:
+        with open(orchestration_test_files["file1"], "r") as f:
             assert "shared_func" in f.read()
-        with open(self.test_file2, "r") as f:
+        with open(orchestration_test_files["file2"], "r") as f:
             assert "shared_func" in f.read()
 
 
 class TestOrchestrationHelperFunctions:
     """Tests for Phase 3.3 orchestration helper functions."""
 
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-
-    def teardown_method(self) -> None:
-        """Clean up test fixtures."""
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
-    def test_plan_file_modification_order_basic(self) -> None:
+    def test_plan_file_modification_order_basic(self, project_folder) -> None:
         """Test _plan_file_modification_order returns correct structure."""
-        files = [os.path.join(self.temp_dir, "file1.py")]
+        files = [os.path.join(str(project_folder), "file1.py")]
         generated_code = {
             "extracted_function": "def func():\n    pass\n",
             "function_name": "func",
-            "extract_to_file": os.path.join(self.temp_dir, "utils.py"),
+            "extract_to_file": os.path.join(str(project_folder), "utils.py"),
             "replacements": {}
         }
 
@@ -642,7 +512,7 @@ class TestOrchestrationHelperFunctions:
             files_to_modify=files,
             generated_code=generated_code,
             extract_to_file=None,
-            project_folder=self.temp_dir,
+            project_folder=str(project_folder),
             language="python"
         )
 
@@ -691,16 +561,16 @@ class TestOrchestrationHelperFunctions:
         # Should appear only once
         assert result.count("from utils import helper") == 1
 
-    def test_generate_import_for_extracted_function(self) -> None:
+    def test_generate_import_for_extracted_function(self, project_folder) -> None:
         """Test _generate_import_for_extracted_function generates correct imports."""
-        source = os.path.join(self.temp_dir, "src", "file.py")
-        target = os.path.join(self.temp_dir, "src", "utils.py")
+        source = os.path.join(str(project_folder), "src", "file.py")
+        target = os.path.join(str(project_folder), "src", "utils.py")
 
         result = main._generate_import_for_extracted_function(
             source_file=source,
             target_file=target,
             function_name="helper",
-            project_folder=self.temp_dir,
+            project_folder=str(project_folder),
             language="python"
         )
 
