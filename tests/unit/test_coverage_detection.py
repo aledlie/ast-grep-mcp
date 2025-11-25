@@ -12,7 +12,15 @@ from unittest.mock import patch, MagicMock
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from ast_grep_mcp.features.deduplication.coverage import (
+    find_test_file_patterns,
+    get_test_coverage_for_files,
+    has_test_coverage,
+)
 from main import (
+    _check_test_file_references_source,
+    _get_potential_test_paths,
+)
     find_test_file_patterns,
     has_test_coverage,
     get_test_coverage_for_files,

@@ -12,7 +12,16 @@ from typing import Dict, Any
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
+from ast_grep_mcp.models.deduplication import (
+    DiffPreview,
+    FileDiff,
+)
 from main import (
+    diff_preview_to_dict,
+    generate_diff_from_file_paths,
+    generate_file_diff,
+    generate_multi_file_diff,
+)
     generate_file_diff,
     generate_multi_file_diff,
     diff_preview_to_dict,

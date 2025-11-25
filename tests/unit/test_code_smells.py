@@ -9,7 +9,11 @@ from pathlib import Path
 # Add the parent directory to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from main import (
+from ast_grep_mcp.features.quality.smells import (
+    _count_function_parameters,
+    _extract_classes_from_file,
+    _find_magic_numbers,
+)
     _count_function_parameters,
     _find_magic_numbers,
     _extract_classes_from_file,

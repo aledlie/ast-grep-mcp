@@ -50,7 +50,29 @@ def mock_field(**kwargs: Any) -> Any:
 with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
     with patch("pydantic.Field", mock_field):
         import main
-        from main import (
+from ast_grep_mcp.features.quality.rules import RULE_TEMPLATES
+from main import (
+    EnforcementResult,
+    LintingRule,
+    RULE_SETS,
+    RuleExecutionContext,
+    RuleSet,
+    RuleTemplate,
+    RuleViolation,
+    _execute_rule,
+    _execute_rules_batch,
+    _filter_violations_by_severity,
+    _format_violation_report,
+    _group_violations_by_file,
+    _group_violations_by_rule,
+    _group_violations_by_severity,
+    _load_custom_rules,
+    _load_rule_from_file,
+    _load_rule_set,
+    _parse_match_to_violation,
+    _should_exclude_file,
+    _template_to_linting_rule,
+)
             RuleViolation,
             RuleSet,
             EnforcementResult,

@@ -45,7 +45,17 @@ def mock_field(**kwargs: Any) -> Any:
 # Patch imports before loading main
 with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
     with patch("pydantic.Field", mock_field):
-        from main import (
+from ast_grep_mcp.models.deduplication import FunctionTemplate
+from main import (
+    _clean_template_whitespace,
+    _detect_java_import_point,
+    _detect_js_import_point,
+    _detect_python_import_point,
+    preserve_call_site_indentation,
+    substitute_template_variables,
+)
+
+from ast_grep_mcp.features.deduplication.generator import CodeGenerator
             FunctionTemplate,
             render_python_function,
             substitute_template_variables,
@@ -223,7 +233,7 @@ class TestRenderPythonFunction:
 
     def test_basic_render(self) -> None:
         """Test basic function rendering."""
-        result = render_python_function(
+        result = code_generator.render_python_function(
             name="add",
             params="a: int, b: int",
             body="return a + b"
@@ -234,7 +244,7 @@ class TestRenderPythonFunction:
 
     def test_render_with_return_type(self) -> None:
         """Test rendering with return type."""
-        result = render_python_function(
+        result = code_generator.render_python_function(
             name="get_value",
             params="",
             body="return 42",
@@ -245,7 +255,7 @@ class TestRenderPythonFunction:
 
     def test_render_with_docstring(self) -> None:
         """Test rendering with docstring."""
-        result = render_python_function(
+        result = code_generator.render_python_function(
             name="process",
             params="x",
             body="return x * 2",
@@ -256,7 +266,7 @@ class TestRenderPythonFunction:
 
     def test_render_with_decorators(self) -> None:
         """Test rendering with decorators."""
-        result = render_python_function(
+        result = code_generator.render_python_function(
             name="static_method",
             params="",
             body="pass",
@@ -267,7 +277,7 @@ class TestRenderPythonFunction:
 
     def test_render_preserves_existing_indentation(self) -> None:
         """Test that pre-indented body is handled correctly."""
-        result = render_python_function(
+        result = code_generator.render_python_function(
             name="test",
             params="",
             body="    already_indented"
@@ -471,76 +481,76 @@ class TestDetectImportInsertionPoint:
     def test_python_after_imports(self) -> None:
         """Test Python import insertion after existing imports."""
         content = "import os\nimport sys\n\ndef main():\n    pass"
-        result = detect_import_insertion_point(content, "python")
+        result = code_generator.detect_import_insertion_point(content, "python")
 
         assert result == 3
 
     def test_python_after_docstring(self) -> None:
         """Test Python handles module docstring."""
         content = '"""Module docstring."""\n\nimport os\n\ndef main(): pass'
-        result = detect_import_insertion_point(content, "python")
+        result = code_generator.detect_import_insertion_point(content, "python")
 
         assert result == 4
 
     def test_python_no_imports(self) -> None:
         """Test Python with no existing imports."""
         content = "def main():\n    pass"
-        result = detect_import_insertion_point(content, "python")
+        result = code_generator.detect_import_insertion_point(content, "python")
 
         assert result == 1
 
     def test_python_with_from_imports(self) -> None:
         """Test Python with from imports."""
         content = "from os import path\nfrom sys import argv\n\nx = 1"
-        result = detect_import_insertion_point(content, "python")
+        result = code_generator.detect_import_insertion_point(content, "python")
 
         assert result == 3
 
     def test_typescript_after_imports(self) -> None:
         """Test TypeScript import insertion."""
         content = "import { Component } from 'react';\nimport type { Props } from './types';\n\nconst App = () => {};"
-        result = detect_import_insertion_point(content, "typescript")
+        result = code_generator.detect_import_insertion_point(content, "typescript")
 
         assert result == 3
 
     def test_javascript_with_require(self) -> None:
         """Test JavaScript with require statements."""
         content = "const fs = require('fs');\nconst path = require('path');\n\nmodule.exports = {};"
-        result = detect_import_insertion_point(content, "javascript")
+        result = code_generator.detect_import_insertion_point(content, "javascript")
 
         assert result == 3
 
     def test_javascript_use_strict(self) -> None:
         """Test JavaScript with 'use strict' directive."""
         content = '"use strict";\n\nimport x from "y";\n\nconst z = 1;'
-        result = detect_import_insertion_point(content, "javascript")
+        result = code_generator.detect_import_insertion_point(content, "javascript")
 
         assert result == 4
 
     def test_java_with_package(self) -> None:
         """Test Java with package declaration."""
         content = "package com.example;\n\nimport java.util.List;\n\npublic class Foo {}"
-        result = detect_import_insertion_point(content, "java")
+        result = code_generator.detect_import_insertion_point(content, "java")
 
         assert result == 4
 
     def test_java_multiple_imports(self) -> None:
         """Test Java with multiple imports."""
         content = "package com.example;\n\nimport java.util.List;\nimport java.util.Map;\n\npublic class Foo {}"
-        result = detect_import_insertion_point(content, "java")
+        result = code_generator.detect_import_insertion_point(content, "java")
 
         assert result == 5
 
     def test_empty_file(self) -> None:
         """Test with empty file content."""
-        result = detect_import_insertion_point("", "python")
+        result = code_generator.detect_import_insertion_point("", "python")
 
         assert result == 1
 
     def test_unknown_language(self) -> None:
         """Test with unknown language uses generic detection."""
         content = "import something\nimport other\n\ncode here"
-        result = detect_import_insertion_point(content, "unknown")
+        result = code_generator.detect_import_insertion_point(content, "unknown")
 
         # Should find some import point
         assert result >= 1

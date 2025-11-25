@@ -16,6 +16,19 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from main import (
+    _detect_generic_import_point,
+    _detect_java_import_point,
+    _detect_js_import_point,
+    _detect_python_import_point,
+    _extract_identifiers,
+    _extract_imports_with_names,
+    _remove_import_lines,
+    generate_import_statement,
+    identify_unused_imports,
+    resolve_import_path,
+)
+
+from ast_grep_mcp.features.deduplication.generator import CodeGenerator
     detect_import_insertion_point,
     generate_import_statement,
     identify_unused_imports,
@@ -34,132 +47,132 @@ class TestDetectImportInsertionPoint:
     """Test detect_import_insertion_point for various languages."""
 
     # Python tests
-    def test_python_basic_imports(self):
+    def test_python_basic_imports(self, code_generator):
         """Test Python with basic import statements."""
         content = "import os\nimport sys\n\ndef main():\n    pass"
-        result = detect_import_insertion_point(content, "python")
+        result = code_generator.detect_import_insertion_point(content, "python")
         assert result == 3
 
-    def test_python_from_imports(self):
+    def test_python_from_imports(self, code_generator):
         """Test Python with from imports."""
         content = "from os import path\nfrom sys import argv\n\ndef main():\n    pass"
-        result = detect_import_insertion_point(content, "python")
+        result = code_generator.detect_import_insertion_point(content, "python")
         assert result == 3
 
-    def test_python_mixed_imports(self):
+    def test_python_mixed_imports(self, code_generator):
         """Test Python with mixed import and from import."""
         content = "import os\nfrom sys import argv\nimport json\n\ndef main():\n    pass"
-        result = detect_import_insertion_point(content, "python")
+        result = code_generator.detect_import_insertion_point(content, "python")
         assert result == 4
 
-    def test_python_with_docstring(self):
+    def test_python_with_docstring(self, code_generator):
         """Test Python file with module docstring."""
         content = '"""Module docstring."""\nimport os\n\ndef main():\n    pass'
-        result = detect_import_insertion_point(content, "python")
+        result = code_generator.detect_import_insertion_point(content, "python")
         assert result == 3
 
-    def test_python_with_multiline_docstring(self):
+    def test_python_with_multiline_docstring(self, code_generator):
         """Test Python file with multiline docstring."""
         content = '"""\nMultiline\ndocstring.\n"""\nimport os\nimport sys\n\ndef main():\n    pass'
-        result = detect_import_insertion_point(content, "python")
+        result = code_generator.detect_import_insertion_point(content, "python")
         assert result == 7
 
-    def test_python_with_comments(self):
+    def test_python_with_comments(self, code_generator):
         """Test Python file with comments before imports."""
         content = "# Comment\nimport os\nimport sys\n\ndef main():\n    pass"
-        result = detect_import_insertion_point(content, "python")
+        result = code_generator.detect_import_insertion_point(content, "python")
         assert result == 4
 
-    def test_python_no_imports(self):
+    def test_python_no_imports(self, code_generator):
         """Test Python file with no imports."""
         content = "def main():\n    pass"
-        result = detect_import_insertion_point(content, "python")
+        result = code_generator.detect_import_insertion_point(content, "python")
         assert result == 1
 
-    def test_python_empty_file(self):
+    def test_python_empty_file(self, code_generator):
         """Test empty Python file."""
-        result = detect_import_insertion_point("", "python")
+        result = code_generator.detect_import_insertion_point("", "python")
         assert result == 1
 
-    def test_python_future_imports(self):
+    def test_python_future_imports(self, code_generator):
         """Test Python with __future__ imports."""
         content = "from __future__ import annotations\nimport os\n\ndef main():\n    pass"
-        result = detect_import_insertion_point(content, "python")
+        result = code_generator.detect_import_insertion_point(content, "python")
         assert result == 3
 
     # TypeScript/JavaScript tests
-    def test_typescript_es6_imports(self):
+    def test_typescript_es6_imports(self, code_generator):
         """Test TypeScript with ES6 imports."""
         content = "import React from 'react'\nimport { useState } from 'react'\n\nconst App = () => {}"
-        result = detect_import_insertion_point(content, "typescript")
+        result = code_generator.detect_import_insertion_point(content, "typescript")
         assert result == 3
 
-    def test_javascript_require(self):
+    def test_javascript_require(self, code_generator):
         """Test JavaScript with require statements."""
         content = "const fs = require('fs')\nconst path = require('path')\n\nmodule.exports = {}"
-        result = detect_import_insertion_point(content, "javascript")
+        result = code_generator.detect_import_insertion_point(content, "javascript")
         assert result == 3
 
-    def test_typescript_with_use_strict(self):
+    def test_typescript_with_use_strict(self, code_generator):
         """Test TypeScript with 'use strict' directive."""
         content = "'use strict';\nimport { foo } from 'bar'\n\nconst x = 1"
-        result = detect_import_insertion_point(content, "typescript")
+        result = code_generator.detect_import_insertion_point(content, "typescript")
         assert result == 3
 
-    def test_typescript_type_imports(self):
+    def test_typescript_type_imports(self, code_generator):
         """Test TypeScript with type imports."""
         content = "import type { User } from './types'\nimport { getUser } from './api'\n\nconst user: User = {}"
-        result = detect_import_insertion_point(content, "typescript")
+        result = code_generator.detect_import_insertion_point(content, "typescript")
         assert result == 3
 
-    def test_javascript_mixed_imports(self):
+    def test_javascript_mixed_imports(self, code_generator):
         """Test JavaScript with mixed import styles."""
         content = "import React from 'react'\nconst lodash = require('lodash')\nimport './styles.css'\n\nfunction App() {}"
-        result = detect_import_insertion_point(content, "javascript")
+        result = code_generator.detect_import_insertion_point(content, "javascript")
         assert result == 4
 
-    def test_javascript_no_imports(self):
+    def test_javascript_no_imports(self, code_generator):
         """Test JavaScript file with no imports."""
         content = "const x = 1\nconst y = 2"
-        result = detect_import_insertion_point(content, "javascript")
+        result = code_generator.detect_import_insertion_point(content, "javascript")
         assert result == 1
 
     # Java tests
-    def test_java_basic_imports(self):
+    def test_java_basic_imports(self, code_generator):
         """Test Java with basic imports."""
         content = "package com.example;\n\nimport java.util.List;\nimport java.util.Map;\n\npublic class Foo {}"
-        result = detect_import_insertion_point(content, "java")
+        result = code_generator.detect_import_insertion_point(content, "java")
         assert result == 5
 
-    def test_java_static_imports(self):
+    def test_java_static_imports(self, code_generator):
         """Test Java with static imports."""
         content = "package com.example;\n\nimport static org.junit.Assert.*;\nimport java.util.List;\n\npublic class Foo {}"
-        result = detect_import_insertion_point(content, "java")
+        result = code_generator.detect_import_insertion_point(content, "java")
         assert result == 5
 
-    def test_java_only_package(self):
+    def test_java_only_package(self, code_generator):
         """Test Java file with only package declaration."""
         content = "package com.example;\n\npublic class Foo {}"
-        result = detect_import_insertion_point(content, "java")
+        result = code_generator.detect_import_insertion_point(content, "java")
         assert result == 2
 
-    def test_java_no_package_no_imports(self):
+    def test_java_no_package_no_imports(self, code_generator):
         """Test Java file with no package or imports."""
         content = "public class Foo {}"
-        result = detect_import_insertion_point(content, "java")
+        result = code_generator.detect_import_insertion_point(content, "java")
         assert result == 1
 
     # Generic/Unknown language tests
-    def test_generic_language(self):
+    def test_generic_language(self, code_generator):
         """Test with unsupported language falls back to generic detection."""
         content = "#include <stdio.h>\n#include <stdlib.h>\n\nint main() {}"
-        result = detect_import_insertion_point(content, "c")
+        result = code_generator.detect_import_insertion_point(content, "c")
         assert result == 3
 
-    def test_rust_use_statements(self):
+    def test_rust_use_statements(self, code_generator):
         """Test generic detection with Rust use statements."""
         content = "use std::io;\nuse std::fs;\n\nfn main() {}"
-        result = detect_import_insertion_point(content, "rust")
+        result = code_generator.detect_import_insertion_point(content, "rust")
         assert result == 3
 
 
@@ -582,56 +595,56 @@ class TestExtractImportsWithNames:
 class TestEdgeCases:
     """Test edge cases and error handling."""
 
-    def test_detect_insertion_none_content(self):
+    def test_detect_insertion_none_content(self, code_generator):
         """Test detect_import_insertion_point with None-like content."""
-        result = detect_import_insertion_point("", "python")
+        result = code_generator.detect_import_insertion_point("", "python")
         assert result == 1
 
-    def test_detect_insertion_whitespace_only(self):
+    def test_detect_insertion_whitespace_only(self, code_generator):
         """Test with whitespace-only content."""
-        result = detect_import_insertion_point("   \n\n   ", "python")
+        result = code_generator.detect_import_insertion_point("   \n\n   ", "python")
         assert result == 1
 
-    def test_generate_import_empty_items(self):
+    def test_generate_import_empty_items(self, code_generator):
         """Test generate_import_statement with empty items list."""
         result = generate_import_statement("module", [], "python")
         assert result == "import module"
 
-    def test_resolve_path_same_file(self):
+    def test_resolve_path_same_file(self, code_generator):
         """Test resolve_import_path with same source and target."""
         result = resolve_import_path("/src/file.py", "/src/file.py", "python")
         # Should handle gracefully
         assert "file" in result
 
-    def test_case_insensitive_language(self):
+    def test_case_insensitive_language(self, code_generator):
         """Test that language parameter is case-insensitive."""
-        result = detect_import_insertion_point("import os\n\ndef main():\n    pass", "PYTHON")
+        result = code_generator.detect_import_insertion_point("import os\n\ndef main():\n    pass", "PYTHON")
         assert result == 2
 
-    def test_typescript_without_semicolons(self):
+    def test_typescript_without_semicolons(self, code_generator):
         """Test TypeScript imports without semicolons."""
         content = "import React from 'react'\nimport { useState } from 'react'\n\nconst App = () => {}"
-        result = detect_import_insertion_point(content, "typescript")
+        result = code_generator.detect_import_insertion_point(content, "typescript")
         assert result == 3
 
-    def test_python_inline_comments_after_import(self):
+    def test_python_inline_comments_after_import(self, code_generator):
         """Test Python imports with inline comments."""
         content = "import os  # system operations\nimport sys  # system info\n\ndef main():\n    pass"
-        result = detect_import_insertion_point(content, "python")
+        result = code_generator.detect_import_insertion_point(content, "python")
         # Should still find imports correctly
         assert result >= 2
 
-    def test_multiline_python_import(self):
+    def test_multiline_python_import(self, code_generator):
         """Test Python multiline from import (parentheses)."""
         content = "from typing import (\n    List,\n    Dict,\n    Optional\n)\n\ndef main():\n    pass"
         # This is a complex case - the function may count individual lines
-        result = detect_import_insertion_point(content, "python")
+        result = code_generator.detect_import_insertion_point(content, "python")
         assert result >= 1
 
-    def test_java_with_comments_between_imports(self):
+    def test_java_with_comments_between_imports(self, code_generator):
         """Test Java with comments between imports."""
         content = "package com.example;\n\n// Collections\nimport java.util.List;\n// IO\nimport java.io.File;\n\npublic class Foo {}"
-        result = detect_import_insertion_point(content, "java")
+        result = code_generator.detect_import_insertion_point(content, "java")
         assert result >= 4
 
 

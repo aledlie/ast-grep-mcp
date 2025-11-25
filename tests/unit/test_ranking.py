@@ -9,15 +9,16 @@ import os
 # Add the parent directory to the path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from main import calculate_deduplication_score, rank_deduplication_candidates
+
+from ast_grep_mcp.features.deduplication.ranker import DuplicationRanker
 
 
 class TestCalculateDeduplicationScore:
     """Tests for calculate_deduplication_score function."""
 
-    def test_excellent_candidate(self):
+    def test_excellent_candidate(self, duplication_ranker):
         """Test excellent refactoring candidate: high savings, low complexity, tested."""
-        score = calculate_deduplication_score(
+        score = duplication_ranker.calculate_deduplication_score(
             lines_saved=200,
             complexity=2,
             has_tests=True,
@@ -28,9 +29,9 @@ class TestCalculateDeduplicationScore:
         assert score > 60, f"Expected score > 60 for excellent candidate, got {score}"
         assert score <= 100, f"Score should not exceed 100, got {score}"
 
-    def test_poor_candidate(self):
+    def test_poor_candidate(self, duplication_ranker):
         """Test poor refactoring candidate: low savings, high complexity, untested."""
-        score = calculate_deduplication_score(
+        score = duplication_ranker.calculate_deduplication_score(
             lines_saved=10,
             complexity=9,
             has_tests=False,
@@ -41,9 +42,9 @@ class TestCalculateDeduplicationScore:
         assert score < 30, f"Expected score < 30 for poor candidate, got {score}"
         assert score >= 0, f"Score should not be negative, got {score}"
 
-    def test_minimum_values(self):
+    def test_minimum_values(self, duplication_ranker):
         """Test with minimum possible values."""
-        score = calculate_deduplication_score(
+        score = duplication_ranker.calculate_deduplication_score(
             lines_saved=0,
             complexity=1,
             has_tests=True,
@@ -53,9 +54,9 @@ class TestCalculateDeduplicationScore:
         # Zero savings but otherwise optimal
         assert 0 <= score <= 100, f"Score out of range: {score}"
 
-    def test_maximum_values(self):
+    def test_maximum_values(self, duplication_ranker):
         """Test with maximum/extreme values."""
-        score = calculate_deduplication_score(
+        score = duplication_ranker.calculate_deduplication_score(
             lines_saved=1000,  # Above cap
             complexity=10,
             has_tests=False,
@@ -65,16 +66,16 @@ class TestCalculateDeduplicationScore:
         # Max savings but otherwise poor = mixed score
         assert 0 <= score <= 100, f"Score out of range: {score}"
 
-    def test_savings_weight(self):
+    def test_savings_weight(self, duplication_ranker):
         """Test that higher savings increases score."""
-        low_savings = calculate_deduplication_score(
+        low_savings = duplication_ranker.calculate_deduplication_score(
             lines_saved=10,
             complexity=5,
             has_tests=True,
             affected_files=3,
             external_call_sites=5
         )
-        high_savings = calculate_deduplication_score(
+        high_savings = duplication_ranker.calculate_deduplication_score(
             lines_saved=200,
             complexity=5,
             has_tests=True,
@@ -84,16 +85,16 @@ class TestCalculateDeduplicationScore:
         assert high_savings > low_savings, \
             f"Higher savings should increase score: {high_savings} vs {low_savings}"
 
-    def test_complexity_weight(self):
+    def test_complexity_weight(self, duplication_ranker):
         """Test that lower complexity increases score."""
-        high_complexity = calculate_deduplication_score(
+        high_complexity = duplication_ranker.calculate_deduplication_score(
             lines_saved=100,
             complexity=9,
             has_tests=True,
             affected_files=3,
             external_call_sites=5
         )
-        low_complexity = calculate_deduplication_score(
+        low_complexity = duplication_ranker.calculate_deduplication_score(
             lines_saved=100,
             complexity=2,
             has_tests=True,
@@ -103,16 +104,16 @@ class TestCalculateDeduplicationScore:
         assert low_complexity > high_complexity, \
             f"Lower complexity should increase score: {low_complexity} vs {high_complexity}"
 
-    def test_test_coverage_impact(self):
+    def test_test_coverage_impact(self, duplication_ranker):
         """Test that having tests increases score."""
-        untested = calculate_deduplication_score(
+        untested = duplication_ranker.calculate_deduplication_score(
             lines_saved=100,
             complexity=5,
             has_tests=False,
             affected_files=3,
             external_call_sites=5
         )
-        tested = calculate_deduplication_score(
+        tested = duplication_ranker.calculate_deduplication_score(
             lines_saved=100,
             complexity=5,
             has_tests=True,
@@ -122,16 +123,16 @@ class TestCalculateDeduplicationScore:
         assert tested > untested, \
             f"Test coverage should increase score: {tested} vs {untested}"
 
-    def test_affected_files_impact(self):
+    def test_affected_files_impact(self, duplication_ranker):
         """Test that fewer affected files increases score."""
-        many_files = calculate_deduplication_score(
+        many_files = duplication_ranker.calculate_deduplication_score(
             lines_saved=100,
             complexity=5,
             has_tests=True,
             affected_files=8,
             external_call_sites=5
         )
-        few_files = calculate_deduplication_score(
+        few_files = duplication_ranker.calculate_deduplication_score(
             lines_saved=100,
             complexity=5,
             has_tests=True,
@@ -141,16 +142,16 @@ class TestCalculateDeduplicationScore:
         assert few_files > many_files, \
             f"Fewer files should increase score: {few_files} vs {many_files}"
 
-    def test_call_sites_impact(self):
+    def test_call_sites_impact(self, duplication_ranker):
         """Test that fewer external call sites increases score."""
-        many_calls = calculate_deduplication_score(
+        many_calls = duplication_ranker.calculate_deduplication_score(
             lines_saved=100,
             complexity=5,
             has_tests=True,
             affected_files=3,
             external_call_sites=15
         )
-        few_calls = calculate_deduplication_score(
+        few_calls = duplication_ranker.calculate_deduplication_score(
             lines_saved=100,
             complexity=5,
             has_tests=True,
@@ -160,7 +161,7 @@ class TestCalculateDeduplicationScore:
         assert few_calls > many_calls, \
             f"Fewer call sites should increase score: {few_calls} vs {many_calls}"
 
-    def test_score_normalization(self):
+    def test_score_normalization(self, duplication_ranker):
         """Test that all scores are normalized to 0-100 range."""
         test_cases = [
             (0, 1, True, 1, 0),
@@ -169,14 +170,14 @@ class TestCalculateDeduplicationScore:
             (50, 3, False, 2, 0),
         ]
         for lines, comp, tests, files, calls in test_cases:
-            score = calculate_deduplication_score(lines, comp, tests, files, calls)
+            score = duplication_ranker.calculate_deduplication_score(lines, comp, tests, files, calls)
             assert 0 <= score <= 100, \
                 f"Score {score} out of range for inputs: {lines}, {comp}, {tests}, {files}, {calls}"
 
-    def test_weight_distribution(self):
+    def test_weight_distribution(self, duplication_ranker):
         """Test that weights are approximately 40/20/25/15 as specified."""
         # Perfect savings only (other factors neutral)
-        savings_only = calculate_deduplication_score(
+        savings_only = duplication_ranker.calculate_deduplication_score(
             lines_saved=500,
             complexity=5,  # Middle
             has_tests=True,
@@ -185,7 +186,7 @@ class TestCalculateDeduplicationScore:
         )
 
         # All factors at best
-        all_best = calculate_deduplication_score(
+        all_best = duplication_ranker.calculate_deduplication_score(
             lines_saved=500,
             complexity=1,
             has_tests=True,
@@ -197,18 +198,18 @@ class TestCalculateDeduplicationScore:
         # All best should be close to 100
         assert all_best > 90, f"All best factors should give high score: {all_best}"
 
-    def test_edge_complexity_values(self):
+    def test_edge_complexity_values(self, duplication_ranker):
         """Test complexity boundary values (1-10)."""
-        min_complexity = calculate_deduplication_score(100, 1, True, 3, 5)
-        max_complexity = calculate_deduplication_score(100, 10, True, 3, 5)
+        min_complexity = duplication_ranker.calculate_deduplication_score(100, 1, True, 3, 5)
+        max_complexity = duplication_ranker.calculate_deduplication_score(100, 10, True, 3, 5)
 
         assert min_complexity > max_complexity, \
             f"Min complexity should score higher: {min_complexity} vs {max_complexity}"
 
-    def test_realistic_scenarios(self):
+    def test_realistic_scenarios(self, duplication_ranker):
         """Test realistic refactoring scenarios."""
         # Simple utility function duplicate
-        simple_util = calculate_deduplication_score(
+        simple_util = duplication_ranker.calculate_deduplication_score(
             lines_saved=30,
             complexity=2,
             has_tests=True,
@@ -217,7 +218,7 @@ class TestCalculateDeduplicationScore:
         )
 
         # Complex class hierarchy
-        complex_class = calculate_deduplication_score(
+        complex_class = duplication_ranker.calculate_deduplication_score(
             lines_saved=150,
             complexity=7,
             has_tests=False,
@@ -238,12 +239,12 @@ class TestCalculateDeduplicationScore:
 class TestRankDeduplicationCandidates:
     """Tests for rank_deduplication_candidates function."""
 
-    def test_empty_list(self):
+    def test_empty_list(self, duplication_ranker):
         """Test with empty candidate list."""
-        result = rank_deduplication_candidates([])
+        result = duplication_ranker.rank_deduplication_candidates([])
         assert result == [], "Empty input should return empty output"
 
-    def test_single_candidate(self):
+    def test_single_candidate(self, duplication_ranker):
         """Test with single candidate."""
         candidates = [{
             'id': 1,
@@ -253,13 +254,13 @@ class TestRankDeduplicationCandidates:
             'affected_files': 2,
             'external_call_sites': 5
         }]
-        result = rank_deduplication_candidates(candidates)
+        result = duplication_ranker.rank_deduplication_candidates(candidates)
 
         assert len(result) == 1
         assert 'deduplication_score' in result[0]
         assert result[0]['id'] == 1
 
-    def test_sorting_order(self):
+    def test_sorting_order(self, duplication_ranker):
         """Test that candidates are sorted by score (highest first)."""
         candidates = [
             {
@@ -288,14 +289,14 @@ class TestRankDeduplicationCandidates:
             }
         ]
 
-        result = rank_deduplication_candidates(candidates)
+        result = duplication_ranker.rank_deduplication_candidates(candidates)
 
         assert len(result) == 3
         assert result[0]['id'] == 'excellent', f"First should be excellent, got {result[0]['id']}"
         assert result[1]['id'] == 'medium', f"Second should be medium, got {result[1]['id']}"
         assert result[2]['id'] == 'poor', f"Third should be poor, got {result[2]['id']}"
 
-    def test_scores_added(self):
+    def test_scores_added(self, duplication_ranker):
         """Test that deduplication_score is added to all candidates."""
         candidates = [
             {
@@ -309,13 +310,13 @@ class TestRankDeduplicationCandidates:
             for i in range(5)
         ]
 
-        result = rank_deduplication_candidates(candidates)
+        result = duplication_ranker.rank_deduplication_candidates(candidates)
 
         for candidate in result:
             assert 'deduplication_score' in candidate
             assert 0 <= candidate['deduplication_score'] <= 100
 
-    def test_original_data_preserved(self):
+    def test_original_data_preserved(self, duplication_ranker):
         """Test that original candidate data is preserved."""
         candidates = [{
             'id': 1,
@@ -328,26 +329,26 @@ class TestRankDeduplicationCandidates:
             'extra_field': 'preserved'
         }]
 
-        result = rank_deduplication_candidates(candidates)
+        result = duplication_ranker.rank_deduplication_candidates(candidates)
 
         assert result[0]['id'] == 1
         assert result[0]['name'] == 'test_function'
         assert result[0]['extra_field'] == 'preserved'
 
-    def test_default_values(self):
+    def test_default_values(self, duplication_ranker):
         """Test with missing optional fields (use defaults)."""
         candidates = [
             {'id': 1},  # All defaults
             {'id': 2, 'lines_saved': 100}  # Partial
         ]
 
-        result = rank_deduplication_candidates(candidates)
+        result = duplication_ranker.rank_deduplication_candidates(candidates)
 
         assert len(result) == 2
         for candidate in result:
             assert 'deduplication_score' in candidate
 
-    def test_descending_score_order(self):
+    def test_descending_score_order(self, duplication_ranker):
         """Verify scores are strictly descending or equal."""
         candidates = [
             {
@@ -361,13 +362,13 @@ class TestRankDeduplicationCandidates:
             for i in range(1, 6)
         ]
 
-        result = rank_deduplication_candidates(candidates)
+        result = duplication_ranker.rank_deduplication_candidates(candidates)
 
         for i in range(len(result) - 1):
             assert result[i]['deduplication_score'] >= result[i + 1]['deduplication_score'], \
                 f"Scores not in descending order: {result[i]['deduplication_score']} < {result[i + 1]['deduplication_score']}"
 
-    def test_does_not_modify_original(self):
+    def test_does_not_modify_original(self, duplication_ranker):
         """Test that original list is not modified."""
         original = [{
             'id': 1,
@@ -382,13 +383,13 @@ class TestRankDeduplicationCandidates:
         import copy
         original_copy = copy.deepcopy(original)
 
-        result = rank_deduplication_candidates(original)
+        result = duplication_ranker.rank_deduplication_candidates(original)
 
         # Original should not have score added
         assert 'deduplication_score' not in original[0]
         assert original == original_copy
 
-    def test_large_candidate_list(self):
+    def test_large_candidate_list(self, duplication_ranker):
         """Test with many candidates for performance."""
         candidates = [
             {
@@ -402,7 +403,7 @@ class TestRankDeduplicationCandidates:
             for i in range(100)
         ]
 
-        result = rank_deduplication_candidates(candidates)
+        result = duplication_ranker.rank_deduplication_candidates(candidates)
 
         assert len(result) == 100
         # Verify sorting
@@ -413,7 +414,7 @@ class TestRankDeduplicationCandidates:
 class TestIntegration:
     """Integration tests combining scoring and ranking."""
 
-    def test_refactoring_priority_order(self):
+    def test_refactoring_priority_order(self, duplication_ranker):
         """Test realistic refactoring priority scenarios."""
         candidates = [
             {
@@ -454,7 +455,7 @@ class TestIntegration:
             }
         ]
 
-        result = rank_deduplication_candidates(candidates)
+        result = duplication_ranker.rank_deduplication_candidates(candidates)
 
         # Quick win should be first or second (easy + tested)
         # Skip should be last (low value, high risk)

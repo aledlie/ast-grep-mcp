@@ -33,7 +33,7 @@ def mock_field(**kwargs: Any) -> Any:
 with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
     with patch("pydantic.Field", mock_field):
         import main
-        from main import QueryCache
+from ast_grep_mcp.core.cache import QueryCache
 
 
 class TestQueryCache:

@@ -11,7 +11,14 @@ import os
 # Add the project root to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from ast_grep_mcp.models.deduplication import VariationCategory
 from main import (
+    VariationSeverity,
+    classify_variations,
+    detect_conditional_variations,
+)
+
+from ast_grep_mcp.features.deduplication.analyzer import PatternAnalyzer
     classify_variation,
     classify_variations,
     detect_conditional_variations,
@@ -23,9 +30,9 @@ from main import (
 class TestClassifyVariation:
     """Tests for classify_variation function."""
 
-    def test_literal_string_variation(self):
+    def test_literal_string_variation(self, pattern_analyzer):
         """Test classification of string literal variations."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="literal",
             old_value='"hello"',
             new_value='"world"'
@@ -35,9 +42,9 @@ class TestClassifyVariation:
         assert result["parameterizable"] is True
         assert result["suggested_param_name"] == "text_value"
 
-    def test_literal_number_variation(self):
+    def test_literal_number_variation(self, pattern_analyzer):
         """Test classification of numeric literal variations."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="number",
             old_value="42",
             new_value="100"
@@ -47,9 +54,9 @@ class TestClassifyVariation:
         assert result["parameterizable"] is True
         assert result["suggested_param_name"] == "value"
 
-    def test_literal_boolean_variation(self):
+    def test_literal_boolean_variation(self, pattern_analyzer):
         """Test classification of boolean literal variations."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="boolean",
             old_value="true",
             new_value="false"
@@ -58,9 +65,9 @@ class TestClassifyVariation:
         assert result["severity"] == VariationSeverity.LOW
         assert result["parameterizable"] is True
 
-    def test_identifier_simple_variation(self):
+    def test_identifier_simple_variation(self, pattern_analyzer):
         """Test classification of simple identifier variations."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="identifier",
             old_value="user",
             new_value="account"
@@ -70,9 +77,9 @@ class TestClassifyVariation:
         assert result["parameterizable"] is True
         assert result["suggested_param_name"] == "name"
 
-    def test_identifier_complex_variation(self):
+    def test_identifier_complex_variation(self, pattern_analyzer):
         """Test classification of complex identifier variations with different word counts."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="variable",
             old_value="x",
             new_value="user_account_data_manager"
@@ -81,9 +88,9 @@ class TestClassifyVariation:
         assert result["severity"] == VariationSeverity.MEDIUM
         assert result["parameterizable"] is True
 
-    def test_type_simple_variation(self):
+    def test_type_simple_variation(self, pattern_analyzer):
         """Test classification of simple type variations."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="type",
             old_value="int",
             new_value="str"
@@ -92,9 +99,9 @@ class TestClassifyVariation:
         assert result["severity"] == VariationSeverity.LOW
         assert result["suggested_param_name"] == "type_param"
 
-    def test_type_generic_variation(self):
+    def test_type_generic_variation(self, pattern_analyzer):
         """Test classification of generic type variations."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="annotation",
             old_value="List[int]",
             new_value="List[str]"
@@ -102,9 +109,9 @@ class TestClassifyVariation:
         assert result["category"] == "TYPE"
         assert result["severity"] == VariationSeverity.MEDIUM
 
-    def test_expression_simple_variation(self):
+    def test_expression_simple_variation(self, pattern_analyzer):
         """Test classification of simple expression variations."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="expression",
             old_value="x + 1",
             new_value="x + 2"
@@ -113,9 +120,9 @@ class TestClassifyVariation:
         assert result["severity"] == VariationSeverity.MEDIUM
         assert result["suggested_param_name"] == "expression"
 
-    def test_expression_function_call_same_name(self):
+    def test_expression_function_call_same_name(self, pattern_analyzer):
         """Test classification of function call variations with same function name."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="call",
             old_value="process(a)",
             new_value="process(b)"
@@ -123,9 +130,9 @@ class TestClassifyVariation:
         assert result["category"] == "EXPRESSION"
         assert result["severity"] == VariationSeverity.MEDIUM
 
-    def test_expression_function_call_different_name(self):
+    def test_expression_function_call_different_name(self, pattern_analyzer):
         """Test classification of function call variations with different function names."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="call",
             old_value="process(a)",
             new_value="transform(b)"
@@ -133,9 +140,9 @@ class TestClassifyVariation:
         assert result["category"] == "EXPRESSION"
         assert result["severity"] == VariationSeverity.HIGH
 
-    def test_logic_variation(self):
+    def test_logic_variation(self, pattern_analyzer):
         """Test classification of logic/control flow variations."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="logic",
             old_value="if x > 0:",
             new_value="if x >= 0:"
@@ -145,9 +152,9 @@ class TestClassifyVariation:
         assert result["parameterizable"] is False
         assert result["suggested_param_name"] is None
 
-    def test_condition_variation(self):
+    def test_condition_variation(self, pattern_analyzer):
         """Test classification of condition variations."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="condition",
             old_value="x and y",
             new_value="x or y"
@@ -155,27 +162,27 @@ class TestClassifyVariation:
         assert result["category"] == "LOGIC"
         assert result["severity"] == VariationSeverity.HIGH
 
-    def test_unknown_type_infers_from_content_literal(self):
+    def test_unknown_type_infers_from_content_literal(self, pattern_analyzer):
         """Test that unknown type infers literal from content."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="unknown",
             old_value='"some string"',
             new_value='"other string"'
         )
         assert result["category"] == "LITERAL"
 
-    def test_unknown_type_infers_from_content_expression(self):
+    def test_unknown_type_infers_from_content_expression(self, pattern_analyzer):
         """Test that unknown type infers expression from content."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="unknown",
             old_value="a + b",
             new_value="c - d"
         )
         assert result["category"] == "EXPRESSION"
 
-    def test_unknown_type_infers_from_content_logic(self):
+    def test_unknown_type_infers_from_content_logic(self, pattern_analyzer):
         """Test that unknown type infers logic from control keywords."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="unknown",
             old_value="for item in items",
             new_value="while running"
@@ -183,9 +190,9 @@ class TestClassifyVariation:
         # Note: ":" in the value causes TYPE detection due to type annotation check
         assert result["category"] == "LOGIC"
 
-    def test_context_preserved(self):
+    def test_context_preserved(self, pattern_analyzer):
         """Test that context is preserved in classification."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="literal",
             old_value="10",
             new_value="20",
@@ -193,18 +200,18 @@ class TestClassifyVariation:
         )
         assert result["context"] == "setting timeout value"
 
-    def test_url_path_parameter_suggestion(self):
+    def test_url_path_parameter_suggestion(self, pattern_analyzer):
         """Test parameter name suggestion for URL/path literals."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="literal",
             old_value='"path/to/users"',
             new_value='"path/to/accounts"'
         )
         assert result["suggested_param_name"] == "target_path"
 
-    def test_name_id_parameter_suggestion(self):
+    def test_name_id_parameter_suggestion(self, pattern_analyzer):
         """Test parameter name suggestion for name/id literals."""
-        result = classify_variation(
+        result = pattern_analyzer.classify_variation(
             variation_type="literal",
             old_value='"user_name"',
             new_value='"account_name"'
@@ -215,21 +222,21 @@ class TestClassifyVariation:
 class TestVariationSeverity:
     """Tests for severity level determination."""
 
-    def test_low_severity_is_parameterizable(self):
+    def test_low_severity_is_parameterizable(self, pattern_analyzer):
         """Test that low severity variations are parameterizable."""
-        result = classify_variation("literal", "1", "2")
+        result = pattern_analyzer.classify_variation("literal", "1", "2")
         assert result["severity"] == VariationSeverity.LOW
         assert result["parameterizable"] is True
 
-    def test_medium_severity_is_parameterizable(self):
+    def test_medium_severity_is_parameterizable(self, pattern_analyzer):
         """Test that medium severity variations are parameterizable."""
-        result = classify_variation("variable", "x", "very_long_name_here")
+        result = pattern_analyzer.classify_variation("variable", "x", "very_long_name_here")
         assert result["severity"] == VariationSeverity.MEDIUM
         assert result["parameterizable"] is True
 
-    def test_high_severity_is_not_parameterizable(self):
+    def test_high_severity_is_not_parameterizable(self, pattern_analyzer):
         """Test that high severity variations are not parameterizable."""
-        result = classify_variation("logic", "if x:", "if y:")
+        result = pattern_analyzer.classify_variation("logic", "if x:", "if y:")
         assert result["severity"] == VariationSeverity.HIGH
         assert result["parameterizable"] is False
 
@@ -237,40 +244,40 @@ class TestVariationSeverity:
 class TestVariationComplexity:
     """Tests for complexity score calculation."""
 
-    def test_literal_complexity_score(self):
+    def test_literal_complexity_score(self, pattern_analyzer):
         """Test that literal variations have low complexity score."""
-        result = classify_variation("literal", "10", "20")
+        result = pattern_analyzer.classify_variation("literal", "10", "20")
         assert result["complexity"]["score"] == 1
         assert result["complexity"]["level"] == "low"
         assert "substitution" in result["complexity"]["reasoning"].lower()
 
-    def test_identifier_low_complexity(self):
+    def test_identifier_low_complexity(self, pattern_analyzer):
         """Test identifier with low severity has score 1."""
-        result = classify_variation("identifier", "foo", "bar")
+        result = pattern_analyzer.classify_variation("identifier", "foo", "bar")
         assert result["complexity"]["score"] == 1
         assert result["complexity"]["level"] == "low"
 
-    def test_identifier_medium_complexity(self):
+    def test_identifier_medium_complexity(self, pattern_analyzer):
         """Test identifier with semantic differences has score 2."""
-        result = classify_variation("identifier", "x", "very_long_name_value")
+        result = pattern_analyzer.classify_variation("identifier", "x", "very_long_name_value")
         assert result["complexity"]["score"] == 2
         assert result["complexity"]["level"] == "low"
 
-    def test_expression_medium_complexity(self):
+    def test_expression_medium_complexity(self, pattern_analyzer):
         """Test expression variations have medium complexity."""
-        result = classify_variation("expression", "a + b", "c - d")
+        result = pattern_analyzer.classify_variation("expression", "a + b", "c - d")
         assert result["complexity"]["score"] in [3, 4]
         assert result["complexity"]["level"] == "medium"
 
-    def test_type_complexity(self):
+    def test_type_complexity(self, pattern_analyzer):
         """Test type variations have appropriate complexity."""
-        result = classify_variation("type", "int", "str")
+        result = pattern_analyzer.classify_variation("type", "int", "str")
         assert result["complexity"]["score"] == 4
         assert result["complexity"]["level"] == "medium"
 
-    def test_logic_high_complexity(self):
+    def test_logic_high_complexity(self, pattern_analyzer):
         """Test logic variations have high complexity."""
-        result = classify_variation("logic", "if x:", "if y:")
+        result = pattern_analyzer.classify_variation("logic", "if x:", "if y:")
         assert result["complexity"]["score"] >= 5
         assert result["complexity"]["level"] == "high"
 

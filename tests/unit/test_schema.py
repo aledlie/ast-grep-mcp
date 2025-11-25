@@ -11,7 +11,10 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 
-from main import SchemaOrgClient, get_schema_org_client
+from ast_grep_mcp.features.schema.client import (
+    SchemaOrgClient,
+    get_schema_org_client,
+)
 
 # Mock Schema.org data for testing
 MOCK_SCHEMA_DATA = {

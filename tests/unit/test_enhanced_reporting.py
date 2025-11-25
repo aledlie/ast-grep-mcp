@@ -14,7 +14,12 @@ import os
 # Add the parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from main import (
+from ast_grep_mcp.features.deduplication.reporting import (
+    create_enhanced_duplication_response,
+    generate_before_after_example,
+    visualize_complexity,
+)
+from ast_grep_mcp.utils.formatters import format_diff_with_colors
     format_diff_with_colors,
     generate_before_after_example,
     visualize_complexity,

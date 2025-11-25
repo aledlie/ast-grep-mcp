@@ -7,15 +7,17 @@ import os
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from main import generate_deduplication_recommendation, _generate_refactoring_strategies
+from main import _generate_refactoring_strategies
+
+from ast_grep_mcp.features.deduplication.recommendations import RecommendationEngine
 
 
 class TestGenerateDeduplicationRecommendation:
     """Tests for the main recommendation generation function."""
 
-    def test_high_value_recommendation(self):
+    def test_high_value_recommendation(self, recommendation_engine):
         """Score > 80 should generate high value recommendation."""
-        result = generate_deduplication_recommendation(
+        result = recommendation_engine.generate_deduplication_recommendation(
             score=85,
             complexity=5,
             lines_saved=20,
@@ -29,9 +31,9 @@ class TestGenerateDeduplicationRecommendation:
         assert len(result["strategies"]) == 3
         assert result["effort_value_ratio"] > 0
 
-    def test_medium_value_recommendation(self):
+    def test_medium_value_recommendation(self, recommendation_engine):
         """Score 50-80 should generate medium value recommendation."""
-        result = generate_deduplication_recommendation(
+        result = recommendation_engine.generate_deduplication_recommendation(
             score=65,
             complexity=7,
             lines_saved=15,
@@ -42,9 +44,9 @@ class TestGenerateDeduplicationRecommendation:
         assert result["recommendation_text"] == "Medium Value: Consider refactoring"
         assert result["priority"] == "medium"
 
-    def test_low_value_recommendation(self):
+    def test_low_value_recommendation(self, recommendation_engine):
         """Score < 50 should generate low value recommendation."""
-        result = generate_deduplication_recommendation(
+        result = recommendation_engine.generate_deduplication_recommendation(
             score=35,
             complexity=3,
             lines_saved=5,
@@ -55,9 +57,9 @@ class TestGenerateDeduplicationRecommendation:
         assert result["recommendation_text"] == "Low Value: May not be worth refactoring"
         assert result["priority"] == "low"
 
-    def test_boundary_score_80(self):
+    def test_boundary_score_80(self, recommendation_engine):
         """Score of exactly 80 should be medium value."""
-        result = generate_deduplication_recommendation(
+        result = recommendation_engine.generate_deduplication_recommendation(
             score=80,
             complexity=5,
             lines_saved=10,
@@ -67,9 +69,9 @@ class TestGenerateDeduplicationRecommendation:
 
         assert result["priority"] == "medium"
 
-    def test_boundary_score_50(self):
+    def test_boundary_score_50(self, recommendation_engine):
         """Score of exactly 50 should be medium value."""
-        result = generate_deduplication_recommendation(
+        result = recommendation_engine.generate_deduplication_recommendation(
             score=50,
             complexity=5,
             lines_saved=10,
@@ -79,9 +81,9 @@ class TestGenerateDeduplicationRecommendation:
 
         assert result["priority"] == "medium"
 
-    def test_boundary_score_49(self):
+    def test_boundary_score_49(self, recommendation_engine):
         """Score of 49 should be low value."""
-        result = generate_deduplication_recommendation(
+        result = recommendation_engine.generate_deduplication_recommendation(
             score=49,
             complexity=5,
             lines_saved=10,
@@ -91,31 +93,31 @@ class TestGenerateDeduplicationRecommendation:
 
         assert result["priority"] == "low"
 
-    def test_effort_value_ratio_increases_with_value(self):
+    def test_effort_value_ratio_increases_with_value(self, recommendation_engine):
         """Higher lines_saved and affected_files should increase ratio."""
-        low_value = generate_deduplication_recommendation(
+        low_value = recommendation_engine.generate_deduplication_recommendation(
             score=60, complexity=5, lines_saved=5, has_tests=True, affected_files=1
         )
-        high_value = generate_deduplication_recommendation(
+        high_value = recommendation_engine.generate_deduplication_recommendation(
             score=60, complexity=5, lines_saved=50, has_tests=True, affected_files=5
         )
 
         assert high_value["effort_value_ratio"] > low_value["effort_value_ratio"]
 
-    def test_no_tests_increases_effort(self):
+    def test_no_tests_increases_effort(self, recommendation_engine):
         """Missing tests should reduce effort/value ratio."""
-        with_tests = generate_deduplication_recommendation(
+        with_tests = recommendation_engine.generate_deduplication_recommendation(
             score=60, complexity=5, lines_saved=20, has_tests=True, affected_files=2
         )
-        without_tests = generate_deduplication_recommendation(
+        without_tests = recommendation_engine.generate_deduplication_recommendation(
             score=60, complexity=5, lines_saved=20, has_tests=False, affected_files=2
         )
 
         assert with_tests["effort_value_ratio"] > without_tests["effort_value_ratio"]
 
-    def test_strategies_sorted_by_suitability(self):
+    def test_strategies_sorted_by_suitability(self, recommendation_engine):
         """Strategies should be sorted by suitability_score descending."""
-        result = generate_deduplication_recommendation(
+        result = recommendation_engine.generate_deduplication_recommendation(
             score=75, complexity=5, lines_saved=15, has_tests=True, affected_files=3
         )
 
@@ -123,9 +125,9 @@ class TestGenerateDeduplicationRecommendation:
         scores = [s["suitability_score"] for s in strategies]
         assert scores == sorted(scores, reverse=True)
 
-    def test_return_structure(self):
+    def test_return_structure(self, recommendation_engine):
         """Return value should have all required keys."""
-        result = generate_deduplication_recommendation(
+        result = recommendation_engine.generate_deduplication_recommendation(
             score=60, complexity=5, lines_saved=10, has_tests=True, affected_files=2
         )
 
@@ -297,9 +299,9 @@ class TestGenerateRefactoringStrategies:
 class TestRecommendationEdgeCases:
     """Tests for edge cases and boundary conditions."""
 
-    def test_zero_values(self):
+    def test_zero_values(self, recommendation_engine):
         """Function should handle zero values gracefully."""
-        result = generate_deduplication_recommendation(
+        result = recommendation_engine.generate_deduplication_recommendation(
             score=0, complexity=0, lines_saved=0, has_tests=False, affected_files=0
         )
 
@@ -307,9 +309,9 @@ class TestRecommendationEdgeCases:
         assert result["effort_value_ratio"] >= 0
         assert len(result["strategies"]) == 3
 
-    def test_very_high_values(self):
+    def test_very_high_values(self, recommendation_engine):
         """Function should handle very high values."""
-        result = generate_deduplication_recommendation(
+        result = recommendation_engine.generate_deduplication_recommendation(
             score=100, complexity=100, lines_saved=1000, has_tests=True, affected_files=50
         )
 
@@ -317,9 +319,9 @@ class TestRecommendationEdgeCases:
         assert result["effort_value_ratio"] > 0
         assert len(result["strategies"]) == 3
 
-    def test_minimal_improvement_case(self):
+    def test_minimal_improvement_case(self, recommendation_engine):
         """Test case where refactoring provides minimal improvement."""
-        result = generate_deduplication_recommendation(
+        result = recommendation_engine.generate_deduplication_recommendation(
             score=20, complexity=1, lines_saved=2, has_tests=True, affected_files=1
         )
 
@@ -327,9 +329,9 @@ class TestRecommendationEdgeCases:
         # Inline should be recommended for minimal improvements
         assert result["strategies"][0]["name"] == "inline"
 
-    def test_maximum_value_case(self):
+    def test_maximum_value_case(self, recommendation_engine):
         """Test case where refactoring provides maximum value."""
-        result = generate_deduplication_recommendation(
+        result = recommendation_engine.generate_deduplication_recommendation(
             score=95, complexity=3, lines_saved=100, has_tests=True, affected_files=10
         )
 
@@ -337,9 +339,9 @@ class TestRecommendationEdgeCases:
         # Extract function should be recommended for high-value, simple code
         assert result["strategies"][0]["name"] == "extract_function"
 
-    def test_complex_but_low_score(self):
+    def test_complex_but_low_score(self, recommendation_engine):
         """Complex code with low score should still recommend inline."""
-        result = generate_deduplication_recommendation(
+        result = recommendation_engine.generate_deduplication_recommendation(
             score=25, complexity=20, lines_saved=5, has_tests=False, affected_files=1
         )
 
@@ -347,9 +349,9 @@ class TestRecommendationEdgeCases:
         inline = next(s for s in result["strategies"] if s["name"] == "inline")
         assert inline["suitability_score"] >= 50
 
-    def test_simple_but_high_score(self):
+    def test_simple_but_high_score(self, recommendation_engine):
         """Simple code with high score should recommend extract_function."""
-        result = generate_deduplication_recommendation(
+        result = recommendation_engine.generate_deduplication_recommendation(
             score=90, complexity=2, lines_saved=30, has_tests=True, affected_files=5
         )
 

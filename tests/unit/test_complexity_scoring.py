@@ -11,7 +11,9 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from main import calculate_refactoring_complexity, get_complexity_level
+from main import get_complexity_level
+
+from ast_grep_mcp.features.deduplication.ranker import DuplicationRanker
 
 
 class TestGetComplexityLevel:
@@ -65,16 +67,16 @@ class TestGetComplexityLevel:
 class TestCalculateRefactoringComplexity:
     """Tests for calculate_refactoring_complexity function."""
 
-    def test_minimal_complexity(self):
+    def test_minimal_complexity(self, duplication_ranker):
         """Empty/minimal input should return lowest score."""
-        result = calculate_refactoring_complexity({})
+        result = duplication_ranker.calculate_refactoring_complexity({})
         assert result['score'] == 1.0
         assert result['level'] == 'low'
         assert result['raw_score'] == 0
 
-    def test_simple_refactoring_low_complexity(self):
+    def test_simple_refactoring_low_complexity(self, duplication_ranker):
         """Simple literal change should score low (1-3)."""
-        result = calculate_refactoring_complexity({
+        result = duplication_ranker.calculate_refactoring_complexity({
             'parameter_count': 1,
             'line_count': 5,
             'nesting_depth': 1
@@ -83,9 +85,9 @@ class TestCalculateRefactoringComplexity:
         assert result['score'] <= 3.0
         assert result['level'] == 'low'
 
-    def test_moderate_refactoring_medium_complexity(self):
+    def test_moderate_refactoring_medium_complexity(self, duplication_ranker):
         """Multiple params with some logic should score medium (3-6)."""
-        result = calculate_refactoring_complexity({
+        result = duplication_ranker.calculate_refactoring_complexity({
             'parameter_count': 3,
             'control_flow_branches': 2,
             'line_count': 20,
@@ -97,9 +99,9 @@ class TestCalculateRefactoringComplexity:
         assert 3.0 < result['score'] <= 6.0
         assert result['level'] == 'medium'
 
-    def test_complex_refactoring_high_complexity(self):
+    def test_complex_refactoring_high_complexity(self, duplication_ranker):
         """Cross-file with complex logic should score high (7-10)."""
-        result = calculate_refactoring_complexity({
+        result = duplication_ranker.calculate_refactoring_complexity({
             'parameter_count': 5,
             'parameter_type_complexity': 2,
             'control_flow_branches': 5,
@@ -114,68 +116,68 @@ class TestCalculateRefactoringComplexity:
         assert result['score'] >= 7.0
         assert result['level'] == 'high'
 
-    def test_parameter_count_contribution(self):
+    def test_parameter_count_contribution(self, duplication_ranker):
         """Parameter count should contribute with weight 1.5."""
-        result = calculate_refactoring_complexity({'parameter_count': 4})
+        result = duplication_ranker.calculate_refactoring_complexity({'parameter_count': 4})
         assert result['breakdown']['parameter_count'] == 6.0  # 4 * 1.5
 
-    def test_parameter_type_complexity_contribution(self):
+    def test_parameter_type_complexity_contribution(self, duplication_ranker):
         """Parameter type complexity should contribute with weight 1.0."""
-        result = calculate_refactoring_complexity({'parameter_type_complexity': 2})
+        result = duplication_ranker.calculate_refactoring_complexity({'parameter_type_complexity': 2})
         assert result['breakdown']['parameter_type_complexity'] == 2.0
 
-    def test_control_flow_branches_contribution(self):
+    def test_control_flow_branches_contribution(self, duplication_ranker):
         """Control flow branches should contribute with weight 2.5."""
-        result = calculate_refactoring_complexity({'control_flow_branches': 3})
+        result = duplication_ranker.calculate_refactoring_complexity({'control_flow_branches': 3})
         assert result['breakdown']['control_flow_branches'] == 7.5  # 3 * 2.5
 
-    def test_import_count_contribution(self):
+    def test_import_count_contribution(self, duplication_ranker):
         """Import count should contribute with weight 1.0."""
-        result = calculate_refactoring_complexity({'import_count': 5})
+        result = duplication_ranker.calculate_refactoring_complexity({'import_count': 5})
         assert result['breakdown']['import_count'] == 5.0
 
-    def test_cross_file_dependency_contribution(self):
+    def test_cross_file_dependency_contribution(self, duplication_ranker):
         """Cross-file dependency should contribute with weight 2.0."""
-        result = calculate_refactoring_complexity({'cross_file_dependency': 1})
+        result = duplication_ranker.calculate_refactoring_complexity({'cross_file_dependency': 1})
         assert result['breakdown']['cross_file_dependency'] == 2.0
 
-    def test_line_count_contribution_capped(self):
+    def test_line_count_contribution_capped(self, duplication_ranker):
         """Line count should be capped at 50 with weight 0.1."""
-        result = calculate_refactoring_complexity({'line_count': 100})
+        result = duplication_ranker.calculate_refactoring_complexity({'line_count': 100})
         assert result['breakdown']['line_count'] == 5.0  # min(100, 50) * 0.1
 
-    def test_line_count_contribution_under_cap(self):
+    def test_line_count_contribution_under_cap(self, duplication_ranker):
         """Line count under cap should use actual value."""
-        result = calculate_refactoring_complexity({'line_count': 30})
+        result = duplication_ranker.calculate_refactoring_complexity({'line_count': 30})
         assert result['breakdown']['line_count'] == 3.0  # 30 * 0.1
 
-    def test_nesting_depth_contribution(self):
+    def test_nesting_depth_contribution(self, duplication_ranker):
         """Nesting depth should contribute with weight 1.5."""
-        result = calculate_refactoring_complexity({'nesting_depth': 3})
+        result = duplication_ranker.calculate_refactoring_complexity({'nesting_depth': 3})
         assert result['breakdown']['nesting_depth'] == 4.5  # 3 * 1.5
 
-    def test_return_complexity_contribution(self):
+    def test_return_complexity_contribution(self, duplication_ranker):
         """Return complexity should contribute with weight 1.0."""
-        result = calculate_refactoring_complexity({'return_complexity': 2})
+        result = duplication_ranker.calculate_refactoring_complexity({'return_complexity': 2})
         assert result['breakdown']['return_complexity'] == 2.0
 
-    def test_scaling_minimum_bound(self):
+    def test_scaling_minimum_bound(self, duplication_ranker):
         """Score should be at least 1.0."""
-        result = calculate_refactoring_complexity({})
+        result = duplication_ranker.calculate_refactoring_complexity({})
         assert result['score'] >= 1.0
 
-    def test_scaling_maximum_bound(self):
+    def test_scaling_maximum_bound(self, duplication_ranker):
         """Score should be at most 10.0."""
-        result = calculate_refactoring_complexity({
+        result = duplication_ranker.calculate_refactoring_complexity({
             'parameter_count': 100,
             'control_flow_branches': 100,
             'nesting_depth': 100
         })
         assert result['score'] == 10.0
 
-    def test_raw_score_calculation(self):
+    def test_raw_score_calculation(self, duplication_ranker):
         """Raw score should be sum of all weighted factors."""
-        result = calculate_refactoring_complexity({
+        result = duplication_ranker.calculate_refactoring_complexity({
             'parameter_count': 2,
             'control_flow_branches': 1,
             'line_count': 10
@@ -183,9 +185,9 @@ class TestCalculateRefactoringComplexity:
         expected_raw = 2*1.5 + 1*2.5 + 10*0.1  # 3 + 2.5 + 1 = 6.5
         assert result['raw_score'] == 6.5
 
-    def test_score_rounding(self):
+    def test_score_rounding(self, duplication_ranker):
         """Score should be rounded to 1 decimal place."""
-        result = calculate_refactoring_complexity({
+        result = duplication_ranker.calculate_refactoring_complexity({
             'parameter_count': 1,
             'line_count': 7
         })
@@ -195,18 +197,18 @@ class TestCalculateRefactoringComplexity:
             decimal_places = len(str(result['score']).split('.')[1])
             assert decimal_places <= 1
 
-    def test_result_structure(self):
+    def test_result_structure(self, duplication_ranker):
         """Result should contain all required keys."""
-        result = calculate_refactoring_complexity({'parameter_count': 1})
+        result = duplication_ranker.calculate_refactoring_complexity({'parameter_count': 1})
         assert 'score' in result
         assert 'level' in result
         assert 'description' in result
         assert 'breakdown' in result
         assert 'raw_score' in result
 
-    def test_breakdown_contains_all_factors(self):
+    def test_breakdown_contains_all_factors(self, duplication_ranker):
         """Breakdown should contain all 8 factors."""
-        result = calculate_refactoring_complexity({})
+        result = duplication_ranker.calculate_refactoring_complexity({})
         expected_factors = [
             'parameter_count',
             'parameter_type_complexity',
@@ -220,24 +222,24 @@ class TestCalculateRefactoringComplexity:
         for factor in expected_factors:
             assert factor in result['breakdown']
 
-    def test_level_matches_score_low(self):
+    def test_level_matches_score_low(self, duplication_ranker):
         """Level should match score thresholds for low."""
-        result = calculate_refactoring_complexity({'line_count': 5})
+        result = duplication_ranker.calculate_refactoring_complexity({'line_count': 5})
         if result['score'] <= 3.0:
             assert result['level'] == 'low'
 
-    def test_level_matches_score_medium(self):
+    def test_level_matches_score_medium(self, duplication_ranker):
         """Level should match score thresholds for medium."""
-        result = calculate_refactoring_complexity({
+        result = duplication_ranker.calculate_refactoring_complexity({
             'parameter_count': 3,
             'control_flow_branches': 2
         })
         if 3.0 < result['score'] <= 6.0:
             assert result['level'] == 'medium'
 
-    def test_level_matches_score_high(self):
+    def test_level_matches_score_high(self, duplication_ranker):
         """Level should match score thresholds for high."""
-        result = calculate_refactoring_complexity({
+        result = duplication_ranker.calculate_refactoring_complexity({
             'parameter_count': 5,
             'control_flow_branches': 5,
             'cross_file_dependency': 1,
@@ -250,9 +252,9 @@ class TestCalculateRefactoringComplexity:
 class TestComplexityEdgeCases:
     """Edge case tests for complexity scoring."""
 
-    def test_zero_values(self):
+    def test_zero_values(self, duplication_ranker):
         """All zero values should return minimum score."""
-        result = calculate_refactoring_complexity({
+        result = duplication_ranker.calculate_refactoring_complexity({
             'parameter_count': 0,
             'parameter_type_complexity': 0,
             'control_flow_branches': 0,
@@ -265,31 +267,31 @@ class TestComplexityEdgeCases:
         assert result['score'] == 1.0
         assert result['raw_score'] == 0
 
-    def test_negative_values_treated_as_provided(self):
+    def test_negative_values_treated_as_provided(self, duplication_ranker):
         """Negative values should be used as-is (no validation)."""
-        result = calculate_refactoring_complexity({
+        result = duplication_ranker.calculate_refactoring_complexity({
             'parameter_count': -1
         })
         assert result['breakdown']['parameter_count'] == -1.5
 
-    def test_float_values(self):
+    def test_float_values(self, duplication_ranker):
         """Float values should be accepted."""
-        result = calculate_refactoring_complexity({
+        result = duplication_ranker.calculate_refactoring_complexity({
             'parameter_count': 2.5
         })
         assert result['breakdown']['parameter_count'] == 3.75  # 2.5 * 1.5
 
-    def test_missing_keys_use_defaults(self):
+    def test_missing_keys_use_defaults(self, duplication_ranker):
         """Missing keys should default to 0."""
-        result = calculate_refactoring_complexity({
+        result = duplication_ranker.calculate_refactoring_complexity({
             'parameter_count': 2
         })
         assert result['breakdown']['import_count'] == 0
         assert result['breakdown']['nesting_depth'] == 0
 
-    def test_extra_keys_ignored(self):
+    def test_extra_keys_ignored(self, duplication_ranker):
         """Extra keys in input should be ignored."""
-        result = calculate_refactoring_complexity({
+        result = duplication_ranker.calculate_refactoring_complexity({
             'parameter_count': 1,
             'unknown_factor': 100
         })
@@ -300,7 +302,7 @@ class TestComplexityEdgeCases:
 class TestComplexityBoundaries:
     """Boundary value tests for complexity thresholds."""
 
-    def test_boundary_low_to_medium(self):
+    def test_boundary_low_to_medium(self, duplication_ranker):
         """Test exact boundary between low and medium (3.0)."""
         # Score of exactly 3.0 should be low
         low_result = get_complexity_level(3.0)
@@ -310,7 +312,7 @@ class TestComplexityBoundaries:
         medium_result = get_complexity_level(3.01)
         assert medium_result['level'] == 'medium'
 
-    def test_boundary_medium_to_high(self):
+    def test_boundary_medium_to_high(self, duplication_ranker):
         """Test exact boundary between medium and high (6.0)."""
         # Score of exactly 6.0 should be medium
         medium_result = get_complexity_level(6.0)
@@ -320,18 +322,18 @@ class TestComplexityBoundaries:
         high_result = get_complexity_level(6.01)
         assert high_result['level'] == 'high'
 
-    def test_raw_score_30_gives_max(self):
+    def test_raw_score_30_gives_max(self, duplication_ranker):
         """Raw score of 30 should give scaled score of 10."""
         # Create input that gives exactly raw_score = 30
         # Using control_flow_branches: 30/2.5 = 12
-        result = calculate_refactoring_complexity({
+        result = duplication_ranker.calculate_refactoring_complexity({
             'control_flow_branches': 12  # 12 * 2.5 = 30
         })
         assert result['score'] == 10.0
 
-    def test_raw_score_above_30_capped(self):
+    def test_raw_score_above_30_capped(self, duplication_ranker):
         """Raw score above 30 should still give scaled score of 10."""
-        result = calculate_refactoring_complexity({
+        result = duplication_ranker.calculate_refactoring_complexity({
             'control_flow_branches': 20  # 20 * 2.5 = 50
         })
         assert result['score'] == 10.0

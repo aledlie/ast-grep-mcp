@@ -15,6 +15,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from main import (
+    ParameterType,
+    _detect_nested_function_call,
+    _infer_from_identifier_name,
+    _infer_single_value_type,
+    generate_parameter_name,
+    identify_varying_identifiers,
+    infer_parameter_type,
+)
+
+from ast_grep_mcp.features.deduplication.analyzer import PatternAnalyzer
     identify_varying_literals,
     identify_varying_identifiers,
     generate_parameter_name,
@@ -29,7 +39,7 @@ from main import (
 class TestIdentifyVaryingLiterals:
     """Tests for identify_varying_literals function."""
 
-    def test_varying_string_literals(self):
+    def test_varying_string_literals(self, pattern_analyzer):
         """Test identifying varying string literals between code blocks."""
         code1 = '''
 name = "Alice"
@@ -39,12 +49,12 @@ email = "alice@example.com"
 name = "Bob"
 email = "bob@example.com"
 '''
-        result = identify_varying_literals(code1, code2, "python")
+        result = pattern_analyzer.identify_varying_literals(code1, code2, "python")
 
         # Should return a list (may be empty if ast-grep not available or no matches)
         assert isinstance(result, list)
 
-    def test_varying_number_literals(self):
+    def test_varying_number_literals(self, pattern_analyzer):
         """Test identifying varying number literals."""
         code1 = '''
 count = 10
@@ -54,12 +64,12 @@ price = 99.99
 count = 20
 price = 149.99
 '''
-        result = identify_varying_literals(code1, code2, "python")
+        result = pattern_analyzer.identify_varying_literals(code1, code2, "python")
 
         # Should return a list
         assert isinstance(result, list)
 
-    def test_varying_boolean_literals(self):
+    def test_varying_boolean_literals(self, pattern_analyzer):
         """Test identifying varying boolean literals."""
         code1 = '''
 enabled = True
@@ -69,12 +79,12 @@ visible = False
 enabled = False
 visible = True
 '''
-        result = identify_varying_literals(code1, code2, "python")
+        result = pattern_analyzer.identify_varying_literals(code1, code2, "python")
 
         # Should return a list
         assert isinstance(result, list)
 
-    def test_mixed_literal_types(self):
+    def test_mixed_literal_types(self, pattern_analyzer):
         """Test identifying multiple literal types in same code."""
         code1 = '''
 name = "test"
@@ -86,12 +96,12 @@ name = "prod"
 count = 10
 active = False
 '''
-        result = identify_varying_literals(code1, code2, "python")
+        result = pattern_analyzer.identify_varying_literals(code1, code2, "python")
 
         # Should return a list
         assert isinstance(result, list)
 
-    def test_javascript_literals(self):
+    def test_javascript_literals(self, pattern_analyzer):
         """Test literal identification in JavaScript code."""
         code1 = '''
 const name = "Alice";
@@ -101,16 +111,16 @@ const count = 10;
 const name = "Bob";
 const count = 20;
 '''
-        result = identify_varying_literals(code1, code2, "javascript")
+        result = pattern_analyzer.identify_varying_literals(code1, code2, "javascript")
         assert isinstance(result, list)
 
-    def test_identical_code_no_variations(self):
+    def test_identical_code_no_variations(self, pattern_analyzer):
         """Test that identical code produces no variations."""
         code = '''
 name = "Alice"
 count = 10
 '''
-        result = identify_varying_literals(code, code, "python")
+        result = pattern_analyzer.identify_varying_literals(code, code, "python")
         # Should have no variations for identical code
         assert len(result) == 0
 
@@ -567,14 +577,14 @@ class TestParameterTypeClass:
 class TestEdgeCases:
     """Tests for edge cases and error handling."""
 
-    def test_empty_code_blocks(self):
+    def test_empty_code_blocks(self, pattern_analyzer):
         """Test handling empty code blocks."""
-        result = identify_varying_literals("", "", "python")
+        result = pattern_analyzer.identify_varying_literals("", "", "python")
         assert result == []
 
-    def test_whitespace_only_code(self):
+    def test_whitespace_only_code(self, pattern_analyzer):
         """Test handling whitespace-only code."""
-        result = identify_varying_literals("   \n   ", "   \n   ", "python")
+        result = pattern_analyzer.identify_varying_literals("   \n   ", "   \n   ", "python")
         assert result == []
 
     def test_name_collision_resolution(self):

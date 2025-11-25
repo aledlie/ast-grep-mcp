@@ -17,6 +17,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from main import (
+    _generate_refactoring_strategies,
+    generate_refactoring_suggestions,
+)
+
+from ast_grep_mcp.features.deduplication.ranker import DuplicationRanker
     generate_refactoring_suggestions,
     calculate_refactoring_complexity,
     _generate_refactoring_strategies,
@@ -121,7 +126,7 @@ def process():
         assert "variations" in import_analysis
         assert "overlap" in import_analysis
 
-    def test_suggestions_include_complexity_scores(self):
+    def test_suggestions_include_complexity_scores(self, duplication_ranker):
         """Test that suggestions include complexity field with detailed scores."""
         code1 = """def complex_func(x):
     if x > 0:
@@ -160,7 +165,7 @@ def process():
         assert isinstance(suggestion["complexity_score"], int)
         assert 1 <= suggestion["complexity_score"] <= 10
 
-    def test_suggestions_include_refactoring_strategies(self):
+    def test_suggestions_include_refactoring_strategies(self, duplication_ranker):
         """Test that suggestions include refactoring_strategies."""
         code1 = """def simple():
     return 1"""
@@ -191,7 +196,7 @@ def process():
             assert "effort" in strategy
             assert "recommended" in strategy
 
-    def test_backward_compatibility_no_enhanced_analysis(self):
+    def test_backward_compatibility_no_enhanced_analysis(self, duplication_ranker):
         """Test backward compatibility with include_enhanced_analysis=False."""
         code1 = """def func1(x):
     return x + 1"""
@@ -225,7 +230,7 @@ def process():
         assert "import_dependencies" in suggestion
         assert "estimated_effort" in suggestion
 
-    def test_strategy_recommendations_low_complexity(self):
+    def test_strategy_recommendations_low_complexity(self, duplication_ranker):
         """Test that low complexity yields appropriate strategy recommendations."""
         strategies = _generate_refactoring_strategies(
             complexity_level="low",
@@ -244,7 +249,7 @@ def process():
         # Low complexity should have low effort options
         assert all(s["effort"] in ["low", "medium"] for s in strategies)
 
-    def test_strategy_recommendations_medium_complexity(self):
+    def test_strategy_recommendations_medium_complexity(self, duplication_ranker):
         """Test that medium complexity yields appropriate strategy recommendations."""
         strategies = _generate_refactoring_strategies(
             complexity_level="medium",
@@ -263,7 +268,7 @@ def process():
         strategy_names = [s["name"] for s in strategies]
         assert "Parameterized Extract" in strategy_names or "Strategy Pattern" in strategy_names
 
-    def test_strategy_recommendations_high_complexity(self):
+    def test_strategy_recommendations_high_complexity(self, duplication_ranker):
         """Test that high complexity yields appropriate strategy recommendations."""
         strategies = _generate_refactoring_strategies(
             complexity_level="high",
@@ -279,7 +284,7 @@ def process():
         # Should mention incremental/phased approaches for high complexity
         assert any(s["effort"] == "high" for s in strategies)
 
-    def test_complexity_score_calculation(self):
+    def test_complexity_score_calculation(self, duplication_ranker):
         """Test that complexity scores are calculated correctly."""
         # Low complexity input
         low_input = {
@@ -293,7 +298,7 @@ def process():
             "return_complexity": 0
         }
 
-        low_result = calculate_refactoring_complexity(low_input)
+        low_result = duplication_ranker.calculate_refactoring_complexity(low_input)
         assert low_result["level"] in ["low", "medium"]  # May vary based on algorithm
 
         # High complexity input
@@ -308,7 +313,7 @@ def process():
             "return_complexity": 3
         }
 
-        high_result = calculate_refactoring_complexity(high_input)
+        high_result = duplication_ranker.calculate_refactoring_complexity(high_input)
         assert high_result["level"] == "high"
         assert high_result["score"] > low_result["score"]
 

@@ -46,7 +46,9 @@ def mock_field(**kwargs: Any) -> Any:
 with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
     with patch("pydantic.Field", mock_field):
         import main
-        from main import filter_files_by_size, stream_ast_grep_results
+from ast_grep_mcp.core.cache import QueryCache
+from ast_grep_mcp.core.executor import stream_ast_grep_results
+from main import filter_files_by_size
 
 
 # ============================================================================
@@ -562,7 +564,6 @@ class TestPhase2Integration:
     def test_all_phase2_features_with_caching(self, mock_stream: Any, mock_filter: Any) -> None:
         """Test all Phase 2 features together including caching"""
         # Enable caching
-        from main import QueryCache
         main._query_cache = QueryCache(max_size=10, ttl_seconds=300)
         main.CACHE_ENABLED = True
 

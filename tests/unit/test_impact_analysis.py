@@ -18,7 +18,14 @@ from unittest.mock import patch, MagicMock
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from ast_grep_mcp.features.deduplication.impact import analyze_deduplication_impact
 from main import (
+    _assess_breaking_change_risk,
+    _estimate_lines_changed,
+    _extract_function_names_from_code,
+    _find_external_call_sites,
+    _find_import_references,
+)
     analyze_deduplication_impact,
     _extract_function_names_from_code,
     _find_external_call_sites,

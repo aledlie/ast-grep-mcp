@@ -35,7 +35,13 @@ def mock_field(**kwargs: Any) -> Any:
 with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
     with patch("pydantic.Field", mock_field):
         import main
-        from main import (
+from main import (
+    calculate_similarity,
+    generate_refactoring_suggestions,
+    normalize_code,
+)
+
+from ast_grep_mcp.features.deduplication.detector import DuplicationDetector
             calculate_similarity,
             generate_refactoring_suggestions,
             group_duplicates,
@@ -128,7 +134,7 @@ class TestGroupDuplicates:
             {"text": "def baz():\n    return 1\n    x = 2\n    y = 3", "file": "c.py"},
         ]
 
-        groups = group_duplicates(matches, min_similarity=0.8, min_lines=3)
+        groups = duplication_detector.group_duplicates(matches, min_similarity=0.8, min_lines=3)
         assert len(groups) == 1
         assert len(groups[0]) == 3
 
@@ -139,7 +145,7 @@ class TestGroupDuplicates:
             {"text": "y = 1", "file": "b.py"},
         ]
 
-        groups = group_duplicates(matches, min_similarity=0.8, min_lines=5)
+        groups = duplication_detector.group_duplicates(matches, min_similarity=0.8, min_lines=5)
         assert len(groups) == 0
 
     def test_min_similarity_threshold(self) -> None:
@@ -151,7 +157,7 @@ class TestGroupDuplicates:
         ]
 
         # With high threshold, only very similar items group
-        groups = group_duplicates(matches, min_similarity=0.9, min_lines=3)
+        groups = duplication_detector.group_duplicates(matches, min_similarity=0.9, min_lines=3)
         # foo and bar are very similar, baz is different
         assert len(groups) <= 1
 
@@ -162,12 +168,12 @@ class TestGroupDuplicates:
             {"text": "class Bar:\n    pass\n    w = 4\n    t = 5", "file": "b.py"},
         ]
 
-        groups = group_duplicates(matches, min_similarity=0.95, min_lines=3)
+        groups = duplication_detector.group_duplicates(matches, min_similarity=0.95, min_lines=3)
         assert len(groups) == 0
 
     def test_empty_matches_returns_empty(self) -> None:
         """Test that empty matches list returns empty groups"""
-        groups = group_duplicates([], min_similarity=0.8, min_lines=3)
+        groups = duplication_detector.group_duplicates([], min_similarity=0.8, min_lines=3)
         assert len(groups) == 0
 
 

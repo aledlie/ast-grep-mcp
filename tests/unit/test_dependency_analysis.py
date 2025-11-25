@@ -12,6 +12,11 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from main import (
+    analyze_import_overlap,
+    detect_import_variations,
+    detect_internal_dependencies,
+    extract_imports_from_files,
+)
     extract_imports_from_files,
     detect_import_variations,
     analyze_import_overlap,

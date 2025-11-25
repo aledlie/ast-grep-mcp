@@ -16,7 +16,17 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import main
+from ast_grep_mcp.utils.formatters import (
+    format_python_code,
+    format_typescript_code,
+)
 from main import (
+    _basic_python_format,
+    _format_python_line,
+    format_generated_code,
+    format_java_code,
+    format_javascript_code,
+)
     format_python_code,
     format_typescript_code,
     format_javascript_code,

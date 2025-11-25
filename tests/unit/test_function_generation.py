@@ -43,7 +43,22 @@ def mock_field(**kwargs: Any) -> Any:
 # Import with mocked decorators
 with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
     with patch("pydantic.Field", mock_field):
-        from main import (
+from ast_grep_mcp.models.deduplication import ParameterInfo
+from main import (
+    format_java_params,
+    format_python_params,
+    format_typescript_params,
+    generate_docstring,
+    generate_function_body,
+    generate_function_signature,
+    generate_java_method,
+    generate_javascript_function,
+    generate_python_function,
+    generate_type_annotations,
+    generate_typescript_function,
+)
+
+from ast_grep_mcp.features.deduplication.generator import CodeGenerator
             ParameterInfo,
             detect_return_value,
             format_java_params,
@@ -308,107 +323,107 @@ class TestDetectReturnValue:
     def test_explicit_return_string(self) -> None:
         """Test detecting explicit string return."""
         code = 'return "hello"'
-        has_return, inferred = detect_return_value(code, "python")
+        has_return, inferred = code_generator.detect_return_value(code, "python")
         assert has_return is True
         assert inferred == "str"
 
     def test_explicit_return_number(self) -> None:
         """Test detecting explicit number return in JS."""
         code = "return 42"
-        has_return, inferred = detect_return_value(code, "javascript")
+        has_return, inferred = code_generator.detect_return_value(code, "javascript")
         assert has_return is True
         # Number literal type inference
 
     def test_explicit_return_boolean_python(self) -> None:
         """Test detecting boolean return in Python."""
         code = "return True"
-        has_return, inferred = detect_return_value(code, "python")
+        has_return, inferred = code_generator.detect_return_value(code, "python")
         assert has_return is True
         assert inferred == "bool"
 
     def test_explicit_return_boolean_js(self) -> None:
         """Test detecting boolean return in JavaScript."""
         code = "return true"
-        has_return, inferred = detect_return_value(code, "javascript")
+        has_return, inferred = code_generator.detect_return_value(code, "javascript")
         assert has_return is True
         assert inferred == "boolean"
 
     def test_explicit_return_array(self) -> None:
         """Test detecting array return."""
         code = "return [1, 2, 3]"
-        has_return, inferred = detect_return_value(code, "python")
+        has_return, inferred = code_generator.detect_return_value(code, "python")
         assert has_return is True
         assert inferred == "list"
 
     def test_explicit_return_object(self) -> None:
         """Test detecting object return in JavaScript."""
         code = "return {name: 'test'}"
-        has_return, inferred = detect_return_value(code, "javascript")
+        has_return, inferred = code_generator.detect_return_value(code, "javascript")
         assert has_return is True
 
     def test_no_return_statement(self) -> None:
         """Test code without return statement."""
         code = 'print("hello")'
-        has_return, inferred = detect_return_value(code, "python")
+        has_return, inferred = code_generator.detect_return_value(code, "python")
         assert has_return is False
         assert inferred is None
 
     def test_empty_return(self) -> None:
         """Test empty return statement."""
         code = "return"
-        has_return, inferred = detect_return_value(code, "python")
+        has_return, inferred = code_generator.detect_return_value(code, "python")
         assert has_return is True
         assert inferred is None
 
     def test_return_with_semicolon(self) -> None:
         """Test return with semicolon (JS style)."""
         code = "return;"
-        has_return, inferred = detect_return_value(code, "javascript")
+        has_return, inferred = code_generator.detect_return_value(code, "javascript")
         assert has_return is True
 
     def test_implicit_return_js(self) -> None:
         """Test implicit return detection in JavaScript arrow functions."""
         code = '"hello"'
-        has_return, inferred = detect_return_value(code, "javascript")
+        has_return, inferred = code_generator.detect_return_value(code, "javascript")
         assert has_return is True
         assert inferred == "string"
 
     def test_implicit_return_not_in_python(self) -> None:
         """Test that Python doesn't have implicit returns."""
         code = '"hello"'
-        has_return, inferred = detect_return_value(code, "python")
+        has_return, inferred = code_generator.detect_return_value(code, "python")
         assert has_return is False
 
     def test_return_none_python(self) -> None:
         """Test return None in Python."""
         code = "return None"
-        has_return, inferred = detect_return_value(code, "python")
+        has_return, inferred = code_generator.detect_return_value(code, "python")
         assert has_return is True
         assert inferred == "None"
 
     def test_return_null_js(self) -> None:
         """Test return null in JavaScript."""
         code = "return null"
-        has_return, inferred = detect_return_value(code, "javascript")
+        has_return, inferred = code_generator.detect_return_value(code, "javascript")
         assert has_return is True
         assert inferred == "null"
 
     def test_return_undefined(self) -> None:
         """Test return undefined in JavaScript."""
         code = "return undefined"
-        has_return, inferred = detect_return_value(code, "javascript")
+        has_return, inferred = code_generator.detect_return_value(code, "javascript")
         assert has_return is True
         assert inferred == "undefined"
 
     def test_empty_code(self) -> None:
         """Test empty code string."""
-        has_return, inferred = detect_return_value("", "python")
+        has_return, inferred = code_generator.detect_return_value("", "python")
         assert has_return is False
         assert inferred is None
 
     def test_whitespace_only(self) -> None:
         """Test whitespace-only code."""
-        has_return, inferred = detect_return_value("   \n  ", "python")
+        has_return, inferred = code_generator.detect_return_value("   \n  ", "python")
         assert has_return is False
 
 

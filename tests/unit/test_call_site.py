@@ -15,7 +15,13 @@ from pathlib import Path
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from ast_grep_mcp.models.deduplication import ParameterInfo
 from main import (
+    format_arguments_for_call,
+    preserve_call_site_indentation,
+)
+
+from ast_grep_mcp.features.deduplication.generator import CodeGenerator
     generate_replacement_call,
     preserve_call_site_indentation,
     format_arguments_for_call,
@@ -27,143 +33,143 @@ class TestGenerateReplacementCall:
     """Tests for generate_replacement_call function."""
 
     # Basic function calls
-    def test_simple_python_call(self):
+    def test_simple_python_call(self, code_generator):
         """Test basic Python function call."""
-        result = generate_replacement_call("process_data", ["items", "config"], "python")
+        result = code_generator.generate_replacement_call("process_data", ["items", "config"], "python")
         assert result == "process_data(items, config)"
 
-    def test_simple_javascript_call(self):
+    def test_simple_javascript_call(self, code_generator):
         """Test basic JavaScript function call."""
-        result = generate_replacement_call("fetchData", ["url", "options"], "javascript")
+        result = code_generator.generate_replacement_call("fetchData", ["url", "options"], "javascript")
         assert result == "fetchData(url, options)"
 
-    def test_simple_typescript_call(self):
+    def test_simple_typescript_call(self, code_generator):
         """Test basic TypeScript function call."""
-        result = generate_replacement_call("getData", ["id"], "typescript")
+        result = code_generator.generate_replacement_call("getData", ["id"], "typescript")
         assert result == "getData(id)"
 
-    def test_empty_arguments(self):
+    def test_empty_arguments(self, code_generator):
         """Test function call with no arguments."""
-        result = generate_replacement_call("getData", [], "python")
+        result = code_generator.generate_replacement_call("getData", [], "python")
         assert result == "getData()"
 
-    def test_single_argument(self):
+    def test_single_argument(self, code_generator):
         """Test function call with single argument."""
-        result = generate_replacement_call("process", ["value"], "python")
+        result = code_generator.generate_replacement_call("process", ["value"], "python")
         assert result == "process(value)"
 
     # Method calls
-    def test_method_call_with_this(self):
+    def test_method_call_with_this(self, code_generator):
         """Test method call with 'this' object."""
-        result = generate_replacement_call(
+        result = code_generator.generate_replacement_call(
             "fetch", ["url"], "typescript", is_method=True, object_name="this"
         )
         assert result == "this.fetch(url)"
 
-    def test_method_call_with_self(self):
+    def test_method_call_with_self(self, code_generator):
         """Test method call with 'self' object."""
-        result = generate_replacement_call(
+        result = code_generator.generate_replacement_call(
             "process", ["data"], "python", is_method=True, object_name="self"
         )
         assert result == "self.process(data)"
 
-    def test_method_call_with_instance(self):
+    def test_method_call_with_instance(self, code_generator):
         """Test method call with custom instance name."""
-        result = generate_replacement_call(
+        result = code_generator.generate_replacement_call(
             "save", ["record"], "java", is_method=True, object_name="repository"
         )
         assert result == "repository.save(record)"
 
-    def test_method_call_no_args(self):
+    def test_method_call_no_args(self, code_generator):
         """Test method call with no arguments."""
-        result = generate_replacement_call(
+        result = code_generator.generate_replacement_call(
             "reset", [], "typescript", is_method=True, object_name="this"
         )
         assert result == "this.reset()"
 
     # Language-specific behaviors
-    def test_go_call(self):
+    def test_go_call(self, code_generator):
         """Test Go function call."""
-        result = generate_replacement_call("ProcessData", ["items"], "go")
+        result = code_generator.generate_replacement_call("ProcessData", ["items"], "go")
         assert result == "ProcessData(items)"
 
-    def test_rust_call(self):
+    def test_rust_call(self, code_generator):
         """Test Rust function call."""
-        result = generate_replacement_call("process_data", ["items"], "rust")
+        result = code_generator.generate_replacement_call("process_data", ["items"], "rust")
         assert result == "process_data(items)"
 
-    def test_java_call(self):
+    def test_java_call(self, code_generator):
         """Test Java function call."""
-        result = generate_replacement_call("processData", ["items", "config"], "java")
+        result = code_generator.generate_replacement_call("processData", ["items", "config"], "java")
         assert result == "processData(items, config)"
 
-    def test_ruby_call_with_args(self):
+    def test_ruby_call_with_args(self, code_generator):
         """Test Ruby function call with arguments."""
-        result = generate_replacement_call("process_data", ["items"], "ruby")
+        result = code_generator.generate_replacement_call("process_data", ["items"], "ruby")
         assert result == "process_data(items)"
 
-    def test_ruby_call_no_args(self):
+    def test_ruby_call_no_args(self, code_generator):
         """Test Ruby function call without arguments (no parentheses)."""
-        result = generate_replacement_call("get_data", [], "ruby")
+        result = code_generator.generate_replacement_call("get_data", [], "ruby")
         assert result == "get_data"
 
-    def test_scala_call_with_args(self):
+    def test_scala_call_with_args(self, code_generator):
         """Test Scala function call with arguments."""
-        result = generate_replacement_call("processData", ["items"], "scala")
+        result = code_generator.generate_replacement_call("processData", ["items"], "scala")
         assert result == "processData(items)"
 
-    def test_scala_call_no_args(self):
+    def test_scala_call_no_args(self, code_generator):
         """Test Scala function call without arguments (no parentheses)."""
-        result = generate_replacement_call("getData", [], "scala")
+        result = code_generator.generate_replacement_call("getData", [], "scala")
         assert result == "getData"
 
-    def test_kotlin_call(self):
+    def test_kotlin_call(self, code_generator):
         """Test Kotlin function call."""
-        result = generate_replacement_call("processData", ["items"], "kotlin")
+        result = code_generator.generate_replacement_call("processData", ["items"], "kotlin")
         assert result == "processData(items)"
 
-    def test_swift_call(self):
+    def test_swift_call(self, code_generator):
         """Test Swift function call."""
-        result = generate_replacement_call("processData", ["items"], "swift")
+        result = code_generator.generate_replacement_call("processData", ["items"], "swift")
         assert result == "processData(items)"
 
-    def test_c_call(self):
+    def test_c_call(self, code_generator):
         """Test C function call."""
-        result = generate_replacement_call("process_data", ["items", "count"], "c")
+        result = code_generator.generate_replacement_call("process_data", ["items", "count"], "c")
         assert result == "process_data(items, count)"
 
-    def test_cpp_call(self):
+    def test_cpp_call(self, code_generator):
         """Test C++ function call."""
-        result = generate_replacement_call("processData", ["items"], "cpp")
+        result = code_generator.generate_replacement_call("processData", ["items"], "cpp")
         assert result == "processData(items)"
 
-    def test_unknown_language_defaults(self):
+    def test_unknown_language_defaults(self, code_generator):
         """Test unknown language falls back to standard syntax."""
-        result = generate_replacement_call("process", ["data"], "unknown_lang")
+        result = code_generator.generate_replacement_call("process", ["data"], "unknown_lang")
         assert result == "process(data)"
 
     # Edge cases
-    def test_complex_argument_expressions(self):
+    def test_complex_argument_expressions(self, code_generator):
         """Test with complex argument expressions."""
-        result = generate_replacement_call(
+        result = code_generator.generate_replacement_call(
             "compute",
             ["arr[0]", "obj.prop", "func(x)", "a + b"],
             "python"
         )
         assert result == "compute(arr[0], obj.prop, func(x), a + b)"
 
-    def test_string_literal_arguments(self):
+    def test_string_literal_arguments(self, code_generator):
         """Test with string literal arguments."""
-        result = generate_replacement_call(
+        result = code_generator.generate_replacement_call(
             "log",
             ['"message"', "'value'"],
             "javascript"
         )
         assert result == 'log("message", \'value\')'
 
-    def test_method_flag_without_object_name(self):
+    def test_method_flag_without_object_name(self, code_generator):
         """Test is_method=True without object_name uses function syntax."""
-        result = generate_replacement_call(
+        result = code_generator.generate_replacement_call(
             "process", ["data"], "python", is_method=True, object_name=None
         )
         assert result == "process(data)"
@@ -458,10 +464,10 @@ class TestFormatArgumentsForCall:
 class TestCallSiteIntegration:
     """Integration tests combining multiple call site functions."""
 
-    def test_generate_and_indent_call(self):
+    def test_generate_and_indent_call(self, code_generator):
         """Test generating a call and applying indentation."""
         # Generate the call
-        call = generate_replacement_call("process_data", ["items", "config"], "python")
+        call = code_generator.generate_replacement_call("process_data", ["items", "config"], "python")
 
         # Apply indentation
         original = "        result = old_code()"
@@ -469,7 +475,7 @@ class TestCallSiteIntegration:
 
         assert indented == "        process_data(items, config)"
 
-    def test_format_args_and_generate_call(self):
+    def test_format_args_and_generate_call(self, code_generator):
         """Test formatting arguments then generating the call."""
         # Format arguments
         params = [
@@ -480,14 +486,14 @@ class TestCallSiteIntegration:
 
         # The formatted args need to be split for generate_replacement_call
         # In practice, you'd pass individual values
-        call = generate_replacement_call("create_user", ['"Alice"', "25"], "python")
+        call = code_generator.generate_replacement_call("create_user", ['"Alice"', "25"], "python")
 
         assert call == 'create_user("Alice", 25)'
 
-    def test_method_call_with_indentation(self):
+    def test_method_call_with_indentation(self, code_generator):
         """Test method call generation with indentation preservation."""
         # Generate method call
-        call = generate_replacement_call(
+        call = code_generator.generate_replacement_call(
             "fetchData", ["this.userId"], "typescript",
             is_method=True, object_name="this.service"
         )
@@ -515,14 +521,14 @@ class TestCallSiteIntegration:
 class TestEdgeCasesAndErrorHandling:
     """Tests for edge cases and error handling."""
 
-    def test_special_characters_in_function_name(self):
+    def test_special_characters_in_function_name(self, code_generator):
         """Test function names with underscores and numbers."""
-        result = generate_replacement_call("process_data_v2", ["x"], "python")
+        result = code_generator.generate_replacement_call("process_data_v2", ["x"], "python")
         assert result == "process_data_v2(x)"
 
-    def test_special_characters_in_arguments(self):
+    def test_special_characters_in_arguments(self, code_generator):
         """Test arguments containing special characters."""
-        result = generate_replacement_call(
+        result = code_generator.generate_replacement_call(
             "query",
             ['f"SELECT * FROM {table}"', "**kwargs"],
             "python"
@@ -530,21 +536,21 @@ class TestEdgeCasesAndErrorHandling:
         assert 'f"SELECT * FROM {table}"' in result
         assert "**kwargs" in result
 
-    def test_argument_with_newlines(self):
+    def test_argument_with_newlines(self, code_generator):
         """Test argument values containing newlines."""
         arg = '"""multiline\nstring"""'
-        result = generate_replacement_call("process", [arg], "python")
+        result = code_generator.generate_replacement_call("process", [arg], "python")
         assert '"""multiline\nstring"""' in result
 
-    def test_very_long_argument_list(self):
+    def test_very_long_argument_list(self, code_generator):
         """Test with very long argument list."""
         args = [f"arg{i}" for i in range(50)]
-        result = generate_replacement_call("func", args, "python")
+        result = code_generator.generate_replacement_call("func", args, "python")
         assert result.count(",") == 49  # 50 args = 49 commas
 
-    def test_nested_function_calls_as_args(self):
+    def test_nested_function_calls_as_args(self, code_generator):
         """Test nested function calls as arguments."""
-        result = generate_replacement_call(
+        result = code_generator.generate_replacement_call(
             "outer",
             ["inner1(a, b)", "inner2(c)"],
             "python"

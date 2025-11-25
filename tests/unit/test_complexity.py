@@ -11,7 +11,19 @@ from unittest.mock import patch, MagicMock
 # Add the parent directory to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from ast_grep_mcp.features.complexity.analyzer import (
+    analyze_file_complexity,
+    calculate_cognitive_complexity,
+    calculate_cyclomatic_complexity,
+)
+from ast_grep_mcp.features.complexity.metrics import ComplexityMetrics
 from main import (
+    ComplexityStorage,
+    ComplexityThresholds,
+    FunctionComplexity,
+    calculate_nesting_depth,
+    get_complexity_patterns,
+)
     calculate_cyclomatic_complexity,
     calculate_cognitive_complexity,
     calculate_nesting_depth,
