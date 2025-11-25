@@ -4,14 +4,21 @@ This module serves two purposes:
 1. Entry point for the MCP server
 2. Backward compatibility layer for existing imports
 
-After test migration, re-exports can be removed.
+Migration Status (2025-11-24):
+- Modular architecture is complete (src/ast_grep_mcp/)
+- Tests still rely on this backward compatibility layer
+- To remove this layer, tests need refactoring to:
+  * Replace `import main` with modular imports
+  * Update `@patch("main.xxx")` to patch modular paths
+  * Refactor initialization (main.register_mcp_tools(), main._query_cache access)
+- Files affected: 20+ test files with 1,150+ total tests
 """
 
 # Entry point
 from ast_grep_mcp.server.runner import run_mcp_server, mcp as _mcp
 
 # Backward compatibility - Re-export all functions
-# TODO: Remove after test migration
+# NOTE: Required by test suite - see migration notes above
 from ast_grep_mcp.core.config import *
 from ast_grep_mcp.core.cache import *
 from ast_grep_mcp.core.logging import *
@@ -47,6 +54,17 @@ from ast_grep_mcp.features.quality.smells import *
 from ast_grep_mcp.features.quality.rules import *
 from ast_grep_mcp.features.quality.validator import *
 from ast_grep_mcp.features.quality.enforcer import *
+
+# Re-export formatting functions for backward compatibility with tests
+from ast_grep_mcp.utils.formatters import (
+    format_python_code,
+    format_typescript_code,
+    format_javascript_code,
+    format_java_code,
+    format_generated_code,
+    _basic_python_format,
+    _format_python_line,
+)
 
 # Re-export mcp for backward compatibility
 mcp = _mcp
