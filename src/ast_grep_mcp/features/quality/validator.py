@@ -10,9 +10,8 @@ import re
 import subprocess
 from typing import Any, Dict, List
 
-from ast_grep_mcp.core.executor import run_ast_grep
+from ast_grep_mcp.core.executor import run_ast_grep, get_supported_languages
 from ast_grep_mcp.core.logging import get_logger
-from ast_grep_mcp.core.languages import get_supported_languages
 from ast_grep_mcp.models.standards import LintingRule, RuleValidationResult
 import sentry_sdk
 

@@ -7,8 +7,8 @@ import hashlib
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
-from ...utils import get_logger
-from .generator import generate_import_statement
+from ...core.logging import get_logger
+from .generator import CodeGenerator
 
 
 class DeduplicationApplicator:
@@ -17,6 +17,7 @@ class DeduplicationApplicator:
     def __init__(self):
         """Initialize the deduplication applicator."""
         self.logger = get_logger("deduplication.applicator")
+        self.code_generator = CodeGenerator()
 
     def apply_deduplication(
         self,
@@ -420,11 +421,11 @@ class DeduplicationApplicator:
             module_parts = [p for p in parts if p and p != ".."]
             module_path = "." * parent_count + ".".join(module_parts)
 
-        # Generate import using existing function
-        return generate_import_statement(
+        # Generate import using code generator
+        return self.code_generator.generate_import_statement(
             module_path=module_path,
-            items=[function_name],
-            language=language
+            import_names=[function_name],
+            is_relative=module_path.startswith(".")
         )
 
     def _add_import_to_content(

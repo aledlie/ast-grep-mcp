@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Set
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ast_grep_mcp.core.logging import get_logger
-from ast_grep_mcp.core.streaming import stream_ast_grep_results
+from ast_grep_mcp.core.executor import stream_ast_grep_results
 from ast_grep_mcp.features.quality.rules import (
     RULE_TEMPLATES,
     load_rules_from_project

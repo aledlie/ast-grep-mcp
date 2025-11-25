@@ -5,6 +5,9 @@ import sentry_sdk
 from sentry_sdk.integrations.anthropic import AnthropicIntegration
 from ast_grep_mcp.core.logging import get_logger
 
+# Re-export capture_exception for backward compatibility
+from sentry_sdk import capture_exception
+
 
 def init_sentry(service_name: str = "ast-grep-mcp") -> None:
     """Initialize Sentry with Anthropic AI integration and service tagging.

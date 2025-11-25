@@ -4,7 +4,7 @@ from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional, Tuple
 
-from .generator import generate_multi_file_diff
+from ...utils.formatters import generate_multi_file_diff
 
 
 @dataclass

@@ -199,3 +199,56 @@ class DuplicationRanker:
             return f"Moderate refactoring value. Include in technical debt backlog."
         else:
             return f"Low priority. Consider deferring unless part of larger refactoring."
+
+
+# Standalone functions for backward compatibility and convenience
+_ranker_instance = None
+
+
+def get_ranker() -> DuplicationRanker:
+    """Get or create singleton DuplicationRanker instance."""
+    global _ranker_instance
+    if _ranker_instance is None:
+        _ranker_instance = DuplicationRanker()
+    return _ranker_instance
+
+
+def calculate_deduplication_score(
+    lines_saved: int,
+    complexity_score: int,
+    has_test_coverage: bool,
+    affected_files: int,
+    call_sites: int
+) -> float:
+    """Calculate deduplication score using singleton ranker.
+
+    Args:
+        lines_saved: Number of lines that would be saved
+        complexity_score: Complexity score (1-10)
+        has_test_coverage: Whether code has test coverage
+        affected_files: Number of files affected
+        call_sites: Number of call sites
+
+    Returns:
+        Score from 0-100
+    """
+    return get_ranker().calculate_deduplication_score(
+        lines_saved, complexity_score, has_test_coverage,
+        affected_files, call_sites
+    )
+
+
+def rank_deduplication_candidates(
+    candidates: List[Dict[str, Any]],
+    max_results: int = 10
+) -> List[Dict[str, Any]]:
+    """Rank deduplication candidates using singleton ranker.
+
+    Args:
+        candidates: List of deduplication candidates
+        max_results: Maximum number of results to return
+
+    Returns:
+        Ranked and enriched candidates
+    """
+    return get_ranker().rank_deduplication_candidates(candidates, max_results)

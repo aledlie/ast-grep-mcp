@@ -7,7 +7,7 @@ a clean API for the MCP server.
 
 from typing import Dict, List, Any, Optional
 
-from ...utils import get_logger
+from ...core.logging import get_logger
 from .detector import DuplicationDetector
 from .analyzer import PatternAnalyzer
 from .generator import CodeGenerator
@@ -272,3 +272,16 @@ def benchmark_deduplication_tool(
     )
 
     return results
+
+
+def register_deduplication_tools(mcp):
+    """Register all deduplication tools with the MCP server.
+
+    Args:
+        mcp: FastMCP instance to register tools with
+    """
+    # Register the 4 deduplication tools
+    mcp.tool()(find_duplication_tool)
+    mcp.tool()(analyze_deduplication_candidates_tool)
+    mcp.tool()(apply_deduplication_tool)
+    mcp.tool()(benchmark_deduplication_tool)

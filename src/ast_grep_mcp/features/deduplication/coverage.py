@@ -5,7 +5,7 @@ import glob as glob_module
 import re as regex_module
 from typing import Dict, List, Optional
 
-from ...utils import get_logger
+from ...core.logging import get_logger
 
 
 class TestCoverageDetector:

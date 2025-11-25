@@ -7,7 +7,7 @@ import subprocess
 from typing import Dict, List, Any, Optional
 
 from ...core import run_ast_grep
-from ...utils import get_logger
+from ...core.logging import get_logger
 
 
 class ImpactAnalyzer:

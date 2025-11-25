@@ -4,7 +4,55 @@ This module provides formatting functions for matches, diffs, complexity
 visualization, and before/after code examples.
 """
 
+import os
+import re
+import difflib
+from dataclasses import dataclass
 from typing import List, Dict, Any, Optional, Tuple
+
+
+@dataclass
+class FileDiff:
+    """Represents a diff for a single file.
+
+    Attributes:
+        file_path: Absolute path to the file
+        original_content: Original file content
+        new_content: New content after changes
+        unified_diff: Raw unified diff string
+        formatted_diff: Human-readable formatted diff with colors/context
+        hunks: List of individual diff hunks
+        additions: Number of lines added
+        deletions: Number of lines deleted
+    """
+    file_path: str
+    original_content: str
+    new_content: str
+    unified_diff: str
+    formatted_diff: str
+    hunks: List[Dict[str, Any]]
+    additions: int
+    deletions: int
+
+
+@dataclass
+class DiffPreview:
+    """Container for multi-file diff preview.
+
+    Attributes:
+        file_diffs: List of FileDiff objects for each modified file
+        total_files: Number of files with changes
+        total_additions: Total lines added across all files
+        total_deletions: Total lines deleted across all files
+        combined_diff: Single string with all diffs combined
+        summary: Human-readable summary of changes
+    """
+    file_diffs: List[FileDiff]
+    total_files: int
+    total_additions: int
+    total_deletions: int
+    combined_diff: str
+    summary: str
 
 
 def format_matches_as_text(matches: List[Dict[str, Any]]) -> str:
@@ -213,3 +261,225 @@ def visualize_complexity(score: int) -> Dict[str, Any]:
         "recommendations": recommendations,
         "formatted": f"{description} Complexity ({score}/10): {bar_plain}"
     }
+
+
+def generate_file_diff(
+    file_path: str,
+    original_content: str,
+    new_content: str,
+    context_lines: int = 3
+) -> FileDiff:
+    """Generate a unified diff for a single file.
+
+    Args:
+        file_path: Path to the file (used in diff header)
+        original_content: Original file content
+        new_content: New content after changes
+        context_lines: Number of context lines before/after changes (default 3)
+
+    Returns:
+        FileDiff object with raw and formatted diffs
+    """
+    # Split content into lines
+    original_lines = original_content.splitlines(keepends=True)
+    new_lines = new_content.splitlines(keepends=True)
+
+    # Ensure lines end with newline for proper diff format
+    if original_lines and not original_lines[-1].endswith('\n'):
+        original_lines[-1] += '\n'
+    if new_lines and not new_lines[-1].endswith('\n'):
+        new_lines[-1] += '\n'
+
+    # Generate unified diff
+    diff_lines = list(difflib.unified_diff(
+        original_lines,
+        new_lines,
+        fromfile=f"a/{os.path.basename(file_path)}",
+        tofile=f"b/{os.path.basename(file_path)}",
+        lineterm='',
+        n=context_lines
+    ))
+
+    unified_diff = ''.join(diff_lines)
+
+    # Parse hunks and count additions/deletions
+    hunks: List[Dict[str, Any]] = []
+    additions = 0
+    deletions = 0
+    current_hunk: Optional[Dict[str, Any]] = None
+
+    for line in diff_lines:
+        if line.startswith('@@'):
+            # Parse hunk header: @@ -start,count +start,count @@
+            if current_hunk:
+                hunks.append(current_hunk)
+
+            # Extract line numbers from hunk header
+            match = re.match(r'@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@', line)
+            if match:
+                current_hunk = {
+                    'header': line,
+                    'old_start': int(match.group(1)),
+                    'old_count': int(match.group(2)) if match.group(2) else 1,
+                    'new_start': int(match.group(3)),
+                    'new_count': int(match.group(4)) if match.group(4) else 1,
+                    'lines': []
+                }
+            else:
+                current_hunk = {
+                    'header': line,
+                    'lines': []
+                }
+        elif current_hunk is not None:
+            current_hunk['lines'].append(line)
+            if line.startswith('+') and not line.startswith('+++'):
+                additions += 1
+            elif line.startswith('-') and not line.startswith('---'):
+                deletions += 1
+
+    if current_hunk:
+        hunks.append(current_hunk)
+
+    # Generate formatted diff with line numbers
+    formatted_diff = _format_diff_with_line_numbers(
+        file_path, diff_lines, original_lines, new_lines
+    )
+
+    return FileDiff(
+        file_path=file_path,
+        original_content=original_content,
+        new_content=new_content,
+        unified_diff=unified_diff,
+        formatted_diff=formatted_diff,
+        hunks=hunks,
+        additions=additions,
+        deletions=deletions
+    )
+
+
+def _format_diff_with_line_numbers(
+    file_path: str,
+    diff_lines: List[str],
+    original_lines: List[str],
+    new_lines: List[str]
+) -> str:
+    """Format diff with line numbers for readability.
+
+    Args:
+        file_path: Path to the file
+        diff_lines: Raw diff lines from unified_diff
+        original_lines: Original file lines
+        new_lines: New file lines
+
+    Returns:
+        Formatted diff string with line numbers and visual indicators
+    """
+    if not diff_lines:
+        return f"No changes in {file_path}"
+
+    output = []
+    output.append(f"{'=' * 70}")
+    output.append(f"File: {file_path}")
+    output.append(f"{'=' * 70}")
+
+    old_line_num = 0
+    new_line_num = 0
+
+    for line in diff_lines:
+        if line.startswith('---'):
+            output.append(f"--- {file_path} (original)")
+        elif line.startswith('+++'):
+            output.append(f"+++ {file_path} (modified)")
+        elif line.startswith('@@'):
+            # Parse hunk header for line numbers
+            match = re.match(r'@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)', line)
+            if match:
+                old_line_num = int(match.group(1)) - 1
+                new_line_num = int(match.group(2)) - 1
+                context = match.group(3).strip()
+                output.append(f"\n{line.strip()}")
+                if context:
+                    output.append(f"  Context: {context}")
+            else:
+                output.append(f"\n{line.strip()}")
+        elif line.startswith('-'):
+            old_line_num += 1
+            output.append(f"{old_line_num:4d}      - {line[1:].rstrip()}")
+        elif line.startswith('+'):
+            new_line_num += 1
+            output.append(f"     {new_line_num:4d} + {line[1:].rstrip()}")
+        else:
+            # Context line
+            old_line_num += 1
+            new_line_num += 1
+            output.append(f"{old_line_num:4d} {new_line_num:4d}   {line.rstrip()}")
+
+    output.append(f"\n{'=' * 70}\n")
+
+    return '\n'.join(output)
+
+
+def generate_multi_file_diff(
+    file_changes: List[Dict[str, str]],
+    context_lines: int = 3
+) -> DiffPreview:
+    """Generate combined diff preview for multiple file changes.
+
+    Args:
+        file_changes: List of dicts with keys:
+            - 'file_path': Absolute path to file
+            - 'original_content': Original file content
+            - 'new_content': New content after changes
+        context_lines: Number of context lines (default 3)
+
+    Returns:
+        DiffPreview with all file diffs combined
+    """
+    file_diffs = []
+    total_additions = 0
+    total_deletions = 0
+
+    for change in file_changes:
+        file_diff = generate_file_diff(
+            file_path=change['file_path'],
+            original_content=change['original_content'],
+            new_content=change['new_content'],
+            context_lines=context_lines
+        )
+        file_diffs.append(file_diff)
+        total_additions += file_diff.additions
+        total_deletions += file_diff.deletions
+
+    # Combine all formatted diffs
+    combined_parts = []
+    for fd in file_diffs:
+        combined_parts.append(fd.formatted_diff)
+
+    combined_diff = '\n'.join(combined_parts)
+
+    # Generate summary
+    files_with_changes = [fd for fd in file_diffs if fd.additions > 0 or fd.deletions > 0]
+    summary_lines = [
+        "Diff Preview Summary",
+        "-" * 40,
+        f"Files modified: {len(files_with_changes)}",
+        f"Total additions: +{total_additions}",
+        f"Total deletions: -{total_deletions}",
+        "-" * 40,
+    ]
+
+    for fd in files_with_changes:
+        summary_lines.append(
+            f"  {os.path.basename(fd.file_path)}: +{fd.additions}/-{fd.deletions}"
+        )
+
+    summary = '\n'.join(summary_lines)
+
+    return DiffPreview(
+        file_diffs=file_diffs,
+        total_files=len(files_with_changes),
+        total_additions=total_additions,
+        total_deletions=total_deletions,
+        combined_diff=combined_diff,
+        summary=summary
+    )

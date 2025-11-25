@@ -37,6 +37,10 @@ from .formatters import (
     format_diff_with_colors,
     generate_before_after_example,
     visualize_complexity,
+    generate_file_diff,
+    generate_multi_file_diff,
+    FileDiff,
+    DiffPreview,
 )
 
 # Text utilities
@@ -73,6 +77,10 @@ __all__ = [
     "format_diff_with_colors",
     "generate_before_after_example",
     "visualize_complexity",
+    "generate_file_diff",
+    "generate_multi_file_diff",
+    "FileDiff",
+    "DiffPreview",
     # Text utilities
     "normalize_code",
     "calculate_similarity",

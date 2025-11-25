@@ -6,7 +6,7 @@ import time
 import statistics
 from typing import Dict, List, Any, Callable, Optional
 
-from ...utils import get_logger
+from ...core.logging import get_logger
 from .ranker import calculate_deduplication_score, rank_deduplication_candidates
 from .recommendations import generate_deduplication_recommendation
 from .reporting import create_enhanced_duplication_response

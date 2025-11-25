@@ -13,7 +13,12 @@ Modules:
 - tools: MCP tool registrations
 """
 
-from ast_grep_mcp.features.quality.smells import detect_code_smells_impl
+from ast_grep_mcp.features.quality.smells import (
+    detect_code_smells_impl,
+    _count_function_parameters,
+    _find_magic_numbers,
+    _extract_classes_from_file,
+)
 from ast_grep_mcp.features.quality.rules import (
     RULE_TEMPLATES,
     get_available_templates,
@@ -49,6 +54,9 @@ from ast_grep_mcp.features.quality.tools import register_quality_tools
 __all__ = [
     # Smells
     "detect_code_smells_impl",
+    "_count_function_parameters",
+    "_find_magic_numbers",
+    "_extract_classes_from_file",
     # Rules
     "RULE_TEMPLATES",
     "get_available_templates",
