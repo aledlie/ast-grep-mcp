@@ -10,6 +10,13 @@ from typing import Dict, List, Any, Optional
 from ...core.logging import get_logger
 from .generator import CodeGenerator
 
+__all__ = [
+    'DeduplicationApplicator',
+    '_plan_file_modification_order',
+    '_add_import_to_content',
+    '_generate_import_for_extracted_function'
+]
+
 
 class DeduplicationApplicator:
     """Applies deduplication refactoring with backup and validation."""
@@ -631,3 +638,46 @@ class DeduplicationApplicator:
             restored_files.append(original_file)
 
         return restored_files
+
+
+# Module-level functions for backward compatibility with tests
+_applicator_instance = None
+
+def _get_applicator():
+    """Get or create the global applicator instance."""
+    global _applicator_instance
+    if _applicator_instance is None:
+        _applicator_instance = DeduplicationApplicator()
+    return _applicator_instance
+
+def _plan_file_modification_order(
+    files_to_modify: List[str],
+    generated_code: Dict[str, Any],
+    extract_to_file: Optional[str],
+    project_folder: str,
+    language: str
+) -> Dict[str, Any]:
+    """Module-level wrapper for _plan_file_modification_order."""
+    return _get_applicator()._plan_file_modification_order(
+        files_to_modify, generated_code, extract_to_file, project_folder, language
+    )
+
+def _add_import_to_content(
+    content: str,
+    import_statement: str,
+    language: str
+) -> str:
+    """Module-level wrapper for _add_import_to_content."""
+    return _get_applicator()._add_import_to_content(content, import_statement, language)
+
+def _generate_import_for_extracted_function(
+    source_file: str,
+    target_file: str,
+    function_name: str,
+    language: str,
+    project_folder: str
+) -> str:
+    """Module-level wrapper for _generate_import_for_extracted_function."""
+    return _get_applicator()._generate_import_for_extracted_function(
+        source_file, target_file, function_name, language, project_folder
+    )
