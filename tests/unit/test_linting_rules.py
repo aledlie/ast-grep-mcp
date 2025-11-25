@@ -1051,11 +1051,6 @@ class TestGetAvailableTemplates:
 class TestCreateLintingRuleTool:
     """Test create_linting_rule MCP tool."""
 
-    def setup_method(self):
-        """Setup for each test."""
-        # Clear any Sentry context
-        pass
-
     @patch("main._validate_rule_definition")
     def test_create_rule_from_scratch(self, mock_validate):
         """Test creating a rule from scratch."""
