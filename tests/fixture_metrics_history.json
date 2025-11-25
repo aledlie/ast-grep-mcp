@@ -1,0 +1,83 @@
+[
+  {
+    "date": "2025-11-25T02:02:38.789968",
+    "total_test_files": 41,
+    "total_test_functions": 1584,
+    "tests_using_fixtures": 456,
+    "tests_using_setup_method": 384,
+    "fixture_adoption_rate": 28.8,
+    "fixture_usage": {
+      "pattern_analyzer": 163,
+      "code_generator": 166,
+      "duplication_ranker": 77,
+      "mcp_tools": 23,
+      "sample_java_code": 23,
+      "sample_schema_types": 23,
+      "sample_function_code": 23,
+      "sample_test_paths": 23,
+      "temp_dir": 23,
+      "sample_python_code": 23,
+      "mock_ast_grep_process": 23,
+      "sample_typescript_code": 23,
+      "temp_project_with_files": 23,
+      "sample_complexity_thresholds": 23,
+      "sample_linting_rule": 23,
+      "backup_dir": 23,
+      "sample_javascript_code": 23,
+      "sample_deduplication_result": 23,
+      "initialized_cache": 23,
+      "sample_rule_templates": 23,
+      "recommendation_engine": 27
+    },
+    "file_categories": {
+      "fixture_based": [
+        "test_ast_diff.py",
+        "test_call_site.py",
+        "test_complexity_scoring.py",
+        "test_conftest_fixtures.py",
+        "test_enhanced_suggestions.py",
+        "test_import_management.py",
+        "test_parameter_extraction.py",
+        "test_ranking.py",
+        "test_recommendation_engine.py",
+        "test_variation_classification.py"
+      ],
+      "setup_method_based": [
+        "test_apply_deduplication.py",
+        "test_batch.py",
+        "test_cache.py",
+        "test_edge_cases.py",
+        "test_phase2.py",
+        "test_rewrite.py",
+        "test_schema.py",
+        "test_standards_enforcement.py",
+        "test_unit.py",
+        "test_analyze_deduplication.py",
+        "test_cli_duplication.py",
+        "test_deduplication_rollback.py",
+        "test_validation_pipeline.py"
+      ],
+      "mixed": [],
+      "neither": [
+        "test_code_formatting.py",
+        "test_code_smells.py",
+        "test_complexity.py",
+        "test_coverage_detection.py",
+        "test_deduplication_analysis.py",
+        "test_deduplication_detection.py",
+        "test_dependencies.py",
+        "test_dependency_analysis.py",
+        "test_diff_preview.py",
+        "test_duplication.py",
+        "test_enhanced_reporting.py",
+        "test_function_generation.py",
+        "test_impact_analysis.py",
+        "test_linting_rules.py",
+        "test_syntax_validation.py",
+        "test_templates.py",
+        "test_benchmark.py",
+        "test_integration.py"
+      ]
+    }
+  }
+]
