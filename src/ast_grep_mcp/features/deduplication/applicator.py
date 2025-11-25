@@ -289,7 +289,7 @@ class DeduplicationApplicator:
                 raise
 
             # POST-VALIDATION
-            from ...core import validate_syntax
+            from ..rewrite.service import validate_syntax
             post_validation_errors: List[Dict[str, Any]] = []
             for fp in modified_files:
                 if os.path.exists(fp):
