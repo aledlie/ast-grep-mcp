@@ -14,17 +14,6 @@ from difflib import SequenceMatcher
 
 from ...core.logging import get_logger
 from ...core.executor import stream_ast_grep_results
-# from ...utils.language import get_supported_languages  # TODO: Create this module
-
-# Temporary - should be moved to utils.language
-def get_supported_languages() -> List[str]:
-    """Get all supported languages."""
-    return [
-        "bash", "c", "cpp", "csharp", "css", "elixir", "go", "haskell",
-        "html", "java", "javascript", "json", "jsx", "kotlin", "lua",
-        "nix", "php", "python", "ruby", "rust", "scala", "solidity",
-        "swift", "tsx", "typescript", "yaml"
-    ]
 
 
 class DuplicationDetector:
