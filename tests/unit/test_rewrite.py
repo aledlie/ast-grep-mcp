@@ -60,39 +60,20 @@ with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
 class TestRewriteCode:
     """Tests for rewrite_code MCP tool."""
 
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        # Create temporary project directory
-        self.temp_dir = tempfile.mkdtemp()
-        self.project_folder = self.temp_dir
-
-        # Create sample Python file to rewrite
-        self.test_file = os.path.join(self.temp_dir, "sample.py")
-        with open(self.test_file, "w") as f:
-            f.write("def hello():\n    print('hello')\n")
-
-        # Get tool function
-        self.rewrite_code = main.mcp.tools.get("rewrite_code")  # type: ignore
-        assert self.rewrite_code is not None, "rewrite_code tool not registered"
-
-    def teardown_method(self) -> None:
-        """Clean up test fixtures."""
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
     def test_rewrite_code_tool_registered(self) -> None:
         """Test that rewrite_code tool is registered."""
         assert "rewrite_code" in main.mcp.tools  # type: ignore
         assert callable(main.mcp.tools["rewrite_code"])  # type: ignore
 
     @patch("subprocess.Popen")
-    def test_rewrite_code_dry_run_mode(self, mock_popen: Mock) -> None:
+    def test_rewrite_code_dry_run_mode(self, mock_popen: Mock, rewrite_sample_file: str, temp_dir: str, rewrite_tools: dict) -> None:
         """Test rewrite_code in dry-run mode (preview only)."""
         # Mock ast-grep streaming output showing potential changes
         # The streaming format puts replacement directly in the match object
         mock_process = Mock()
         mock_process.stdout = [
             json.dumps({
-                "file": self.test_file,
+                "file": rewrite_sample_file,
                 "text": "print('hello')",
                 "replacement": "print(\"hello\")",
                 "range": {
@@ -117,8 +98,8 @@ rule:
 fix: print("$MSG")
 """
 
-        result = self.rewrite_code(
-            project_folder=self.project_folder,
+        result = rewrite_tools['rewrite_code'](
+            project_folder=temp_dir,
             yaml_rule=yaml_rule,
             dry_run=True
         )
@@ -126,11 +107,11 @@ fix: print("$MSG")
         assert result["dry_run"] is True
         assert "changes" in result
         assert len(result["changes"]) > 0
-        assert result["changes"][0]["file"] == self.test_file
+        assert result["changes"][0]["file"] == rewrite_sample_file
         assert "backup_id" not in result  # No backup in dry-run mode
 
     @patch("subprocess.run")
-    def test_rewrite_code_missing_fix_field(self, mock_run: Mock) -> None:
+    def test_rewrite_code_missing_fix_field(self, mock_run: Mock, temp_dir: str, rewrite_tools: dict) -> None:
         """Test rewrite_code fails when YAML rule missing 'fix' field."""
         yaml_rule = """
 id: no-fix
@@ -140,14 +121,14 @@ rule:
 """
 
         with pytest.raises(ValueError, match="must include a 'fix' field"):
-            self.rewrite_code(
-                project_folder=self.project_folder,
+            rewrite_tools['rewrite_code'](
+                project_folder=temp_dir,
                 yaml_rule=yaml_rule,
                 dry_run=True
             )
 
     @patch("subprocess.run")
-    def test_rewrite_code_invalid_yaml(self, mock_run: Mock) -> None:
+    def test_rewrite_code_invalid_yaml(self, mock_run: Mock, temp_dir: str, rewrite_tools: dict) -> None:
         """Test rewrite_code fails with invalid YAML."""
         yaml_rule = """
 invalid: yaml: syntax:
@@ -155,8 +136,8 @@ invalid: yaml: syntax:
 """
 
         with pytest.raises(Exception):  # yaml.YAMLError
-            self.rewrite_code(
-                project_folder=self.project_folder,
+            rewrite_tools['rewrite_code'](
+                project_folder=temp_dir,
                 yaml_rule=yaml_rule,
                 dry_run=True
             )
@@ -165,13 +146,14 @@ invalid: yaml: syntax:
     @patch("subprocess.run")
     @patch("subprocess.Popen")
     def test_rewrite_code_actual_mode_creates_backup(
-        self, mock_popen: Mock, mock_run: Mock, mock_create_backup: Mock
+        self, mock_popen: Mock, mock_run: Mock, mock_create_backup: Mock,
+        rewrite_sample_file: str, temp_dir: str, rewrite_tools: dict
     ) -> None:
         """Test rewrite_code creates backup before applying changes."""
         # Mock dry-run (uses Popen for streaming)
         mock_process = MagicMock()
         mock_process.stdout = [
-            b'{"file": "' + self.test_file.encode() + b'", "diffs": [{"replacement": "new", "old_text": "old"}]}\n'
+            b'{"file": "' + rewrite_sample_file.encode() + b'", "diffs": [{"replacement": "new", "old_text": "old"}]}\n'
         ]
         mock_process.poll.return_value = None
         mock_process.wait.return_value = 0
@@ -190,8 +172,8 @@ rule:
 fix: print("$MSG")
 """
 
-        result = self.rewrite_code(
-            project_folder=self.project_folder,
+        result = rewrite_tools['rewrite_code'](
+            project_folder=temp_dir,
             yaml_rule=yaml_rule,
             dry_run=False,
             backup=True
@@ -205,12 +187,13 @@ fix: print("$MSG")
 
     @patch("subprocess.run")
     @patch("subprocess.Popen")
-    def test_rewrite_code_actual_mode_no_backup(self, mock_popen: Mock, mock_run: Mock) -> None:
+    def test_rewrite_code_actual_mode_no_backup(self, mock_popen: Mock, mock_run: Mock,
+                                                  rewrite_sample_file: str, temp_dir: str, rewrite_tools: dict) -> None:
         """Test rewrite_code can skip backup if requested."""
         # Mock dry-run (uses Popen for streaming)
         mock_process = MagicMock()
         mock_process.stdout = [
-            b'{"file": "' + self.test_file.encode() + b'", "diffs": []}\n'
+            b'{"file": "' + rewrite_sample_file.encode() + b'", "diffs": []}\n'
         ]
         mock_process.poll.return_value = None
         mock_process.wait.return_value = 0
@@ -227,8 +210,8 @@ rule:
 fix: print("$MSG")
 """
 
-        result = self.rewrite_code(
-            project_folder=self.project_folder,
+        result = rewrite_tools['rewrite_code'](
+            project_folder=temp_dir,
             yaml_rule=yaml_rule,
             dry_run=False,
             backup=False
@@ -238,15 +221,20 @@ fix: print("$MSG")
         assert result.get("backup_id") is None
 
     @patch("subprocess.Popen")
-    def test_rewrite_code_with_file_size_limit(self, mock_popen: Mock) -> None:
+    def test_rewrite_code_with_file_size_limit(self, mock_popen: Mock, temp_dir: str, rewrite_tools: dict) -> None:
         """Test rewrite_code respects max_file_size_mb parameter."""
         # Create a large file that should be excluded
-        large_file = os.path.join(self.temp_dir, "large.py")
+        large_file = os.path.join(temp_dir, "large.py")
         with open(large_file, "w") as f:
             f.write("x" * (2 * 1024 * 1024))  # 2MB file
 
+        # Create a small file that should be included
+        small_file = os.path.join(temp_dir, "small.py")
+        with open(small_file, "w") as f:
+            f.write("print('hello')\n")
+
         mock_process = MagicMock()
-        mock_process.stdout = [b'{"file": "test.py", "diffs": []}\n']
+        mock_process.stdout = [b'{"file": "small.py", "diffs": []}\n']
         mock_process.poll.return_value = None
         mock_process.wait.return_value = 0
         mock_popen.return_value = mock_process
@@ -259,18 +247,18 @@ rule:
 fix: print("$MSG")
 """
 
-        result = self.rewrite_code(
-            project_folder=self.project_folder,
+        result = rewrite_tools['rewrite_code'](
+            project_folder=temp_dir,
             yaml_rule=yaml_rule,
             dry_run=True,
             max_file_size_mb=1  # Limit to 1MB
         )
 
-        # Verify the result was successful
+        # Verify the result was successful - only small.py should be processed
         assert result["dry_run"] is True
 
     @patch("subprocess.Popen")
-    def test_rewrite_code_with_workers(self, mock_popen: Mock) -> None:
+    def test_rewrite_code_with_workers(self, mock_popen: Mock, temp_dir: str, rewrite_tools: dict) -> None:
         """Test rewrite_code supports parallel execution."""
         mock_process = MagicMock()
         mock_process.stdout = [b'{"file": "test.py", "diffs": []}\n']
@@ -286,8 +274,8 @@ rule:
 fix: print("$MSG")
 """
 
-        result = self.rewrite_code(
-            project_folder=self.project_folder,
+        result = rewrite_tools['rewrite_code'](
+            project_folder=temp_dir,
             yaml_rule=yaml_rule,
             dry_run=True,
             workers=4
@@ -300,36 +288,22 @@ fix: print("$MSG")
 class TestBackupManagement:
     """Tests for backup creation and restoration functions."""
 
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.project_folder = self.temp_dir
-
-        # Create sample files
-        self.file1 = os.path.join(self.temp_dir, "file1.py")
-        self.file2 = os.path.join(self.temp_dir, "file2.py")
-        with open(self.file1, "w") as f:
-            f.write("print('file1')\n")
-        with open(self.file2, "w") as f:
-            f.write("print('file2')\n")
-
-    def teardown_method(self) -> None:
-        """Clean up test fixtures."""
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
-    def test_create_backup_creates_directory(self) -> None:
+    def test_create_backup_creates_directory(self, rewrite_test_files: dict) -> None:
         """Test create_backup creates backup directory structure."""
-        backup_id = main.create_backup([self.file1], self.project_folder)
+        backup_id = main.create_backup([rewrite_test_files['file1']], rewrite_test_files['project_folder'])
 
         assert backup_id.startswith("backup-")
-        backup_dir = os.path.join(self.project_folder, ".ast-grep-backups", backup_id)
+        backup_dir = os.path.join(rewrite_test_files['project_folder'], ".ast-grep-backups", backup_id)
         assert os.path.exists(backup_dir)
 
-    def test_create_backup_copies_files(self) -> None:
+    def test_create_backup_copies_files(self, rewrite_test_files: dict) -> None:
         """Test create_backup copies all specified files."""
-        backup_id = main.create_backup([self.file1, self.file2], self.project_folder)
+        backup_id = main.create_backup(
+            [rewrite_test_files['file1'], rewrite_test_files['file2']],
+            rewrite_test_files['project_folder']
+        )
 
-        backup_dir = os.path.join(self.project_folder, ".ast-grep-backups", backup_id)
+        backup_dir = os.path.join(rewrite_test_files['project_folder'], ".ast-grep-backups", backup_id)
         backed_up_file1 = os.path.join(backup_dir, "file1.py")
         backed_up_file2 = os.path.join(backup_dir, "file2.py")
 
@@ -339,11 +313,14 @@ class TestBackupManagement:
         with open(backed_up_file1) as f:
             assert f.read() == "print('file1')\n"
 
-    def test_create_backup_saves_metadata(self) -> None:
+    def test_create_backup_saves_metadata(self, rewrite_test_files: dict) -> None:
         """Test create_backup saves metadata JSON."""
-        backup_id = main.create_backup([self.file1, self.file2], self.project_folder)
+        backup_id = main.create_backup(
+            [rewrite_test_files['file1'], rewrite_test_files['file2']],
+            rewrite_test_files['project_folder']
+        )
 
-        backup_dir = os.path.join(self.project_folder, ".ast-grep-backups", backup_id)
+        backup_dir = os.path.join(rewrite_test_files['project_folder'], ".ast-grep-backups", backup_id)
         metadata_file = os.path.join(backup_dir, "backup-metadata.json")
 
         assert os.path.exists(metadata_file)
@@ -356,50 +333,56 @@ class TestBackupManagement:
         assert len(metadata["files"]) == 2
         assert any("file1.py" in f["relative"] for f in metadata["files"])
 
-    def test_restore_from_backup_restores_files(self) -> None:
+    def test_restore_from_backup_restores_files(self, rewrite_test_files: dict) -> None:
         """Test restore_from_backup restores all files."""
         # Create backup
-        backup_id = main.create_backup([self.file1, self.file2], self.project_folder)
+        backup_id = main.create_backup(
+            [rewrite_test_files['file1'], rewrite_test_files['file2']],
+            rewrite_test_files['project_folder']
+        )
 
         # Modify original files
-        with open(self.file1, "w") as f:
+        with open(rewrite_test_files['file1'], "w") as f:
             f.write("MODIFIED\n")
-        with open(self.file2, "w") as f:
+        with open(rewrite_test_files['file2'], "w") as f:
             f.write("MODIFIED\n")
 
         # Restore from backup
-        result = main.restore_from_backup(backup_id, self.project_folder)
+        result = main.restore_from_backup(backup_id, rewrite_test_files['project_folder'])
 
         # New API returns dict with success, restored_files, errors
         assert result["success"] is True
         assert len(result["restored_files"]) == 2
         assert result["errors"] == []
 
-        with open(self.file1) as f:
+        with open(rewrite_test_files['file1']) as f:
             assert f.read() == "print('file1')\n"
-        with open(self.file2) as f:
+        with open(rewrite_test_files['file2']) as f:
             assert f.read() == "print('file2')\n"
 
-    def test_restore_from_backup_nonexistent_backup(self) -> None:
+    def test_restore_from_backup_nonexistent_backup(self, rewrite_test_files: dict) -> None:
         """Test restore_from_backup fails with nonexistent backup."""
         # New API returns error dict instead of raising exception
-        result = main.restore_from_backup("backup-nonexistent", self.project_folder)
+        result = main.restore_from_backup("backup-nonexistent", rewrite_test_files['project_folder'])
         assert result["success"] is False
         assert len(result["errors"]) > 0
 
-    def test_list_available_backups_empty(self) -> None:
+    def test_list_available_backups_empty(self, rewrite_test_files: dict) -> None:
         """Test list_available_backups returns empty list when no backups."""
-        backups = main.list_available_backups(self.project_folder)
+        backups = main.list_available_backups(rewrite_test_files['project_folder'])
         assert backups == []
 
-    def test_list_available_backups_returns_sorted(self) -> None:
+    def test_list_available_backups_returns_sorted(self, rewrite_test_files: dict) -> None:
         """Test list_available_backups returns backups sorted by timestamp."""
         # Create multiple backups
-        backup1 = main.create_backup([self.file1], self.project_folder)
-        backup2 = main.create_backup([self.file2], self.project_folder)
-        backup3 = main.create_backup([self.file1, self.file2], self.project_folder)
+        backup1 = main.create_backup([rewrite_test_files['file1']], rewrite_test_files['project_folder'])
+        backup2 = main.create_backup([rewrite_test_files['file2']], rewrite_test_files['project_folder'])
+        backup3 = main.create_backup(
+            [rewrite_test_files['file1'], rewrite_test_files['file2']],
+            rewrite_test_files['project_folder']
+        )
 
-        backups = main.list_available_backups(self.project_folder)
+        backups = main.list_available_backups(rewrite_test_files['project_folder'])
 
         assert len(backups) == 3
         # Should be sorted by timestamp (newest first)
@@ -407,11 +390,14 @@ class TestBackupManagement:
         assert backups[1]["backup_id"] == backup2
         assert backups[2]["backup_id"] == backup1
 
-    def test_list_available_backups_includes_metadata(self) -> None:
+    def test_list_available_backups_includes_metadata(self, rewrite_test_files: dict) -> None:
         """Test list_available_backups includes metadata for each backup."""
-        backup_id = main.create_backup([self.file1, self.file2], self.project_folder)
+        backup_id = main.create_backup(
+            [rewrite_test_files['file1'], rewrite_test_files['file2']],
+            rewrite_test_files['project_folder']
+        )
 
-        backups = main.list_available_backups(self.project_folder)
+        backups = main.list_available_backups(rewrite_test_files['project_folder'])
 
         assert len(backups) == 1
         backup = backups[0]
@@ -428,41 +414,28 @@ class TestBackupManagement:
 class TestRollbackRewrite:
     """Tests for rollback_rewrite MCP tool."""
 
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.project_folder = self.temp_dir
-
-        # Create sample file
-        self.test_file = os.path.join(self.temp_dir, "test.py")
-        with open(self.test_file, "w") as f:
-            f.write("ORIGINAL\n")
-
-        # Get tool function
-        self.rollback_rewrite = main.mcp.tools.get("rollback_rewrite")  # type: ignore
-        assert self.rollback_rewrite is not None, "rollback_rewrite tool not registered"
-
-    def teardown_method(self) -> None:
-        """Clean up test fixtures."""
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
     def test_rollback_rewrite_tool_registered(self) -> None:
         """Test that rollback_rewrite tool is registered."""
         assert "rollback_rewrite" in main.mcp.tools  # type: ignore
         assert callable(main.mcp.tools["rollback_rewrite"])  # type: ignore
 
-    def test_rollback_rewrite_restores_files(self) -> None:
+    def test_rollback_rewrite_restores_files(self, temp_dir: str, rewrite_tools: dict) -> None:
         """Test rollback_rewrite successfully restores files."""
+        # Create a test file
+        test_file = os.path.join(temp_dir, "test.py")
+        with open(test_file, "w") as f:
+            f.write("ORIGINAL\n")
+
         # Create backup
-        backup_id = main.create_backup([self.test_file], self.project_folder)
+        backup_id = main.create_backup([test_file], temp_dir)
 
         # Modify file
-        with open(self.test_file, "w") as f:
+        with open(test_file, "w") as f:
             f.write("MODIFIED\n")
 
         # Rollback
-        result = self.rollback_rewrite(
-            project_folder=self.project_folder,
+        result = rewrite_tools['rollback_rewrite'](
+            project_folder=temp_dir,
             backup_id=backup_id
         )
 
@@ -473,14 +446,14 @@ class TestRollbackRewrite:
         assert "message" in result
 
         # Verify file was restored
-        with open(self.test_file) as f:
+        with open(test_file) as f:
             assert f.read() == "ORIGINAL\n"
 
-    def test_rollback_rewrite_nonexistent_backup(self) -> None:
+    def test_rollback_rewrite_nonexistent_backup(self, temp_dir: str, rewrite_tools: dict) -> None:
         """Test rollback_rewrite fails with nonexistent backup."""
         # New API returns error dict instead of raising exception
-        result = self.rollback_rewrite(
-            project_folder=self.project_folder,
+        result = rewrite_tools['rollback_rewrite'](
+            project_folder=temp_dir,
             backup_id="backup-nonexistent"
         )
         assert result["success"] is False
@@ -490,43 +463,30 @@ class TestRollbackRewrite:
 class TestListBackups:
     """Tests for list_backups MCP tool."""
 
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.project_folder = self.temp_dir
-
-        # Create sample file
-        self.test_file = os.path.join(self.temp_dir, "test.py")
-        with open(self.test_file, "w") as f:
-            f.write("TEST\n")
-
-        # Get tool function
-        self.list_backups = main.mcp.tools.get("list_backups")  # type: ignore
-        assert self.list_backups is not None, "list_backups tool not registered"
-
-    def teardown_method(self) -> None:
-        """Clean up test fixtures."""
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
     def test_list_backups_tool_registered(self) -> None:
         """Test that list_backups tool is registered."""
         assert "list_backups" in main.mcp.tools  # type: ignore
         assert callable(main.mcp.tools["list_backups"])  # type: ignore
 
-    def test_list_backups_empty(self) -> None:
+    def test_list_backups_empty(self, temp_dir: str, rewrite_tools: dict) -> None:
         """Test list_backups returns empty list when no backups."""
-        result = self.list_backups(project_folder=self.project_folder)
+        result = rewrite_tools['list_backups'](project_folder=temp_dir)
 
         assert isinstance(result, list)
         assert len(result) == 0
 
-    def test_list_backups_returns_all_backups(self) -> None:
+    def test_list_backups_returns_all_backups(self, temp_dir: str, rewrite_tools: dict) -> None:
         """Test list_backups returns all available backups."""
-        # Create multiple backups
-        backup1 = main.create_backup([self.test_file], self.project_folder)
-        backup2 = main.create_backup([self.test_file], self.project_folder)
+        # Create a test file
+        test_file = os.path.join(temp_dir, "test.py")
+        with open(test_file, "w") as f:
+            f.write("TEST\n")
 
-        result = self.list_backups(project_folder=self.project_folder)
+        # Create multiple backups
+        backup1 = main.create_backup([test_file], temp_dir)
+        backup2 = main.create_backup([test_file], temp_dir)
+
+        result = rewrite_tools['list_backups'](project_folder=temp_dir)
 
         assert isinstance(result, list)
         assert len(result) == 2
@@ -537,27 +497,10 @@ class TestListBackups:
 class TestRewriteIntegration:
     """Integration tests combining multiple rewrite features."""
 
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.project_folder = self.temp_dir
-
-        # Create sample Python file
-        self.test_file = os.path.join(self.temp_dir, "sample.py")
-        with open(self.test_file, "w") as f:
-            f.write("def test():\n    print('hello')\n")
-
-        # Get tool functions
-        self.rewrite_code = main.mcp.tools.get("rewrite_code")  # type: ignore
-        self.list_backups = main.mcp.tools.get("list_backups")  # type: ignore
-
-    def teardown_method(self) -> None:
-        """Clean up test fixtures."""
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
     @patch("subprocess.run")
     @patch("subprocess.Popen")
-    def test_full_rewrite_workflow(self, mock_popen: Mock, mock_run: Mock) -> None:
+    def test_full_rewrite_workflow(self, mock_popen: Mock, mock_run: Mock,
+                                   rewrite_sample_file: str, temp_dir: str, rewrite_tools: dict) -> None:
         """Test complete workflow: preview -> rewrite with backup -> list backups."""
         yaml_rule = """
 id: quote-style
@@ -572,7 +515,7 @@ fix: print("$MSG")
         mock_process1 = Mock()
         mock_process1.stdout = [
             json.dumps({
-                "file": self.test_file,
+                "file": rewrite_sample_file,
                 "text": "print('hello')",
                 "replacement": 'print("hello")',
                 "range": {"start": {"line": 2}, "end": {"line": 2}},
@@ -589,7 +532,7 @@ fix: print("$MSG")
         mock_process2 = Mock()
         mock_process2.stdout = [
             json.dumps({
-                "file": self.test_file,
+                "file": rewrite_sample_file,
                 "text": "print('hello')",
                 "replacement": 'print("hello")',
                 "range": {"start": {"line": 2}, "end": {"line": 2}},
@@ -608,8 +551,8 @@ fix: print("$MSG")
         # Popen is used for streaming, run is used for actual rewrite
         mock_popen.side_effect = [mock_process1, mock_process2]
 
-        preview_result = self.rewrite_code(
-            project_folder=self.project_folder,
+        preview_result = rewrite_tools['rewrite_code'](
+            project_folder=temp_dir,
             yaml_rule=yaml_rule,
             dry_run=True
         )
@@ -621,8 +564,8 @@ fix: print("$MSG")
         with patch("main.create_backup") as mock_backup:
             mock_backup.return_value = "backup-test-123"
 
-            rewrite_result = self.rewrite_code(
-                project_folder=self.project_folder,
+            rewrite_result = rewrite_tools['rewrite_code'](
+                project_folder=temp_dir,
                 yaml_rule=yaml_rule,
                 dry_run=False,
                 backup=True
@@ -632,49 +575,40 @@ fix: print("$MSG")
         assert "backup_id" in rewrite_result
 
         # Step 3: List backups
-        backups_result = self.list_backups(project_folder=self.project_folder)
+        backups_result = rewrite_tools['list_backups'](project_folder=temp_dir)
 
         # Note: Won't find the mocked backup, but verifies tool works
         assert isinstance(backups_result, list)
 
-    def test_backup_prevents_data_loss(self) -> None:
+    def test_backup_prevents_data_loss(self, rewrite_sample_file: str, temp_dir: str) -> None:
         """Test that backup mechanism prevents data loss during rewrites."""
-        original_content = "def test():\n    print('original')\n"
-        with open(self.test_file, "w") as f:
-            f.write(original_content)
+        original_content = "def hello():\n    print('hello')\n"
+        # Note: rewrite_sample_file already has this content from fixture
 
         # Create backup
-        backup_id = main.create_backup([self.test_file], self.project_folder)
+        backup_id = main.create_backup([rewrite_sample_file], temp_dir)
 
         # Simulate a failed rewrite that corrupts the file
-        with open(self.test_file, "w") as f:
+        with open(rewrite_sample_file, "w") as f:
             f.write("CORRUPTED DATA\n")
 
         # Verify file is corrupted
-        with open(self.test_file) as f:
+        with open(rewrite_sample_file) as f:
             assert f.read() == "CORRUPTED DATA\n"
 
         # Rollback restores original
-        main.restore_from_backup(backup_id, self.project_folder)
+        main.restore_from_backup(backup_id, temp_dir)
 
-        with open(self.test_file) as f:
+        with open(rewrite_sample_file) as f:
             assert f.read() == original_content
 
 
 class TestSyntaxValidation:
     """Tests for syntax validation of rewritten code."""
 
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-
-    def teardown_method(self) -> None:
-        """Clean up test fixtures."""
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
-    def test_validate_syntax_valid_python(self) -> None:
+    def test_validate_syntax_valid_python(self, temp_dir: str) -> None:
         """Test validation passes for valid Python code."""
-        test_file = os.path.join(self.temp_dir, "valid.py")
+        test_file = os.path.join(temp_dir, "valid.py")
         with open(test_file, "w") as f:
             f.write("def hello():\n    print('world')\n")
 
@@ -684,9 +618,9 @@ class TestSyntaxValidation:
         assert result["error"] is None
         assert result["language"] == "python"
 
-    def test_validate_syntax_invalid_python(self) -> None:
+    def test_validate_syntax_invalid_python(self, temp_dir: str) -> None:
         """Test validation fails for invalid Python code."""
-        test_file = os.path.join(self.temp_dir, "invalid.py")
+        test_file = os.path.join(temp_dir, "invalid.py")
         with open(test_file, "w") as f:
             f.write("def hello(\n    print('missing closing paren')\n")
 
@@ -696,9 +630,9 @@ class TestSyntaxValidation:
         assert result["error"] is not None
         assert "Line" in result["error"]
 
-    def test_validate_syntax_mismatched_braces(self) -> None:
+    def test_validate_syntax_mismatched_braces(self, temp_dir: str) -> None:
         """Test validation detects mismatched braces in C-like languages."""
-        test_file = os.path.join(self.temp_dir, "invalid.c")
+        test_file = os.path.join(temp_dir, "invalid.c")
         with open(test_file, "w") as f:
             f.write("int main() {\n    printf(\"hello\");\n")  # Missing closing brace
 
@@ -709,9 +643,9 @@ class TestSyntaxValidation:
         assert result["valid"] is True or result["valid"] is False
         assert result["language"] == "c"
 
-    def test_validate_syntax_unsupported_language(self) -> None:
+    def test_validate_syntax_unsupported_language(self, temp_dir: str) -> None:
         """Test validation handles unsupported languages gracefully."""
-        test_file = os.path.join(self.temp_dir, "test.rb")
+        test_file = os.path.join(temp_dir, "test.rb")
         with open(test_file, "w") as f:
             f.write("puts 'hello'\n")
 
@@ -721,10 +655,10 @@ class TestSyntaxValidation:
         assert result["valid"] is True
         assert "not supported" in result["error"]
 
-    def test_validate_rewrites_all_pass(self) -> None:
+    def test_validate_rewrites_all_pass(self, temp_dir: str) -> None:
         """Test validate_rewrites when all files pass validation."""
-        file1 = os.path.join(self.temp_dir, "valid1.py")
-        file2 = os.path.join(self.temp_dir, "valid2.py")
+        file1 = os.path.join(temp_dir, "valid1.py")
+        file2 = os.path.join(temp_dir, "valid2.py")
 
         for f in [file1, file2]:
             with open(f, "w") as file:
@@ -737,10 +671,10 @@ class TestSyntaxValidation:
         assert summary["failed"] == 0
         assert len(summary["results"]) == 2
 
-    def test_validate_rewrites_some_fail(self) -> None:
+    def test_validate_rewrites_some_fail(self, temp_dir: str) -> None:
         """Test validate_rewrites when some files fail validation."""
-        valid_file = os.path.join(self.temp_dir, "valid.py")
-        invalid_file = os.path.join(self.temp_dir, "invalid.py")
+        valid_file = os.path.join(temp_dir, "valid.py")
+        invalid_file = os.path.join(temp_dir, "invalid.py")
 
         with open(valid_file, "w") as f:
             f.write("print('hello')\n")
@@ -765,31 +699,15 @@ class TestSyntaxValidation:
 class TestRewriteWithValidation:
     """Test rewrite_code tool with validation integration."""
 
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.project_folder = self.temp_dir
-
-        # Create sample Python file
-        self.test_file = os.path.join(self.temp_dir, "sample.py")
-        with open(self.test_file, "w") as f:
-            f.write("def test():\n    print('hello')\n")
-
-        # Get tool function
-        self.rewrite_code = main.mcp.tools.get("rewrite_code")  # type: ignore
-
-    def teardown_method(self) -> None:
-        """Clean up test fixtures."""
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
     @patch("subprocess.run")
     @patch("subprocess.Popen")
-    def test_rewrite_includes_validation_results(self, mock_popen: Mock, mock_run: Mock) -> None:
+    def test_rewrite_includes_validation_results(self, mock_popen: Mock, mock_run: Mock,
+                                                rewrite_sample_file: str, temp_dir: str, rewrite_tools: dict) -> None:
         """Test rewrite_code returns validation results."""
         # Mock dry-run (uses Popen for streaming)
         mock_process = MagicMock()
         mock_process.stdout = [
-            b'{"file": "' + self.test_file.encode() + b'", "diffs": [{"replacement": "new"}]}\n'
+            b'{"file": "' + rewrite_sample_file.encode() + b'", "diffs": [{"replacement": "new"}]}\n'
         ]
         mock_process.poll.return_value = None
         mock_process.wait.return_value = 0
@@ -806,8 +724,8 @@ rule:
 fix: print("$MSG")
 """
 
-        result = self.rewrite_code(
-            project_folder=self.project_folder,
+        result = rewrite_tools['rewrite_code'](
+            project_folder=temp_dir,
             yaml_rule=yaml_rule,
             dry_run=False,
             backup=False
@@ -822,13 +740,14 @@ fix: print("$MSG")
     @patch("subprocess.run")
     @patch("subprocess.Popen")
     def test_rewrite_warns_on_validation_failure(
-        self, mock_popen: Mock, mock_run: Mock
+        self, mock_popen: Mock, mock_run: Mock,
+        rewrite_sample_file: str, temp_dir: str, rewrite_tools: dict
     ) -> None:
         """Test rewrite_code includes validation results."""
         # Mock dry-run
         mock_process = MagicMock()
         mock_process.stdout = [
-            b'{"file": "' + self.test_file.encode() + b'", "diffs": [{"replacement": "new"}]}\n'
+            b'{"file": "' + rewrite_sample_file.encode() + b'", "diffs": [{"replacement": "new"}]}\n'
         ]
         mock_process.poll.return_value = None
         mock_process.wait.return_value = 0
@@ -845,8 +764,8 @@ rule:
 fix: print("$MSG")
 """
 
-        result = self.rewrite_code(
-            project_folder=self.project_folder,
+        result = rewrite_tools['rewrite_code'](
+            project_folder=temp_dir,
             yaml_rule=yaml_rule,
             dry_run=False,
             backup=True
