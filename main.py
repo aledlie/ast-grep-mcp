@@ -677,6 +677,12 @@ def register_mcp_tools() -> None:
     )
     from ast_grep_mcp.features.rewrite.backup import restore_backup
 
+    # Complexity/Testing tools (now extractable after refactoring)
+    from ast_grep_mcp.features.complexity.tools import (
+        analyze_complexity_tool,
+        test_sentry_integration_tool,
+    )
+
     # Register all tools in the MockTools dictionary
     # Deduplication tools (4)
     mcp.tools._tools["find_duplication"] = find_duplication_tool
@@ -695,10 +701,15 @@ def register_mcp_tools() -> None:
     mcp.tools._tools["list_backups"] = list_backups_impl
     mcp.tools._tools["rollback_rewrite"] = restore_backup
 
-    # Note: Schema.org, Complexity, and Quality tools are not included as they use
+    # Testing tools (2)
+    mcp.tools._tools["analyze_complexity"] = analyze_complexity_tool
+    mcp.tools._tools["test_sentry_integration"] = test_sentry_integration_tool
+
+    # Note: Schema.org and Quality tools are not yet included as they still use
     # nested function definitions within register_*_tools() that cannot be
     # easily imported. Tests for these tools will need to be updated to import
     # directly from the modular structure or use integration testing.
+    # Complexity tools have been refactored and are now registered above.
 
     # Mark as registered
     mcp.tools._registered = True
