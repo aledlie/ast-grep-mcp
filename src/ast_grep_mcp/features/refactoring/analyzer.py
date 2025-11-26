@@ -145,6 +145,155 @@ class CodeSelectionAnalyzer:
 
         selection.variables = list(variables.values())
 
+    # Python keywords set - shared across multiple methods
+    _PYTHON_KEYWORDS = {
+        'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await',
+        'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except',
+        'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is',
+        'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'try',
+        'while', 'with', 'yield'
+    }
+
+    def _find_python_assignments(
+        self,
+        content: str,
+        selection: CodeSelection,
+        variables: Dict[str, VariableInfo],
+    ) -> None:
+        """Find variable assignments in Python code.
+
+        Args:
+            content: Source code content
+            selection: Code selection metadata
+            variables: Dict to populate with variable info
+        """
+        assignment_pattern = r'\b(\w+)\s*='
+        for match in re.finditer(assignment_pattern, content):
+            var_name = match.group(1)
+            if var_name not in variables:
+                variables[var_name] = VariableInfo(
+                    name=var_name,
+                    variable_type=VariableType.LOCAL,
+                    first_use_line=selection.start_line,
+                    is_written=True,
+                )
+            else:
+                variables[var_name].is_written = True
+
+    def _find_python_base_variables(
+        self,
+        content: str,
+        selection: CodeSelection,
+        variables: Dict[str, VariableInfo],
+    ) -> None:
+        """Find base variables used in subscripts, attributes, and calls.
+
+        Identifies variables in patterns like:
+        - variable[...] (subscript)
+        - variable.attr (attribute access)
+        - variable(...) (function call, excluding method calls)
+
+        Args:
+            content: Source code content
+            selection: Code selection metadata
+            variables: Dict to populate with variable info
+        """
+        base_vars_found = set()
+
+        # Array/dict access: var[...]
+        for match in re.finditer(r'\b([a-zA-Z_]\w*)\s*\[', content):
+            var_name = match.group(1)
+            if var_name not in self._PYTHON_KEYWORDS:
+                base_vars_found.add(var_name)
+
+        # Attribute access: var.attr
+        for match in re.finditer(r'\b([a-zA-Z_]\w*)\s*\.', content):
+            var_name = match.group(1)
+            if var_name not in self._PYTHON_KEYWORDS:
+                base_vars_found.add(var_name)
+
+        # Function call: var(...) but NOT method calls like obj.method()
+        for match in re.finditer(r'(?<!\.)\b([a-zA-Z_]\w*)\s*\(', content):
+            var_name = match.group(1)
+            if var_name not in self._PYTHON_KEYWORDS:
+                base_vars_found.add(var_name)
+
+        # Register base variables as reads
+        for var_name in base_vars_found:
+            if var_name not in variables:
+                variables[var_name] = VariableInfo(
+                    name=var_name,
+                    variable_type=VariableType.PARAMETER,
+                    first_use_line=selection.start_line,
+                    is_read=True,
+                )
+            else:
+                variables[var_name].is_read = True
+
+    def _is_in_string_or_comment(self, content: str, match_pos: int) -> bool:
+        """Check if a match position is inside a string literal or comment.
+
+        Args:
+            content: Source code content
+            match_pos: Position of the match
+
+        Returns:
+            True if inside string or comment, False otherwise
+        """
+        # Check if inside string (simple heuristic using quote counts)
+        before_text = content[:match_pos]
+        if before_text.count("'") % 2 == 1 or before_text.count('"') % 2 == 1:
+            return True
+
+        # Check if in a comment (appears after # on same line)
+        line_start = content.rfind('\n', 0, match_pos) + 1
+        line_to_match = content[line_start:match_pos]
+        if '#' in line_to_match:
+            return True
+
+        return False
+
+    def _find_python_standalone_identifiers(
+        self,
+        content: str,
+        selection: CodeSelection,
+        variables: Dict[str, VariableInfo],
+    ) -> None:
+        """Find standalone identifiers not part of subscript/attribute/call.
+
+        Matches identifiers that:
+        - Aren't preceded by a dot (not method names)
+        - Aren't followed by [, ., or ( (not being accessed)
+        - Aren't keywords or in strings/comments
+
+        Args:
+            content: Source code content
+            selection: Code selection metadata
+            variables: Dict to populate with variable info
+        """
+        identifier_pattern = r'(?<!\.)(?<!\#)\b([a-zA-Z_]\w*)(?!\s*[\[\.\(])\b'
+        for match in re.finditer(identifier_pattern, content):
+            var_name = match.group(1)
+
+            # Skip keywords
+            if var_name in self._PYTHON_KEYWORDS:
+                continue
+
+            # Skip if in string or comment
+            if self._is_in_string_or_comment(content, match.start()):
+                continue
+
+            # Register identifier as read
+            if var_name not in variables:
+                variables[var_name] = VariableInfo(
+                    name=var_name,
+                    variable_type=VariableType.PARAMETER,
+                    first_use_line=selection.start_line,
+                    is_read=True,
+                )
+            else:
+                variables[var_name].is_read = True
+
     def _analyze_python_variables(
         self,
         selection: CodeSelection,
@@ -169,99 +318,13 @@ class CodeSelectionAnalyzer:
         content = selection.content
 
         # Find assignments (variables being written)
-        assignment_pattern = r'\b(\w+)\s*='
-        for match in re.finditer(assignment_pattern, content):
-            var_name = match.group(1)
-            if var_name not in variables:
-                variables[var_name] = VariableInfo(
-                    name=var_name,
-                    variable_type=VariableType.LOCAL,  # Default, will refine later
-                    first_use_line=selection.start_line,
-                    is_written=True,
-                )
-            else:
-                variables[var_name].is_written = True
+        self._find_python_assignments(content, selection, variables)
 
-        # Find variable reads (identifiers not being assigned)
-        # Match word boundaries but exclude keywords
-        python_keywords = {
-            'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await',
-            'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except',
-            'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is',
-            'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'try',
-            'while', 'with', 'yield'
-        }
+        # Find base variables (subscripts, attributes, calls)
+        self._find_python_base_variables(content, selection, variables)
 
-        # First, find all base variables (those used in subscripts and attributes)
-        # Pattern: variable[...] or variable.attr or variable(...)
-        # Note: For function calls, only match if NOT preceded by a dot (to exclude method calls)
-        base_vars_found = set()
-
-        # Array/dict access: var[...]
-        for match in re.finditer(r'\b([a-zA-Z_]\w*)\s*\[', content):
-            var_name = match.group(1)
-            if var_name not in python_keywords:
-                base_vars_found.add(var_name)
-
-        # Attribute access: var.attr
-        for match in re.finditer(r'\b([a-zA-Z_]\w*)\s*\.', content):
-            var_name = match.group(1)
-            if var_name not in python_keywords:
-                base_vars_found.add(var_name)
-
-        # Function call: var(...) but NOT method calls like obj.method()
-        # Use negative lookbehind to exclude identifiers preceded by a dot
-        for match in re.finditer(r'(?<!\.)\b([a-zA-Z_]\w*)\s*\(', content):
-            var_name = match.group(1)
-            if var_name not in python_keywords:
-                base_vars_found.add(var_name)
-
-        # Add base variables as reads
-        for var_name in base_vars_found:
-            if var_name not in variables:
-                variables[var_name] = VariableInfo(
-                    name=var_name,
-                    variable_type=VariableType.PARAMETER,
-                    first_use_line=selection.start_line,
-                    is_read=True,
-                )
-            else:
-                variables[var_name].is_read = True
-
-        # Now find standalone identifiers (not part of subscript/attribute/call)
-        # This is more conservative - only match identifiers that:
-        # 1. Aren't preceded by a dot (not method names)
-        # 2. Aren't followed by [ . or ( (not being accessed)
-        identifier_pattern = r'(?<!\.)(?<!\#)\b([a-zA-Z_]\w*)(?!\s*[\[\.\(])\b'
-        for match in re.finditer(identifier_pattern, content):
-            var_name = match.group(1)
-
-            # Skip keywords and built-in functions
-            if var_name in python_keywords:
-                continue
-
-            # Skip if it's in a string literal or comment (basic check)
-            match_pos = match.start()
-            # Check if this match is inside quotes (simple heuristic)
-            before_text = content[:match_pos]
-            if before_text.count("'") % 2 == 1 or before_text.count('"') % 2 == 1:
-                continue
-
-            # Check if it's in a comment (appears after # on same line)
-            line_start = content.rfind('\n', 0, match_pos) + 1
-            line_to_match = content[line_start:match_pos]
-            if '#' in line_to_match:
-                continue
-
-            if var_name not in variables:
-                variables[var_name] = VariableInfo(
-                    name=var_name,
-                    variable_type=VariableType.PARAMETER,
-                    first_use_line=selection.start_line,
-                    is_read=True,
-                )
-            else:
-                variables[var_name].is_read = True
+        # Find standalone identifiers
+        self._find_python_standalone_identifiers(content, selection, variables)
 
         # Classify variables based on scope analysis
         self._classify_variable_types(selection, variables, all_lines)
