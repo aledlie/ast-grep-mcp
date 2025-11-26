@@ -6,7 +6,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 ```bash
 uv sync                          # Install dependencies
-uv run pytest                    # Run all tests (1,150+)
+uv run pytest                    # Run all tests (1,541 tests)
 uv run ruff check . && mypy src/  # Lint and type check
 uv run main.py                   # Run MCP server locally
 doppler run -- uv run main.py    # Run with Doppler secrets (production)
@@ -14,15 +14,15 @@ doppler run -- uv run main.py    # Run with Doppler secrets (production)
 
 ## Project Overview
 
-Modular MCP server with 46 modules combining ast-grep structural code search with Schema.org tools, enhanced deduplication, and code quality standards.
+Modular MCP server with 52 modules combining ast-grep structural code search with Schema.org tools, refactoring assistants, enhanced deduplication, and code quality standards.
 
 **Architecture:** Clean modular design with 152-line entry point (`main.py`) and organized features under `src/ast_grep_mcp/` (core, models, utils, features, server).
 
-**25 Tools (100% Registered):** Code search (4), Code rewrite (3), Deduplication (4), Schema.org (8), Complexity (3), Code Quality (3)
+**27 Tools (100% Registered):** Code search (4), Code rewrite (3), Refactoring Assistants (2), Deduplication (4), Schema.org (8), Complexity (3), Code Quality (3)
 
 **Dependencies:** ast-grep CLI (required), Doppler CLI (optional for secrets), Python 3.13+, uv package manager
 
-**Recent Refactoring:** Successfully migrated from monolithic 19,477-line main.py to clean modular structure (99.2% reduction). All 25 tools refactored with consistent two-layer pattern (2025-11-25).
+**Recent Refactoring:** Successfully migrated from monolithic 19,477-line main.py to clean modular structure (99.2% reduction). All 27 tools refactored with consistent two-layer pattern (2025-11-25). New refactoring assistants feature added (2025-11-26).
 
 ## Sentry & Doppler Setup
 
@@ -74,7 +74,7 @@ export SENTRY_ENVIRONMENT="production"
 
 ## Testing
 
-**1,150+ tests total:** Unit tests (mocked) and integration tests (requires ast-grep binary)
+**1,541 tests total:** Unit tests (mocked) and integration tests (requires ast-grep binary)
 
 **Test directories:**
 - `tests/unit/` - Core functionality, caching, rewrite, schema, deduplication phases
@@ -84,6 +84,9 @@ export SENTRY_ENVIRONMENT="production"
 - `test_unit.py` - Core ast-grep functionality
 - `test_cache.py` - Query caching
 - `test_rewrite.py` - Code rewrite + backups
+- `test_extract_function.py` - Function extraction (11 tests)
+- `test_rename_symbol.py` - Symbol renaming (21 tests)
+- `test_rename_symbol_integration.py` - Multi-file rename integration tests
 - `test_apply_deduplication.py` - Deduplication application (24 tests)
 - `test_diff_preview.py` - Unified diff generation (39 tests)
 - `test_ranking.py` - Scoring algorithm (23 tests)
@@ -313,6 +316,107 @@ rollback_rewrite(..., backup_id)  # Undo if needed
 
 **Backups:** `.ast-grep-backups/backup-YYYYMMDD-HHMMSS-mmm/`
 
+## Refactoring Assistants
+
+Automated code refactoring tools with intelligent analysis and safe transformations.
+
+**Tools:**
+- `extract_function` - Extract code into reusable functions
+- `rename_symbol` - Rename symbols with scope awareness and conflict detection
+
+### Extract Function
+
+Extract selected code into a new function with parameter detection and return value analysis.
+
+**Features:**
+- Automatic parameter detection (variables used but not defined in selection)
+- Return value analysis (variables defined in selection and used after)
+- Multi-return handling (tuple returns for multiple values)
+- Language-specific code generation (Python, TypeScript, JavaScript, Java)
+- Automatic import management
+- Dry-run mode with diff preview
+- Backup and rollback support
+
+**Example:**
+```python
+# 1. Preview extraction (dry-run)
+result = extract_function(
+    file_path="/path/to/file.py",
+    start_line=10,
+    end_line=15,
+    function_name="calculate_total",
+    language="python",
+    dry_run=True  # Default: preview only
+)
+
+# Check result
+if result["success"]:
+    print(f"Parameters: {result['parameters']}")
+    print(f"Returns: {result['return_values']}")
+    print(result["diff_preview"])
+
+    # 2. Apply extraction
+    result = extract_function(..., dry_run=False)
+    print(f"Backup ID: {result['backup_id']}")
+```
+
+### Rename Symbol
+
+Rename symbols across multiple files with scope awareness and conflict detection.
+
+**Features:**
+- Scope-aware renaming (respects function, class, module scopes)
+- Multi-file atomic updates
+- Import/export statement updates
+- Conflict detection (prevents shadowing)
+- Dry-run mode with diff preview
+- Backup and rollback support
+- Word boundary matching (avoids partial replacements)
+
+**Supported Languages:**
+- Python (full scope analysis)
+- JavaScript/TypeScript (basic scope analysis)
+- Java (basic scope analysis)
+
+**Example:**
+```python
+# 1. Preview rename (dry-run)
+result = rename_symbol(
+    project_folder="/path/to/project",
+    symbol_name="processData",
+    new_name="transformData",
+    language="typescript",
+    scope="project",
+    dry_run=True  # Default: preview only
+)
+
+# Check for conflicts
+if result["success"] and not result.get("conflicts"):
+    print(f"Found {result['references_found']} references")
+    print(f"Affects {len(result['files_modified'])} files")
+    print(result["diff_preview"])
+
+    # 2. Apply rename
+    result = rename_symbol(..., dry_run=False)
+    print(f"Backup ID: {result['backup_id']}")
+    print(f"Updated {result['references_updated']} references")
+else:
+    print("Conflicts detected:")
+    for conflict in result.get("conflicts", []):
+        print(f"  - {conflict}")
+```
+
+**Workflow:**
+1. Find all symbol references using ast-grep
+2. Build scope tree for affected files
+3. Classify references (definition, import, export, usage)
+4. Detect naming conflicts
+5. Preview changes (dry-run mode)
+6. Apply atomically with backup
+7. Rollback if needed
+
+**Docs:** See Phase 1 and Phase 2 completion docs in `dev/active/refactoring-assistants/`
+
 ## Code Deduplication
 
 Enhanced duplication detection with intelligent analysis and automated refactoring.
@@ -363,19 +467,20 @@ uv run python scripts/find_duplication.py /path/to/project --language python --n
 
 ## Architecture
 
-**Modular design** with 46 modules organized under `src/ast_grep_mcp/`. Main entry point (`main.py`, 152 lines) provides backward compatibility and server startup.
+**Modular design** with 52 modules organized under `src/ast_grep_mcp/`. Main entry point (`main.py`, 152 lines) provides backward compatibility and server startup.
 
 ### Module Structure
 
 ```
 src/ast_grep_mcp/
 ├── core/           # Core infrastructure (6 modules, ~1,000 lines)
-├── models/         # Data models (5 modules, ~800 lines)
+├── models/         # Data models (6 modules, ~850 lines)
 ├── utils/          # Utilities (4 modules, ~800 lines)
-├── features/       # Feature modules (27 modules, ~9,000 lines)
-│   ├── search/     # Code search (2 modules)
-│   ├── rewrite/    # Code rewrite (3 modules)
-│   ├── schema/     # Schema.org integration (2 modules)
+├── features/       # Feature modules (33 modules, ~11,000 lines)
+│   ├── search/         # Code search (2 modules)
+│   ├── rewrite/        # Code rewrite (3 modules)
+│   ├── refactoring/    # Refactoring assistants (6 modules)
+│   ├── schema/         # Schema.org integration (2 modules)
 │   ├── deduplication/  # Deduplication (12 modules)
 │   ├── complexity/     # Complexity analysis (4 modules)
 │   └── quality/        # Code quality (5 modules)
@@ -393,8 +498,9 @@ src/ast_grep_mcp/
 
 ### Models (`src/ast_grep_mcp/models/`)
 
-Data classes and type definitions:
+Data classes and type definitions (6 modules):
 - **`config.py`** (49 lines) - Configuration dataclasses
+- **`refactoring.py`** (~50 lines) - Refactoring data structures (SymbolReference, ScopeInfo, etc.)
 - **`deduplication.py`** (435 lines) - 10+ deduplication data structures
 - **`complexity.py`** (31 lines) - Complexity metrics models
 - **`standards.py`** (235 lines) - Linting and quality models
@@ -418,6 +524,18 @@ Shared utilities:
 - **`backup.py`** (391 lines) - Backup management with rollback
 - **`service.py`** (476 lines) - Code rewrite logic with syntax validation
 - **`tools.py`** (118 lines) - 3 MCP tool definitions
+
+#### Refactoring Feature (`features/refactoring/`)
+
+Automated refactoring assistants with intelligent analysis:
+- **`analyzer.py`** (519 lines) - Variable analyzer, scope detection, dependency tracking
+- **`extractor.py`** (475 lines) - Function extraction with parameter/return analysis
+- **`renamer.py`** (452 lines) - Symbol renaming with scope awareness
+- **`rename_coordinator.py`** (288 lines) - Multi-file rename coordination
+- **`tools.py`** (314 lines) - 2 MCP tool definitions (extract_function, rename_symbol)
+- **`__init__.py`** (21 lines) - Module exports
+
+**Total:** ~2,069 lines across 6 modules
 
 #### Schema Feature (`features/schema/`)
 - **`client.py`** (524 lines) - Schema.org API client (fetches vocabulary, indexes ~2600+ types)
@@ -653,6 +771,63 @@ result = enforce_standards(
 ```
 
 **Lines added:** ~698 lines in enforcer.py, ~275 lines in tools.py
+
+### 2025-11-26: Refactoring Assistants - Phases 1-2 Complete
+
+**New feature** - Automated code refactoring with intelligent analysis.
+
+**New MCP tools:**
+
+1. **`extract_function`** (Phase 1) - Extract code into reusable functions
+   - Automatic parameter detection (variables used but not defined)
+   - Return value analysis (variables defined and used after)
+   - Multi-return handling (tuple returns for multiple values)
+   - Language-specific code generation (Python, TypeScript, JavaScript, Java)
+   - Dry-run mode with diff preview
+   - Backup and rollback support
+   - **Testing:** 11/11 tests passing (100%)
+   - **Lines added:** ~1,650 lines (implementation + tests)
+
+2. **`rename_symbol`** (Phase 2) - Rename symbols with scope awareness
+   - Scope-aware renaming (function, class, module scopes)
+   - Multi-file atomic updates
+   - Import/export statement updates
+   - Conflict detection (prevents shadowing)
+   - Word boundary matching (avoids partial replacements)
+   - Dry-run mode with diff preview
+   - Backup and rollback support
+   - **Testing:** 21/21 tests passing (100%)
+   - **Lines added:** ~1,542 lines (implementation: ~915, tests: 627)
+
+**Components added:**
+- **6 new modules** in `src/ast_grep_mcp/features/refactoring/`:
+  - `analyzer.py` (519 lines) - Variable analyzer, scope detection
+  - `extractor.py` (475 lines) - Function extraction logic
+  - `renamer.py` (452 lines) - Symbol renaming with scope awareness
+  - `rename_coordinator.py` (288 lines) - Multi-file coordination
+  - `tools.py` (314 lines) - 2 MCP tool definitions
+  - `__init__.py` (21 lines) - Module exports
+
+- **Data models** in `src/ast_grep_mcp/models/refactoring.py`:
+  - `SymbolReference` - Symbol metadata with scope info
+  - `ScopeInfo` - Scope tree structure
+  - Extended models for import/export tracking
+
+**Features:**
+- ast-grep integration for accurate symbol finding
+- Scope tree building (Python, JavaScript/TypeScript, Java)
+- Reference classification (definition, import, export, usage)
+- Conflict detection before applying changes
+- Multi-file atomic updates with rollback
+- Comprehensive error handling with Sentry
+
+**Development time:**
+- Phase 1: ~3 hours (implementation) + ~1 hour (refinement)
+- Phase 2: ~1.5 hours (implementation) + ~1 hour (tests)
+
+**Total lines:** ~3,192 lines (implementation + tests)
+
+**Docs:** See `dev/active/refactoring-assistants/` for phase completion reports
 
 ### 2025-11-24: Code Quality & Standards - Phase 1: Rule Definition System
 
