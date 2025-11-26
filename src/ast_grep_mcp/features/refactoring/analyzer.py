@@ -192,7 +192,47 @@ class CodeSelectionAnalyzer:
             'while', 'with', 'yield'
         }
 
-        identifier_pattern = r'\b([a-zA-Z_]\w*)\b'
+        # First, find all base variables (those used in subscripts and attributes)
+        # Pattern: variable[...] or variable.attr or variable(...)
+        # Note: For function calls, only match if NOT preceded by a dot (to exclude method calls)
+        base_vars_found = set()
+
+        # Array/dict access: var[...]
+        for match in re.finditer(r'\b([a-zA-Z_]\w*)\s*\[', content):
+            var_name = match.group(1)
+            if var_name not in python_keywords:
+                base_vars_found.add(var_name)
+
+        # Attribute access: var.attr
+        for match in re.finditer(r'\b([a-zA-Z_]\w*)\s*\.', content):
+            var_name = match.group(1)
+            if var_name not in python_keywords:
+                base_vars_found.add(var_name)
+
+        # Function call: var(...) but NOT method calls like obj.method()
+        # Use negative lookbehind to exclude identifiers preceded by a dot
+        for match in re.finditer(r'(?<!\.)\b([a-zA-Z_]\w*)\s*\(', content):
+            var_name = match.group(1)
+            if var_name not in python_keywords:
+                base_vars_found.add(var_name)
+
+        # Add base variables as reads
+        for var_name in base_vars_found:
+            if var_name not in variables:
+                variables[var_name] = VariableInfo(
+                    name=var_name,
+                    variable_type=VariableType.PARAMETER,
+                    first_use_line=selection.start_line,
+                    is_read=True,
+                )
+            else:
+                variables[var_name].is_read = True
+
+        # Now find standalone identifiers (not part of subscript/attribute/call)
+        # This is more conservative - only match identifiers that:
+        # 1. Aren't preceded by a dot (not method names)
+        # 2. Aren't followed by [ . or ( (not being accessed)
+        identifier_pattern = r'(?<!\.)(?<!\#)\b([a-zA-Z_]\w*)(?!\s*[\[\.\(])\b'
         for match in re.finditer(identifier_pattern, content):
             var_name = match.group(1)
 
@@ -200,10 +240,23 @@ class CodeSelectionAnalyzer:
             if var_name in python_keywords:
                 continue
 
+            # Skip if it's in a string literal or comment (basic check)
+            match_pos = match.start()
+            # Check if this match is inside quotes (simple heuristic)
+            before_text = content[:match_pos]
+            if before_text.count("'") % 2 == 1 or before_text.count('"') % 2 == 1:
+                continue
+
+            # Check if it's in a comment (appears after # on same line)
+            line_start = content.rfind('\n', 0, match_pos) + 1
+            line_to_match = content[line_start:match_pos]
+            if '#' in line_to_match:
+                continue
+
             if var_name not in variables:
                 variables[var_name] = VariableInfo(
                     name=var_name,
-                    variable_type=VariableType.PARAMETER,  # Assume parameter until proven otherwise
+                    variable_type=VariableType.PARAMETER,
                     first_use_line=selection.start_line,
                     is_read=True,
                 )
