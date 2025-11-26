@@ -107,6 +107,14 @@ def schema_client():
 
 
 @pytest.fixture(scope="module")
+def enforce_standards_tool(mcp_main):
+    """Get enforce_standards tool function."""
+    tool = mcp_main.mcp.tools.get("enforce_standards")
+    assert tool is not None, "enforce_standards tool not registered"
+    return tool
+
+
+@pytest.fixture(scope="module")
 def list_backups_tool(mcp_main):
     """Get list_backups tool function."""
     tool = mcp_main.mcp.tools.get("list_backups")

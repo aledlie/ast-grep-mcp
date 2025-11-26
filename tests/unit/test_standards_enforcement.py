@@ -1,56 +1,19 @@
-"""Unit tests for Standards Enforcement Engine (Phase 2 - Code Quality Standards)."""
+"""Unit tests for Standards Enforcement Engine (Phase 2 - Code Quality Standards).
 
-import os
-import sys
+Migrated to pytest fixtures on 2025-11-26.
+Fixtures used: mcp_main (module-scoped), enforce_standards_tool (module-scoped)
+"""
+
 import tempfile
 import threading
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import Mock, patch, MagicMock, mock_open
 
 import pytest
 import yaml
 
-# Add the parent directory to the path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-
-# Mock FastMCP to disable decoration
-class MockFastMCP:
-    """Mock FastMCP that returns functions unchanged"""
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.tools: Dict[str, Any] = {}  # Store registered tools
-
-    def tool(self, **kwargs: Any) -> Any:
-        """Decorator that returns the function unchanged"""
-
-        def decorator(func: Any) -> Any:
-            # Store the function for later retrieval
-            self.tools[func.__name__] = func
-            return func  # Return original function without modification
-
-        return decorator
-
-    def run(self, **kwargs: Any) -> None:
-        """Mock run method"""
-        pass
-
-
-# Mock the Field function to return the default value
-def mock_field(**kwargs: Any) -> Any:
-    if "default_factory" in kwargs:
-        factory = kwargs["default_factory"]
-        return factory() if callable(factory) else []
-    return kwargs.get("default")
-
-
-# Patch the imports before loading main
-with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
-    with patch("pydantic.Field", mock_field):
-        import main
-
+import main
 from ast_grep_mcp.features.quality.rules import RULE_TEMPLATES
 from main import (
     EnforcementResult,
@@ -74,12 +37,6 @@ from main import (
     _should_exclude_file,
     _template_to_linting_rule,
 )
-
-# Call register_mcp_tools to define the tool functions
-main.register_mcp_tools()
-
-# Extract the tool functions from the mocked mcp instance
-enforce_standards = main.mcp.tools.get("enforce_standards")  # type: ignore
 
 
 class TestRuleViolationDataClass:
@@ -1701,15 +1658,10 @@ class TestFormatViolationReport:
 class TestEnforceStandardsTool:
     """Test enforce_standards MCP tool."""
 
-    def setup_method(self):
-        """Setup for each test."""
-        # Clear any Sentry context
-        pass
-
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_basic_scan_with_recommended_rules(self, mock_exists, mock_execute, mock_load):
+    def test_basic_scan_with_recommended_rules(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test basic scan with recommended rules."""
         mock_exists.return_value = True
 
@@ -1732,7 +1684,7 @@ class TestEnforceStandardsTool:
         mock_execute.return_value = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards(
+            result = enforce_standards_tool(
                 project_folder=tmpdir,
                 language="typescript",
                 rule_set="recommended"
@@ -1744,7 +1696,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_security_rule_set(self, mock_exists, mock_execute, mock_load):
+    def test_security_rule_set(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load):
         """Test scan with security rule set."""
         mock_exists.return_value = True
 
@@ -1767,7 +1719,7 @@ class TestEnforceStandardsTool:
         mock_execute.return_value = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards(
+            result = enforce_standards_tool(
                 project_folder=tmpdir,
                 language="python",
                 rule_set="security"
@@ -1778,7 +1730,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_custom_rules")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_custom_rules_with_ids(self, mock_exists, mock_execute, mock_load_custom):
+    def test_custom_rules_with_ids(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load_custom):
         """Test scan with custom rules specified by IDs."""
         mock_exists.return_value = True
 
@@ -1803,7 +1755,7 @@ class TestEnforceStandardsTool:
         mock_execute.return_value = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards(
+            result = enforce_standards_tool(
                 project_folder=tmpdir,
                 language="python",
                 rule_set="custom",
@@ -1813,13 +1765,13 @@ class TestEnforceStandardsTool:
         assert "summary" in result
 
     @patch("pathlib.Path.exists")
-    def test_invalid_severity_threshold(self, mock_exists):
+    def test_invalid_severity_threshold(self, mcp_main, enforce_standards_tool, mock_exists):
         """Test invalid severity_threshold raises ValueError."""
         mock_exists.return_value = True
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError) as exc_info:
-                enforce_standards(
+                enforce_standards_tool(
                     project_folder=tmpdir,
                     language="python",
                     severity_threshold="critical"
@@ -1828,13 +1780,13 @@ class TestEnforceStandardsTool:
         assert "severity_threshold" in str(exc_info.value)
 
     @patch("pathlib.Path.exists")
-    def test_invalid_output_format(self, mock_exists):
+    def test_invalid_output_format(self, mcp_main, enforce_standards_tool, mock_exists):
         """Test invalid output_format raises ValueError."""
         mock_exists.return_value = True
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError) as exc_info:
-                enforce_standards(
+                enforce_standards_tool(
                     project_folder=tmpdir,
                     language="python",
                     output_format="xml"
@@ -1845,7 +1797,7 @@ class TestEnforceStandardsTool:
     def test_project_folder_not_found(self):
         """Test error when project folder doesn't exist."""
         with pytest.raises(ValueError) as exc_info:
-            enforce_standards(
+            enforce_standards_tool(
                 project_folder="/nonexistent/path",
                 language="python"
             )
@@ -1854,7 +1806,7 @@ class TestEnforceStandardsTool:
 
     @patch("main._load_rule_set")
     @patch("pathlib.Path.exists")
-    def test_no_rules_for_language(self, mock_exists, mock_load):
+    def test_no_rules_for_language(self, mcp_main, enforce_standards_tool, mock_exists, mock_load):
         """Test handling when no rules found for language."""
         mock_exists.return_value = True
 
@@ -1867,7 +1819,7 @@ class TestEnforceStandardsTool:
         mock_load.return_value = mock_rule_set
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards(
+            result = enforce_standards_tool(
                 project_folder=tmpdir,
                 language="rust"
             )
@@ -1876,13 +1828,13 @@ class TestEnforceStandardsTool:
 
     @patch("main._load_custom_rules")
     @patch("pathlib.Path.exists")
-    def test_empty_custom_rules_list(self, mock_exists, mock_load_custom):
+    def test_empty_custom_rules_list(self, mcp_main, enforce_standards_tool, mock_exists, mock_load_custom):
         """Test handling empty custom rules list."""
         mock_exists.return_value = True
         mock_load_custom.return_value = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards(
+            result = enforce_standards_tool(
                 project_folder=tmpdir,
                 language="python",
                 rule_set="custom",
@@ -1894,7 +1846,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_text_output_format(self, mock_exists, mock_execute, mock_load):
+    def test_text_output_format(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load):
         """Test text output format."""
         mock_exists.return_value = True
 
@@ -1917,7 +1869,7 @@ class TestEnforceStandardsTool:
         mock_execute.return_value = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards(
+            result = enforce_standards_tool(
                 project_folder=tmpdir,
                 language="typescript",
                 output_format="text"
@@ -1929,7 +1881,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_json_output_format(self, mock_exists, mock_execute, mock_load):
+    def test_json_output_format(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load):
         """Test JSON output format."""
         mock_exists.return_value = True
 
@@ -1965,7 +1917,7 @@ class TestEnforceStandardsTool:
         mock_execute.return_value = violations
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards(
+            result = enforce_standards_tool(
                 project_folder=tmpdir,
                 language="typescript",
                 output_format="json"
@@ -1978,7 +1930,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_max_violations_enforcement(self, mock_exists, mock_execute, mock_load):
+    def test_max_violations_enforcement(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load):
         """Test max_violations is enforced."""
         mock_exists.return_value = True
 
@@ -2016,7 +1968,7 @@ class TestEnforceStandardsTool:
         mock_execute.return_value = violations
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards(
+            result = enforce_standards_tool(
                 project_folder=tmpdir,
                 language="typescript",
                 max_violations=3
@@ -2028,7 +1980,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_severity_threshold_filtering(self, mock_exists, mock_execute, mock_load):
+    def test_severity_threshold_filtering(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load):
         """Test severity threshold filtering."""
         mock_exists.return_value = True
 
@@ -2064,7 +2016,7 @@ class TestEnforceStandardsTool:
         mock_execute.return_value = violations
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards(
+            result = enforce_standards_tool(
                 project_folder=tmpdir,
                 language="typescript",
                 severity_threshold="error"
@@ -2076,7 +2028,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_include_exclude_patterns(self, mock_exists, mock_execute, mock_load):
+    def test_include_exclude_patterns(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load):
         """Test include/exclude patterns are passed to context."""
         mock_exists.return_value = True
 
@@ -2099,7 +2051,7 @@ class TestEnforceStandardsTool:
         mock_execute.return_value = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards(
+            result = enforce_standards_tool(
                 project_folder=tmpdir,
                 language="typescript",
                 include_patterns=["src/**/*.ts"],
@@ -2115,7 +2067,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_parallel_execution_with_threads(self, mock_exists, mock_execute, mock_load):
+    def test_parallel_execution_with_threads(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load):
         """Test parallel execution with specified threads."""
         mock_exists.return_value = True
 
@@ -2138,7 +2090,7 @@ class TestEnforceStandardsTool:
         mock_execute.return_value = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards(
+            result = enforce_standards_tool(
                 project_folder=tmpdir,
                 language="typescript",
                 max_threads=8
@@ -2152,7 +2104,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_error_handling(self, mock_exists, mock_execute, mock_load):
+    def test_error_handling(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load):
         """Test error handling during execution."""
         mock_exists.return_value = True
 
@@ -2176,7 +2128,7 @@ class TestEnforceStandardsTool:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(Exception):
-                enforce_standards(
+                enforce_standards_tool(
                     project_folder=tmpdir,
                     language="typescript"
                 )
