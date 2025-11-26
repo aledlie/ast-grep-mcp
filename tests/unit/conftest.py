@@ -99,6 +99,13 @@ def rewrite_code_tool(mcp_main):
     return tool
 
 
+@pytest.fixture
+def schema_client():
+    """Create a fresh SchemaOrgClient instance for testing."""
+    from ast_grep_mcp.features.schema.client import SchemaOrgClient
+    return SchemaOrgClient()
+
+
 @pytest.fixture(scope="module")
 def list_backups_tool(mcp_main):
     """Get list_backups tool function."""

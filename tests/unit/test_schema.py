@@ -1,15 +1,12 @@
-"""Tests for Schema.org client and tools."""
-import os
+"""Tests for Schema.org client and tools.
 
-# Import after mocking is set up
-import sys
+Migrated to pytest fixtures on 2025-11-26.
+Fixtures used: schema_client (function-scoped), reset_schema_client (autouse)
+"""
 from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 import pytest
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-
 
 from ast_grep_mcp.features.schema.client import (
     SchemaOrgClient,
@@ -143,12 +140,8 @@ MOCK_SCHEMA_DATA = {
 class TestSchemaOrgClient:
     """Tests for SchemaOrgClient class."""
 
-    def setup_method(self) -> None:
-        """Setup for each test - create fresh client instance."""
-        self.client = SchemaOrgClient()
-
     @pytest.mark.asyncio
-    async def test_initialization_success(self) -> None:
+    async def test_initialization_success(self, schema_client) -> None:
         """Test successful initialization with schema data."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -160,16 +153,16 @@ class TestSchemaOrgClient:
             mock_client.__aexit__.return_value = None
             mock_client_class.return_value = mock_client
 
-            await self.client.initialize()
+            await schema_client.initialize()
 
-            assert self.client.initialized is True
-            assert len(self.client.schema_data) > 0
+            assert schema_client.initialized is True
+            assert len(schema_client.schema_data) > 0
             # Check that both @id and label indexing works
-            assert 'schema:Person' in self.client.schema_data
-            assert self.client.schema_data['schema:Person']['rdfs:label'] == 'Person'
+            assert 'schema:Person' in schema_client.schema_data
+            assert schema_client.schema_data['schema:Person']['rdfs:label'] == 'Person'
 
     @pytest.mark.asyncio
-    async def test_initialization_no_graph(self) -> None:
+    async def test_initialization_no_graph(self, schema_client) -> None:
         """Test initialization fails when @graph is missing."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -182,10 +175,10 @@ class TestSchemaOrgClient:
             mock_client_class.return_value = mock_client
 
             with pytest.raises(RuntimeError, match="Invalid schema.org data format"):
-                await self.client.initialize()
+                await schema_client.initialize()
 
     @pytest.mark.asyncio
-    async def test_initialization_empty_data(self) -> None:
+    async def test_initialization_empty_data(self, schema_client) -> None:
         """Test initialization fails with empty data."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -198,10 +191,10 @@ class TestSchemaOrgClient:
             mock_client_class.return_value = mock_client
 
             with pytest.raises(RuntimeError, match="No data received"):
-                await self.client.initialize()
+                await schema_client.initialize()
 
     @pytest.mark.asyncio
-    async def test_initialization_http_error(self) -> None:
+    async def test_initialization_http_error(self, schema_client) -> None:
         """Test initialization handles HTTP errors."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -211,12 +204,12 @@ class TestSchemaOrgClient:
             mock_client_class.return_value = mock_client
 
             with pytest.raises(RuntimeError, match="Failed to initialize"):
-                await self.client.initialize()
+                await schema_client.initialize()
 
-            assert self.client.initialized is False
+            assert schema_client.initialized is False
 
     @pytest.mark.asyncio
-    async def test_initialization_idempotent(self) -> None:
+    async def test_initialization_idempotent(self, schema_client) -> None:
         """Test that initialize() can be called multiple times safely."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -228,28 +221,28 @@ class TestSchemaOrgClient:
             mock_client.__aexit__.return_value = None
             mock_client_class.return_value = mock_client
 
-            await self.client.initialize()
+            await schema_client.initialize()
             first_call_count = mock_client.get.call_count
 
             # Second call should not fetch data again
-            await self.client.initialize()
+            await schema_client.initialize()
             assert mock_client.get.call_count == first_call_count  # No additional call
 
-    def test_normalize_to_array(self) -> None:
+    def test_normalize_to_array(self, schema_client) -> None:
         """Test _normalize_to_array helper."""
         # Single value
-        assert self.client._normalize_to_array('value') == ['value']
+        assert schema_client._normalize_to_array('value') == ['value']
 
         # List
-        assert self.client._normalize_to_array(['a', 'b']) == ['a', 'b']
+        assert schema_client._normalize_to_array(['a', 'b']) == ['a', 'b']
 
         # None/empty
-        assert self.client._normalize_to_array(None) == []
-        assert self.client._normalize_to_array('') == []
-        assert self.client._normalize_to_array([]) == []
+        assert schema_client._normalize_to_array(None) == []
+        assert schema_client._normalize_to_array('') == []
+        assert schema_client._normalize_to_array([]) == []
 
     @pytest.mark.asyncio
-    async def test_get_schema_type_success(self) -> None:
+    async def test_get_schema_type_success(self, schema_client) -> None:
         """Test getting type information."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -261,7 +254,7 @@ class TestSchemaOrgClient:
             mock_client.__aexit__.return_value = None
             mock_client_class.return_value = mock_client
 
-            result = await self.client.get_schema_type('Person')
+            result = await schema_client.get_schema_type('Person')
 
             assert result['name'] == 'Person'
             assert result['description'] == 'A person (alive, dead, undead, or fictional).'
@@ -271,7 +264,7 @@ class TestSchemaOrgClient:
             assert result['superTypes'][0]['name'] == 'Thing'
 
     @pytest.mark.asyncio
-    async def test_get_schema_type_not_found(self) -> None:
+    async def test_get_schema_type_not_found(self, schema_client) -> None:
         """Test getting non-existent type."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -284,19 +277,19 @@ class TestSchemaOrgClient:
             mock_client_class.return_value = mock_client
 
             with pytest.raises(ValueError, match="Type 'NonExistent' not found"):
-                await self.client.get_schema_type('NonExistent')
+                await schema_client.get_schema_type('NonExistent')
 
     @pytest.mark.asyncio
-    async def test_get_schema_type_invalid_input(self) -> None:
+    async def test_get_schema_type_invalid_input(self, schema_client) -> None:
         """Test get_schema_type with invalid inputs."""
         with pytest.raises(ValueError, match="must be a non-empty string"):
-            await self.client.get_schema_type('')
+            await schema_client.get_schema_type('')
 
         with pytest.raises(ValueError, match="must be a non-empty string"):
-            await self.client.get_schema_type(None)  # type: ignore
+            await schema_client.get_schema_type(None)  # type: ignore
 
     @pytest.mark.asyncio
-    async def test_search_schemas_by_label(self) -> None:
+    async def test_search_schemas_by_label(self, schema_client) -> None:
         """Test searching for schemas by label."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -308,13 +301,13 @@ class TestSchemaOrgClient:
             mock_client.__aexit__.return_value = None
             mock_client_class.return_value = mock_client
 
-            results = await self.client.search_schemas('person')
+            results = await schema_client.search_schemas('person')
 
             assert len(results) >= 1
             assert any(r['name'] == 'Person' for r in results)
 
     @pytest.mark.asyncio
-    async def test_search_schemas_by_description(self) -> None:
+    async def test_search_schemas_by_description(self, schema_client) -> None:
         """Test searching schemas by description text."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -326,13 +319,13 @@ class TestSchemaOrgClient:
             mock_client.__aexit__.return_value = None
             mock_client_class.return_value = mock_client
 
-            results = await self.client.search_schemas('organization')
+            results = await schema_client.search_schemas('organization')
 
             assert len(results) >= 1
             assert any(r['name'] == 'Organization' for r in results)
 
     @pytest.mark.asyncio
-    async def test_search_schemas_limit(self) -> None:
+    async def test_search_schemas_limit(self, schema_client) -> None:
         """Test search result limiting."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -344,21 +337,21 @@ class TestSchemaOrgClient:
             mock_client.__aexit__.return_value = None
             mock_client_class.return_value = mock_client
 
-            results = await self.client.search_schemas('thing', limit=2)
+            results = await schema_client.search_schemas('thing', limit=2)
 
             assert len(results) <= 2
 
     @pytest.mark.asyncio
-    async def test_search_schemas_invalid_query(self) -> None:
+    async def test_search_schemas_invalid_query(self, schema_client) -> None:
         """Test search with invalid queries."""
         with pytest.raises(ValueError, match="Query must be a non-empty string"):
-            await self.client.search_schemas('')
+            await schema_client.search_schemas('')
 
         with pytest.raises(ValueError, match="Query cannot be empty"):
-            await self.client.search_schemas('   ')
+            await schema_client.search_schemas('   ')
 
     @pytest.mark.asyncio
-    async def test_get_type_hierarchy(self) -> None:
+    async def test_get_type_hierarchy(self, schema_client) -> None:
         """Test getting type hierarchy."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -370,7 +363,7 @@ class TestSchemaOrgClient:
             mock_client.__aexit__.return_value = None
             mock_client_class.return_value = mock_client
 
-            result = await self.client.get_type_hierarchy('Person')
+            result = await schema_client.get_type_hierarchy('Person')
 
             assert result['name'] == 'Person'
             assert result['id'] == 'schema:Person'
@@ -379,7 +372,7 @@ class TestSchemaOrgClient:
             assert 'children' in result
 
     @pytest.mark.asyncio
-    async def test_get_type_properties_direct(self) -> None:
+    async def test_get_type_properties_direct(self, schema_client) -> None:
         """Test getting direct properties of a type."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -391,7 +384,7 @@ class TestSchemaOrgClient:
             mock_client.__aexit__.return_value = None
             mock_client_class.return_value = mock_client
 
-            result = await self.client.get_type_properties('Person', include_inherited=False)
+            result = await schema_client.get_type_properties('Person', include_inherited=False)
 
             # Should have direct property 'email'
             assert any(p['name'] == 'email' for p in result)
@@ -400,7 +393,7 @@ class TestSchemaOrgClient:
                 assert 'inheritedFrom' not in prop or prop.get('inheritedFrom') is None
 
     @pytest.mark.asyncio
-    async def test_get_type_properties_inherited(self) -> None:
+    async def test_get_type_properties_inherited(self, schema_client) -> None:
         """Test getting inherited properties."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -412,7 +405,7 @@ class TestSchemaOrgClient:
             mock_client.__aexit__.return_value = None
             mock_client_class.return_value = mock_client
 
-            result = await self.client.get_type_properties('Person', include_inherited=True)
+            result = await schema_client.get_type_properties('Person', include_inherited=True)
 
             # Should include properties from Thing (name, description, url)
             prop_names = [p['name'] for p in result]
@@ -425,7 +418,7 @@ class TestSchemaOrgClient:
             assert len(inherited_props) > 0
 
     @pytest.mark.asyncio
-    async def test_generate_example(self) -> None:
+    async def test_generate_example(self, schema_client) -> None:
         """Test generating example JSON-LD."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -437,7 +430,7 @@ class TestSchemaOrgClient:
             mock_client.__aexit__.return_value = None
             mock_client_class.return_value = mock_client
 
-            result = await self.client.generate_example('Person')
+            result = await schema_client.generate_example('Person')
 
             assert result['@context'] == 'https://schema.org'
             assert result['@type'] == 'Person'
@@ -445,7 +438,7 @@ class TestSchemaOrgClient:
             assert '@type' in result
 
     @pytest.mark.asyncio
-    async def test_generate_example_with_custom_props(self) -> None:
+    async def test_generate_example_with_custom_props(self, schema_client) -> None:
         """Test generating example with custom properties."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -458,132 +451,132 @@ class TestSchemaOrgClient:
             mock_client_class.return_value = mock_client
 
             custom = {'jobTitle': 'Software Engineer', 'worksFor': 'Example Corp'}
-            result = await self.client.generate_example('Person', custom_properties=custom)
+            result = await schema_client.generate_example('Person', custom_properties=custom)
 
             assert result['@type'] == 'Person'
             assert result['jobTitle'] == 'Software Engineer'
             assert result['worksFor'] == 'Example Corp'
 
-    def test_generate_example_value_text(self) -> None:
+    def test_generate_example_value_text(self, schema_client) -> None:
         """Test example value generation for Text type."""
         prop = {'name': 'description', 'expectedTypes': ['Text']}
-        value = self.client._generate_example_value(prop)
+        value = schema_client._generate_example_value(prop)
         assert isinstance(value, str)
         assert 'description' in value.lower()
 
-    def test_generate_example_value_url(self) -> None:
+    def test_generate_example_value_url(self, schema_client) -> None:
         """Test example value generation for URL type."""
         prop = {'name': 'url', 'expectedTypes': ['URL']}
-        value = self.client._generate_example_value(prop)
+        value = schema_client._generate_example_value(prop)
         assert value == 'https://example.com'
 
-    def test_generate_example_value_date(self) -> None:
+    def test_generate_example_value_date(self, schema_client) -> None:
         """Test example value generation for Date type."""
         prop = {'name': 'datePublished', 'expectedTypes': ['Date']}
-        value = self.client._generate_example_value(prop)
+        value = schema_client._generate_example_value(prop)
         assert value == '2024-01-01'
 
-    def test_generate_example_value_datetime(self) -> None:
+    def test_generate_example_value_datetime(self, schema_client) -> None:
         """Test example value generation for DateTime type."""
         prop = {'name': 'startTime', 'expectedTypes': ['DateTime']}
-        value = self.client._generate_example_value(prop)
+        value = schema_client._generate_example_value(prop)
         assert value == '2024-01-01T12:00:00Z'
 
-    def test_generate_example_value_number(self) -> None:
+    def test_generate_example_value_number(self, schema_client) -> None:
         """Test example value generation for Number type."""
         prop = {'name': 'price', 'expectedTypes': ['Number']}
-        value = self.client._generate_example_value(prop)
+        value = schema_client._generate_example_value(prop)
         assert value == 42
 
-    def test_generate_example_value_boolean(self) -> None:
+    def test_generate_example_value_boolean(self, schema_client) -> None:
         """Test example value generation for Boolean type."""
         prop = {'name': 'isAccessibleForFree', 'expectedTypes': ['Boolean']}
-        value = self.client._generate_example_value(prop)
+        value = schema_client._generate_example_value(prop)
         assert value is True
 
-    def test_generate_example_value_image_object(self) -> None:
+    def test_generate_example_value_image_object(self, schema_client) -> None:
         """Test example value generation for ImageObject type."""
         prop = {'name': 'image', 'expectedTypes': ['ImageObject']}
-        value = self.client._generate_example_value(prop)
+        value = schema_client._generate_example_value(prop)
         assert isinstance(value, dict)
         assert value['@type'] == 'ImageObject'
         assert 'url' in value
 
-    def test_generate_entity_id_simple(self) -> None:
+    def test_generate_entity_id_simple(self, schema_client) -> None:
         """Test generating simple entity @id."""
-        entity_id = self.client.generate_entity_id('https://example.com', 'Organization')
+        entity_id = schema_client.generate_entity_id('https://example.com', 'Organization')
         assert entity_id == 'https://example.com#organization'
 
-    def test_generate_entity_id_with_slug(self) -> None:
+    def test_generate_entity_id_with_slug(self, schema_client) -> None:
         """Test generating entity @id with slug."""
-        entity_id = self.client.generate_entity_id(
+        entity_id = schema_client.generate_entity_id(
             'https://example.com',
             'Person',
             'team/john-doe'
         )
         assert entity_id == 'https://example.com/team/john-doe#person'
 
-    def test_generate_entity_id_trailing_slash(self) -> None:
+    def test_generate_entity_id_trailing_slash(self, schema_client) -> None:
         """Test entity @id generation removes trailing slash."""
-        entity_id = self.client.generate_entity_id('https://example.com/', 'Product')
+        entity_id = schema_client.generate_entity_id('https://example.com/', 'Product')
         assert entity_id == 'https://example.com#product'
 
-    def test_generate_entity_id_slug_leading_slash(self) -> None:
+    def test_generate_entity_id_slug_leading_slash(self, schema_client) -> None:
         """Test entity @id generation removes leading slash from slug."""
-        entity_id = self.client.generate_entity_id(
+        entity_id = schema_client.generate_entity_id(
             'https://example.com',
             'Article',
             '/blog/my-post'
         )
         assert entity_id == 'https://example.com/blog/my-post#article'
 
-    def test_validate_entity_id_valid(self) -> None:
+    def test_validate_entity_id_valid(self, schema_client) -> None:
         """Test validating a properly formatted @id."""
-        result = self.client.validate_entity_id('https://example.com#organization')
+        result = schema_client.validate_entity_id('https://example.com#organization')
 
         assert result['valid'] is True
         assert result['entity_id'] == 'https://example.com#organization'
         assert len(result['warnings']) == 0
         assert len(result['suggestions']) == 0
 
-    def test_validate_entity_id_no_protocol(self) -> None:
+    def test_validate_entity_id_no_protocol(self, schema_client) -> None:
         """Test validation catches missing http/https."""
-        result = self.client.validate_entity_id('example.com/#organization')
+        result = schema_client.validate_entity_id('example.com/#organization')
 
         assert result['valid'] is False
         assert any('full URL' in w for w in result['warnings'])
 
-    def test_validate_entity_id_no_hash(self) -> None:
+    def test_validate_entity_id_no_hash(self, schema_client) -> None:
         """Test validation catches missing hash fragment."""
-        result = self.client.validate_entity_id('https://example.com/organization')
+        result = schema_client.validate_entity_id('https://example.com/organization')
 
         assert result['valid'] is False
         assert any('hash fragment' in w for w in result['warnings'])
         assert any('Add a descriptive fragment' in s for s in result['suggestions'])
 
-    def test_validate_entity_id_unstable_components(self) -> None:
+    def test_validate_entity_id_unstable_components(self, schema_client) -> None:
         """Test validation catches unstable ID patterns."""
-        result = self.client.validate_entity_id('https://example.com/timestamp-123#org')
+        result = schema_client.validate_entity_id('https://example.com/timestamp-123#org')
 
         assert result['valid'] is False
         assert any('unstable' in w for w in result['warnings'])
 
-    def test_validate_entity_id_numeric_fragment(self) -> None:
+    def test_validate_entity_id_numeric_fragment(self, schema_client) -> None:
         """Test validation warns about numeric-only fragments."""
-        result = self.client.validate_entity_id('https://example.com/#123')
+        result = schema_client.validate_entity_id('https://example.com/#123')
 
         assert result['valid'] is False
         assert any('numeric-only' in w for w in result['warnings'])
 
-    def test_validate_entity_id_query_parameters(self) -> None:
+    def test_validate_entity_id_query_parameters(self, schema_client) -> None:
         """Test validation catches query parameters."""
-        result = self.client.validate_entity_id('https://example.com/?id=123#org')
+        result = schema_client.validate_entity_id('https://example.com/?id=123#org')
 
         assert result['valid'] is False
         assert any('query parameters' in w for w in result['warnings'])
 
     @pytest.mark.asyncio
-    async def test_build_entity_graph_simple(self) -> None:
+    async def test_build_entity_graph_simple(self, schema_client) -> None:
         """Test building a simple entity graph."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -603,7 +596,7 @@ class TestSchemaOrgClient:
                 }
             ]
 
-            result = await self.client.build_entity_graph(entities, 'https://example.com')
+            result = await schema_client.build_entity_graph(entities, 'https://example.com')
 
             assert result['@context'] == 'https://schema.org'
             assert '@graph' in result
@@ -613,7 +606,7 @@ class TestSchemaOrgClient:
             assert result['@graph'][0]['@id'] == 'https://example.com#organization'
 
     @pytest.mark.asyncio
-    async def test_build_entity_graph_with_relationships(self) -> None:
+    async def test_build_entity_graph_with_relationships(self, schema_client) -> None:
         """Test building entity graph with relationships."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -640,7 +633,7 @@ class TestSchemaOrgClient:
                 }
             ]
 
-            result = await self.client.build_entity_graph(entities, 'https://example.com')
+            result = await schema_client.build_entity_graph(entities, 'https://example.com')
 
             assert len(result['@graph']) == 2
 
@@ -653,7 +646,7 @@ class TestSchemaOrgClient:
             assert org['founder'] == {'@id': person['@id']}
 
     @pytest.mark.asyncio
-    async def test_build_entity_graph_with_slug(self) -> None:
+    async def test_build_entity_graph_with_slug(self, schema_client) -> None:
         """Test entity graph includes URL for entities with slugs."""
         with patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
@@ -673,7 +666,7 @@ class TestSchemaOrgClient:
                 }
             ]
 
-            result = await self.client.build_entity_graph(entities, 'https://example.com')
+            result = await schema_client.build_entity_graph(entities, 'https://example.com')
 
             article = result['@graph'][0]
             assert article['url'] == 'https://example.com/blog/my-post'
@@ -681,11 +674,6 @@ class TestSchemaOrgClient:
 
 class TestSchemaOrgTools:
     """Tests for Schema.org MCP tools."""
-
-    def setup_method(self) -> None:
-        """Reset global schema client before each test."""
-        import main
-        main._schema_org_client = None
 
     @pytest.mark.asyncio
     async def test_get_schema_type_tool(self) -> None:
@@ -825,11 +813,38 @@ class TestSchemaOrgTools:
 class TestSchemaOrgClientHelpers:
     """Tests for SchemaOrgClient helper methods."""
 
-    def setup_method(self) -> None:
-        """Setup for each test."""
-        self.client = SchemaOrgClient()
-        # Manually populate some test data
-        self.client.schema_data = {
+
+    def test_extract_super_types(self, schema_client) -> None:
+        """Test extracting super types from type data."""
+        type_data = {
+            '@id': 'schema:Person',
+            'rdfs:subClassOf': {'@id': 'schema:Thing'}
+        }
+
+        result = schema_client._extract_super_types(type_data)
+
+        assert len(result) == 1
+        assert result[0]['name'] == 'Thing'
+        assert result[0]['id'] == 'schema:Thing'
+
+    def test_extract_super_types_multiple(self, schema_client) -> None:
+        """Test extracting multiple super types."""
+        type_data = {
+            '@id': 'schema:Test',
+            'rdfs:subClassOf': [
+                {'@id': 'schema:Thing'},
+                {'@id': 'schema:Person'}
+            ]
+        }
+
+        result = schema_client._extract_super_types(type_data)
+
+        assert len(result) == 2
+
+    def test_find_sub_types(self, schema_client) -> None:
+        """Test finding subtypes of a type."""
+        # Populate base schema data
+        schema_client.schema_data = {
             'schema:Person': {
                 '@id': 'schema:Person',
                 '@type': 'rdfs:Class',
@@ -842,50 +857,20 @@ class TestSchemaOrgClientHelpers:
                 'rdfs:label': 'Thing'
             }
         }
-
-    def test_extract_super_types(self) -> None:
-        """Test extracting super types from type data."""
-        type_data = {
-            '@id': 'schema:Person',
-            'rdfs:subClassOf': {'@id': 'schema:Thing'}
-        }
-
-        result = self.client._extract_super_types(type_data)
-
-        assert len(result) == 1
-        assert result[0]['name'] == 'Thing'
-        assert result[0]['id'] == 'schema:Thing'
-
-    def test_extract_super_types_multiple(self) -> None:
-        """Test extracting multiple super types."""
-        type_data = {
-            '@id': 'schema:Test',
-            'rdfs:subClassOf': [
-                {'@id': 'schema:Thing'},
-                {'@id': 'schema:Person'}
-            ]
-        }
-
-        result = self.client._extract_super_types(type_data)
-
-        assert len(result) == 2
-
-    def test_find_sub_types(self) -> None:
-        """Test finding subtypes of a type."""
         # Add a subtype to test data
-        self.client.schema_data['schema:Student'] = {
+        schema_client.schema_data['schema:Student'] = {
             '@id': 'schema:Student',
             '@type': 'rdfs:Class',
             'rdfs:label': 'Student',
             'rdfs:subClassOf': {'@id': 'schema:Person'}
         }
 
-        result = self.client._find_sub_types('schema:Person')
+        result = schema_client._find_sub_types('schema:Person')
 
         assert len(result) >= 1
         assert any(st['name'] == 'Student' for st in result)
 
-    def test_format_property(self) -> None:
+    def test_format_property(self, schema_client) -> None:
         """Test formatting a property for output."""
         prop_data = {
             '@id': 'schema:name',
@@ -896,12 +881,12 @@ class TestSchemaOrgClientHelpers:
         }
 
         # Add Text type to schema_data
-        self.client.schema_data['schema:Text'] = {
+        schema_client.schema_data['schema:Text'] = {
             '@id': 'schema:Text',
             'rdfs:label': 'Text'
         }
 
-        result = self.client._format_property(prop_data)
+        result = schema_client._format_property(prop_data)
 
         assert result['name'] == 'name'
         assert result['description'] == 'The name of the item'
@@ -911,11 +896,6 @@ class TestSchemaOrgClientHelpers:
 
 class TestGetSchemaOrgClient:
     """Tests for get_schema_org_client singleton."""
-
-    def setup_method(self) -> None:
-        """Reset global client before each test."""
-        import main
-        main._schema_org_client = None
 
     def test_get_schema_org_client_singleton(self) -> None:
         """Test that get_schema_org_client returns singleton."""
