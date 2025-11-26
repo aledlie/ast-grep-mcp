@@ -1,47 +1,29 @@
-"""Edge case tests to improve coverage for error handling paths"""
+"""Edge case tests to improve coverage for error handling paths.
+
+Tests cover:
+- Configuration validation error paths (sys.exit scenarios)
+- Cache environment variable configuration
+- Duplication detection size ratio filtering
+- JavaScript/TypeScript syntax validation with node
+- Schema.org client error handling
+- Rewrite and backup edge cases
+- Command not found error logging
+- Streaming subprocess cleanup
+
+Migrated to pytest fixtures on 2025-11-26.
+Fixtures used: mcp_main (module-scoped), project_folder (temp directory), reset_schema_client (autouse)
+"""
 
 import json
 import os
 import subprocess
-import sys
 import tempfile
-from typing import Any, Dict
-from unittest.mock import MagicMock, Mock, patch
+from typing import Any
+from unittest.mock import Mock, patch
 
 import pytest
 
-# Add the parent directory to the path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-
-# Mock FastMCP to disable decoration
-class MockFastMCP:
-    """Mock FastMCP that returns functions unchanged"""
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.tools: Dict[str, Any] = {}
-
-    def tool(self, **kwargs: Any) -> Any:
-        """Decorator that returns the function unchanged"""
-        def decorator(func: Any) -> Any:
-            self.tools[func.__name__] = func
-            return func
-        return decorator
-
-    def run(self, *args: Any, **kwargs: Any) -> None:
-        """Mock run method"""
-        pass
-
-
-# Mock the mcp module before importing main
-sys.modules['mcp'] = MagicMock()
-sys.modules['mcp.server'] = MagicMock()
-sys.modules['mcp.server.fastmcp'] = MagicMock()
-
-# Replace FastMCP in the mcp module
-with patch('mcp.server.fastmcp.FastMCP', MockFastMCP):
-    import main
+import main
 
 
 class TestConfigValidationErrorPaths:
@@ -208,11 +190,7 @@ class TestJavaScriptValidation:
 
 
 class TestSchemaOrgClientEdgeCases:
-    """Test Schema.org client error handling."""
-
-    def setup_method(self) -> None:
-        """Reset schema client before each test."""
-        main._schema_org_client = None
+    """Test Schema.org client error handling"""
 
     def test_schema_org_client_http_error_fallback(self) -> None:
         """Test Schema.org client handles HTTP errors gracefully."""
@@ -239,24 +217,14 @@ class TestSchemaOrgClientEdgeCases:
 class TestRewriteBackupEdgeCases:
     """Test edge cases in rewrite and backup functionality."""
 
-    def setup_method(self) -> None:
-        """Create temp directory for tests."""
-        self.temp_dir = tempfile.mkdtemp()
-
-    def teardown_method(self) -> None:
-        """Clean up temp directory."""
-        import shutil
-        if os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
-
-    def test_create_backup_nonexistent_file(self) -> None:
+    def test_create_backup_nonexistent_file(self, project_folder) -> None:
         """Test create_backup skips nonexistent files."""
-        nonexistent = os.path.join(self.temp_dir, "nonexistent.py")
+        nonexistent = os.path.join(project_folder, "nonexistent.py")
 
-        backup_id = main.create_backup([nonexistent], self.temp_dir)
+        backup_id = main.create_backup([nonexistent], str(project_folder))
 
         # Backup should be created but file list should be empty
-        backup_dir = os.path.join(self.temp_dir, ".ast-grep-backups", backup_id)
+        backup_dir = os.path.join(project_folder, ".ast-grep-backups", backup_id)
         assert os.path.exists(backup_dir)
 
         # Check metadata (note: backup-metadata.json is the correct filename)
