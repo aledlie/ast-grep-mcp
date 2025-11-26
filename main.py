@@ -56,6 +56,26 @@ from ast_grep_mcp.features.quality.smells import *
 from ast_grep_mcp.features.quality.rules import *
 from ast_grep_mcp.features.quality.validator import *
 from ast_grep_mcp.features.quality.enforcer import *
+from ast_grep_mcp.features.quality.tools import enforce_standards_tool
+
+# Backward compatibility: underscore-prefixed aliases for tests
+from ast_grep_mcp.features.quality.enforcer import (
+    execute_rule as _execute_rule,
+    execute_rules_batch as _execute_rules_batch,
+    filter_violations_by_severity as _filter_violations_by_severity,
+    format_violation_report as _format_violation_report,
+    group_violations_by_file as _group_violations_by_file,
+    group_violations_by_rule as _group_violations_by_rule,
+    group_violations_by_severity as _group_violations_by_severity,
+    load_custom_rules as _load_custom_rules,
+    load_rule_set as _load_rule_set,
+    parse_match_to_violation as _parse_match_to_violation,
+    should_exclude_file as _should_exclude_file,
+    template_to_linting_rule as _template_to_linting_rule,
+)
+from ast_grep_mcp.features.quality.rules import (
+    load_rules_from_project as _load_rule_from_file,  # Note: naming mismatch in tests
+)
 
 # Additional backward compatibility exports for test suite
 # These are methods on classes that tests expect as standalone functions
@@ -683,6 +703,13 @@ def register_mcp_tools() -> None:
         test_sentry_integration_tool,
     )
 
+    # Quality/Standards tools (now extractable after Phase 2B completion)
+    from ast_grep_mcp.features.quality.tools import (
+        create_linting_rule_tool,
+        list_rule_templates_tool,
+        enforce_standards_tool,
+    )
+
     # Register all tools in the MockTools dictionary
     # Deduplication tools (4)
     mcp.tools._tools["find_duplication"] = find_duplication_tool
@@ -705,11 +732,15 @@ def register_mcp_tools() -> None:
     mcp.tools._tools["analyze_complexity"] = analyze_complexity_tool
     mcp.tools._tools["test_sentry_integration"] = test_sentry_integration_tool
 
-    # Note: Schema.org and Quality tools are not yet included as they still use
-    # nested function definitions within register_*_tools() that cannot be
+    # Quality/Standards tools (3) - Phase 2B complete
+    mcp.tools._tools["create_linting_rule"] = create_linting_rule_tool
+    mcp.tools._tools["list_rule_templates"] = list_rule_templates_tool
+    mcp.tools._tools["enforce_standards"] = enforce_standards_tool
+
+    # Note: Schema.org tools are not yet included as they still use
+    # nested function definitions within register_schema_tools() that cannot be
     # easily imported. Tests for these tools will need to be updated to import
     # directly from the modular structure or use integration testing.
-    # Complexity tools have been refactored and are now registered above.
 
     # Mark as registered
     mcp.tools._registered = True

@@ -286,9 +286,9 @@ def execute_rule(
 
         args = [
             "--inline-rules", yaml_str,
-            "--lang", rule.language,
             "--json=stream"
         ]
+        # Note: --lang is not needed here as language is specified in the YAML rule itself
 
         # Add project folder to scan
         args.append(context.project_folder)

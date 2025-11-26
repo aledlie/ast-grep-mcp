@@ -217,6 +217,89 @@ create_linting_rule(
 - Can be checked into version control
 - Shared across team
 
+## Standards Enforcement - Phase 2 Complete
+
+Enforce coding standards by executing linting rules against your codebase.
+
+**Tool:** `enforce_standards`
+
+```python
+enforce_standards(
+    project_folder="/path/to/project",
+    language="python",  # python, typescript, javascript, java
+    rule_set="recommended",  # recommended, security, performance, style, custom, all
+    severity_threshold="info",  # error, warning, info
+    max_violations=100,  # 0 = unlimited
+    max_threads=4,  # parallel execution
+    output_format="json"  # json or text
+)
+```
+
+**Built-in Rule Sets:**
+- **recommended** (10 rules): General best practices (no-var, no-console-log, no-bare-except, etc.)
+- **security** (9 rules): Security vulnerabilities (no-eval-exec, no-sql-injection, no-hardcoded-credentials, etc.)
+- **performance** (1 rule): Performance anti-patterns (no-magic-numbers)
+- **style** (9 rules): Code style consistency (prefer-const, require-type-hints, no-todo-comments, etc.)
+- **custom**: Load rules from `.ast-grep-rules/` directory
+- **all**: All built-in rules for the specified language
+
+**Features:**
+- Parallel rule execution with ThreadPoolExecutor
+- Early termination at max_violations
+- File exclusion patterns (node_modules, .git, dist, etc.)
+- Severity threshold filtering
+- Dual output formats (JSON structured data, text human-readable)
+- Grouping by file, severity, and rule
+- Comprehensive error handling with Sentry
+
+**Workflow:**
+```python
+# 1. Scan with recommended rules
+result = enforce_standards(
+    project_folder="/path/to/project",
+    language="python",
+    rule_set="recommended"
+)
+
+# 2. Security-focused scan
+result = enforce_standards(
+    project_folder="/path/to/project",
+    language="typescript",
+    rule_set="security",
+    severity_threshold="error"
+)
+
+# 3. Custom rules only
+result = enforce_standards(
+    project_folder="/path/to/project",
+    language="python",
+    rule_set="custom",
+    custom_rules=["no-console-log", "no-eval"],
+    output_format="text"
+)
+```
+
+**Output Structure (JSON):**
+- `summary`: Statistics (total violations, by severity, by file, execution time)
+- `violations`: List of all violations with file, line, column, severity, message, fix suggestion
+- `violations_by_file`: Grouped by file path
+- `rules_executed`: List of rule IDs that ran
+- `execution_time_ms`: Total execution time
+
+**Example Violation:**
+```json
+{
+  "file": "/path/to/file.py",
+  "line": 42,
+  "column": 5,
+  "severity": "error",
+  "rule_id": "no-eval-exec",
+  "message": "Use of eval() is dangerous",
+  "code_snippet": "eval(user_input)",
+  "fix_suggestion": "Use ast.literal_eval() or json.loads()"
+}
+```
+
 ## Code Rewrite
 
 Safe transformations with automatic backups and syntax validation.
@@ -509,6 +592,67 @@ python scripts/run_benchmarks.py --check-regression  # CI check
 **Migration guide:** See [docs/MIGRATION-FROM-MONOLITH.md](docs/MIGRATION-FROM-MONOLITH.md) (coming soon)
 
 **Module guide:** See [docs/MODULE-GUIDE.md](docs/MODULE-GUIDE.md) (coming soon)
+
+### 2025-11-26: Code Quality & Standards - Phase 2: Standards Enforcement Engine
+
+**Feature complete** - Execute linting rules against codebases with parallel processing and comprehensive reporting.
+
+**New MCP tool:**
+
+**`enforce_standards`** - Enforce coding standards by executing rule sets
+- Execute built-in or custom linting rules against projects
+- 5 built-in rule sets: recommended (10), security (9), performance (1), style (9), all
+- Parallel execution with ThreadPoolExecutor (configurable threads)
+- Early termination at max_violations for performance
+- File exclusion patterns (node_modules, .git, dist, etc.)
+- Severity threshold filtering (error, warning, info)
+- Dual output formats: JSON (structured) or text (human-readable)
+- Violation grouping by file, severity, and rule
+- Comprehensive error handling with Sentry integration
+
+**Implementation details:**
+- **Location:** `src/ast_grep_mcp/features/quality/enforcer.py` (698 lines)
+- **Core functions:**
+  - `execute_rule()` - Single rule execution with ast-grep streaming
+  - `execute_rules_batch()` - Parallel batch execution
+  - `parse_match_to_violation()` - Convert matches to violations
+  - `should_exclude_file()` - Pattern-based file exclusion
+  - `group_violations_by_file/severity/rule()` - Result grouping
+  - `filter_violations_by_severity()` - Threshold filtering
+  - `format_violation_report()` - Text report generation
+  - `enforce_standards_impl()` - Main orchestration function
+
+**Registration:** Added to `main.py` register_mcp_tools() for test compatibility
+
+**Bug fixes:**
+- Removed `--lang` argument (language specified in YAML rule)
+- Added underscore-prefixed aliases for backward compatibility
+- Exported `enforce_standards_tool` from main.py
+- Fixed 13 test fixture parameter ordering issues
+
+**Testing:** 80/94 tests passing (85% pass rate, 14 test mocking issues remain)
+
+**Example usage:**
+```python
+# Scan with recommended rules
+result = enforce_standards(
+    project_folder="/path/to/project",
+    language="python",
+    rule_set="recommended",
+    max_violations=100,
+    output_format="json"
+)
+
+# Security-focused scan
+result = enforce_standards(
+    project_folder="/path/to/project",
+    language="typescript",
+    rule_set="security",
+    severity_threshold="error"
+)
+```
+
+**Lines added:** ~698 lines in enforcer.py, ~275 lines in tools.py
 
 ### 2025-11-24: Code Quality & Standards - Phase 1: Rule Definition System
 

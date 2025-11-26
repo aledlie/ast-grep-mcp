@@ -1696,7 +1696,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_security_rule_set(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load):
+    def test_security_rule_set(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test scan with security rule set."""
         mock_exists.return_value = True
 
@@ -1730,7 +1730,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_custom_rules")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_custom_rules_with_ids(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load_custom):
+    def test_custom_rules_with_ids(self, mock_exists, mock_execute, mock_load_custom, mcp_main, enforce_standards_tool):
         """Test scan with custom rules specified by IDs."""
         mock_exists.return_value = True
 
@@ -1765,7 +1765,7 @@ class TestEnforceStandardsTool:
         assert "summary" in result
 
     @patch("pathlib.Path.exists")
-    def test_invalid_severity_threshold(self, mcp_main, enforce_standards_tool, mock_exists):
+    def test_invalid_severity_threshold(self, mock_exists, mcp_main, enforce_standards_tool):
         """Test invalid severity_threshold raises ValueError."""
         mock_exists.return_value = True
 
@@ -1780,7 +1780,7 @@ class TestEnforceStandardsTool:
         assert "severity_threshold" in str(exc_info.value)
 
     @patch("pathlib.Path.exists")
-    def test_invalid_output_format(self, mcp_main, enforce_standards_tool, mock_exists):
+    def test_invalid_output_format(self, mock_exists, mcp_main, enforce_standards_tool):
         """Test invalid output_format raises ValueError."""
         mock_exists.return_value = True
 
@@ -1806,7 +1806,7 @@ class TestEnforceStandardsTool:
 
     @patch("main._load_rule_set")
     @patch("pathlib.Path.exists")
-    def test_no_rules_for_language(self, mcp_main, enforce_standards_tool, mock_exists, mock_load):
+    def test_no_rules_for_language(self, mock_exists, mock_load, mcp_main, enforce_standards_tool):
         """Test handling when no rules found for language."""
         mock_exists.return_value = True
 
@@ -1828,7 +1828,7 @@ class TestEnforceStandardsTool:
 
     @patch("main._load_custom_rules")
     @patch("pathlib.Path.exists")
-    def test_empty_custom_rules_list(self, mcp_main, enforce_standards_tool, mock_exists, mock_load_custom):
+    def test_empty_custom_rules_list(self, mock_exists, mock_load_custom, mcp_main, enforce_standards_tool):
         """Test handling empty custom rules list."""
         mock_exists.return_value = True
         mock_load_custom.return_value = []
@@ -1846,7 +1846,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_text_output_format(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load):
+    def test_text_output_format(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test text output format."""
         mock_exists.return_value = True
 
@@ -1881,7 +1881,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_json_output_format(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load):
+    def test_json_output_format(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test JSON output format."""
         mock_exists.return_value = True
 
@@ -1930,7 +1930,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_max_violations_enforcement(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load):
+    def test_max_violations_enforcement(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test max_violations is enforced."""
         mock_exists.return_value = True
 
@@ -1980,7 +1980,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_severity_threshold_filtering(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load):
+    def test_severity_threshold_filtering(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test severity threshold filtering."""
         mock_exists.return_value = True
 
@@ -2028,7 +2028,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_include_exclude_patterns(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load):
+    def test_include_exclude_patterns(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test include/exclude patterns are passed to context."""
         mock_exists.return_value = True
 
@@ -2067,7 +2067,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_parallel_execution_with_threads(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load):
+    def test_parallel_execution_with_threads(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test parallel execution with specified threads."""
         mock_exists.return_value = True
 
@@ -2104,7 +2104,7 @@ class TestEnforceStandardsTool:
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_error_handling(self, mcp_main, enforce_standards_tool, mock_exists, mock_execute, mock_load):
+    def test_error_handling(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test error handling during execution."""
         mock_exists.return_value = True
 
