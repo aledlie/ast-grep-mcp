@@ -1,38 +1,19 @@
-"""Tests for query caching functionality"""
+"""Tests for query caching functionality.
 
-import os
-import sys
+Tests cover:
+- QueryCache class (LRU + TTL caching)
+- Cache integration with find_code and find_code_by_rule tools
+- Cache statistics and operations
+
+Migrated to pytest fixtures on 2025-11-26.
+Fixtures used: mcp_main (module-scoped), reset_cache (autouse)
+"""
+
 import time
-from typing import Any, Dict, List
+from typing import Any, List
 from unittest.mock import patch
 
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-# Mock FastMCP before importing main
-class MockFastMCP:
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.tools: Dict[str, Any] = {}
-
-    def tool(self, **kwargs: Any) -> Any:
-        def decorator(func: Any) -> Any:
-            self.tools[func.__name__] = func
-            return func
-        return decorator
-
-    def run(self, **kwargs: Any) -> None:
-        pass
-
-
-def mock_field(**kwargs: Any) -> Any:
-    return kwargs.get("default")
-
-
-# Import with mocked decorators
-with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
-    with patch("pydantic.Field", mock_field):
-        import main
+import pytest
 from ast_grep_mcp.core.cache import QueryCache
 
 
@@ -184,40 +165,26 @@ class TestQueryCache:
 class TestCacheIntegration:
     """Test cache integration with find_code and find_code_by_rule"""
 
-    def setup_method(self) -> None:
-        """Reset global cache before each test"""
-        main._query_cache = QueryCache(max_size=10, ttl_seconds=300)
-        main.CACHE_ENABLED = True
-        # Register tools
-        main.register_mcp_tools()
-
-    def teardown_method(self) -> None:
-        """Clean up after each test"""
-        main._query_cache = None
-        main.CACHE_ENABLED = True
-
     @patch("main.stream_ast_grep_results")
-    def test_find_code_cache_miss_then_hit(self, mock_stream: Any) -> None:
+    def test_find_code_cache_miss_then_hit(self, mock_stream: Any, mcp_main, find_code_tool) -> None:
         """Test find_code caches results and serves from cache on second call"""
         mock_matches: List[Any] = [
             {"text": "def test():", "file": "test.py", "range": {"start": {"line": 1}}}
         ]
         mock_stream.return_value = iter(mock_matches)
 
-        find_code = main.mcp.tools.get("find_code")  # type: ignore
-
         # First call - cache miss, should call stream_ast_grep_results
-        result1 = find_code(project_folder="/project", pattern="def $NAME", output_format="json")
+        result1 = find_code_tool(project_folder="/project", pattern="def $NAME", output_format="json")
         assert mock_stream.call_count == 1
         assert result1 == mock_matches
 
         # Second call - cache hit, should NOT call stream_ast_grep_results again
-        result2 = find_code(project_folder="/project", pattern="def $NAME", output_format="json")
+        result2 = find_code_tool(project_folder="/project", pattern="def $NAME", output_format="json")
         assert mock_stream.call_count == 1  # Should still be 1
         assert result2 == mock_matches
 
     @patch("main.stream_ast_grep_results")
-    def test_find_code_by_rule_cache_miss_then_hit(self, mock_stream: Any) -> None:
+    def test_find_code_by_rule_cache_miss_then_hit(self, mock_stream: Any, mcp_main, find_code_by_rule_tool) -> None:
         """Test find_code_by_rule caches results and serves from cache on second call"""
         mock_matches: List[Any] = [
             {"text": "class Test:", "file": "test.py", "range": {"start": {"line": 1}}}
@@ -229,10 +196,8 @@ language: Python
 rule:
   pattern: class $NAME"""
 
-        find_code_by_rule = main.mcp.tools.get("find_code_by_rule")  # type: ignore
-
         # First call - cache miss
-        result1 = find_code_by_rule(
+        result1 = find_code_by_rule_tool(
             project_folder="/project",
             yaml_rule=yaml_rule,
             output_format="json"
@@ -241,7 +206,7 @@ rule:
         assert result1 == mock_matches
 
         # Second call - cache hit
-        result2 = find_code_by_rule(
+        result2 = find_code_by_rule_tool(
             project_folder="/project",
             yaml_rule=yaml_rule,
             output_format="json"
@@ -250,56 +215,54 @@ rule:
         assert result2 == mock_matches
 
     @patch("main.stream_ast_grep_results")
-    def test_cache_disabled(self, mock_stream: Any) -> None:
+    def test_cache_disabled(self, mock_stream: Any, mcp_main, find_code_tool) -> None:
         """Test that caching is disabled when CACHE_ENABLED is False"""
+        import main
         main.CACHE_ENABLED = False
         main._query_cache = None
 
         mock_matches: List[Any] = [{"text": "match"}]
         mock_stream.return_value = iter(mock_matches)
 
-        find_code = main.mcp.tools.get("find_code")  # type: ignore
-
         # Call twice, should execute both times
-        find_code(project_folder="/project", pattern="test", output_format="json")
-        find_code(project_folder="/project", pattern="test", output_format="json")
+        find_code_tool(project_folder="/project", pattern="test", output_format="json")
+        find_code_tool(project_folder="/project", pattern="test", output_format="json")
 
         assert mock_stream.call_count == 2
 
+        # Restore cache state
+        main.CACHE_ENABLED = True
+
     @patch("main.stream_ast_grep_results")
-    def test_different_patterns_not_cached_together(self, mock_stream: Any) -> None:
+    def test_different_patterns_not_cached_together(self, mock_stream: Any, mcp_main, find_code_tool) -> None:
         """Test that different patterns create separate cache entries"""
         mock_stream.side_effect = [
             iter([{"text": "match1"}]),
             iter([{"text": "match2"}])
         ]
 
-        find_code = main.mcp.tools.get("find_code")  # type: ignore
-
         # Two different patterns
-        result1 = find_code(project_folder="/project", pattern="pattern1", output_format="json")
-        result2 = find_code(project_folder="/project", pattern="pattern2", output_format="json")
+        result1 = find_code_tool(project_folder="/project", pattern="pattern1", output_format="json")
+        result2 = find_code_tool(project_folder="/project", pattern="pattern2", output_format="json")
 
         assert mock_stream.call_count == 2
         assert result1 == [{"text": "match1"}]
         assert result2 == [{"text": "match2"}]
 
     @patch("main.stream_ast_grep_results")
-    def test_cache_text_and_json_formats(self, mock_stream: Any) -> None:
+    def test_cache_text_and_json_formats(self, mock_stream: Any, mcp_main, find_code_tool) -> None:
         """Test that both text and json formats use the same cache"""
         mock_matches: List[Any] = [
             {"text": "def test():", "file": "test.py", "range": {"start": {"line": 1}, "end": {"line": 1}}}
         ]
         mock_stream.return_value = iter(mock_matches)
 
-        find_code = main.mcp.tools.get("find_code")  # type: ignore
-
         # First call with json format - cache miss
-        result_json = find_code(project_folder="/project", pattern="test", output_format="json")
+        result_json = find_code_tool(project_folder="/project", pattern="test", output_format="json")
         assert mock_stream.call_count == 1
 
         # Second call with text format - cache hit, different formatting
-        result_text = find_code(project_folder="/project", pattern="test", output_format="text")
+        result_text = find_code_tool(project_folder="/project", pattern="test", output_format="text")
         assert mock_stream.call_count == 1  # Should still be 1
 
         # Results should be different formats but from same cached data
