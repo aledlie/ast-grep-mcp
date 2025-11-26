@@ -1,14 +1,17 @@
 """Shared pytest fixtures for unit tests.
 
 This module provides reusable fixtures for all unit test modules, including:
+- Core fixtures (MockFastMCP, mock_field, mcp_main)
 - Tool access fixtures (apply_deduplication_tool, rewrite_code_tool, etc.)
 - File setup fixtures (simple_test_files, backup_test_files, orchestration_test_files)
-- Factory fixtures (refactoring_plan_factory)
+- Factory fixtures (refactoring_plan_factory, match_factory, query_factory, etc.)
+- State management fixtures (reset_cache, reset_schema_client)
+- Mock object factories (mock_popen_factory, mock_httpx_client)
 """
 
 import os
-from typing import Any, Dict
-from unittest.mock import patch
+from typing import Any, Dict, List
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -308,3 +311,389 @@ def refactoring_plan_factory():
         return plan
 
     return _create_plan
+
+
+# Additional Tool Access Fixtures
+
+@pytest.fixture(scope="module")
+def batch_search_tool(mcp_main):
+    """Get batch_search tool function."""
+    tool = mcp_main.mcp.tools.get("batch_search")
+    assert tool is not None, "batch_search tool not registered"
+    return tool
+
+
+@pytest.fixture(scope="module")
+def find_code_tool(mcp_main):
+    """Get find_code tool function."""
+    tool = mcp_main.mcp.tools.get("find_code")
+    assert tool is not None, "find_code tool not registered"
+    return tool
+
+
+@pytest.fixture(scope="module")
+def find_code_by_rule_tool(mcp_main):
+    """Get find_code_by_rule tool function."""
+    tool = mcp_main.mcp.tools.get("find_code_by_rule")
+    assert tool is not None, "find_code_by_rule tool not registered"
+    return tool
+
+
+# Data Factory Fixtures
+
+@pytest.fixture
+def match_factory():
+    """Factory for creating ast-grep match dictionaries.
+
+    Returns:
+        function: Factory function that creates match dictionaries
+
+    Example:
+        >>> match = match_factory(text="hello", file="test.py", line=10)
+    """
+    def _factory(
+        text: str = "match",
+        file: str = "test.py",
+        line: int = 1,
+        column: int = 0,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Create a match dictionary.
+
+        Args:
+            text: Matched text content
+            file: Source file path
+            line: Line number
+            column: Column number
+            **kwargs: Additional match properties
+
+        Returns:
+            dict: ast-grep match dictionary
+        """
+        match_dict = {
+            "text": text,
+            "file": file,
+            "range": {
+                "start": {"line": line, "column": column},
+                "end": {"line": line, "column": column + len(text)}
+            }
+        }
+        match_dict.update(kwargs)
+        return match_dict
+
+    return _factory
+
+
+@pytest.fixture
+def query_factory():
+    """Factory for creating batch search query dictionaries.
+
+    Returns:
+        function: Factory function that creates query dictionaries
+
+    Example:
+        >>> query = query_factory(id="q1", pattern="def $FUNC", language="python")
+    """
+    def _factory(
+        id: str = "query1",
+        type: str = "pattern",
+        pattern: str = "test",
+        language: str = "python",
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Create a query dictionary.
+
+        Args:
+            id: Query identifier
+            type: Query type (pattern or rule)
+            pattern: Search pattern
+            language: Programming language
+            **kwargs: Additional query properties
+
+        Returns:
+            dict: Batch search query dictionary
+        """
+        query_dict = {
+            "id": id,
+            "type": type,
+            "pattern": pattern,
+            "language": language
+        }
+        query_dict.update(kwargs)
+        return query_dict
+
+    return _factory
+
+
+@pytest.fixture
+def yaml_rule_factory():
+    """Factory for creating YAML rule strings.
+
+    Returns:
+        function: Factory function that creates YAML rules
+
+    Example:
+        >>> rule = yaml_rule_factory(id="test-rule", pattern="console.log($$$)")
+    """
+    def _factory(
+        id: str = "test",
+        language: str = "python",
+        pattern: str = "test",
+        message: str = "Test message",
+        severity: str = "error",
+        **kwargs
+    ) -> str:
+        """Create a YAML rule string.
+
+        Args:
+            id: Rule identifier
+            language: Programming language
+            pattern: Search pattern
+            message: Rule message
+            severity: Rule severity
+            **kwargs: Additional rule properties
+
+        Returns:
+            str: YAML rule string
+        """
+        rule = f"""id: {id}
+language: {language}
+rule:
+  pattern: {pattern}
+message: {message}
+severity: {severity}
+"""
+        if kwargs:
+            for key, value in kwargs.items():
+                rule += f"{key}: {value}\n"
+        return rule
+
+    return _factory
+
+
+# Complex Object Factory Fixtures
+
+@pytest.fixture
+def rule_violation_factory():
+    """Factory for creating RuleViolation instances.
+
+    Requires importing from main module in tests.
+
+    Returns:
+        function: Factory function that creates RuleViolation instances
+
+    Example:
+        >>> violation = rule_violation_factory(
+        ...     file="test.py", line=10, severity="error", rule_id="test-rule"
+        ... )
+    """
+    def _factory(
+        file: str = "/test.py",
+        line: int = 1,
+        severity: str = "error",
+        rule_id: str = "test-rule",
+        message: str = "Test message",
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Create a RuleViolation dictionary.
+
+        Args:
+            file: File path
+            line: Line number
+            severity: Violation severity
+            rule_id: Rule identifier
+            message: Violation message
+            **kwargs: Additional violation properties
+
+        Returns:
+            dict: RuleViolation dictionary (matches dataclass structure)
+        """
+        defaults = {
+            "column": 0,
+            "end_line": line,
+            "end_column": 10,
+            "code_snippet": "test code",
+            "suggested_fix": None
+        }
+        defaults.update(kwargs)
+
+        return {
+            "file": file,
+            "line": line,
+            "severity": severity,
+            "rule_id": rule_id,
+            "message": message,
+            **defaults
+        }
+
+    return _factory
+
+
+@pytest.fixture
+def linting_rule_factory():
+    """Factory for creating LintingRule dictionaries.
+
+    Returns:
+        function: Factory function that creates LintingRule dictionaries
+
+    Example:
+        >>> rule = linting_rule_factory(
+        ...     id="no-console", language="javascript", severity="warning"
+        ... )
+    """
+    def _factory(
+        id: str = "test",
+        language: str = "python",
+        severity: str = "error",
+        pattern: str = "test",
+        message: str = "Test message",
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Create a LintingRule dictionary.
+
+        Args:
+            id: Rule identifier
+            language: Programming language
+            severity: Rule severity
+            pattern: Search pattern
+            message: Rule message
+            **kwargs: Additional rule properties
+
+        Returns:
+            dict: LintingRule dictionary (matches dataclass structure)
+        """
+        rule_dict = {
+            "id": id,
+            "language": language,
+            "severity": severity,
+            "pattern": pattern,
+            "message": message,
+            "note": kwargs.get("note", ""),
+            "fix_template": kwargs.get("fix_template", None)
+        }
+        rule_dict.update({k: v for k, v in kwargs.items() if k not in ["note", "fix_template"]})
+        return rule_dict
+
+    return _factory
+
+
+# Mock Object Factory Fixtures
+
+@pytest.fixture
+def mock_popen_factory():
+    """Factory for creating Mock Popen process objects.
+
+    Returns:
+        function: Factory function that creates Mock Popen instances
+
+    Example:
+        >>> mock_proc = mock_popen_factory(
+        ...     stdout_lines=['{"text": "match"}'], returncode=0
+        ... )
+    """
+    def _factory(
+        stdout_lines: List[str] = None,
+        returncode: int = 0,
+        **kwargs
+    ) -> Mock:
+        """Create a Mock Popen process.
+
+        Args:
+            stdout_lines: List of stdout lines to return
+            returncode: Process return code
+            **kwargs: Additional mock properties
+
+        Returns:
+            Mock: Configured Mock Popen process
+        """
+        mock_process = Mock()
+
+        # Configure stdout
+        if stdout_lines is None:
+            stdout_lines = []
+        mock_process.stdout = iter(stdout_lines)
+
+        # Configure process methods
+        mock_process.poll.return_value = returncode
+        mock_process.wait.return_value = returncode
+        mock_process.returncode = returncode
+        mock_process.communicate.return_value = (
+            "\n".join(stdout_lines).encode() if stdout_lines else b"",
+            b""
+        )
+
+        # Apply any additional kwargs
+        for key, value in kwargs.items():
+            setattr(mock_process, key, value)
+
+        return mock_process
+
+    return _factory
+
+
+@pytest.fixture
+def mock_httpx_client():
+    """Pre-configured AsyncMock for httpx client.
+
+    Returns:
+        AsyncMock: Configured httpx client mock
+
+    Example:
+        >>> async with mock_httpx_client as client:
+        ...     response = await client.get("https://schema.org")
+    """
+    mock_client = AsyncMock()
+    mock_response = Mock()
+
+    # Configure response
+    mock_response.json.return_value = {}
+    mock_response.text = ""
+    mock_response.status_code = 200
+    mock_response.raise_for_status = Mock()
+
+    # Configure client
+    mock_client.get.return_value = mock_response
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.__aexit__.return_value = None
+
+    return mock_client
+
+
+# State Management Fixtures
+
+@pytest.fixture(autouse=True)
+def reset_cache(mcp_main):
+    """Auto-reset cache before each test.
+
+    This fixture automatically resets the query cache and its statistics
+    before each test to ensure test isolation.
+    """
+    # Reset cache if it exists
+    if hasattr(mcp_main, '_query_cache') and mcp_main._query_cache:
+        mcp_main._query_cache.cache.clear()
+        mcp_main._query_cache.hits = 0
+        mcp_main._query_cache.misses = 0
+
+    yield
+
+    # Optional cleanup after test
+    if hasattr(mcp_main, '_query_cache') and mcp_main._query_cache:
+        mcp_main._query_cache.cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def reset_schema_client(mcp_main):
+    """Auto-reset Schema.org client before each test.
+
+    This fixture automatically resets the Schema.org client instance
+    before each test to ensure test isolation.
+    """
+    # Reset client if it exists
+    if hasattr(mcp_main, '_schema_org_client'):
+        mcp_main._schema_org_client = None
+
+    yield
+
+    # Optional cleanup after test
+    if hasattr(mcp_main, '_schema_org_client'):
+        mcp_main._schema_org_client = None
