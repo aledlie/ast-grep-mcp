@@ -6,90 +6,36 @@ Tests cover:
 - Result aggregation and deduplication
 - Conditional execution (if_matches, if_no_matches)
 - Error handling in batch operations
+
+Migrated to pytest fixtures on 2025-11-26.
+Fixtures used: project_folder, batch_search_tool, query_factory, mcp_main
 """
 
-import os
-import sys
-import tempfile
-from typing import Any, Dict
 from unittest.mock import Mock, patch
 
 import pytest
-
-# Add the parent directory to the path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-
-# Mock FastMCP before importing main
-class MockFastMCP:
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.tools: Dict[str, Any] = {}
-
-    def tool(self, **kwargs: Any) -> Any:
-        def decorator(func: Any) -> Any:
-            self.tools[func.__name__] = func
-            return func
-        return decorator
-
-    def run(self, **kwargs: Any) -> None:
-        pass
-
-
-def mock_field(**kwargs: Any) -> Any:
-    return kwargs.get("default")
-
-
-# Import with mocked decorators
-with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
-    with patch("pydantic.Field", mock_field):
-        import main
-
-        # Call register_mcp_tools to define the tool functions
-        main.register_mcp_tools()
 
 
 class TestBatchSearchBasic:
     """Basic tests for batch_search tool."""
 
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.project_folder = self.temp_dir
-
-        # Get tool function
-        self.batch_search = main.mcp.tools.get("batch_search")  # type: ignore
-        assert self.batch_search is not None, "batch_search tool not registered"
-
-    def teardown_method(self) -> None:
-        """Clean up test fixtures."""
-        import shutil
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
-    def test_batch_search_tool_registered(self) -> None:
+    def test_batch_search_tool_registered(self, mcp_main) -> None:
         """Test that batch_search tool is registered."""
-        assert "batch_search" in main.mcp.tools  # type: ignore
-        assert callable(main.mcp.tools["batch_search"])  # type: ignore
+        assert "batch_search" in mcp_main.mcp.tools
+        assert callable(mcp_main.mcp.tools["batch_search"])
 
     @patch("main.stream_ast_grep_results")
-    def test_batch_search_single_query(self, mock_stream: Mock) -> None:
+    def test_batch_search_single_query(self, mock_stream: Mock, project_folder, batch_search_tool, query_factory) -> None:
         """Test batch_search with a single pattern query."""
         # stream_ast_grep_results returns an iterator of match dicts
         mock_stream.return_value = iter([
             {"file": "test.py", "text": "match1", "range": {"start": {"line": 1}}}
         ])
 
-        queries = [
-            {
-                "id": "query1",
-                "type": "pattern",
-                "pattern": "def $FUNC",
-                "language": "python"
-            }
-        ]
+        queries = [query_factory(id="query1", pattern="def $FUNC")]
 
-        result = self.batch_search(
-            project_folder=self.project_folder,
+        result = batch_search_tool(
+            project_folder=str(project_folder),
             queries=queries
         )
 
@@ -99,7 +45,7 @@ class TestBatchSearchBasic:
         assert result["per_query_stats"]["query1"]["match_count"] == 1
 
     @patch("main.stream_ast_grep_results")
-    def test_batch_search_multiple_queries_parallel(self, mock_stream: Mock) -> None:
+    def test_batch_search_multiple_queries_parallel(self, mock_stream: Mock, project_folder, batch_search_tool, query_factory) -> None:
         """Test batch_search executes multiple queries in parallel."""
         # Mock different results for each call
         mock_stream.side_effect = [
@@ -108,12 +54,12 @@ class TestBatchSearchBasic:
         ]
 
         queries = [
-            {"id": "query1", "type": "pattern", "pattern": "def $FUNC", "language": "python"},
-            {"id": "query2", "type": "pattern", "pattern": "class $CLASS", "language": "python"}
+            query_factory(id="query1", pattern="def $FUNC"),
+            query_factory(id="query2", pattern="class $CLASS")
         ]
 
-        result = self.batch_search(
-            project_folder=self.project_folder,
+        result = batch_search_tool(
+            project_folder=str(project_folder),
             queries=queries
         )
 
@@ -122,26 +68,26 @@ class TestBatchSearchBasic:
         assert len(result["queries_executed"]) == 2
         assert mock_stream.call_count == 2
 
-    def test_batch_search_missing_type_field(self) -> None:
+    def test_batch_search_missing_type_field(self, project_folder, batch_search_tool) -> None:
         """Test batch_search fails when query missing 'type' field."""
         queries = [
             {"pattern": "def $FUNC", "language": "python"}  # Missing 'type'
         ]
 
         with pytest.raises(ValueError, match="'type' field is required"):
-            self.batch_search(project_folder=self.project_folder, queries=queries)
+            batch_search_tool(project_folder=str(project_folder), queries=queries)
 
-    def test_batch_search_invalid_type(self) -> None:
+    def test_batch_search_invalid_type(self, project_folder, batch_search_tool) -> None:
         """Test batch_search fails with invalid query type."""
         queries = [
             {"type": "invalid", "pattern": "test"}
         ]
 
         with pytest.raises(ValueError, match="type must be"):
-            self.batch_search(project_folder=self.project_folder, queries=queries)
+            batch_search_tool(project_folder=str(project_folder), queries=queries)
 
     @patch("main.stream_ast_grep_results")
-    def test_batch_search_rule_query(self, mock_stream: Mock) -> None:
+    def test_batch_search_rule_query(self, mock_stream: Mock, project_folder, batch_search_tool) -> None:
         """Test batch_search with YAML rule query."""
         mock_stream.return_value = iter([
             {"file": "test.py", "text": "match", "range": {"start": {"line": 1}}}
@@ -157,8 +103,8 @@ rule:
             {"id": "rule_query", "type": "rule", "yaml_rule": yaml_rule}
         ]
 
-        result = self.batch_search(
-            project_folder=self.project_folder,
+        result = batch_search_tool(
+            project_folder=str(project_folder),
             queries=queries
         )
 
@@ -170,18 +116,8 @@ rule:
 class TestBatchSearchAggregation:
     """Tests for result aggregation and deduplication."""
 
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.batch_search = main.mcp.tools.get("batch_search")  # type: ignore
-
-    def teardown_method(self) -> None:
-        """Clean up test fixtures."""
-        import shutil
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
     @patch("main.stream_ast_grep_results")
-    def test_batch_search_deduplication(self, mock_stream: Mock) -> None:
+    def test_batch_search_deduplication(self, mock_stream: Mock, project_folder, batch_search_tool, query_factory) -> None:
         """Test that duplicate matches are removed."""
         # Both queries return the same match
         duplicate_match = {"file": "test.py", "text": "duplicate", "range": {"start": {"line": 1}}}
@@ -191,12 +127,12 @@ class TestBatchSearchAggregation:
         ]
 
         queries = [
-            {"id": "q1", "type": "pattern", "pattern": "def $FUNC", "language": "python"},
-            {"id": "q2", "type": "pattern", "pattern": "function $FUNC", "language": "python"}
+            query_factory(id="q1", pattern="def $FUNC"),
+            query_factory(id="q2", pattern="function $FUNC")
         ]
 
-        result = self.batch_search(
-            project_folder=self.temp_dir,
+        result = batch_search_tool(
+            project_folder=str(project_folder),
             queries=queries,
             deduplicate=True
         )
@@ -205,7 +141,7 @@ class TestBatchSearchAggregation:
         assert result["total_matches"] == 1
 
     @patch("main.stream_ast_grep_results")
-    def test_batch_search_no_deduplication(self, mock_stream: Mock) -> None:
+    def test_batch_search_no_deduplication(self, mock_stream: Mock, project_folder, batch_search_tool, query_factory) -> None:
         """Test that deduplication can be disabled."""
         duplicate_match = {"file": "test.py", "text": "duplicate", "range": {"start": {"line": 1}}}
         mock_stream.side_effect = [
@@ -214,12 +150,12 @@ class TestBatchSearchAggregation:
         ]
 
         queries = [
-            {"id": "q1", "type": "pattern", "pattern": "def $FUNC", "language": "python"},
-            {"id": "q2", "type": "pattern", "pattern": "function $FUNC", "language": "python"}
+            query_factory(id="q1", pattern="def $FUNC"),
+            query_factory(id="q2", pattern="function $FUNC")
         ]
 
-        result = self.batch_search(
-            project_folder=self.temp_dir,
+        result = batch_search_tool(
+            project_folder=str(project_folder),
             queries=queries,
             deduplicate=False
         )
@@ -228,7 +164,7 @@ class TestBatchSearchAggregation:
         assert result["total_matches"] == 2
 
     @patch("main.stream_ast_grep_results")
-    def test_batch_search_sorts_results(self, mock_stream: Mock) -> None:
+    def test_batch_search_sorts_results(self, mock_stream: Mock, project_folder, batch_search_tool, query_factory) -> None:
         """Test that results are sorted by file and line."""
         mock_stream.side_effect = [
             iter([{"file": "b.py", "text": "match2", "range": {"start": {"line": 2}}}]),
@@ -236,12 +172,12 @@ class TestBatchSearchAggregation:
         ]
 
         queries = [
-            {"id": "q1", "type": "pattern", "pattern": "def $FUNC", "language": "python"},
-            {"id": "q2", "type": "pattern", "pattern": "class $CLASS", "language": "python"}
+            query_factory(id="q1", pattern="def $FUNC"),
+            query_factory(id="q2", pattern="class $CLASS")
         ]
 
-        result = self.batch_search(
-            project_folder=self.temp_dir,
+        result = batch_search_tool(
+            project_folder=str(project_folder),
             queries=queries
         )
 
@@ -251,18 +187,18 @@ class TestBatchSearchAggregation:
         assert matches[1]["file"] == "b.py"
 
     @patch("main.stream_ast_grep_results")
-    def test_batch_search_adds_query_id_to_matches(self, mock_stream: Mock) -> None:
+    def test_batch_search_adds_query_id_to_matches(self, mock_stream: Mock, project_folder, batch_search_tool, query_factory) -> None:
         """Test that each match includes query_id for traceability."""
         mock_stream.return_value = iter([
             {"file": "test.py", "text": "match", "range": {"start": {"line": 1}}}
         ])
 
         queries = [
-            {"id": "my_query", "type": "pattern", "pattern": "def $FUNC", "language": "python"}
+            query_factory(id="my_query", pattern="def $FUNC")
         ]
 
-        result = self.batch_search(
-            project_folder=self.temp_dir,
+        result = batch_search_tool(
+            project_folder=str(project_folder),
             queries=queries
         )
 
@@ -272,18 +208,8 @@ class TestBatchSearchAggregation:
 class TestBatchSearchConditional:
     """Tests for conditional execution."""
 
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.batch_search = main.mcp.tools.get("batch_search")  # type: ignore
-
-    def teardown_method(self) -> None:
-        """Clean up test fixtures."""
-        import shutil
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
     @patch("main.stream_ast_grep_results")
-    def test_conditional_if_matches_executes(self, mock_stream: Mock) -> None:
+    def test_conditional_if_matches_executes(self, mock_stream: Mock, project_folder, batch_search_tool, query_factory) -> None:
         """Test conditional query executes when condition matches."""
         # First query returns matches
         mock_stream.side_effect = [
@@ -292,7 +218,7 @@ class TestBatchSearchConditional:
         ]
 
         queries = [
-            {"id": "q1", "type": "pattern", "pattern": "def $FUNC", "language": "python"},
+            query_factory(id="q1", pattern="def $FUNC"),
             {
                 "id": "q2",
                 "type": "pattern",
@@ -302,8 +228,8 @@ class TestBatchSearchConditional:
             }
         ]
 
-        result = self.batch_search(
-            project_folder=self.temp_dir,
+        result = batch_search_tool(
+            project_folder=str(project_folder),
             queries=queries
         )
 
@@ -314,13 +240,13 @@ class TestBatchSearchConditional:
         assert result["per_query_stats"]["q2"]["executed"] is True
 
     @patch("main.stream_ast_grep_results")
-    def test_conditional_if_matches_skips(self, mock_stream: Mock) -> None:
+    def test_conditional_if_matches_skips(self, mock_stream: Mock, project_folder, batch_search_tool, query_factory) -> None:
         """Test conditional query skips when condition doesn't match."""
         # First query returns no matches
         mock_stream.return_value = iter([])
 
         queries = [
-            {"id": "q1", "type": "pattern", "pattern": "def $FUNC", "language": "python"},
+            query_factory(id="q1", pattern="def $FUNC"),
             {
                 "id": "q2",
                 "type": "pattern",
@@ -330,8 +256,8 @@ class TestBatchSearchConditional:
             }
         ]
 
-        result = self.batch_search(
-            project_folder=self.temp_dir,
+        result = batch_search_tool(
+            project_folder=str(project_folder),
             queries=queries
         )
 
@@ -343,7 +269,7 @@ class TestBatchSearchConditional:
         assert result["per_query_stats"]["q2"]["reason"] == "condition_not_met"
 
     @patch("main.stream_ast_grep_results")
-    def test_conditional_if_no_matches_executes(self, mock_stream: Mock) -> None:
+    def test_conditional_if_no_matches_executes(self, mock_stream: Mock, project_folder, batch_search_tool, query_factory) -> None:
         """Test if_no_matches condition executes when first query has no matches."""
         mock_stream.side_effect = [
             iter([]),  # First query: no matches
@@ -351,7 +277,7 @@ class TestBatchSearchConditional:
         ]
 
         queries = [
-            {"id": "q1", "type": "pattern", "pattern": "def $FUNC", "language": "python"},
+            query_factory(id="q1", pattern="def $FUNC"),
             {
                 "id": "q2",
                 "type": "pattern",
@@ -361,8 +287,8 @@ class TestBatchSearchConditional:
             }
         ]
 
-        result = self.batch_search(
-            project_folder=self.temp_dir,
+        result = batch_search_tool(
+            project_folder=str(project_folder),
             queries=queries
         )
 
@@ -371,14 +297,14 @@ class TestBatchSearchConditional:
         assert result["per_query_stats"]["q2"]["executed"] is True
 
     @patch("main.stream_ast_grep_results")
-    def test_conditional_if_no_matches_skips(self, mock_stream: Mock) -> None:
+    def test_conditional_if_no_matches_skips(self, mock_stream: Mock, project_folder, batch_search_tool, query_factory) -> None:
         """Test if_no_matches condition skips when first query has matches."""
         mock_stream.return_value = iter([
             {"file": "test.py", "text": "match", "range": {"start": {"line": 1}}}
         ])
 
         queries = [
-            {"id": "q1", "type": "pattern", "pattern": "def $FUNC", "language": "python"},
+            query_factory(id="q1", pattern="def $FUNC"),
             {
                 "id": "q2",
                 "type": "pattern",
@@ -388,8 +314,8 @@ class TestBatchSearchConditional:
             }
         ]
 
-        result = self.batch_search(
-            project_folder=self.temp_dir,
+        result = batch_search_tool(
+            project_folder=str(project_folder),
             queries=queries
         )
 
@@ -401,18 +327,8 @@ class TestBatchSearchConditional:
 class TestBatchSearchErrorHandling:
     """Tests for error handling in batch operations."""
 
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.batch_search = main.mcp.tools.get("batch_search")  # type: ignore
-
-    def teardown_method(self) -> None:
-        """Clean up test fixtures."""
-        import shutil
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
     @patch("main.stream_ast_grep_results")
-    def test_batch_search_continues_on_query_error(self, mock_stream: Mock) -> None:
+    def test_batch_search_continues_on_query_error(self, mock_stream: Mock, project_folder, batch_search_tool, query_factory) -> None:
         """Test that batch_search continues when one query fails."""
         # First query raises error, second succeeds
         mock_stream.side_effect = [
@@ -421,12 +337,12 @@ class TestBatchSearchErrorHandling:
         ]
 
         queries = [
-            {"id": "q1", "type": "pattern", "pattern": "def $FUNC", "language": "python"},
-            {"id": "q2", "type": "pattern", "pattern": "class $CLASS", "language": "python"}
+            query_factory(id="q1", pattern="def $FUNC"),
+            query_factory(id="q2", pattern="class $CLASS")
         ]
 
-        result = self.batch_search(
-            project_folder=self.temp_dir,
+        result = batch_search_tool(
+            project_folder=str(project_folder),
             queries=queries
         )
 
@@ -435,7 +351,7 @@ class TestBatchSearchErrorHandling:
         assert result["per_query_stats"]["q1"]["match_count"] == 0  # Failed query
         assert result["per_query_stats"]["q2"]["match_count"] == 1  # Successful query
 
-    def test_batch_search_auto_assigns_query_ids(self) -> None:
+    def test_batch_search_auto_assigns_query_ids(self, project_folder, batch_search_tool) -> None:
         """Test that query IDs are auto-assigned if not provided."""
         with patch("main.run_ast_grep") as mock_stream:
             mock_stream.return_value = iter([])
@@ -445,8 +361,8 @@ class TestBatchSearchErrorHandling:
                 {"type": "pattern", "pattern": "class $CLASS", "language": "python"}  # No ID
             ]
 
-            result = self.batch_search(
-                project_folder=self.temp_dir,
+            result = batch_search_tool(
+                project_folder=str(project_folder),
                 queries=queries
             )
 
@@ -455,18 +371,18 @@ class TestBatchSearchErrorHandling:
             assert "query_1" in result["per_query_stats"]
 
     @patch("main.stream_ast_grep_results")
-    def test_batch_search_text_output_format(self, mock_stream: Mock) -> None:
+    def test_batch_search_text_output_format(self, mock_stream: Mock, project_folder, batch_search_tool, query_factory) -> None:
         """Test batch_search with text output format."""
         mock_stream.return_value = iter([
             {"file": "test.py", "text": "def hello():\n    pass", "range": {"start": {"line": 1}, "end": {"line": 2}}}
         ])
 
         queries = [
-            {"id": "q1", "type": "pattern", "pattern": "def $FUNC", "language": "python"}
+            query_factory(id="q1", pattern="def $FUNC")
         ]
 
-        result = self.batch_search(
-            project_folder=self.temp_dir,
+        result = batch_search_tool(
+            project_folder=str(project_folder),
             queries=queries,
             output_format="text"
         )
@@ -476,18 +392,18 @@ class TestBatchSearchErrorHandling:
         assert "test.py" in result["matches"]
 
     @patch("main.stream_ast_grep_results")
-    def test_batch_search_max_results_per_query(self, mock_stream: Mock) -> None:
+    def test_batch_search_max_results_per_query(self, mock_stream: Mock, project_folder, batch_search_tool, query_factory) -> None:
         """Test max_results_per_query parameter."""
         mock_stream.return_value = iter([
             {"file": "test.py", "text": "match", "range": {"start": {"line": 1}}}
         ])
 
         queries = [
-            {"id": "q1", "type": "pattern", "pattern": "def $FUNC", "language": "python"}
+            query_factory(id="q1", pattern="def $FUNC")
         ]
 
-        self.batch_search(
-            project_folder=self.temp_dir,
+        batch_search_tool(
+            project_folder=str(project_folder),
             queries=queries,
             max_results_per_query=5
         )
