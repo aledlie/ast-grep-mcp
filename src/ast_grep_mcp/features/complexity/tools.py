@@ -22,6 +22,9 @@ from ast_grep_mcp.models.complexity import ComplexityThresholds, FunctionComplex
 from .analyzer import analyze_file_complexity
 from .storage import ComplexityStorage
 
+# Note: detect_code_smells_impl is imported inside detect_code_smells_tool()
+# to avoid circular import (quality.smells imports from complexity.analyzer)
+
 
 def analyze_complexity_tool(
     project_folder: str,
@@ -456,6 +459,122 @@ def test_sentry_integration_tool(
         raise
 
 
+def detect_code_smells_tool(
+    project_folder: str,
+    language: str,
+    include_patterns: List[str] | None = None,
+    exclude_patterns: List[str] | None = None,
+    long_function_lines: int = 50,
+    parameter_count: int = 5,
+    nesting_depth: int = 4,
+    class_lines: int = 300,
+    class_methods: int = 20,
+    detect_magic_numbers: bool = True,
+    severity_filter: str = "all",
+    max_threads: int = 4
+) -> Dict[str, Any]:
+    """
+    Detect common code smells and anti-patterns in a project.
+
+    Identifies patterns that indicate potential design or maintainability issues:
+    - Long Functions: Functions exceeding line count threshold
+    - Parameter Bloat: Functions with too many parameters (>5)
+    - Deep Nesting: Excessive nesting depth (>4 levels)
+    - Large Classes: Classes with too many methods or lines
+    - Magic Numbers: Hard-coded literals (excludes 0, 1, -1, 2, 10, 100)
+
+    Each smell is rated by severity (high/medium/low) based on how far it exceeds thresholds
+    and includes actionable suggestions for refactoring.
+
+    Args:
+        project_folder: The absolute path to the project folder to analyze
+        language: The programming language (python, typescript, javascript, java)
+        include_patterns: Glob patterns for files to include (e.g., ['src/**/*.py'])
+        exclude_patterns: Glob patterns for files to exclude
+        long_function_lines: Line count threshold for long function smell (default: 50)
+        parameter_count: Parameter count threshold for parameter bloat (default: 5)
+        nesting_depth: Nesting depth threshold for deep nesting smell (default: 4)
+        class_lines: Line count threshold for large class smell (default: 300)
+        class_methods: Method count threshold for large class smell (default: 20)
+        detect_magic_numbers: Whether to detect magic number smells
+        severity_filter: Filter by severity: 'all', 'high', 'medium', 'low'
+        max_threads: Number of parallel threads for analysis (default: 4)
+
+    Returns:
+        Dictionary with analysis results including summary and detected smells by severity
+
+    Example usage:
+        detect_code_smells_tool(project_folder="/path/to/project", language="python")
+        detect_code_smells_tool(project_folder="/path/to/project", language="typescript", severity_filter="high")
+    """
+    # Set defaults
+    if include_patterns is None:
+        include_patterns = ["**/*"]
+    if exclude_patterns is None:
+        exclude_patterns = [
+            "**/node_modules/**", "**/__pycache__/**", "**/venv/**",
+            "**/.venv/**", "**/site-packages/**", "**/test*/**", "**/*test*"
+        ]
+
+    # Import here to avoid circular import with quality.smells
+    from ast_grep_mcp.features.quality.smells import detect_code_smells_impl
+
+    logger = get_logger("tool.detect_code_smells")
+    start_time = time.time()
+
+    logger.info(
+        "tool_invoked",
+        tool="detect_code_smells",
+        project_folder=project_folder,
+        language=language,
+    )
+
+    try:
+        result = detect_code_smells_impl(
+            project_folder=project_folder,
+            language=language,
+            include_patterns=include_patterns,
+            exclude_patterns=exclude_patterns,
+            long_function_lines=long_function_lines,
+            parameter_count=parameter_count,
+            nesting_depth=nesting_depth,
+            class_lines=class_lines,
+            class_methods=class_methods,
+            detect_magic_numbers=detect_magic_numbers,
+            severity_filter=severity_filter,
+            max_threads=max_threads
+        )
+
+        execution_time = time.time() - start_time
+        result["execution_time_ms"] = round(execution_time * 1000)
+
+        logger.info(
+            "tool_completed",
+            tool="detect_code_smells",
+            files_analyzed=result.get("files_analyzed", 0),
+            total_smells=result.get("total_smells", 0),
+            execution_time_seconds=round(execution_time, 3)
+        )
+
+        return result
+
+    except Exception as e:
+        execution_time = time.time() - start_time
+        logger.error(
+            "tool_failed",
+            tool="detect_code_smells",
+            error=str(e),
+            execution_time_seconds=round(execution_time, 3)
+        )
+        sentry_sdk.capture_exception(e, extras={
+            "tool": "detect_code_smells",
+            "project_folder": project_folder,
+            "language": language,
+            "execution_time_seconds": round(execution_time, 3)
+        })
+        raise
+
+
 def register_complexity_tools(mcp: Any) -> None:
     """Register complexity analysis tools with the MCP server.
 
@@ -508,3 +627,43 @@ def register_complexity_tools(mcp: Any) -> None:
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone test_sentry_integration_tool function."""
         return test_sentry_integration_tool(test_type=test_type, message=message)
+
+    @mcp.tool()
+    def detect_code_smells(
+        project_folder: str = Field(description="The absolute path to the project folder to analyze"),
+        language: str = Field(description="The programming language (python, typescript, javascript, java)"),
+        include_patterns: List[str] = Field(
+            default_factory=lambda: ["**/*"],
+            description="Glob patterns for files to include (e.g., ['src/**/*.py'])"
+        ),
+        exclude_patterns: List[str] = Field(
+            default_factory=lambda: [
+                "**/node_modules/**", "**/__pycache__/**", "**/venv/**",
+                "**/.venv/**", "**/site-packages/**", "**/test*/**", "**/*test*"
+            ],
+            description="Glob patterns for files to exclude"
+        ),
+        long_function_lines: int = Field(default=50, description="Line count threshold for long function smell (default: 50)"),
+        parameter_count: int = Field(default=5, description="Parameter count threshold for parameter bloat (default: 5)"),
+        nesting_depth: int = Field(default=4, description="Nesting depth threshold for deep nesting smell (default: 4)"),
+        class_lines: int = Field(default=300, description="Line count threshold for large class smell (default: 300)"),
+        class_methods: int = Field(default=20, description="Method count threshold for large class smell (default: 20)"),
+        detect_magic_numbers: bool = Field(default=True, description="Whether to detect magic number smells"),
+        severity_filter: str = Field(default="all", description="Filter by severity: 'all', 'high', 'medium', 'low'"),
+        max_threads: int = Field(default=4, description="Number of parallel threads for analysis (default: 4)")
+    ) -> Dict[str, Any]:
+        """Wrapper that calls the standalone detect_code_smells_tool function."""
+        return detect_code_smells_tool(
+            project_folder=project_folder,
+            language=language,
+            include_patterns=include_patterns,
+            exclude_patterns=exclude_patterns,
+            long_function_lines=long_function_lines,
+            parameter_count=parameter_count,
+            nesting_depth=nesting_depth,
+            class_lines=class_lines,
+            class_methods=class_methods,
+            detect_magic_numbers=detect_magic_numbers,
+            severity_filter=severity_filter,
+            max_threads=max_threads
+        )

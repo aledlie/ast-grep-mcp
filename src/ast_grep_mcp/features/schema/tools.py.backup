@@ -520,8 +520,52 @@ def register_schema_tools(mcp: FastMCP) -> None:
             description="Include properties inherited from parent types"
         )
     ) -> List[Dict[str, Any]]:
-        """Wrapper that calls the standalone get_type_properties_tool function."""
-        return get_type_properties_tool(type_name=type_name, include_inherited=include_inherited)
+        """
+        Get all properties available for a schema.org type.
+        Returns property names, descriptions, and expected value types.
+
+        Example: get_type_properties('Organization') returns properties like name, url, address, founder, etc.
+        """
+        logger = get_logger("tool.get_type_properties")
+        start_time = time.time()
+
+        logger.info(
+            "tool_invoked",
+            tool="get_type_properties",
+            type_name=type_name,
+            include_inherited=include_inherited
+        )
+
+        try:
+            client = get_schema_org_client()
+            results = asyncio.run(client.get_type_properties(type_name, include_inherited))
+
+            execution_time = time.time() - start_time
+            logger.info(
+                "tool_completed",
+                tool="get_type_properties",
+                execution_time_seconds=round(execution_time, 3),
+                property_count=len(results),
+                status="success"
+            )
+
+            return results
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(
+                "tool_failed",
+                tool="get_type_properties",
+                execution_time_seconds=round(execution_time, 3),
+                error=str(e)[:200],
+                status="failed"
+            )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "get_type_properties",
+                "type_name": type_name,
+                "include_inherited": include_inherited,
+                "execution_time_seconds": round(execution_time, 3)
+            })
+            raise
 
     @mcp.tool()
     def generate_schema_example(
@@ -531,8 +575,46 @@ def register_schema_tools(mcp: FastMCP) -> None:
             description="Custom property values to include in the example (JSON object)"
         )
     ) -> Dict[str, Any]:
-        """Wrapper that calls the standalone generate_schema_example_tool function."""
-        return generate_schema_example_tool(type_name=type_name, custom_properties=custom_properties)
+        """
+        Generate an example JSON-LD structured data for a schema.org type.
+        Creates a valid schema.org JSON-LD object with common properties and any custom values provided.
+
+        Example: generate_schema_example('Recipe', {'name': 'Chocolate Cake', 'prepTime': 'PT30M'})
+        """
+        logger = get_logger("tool.generate_schema_example")
+        start_time = time.time()
+
+        logger.info("tool_invoked", tool="generate_schema_example", type_name=type_name)
+
+        try:
+            client = get_schema_org_client()
+            result = asyncio.run(client.generate_example(type_name, custom_properties))
+
+            execution_time = time.time() - start_time
+            logger.info(
+                "tool_completed",
+                tool="generate_schema_example",
+                execution_time_seconds=round(execution_time, 3),
+                status="success"
+            )
+
+            return result
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(
+                "tool_failed",
+                tool="generate_schema_example",
+                execution_time_seconds=round(execution_time, 3),
+                error=str(e)[:200],
+                status="failed"
+            )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "generate_schema_example",
+                "type_name": type_name,
+                "has_custom_properties": custom_properties is not None,
+                "execution_time_seconds": round(execution_time, 3)
+            })
+            raise
 
     @mcp.tool()
     def generate_entity_id(
@@ -547,8 +629,69 @@ def register_schema_tools(mcp: FastMCP) -> None:
             description="Optional URL slug for specific entity instances (e.g., 'john-doe', 'products/widget-a')"
         )
     ) -> str:
-        """Wrapper that calls the standalone generate_entity_id_tool function."""
-        return generate_entity_id_tool(base_url=base_url, entity_type=entity_type, entity_slug=entity_slug)
+        """
+        Generate a proper @id value following Schema.org and SEO best practices.
+
+        Creates stable, unique identifiers for entities that can be referenced across your knowledge graph.
+        Based on best practices from https://momenticmarketing.com/blog/id-schema-for-seo-llms-knowledge-graphs
+
+        Examples:
+        - Homepage organization: generate_entity_id('https://example.com', 'Organization')
+          → 'https://example.com/#organization'
+
+        - Specific product: generate_entity_id('https://example.com', 'Product', 'products/widget-a')
+          → 'https://example.com/products/widget-a#product'
+
+        - Team member: generate_entity_id('https://example.com', 'Person', 'team/john-doe')
+          → 'https://example.com/team/john-doe#person'
+
+        Best Practices:
+        - Use canonical URLs only
+        - Keep IDs stable (no timestamps or dynamic values)
+        - Use descriptive entity types
+        - One unchanging identifier per entity
+        """
+        logger = get_logger("tool.generate_entity_id")
+        start_time = time.time()
+
+        logger.info(
+            "tool_invoked",
+            tool="generate_entity_id",
+            base_url=base_url,
+            entity_type=entity_type
+        )
+
+        try:
+            client = get_schema_org_client()
+            result = client.generate_entity_id(base_url, entity_type, entity_slug)
+
+            execution_time = time.time() - start_time
+            logger.info(
+                "tool_completed",
+                tool="generate_entity_id",
+                execution_time_seconds=round(execution_time, 3),
+                generated_id=result,
+                status="success"
+            )
+
+            return result
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(
+                "tool_failed",
+                tool="generate_entity_id",
+                execution_time_seconds=round(execution_time, 3),
+                error=str(e)[:200],
+                status="failed"
+            )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "generate_entity_id",
+                "base_url": base_url,
+                "entity_type": entity_type,
+                "has_slug": entity_slug is not None,
+                "execution_time_seconds": round(execution_time, 3)
+            })
+            raise
 
     @mcp.tool()
     def validate_entity_id(
@@ -556,8 +699,60 @@ def register_schema_tools(mcp: FastMCP) -> None:
             description="The @id value to validate (e.g., 'https://example.com/#organization')"
         )
     ) -> Dict[str, Any]:
-        """Wrapper that calls the standalone validate_entity_id_tool function."""
-        return validate_entity_id_tool(entity_id=entity_id)
+        """
+        Validate an @id value against Schema.org and SEO best practices.
+
+        Checks for common issues and provides actionable suggestions for improvement.
+        Based on best practices from https://momenticmarketing.com/blog/id-schema-for-seo-llms-knowledge-graphs
+
+        Returns:
+        - valid: Whether the @id follows all best practices
+        - warnings: List of issues found
+        - suggestions: Specific improvements to make
+        - best_practices: Key principles to follow
+
+        Example:
+        validate_entity_id('https://example.com/#organization')
+        → { "valid": true, "warnings": [], "suggestions": [] }
+
+        validate_entity_id('example.com/page')
+        → { "valid": false, "warnings": ["Missing protocol", "Missing hash fragment"], ... }
+        """
+        logger = get_logger("tool.validate_entity_id")
+        start_time = time.time()
+
+        logger.info("tool_invoked", tool="validate_entity_id", entity_id=entity_id)
+
+        try:
+            client = get_schema_org_client()
+            result = client.validate_entity_id(entity_id)
+
+            execution_time = time.time() - start_time
+            logger.info(
+                "tool_completed",
+                tool="validate_entity_id",
+                execution_time_seconds=round(execution_time, 3),
+                is_valid=result['valid'],
+                warning_count=len(result['warnings']),
+                status="success"
+            )
+
+            return result
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(
+                "tool_failed",
+                tool="validate_entity_id",
+                execution_time_seconds=round(execution_time, 3),
+                error=str(e)[:200],
+                status="failed"
+            )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "validate_entity_id",
+                "entity_id": entity_id,
+                "execution_time_seconds": round(execution_time, 3)
+            })
+            raise
 
     @mcp.tool()
     def build_entity_graph(
@@ -568,5 +763,87 @@ def register_schema_tools(mcp: FastMCP) -> None:
             description="Base canonical URL for generating @id values"
         )
     ) -> Dict[str, Any]:
-        """Wrapper that calls the standalone build_entity_graph_tool function."""
-        return build_entity_graph_tool(entities=entities, base_url=base_url)
+        """
+        Build a knowledge graph of related entities with proper @id references.
+
+        Creates a complete @graph structure where entities can reference each other using @id,
+        enabling you to build a relational knowledge base over time.
+        Based on best practices from https://momenticmarketing.com/blog/id-schema-for-seo-llms-knowledge-graphs
+
+        Entity Definition Format:
+        {
+            "type": "Organization",           # Required: Schema.org type
+            "slug": "about",                  # Optional: URL path segment
+            "id_fragment": "org-acme",        # Optional: Custom fragment for referencing
+            "properties": {                   # Required: Entity properties
+                "name": "Acme Corp",
+                "url": "https://example.com"
+            },
+            "relationships": {                # Optional: References to other entities
+                "founder": "person-john"      # References id_fragment of another entity
+            }
+        }
+
+        Example:
+        build_entity_graph([
+            {
+                "type": "Organization",
+                "properties": {"name": "Acme Corp"},
+                "relationships": {"founder": "person-john", "employee": "person-jane"}
+            },
+            {
+                "type": "Person",
+                "id_fragment": "person-john",
+                "slug": "team/john-doe",
+                "properties": {"name": "John Doe", "jobTitle": "CEO"}
+            },
+            {
+                "type": "Person",
+                "id_fragment": "person-jane",
+                "slug": "team/jane-smith",
+                "properties": {"name": "Jane Smith", "jobTitle": "CTO"}
+            }
+        ], "https://example.com")
+
+        Returns complete JSON-LD @graph with all entities properly connected via @id references.
+        """
+        logger = get_logger("tool.build_entity_graph")
+        start_time = time.time()
+
+        logger.info(
+            "tool_invoked",
+            tool="build_entity_graph",
+            entity_count=len(entities),
+            base_url=base_url
+        )
+
+        try:
+            client = get_schema_org_client()
+            result = asyncio.run(client.build_entity_graph(entities, base_url))
+
+            execution_time = time.time() - start_time
+            logger.info(
+                "tool_completed",
+                tool="build_entity_graph",
+                execution_time_seconds=round(execution_time, 3),
+                entity_count=len(result.get('@graph', [])),
+                status="success"
+            )
+
+            return result
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(
+                "tool_failed",
+                tool="build_entity_graph",
+                execution_time_seconds=round(execution_time, 3),
+                error=str(e)[:200],
+                status="failed"
+            )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "build_entity_graph",
+                "entity_count": len(entities),
+                "base_url": base_url,
+                "execution_time_seconds": round(execution_time, 3)
+            })
+            raise
