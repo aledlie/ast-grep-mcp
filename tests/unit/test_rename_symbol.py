@@ -46,9 +46,9 @@ def calculate_total(items):
         with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
             mock_run.return_value = Mock(
                 returncode=0,
-                stdout='[{"path": "test.py", "line": 2, "column": 4, "text": "total = 0"},'
-                       '{"path": "test.py", "line": 4, "column": 8, "text": "total += item"},'
-                       '{"path": "test.py", "line": 5, "column": 11, "text": "return total"}]'
+                stdout='[{"file": "test.py", "range": {"start": {"line": 2, "column": 4}}, "lines": "total = 0"},'
+                       '{"file": "test.py", "range": {"start": {"line": 4, "column": 8}}, "lines": "total += item"},'
+                       '{"file": "test.py", "range": {"start": {"line": 5, "column": 11}}, "lines": "return total"}]'
             )
 
             references = python_renamer.find_symbol_references(
@@ -282,8 +282,8 @@ def calculate(x):
         with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
             mock_run.return_value = Mock(
                 returncode=0,
-                stdout=f'[{{"path": "test.py", "line": 2, "column": 4, "text": "result = x * 2"}},'
-                       f'{{"path": "test.py", "line": 3, "column": 11, "text": "return result"}}]'
+                stdout=f'[{{"file": "test.py", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "result = x * 2"}},'
+                       f'{{"file": "test.py", "range": {{"start": {{"line": 3, "column": 11}}}}, "lines": "return result"}}]'
             )
 
             result = python_coordinator.rename_symbol(
@@ -329,7 +329,7 @@ def foo():
         with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
             mock_run.return_value = Mock(
                 returncode=0,
-                stdout='[{"path": "test.py", "line": 2, "column": 4, "text": "x = 1"}]'
+                stdout='[{"file": "test.py", "range": {"start": {"line": 2, "column": 4}}, "lines": "x = 1"}]'
             )
 
             # Mock build_scope_tree to return a scope with 'y' already defined
@@ -370,8 +370,8 @@ def calculate(x):
         with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
             mock_run.return_value = Mock(
                 returncode=0,
-                stdout=f'[{{"path": "test.py", "line": 2, "column": 4, "text": "result = x * 2"}},'
-                       f'{{"path": "test.py", "line": 3, "column": 11, "text": "return result"}}]'
+                stdout=f'[{{"file": "test.py", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "result = x * 2"}},'
+                       f'{{"file": "test.py", "range": {{"start": {{"line": 3, "column": 11}}}}, "lines": "return result"}}]'
             )
 
             with patch('ast_grep_mcp.features.refactoring.rename_coordinator.create_backup') as mock_backup:
@@ -491,8 +491,8 @@ def calculate(x):
         with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
             mock_run.return_value = Mock(
                 returncode=0,
-                stdout='[{"path": "test.py", "line": 2, "column": 4, "text": "result = x * 2"},'
-                       '{"path": "test.py", "line": 3, "column": 11, "text": "return result"}]'
+                stdout='[{"file": "test.py", "range": {"start": {"line": 2, "column": 4}}, "lines": "result = x * 2"},'
+                       '{"file": "test.py", "range": {"start": {"line": 3, "column": 11}}, "lines": "return result"}]'
             )
 
             result = rename_symbol_tool(
@@ -572,9 +572,9 @@ def main():
         with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
             mock_run.return_value = Mock(
                 returncode=0,
-                stdout=f'[{{"path": "module1.py", "line": 1, "column": 4, "text": "def process_data(data):"}},'
-                       f'{{"path": "module2.py", "line": 1, "column": 19, "text": "from module1 import process_data"}},'
-                       f'{{"path": "module2.py", "line": 4, "column": 13, "text": "result = process_data(10)"}}]'
+                stdout=f'[{{"file": "module1.py", "range": {{"start": {{"line": 1, "column": 4}}}}, "lines": "def process_data(data):"}},'
+                       f'{{"file": "module2.py", "range": {{"start": {{"line": 1, "column": 19}}}}, "lines": "from module1 import process_data"}},'
+                       f'{{"file": "module2.py", "range": {{"start": {{"line": 4, "column": 13}}}}, "lines": "result = process_data(10)"}}]'
             )
 
             with patch('ast_grep_mcp.features.refactoring.rename_coordinator.create_backup') as mock_backup:
@@ -604,7 +604,7 @@ def foo():
         with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
             mock_run.return_value = Mock(
                 returncode=0,
-                stdout='[{"path": "test.py", "line": 2, "column": 4, "text": "x = 1"}]'
+                stdout='[{"file": "test.py", "range": {"start": {"line": 2, "column": 4}}, "lines": "x = 1"}]'
             )
 
             with patch('ast_grep_mcp.features.refactoring.rename_coordinator.create_backup') as mock_backup:
