@@ -59,8 +59,8 @@ def extract_function_tool(
         result = extract_function(
             project_folder="/path/to/project",
             file_path="src/utils.py",
-            start_line=45,
-            end_line=52,
+            start_line=45,  # Example: start of code block
+            end_line=52,    # Example: end of code block
             language="python",
             function_name="validate_email",  # Optional
             dry_run=True  # Preview first
