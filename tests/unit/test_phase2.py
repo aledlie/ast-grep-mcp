@@ -7,45 +7,20 @@ This test suite covers:
 
 Note: Task 7 (Caching) is tested in test_cache.py
 Note: Task 10 (Benchmarking) is tested in test_benchmark.py
+
+Migrated to pytest fixtures on 2025-11-26.
+Fixtures used: mcp_main (module-scoped), find_code_tool, find_code_by_rule_tool,
+reset_cache (autouse)
 """
 
-import os
-import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, List
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-
-# Mock FastMCP before importing main
-class MockFastMCP:
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.tools: Dict[str, Any] = {}
-
-    def tool(self, **kwargs: Any) -> Any:
-        def decorator(func: Any) -> Any:
-            self.tools[func.__name__] = func
-            return func
-        return decorator
-
-    def run(self, **kwargs: Any) -> None:
-        pass
-
-
-def mock_field(**kwargs: Any) -> Any:
-    return kwargs.get("default")
-
-
-# Import with mocked decorators
-with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
-    with patch("pydantic.Field", mock_field):
-        import main
+import main
 from ast_grep_mcp.core.cache import QueryCache
 from ast_grep_mcp.core.executor import stream_ast_grep_results
 from main import filter_files_by_size
@@ -213,19 +188,12 @@ class TestResultStreaming:
 class TestParallelExecution:
     """Test parallel execution with workers parameter"""
 
-    def setup_method(self) -> None:
-        """Reset cache and register tools before each test"""
-        main._query_cache = None
-        main.CACHE_ENABLED = False
-        main.register_mcp_tools()
-
     @patch("main.stream_ast_grep_results")
-    def test_workers_parameter_default_auto(self, mock_stream: Any) -> None:
+    def test_workers_parameter_default_auto(self, mock_stream: Any, mcp_main, find_code_tool) -> None:
         """Test that workers=0 uses ast-grep's auto-detection (no --threads flag)"""
         mock_stream.return_value = iter([{"text": "match"}])
 
-        find_code = main.mcp.tools.get("find_code")  # type: ignore
-        find_code(
+        find_code_tool(
             project_folder="/project",
             pattern="test",
             language="python",
@@ -242,12 +210,11 @@ class TestParallelExecution:
         assert "--threads" not in args
 
     @patch("main.stream_ast_grep_results")
-    def test_workers_parameter_explicit_value(self, mock_stream: Any) -> None:
+    def test_workers_parameter_explicit_value(self, mock_stream: Any, mcp_main, find_code_tool) -> None:
         """Test that workers>0 passes --threads flag to ast-grep"""
         mock_stream.return_value = iter([{"text": "match"}])
 
-        find_code = main.mcp.tools.get("find_code")  # type: ignore
-        find_code(
+        find_code_tool(
             project_folder="/project",
             pattern="test",
             language="python",
@@ -266,7 +233,7 @@ class TestParallelExecution:
         assert args[threads_index + 1] == "4"
 
     @patch("main.stream_ast_grep_results")
-    def test_workers_parameter_in_find_code_by_rule(self, mock_stream: Any) -> None:
+    def test_workers_parameter_in_find_code_by_rule(self, mock_stream: Any, mcp_main, find_code_by_rule_tool) -> None:
         """Test workers parameter works in find_code_by_rule"""
         mock_stream.return_value = iter([{"text": "match"}])
 
@@ -275,8 +242,7 @@ language: Python
 rule:
   pattern: def $NAME"""
 
-        find_code_by_rule = main.mcp.tools.get("find_code_by_rule")  # type: ignore
-        find_code_by_rule(
+        find_code_by_rule_tool(
             project_folder="/project",
             yaml_rule=yaml_rule,
             workers=8,  # Use 8 threads
@@ -293,12 +259,11 @@ rule:
         assert args[threads_index + 1] == "8"
 
     @patch("main.stream_ast_grep_results")
-    def test_workers_with_other_parameters(self, mock_stream: Any) -> None:
+    def test_workers_with_other_parameters(self, mock_stream: Any, mcp_main, find_code_tool) -> None:
         """Test workers parameter works alongside other parameters"""
         mock_stream.return_value = iter([{"text": "match"}])
 
-        find_code = main.mcp.tools.get("find_code")  # type: ignore
-        find_code(
+        find_code_tool(
             project_folder="/project",
             pattern="test",
             language="python",
@@ -435,16 +400,13 @@ class TestLargeFileHandling:
 
     @patch("main.filter_files_by_size")
     @patch("main.stream_ast_grep_results")
-    def test_max_file_size_mb_integration_with_find_code(self, mock_stream: Any, mock_filter: Any) -> None:
+    def test_max_file_size_mb_integration_with_find_code(self, mock_stream: Any, mock_filter: Any, mcp_main, find_code_tool) -> None:
         """Test max_file_size_mb parameter integrates with find_code"""
         # Mock filter to return some files
         mock_filter.return_value = (["/project/small.py"], ["/project/large.py"])
         mock_stream.return_value = iter([{"text": "match"}])
 
-        main.register_mcp_tools()
-        find_code = main.mcp.tools.get("find_code")  # type: ignore
-
-        find_code(
+        find_code_tool(
             project_folder="/project",
             pattern="test",
             language="python",
@@ -465,7 +427,7 @@ class TestLargeFileHandling:
 
     @patch("main.filter_files_by_size")
     @patch("main.stream_ast_grep_results")
-    def test_max_file_size_mb_integration_with_find_code_by_rule(self, mock_stream: Any, mock_filter: Any) -> None:
+    def test_max_file_size_mb_integration_with_find_code_by_rule(self, mock_stream: Any, mock_filter: Any, mcp_main, find_code_by_rule_tool) -> None:
         """Test max_file_size_mb parameter integrates with find_code_by_rule"""
         mock_filter.return_value = (["/project/small.py"], ["/project/large.py"])
         mock_stream.return_value = iter([{"text": "match"}])
@@ -475,10 +437,7 @@ language: Python
 rule:
   pattern: def $NAME"""
 
-        main.register_mcp_tools()
-        find_code_by_rule = main.mcp.tools.get("find_code_by_rule")  # type: ignore
-
-        find_code_by_rule(
+        find_code_by_rule_tool(
             project_folder="/project",
             yaml_rule=yaml_rule,
             max_file_size_mb=5,  # 5MB limit
@@ -492,14 +451,11 @@ rule:
 
     @patch("main.filter_files_by_size")
     @patch("main.stream_ast_grep_results")
-    def test_max_file_size_mb_zero_disables_filtering(self, mock_stream: Any, mock_filter: Any) -> None:
+    def test_max_file_size_mb_zero_disables_filtering(self, mock_stream: Any, mock_filter: Any, mcp_main, find_code_tool) -> None:
         """Test that max_file_size_mb=0 disables file filtering"""
         mock_stream.return_value = iter([{"text": "match"}])
 
-        main.register_mcp_tools()
-        find_code = main.mcp.tools.get("find_code")  # type: ignore
-
-        find_code(
+        find_code_tool(
             project_folder="/project",
             pattern="test",
             max_file_size_mb=0,  # Disabled
@@ -518,15 +474,9 @@ rule:
 class TestPhase2Integration:
     """Test multiple Phase 2 features working together"""
 
-    def setup_method(self) -> None:
-        """Reset state before each test"""
-        main._query_cache = None
-        main.CACHE_ENABLED = False
-        main.register_mcp_tools()
-
     @patch("main.filter_files_by_size")
     @patch("main.stream_ast_grep_results")
-    def test_streaming_with_file_filtering_and_parallel(self, mock_stream: Any, mock_filter: Any) -> None:
+    def test_streaming_with_file_filtering_and_parallel(self, mock_stream: Any, mock_filter: Any, mcp_main, find_code_tool) -> None:
         """Test streaming + file filtering + parallel execution together"""
         mock_filter.return_value = (["/project/file1.py", "/project/file2.py"], ["/project/huge.py"])
         mock_stream.return_value = iter([
@@ -534,9 +484,7 @@ class TestPhase2Integration:
             {"text": "match2", "file": "/project/file2.py", "range": {"start": {"line": 1}}},
         ])
 
-        find_code = main.mcp.tools.get("find_code")  # type: ignore
-
-        result = find_code(
+        result = find_code_tool(
             project_folder="/project",
             pattern="test",
             language="python",
@@ -561,7 +509,7 @@ class TestPhase2Integration:
 
     @patch("main.filter_files_by_size")
     @patch("main.stream_ast_grep_results")
-    def test_all_phase2_features_with_caching(self, mock_stream: Any, mock_filter: Any) -> None:
+    def test_all_phase2_features_with_caching(self, mock_stream: Any, mock_filter: Any, mcp_main, find_code_tool) -> None:
         """Test all Phase 2 features together including caching"""
         # Enable caching
         main._query_cache = QueryCache(max_size=10, ttl_seconds=300)
@@ -570,10 +518,8 @@ class TestPhase2Integration:
         mock_filter.return_value = (["/project/file.py"], [])
         mock_stream.return_value = iter([{"text": "match"}])
 
-        find_code = main.mcp.tools.get("find_code")  # type: ignore
-
         # First call - should execute
-        result1 = find_code(
+        result1 = find_code_tool(
             project_folder="/project",
             pattern="test",
             language="python",
@@ -586,7 +532,7 @@ class TestPhase2Integration:
         assert mock_stream.call_count == 1
 
         # Second call - should hit cache
-        result2 = find_code(
+        result2 = find_code_tool(
             project_folder="/project",
             pattern="test",
             language="python",
