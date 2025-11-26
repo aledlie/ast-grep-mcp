@@ -808,7 +808,7 @@ graph LR
 **Key Function:**
 ```python
 def register_all_tools(mcp: FastMCP) -> None:
-    """Register all 27 MCP tools."""
+    """Register all 25 MCP tools (100% registered as of 2025-11-25)."""
 
     # Register search tools
     from ast_grep_mcp.features.search.tools import register_tools as register_search

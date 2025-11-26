@@ -18,11 +18,11 @@ Modular MCP server with 46 modules combining ast-grep structural code search wit
 
 **Architecture:** Clean modular design with 152-line entry point (`main.py`) and organized features under `src/ast_grep_mcp/` (core, models, utils, features, server).
 
-**27 Tools:** Code search (4), Code rewrite (3), Deduplication (4), Schema.org (8), Complexity (2), Code Quality (3), Testing (3)
+**25 Tools (100% Registered):** Code search (4), Code rewrite (3), Deduplication (4), Schema.org (8), Complexity (3), Code Quality (3)
 
 **Dependencies:** ast-grep CLI (required), Doppler CLI (optional for secrets), Python 3.13+, uv package manager
 
-**Recent Refactoring:** Successfully migrated from monolithic 19,477-line main.py to clean modular structure (99.2% reduction).
+**Recent Refactoring:** Successfully migrated from monolithic 19,477-line main.py to clean modular structure (99.2% reduction). All 25 tools refactored with consistent two-layer pattern (2025-11-25).
 
 ## Sentry & Doppler Setup
 
@@ -434,6 +434,40 @@ python scripts/run_benchmarks.py --check-regression  # CI check
 ```
 
 ## Recent Updates
+
+### 2025-11-25: Tool Registration Complete - WebSocket Compatibility Fixes
+
+**Achievement:** 100% tool registration complete (25/25 tools) with full WebSocket/MCP compatibility.
+
+**What changed:**
+- **All 18 remaining tools refactored** to use consistent two-layer pattern
+- **WebSocket communication fixes** - Proper parameter passing via Field() annotations
+- **Tool count consolidated** from 27 to 25 tools (detect_code_smells moved to complexity module)
+
+**Tools refactored (2025-11-25):**
+- **Complexity tools (3):** `analyze_complexity`, `test_sentry_integration`, `detect_code_smells`
+- **Quality tools (3):** `create_linting_rule`, `list_rule_templates`, `enforce_standards`
+- **Schema.org tools (8):** All 8 schema tools refactored with proper Pydantic validation
+- **Deduplication tools (4):** All 4 deduplication tools refactored with wrapper pattern
+
+**Technical improvements:**
+- Standalone `*_tool` functions for testability
+- MCP wrapper functions with Pydantic Field() annotations for parameter validation
+- Consistent naming pattern across all 25 tools
+- Full backward compatibility maintained
+
+**Impact:**
+- Zero test failures related to tool registration
+- All tools properly communicate via WebSocket protocol
+- 100% testable and importable tool functions
+- Documentation updated: [TOOL-REGISTRATION-STATUS.md](docs/TOOL-REGISTRATION-STATUS.md)
+
+**Files modified:**
+- `src/ast_grep_mcp/features/complexity/tools.py` (+159 lines)
+- `src/ast_grep_mcp/features/quality/tools.py` (848 lines refactored)
+- `src/ast_grep_mcp/features/schema/tools.py` (886 lines refactored)
+- `src/ast_grep_mcp/features/deduplication/tools.py` (+91 lines)
+- `docs/TOOL-REGISTRATION-STATUS.md` (updated to reflect 100% completion)
 
 ### 2025-11-24: Modular Architecture Refactoring (Phases 0-10)
 

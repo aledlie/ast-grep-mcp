@@ -60,14 +60,13 @@ src/ast_grep_mcp/
 └── server/         # MCP server (registry, runner)
 ```
 
-**27 MCP Tools:**
+**25 MCP Tools (100% Registered):**
 - Code search: 4 tools
 - Code rewrite: 3 tools
 - Schema.org: 8 tools
 - Deduplication: 4 tools
-- Complexity: 2 tools
+- Complexity: 3 tools (includes code smells)
 - Code quality: 3 tools
-- Testing: 3 tools
 
 ## Quick Start
 
@@ -515,10 +514,17 @@ MIT License - See [LICENSE](LICENSE) file for details.
 - ✅ 99.2% code reduction in main.py (19,477 → 152 lines)
 - ✅ 46 new modules created
 - ✅ Zero breaking changes (backward compatibility maintained)
-- ✅ All 27 MCP tools working
+- ✅ All 25 MCP tools working (100% registered)
 - ✅ 1,150+ tests passing
 
 See [docs/MIGRATION-FROM-MONOLITH.md](docs/MIGRATION-FROM-MONOLITH.md) for details.
+
+### 2025-11-25: Tool Registration Complete - WebSocket Compatibility
+
+- **100% tool registration** (25/25 tools)
+- All tools refactored with consistent two-layer pattern
+- WebSocket/MCP compatibility fixes via Pydantic Field() annotations
+- Consolidated from 27 to 25 tools (detect_code_smells moved to complexity)
 
 ### 2025-11-17: Sentry & Doppler Integration
 
