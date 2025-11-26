@@ -10,8 +10,12 @@ This module provides tools for automated refactoring operations including:
 
 from .analyzer import CodeSelectionAnalyzer
 from .extractor import FunctionExtractor
+from .renamer import SymbolRenamer
+from .rename_coordinator import RenameCoordinator
 
 __all__ = [
     "CodeSelectionAnalyzer",
     "FunctionExtractor",
+    "SymbolRenamer",
+    "RenameCoordinator",
 ]

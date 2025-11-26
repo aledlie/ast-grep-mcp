@@ -107,6 +107,17 @@ class ExtractFunctionResult:
 
 
 @dataclass
+class ScopeInfo:
+    """Information about a scope in the code."""
+    scope_type: str  # 'module', 'class', 'function', 'block'
+    scope_name: str
+    start_line: int
+    end_line: int
+    parent_scope: Optional[str] = None
+    defined_symbols: Set[str] = field(default_factory=set)
+
+
+@dataclass
 class SymbolReference:
     """Reference to a symbol in code."""
     file_path: str
@@ -116,6 +127,8 @@ class SymbolReference:
     scope: str  # Function/class/module scope
     is_definition: bool = False
     is_import: bool = False
+    is_export: bool = False
+    import_source: Optional[str] = None  # For imports: where it's imported from
 
 
 @dataclass
