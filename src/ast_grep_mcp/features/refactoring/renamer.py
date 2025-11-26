@@ -66,7 +66,7 @@ class SymbolRenamer:
         try:
             # Run ast-grep to find matches
             result = run_ast_grep(
-                command="sg",
+                command="run",
                 args=[
                     "--pattern", pattern,
                     "--json",
@@ -80,18 +80,25 @@ class SymbolRenamer:
                 matches = json.loads(result.stdout)
 
                 for match in matches:
-                    file_path = match.get("path", "")
+                    # ast-grep JSON format: {"file": "path", "range": {"start": {"line": 1, "column": 4}}, "lines": "context"}
+                    file_path = match.get("file", "")
 
                     # Apply file filter if provided
                     if file_filter and not self._matches_filter(file_path, file_filter):
                         continue
 
+                    # Extract line and column from nested range object
+                    range_info = match.get("range", {})
+                    start_info = range_info.get("start", {})
+                    line = start_info.get("line", 0)
+                    column = start_info.get("column", 0)
+
                     # Create reference
                     ref = SymbolReference(
                         file_path=os.path.join(project_folder, file_path),
-                        line=match.get("line", 0),
-                        column=match.get("column", 0),
-                        context=match.get("text", ""),
+                        line=line,
+                        column=column,
+                        context=match.get("lines", ""),
                         scope="",  # Will be determined by scope analysis
                     )
 
