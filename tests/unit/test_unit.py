@@ -1,49 +1,24 @@
-"""Unit tests for ast-grep MCP server"""
+"""Unit tests for ast-grep MCP server.
 
-import os
-import subprocess
-import sys
-from typing import Any, Dict, List
+Tests cover:
+- dump_syntax_tree tool functionality
+- test_match_code_rule tool functionality
+- find_code tool (text and JSON formats, caching)
+- find_code_by_rule tool (text and JSON formats, YAML validation)
+- Subprocess execution and command handling
+- Configuration file validation
+- Custom language support
+- Edge cases and error handling
+
+Migrated to pytest fixtures on 2025-11-26.
+Fixtures used: mcp_main (module-scoped), reset_cache (autouse)
+"""
+
+from typing import Any, List
 from unittest.mock import Mock, patch
 
 import pytest
 
-# Add the parent directory to the path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-
-# Mock FastMCP to disable decoration
-class MockFastMCP:
-    """Mock FastMCP that returns functions unchanged"""
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.tools: Dict[str, Any] = {}  # Store registered tools
-
-    def tool(self, **kwargs: Any) -> Any:
-        """Decorator that returns the function unchanged"""
-
-        def decorator(func: Any) -> Any:
-            # Store the function for later retrieval
-            self.tools[func.__name__] = func
-            return func  # Return original function without modification
-
-        return decorator
-
-    def run(self, **kwargs: Any) -> None:
-        """Mock run method"""
-        pass
-
-
-# Mock the Field function to return the default value
-def mock_field(**kwargs: Any) -> Any:
-    return kwargs.get("default")
-
-
-# Patch the imports before loading main
-with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
-    with patch("pydantic.Field", mock_field):
-        import main
 from ast_grep_mcp.core.exceptions import (
     ConfigurationError,
     InvalidYAMLError,
@@ -54,6 +29,9 @@ from ast_grep_mcp.core.executor import (
 )
 from ast_grep_mcp.models.config import CustomLanguageConfig
 from ast_grep_mcp.utils.formatters import format_matches_as_text
+
+# Import main module via fixture dependency
+import main
 from main import (
     get_supported_languages,
     validate_config_file,
@@ -146,13 +124,6 @@ rule:
 
 class TestFindCode:
     """Test the find_code function"""
-
-    def setup_method(self) -> None:
-        """Clear cache before each test to avoid test interference"""
-        if main._query_cache is not None:
-            main._query_cache.cache.clear()
-            main._query_cache.hits = 0
-            main._query_cache.misses = 0
 
     @patch("main.stream_ast_grep_results")
     def test_text_format_with_results(self, mock_stream: Any) -> None:
@@ -266,13 +237,6 @@ class TestFindCode:
 class TestFindCodeByRule:
     """Test the find_code_by_rule function"""
 
-    def setup_method(self) -> None:
-        """Clear cache before each test to avoid test interference"""
-        if main._query_cache is not None:
-            main._query_cache.cache.clear()
-            main._query_cache.hits = 0
-            main._query_cache.misses = 0
-
     @patch("main.stream_ast_grep_results")
     def test_text_format_with_results(self, mock_stream: Any) -> None:
         """Test text format output with results"""
@@ -333,6 +297,7 @@ class TestRunCommand:
     @patch("subprocess.run")
     def test_successful_command(self, mock_run: Any) -> None:
         """Test successful command execution"""
+        import subprocess
         mock_result = Mock()
         mock_result.returncode = 0
         mock_result.stdout = "output"
@@ -348,6 +313,7 @@ class TestRunCommand:
     @patch("subprocess.run")
     def test_command_failure(self, mock_run: Any) -> None:
         """Test command execution failure"""
+        import subprocess
         mock_run.side_effect = subprocess.CalledProcessError(
             1, ["false"], stderr="error message"
         )
@@ -458,6 +424,7 @@ class TestConfigValidation:
 
     def test_valid_config(self) -> None:
         """Test validating a valid config file"""
+        import os
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "valid_config.yaml")
 
@@ -472,6 +439,7 @@ class TestConfigValidation:
 
     def test_invalid_config_extensions(self) -> None:
         """Test config with invalid extensions (missing dots)"""
+        import os
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "invalid_config_extensions.yaml")
 
@@ -480,6 +448,7 @@ class TestConfigValidation:
 
     def test_invalid_config_empty_lists(self) -> None:
         """Test config with empty lists"""
+        import os
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "invalid_config_empty.yaml")
 
@@ -494,6 +463,7 @@ class TestConfigValidation:
 
     def test_config_file_is_directory(self) -> None:
         """Test with directory instead of file"""
+        import os
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
 
         with pytest.raises(ConfigurationError, match="not a file"):
@@ -501,6 +471,7 @@ class TestConfigValidation:
 
     def test_config_yaml_parsing_error(self) -> None:
         """Test config with YAML syntax error"""
+        import os
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "invalid_config_yaml_error.yaml")
 
@@ -509,6 +480,7 @@ class TestConfigValidation:
 
     def test_config_empty_file(self) -> None:
         """Test config with empty file"""
+        import os
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "empty_config.yaml")
 
@@ -517,6 +489,7 @@ class TestConfigValidation:
 
     def test_config_not_dictionary(self) -> None:
         """Test config that is not a dictionary"""
+        import os
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "invalid_config_not_dict.yaml")
 
@@ -542,7 +515,7 @@ class TestGetSupportedLanguages:
     @patch("main.CONFIG_PATH")
     def test_with_custom_languages(self, mock_config_path: Any) -> None:
         """Test getting languages with custom languages in config"""
-
+        import os
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "config_with_custom_lang.yaml")
         mock_config_path.__bool__ = lambda x: True
@@ -599,7 +572,6 @@ class TestCustomLanguageConfig:
     def test_empty_extensions_list(self) -> None:
         """Test that empty extensions list raises error"""
         from pydantic import ValidationError
-
 
         with pytest.raises(ValidationError, match="extensions list cannot be empty"):
             CustomLanguageConfig(extensions=[])
@@ -845,6 +817,7 @@ class TestValidateConfigFileErrors:
 
     def test_config_file_read_error(self) -> None:
         """Test when file cannot be read (OSError)"""
+        import os
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         config_path = os.path.join(fixtures_dir, "valid_config.yaml")
 
@@ -933,6 +906,7 @@ class TestParseArgsAndGetConfig:
     def test_with_valid_config_flag(self) -> None:
         """Test with valid --config flag"""
         import importlib
+        import os
 
         import main
 
@@ -949,6 +923,7 @@ class TestParseArgsAndGetConfig:
     def test_with_env_var_config(self, mock_env_get: Any) -> None:
         """Test with AST_GREP_CONFIG environment variable"""
         import importlib
+        import os
 
         import main
 
