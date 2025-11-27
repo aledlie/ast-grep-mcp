@@ -11,13 +11,7 @@ import os
 # Add the project root to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from ast_grep_mcp.models.deduplication import VariationCategory
-from main import (
-    VariationSeverity,
-    classify_variations,
-    detect_conditional_variations,
-)
-
+from ast_grep_mcp.models.deduplication import VariationCategory, VariationSeverity
 from ast_grep_mcp.features.deduplication.analyzer import PatternAnalyzer
 
 
@@ -279,108 +273,107 @@ class TestVariationComplexity:
 class TestClassifyVariations:
     """Tests for classify_variations function (batch classification)."""
 
-    def test_empty_variations(self):
+    def test_empty_variations(self, pattern_analyzer):
         """Test classification of empty variations list."""
-        result = classify_variations([])
-        assert result["classified_variations"] == []
-        assert result["summary"]["by_category"] == {}
-        assert result["summary"]["by_severity"] == {}
-        assert result["refactoring_complexity"] == "none"
+        result = pattern_analyzer.classify_variations([])
+        assert result["total_variations"] == 0
+        assert result["complexity_score"] == 0
+        assert result["refactoring_difficulty"] == "trivial"
         assert result["parameterizable_count"] == 0
 
-    def test_single_variation(self):
+    def test_single_variation(self, pattern_analyzer):
         """Test classification of single variation."""
         variations = [
             {"type": "literal", "old_value": "1", "new_value": "2"}
         ]
-        result = classify_variations(variations)
+        result = pattern_analyzer.pattern_analyzer.classify_variations(variations)
         assert len(result["classified_variations"]) == 1
         assert result["parameterizable_count"] == 1
         assert result["summary"]["by_category"][VariationCategory.LITERAL] == 1
         assert result["summary"]["by_severity"][VariationSeverity.LOW] == 1
 
-    def test_multiple_variations(self):
+    def test_multiple_variations(self, pattern_analyzer):
         """Test classification of multiple variations."""
         variations = [
             {"type": "literal", "old_value": "1", "new_value": "2"},
             {"type": "identifier", "old_value": "foo", "new_value": "bar"},
             {"type": "expression", "old_value": "a + b", "new_value": "c - d"}
         ]
-        result = classify_variations(variations)
+        result = pattern_analyzer.pattern_analyzer.classify_variations(variations)
         assert len(result["classified_variations"]) == 3
         assert result["summary"]["by_category"][VariationCategory.LITERAL] == 1
         assert result["summary"]["by_category"][VariationCategory.IDENTIFIER] == 1
         assert result["summary"]["by_category"][VariationCategory.EXPRESSION] == 1
 
-    def test_summary_statistics(self):
+    def test_summary_statistics(self, pattern_analyzer):
         """Test that summary statistics are correctly computed."""
         variations = [
             {"type": "literal", "old_value": "1", "new_value": "2"},
             {"type": "literal", "old_value": "3", "new_value": "4"},
             {"type": "identifier", "old_value": "x", "new_value": "y"}
         ]
-        result = classify_variations(variations)
+        result = pattern_analyzer.pattern_analyzer.classify_variations(variations)
         assert result["summary"]["by_category"][VariationCategory.LITERAL] == 2
         assert result["summary"]["by_category"][VariationCategory.IDENTIFIER] == 1
         assert result["summary"]["by_severity"][VariationSeverity.LOW] == 3
 
-    def test_low_refactoring_complexity(self):
+    def test_low_refactoring_complexity(self, pattern_analyzer):
         """Test low refactoring complexity assessment."""
         variations = [
             {"type": "literal", "old_value": "1", "new_value": "2"},
             {"type": "literal", "old_value": "3", "new_value": "4"}
         ]
-        result = classify_variations(variations)
+        result = pattern_analyzer.classify_variations(variations)
         assert result["refactoring_complexity"] == "low"
 
-    def test_medium_refactoring_complexity(self):
+    def test_medium_refactoring_complexity(self, pattern_analyzer):
         """Test medium refactoring complexity assessment."""
         variations = [
             {"type": "literal", "old_value": "1", "new_value": "2"},
             {"type": "call", "old_value": "process(a)", "new_value": "transform(b)"}
         ]
-        result = classify_variations(variations)
+        result = pattern_analyzer.classify_variations(variations)
         assert result["refactoring_complexity"] in ["medium", "high"]
 
-    def test_high_refactoring_complexity_with_logic(self):
+    def test_high_refactoring_complexity_with_logic(self, pattern_analyzer):
         """Test high refactoring complexity when logic variations present."""
         variations = [
             {"type": "literal", "old_value": "1", "new_value": "2"},
             {"type": "logic", "old_value": "if x:", "new_value": "if y:"}
         ]
-        result = classify_variations(variations)
+        result = pattern_analyzer.classify_variations(variations)
         assert result["refactoring_complexity"] == "high"
 
-    def test_complexity_scores_aggregation(self):
+    def test_complexity_scores_aggregation(self, pattern_analyzer):
         """Test that complexity scores are properly aggregated."""
         variations = [
             {"type": "literal", "old_value": "1", "new_value": "2"},  # score 1
             {"type": "identifier", "old_value": "x", "new_value": "y"}  # score 1
         ]
-        result = classify_variations(variations)
+        result = pattern_analyzer.classify_variations(variations)
         assert "complexity_scores" in result
         assert result["complexity_scores"]["total"] == 2
         assert result["complexity_scores"]["average"] == 1.0
         assert result["complexity_scores"]["max"] == 1
         assert result["complexity_scores"]["level"] == "low"
 
-    def test_parameterizable_count(self):
+    def test_parameterizable_count(self, pattern_analyzer):
         """Test that parameterizable count is correct."""
         variations = [
             {"type": "literal", "old_value": "1", "new_value": "2"},  # parameterizable
             {"type": "identifier", "old_value": "x", "new_value": "y"},  # parameterizable
             {"type": "logic", "old_value": "if x:", "new_value": "if y:"}  # not parameterizable
         ]
-        result = classify_variations(variations)
+        result = pattern_analyzer.classify_variations(variations)
         assert result["parameterizable_count"] == 2
 
-    def test_missing_keys_handled(self):
+    def test_missing_keys_handled(self, pattern_analyzer):
         """Test that missing keys in variation dict are handled."""
         variations = [
             {"old_value": "1", "new_value": "2"},  # missing type
             {"type": "literal"}  # missing old_value and new_value
         ]
-        result = classify_variations(variations)
+        result = pattern_analyzer.classify_variations(variations)
         assert len(result["classified_variations"]) == 2
 
 

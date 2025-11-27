@@ -141,8 +141,31 @@ class DuplicationDetector:
 
         # Language-specific patterns
         if self.language.lower() in ["javascript", "typescript", "jsx", "tsx"]:
-            construct_patterns["function_definition"] = "function $NAME($$$) { $$$ }"
-            construct_patterns["method_definition"] = "$NAME($$$) { $$$ }"
+            # For JS/TS, we need to support multiple patterns:
+            # 1. Traditional function declarations
+            # 2. Arrow functions (const NAME = (...) => {...})
+            # 3. Const functions (const NAME = function(...) {...})
+            # 4. Object methods
+
+            # Use pattern that matches arrow functions and const functions
+            # This is the most common pattern in modern JS/TS
+            if construct_type == "function_definition":
+                # Match: const NAME = (...) => { ... }
+                # Match: const NAME = function(...) { ... }
+                construct_patterns["function_definition"] = "const $NAME = $$$"
+            elif construct_type == "arrow_function":
+                # Specifically for arrow functions
+                construct_patterns["arrow_function"] = "const $NAME = ($$$) => $$$"
+            elif construct_type == "traditional_function":
+                # Traditional function declarations
+                construct_patterns["traditional_function"] = "function $NAME($$$) { $$$ }"
+            elif construct_type == "method_definition":
+                # Object methods: methodName() { ... }
+                construct_patterns["method_definition"] = "$NAME($$$) { $$$ }"
+            else:
+                # Default to const assignments for modern JS/TS
+                construct_patterns[construct_type] = "const $NAME = $$$"
+
         elif self.language.lower() in ["java", "csharp", "cpp", "c"]:
             construct_patterns["function_definition"] = "$TYPE $NAME($$$) { $$$ }"
             construct_patterns["method_definition"] = "$TYPE $NAME($$$) { $$$ }"

@@ -14,22 +14,7 @@ from typing import Any, Dict, List, Optional
 import yaml
 
 from ...core.logging import get_logger
-
-
-class VariationCategory:
-    """Categories for code variations."""
-    LITERAL = "literal"          # String/number/boolean literals
-    IDENTIFIER = "identifier"    # Variable/function/class names
-    TYPE = "type"                # Type annotations
-    EXPRESSION = "expression"    # Expressions and operators
-    LOGIC = "logic"              # Control flow differences
-
-
-class VariationSeverity:
-    """Severity levels for variations."""
-    LOW = "low"          # Easy to parameterize
-    MEDIUM = "medium"    # Moderate refactoring needed
-    HIGH = "high"        # Complex structural changes
+from ...models.deduplication import VariationCategory, VariationSeverity
 
 
 class PatternAnalyzer:

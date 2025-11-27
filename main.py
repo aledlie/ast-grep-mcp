@@ -351,6 +351,12 @@ def format_arguments_for_call(*args, **kwargs):
     gen = CodeGenerator("python")
     return gen._format_call_arguments(*args, **kwargs) if hasattr(gen, '_format_call_arguments') else ""
 
+def generate_replacement_call(function_name: str, arguments: list, language: str = "python") -> str:
+    """Stub for backward compatibility with tests."""
+    from ast_grep_mcp.features.deduplication.generator import CodeGenerator
+    gen = CodeGenerator(language)
+    return gen.generate_function_call(function_name, arguments)
+
 def preserve_call_site_indentation(original_code: str, replacement: str) -> str:
     """Stub for backward compatibility with tests."""
     from ast_grep_mcp.features.deduplication.generator import CodeGenerator

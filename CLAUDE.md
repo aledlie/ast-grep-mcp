@@ -409,3 +409,4 @@ dev/active/          # Feature planning docs
 **Tests:** Ensure ast-grep installed (`ast-grep --version`), clear `.coverage` artifacts.
 
 **Deduplication:** See DEDUPLICATION-GUIDE.md for troubleshooting.
+- remember to check mcp tool registrations

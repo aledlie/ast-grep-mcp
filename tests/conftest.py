@@ -356,23 +356,21 @@ def similarity_threshold(request):
 def duplication_detector():
     """Provide DuplicationDetector instance."""
     from ast_grep_mcp.features.deduplication.detector import DuplicationDetector
-    from ast_grep_mcp.core.executor import run_ast_grep
-    return DuplicationDetector(run_ast_grep)
+    return DuplicationDetector(language="python")
 
 
 @pytest.fixture
 def pattern_analyzer():
     """Provide PatternAnalyzer instance."""
     from ast_grep_mcp.features.deduplication.analyzer import PatternAnalyzer
-    from ast_grep_mcp.core.executor import run_ast_grep
-    return PatternAnalyzer(run_ast_grep)
+    return PatternAnalyzer()
 
 
 @pytest.fixture
 def code_generator():
     """Provide CodeGenerator instance."""
     from ast_grep_mcp.features.deduplication.generator import CodeGenerator
-    return CodeGenerator()
+    return CodeGenerator(language="python")
 
 
 @pytest.fixture

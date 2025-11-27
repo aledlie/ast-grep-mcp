@@ -38,8 +38,11 @@ class MockFastMCP:
         return self.tools.get(name)
 
 
-def mock_field(**kwargs: Any) -> Any:
-    """Mock pydantic Field function."""
+def mock_field(*args: Any, **kwargs: Any) -> Any:
+    """Mock pydantic Field function - accepts both positional and keyword args."""
+    # If positional arg provided (e.g., Field(None, ...)), use it as default
+    if args:
+        return args[0]
     return kwargs.get("default")
 
 
