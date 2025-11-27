@@ -1794,7 +1794,7 @@ class TestEnforceStandardsTool:
 
         assert "output_format" in str(exc_info.value)
 
-    def test_project_folder_not_found(self):
+    def test_project_folder_not_found(self, enforce_standards_tool):
         """Test error when project folder doesn't exist."""
         with pytest.raises(ValueError) as exc_info:
             enforce_standards_tool(

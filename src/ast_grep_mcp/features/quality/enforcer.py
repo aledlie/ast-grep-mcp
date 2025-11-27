@@ -282,7 +282,8 @@ def execute_rule(
     try:
         # Build ast-grep command arguments
         yaml_rule = rule.to_yaml_dict()
-        yaml_str = yaml.safe_dump({"rules": [yaml_rule]})
+        # Note: --inline-rules expects a single rule, not a rules array
+        yaml_str = yaml.safe_dump(yaml_rule)
 
         args = [
             "--inline-rules", yaml_str,
