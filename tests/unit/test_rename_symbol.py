@@ -44,11 +44,12 @@ def calculate_total(items):
 """)
 
         with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
+            # ast-grep returns absolute paths
             mock_run.return_value = Mock(
                 returncode=0,
-                stdout='[{"file": "test.py", "range": {"start": {"line": 2, "column": 4}}, "lines": "total = 0"},'
-                       '{"file": "test.py", "range": {"start": {"line": 4, "column": 8}}, "lines": "total += item"},'
-                       '{"file": "test.py", "range": {"start": {"line": 5, "column": 11}}, "lines": "return total"}]'
+                stdout=f'[{{"file": "{str(test_file)}", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "total = 0"}},'
+                       f'{{"file": "{str(test_file)}", "range": {{"start": {{"line": 4, "column": 8}}}}, "lines": "total += item"}},'
+                       f'{{"file": "{str(test_file)}", "range": {{"start": {{"line": 5, "column": 11}}}}, "lines": "return total"}}]'
             )
 
             references = python_renamer.find_symbol_references(
@@ -58,9 +59,9 @@ def calculate_total(items):
 
             assert len(references) == 3
             assert all(ref.file_path.endswith("test.py") for ref in references)
-            assert references[0].line == 2
-            assert references[1].line == 4
-            assert references[2].line == 5
+            assert references[0].line == 3  # 0-indexed + 1 = 1-indexed
+            assert references[1].line == 5
+            assert references[2].line == 6
 
     def test_find_symbol_references_no_matches(self, python_renamer, tmp_path):
         """Test finding references when symbol doesn't exist."""
@@ -280,10 +281,11 @@ def calculate(x):
 """)
 
         with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
+            # ast-grep returns absolute paths
             mock_run.return_value = Mock(
                 returncode=0,
-                stdout=f'[{{"file": "test.py", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "result = x * 2"}},'
-                       f'{{"file": "test.py", "range": {{"start": {{"line": 3, "column": 11}}}}, "lines": "return result"}}]'
+                stdout=f'[{{"file": "{str(test_file)}", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "result = x * 2"}},'
+                       f'{{"file": "{str(test_file)}", "range": {{"start": {{"line": 3, "column": 11}}}}, "lines": "return result"}}]'
             )
 
             result = python_coordinator.rename_symbol(
@@ -327,9 +329,10 @@ def foo():
 """)
 
         with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
+            # ast-grep returns absolute paths
             mock_run.return_value = Mock(
                 returncode=0,
-                stdout='[{"file": "test.py", "range": {"start": {"line": 2, "column": 4}}, "lines": "x = 1"}]'
+                stdout=f'[{{"file": "{str(test_file)}", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "x = 1"}}]'
             )
 
             # Mock build_scope_tree to return a scope with 'y' already defined
@@ -368,10 +371,11 @@ def calculate(x):
 """)
 
         with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
+            # ast-grep returns absolute paths
             mock_run.return_value = Mock(
                 returncode=0,
-                stdout=f'[{{"file": "test.py", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "result = x * 2"}},'
-                       f'{{"file": "test.py", "range": {{"start": {{"line": 3, "column": 11}}}}, "lines": "return result"}}]'
+                stdout=f'[{{"file": "{str(test_file)}", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "result = x * 2"}},'
+                       f'{{"file": "{str(test_file)}", "range": {{"start": {{"line": 3, "column": 11}}}}, "lines": "return result"}}]'
             )
 
             with patch('ast_grep_mcp.features.refactoring.rename_coordinator.create_backup') as mock_backup:
@@ -489,10 +493,11 @@ def calculate(x):
 """)
 
         with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
+            # ast-grep returns absolute paths
             mock_run.return_value = Mock(
                 returncode=0,
-                stdout='[{"file": "test.py", "range": {"start": {"line": 2, "column": 4}}, "lines": "result = x * 2"},'
-                       '{"file": "test.py", "range": {"start": {"line": 3, "column": 11}}, "lines": "return result"}]'
+                stdout=f'[{{"file": "{str(test_file)}", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "result = x * 2"}},'
+                       f'{{"file": "{str(test_file)}", "range": {{"start": {{"line": 3, "column": 11}}}}, "lines": "return result"}}]'
             )
 
             result = rename_symbol_tool(
@@ -570,11 +575,12 @@ def main():
 """)
 
         with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
+            # ast-grep returns absolute paths
             mock_run.return_value = Mock(
                 returncode=0,
-                stdout=f'[{{"file": "module1.py", "range": {{"start": {{"line": 1, "column": 4}}}}, "lines": "def process_data(data):"}},'
-                       f'{{"file": "module2.py", "range": {{"start": {{"line": 1, "column": 19}}}}, "lines": "from module1 import process_data"}},'
-                       f'{{"file": "module2.py", "range": {{"start": {{"line": 4, "column": 13}}}}, "lines": "result = process_data(10)"}}]'
+                stdout=f'[{{"file": "{str(file1)}", "range": {{"start": {{"line": 1, "column": 4}}}}, "lines": "def process_data(data):"}},'
+                       f'{{"file": "{str(file2)}", "range": {{"start": {{"line": 1, "column": 19}}}}, "lines": "from module1 import process_data"}},'
+                       f'{{"file": "{str(file2)}", "range": {{"start": {{"line": 4, "column": 13}}}}, "lines": "result = process_data(10)"}}]'
             )
 
             with patch('ast_grep_mcp.features.refactoring.rename_coordinator.create_backup') as mock_backup:
@@ -602,9 +608,10 @@ def foo():
 """)
 
         with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
+            # ast-grep returns absolute paths
             mock_run.return_value = Mock(
                 returncode=0,
-                stdout='[{"file": "test.py", "range": {"start": {"line": 2, "column": 4}}, "lines": "x = 1"}]'
+                stdout=f'[{{"file": "{str(test_file)}", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "x = 1"}}]'
             )
 
             with patch('ast_grep_mcp.features.refactoring.rename_coordinator.create_backup') as mock_backup:

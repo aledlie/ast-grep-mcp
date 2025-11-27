@@ -80,7 +80,8 @@ class SymbolRenamer:
                 matches = json.loads(result.stdout)
 
                 for match in matches:
-                    # ast-grep JSON format: {"file": "path", "range": {"start": {"line": 1, "column": 4}}, "lines": "context"}
+                    # ast-grep JSON format: {"file": "path", "range": {"start": {"line": 0, "column": 4}}, "lines": "context"}
+                    # Note: ast-grep returns absolute paths and 0-indexed line numbers
                     file_path = match.get("file", "")
 
                     # Apply file filter if provided
@@ -90,12 +91,13 @@ class SymbolRenamer:
                     # Extract line and column from nested range object
                     range_info = match.get("range", {})
                     start_info = range_info.get("start", {})
-                    line = start_info.get("line", 0)
+                    line = start_info.get("line", 0) + 1  # Convert from 0-indexed to 1-indexed
                     column = start_info.get("column", 0)
 
                     # Create reference
+                    # ast-grep returns absolute paths, so use directly without joining
                     ref = SymbolReference(
-                        file_path=os.path.join(project_folder, file_path),
+                        file_path=file_path,
                         line=line,
                         column=column,
                         context=match.get("lines", ""),
@@ -141,13 +143,23 @@ class SymbolRenamer:
         """Check if file path matches filter pattern.
 
         Args:
-            file_path: File path to check
-            file_filter: Glob pattern
+            file_path: File path to check (can be absolute or relative)
+            file_filter: Glob pattern (e.g., "*.py", "utils.py", "**/test_*.py")
 
         Returns:
             True if matches
         """
         from fnmatch import fnmatch
+        import os
+
+        # Extract basename for simple filters like "utils.py"
+        basename = os.path.basename(file_path)
+
+        # Try matching against basename first (common case)
+        if fnmatch(basename, file_filter):
+            return True
+
+        # Also try matching against full path for patterns like "**/test_*.py"
         return fnmatch(file_path, file_filter)
 
     def _classify_reference(self, ref: SymbolReference) -> None:
