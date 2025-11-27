@@ -516,6 +516,19 @@ MIT License - See [LICENSE](LICENSE) file for details.
 
 ## Changelog
 
+### 2025-11-26: Refactoring Assistants - Phases 1 & 2 Complete
+
+**New intelligent refactoring tools** for automated code transformations.
+
+- ✅ **extract_function** - Extract code with automatic parameter/return detection
+- ✅ **rename_symbol** - Scope-aware renaming across multiple files
+- ✅ Multi-language support (Python full, TypeScript/JavaScript/Java basic)
+- ✅ 42/42 tests passing (100% pass rate)
+- ✅ Dry-run mode, backups, conflict detection
+- ✅ Production-ready with comprehensive error handling
+
+See [dev/active/refactoring-assistants/](dev/active/refactoring-assistants/) for details.
+
 ### 2025-11-24: Modular Architecture (v2.0)
 
 **Major refactoring** - Migrated from monolithic architecture to modular design.
