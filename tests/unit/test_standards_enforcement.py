@@ -380,17 +380,9 @@ class TestLoadCustomRules:
 
         assert result == []
 
-    @patch("pathlib.Path.exists")
-    @patch("pathlib.Path.glob")
-    @patch("main._load_rule_from_file")
-    def test_filter_by_language(self, mock_load, mock_glob, mock_exists):
+    @patch("ast_grep_mcp.features.quality.enforcer.load_rules_from_project")
+    def test_filter_by_language(self, mock_load_project_rules):
         """Test filtering rules by language."""
-        mock_exists.return_value = True
-
-        mock_file = Mock()
-        mock_file.name = "test-rule.yml"
-        mock_glob.return_value = [mock_file]
-
         python_rule = LintingRule(
             id="python-rule",
             language="python",
@@ -399,12 +391,23 @@ class TestLoadCustomRules:
             pattern="test"
         )
 
-        mock_load.return_value = python_rule
+        javascript_rule = LintingRule(
+            id="js-rule",
+            language="javascript",
+            severity="error",
+            message="JS rule",
+            pattern="test"
+        )
+
+        # Mock returns both Python and JavaScript rules
+        mock_load_project_rules.return_value = [python_rule, javascript_rule]
 
         result = _load_custom_rules("/fake/path", "python")
 
+        # Should only return Python rules (filtered)
         assert len(result) == 1
         assert result[0].language == "python"
+        assert result[0].id == "python-rule"
 
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.glob")
@@ -505,7 +508,7 @@ class TestLoadRuleSet:
         assert "all" in rule_set.description.lower()
         assert rule_set.priority == 100
 
-    @patch("main._load_custom_rules")
+    @patch("ast_grep_mcp.features.quality.enforcer.load_custom_rules")
     def test_load_custom_rule_set(self, mock_load_custom):
         """Test loading 'custom' rule set."""
         custom_rules = [
@@ -759,7 +762,7 @@ class TestShouldExcludeFile:
 class TestExecuteRule:
     """Test _execute_rule function."""
 
-    @patch("main.stream_ast_grep_results")
+    @patch("ast_grep_mcp.features.quality.enforcer.stream_ast_grep_results")
     def test_execute_single_rule(self, mock_stream):
         """Test executing single rule."""
         logger = Mock()
@@ -798,7 +801,7 @@ class TestExecuteRule:
         assert violations[0].rule_id == "no-bare-except"
         mock_stream.assert_called_once()
 
-    @patch("main.stream_ast_grep_results")
+    @patch("ast_grep_mcp.features.quality.enforcer.stream_ast_grep_results")
     def test_parse_violations_correctly(self, mock_stream):
         """Test violations are parsed correctly."""
         logger = Mock()
@@ -943,8 +946,8 @@ class TestExecuteRule:
         # Should return empty list, not raise
         assert violations == []
 
-    @patch("main.stream_ast_grep_results")
-    @patch("main.sentry_sdk")
+    @patch("ast_grep_mcp.features.quality.enforcer.stream_ast_grep_results")
+    @patch("ast_grep_mcp.features.quality.enforcer.sentry_sdk")
     def test_sentry_span_integration(self, mock_sentry, mock_stream):
         """Test Sentry span is created."""
         logger = Mock()
@@ -976,7 +979,7 @@ class TestExecuteRule:
 class TestExecuteRulesBatch:
     """Test _execute_rules_batch function."""
 
-    @patch("main._execute_rule")
+    @patch("ast_grep_mcp.features.quality.enforcer.execute_rule")
     def test_parallel_execution(self, mock_execute):
         """Test parallel execution with ThreadPoolExecutor."""
         logger = Mock()
@@ -1005,10 +1008,10 @@ class TestExecuteRulesBatch:
 
         violations = _execute_rules_batch(rules, context)
 
-        # Should call _execute_rule for each rule
+        # Should call execute_rule for each rule
         assert mock_execute.call_count == 3
 
-    @patch("main._execute_rule")
+    @patch("ast_grep_mcp.features.quality.enforcer.execute_rule")
     def test_combine_violations(self, mock_execute):
         """Test violations from multiple rules are combined."""
         logger = Mock()
@@ -1727,8 +1730,8 @@ class TestEnforceStandardsTool:
 
         assert result["summary"]["total_violations"] == 0
 
-    @patch("main._load_custom_rules")
-    @patch("main._execute_rules_batch")
+    @patch("ast_grep_mcp.features.quality.enforcer.load_custom_rules")
+    @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
     def test_custom_rules_with_ids(self, mock_exists, mock_execute, mock_load_custom, mcp_main, enforce_standards_tool):
         """Test scan with custom rules specified by IDs."""
@@ -1826,7 +1829,7 @@ class TestEnforceStandardsTool:
 
         assert "message" in result or result["summary"]["total_violations"] == 0
 
-    @patch("main._load_custom_rules")
+    @patch("ast_grep_mcp.features.quality.enforcer.load_custom_rules")
     @patch("pathlib.Path.exists")
     def test_empty_custom_rules_list(self, mock_exists, mock_load_custom, mcp_main, enforce_standards_tool):
         """Test handling empty custom rules list."""
@@ -1834,14 +1837,15 @@ class TestEnforceStandardsTool:
         mock_load_custom.return_value = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(
-                project_folder=tmpdir,
-                language="python",
-                rule_set="custom",
-                custom_rules=["nonexistent-rule"]
-            )
+            with pytest.raises(ValueError) as exc_info:
+                enforce_standards_tool(
+                    project_folder=tmpdir,
+                    language="python",
+                    rule_set="custom",
+                    custom_rules=["nonexistent-rule"]
+                )
 
-        assert "error" in result or "message" in result
+            assert "No custom rules found" in str(exc_info.value)
 
     @patch("main._load_rule_set")
     @patch("main._execute_rules_batch")
@@ -1927,8 +1931,8 @@ class TestEnforceStandardsTool:
         assert "violations" in result
         assert isinstance(result["violations"], list)
 
-    @patch("main._load_rule_set")
-    @patch("main._execute_rules_batch")
+    @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
+    @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
     def test_max_violations_enforcement(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test max_violations is enforced."""
@@ -2025,8 +2029,8 @@ class TestEnforceStandardsTool:
         # Info violation should be filtered out
         assert result["summary"]["total_violations"] == 0
 
-    @patch("main._load_rule_set")
-    @patch("main._execute_rules_batch")
+    @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
+    @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
     def test_include_exclude_patterns(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test include/exclude patterns are passed to context."""
@@ -2064,8 +2068,8 @@ class TestEnforceStandardsTool:
         assert "src/**/*.ts" in context.include_patterns
         assert "**/test/**" in context.exclude_patterns
 
-    @patch("main._load_rule_set")
-    @patch("main._execute_rules_batch")
+    @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
+    @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
     def test_parallel_execution_with_threads(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test parallel execution with specified threads."""
@@ -2101,8 +2105,8 @@ class TestEnforceStandardsTool:
         context = call_args[0][1]
         assert context.max_threads == 8
 
-    @patch("main._load_rule_set")
-    @patch("main._execute_rules_batch")
+    @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
+    @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
     def test_error_handling(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test error handling during execution."""
@@ -2127,11 +2131,13 @@ class TestEnforceStandardsTool:
         mock_execute.side_effect = Exception("Execution failed")
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            with pytest.raises(Exception):
+            with pytest.raises(Exception) as exc_info:
                 enforce_standards_tool(
                     project_folder=tmpdir,
                     language="typescript"
                 )
+
+            assert "Execution failed" in str(exc_info.value)
 
 
 if __name__ == "__main__":
