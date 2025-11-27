@@ -21,6 +21,13 @@ A powerful Model Context Protocol (MCP) server providing structural code search,
 - **Syntax validation** - Prevent syntax errors
 - **Dry-run mode** - Preview changes before applying
 
+### Refactoring Assistants
+- **Extract function** - Extract code into reusable functions with parameter detection
+- **Rename symbol** - Scope-aware renaming with conflict detection
+- **Multi-file updates** - Atomic changes across multiple files
+- **Import management** - Automatic import/export updates
+- **Dry-run mode** - Preview all changes before applying
+
 ### Deduplication & Refactoring
 - **Duplicate detection** - Find copy-pasted code across projects
 - **Intelligent ranking** - Score duplicates by refactoring value
@@ -43,26 +50,28 @@ A powerful Model Context Protocol (MCP) server providing structural code search,
 
 ## Architecture
 
-**Modular design** with 46 modules organized for clarity and maintainability:
+**Modular design** with 52 modules organized for clarity and maintainability:
 
 ```
 src/ast_grep_mcp/
 ├── core/           # Core infrastructure (config, cache, executor, logging)
-├── models/         # Data models (deduplication, complexity, standards)
+├── models/         # Data models (refactoring, deduplication, complexity, standards)
 ├── utils/          # Utilities (templates, formatters, text processing)
-├── features/       # Feature modules (27 modules)
-│   ├── search/     # Code search
-│   ├── rewrite/    # Code transformation
-│   ├── schema/     # Schema.org integration
+├── features/       # Feature modules (33 modules)
+│   ├── search/         # Code search
+│   ├── rewrite/        # Code transformation
+│   ├── refactoring/    # Refactoring assistants (extract_function, rename_symbol)
+│   ├── schema/         # Schema.org integration
 │   ├── deduplication/  # Duplicate detection & refactoring
 │   ├── complexity/     # Complexity analysis
 │   └── quality/        # Code quality & linting
 └── server/         # MCP server (registry, runner)
 ```
 
-**25 MCP Tools (100% Registered):**
+**27 MCP Tools (100% Registered):**
 - Code search: 4 tools
 - Code rewrite: 3 tools
+- Refactoring assistants: 2 tools (extract_function, rename_symbol)
 - Schema.org: 8 tools
 - Deduplication: 4 tools
 - Complexity: 3 tools (includes code smells)
