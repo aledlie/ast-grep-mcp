@@ -1,8 +1,8 @@
 # ast-grep-mcp New Features - Overview
 
-**Last Updated:** 2025-11-26
-**Status:** 3/6 Features Completed, 1/6 In Progress (50% complete)
-**Next Step:** Continue with code-quality-standards (Phase 3+)
+**Last Updated:** 2025-11-27
+**Status:** 4/6 Features Completed, 0/6 In Progress (67% complete)
+**Next Step:** Choose next feature (Documentation Generation or Code Quality Phase 3+)
 
 ---
 
@@ -11,10 +11,10 @@
 This document provides a high-level overview of 6 major feature areas planned for the ast-grep-mcp server. All detailed plans have been created and are ready for implementation.
 
 **Total Planning Documents:** 6 comprehensive strategic plans
-**Completed Features:** 3/6 (Enhanced Deduplication, Refactoring Assistants, Code Analysis & Metrics)
-**In Progress:** Code Quality & Standards (Phases 1-2 complete)
-**Total Estimated Effort:** 31-43 weeks (10-12 weeks completed)
-**Recommended Approach:** Continue with Code Quality Phase 3+, then Documentation Generation
+**Completed Features:** 4/6 (Enhanced Deduplication, Refactoring Assistants, Code Analysis & Metrics, Code Quality & Standards Phases 1-2)
+**In Progress:** None (all active work completed and merged)
+**Total Estimated Effort:** 31-43 weeks (13-15 weeks completed)
+**Recommended Approach:** Start Documentation Generation or continue Code Quality Phase 3+ (Security Scanner)
 
 ---
 
@@ -184,11 +184,11 @@ generate_docstrings(
 
 ---
 
-### 5. Code Quality & Standards ⏳ **IN PROGRESS**
+### 5. Code Quality & Standards ✅ **PHASES 1-2 COMPLETED**
 
-**Location:** `dev/active/code-quality-standards/`
-**Status:** ⏳ Phases 1-2 Complete (2025-11-26), Phase 3+ pending
-**Effort:** 5-7 weeks (2-3 weeks completed)
+**Location:** `dev/active/code-quality-standards/` (Phases 1-2), `dev/archive/code-quality-standards/` (completed phases)
+**Status:** ✅ Phases 1-2 Complete (2025-11-26), Phases 3-6 pending
+**Effort:** 5-7 weeks (2-3 weeks completed for Phases 1-2)
 **Risk:** Medium
 **Impact:** Medium-High
 
@@ -200,11 +200,12 @@ generate_docstrings(
 - Generate quality reports
 
 **New MCP Tools:**
-- `create_linting_rule` - Define custom rules
-- `enforce_standards` - Check against rule sets
-- `detect_security_issues` - Scan for vulnerabilities (7+ types)
-- `apply_standards_fixes` - Auto-fix violations
-- `generate_quality_report` - Quality dashboard
+- ✅ `create_linting_rule` - Define custom rules (Phase 1 - COMPLETED)
+- ✅ `list_rule_templates` - Browse 24+ built-in templates (Phase 1 - COMPLETED)
+- ✅ `enforce_standards` - Check against rule sets (Phase 2 - COMPLETED)
+- ⏳ `detect_security_issues` - Scan for vulnerabilities (7+ types) (Phase 3 - PENDING)
+- ⏳ `apply_standards_fixes` - Auto-fix violations (Phase 4 - PENDING)
+- ⏳ `generate_quality_report` - Quality dashboard (Phase 5 - PENDING)
 
 **Why Valuable:**
 - Systematic standards enforcement
@@ -212,15 +213,35 @@ generate_docstrings(
 - Automated onboarding (rules teach patterns)
 - Team-wide consistency
 
-**Example:**
+**Completed Example (Phases 1-2):**
 ```python
-# Scan for security issues
+# Create custom linting rule (Phase 1)
+create_linting_rule(
+    rule_id="no-console-log",
+    language="javascript",
+    template="forbidden-pattern",
+    config={"pattern": "console.log($$$)"}
+)
+
+# Enforce standards across project (Phase 2)
+result = enforce_standards(
+    project_folder="/path",
+    language="javascript",
+    rule_sets=["recommended", "security"],
+    parallel=True
+)
+# Returns: Violations found with file locations and suggestions
+```
+
+**Future Example (Phase 3 - Security Scanner):**
+```python
+# Scan for security issues (Phase 3 - NOT YET IMPLEMENTED)
 result = detect_security_issues(
     project_folder="/path",
     language="python",
     issue_types=["sql_injection", "xss", "hardcoded_secrets"]
 )
-# Returns: Vulnerabilities with severity and remediation steps
+# Will return: Vulnerabilities with severity and remediation steps
 ```
 
 ---
@@ -433,5 +454,6 @@ All plans are comprehensive and ready for implementation:
 
 ---
 
-**Last Updated:** 2025-11-18
-**Prepared By:** Strategic Planning Assistant
+**Last Updated:** 2025-11-27
+**Updated By:** Claude Code (automated update from git history)
+**Previous Update:** 2025-11-26

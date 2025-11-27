@@ -18,7 +18,7 @@ Modular MCP server with 57 modules combining ast-grep structural code search wit
 
 **Architecture:** Clean modular design with entry point (`main.py`) providing backward compatibility and organized features under `src/ast_grep_mcp/` (core, models, utils, features, server).
 
-**27 Tools (100% Registered):** Code search (4), Code rewrite (3), Refactoring Assistants (2), Deduplication (4), Schema.org (8), Complexity (3), Code Quality (3)
+**30 Tools (100% Registered):** Code search (4), Code rewrite (3), Refactoring Assistants (2), Deduplication (4), Schema.org (8), Complexity (3), Code Quality (6)
 
 **Dependencies:** ast-grep CLI (required), Doppler CLI (optional for secrets), Python 3.13+, uv package manager
 
@@ -111,12 +111,23 @@ Analyze cyclomatic complexity, cognitive complexity, nesting depth, and function
 - `create_linting_rule` - Create custom linting rules (24+ templates)
 - `list_rule_templates` - Browse rule templates
 - `enforce_standards` - Execute linting rules with parallel processing
+- `apply_standards_fixes` - Auto-fix violations with safety classification
+- `generate_quality_report` - Generate Markdown/JSON quality reports
+- `detect_security_issues` - Scan for security vulnerabilities
 
 **Built-in Rule Sets:**
 - **recommended** (10): General best practices
 - **security** (9): Security vulnerabilities
 - **performance** (1): Performance anti-patterns
 - **style** (9): Code style consistency
+
+**Security Scanner:**
+- SQL injection (f-strings, .format(), concatenation)
+- XSS (innerHTML, document.write)
+- Command injection (os.system, subprocess with shell=True, eval/exec)
+- Hardcoded secrets (API keys, tokens, passwords)
+- Insecure cryptography (MD5, SHA-1)
+- CWE IDs and confidence scoring
 
 **Storage:** `.ast-grep-rules/{rule-id}.yml`
 
@@ -235,6 +246,90 @@ python scripts/run_benchmarks.py --check-regression
 ```
 
 ## Recent Updates
+
+### 2025-11-27: Security Vulnerability Scanner (Phase 3)
+
+**New MCP tool:**
+- **`detect_security_issues`** - Comprehensive security vulnerability scanning
+
+**Vulnerability Detection:**
+- **SQL Injection**: f-strings, .format(), string concatenation in SQL queries
+- **XSS**: innerHTML assignment, document.write with user input
+- **Command Injection**: os.system, subprocess with shell=True, eval/exec
+- **Hardcoded Secrets**: API keys, tokens, passwords (regex-based detection)
+- **Insecure Cryptography**: MD5, SHA-1 usage
+
+**Features:**
+- CWE (Common Weakness Enumeration) IDs for each issue type
+- Confidence scoring (0.0-1.0) for vulnerability detection
+- Severity levels: critical, high, medium, low
+- ast-grep pattern-based detection for code structure
+- Regex-based detection for secrets
+- Language support: Python, JavaScript, TypeScript, Java
+
+**Components:** 1 new module (~650 lines) in `src/ast_grep_mcp/features/quality/`
+- `security_scanner.py` - Vulnerability detection engine
+
+**Usage:**
+```python
+# Scan for all security issues
+result = detect_security_issues(
+    project_folder="/path/to/project",
+    language="python",
+    issue_types=["all"],
+    severity_threshold="medium"
+)
+
+# Scan for specific vulnerability types
+result = detect_security_issues(
+    project_folder="/path/to/project",
+    language="javascript",
+    issue_types=["sql_injection", "xss", "hardcoded_secrets"],
+    severity_threshold="critical",
+    max_issues=50
+)
+```
+
+### 2025-11-27: Code Quality Auto-Fix & Reporting (Phases 4-5)
+
+**New MCP tools:**
+1. **`apply_standards_fixes`** - Automatically fix code quality violations with safety checks
+   - Safe fix classification (confidence 0.6-1.0)
+   - Pattern-based fixes with metavariable substitution
+   - Batch operations with automatic backup/rollback
+   - Dry-run preview mode
+   - Syntax validation (Python/JS/TS/Java)
+
+2. **`generate_quality_report`** - Generate comprehensive quality reports
+   - Markdown format (human-readable with tables)
+   - JSON format (machine-readable structured data)
+   - Top issues and problematic files
+   - Auto-fix suggestions and recommendations
+
+**Components:** 2 new modules (~945 lines) in `src/ast_grep_mcp/features/quality/`
+- `fixer.py` - Auto-fix engine with safety classification
+- `reporter.py` - Report generation (Markdown/JSON)
+
+**Complete Workflow:**
+```python
+# 1. Find violations
+result = enforce_standards(project_folder="/path", language="python")
+
+# 2. Auto-fix safe violations
+fixed = apply_standards_fixes(
+    violations=result["violations"],
+    language="python",
+    fix_types=["safe"],
+    dry_run=False
+)
+
+# 3. Generate report
+report = generate_quality_report(
+    enforcement_result=result,
+    output_format="markdown",
+    save_to_file="quality-report.md"
+)
+```
 
 ### 2025-11-26: Refactoring Assistants (Phases 1-2)
 
