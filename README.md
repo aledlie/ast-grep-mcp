@@ -50,14 +50,14 @@ A powerful Model Context Protocol (MCP) server providing structural code search,
 
 ## Architecture
 
-**Modular design** with 52 modules organized for clarity and maintainability:
+**Modular design** with 57 modules organized for clarity and maintainability:
 
 ```
 src/ast_grep_mcp/
 ├── core/           # Core infrastructure (config, cache, executor, logging)
 ├── models/         # Data models (refactoring, deduplication, complexity, standards)
 ├── utils/          # Utilities (templates, formatters, text processing)
-├── features/       # Feature modules (33 modules)
+├── features/       # Feature modules (38 modules)
 │   ├── search/         # Code search
 │   ├── rewrite/        # Code transformation
 │   ├── refactoring/    # Refactoring assistants (extract_function, rename_symbol)
@@ -329,7 +329,7 @@ See [docs/SENTRY-INTEGRATION.md](docs/SENTRY-INTEGRATION.md) for details.
 ### Running Tests
 
 ```bash
-# All tests (1,150+)
+# All tests (1,586)
 uv run pytest
 
 # Specific test file
@@ -533,11 +533,11 @@ See [dev/active/refactoring-assistants/](dev/active/refactoring-assistants/) for
 
 **Major refactoring** - Migrated from monolithic architecture to modular design.
 
-- ✅ 99.2% code reduction in main.py (19,477 → 152 lines)
-- ✅ 46 new modules created
+- ✅ Modular architecture migration complete
+- ✅ 50 new modules created
 - ✅ Zero breaking changes (backward compatibility maintained)
 - ✅ All 25 MCP tools working (100% registered)
-- ✅ 1,150+ tests passing
+- ✅ 1,586 tests passing
 
 See [docs/MIGRATION-FROM-MONOLITH.md](docs/MIGRATION-FROM-MONOLITH.md) for details.
 

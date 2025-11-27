@@ -11,6 +11,10 @@ COMPLETED
             ├─ Phase 1: Complexity Analysis Engine
             ├─ Phase 2: Code Smell Detection
             └─ Phase 3: Dependency Analysis
+[##########] refactoring-assistants         (2 phases complete - 2025-11-26)
+            ├─ Phase 1: Extract Function Engine ✓ (11/11 tests)
+            ├─ Phase 2: Symbol Renaming ✓ (31/31 tests)
+            └─ Merged to main - 2 new MCP tools (extract_function, rename_symbol)
 
 IN PROGRESS
 ===========
@@ -27,7 +31,6 @@ IN PROGRESS
 
 PLANNING PHASE
 ==============
-[####------] refactoring-assistants         (High)
 [###-------] documentation-generation       (Medium)
 [###-------] cross-language-operations      (Medium)
 

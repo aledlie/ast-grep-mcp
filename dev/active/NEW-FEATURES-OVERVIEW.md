@@ -1,8 +1,8 @@
 # ast-grep-mcp New Features - Overview
 
-**Last Updated:** 2025-11-18
-**Status:** Planning Complete
-**Next Step:** Prioritize and begin implementation
+**Last Updated:** 2025-11-26
+**Status:** 3/6 Features Completed, 1/6 In Progress (50% complete)
+**Next Step:** Continue with code-quality-standards (Phase 3+)
 
 ---
 
@@ -11,18 +11,20 @@
 This document provides a high-level overview of 6 major feature areas planned for the ast-grep-mcp server. All detailed plans have been created and are ready for implementation.
 
 **Total Planning Documents:** 6 comprehensive strategic plans
-**Total Estimated Effort:** 31-43 weeks (7-10 months for one developer)
-**Recommended Approach:** Prioritize and implement incrementally
+**Completed Features:** 3/6 (Enhanced Deduplication, Refactoring Assistants, Code Analysis & Metrics)
+**In Progress:** Code Quality & Standards (Phases 1-2 complete)
+**Total Estimated Effort:** 31-43 weeks (10-12 weeks completed)
+**Recommended Approach:** Continue with Code Quality Phase 3+, then Documentation Generation
 
 ---
 
 ## Feature Areas Overview
 
-### 1. Enhanced Duplication Detection ⭐ **HIGHEST PRIORITY**
+### 1. Enhanced Duplication Detection ✅ **COMPLETED**
 
-**Location:** `dev/active/enhanced-duplication-detection/`
-**Status:** Planning complete, ready to start
-**Effort:** 4-6 weeks
+**Location:** `dev/archive/enhanced-duplication-detection/`
+**Status:** ✅ Completed (6 phases, 2025-11-23)
+**Effort:** 4-6 weeks (actual)
 **Risk:** Medium
 **Impact:** High
 
@@ -58,10 +60,11 @@ apply_deduplication(group_id=1, refactoring_plan=result["suggestions"][0], dry_r
 
 ---
 
-### 2. Refactoring Assistants
+### 2. Refactoring Assistants ✅ **COMPLETED**
 
-**Location:** `dev/active/refactoring-assistants/`
-**Effort:** 6-8 weeks
+**Location:** `dev/archive/refactoring-assistants/`
+**Status:** ✅ Completed (Phases 1-2, 2025-11-26)
+**Effort:** 2-3 weeks (actual - Phases 1-2)
 **Risk:** Medium-High
 **Impact:** High
 
@@ -99,10 +102,11 @@ extract_function(
 
 ---
 
-### 3. Code Analysis & Metrics
+### 3. Code Analysis & Metrics ✅ **COMPLETED**
 
-**Location:** `dev/active/code-analysis-metrics/`
-**Effort:** 5-7 weeks
+**Location:** `dev/archive/code-analysis-metrics/`
+**Status:** ✅ Completed (3 phases, 2025-11-24)
+**Effort:** 3-4 weeks (actual)
 **Risk:** Low-Medium
 **Impact:** Medium-High
 
@@ -180,10 +184,11 @@ generate_docstrings(
 
 ---
 
-### 5. Code Quality & Standards
+### 5. Code Quality & Standards ⏳ **IN PROGRESS**
 
 **Location:** `dev/active/code-quality-standards/`
-**Effort:** 5-7 weeks
+**Status:** ⏳ Phases 1-2 Complete (2025-11-26), Phase 3+ pending
+**Effort:** 5-7 weeks (2-3 weeks completed)
 **Risk:** Medium
 **Impact:** Medium-High
 

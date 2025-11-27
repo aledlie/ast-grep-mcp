@@ -6,7 +6,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 ```bash
 uv sync                          # Install dependencies
-uv run pytest                    # Run all tests (1,541 tests)
+uv run pytest                    # Run all tests (1,586 tests)
 uv run ruff check . && mypy src/  # Lint and type check
 uv run main.py                   # Run MCP server locally
 doppler run -- uv run main.py    # Run with Doppler secrets (production)
@@ -14,9 +14,9 @@ doppler run -- uv run main.py    # Run with Doppler secrets (production)
 
 ## Project Overview
 
-Modular MCP server with 52 modules combining ast-grep structural code search with Schema.org tools, refactoring assistants, enhanced deduplication, and code quality standards.
+Modular MCP server with 57 modules combining ast-grep structural code search with Schema.org tools, refactoring assistants, enhanced deduplication, and code quality standards.
 
-**Architecture:** Clean modular design with 152-line entry point (`main.py`) and organized features under `src/ast_grep_mcp/` (core, models, utils, features, server).
+**Architecture:** Clean modular design with entry point (`main.py`) providing backward compatibility and organized features under `src/ast_grep_mcp/` (core, models, utils, features, server).
 
 **27 Tools (100% Registered):** Code search (4), Code rewrite (3), Refactoring Assistants (2), Deduplication (4), Schema.org (8), Complexity (3), Code Quality (3)
 
@@ -70,7 +70,7 @@ export SENTRY_ENVIRONMENT="production"
 
 ## Testing
 
-**1,541 tests total:** Unit tests (mocked) and integration tests (requires ast-grep binary)
+**1,586 tests total:** Unit tests (mocked) and integration tests (requires ast-grep binary)
 
 **Key test files:**
 - `test_extract_function.py` - Function extraction (11 tests)
@@ -171,7 +171,7 @@ Enhanced duplication detection with intelligent analysis and automated refactori
 
 ## Architecture
 
-**Modular design** with 52 modules organized under `src/ast_grep_mcp/`:
+**Modular design** with 57 modules organized under `src/ast_grep_mcp/`:
 
 ```
 src/ast_grep_mcp/
@@ -182,10 +182,10 @@ src/ast_grep_mcp/
 │   └── refactoring.py, deduplication.py, complexity.py, standards.py
 ├── utils/          # Utilities (4 modules)
 │   └── templates.py, formatters.py, text.py, validation.py
-├── features/       # Feature modules (33 modules)
+├── features/       # Feature modules (38 modules)
 │   ├── search/         # Code search (2 modules)
 │   ├── rewrite/        # Code rewrite (3 modules)
-│   ├── refactoring/    # Refactoring assistants (6 modules)
+│   ├── refactoring/    # Refactoring assistants (5 modules)
 │   ├── schema/         # Schema.org integration (2 modules)
 │   ├── deduplication/  # Deduplication (12 modules)
 │   ├── complexity/     # Complexity analysis (4 modules)
@@ -242,7 +242,7 @@ python scripts/run_benchmarks.py --check-regression
 1. **`extract_function`** - Extract code with parameter/return detection (11/11 tests passing)
 2. **`rename_symbol`** - Scope-aware symbol renaming (21/21 tests passing)
 
-**Components:** 6 modules (~2,069 lines) in `src/ast_grep_mcp/features/refactoring/`
+**Components:** 5 modules (~2,144 lines) in `src/ast_grep_mcp/features/refactoring/`
 
 ### 2025-11-25: Tool Registration Complete
 
@@ -255,10 +255,10 @@ python scripts/run_benchmarks.py --check-regression
 
 ### 2025-11-24: Modular Architecture Refactoring
 
-**Major achievement:** 99.2% code reduction in main.py (19,477 → 152 lines)
+**Major achievement:** Modular architecture migration with 57 modules created
 
 **Results:**
-- 52 modules created under `src/ast_grep_mcp/`
+- 57 modules created under `src/ast_grep_mcp/`
 - 10 phases completed over 13 days
 - Zero breaking changes
 
@@ -292,9 +292,9 @@ python scripts/run_benchmarks.py --check-regression
 ## Repository Structure
 
 ```
-main.py              # Entry point (152 lines)
-src/ast_grep_mcp/    # Modular codebase (52 modules)
-tests/               # 1,541 tests
+main.py              # Entry point with backward compatibility exports
+src/ast_grep_mcp/    # Modular codebase (57 modules)
+tests/               # 1,586 tests
 scripts/             # Standalone tools
 docs/                # Main documentation
 dev/active/          # Feature planning docs
