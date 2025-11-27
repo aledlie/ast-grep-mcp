@@ -56,7 +56,7 @@ from ast_grep_mcp.features.quality.smells import *
 from ast_grep_mcp.features.quality.rules import *
 from ast_grep_mcp.features.quality.validator import *
 from ast_grep_mcp.features.quality.enforcer import *
-from ast_grep_mcp.features.quality.tools import enforce_standards_tool
+from ast_grep_mcp.features.quality.tools import enforce_standards_tool, apply_standards_fixes_tool, generate_quality_report_tool, detect_security_issues_tool
 
 # Backward compatibility: underscore-prefixed aliases for tests
 from ast_grep_mcp.features.quality.enforcer import (

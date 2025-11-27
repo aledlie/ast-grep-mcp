@@ -201,3 +201,135 @@ class RuleExecutionContext:
     max_violations: int
     max_threads: int
     logger: Any  # structlog logger
+
+
+# =============================================================================
+# Auto-Fix Data Models
+# =============================================================================
+
+@dataclass
+class FixResult:
+    """Result of applying a single fix to a violation.
+
+    Attributes:
+        violation: The original violation that was fixed
+        success: Whether the fix was applied successfully
+        file_modified: Whether the file was actually changed
+        original_code: Code before the fix
+        fixed_code: Code after the fix
+        syntax_valid: Whether syntax validation passed after fix
+        error: Error message if fix failed
+        fix_type: Type of fix applied ('safe', 'suggested', 'pattern')
+    """
+    violation: RuleViolation
+    success: bool
+    file_modified: bool
+    original_code: str
+    fixed_code: Optional[str] = None
+    syntax_valid: bool = True
+    error: Optional[str] = None
+    fix_type: str = 'safe'
+
+
+@dataclass
+class FixValidation:
+    """Result of validating a proposed fix.
+
+    Attributes:
+        is_safe: Whether the fix is safe to auto-apply
+        confidence: Confidence score 0.0-1.0
+        warnings: Non-blocking warnings about the fix
+        errors: Blocking errors that prevent auto-fix
+        requires_review: Whether manual review is recommended
+    """
+    is_safe: bool
+    confidence: float  # 0.0 to 1.0
+    warnings: List[str] = field(default_factory=list)
+    errors: List[str] = field(default_factory=list)
+    requires_review: bool = False
+
+
+@dataclass
+class FixBatchResult:
+    """Result of applying multiple fixes.
+
+    Attributes:
+        total_violations: Total number of violations processed
+        fixes_attempted: Number of fixes attempted
+        fixes_successful: Number of fixes applied successfully
+        fixes_failed: Number of fixes that failed
+        files_modified: List of file paths that were modified
+        backup_id: Backup identifier for rollback
+        validation_passed: Whether all fixes passed syntax validation
+        results: Individual fix results
+        execution_time_ms: Total execution time
+    """
+    total_violations: int
+    fixes_attempted: int
+    fixes_successful: int
+    fixes_failed: int
+    files_modified: List[str]
+    backup_id: Optional[str] = None
+    validation_passed: bool = True
+    results: List[FixResult] = field(default_factory=list)
+    execution_time_ms: int = 0
+
+
+# =============================================================================
+# Security Scanner Data Models
+# =============================================================================
+
+@dataclass
+class SecurityIssue:
+    """Represents a detected security vulnerability.
+
+    Attributes:
+        file: Absolute path to file containing the issue
+        line: Line number where issue occurs (1-indexed)
+        column: Column number (1-indexed)
+        end_line: End line of issue range
+        end_column: End column of issue range
+        issue_type: Type of security issue (sql_injection, xss, etc.)
+        severity: Severity level ('critical', 'high', 'medium', 'low')
+        title: Short title of the issue
+        description: Detailed description of the vulnerability
+        code_snippet: Code that contains the vulnerability
+        remediation: How to fix the issue
+        cwe_id: Optional CWE (Common Weakness Enumeration) ID
+        confidence: Confidence score 0.0-1.0 (1.0 = definitely vulnerable)
+        references: Optional list of reference URLs
+    """
+    file: str
+    line: int
+    column: int
+    end_line: int
+    end_column: int
+    issue_type: str
+    severity: str  # 'critical', 'high', 'medium', 'low'
+    title: str
+    description: str
+    code_snippet: str
+    remediation: str
+    cwe_id: Optional[str] = None
+    confidence: float = 1.0
+    references: List[str] = field(default_factory=list)
+
+
+@dataclass
+class SecurityScanResult:
+    """Result from security vulnerability scan.
+
+    Attributes:
+        summary: Summary statistics
+        issues: All security issues found
+        issues_by_severity: Issues grouped by severity
+        issues_by_type: Issues grouped by issue type
+        files_scanned: Number of files scanned
+        execution_time_ms: Total execution time
+    """
+    summary: Dict[str, Any]
+    issues: List[SecurityIssue]
+    issues_by_severity: Dict[str, List[SecurityIssue]]
+    issues_by_type: Dict[str, List[SecurityIssue]]
+    files_scanned: int
+    execution_time_ms: int

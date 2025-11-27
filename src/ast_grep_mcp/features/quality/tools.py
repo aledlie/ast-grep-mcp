@@ -17,9 +17,12 @@ from pydantic import Field
 
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.quality.enforcer import enforce_standards_impl, format_violation_report
+from ast_grep_mcp.features.quality.fixer import apply_fixes_batch, preview_fix
+from ast_grep_mcp.features.quality.reporter import generate_quality_report_impl
 from ast_grep_mcp.features.quality.rules import RULE_TEMPLATES, create_rule_from_template, get_available_templates, save_rule_to_project
+from ast_grep_mcp.features.quality.security_scanner import detect_security_issues_impl
 from ast_grep_mcp.features.quality.validator import validate_rule_definition
-from ast_grep_mcp.models.standards import LintingRule, RuleStorageError, RuleValidationError
+from ast_grep_mcp.models.standards import EnforcementResult, LintingRule, RuleStorageError, RuleValidationError, RuleViolation, SecurityIssue
 
 
 def create_linting_rule_tool(
@@ -442,6 +445,501 @@ def enforce_standards_tool(
         raise
 
 
+def apply_standards_fixes_tool(
+    violations: List[Dict[str, Any]],
+    language: str,
+    fix_types: List[str] | None = None,
+    dry_run: bool = True,
+    create_backup: bool = True
+) -> Dict[str, Any]:
+    """
+    Automatically fix code quality violations detected by enforce_standards.
+
+    This function takes violations from enforce_standards and applies fixes automatically.
+    It supports safe fixes (guaranteed-safe), suggested fixes (may need review), or all fixes.
+
+    **Fix Types:**
+    - `safe`: Only apply guaranteed-safe fixes (e.g., var → const, console.log removal)
+    - `suggested`: Apply fixes that may need review (e.g., exception handling changes)
+    - `all`: Apply all available fixes
+
+    **Safety:**
+    - All fixes are validated with syntax checking
+    - Backup is created automatically (unless disabled)
+    - Dry-run mode previews changes without applying
+    - Failed fixes are rolled back automatically
+
+    Args:
+        violations: List of violations from enforce_standards (each must have 'file', 'line', 'rule_id', etc.)
+        language: Programming language for syntax validation
+        fix_types: Types of fixes to apply ('safe', 'suggested', 'all')
+        dry_run: If True, preview fixes without applying them
+        create_backup: If True, create backup before applying fixes
+
+    Returns:
+        Dictionary with fix results, backup ID, and statistics
+
+    Example usage:
+        # First, find violations
+        result = enforce_standards_tool(project_folder="/path", language="python")
+
+        # Preview fixes (dry run)
+        preview = apply_standards_fixes_tool(
+            violations=result["violations"],
+            language="python",
+            fix_types=["safe"],
+            dry_run=True
+        )
+
+        # Apply safe fixes
+        fixed = apply_standards_fixes_tool(
+            violations=result["violations"],
+            language="python",
+            fix_types=["safe"],
+            dry_run=False,
+            create_backup=True
+        )
+    """
+    # Set defaults
+    if fix_types is None:
+        fix_types = ["safe"]
+
+    logger = get_logger("tool.apply_standards_fixes")
+    start_time = time.time()
+
+    logger.info(
+        "tool_invoked",
+        tool="apply_standards_fixes",
+        violations_count=len(violations),
+        language=language,
+        fix_types=fix_types,
+        dry_run=dry_run,
+        create_backup=create_backup
+    )
+
+    try:
+        # Convert dictionaries to RuleViolation objects
+        violation_objects = []
+        for v_dict in violations:
+            violation = RuleViolation(
+                file=v_dict["file"],
+                line=v_dict["line"],
+                column=v_dict.get("column", 1),
+                end_line=v_dict.get("end_line", v_dict["line"]),
+                end_column=v_dict.get("end_column", 1),
+                severity=v_dict["severity"],
+                rule_id=v_dict["rule_id"],
+                message=v_dict["message"],
+                code_snippet=v_dict["code_snippet"],
+                fix_suggestion=v_dict.get("fix_suggestion"),
+                meta_vars=v_dict.get("meta_vars")
+            )
+            violation_objects.append(violation)
+
+        # Apply fixes
+        result = apply_fixes_batch(
+            violations=violation_objects,
+            language=language,
+            fix_types=fix_types,
+            dry_run=dry_run,
+            create_backup_flag=create_backup
+        )
+
+        execution_time = time.time() - start_time
+
+        logger.info(
+            "tool_completed",
+            tool="apply_standards_fixes",
+            execution_time_seconds=round(execution_time, 3),
+            total_violations=result.total_violations,
+            fixes_attempted=result.fixes_attempted,
+            fixes_successful=result.fixes_successful,
+            fixes_failed=result.fixes_failed,
+            dry_run=dry_run
+        )
+
+        # Format output
+        return {
+            "summary": {
+                "total_violations": result.total_violations,
+                "fixes_attempted": result.fixes_attempted,
+                "fixes_successful": result.fixes_successful,
+                "fixes_failed": result.fixes_failed,
+                "files_modified": len(result.files_modified),
+                "validation_passed": result.validation_passed,
+                "dry_run": dry_run
+            },
+            "backup_id": result.backup_id,
+            "files_modified": result.files_modified,
+            "results": [
+                {
+                    "file": r.violation.file,
+                    "line": r.violation.line,
+                    "rule_id": r.violation.rule_id,
+                    "success": r.success,
+                    "file_modified": r.file_modified,
+                    "original_code": r.original_code,
+                    "fixed_code": r.fixed_code,
+                    "syntax_valid": r.syntax_valid,
+                    "error": r.error,
+                    "fix_type": r.fix_type
+                }
+                for r in result.results
+            ],
+            "execution_time_ms": result.execution_time_ms
+        }
+
+    except Exception as e:
+        execution_time = time.time() - start_time
+        logger.error(
+            "tool_failed",
+            tool="apply_standards_fixes",
+            execution_time_seconds=round(execution_time, 3),
+            error=str(e)[:200]
+        )
+        sentry_sdk.capture_exception(e, extras={
+            "tool": "apply_standards_fixes",
+            "violations_count": len(violations),
+            "language": language,
+            "fix_types": fix_types,
+            "execution_time_seconds": round(execution_time, 3)
+        })
+        raise
+
+
+def generate_quality_report_tool(
+    enforcement_result: Dict[str, Any],
+    project_name: str = "Project",
+    output_format: str = "markdown",
+    include_violations: bool = True,
+    include_code_snippets: bool = False,
+    save_to_file: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Generate a comprehensive code quality report from enforcement results.
+
+    This function creates professional quality reports in Markdown or JSON format,
+    summarizing violations, top issues, and providing actionable recommendations.
+
+    **Output Formats:**
+    - `markdown`: Human-readable report with tables and sections
+    - `json`: Machine-readable structured data
+
+    **Report Sections:**
+    - Summary statistics (violations by severity)
+    - Violations by severity level
+    - Top issues by rule
+    - Files with most violations
+    - Recommendations and auto-fix suggestions
+
+    Args:
+        enforcement_result: Result dictionary from enforce_standards tool
+        project_name: Name of the project for report header
+        output_format: Report format ('markdown' or 'json')
+        include_violations: Whether to include detailed violation listings
+        include_code_snippets: Whether to include code snippets (JSON only)
+        save_to_file: Optional file path to save the report
+
+    Returns:
+        Dictionary with report content and metadata
+
+    Example usage:
+        # Run enforcement
+        result = enforce_standards(project_folder="/path", language="python")
+
+        # Generate Markdown report
+        report = generate_quality_report(
+            enforcement_result=result,
+            project_name="My Project",
+            output_format="markdown",
+            save_to_file="quality-report.md"
+        )
+
+        print(report["content"])
+    """
+    logger = get_logger("tool.generate_quality_report")
+    start_time = time.time()
+
+    logger.info(
+        "tool_invoked",
+        tool="generate_quality_report",
+        project_name=project_name,
+        output_format=output_format,
+        save_to_file=save_to_file
+    )
+
+    try:
+        # Convert dictionary to EnforcementResult
+        # Note: enforcement_result should already have the structure we need
+        # We'll use it directly in generate_quality_report_impl
+
+        # For now, create a simplified approach - pass the dict directly
+        # and let generate_quality_report_impl handle it
+
+        result_obj = _dict_to_enforcement_result(enforcement_result)
+
+        # Generate report
+        report = generate_quality_report_impl(
+            result=result_obj,
+            project_name=project_name,
+            output_format=output_format,
+            include_violations=include_violations,
+            include_code_snippets=include_code_snippets,
+            save_to_file=save_to_file
+        )
+
+        execution_time = time.time() - start_time
+
+        logger.info(
+            "tool_completed",
+            tool="generate_quality_report",
+            execution_time_seconds=round(execution_time, 3),
+            output_format=output_format,
+            saved=save_to_file is not None
+        )
+
+        return report
+
+    except Exception as e:
+        execution_time = time.time() - start_time
+        logger.error(
+            "tool_failed",
+            tool="generate_quality_report",
+            execution_time_seconds=round(execution_time, 3),
+            error=str(e)[:200]
+        )
+        sentry_sdk.capture_exception(e, extras={
+            "tool": "generate_quality_report",
+            "project_name": project_name,
+            "output_format": output_format,
+            "execution_time_seconds": round(execution_time, 3)
+        })
+        raise
+
+
+def _dict_to_enforcement_result(data: Dict[str, Any]) -> EnforcementResult:
+    """Convert enforcement result dictionary to EnforcementResult object.
+
+    Args:
+        data: Dictionary from enforce_standards tool
+
+    Returns:
+        EnforcementResult object
+    """
+    # Convert violations
+    violations = []
+    for v_dict in data.get("violations", []):
+        violation = RuleViolation(
+            file=v_dict["file"],
+            line=v_dict["line"],
+            column=v_dict.get("column", 1),
+            end_line=v_dict.get("end_line", v_dict["line"]),
+            end_column=v_dict.get("end_column", 1),
+            severity=v_dict["severity"],
+            rule_id=v_dict["rule_id"],
+            message=v_dict["message"],
+            code_snippet=v_dict.get("code_snippet", ""),
+            fix_suggestion=v_dict.get("fix_suggestion"),
+            meta_vars=v_dict.get("meta_vars")
+        )
+        violations.append(violation)
+
+    # Group violations
+    violations_by_file: Dict[str, List[RuleViolation]] = {}
+    violations_by_severity: Dict[str, List[RuleViolation]] = {}
+    violations_by_rule: Dict[str, List[RuleViolation]] = {}
+
+    for v in violations:
+        # By file
+        if v.file not in violations_by_file:
+            violations_by_file[v.file] = []
+        violations_by_file[v.file].append(v)
+
+        # By severity
+        if v.severity not in violations_by_severity:
+            violations_by_severity[v.severity] = []
+        violations_by_severity[v.severity].append(v)
+
+        # By rule
+        if v.rule_id not in violations_by_rule:
+            violations_by_rule[v.rule_id] = []
+        violations_by_rule[v.rule_id].append(v)
+
+    return EnforcementResult(
+        summary=data.get("summary", {}),
+        violations=violations,
+        violations_by_file=violations_by_file,
+        violations_by_severity=violations_by_severity,
+        violations_by_rule=violations_by_rule,
+        rules_executed=data.get("rules_executed", []),
+        execution_time_ms=data.get("execution_time_ms", 0),
+        files_scanned=data.get("summary", {}).get("files_scanned", 0)
+    )
+
+
+def detect_security_issues_tool(
+    project_folder: str,
+    language: str,
+    issue_types: List[str] | None = None,
+    severity_threshold: str = "low",
+    max_issues: int = 100
+) -> Dict[str, Any]:
+    """
+    Scan code for security vulnerabilities and common weaknesses.
+
+    This function performs comprehensive security scanning using ast-grep patterns
+    and regex-based detection to identify vulnerabilities like SQL injection, XSS,
+    command injection, hardcoded secrets, and insecure cryptography.
+
+    **Vulnerability Types:**
+    - `sql_injection`: SQL injection via f-strings, .format(), concatenation
+    - `xss`: Cross-site scripting via innerHTML, document.write
+    - `command_injection`: Command injection via os.system, subprocess, eval/exec
+    - `hardcoded_secrets`: API keys, tokens, passwords in source code
+    - `insecure_crypto`: Weak hash algorithms (MD5, SHA-1)
+
+    **Severity Levels:**
+    - `critical`: Immediate security risk requiring urgent fix
+    - `high`: Serious security weakness
+    - `medium`: Moderate security concern
+    - `low`: Minor security issue or code smell
+
+    **CWE References:**
+    Each issue includes CWE (Common Weakness Enumeration) IDs for standardized
+    vulnerability classification.
+
+    Args:
+        project_folder: Absolute path to project root directory
+        language: Programming language (python, javascript, typescript, java)
+        issue_types: Types to scan for, or None for all types
+        severity_threshold: Minimum severity to report (critical/high/medium/low)
+        max_issues: Maximum number of issues to return (0 = unlimited)
+
+    Returns:
+        Dictionary containing security scan results with summary and issues
+
+    Example usage:
+        # Scan for all security issues
+        result = detect_security_issues(
+            project_folder="/path/to/project",
+            language="python",
+            issue_types=["all"],
+            severity_threshold="medium"
+        )
+
+        # Scan for specific vulnerability types
+        result = detect_security_issues(
+            project_folder="/path/to/project",
+            language="javascript",
+            issue_types=["sql_injection", "xss"],
+            severity_threshold="high",
+            max_issues=50
+        )
+
+        print(f"Found {result['summary']['total_issues']} security issues")
+        for issue in result['issues']:
+            print(f"{issue['severity']}: {issue['title']} at {issue['file']}:{issue['line']}")
+    """
+    logger = get_logger("tool.detect_security_issues")
+    start_time = time.time()
+
+    # Default to all types if not specified
+    if issue_types is None:
+        issue_types = ["all"]
+
+    logger.info(
+        "tool_invoked",
+        tool="detect_security_issues",
+        project_folder=project_folder,
+        language=language,
+        issue_types=issue_types,
+        severity_threshold=severity_threshold,
+        max_issues=max_issues
+    )
+
+    try:
+        # Run security scan
+        result = detect_security_issues_impl(
+            project_folder=project_folder,
+            language=language,
+            issue_types=issue_types,
+            severity_threshold=severity_threshold,
+            max_issues=max_issues
+        )
+
+        execution_time = time.time() - start_time
+
+        logger.info(
+            "tool_completed",
+            tool="detect_security_issues",
+            execution_time_seconds=round(execution_time, 3),
+            total_issues=result.summary["total_issues"],
+            critical_count=result.summary["critical_count"],
+            high_count=result.summary["high_count"],
+            files_scanned=result.files_scanned
+        )
+
+        # Convert to JSON-serializable format
+        return {
+            "summary": result.summary,
+            "issues": [
+                {
+                    "file": issue.file,
+                    "line": issue.line,
+                    "column": issue.column,
+                    "end_line": issue.end_line,
+                    "end_column": issue.end_column,
+                    "issue_type": issue.issue_type,
+                    "severity": issue.severity,
+                    "title": issue.title,
+                    "description": issue.description,
+                    "code_snippet": issue.code_snippet,
+                    "remediation": issue.remediation,
+                    "cwe_id": issue.cwe_id,
+                    "confidence": issue.confidence,
+                    "references": issue.references
+                }
+                for issue in result.issues
+            ],
+            "issues_by_severity": {
+                severity: [
+                    {
+                        "file": issue.file,
+                        "line": issue.line,
+                        "title": issue.title,
+                        "issue_type": issue.issue_type,
+                        "cwe_id": issue.cwe_id
+                    }
+                    for issue in issues
+                ]
+                for severity, issues in result.issues_by_severity.items()
+            },
+            "issues_by_type": {
+                issue_type: len(issues)
+                for issue_type, issues in result.issues_by_type.items()
+            },
+            "files_scanned": result.files_scanned,
+            "execution_time_ms": result.execution_time_ms
+        }
+
+    except Exception as e:
+        execution_time = time.time() - start_time
+        logger.error(
+            "tool_failed",
+            tool="detect_security_issues",
+            execution_time_seconds=round(execution_time, 3),
+            error=str(e)[:200]
+        )
+        sentry_sdk.capture_exception(e, extras={
+            "tool": "detect_security_issues",
+            "project_folder": project_folder,
+            "language": language,
+            "issue_types": issue_types,
+            "execution_time_seconds": round(execution_time, 3)
+        })
+        raise
+
+
 def register_quality_tools(mcp: FastMCP) -> None:
     """Register all quality feature tools with MCP server.
 
@@ -541,4 +1039,75 @@ def register_quality_tools(mcp: FastMCP) -> None:
             max_violations=max_violations,
             max_threads=max_threads,
             output_format=output_format
+        )
+
+    @mcp.tool()
+    def apply_standards_fixes(
+        violations: List[Dict[str, Any]] = Field(description="List of violations from enforce_standards to fix"),
+        language: str = Field(description="Programming language for syntax validation"),
+        fix_types: List[str] = Field(
+            default_factory=lambda: ["safe"],
+            description="Types of fixes to apply: 'safe' (guaranteed-safe), 'suggested' (may need review), 'all'"
+        ),
+        dry_run: bool = Field(
+            default=True,
+            description="If True, preview fixes without applying them"
+        ),
+        create_backup: bool = Field(
+            default=True,
+            description="If True, create backup before applying fixes"
+        )
+    ) -> Dict[str, Any]:
+        """Wrapper that calls the standalone apply_standards_fixes_tool function."""
+        return apply_standards_fixes_tool(
+            violations=violations,
+            language=language,
+            fix_types=fix_types,
+            dry_run=dry_run,
+            create_backup=create_backup
+        )
+
+    @mcp.tool()
+    def generate_quality_report(
+        enforcement_result: Dict[str, Any] = Field(description="Result dictionary from enforce_standards tool"),
+        project_name: str = Field(default="Project", description="Name of the project for report header"),
+        output_format: str = Field(default="markdown", description="Report format ('markdown' or 'json')"),
+        include_violations: bool = Field(default=True, description="Whether to include detailed violation listings"),
+        include_code_snippets: bool = Field(default=False, description="Whether to include code snippets (JSON only)"),
+        save_to_file: Optional[str] = Field(default=None, description="Optional file path to save the report")
+    ) -> Dict[str, Any]:
+        """Wrapper that calls the standalone generate_quality_report_tool function."""
+        return generate_quality_report_tool(
+            enforcement_result=enforcement_result,
+            project_name=project_name,
+            output_format=output_format,
+            include_violations=include_violations,
+            include_code_snippets=include_code_snippets,
+            save_to_file=save_to_file
+        )
+
+    @mcp.tool()
+    def detect_security_issues(
+        project_folder: str = Field(description="Absolute path to project root directory"),
+        language: str = Field(description="Programming language (python, javascript, typescript, java)"),
+        issue_types: List[str] | None = Field(
+            default=None,
+            description="Types to scan for: 'sql_injection', 'xss', 'command_injection', 'hardcoded_secrets', 'insecure_crypto', or None for all"
+        ),
+        severity_threshold: str = Field(
+            default="low",
+            description="Minimum severity to report: 'critical', 'high', 'medium', 'low'"
+        ),
+        max_issues: int = Field(
+            default=100,
+            description="Maximum number of issues to return (0 = unlimited)"
+        )
+    ) -> Dict[str, Any]:
+        """Wrapper that calls the standalone detect_security_issues_tool function."""
+        return detect_security_issues_tool(
+            project_folder=project_folder,
+            language=language,
+            issue_types=issue_types,
+            severity_threshold=severity_threshold,
+            max_issues=max_issues
         )

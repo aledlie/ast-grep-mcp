@@ -31,6 +31,9 @@ from ast_grep_mcp.models.deduplication import (
 # Standards models
 from ast_grep_mcp.models.standards import (
     EnforcementResult,
+    FixBatchResult,
+    FixResult,
+    FixValidation,
     LintingRule,
     RuleExecutionContext,
     RuleSet,
@@ -39,6 +42,8 @@ from ast_grep_mcp.models.standards import (
     RuleValidationError,
     RuleValidationResult,
     RuleViolation,
+    SecurityIssue,
+    SecurityScanResult,
 )
 
 __all__ = [
@@ -64,6 +69,9 @@ __all__ = [
     "FunctionComplexity",
     # Standards
     "EnforcementResult",
+    "FixBatchResult",
+    "FixResult",
+    "FixValidation",
     "LintingRule",
     "RuleExecutionContext",
     "RuleSet",
@@ -72,4 +80,6 @@ __all__ = [
     "RuleValidationError",
     "RuleValidationResult",
     "RuleViolation",
+    "SecurityIssue",
+    "SecurityScanResult",
 ]
