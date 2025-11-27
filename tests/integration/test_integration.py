@@ -36,7 +36,10 @@ class MockFastMCP:
 
 
 # Mock the Field function to return the default value
-def mock_field(**kwargs: Any) -> Any:
+def mock_field(*args: Any, **kwargs: Any) -> Any:
+    """Mock pydantic.Field that accepts positional and keyword arguments."""
+    if args:
+        return args[0]
     return kwargs.get("default")
 
 
