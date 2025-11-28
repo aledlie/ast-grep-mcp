@@ -3,6 +3,7 @@
 This module showcases how to use the new fixtures added to conftest.py,
 serving as both tests and documentation.
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import pytest
 from pathlib import Path
@@ -57,7 +58,7 @@ class TestProjectFixtures:
         content = Path(paths["sample_py"]).read_text()
 
         assert "def hello():" in content
-        assert "print('hello')" in content
+        assert "console.log('hello')" in content
 
     def test_duplicate_files_similar(self, temp_project_with_files):
         """Test duplicate files have similar structure."""

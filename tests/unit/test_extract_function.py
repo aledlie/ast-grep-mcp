@@ -10,6 +10,7 @@ from ast_grep_mcp.features.refactoring.analyzer import CodeSelectionAnalyzer
 from ast_grep_mcp.features.refactoring.extractor import FunctionExtractor
 from ast_grep_mcp.features.refactoring.tools import extract_function_tool
 from ast_grep_mcp.models.refactoring import VariableType
+from ast_grep_mcp.utils.console_logger import console
 
 
 class TestCodeSelectionAnalyzer:
@@ -17,6 +18,7 @@ class TestCodeSelectionAnalyzer:
 
     def test_analyze_python_simple_selection(self, tmp_path):
         """Test analyzing a simple Python code selection."""
+
         # Create test file
         test_file = tmp_path / "test.py"
         test_file.write_text("""
@@ -237,7 +239,7 @@ def calculate_total(items):
         test_file.write_text("""
 def process():
     x = 5
-    print(x)
+    console.log(x)
     log_info("Processing")
 """)
 

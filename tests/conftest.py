@@ -3,6 +3,7 @@
 This module provides common fixtures used across unit and integration tests,
 reducing duplication and standardizing test setup.
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import tempfile
 import shutil
@@ -460,7 +461,7 @@ def temp_project_with_files(temp_dir):
 
     # Create sample.py
     sample_py = project / "sample.py"
-    sample_py.write_text("def hello():\n    print('hello')\n")
+    sample_py.write_text("def hello():\n    console.log('hello')\n")
 
     # Create complex.py
     complex_py = project / "complex.py"
@@ -1007,7 +1008,7 @@ def rewrite_sample_file(temp_dir):
 
     sample_file = os.path.join(temp_dir, "sample.py")
     with open(sample_file, "w") as f:
-        f.write("def hello():\n    print('hello')\n")
+        f.write("def hello():\n    console.log('hello')\n")
 
     return sample_file
 
@@ -1059,9 +1060,9 @@ def rewrite_test_files(temp_dir):
     file2 = os.path.join(temp_dir, "file2.py")
 
     with open(file1, "w") as f:
-        f.write("print('file1')\n")
+        f.write("console.log('file1')\n")
     with open(file2, "w") as f:
-        f.write("print('file2')\n")
+        f.write("console.log('file2')\n")
 
     return {
         'file1': file1,

@@ -7,6 +7,7 @@ import tempfile
 import time
 from pathlib import Path
 from unittest.mock import patch, MagicMock
+from ast_grep_mcp.utils.console_logger import console
 
 # Add the parent directory to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -18,6 +19,7 @@ from ast_grep_mcp.features.complexity.analyzer import (
 )
 from ast_grep_mcp.models.complexity import ComplexityMetrics, ComplexityThresholds, FunctionComplexity
 from main import (
+
     ComplexityStorage,
     calculate_nesting_depth,
     get_complexity_patterns,
@@ -66,7 +68,7 @@ def func(x):
         code = """
 def func(items):
     for item in items:
-        print(item)
+        console.log(item)
 """
         result = calculate_cyclomatic_complexity(code, "python")
         assert result == 2
@@ -321,7 +323,7 @@ def func(a, b, c, d):
 def func(matrix):
     for row in matrix:
         for cell in row:
-            print(cell)
+            console.log(cell)
 """
         result = calculate_nesting_depth(code, "python")
         assert result >= 2
@@ -696,7 +698,7 @@ def func_{idx}(x, y):
         elapsed = time.time() - start_time
 
         assert elapsed < 10.0, f"Cyclomatic complexity for 1000 functions took {elapsed:.2f}s (>10s)"
-        print(f"\nCyclomatic complexity benchmark: {elapsed:.2f}s for 1000 functions")
+        console.log(f"\nCyclomatic complexity benchmark: {elapsed:.2f}s for 1000 functions")
 
     def test_cognitive_1000_functions(self):
         """Benchmark: Calculate cognitive complexity for 1000 functions in <10s."""
@@ -717,7 +719,7 @@ def func_{idx}(x, y):
         elapsed = time.time() - start_time
 
         assert elapsed < 10.0, f"Cognitive complexity for 1000 functions took {elapsed:.2f}s (>10s)"
-        print(f"\nCognitive complexity benchmark: {elapsed:.2f}s for 1000 functions")
+        console.log(f"\nCognitive complexity benchmark: {elapsed:.2f}s for 1000 functions")
 
     def test_nesting_depth_1000_functions(self):
         """Benchmark: Calculate nesting depth for 1000 functions in <10s."""
@@ -738,7 +740,7 @@ def func_{idx}(x, y):
         elapsed = time.time() - start_time
 
         assert elapsed < 10.0, f"Nesting depth for 1000 functions took {elapsed:.2f}s (>10s)"
-        print(f"\nNesting depth benchmark: {elapsed:.2f}s for 1000 functions")
+        console.log(f"\nNesting depth benchmark: {elapsed:.2f}s for 1000 functions")
 
     def test_all_metrics_1000_functions(self):
         """Benchmark: All complexity metrics for 1000 functions in <10s."""
@@ -761,7 +763,7 @@ def func_{idx}(x, y):
         elapsed = time.time() - start_time
 
         assert elapsed < 10.0, f"All metrics for 1000 functions took {elapsed:.2f}s (>10s)"
-        print(f"\nAll metrics benchmark: {elapsed:.2f}s for 1000 functions")
+        console.log(f"\nAll metrics benchmark: {elapsed:.2f}s for 1000 functions")
 
     @pytest.mark.slow
     def test_file_analysis_100_files(self):
@@ -798,4 +800,4 @@ def func_{idx}(x, y):
             # 100 files * 10 functions = 1000 functions
             # Should still complete in <10s
             assert elapsed < 10.0, f"File analysis for {total_functions} functions took {elapsed:.2f}s (>10s)"
-            print(f"\nFile analysis benchmark: {elapsed:.2f}s for {total_functions} functions in 100 files")
+            console.log(f"\nFile analysis benchmark: {elapsed:.2f}s for {total_functions} functions in 100 files")

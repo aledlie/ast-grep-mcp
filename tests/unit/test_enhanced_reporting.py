@@ -6,6 +6,7 @@ Tests for:
 - visualize_complexity
 - create_enhanced_duplication_response
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import pytest
 import sys

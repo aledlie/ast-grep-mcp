@@ -17,6 +17,7 @@ Usage:
     # Update baseline
     pytest tests/test_benchmark.py -v --benchmark-save=baseline
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import json
 import os
@@ -417,11 +418,11 @@ rule:
 
         # Log the speedup for informational purposes
         if speedup >= 2.0:
-            print(f"Cache speedup: {speedup:.1f}x (excellent)")
+            console.log(f"Cache speedup: {speedup:.1f}x (excellent)")
         elif speedup >= 1.0:
-            print(f"Cache speedup: {speedup:.1f}x (good)")
+            console.log(f"Cache speedup: {speedup:.1f}x (good)")
         else:
-            print(f"Cache overhead: {1/speedup:.1f}x (acceptable for small fixtures)")
+            console.log(f"Cache overhead: {1/speedup:.1f}x (acceptable for small fixtures)")
 
     def test_generate_benchmark_report(
         self,

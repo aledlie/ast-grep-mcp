@@ -7,6 +7,7 @@ This file consolidates tests from:
 
 Focus: Variation analysis, parameter extraction, complexity scoring
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import os
 import sys

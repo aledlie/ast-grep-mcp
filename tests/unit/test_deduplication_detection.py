@@ -7,6 +7,7 @@ This file consolidates tests from:
 
 Focus: Detection, grouping, AST diff, alignment
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import os
 import sys
@@ -60,7 +61,7 @@ def process_data(data):
         code = """
 def hello():
     # This is a comment
-    print("Hello, World!")
+    console.log("Hello, World!")
 """
         normalized = normalize_code(code, "python")
         assert "def hello()" in normalized

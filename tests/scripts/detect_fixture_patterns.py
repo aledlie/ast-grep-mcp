@@ -14,6 +14,7 @@ Usage:
     python tests/scripts/detect_fixture_patterns.py --detailed
     python tests/scripts/detect_fixture_patterns.py --json
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import argparse
 import ast
@@ -433,9 +434,9 @@ def main():
     # Output
     if args.json:
         output = [asdict(p) for p in patterns]
-        print(json.dumps(output, indent=2))
+        console.json(output)
     else:
-        print(format_pattern_report(patterns, detailed=args.detailed))
+        console.log(format_pattern_report(patterns, detailed=args.detailed))
 
     return 0
 

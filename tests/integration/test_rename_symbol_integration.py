@@ -3,6 +3,7 @@
 These tests verify that the rename_symbol feature works correctly with
 the actual ast-grep binary, not mocked subprocess calls.
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import os
 import pytest
@@ -58,7 +59,7 @@ from utils import calculate
 
 def main():
     result = calculate(5)
-    print(result)
+    console.log(result)
 
 if __name__ == "__main__":
     main()

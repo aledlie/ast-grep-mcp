@@ -13,6 +13,7 @@ Usage:
     python tests/scripts/score_test_file.py --all
     python tests/scripts/score_test_file.py --all --json > scores.json
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import argparse
 import ast
@@ -483,56 +484,56 @@ def main():
 
         if args.json:
             output = [asdict(s) for s in scores]
-            print(json.dumps(output, indent=2))
+            console.json(output)
         else:
-            print(format_score_table(scores))
+            console.log(format_score_table(scores))
 
             if args.detailed:
-                print("\n\nDETAILED METRICS:")
-                print("=" * 120)
+                console.log("\n\nDETAILED METRICS:")
+                console.log("=" * 120)
                 for score in sorted(scores, key=lambda s: s.total_score, reverse=True):
                     if score.total_score >= 55:  # Only show medium+ priority
-                        print(f"\n{Path(score.file_path).name} (Score: {score.total_score:.1f})")
+                        console.log(f"\n{Path(score.file_path).name} (Score: {score.total_score:.1f})")
                         m = score.metrics
-                        print(f"  Tests: {m.test_count}, Classes: {m.class_count}")
-                        print(f"  Setup lines: {m.setup_lines}, Teardown lines: {m.teardown_lines}")
-                        print(f"  Self attributes: {m.self_attribute_count}")
-                        print(f"  Duplication: {m.duplication_score:.1f}/10, Complexity: {m.complexity_score:.1f}/10")
-                        print(f"  Temp dirs: {m.temp_dir_usage}, Mocks: {m.mock_usage}, Fixtures: {m.fixture_usage}")
+                        console.log(f"  Tests: {m.test_count}, Classes: {m.class_count}")
+                        console.log(f"  Setup lines: {m.setup_lines}, Teardown lines: {m.teardown_lines}")
+                        console.log(f"  Self attributes: {m.self_attribute_count}")
+                        console.log(f"  Duplication: {m.duplication_score:.1f}/10, Complexity: {m.complexity_score:.1f}/10")
+                        console.log(f"  Temp dirs: {m.temp_dir_usage}, Mocks: {m.mock_usage}, Fixtures: {m.fixture_usage}")
     else:
         # Score single file
         file_path = Path(args.file)
         if not file_path.exists():
-            print(f"Error: File not found: {file_path}")
+            console.error(f"Error: File not found: {file_path}")
             return 1
 
         score = analyze_test_file(file_path)
 
         if args.json:
-            print(json.dumps(asdict(score), indent=2))
+            console.json(asdict(score))
         else:
-            print(f"\nFile: {score.file_path}")
-            print(f"Total Score: {score.total_score:.1f}/100")
-            print(f"  Pain Points: {score.pain_points:.1f}/40")
-            print(f"  Opportunity: {score.opportunity:.1f}/35")
-            print(f"  Risk: {score.risk:.1f}/15")
-            print(f"  Alignment: {score.alignment:.1f}/10")
-            print(f"\nRecommendation: {score.recommendation}")
+            console.log(f"\nFile: {score.file_path}")
+            console.log(f"Total Score: {score.total_score:.1f}/100")
+            console.log(f"  Pain Points: {score.pain_points:.1f}/40")
+            console.log(f"  Opportunity: {score.opportunity:.1f}/35")
+            console.log(f"  Risk: {score.risk:.1f}/15")
+            console.log(f"  Alignment: {score.alignment:.1f}/10")
+            console.log(f"\nRecommendation: {score.recommendation}")
 
             if args.detailed:
                 m = score.metrics
-                print(f"\nDetailed Metrics:")
-                print(f"  Total lines: {m.total_lines}")
-                print(f"  Test count: {m.test_count}")
-                print(f"  Class count: {m.class_count}")
-                print(f"  Setup methods: {m.setup_method_count} ({m.setup_lines} lines)")
-                print(f"  Teardown methods: {m.teardown_method_count} ({m.teardown_lines} lines)")
-                print(f"  Self attributes: {m.self_attribute_count}")
-                print(f"  Temp dir usage: {m.temp_dir_usage}")
-                print(f"  Mock usage: {m.mock_usage}")
-                print(f"  Fixture usage: {m.fixture_usage}")
-                print(f"  Duplication score: {m.duplication_score:.1f}/10")
-                print(f"  Complexity score: {m.complexity_score:.1f}/10")
+                console.log(f"\nDetailed Metrics:")
+                console.log(f"  Total lines: {m.total_lines}")
+                console.log(f"  Test count: {m.test_count}")
+                console.log(f"  Class count: {m.class_count}")
+                console.log(f"  Setup methods: {m.setup_method_count} ({m.setup_lines} lines)")
+                console.log(f"  Teardown methods: {m.teardown_method_count} ({m.teardown_lines} lines)")
+                console.log(f"  Self attributes: {m.self_attribute_count}")
+                console.log(f"  Temp dir usage: {m.temp_dir_usage}")
+                console.log(f"  Mock usage: {m.mock_usage}")
+                console.log(f"  Fixture usage: {m.fixture_usage}")
+                console.log(f"  Duplication score: {m.duplication_score:.1f}/10")
+                console.log(f"  Complexity score: {m.complexity_score:.1f}/10")
 
     return 0
 

@@ -14,6 +14,7 @@ Usage:
     python tests/scripts/benchmark_fixtures.py --fixture temp_dir
     python tests/scripts/benchmark_fixtures.py --json
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import argparse
 import json
@@ -111,7 +112,7 @@ def test_fixture_overhead_3(timing_wrapper):
             )
 
         except Exception as e:
-            print(f"Error benchmarking {fixture_name}: {e}")
+            console.log(f"Error benchmarking {fixture_name}: {e}")
             return None
         finally:
             # Cleanup
@@ -158,11 +159,11 @@ def test_fixture_overhead_3(timing_wrapper):
                 if not func_name.startswith("_"):
                     fixture_names.append(func_name)
 
-        print(f"Found {len(fixture_names)} fixtures to benchmark...")
+        console.log(f"Found {len(fixture_names)} fixtures to benchmark...")
 
         benchmarks = []
         for i, fixture_name in enumerate(fixture_names, 1):
-            print(f"[{i}/{len(fixture_names)}] Benchmarking {fixture_name}...")
+            console.log(f"[{i}/{len(fixture_names)}] Benchmarking {fixture_name}...")
             result = self.benchmark_fixture(fixture_name, iterations=3)
             if result:
                 benchmarks.append(result)
@@ -251,13 +252,13 @@ def main():
 
     if args.fixture:
         # Benchmark single fixture
-        print(f"Benchmarking {args.fixture}...")
+        console.log(f"Benchmarking {args.fixture}...")
         result = benchmarker.benchmark_fixture(args.fixture, iterations=args.iterations)
 
         if result:
             benchmarks = [result]
         else:
-            print(f"Failed to benchmark {args.fixture}")
+            console.error(f"Failed to benchmark {args.fixture}")
             return 1
     else:
         # Benchmark all fixtures
@@ -266,13 +267,13 @@ def main():
     # Output
     if args.json:
         output = [asdict(b) for b in benchmarks]
-        print(json.dumps(output, indent=2))
+        console.json(output)
     else:
-        print(format_benchmark_report(benchmarks, detailed=args.detailed))
+        console.log(format_benchmark_report(benchmarks, detailed=args.detailed))
 
     # Exit with error if any fixture is slow
     if any(not b.passes_threshold for b in benchmarks):
-        print("\n⚠ Warning: Some fixtures exceed 100ms overhead threshold")
+        console.warning("\n⚠ Warning: Some fixtures exceed 100ms overhead threshold")
         return 1
 
     return 0

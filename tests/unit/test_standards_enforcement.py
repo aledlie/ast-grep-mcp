@@ -3,6 +3,7 @@
 Migrated to pytest fixtures on 2025-11-26.
 Fixtures used: mcp_main (module-scoped), enforce_standards_tool (module-scoped)
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import tempfile
 import threading

@@ -9,6 +9,7 @@ Tests cover:
 - Rollback functionality
 - Error handling
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import json
 import os
@@ -138,7 +139,7 @@ class TestBackupIntegration:
 
     def test_backup_created_on_apply(self, project_folder, backup_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that backup is created when applying changes."""
-        new_content = "def func1():\n    print('modified')\n"
+        new_content = "def func1():\n    console.log('modified')\n"
         plan = refactoring_plan_factory(
             files=[backup_test_files["file1"]],
             new_contents=[new_content]
@@ -166,7 +167,7 @@ class TestBackupIntegration:
 
     def test_backup_metadata_contains_deduplication_info(self, project_folder, backup_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that backup metadata includes deduplication-specific info."""
-        new_content = "def func1():\n    print('modified')\n"
+        new_content = "def func1():\n    console.log('modified')\n"
         plan = refactoring_plan_factory(
             files=[backup_test_files["file1"]],
             new_contents=[new_content]
@@ -196,7 +197,7 @@ class TestBackupIntegration:
 
     def test_backup_preserves_original_files(self, project_folder, backup_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that backup contains the original file content."""
-        new_content = "def func1():\n    print('modified')\n"
+        new_content = "def func1():\n    console.log('modified')\n"
         plan = refactoring_plan_factory(
             files=[backup_test_files["file1"]],
             new_contents=[new_content]
@@ -223,7 +224,7 @@ class TestBackupIntegration:
 
     def test_rollback_restores_original_content(self, project_folder, backup_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that rollback restores original file content."""
-        new_content = "def func1():\n    print('modified')\n"
+        new_content = "def func1():\n    console.log('modified')\n"
         plan = refactoring_plan_factory(
             files=[backup_test_files["file1"]],
             new_contents=[new_content]
@@ -289,7 +290,7 @@ class TestBackupIntegration:
 
     def test_no_backup_when_backup_false(self, project_folder, backup_test_files, apply_deduplication_tool, refactoring_plan_factory) -> None:
         """Test that no backup is created when backup=False."""
-        new_content = "def func1():\n    print('modified')\n"
+        new_content = "def func1():\n    console.log('modified')\n"
         plan = refactoring_plan_factory(
             files=[backup_test_files["file1"]],
             new_contents=[new_content]

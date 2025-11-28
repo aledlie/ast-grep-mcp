@@ -1,8 +1,9 @@
 from typing import Any
+from ast_grep_mcp.utils.console_logger import console
 
 
 def hello() -> None:
-    print("Hello, World!")
+    console.log("Hello, World!")
 
 
 def add(a: Any, b: Any) -> Any:

@@ -14,6 +14,7 @@ Usage:
     python tests/scripts/track_fixture_metrics.py --history
     python tests/scripts/track_fixture_metrics.py --json
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import argparse
 import ast
@@ -364,16 +365,16 @@ def main():
 
     # Output
     if args.json:
-        print(json.dumps(asdict(metrics), indent=2))
+        console.json(asdict(metrics))
     elif args.history:
         if history_file.exists():
             with open(history_file) as f:
                 history = json.load(f)
-            print(format_history_report(history))
+            console.log(format_history_report(history))
         else:
-            print("No historical data available. Run with --save to start tracking.")
+            console.log("No historical data available. Run with --save to start tracking.")
     else:
-        print(format_metrics_report(metrics, detailed=args.detailed))
+        console.log(format_metrics_report(metrics, detailed=args.detailed))
 
     return 0
 

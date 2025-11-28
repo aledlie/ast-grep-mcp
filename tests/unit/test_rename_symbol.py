@@ -9,11 +9,13 @@ from ast_grep_mcp.features.refactoring.renamer import SymbolRenamer
 from ast_grep_mcp.features.refactoring.rename_coordinator import RenameCoordinator
 from ast_grep_mcp.features.refactoring.tools import rename_symbol_tool
 from ast_grep_mcp.models.refactoring import SymbolReference, ScopeInfo
+from ast_grep_mcp.utils.console_logger import console
 
 
 @pytest.fixture
 def python_renamer():
     """Create a SymbolRenamer for Python."""
+
     return SymbolRenamer("python")
 
 

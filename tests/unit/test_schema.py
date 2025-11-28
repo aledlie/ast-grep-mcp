@@ -3,6 +3,8 @@
 Migrated to pytest fixtures on 2025-11-26.
 Fixtures used: schema_client (function-scoped), reset_schema_client (autouse)
 """
+from ast_grep_mcp.utils.console_logger import console
+
 from unittest.mock import AsyncMock, Mock, patch
 
 import httpx

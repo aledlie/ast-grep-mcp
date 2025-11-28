@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 from unittest.mock import Mock, patch
 
 import pytest
+from ast_grep_mcp.utils.console_logger import console
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))

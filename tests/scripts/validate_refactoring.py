@@ -14,6 +14,7 @@ Usage:
     python tests/scripts/validate_refactoring.py tests/unit/test_cache.py --baseline baseline.json
     python tests/scripts/validate_refactoring.py tests/unit/test_cache.py --performance
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import argparse
 import json
@@ -317,7 +318,7 @@ def main():
     # Validate
     test_file = Path(args.file)
     if not test_file.exists():
-        print(f"Error: File not found: {test_file}")
+        console.error(f"Error: File not found: {test_file}")
         return 1
 
     validator = RefactoringValidator(test_file, baseline)
@@ -337,9 +338,9 @@ def main():
 
     # Output
     if args.json:
-        print(json.dumps(asdict(result), indent=2))
+        console.json(asdict(result))
     else:
-        print(format_result_report(result))
+        console.log(format_result_report(result))
 
     return 0 if result.passed else 1
 

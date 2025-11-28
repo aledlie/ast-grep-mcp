@@ -8,6 +8,7 @@ This module provides reusable fixtures for all unit test modules, including:
 - State management fixtures (reset_cache, reset_schema_client)
 - Mock object factories (mock_popen_factory, mock_httpx_client)
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import os
 from typing import Any, Dict, List
@@ -181,8 +182,8 @@ def simple_test_files(project_folder):
     """
     file1 = project_folder / "sample.py"
     file2 = project_folder / "sample2.py"
-    file1.write_text("def hello():\n    print('hello')\n")
-    file2.write_text("def world():\n    print('world')\n")
+    file1.write_text("def hello():\n    console.log('hello')\n")
+    file2.write_text("def world():\n    console.log('world')\n")
     return {
         "file1": str(file1),
         "file2": str(file2),
