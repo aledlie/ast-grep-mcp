@@ -3,8 +3,9 @@
 This module handles the multi-step process of finding duplicates,
 ranking them, checking test coverage, and generating recommendations.
 """
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from ...core.logging import get_logger
 from .coverage import TestCoverageDetector
@@ -12,17 +13,66 @@ from .detector import DuplicationDetector
 from .ranker import DuplicationRanker
 from .recommendations import RecommendationEngine
 
+# Type alias for progress callback function
+# Signature: (stage_name: str, progress_percent: float) -> None
+ProgressCallback = Callable[[str, float], None]
+
 
 class DeduplicationAnalysisOrchestrator:
     """Orchestrates the complete deduplication candidate analysis workflow."""
 
     def __init__(self) -> None:
-        """Initialize the orchestrator."""
+        """Initialize the orchestrator with lazy component initialization."""
         self.logger = get_logger("deduplication.analysis_orchestrator")
-        self.detector = DuplicationDetector()
-        self.ranker = DuplicationRanker()
-        self.coverage_detector = TestCoverageDetector()
-        self.recommendation_engine = RecommendationEngine()
+        # Components are lazily initialized via properties to reduce initialization overhead
+
+    @property
+    def detector(self) -> DuplicationDetector:
+        """Get or create DuplicationDetector instance (lazy initialization)."""
+        if not hasattr(self, '_detector'):
+            self._detector = DuplicationDetector()
+        return self._detector
+
+    @detector.setter
+    def detector(self, value: DuplicationDetector) -> None:
+        """Set DuplicationDetector instance (for testing/dependency injection)."""
+        self._detector = value
+
+    @property
+    def ranker(self) -> DuplicationRanker:
+        """Get or create DuplicationRanker instance (lazy initialization)."""
+        if not hasattr(self, '_ranker'):
+            self._ranker = DuplicationRanker()
+        return self._ranker
+
+    @ranker.setter
+    def ranker(self, value: DuplicationRanker) -> None:
+        """Set DuplicationRanker instance (for testing/dependency injection)."""
+        self._ranker = value
+
+    @property
+    def coverage_detector(self) -> TestCoverageDetector:
+        """Get or create TestCoverageDetector instance (lazy initialization)."""
+        if not hasattr(self, '_coverage_detector'):
+            self._coverage_detector = TestCoverageDetector()
+        return self._coverage_detector
+
+    @coverage_detector.setter
+    def coverage_detector(self, value: TestCoverageDetector) -> None:
+        """Set TestCoverageDetector instance (for testing/dependency injection)."""
+        self._coverage_detector = value
+
+    @property
+    def recommendation_engine(self) -> RecommendationEngine:
+        """Get or create RecommendationEngine instance (lazy initialization)."""
+        if not hasattr(self, '_recommendation_engine'):
+            self._recommendation_engine = RecommendationEngine()
+        return self._recommendation_engine
+
+    @recommendation_engine.setter
+    def recommendation_engine(self, value: RecommendationEngine) -> None:
+        """Set RecommendationEngine instance (for testing/dependency injection)."""
+        self._recommendation_engine = value
 
     def analyze_candidates(
         self,
@@ -32,7 +82,8 @@ class DeduplicationAnalysisOrchestrator:
         include_test_coverage: bool = True,
         min_lines: int = 5,
         max_candidates: int = 100,
-        exclude_patterns: List[str] | None = None
+        exclude_patterns: List[str] | None = None,
+        progress_callback: Optional[ProgressCallback] = None
     ) -> Dict[str, Any]:
         """Analyze a project for deduplication candidates.
 
@@ -50,10 +101,28 @@ class DeduplicationAnalysisOrchestrator:
             min_lines: Minimum lines to consider
             max_candidates: Maximum candidates to return
             exclude_patterns: Path patterns to exclude
+            progress_callback: Optional callback for progress reporting.
+                Signature: (stage_name: str, progress_percent: float) -> None
+                Example: lambda stage, pct: print(f"[{pct*100:.0f}%] {stage}")
 
         Returns:
             Analysis results with ranked candidates and metadata
+
+        Raises:
+            ValueError: If input parameters are invalid
         """
+        # Validate inputs early (fail-fast)
+        self._validate_analysis_inputs(
+            project_path, language, min_similarity,
+            min_lines, max_candidates
+        )
+
+        # Helper function for progress reporting
+        def report_progress(stage: str, percent: float) -> None:
+            """Report progress if callback is provided."""
+            if progress_callback:
+                progress_callback(stage, percent)
+
         self.logger.info(
             "analysis_start",
             project_path=project_path,
@@ -61,7 +130,8 @@ class DeduplicationAnalysisOrchestrator:
             max_candidates=max_candidates
         )
 
-        # Step 1: Find duplicates
+        # Step 1: Find duplicates (0% -> 25%)
+        report_progress("Finding duplicate code", 0.0)
         duplication_results = self.detector.find_duplication(
             project_folder=project_path,
             construct_type="function_definition",
@@ -70,21 +140,86 @@ class DeduplicationAnalysisOrchestrator:
             exclude_patterns=exclude_patterns or []
         )
 
-        # Step 2: Rank candidates by refactoring value
+        # Step 2: Rank candidates by refactoring value (25% -> 40%)
+        # Pass max_candidates for early exit optimization (avoids unnecessary rank numbering)
+        report_progress("Ranking candidates by value", 0.25)
         ranked_candidates = self.ranker.rank_deduplication_candidates(
-            duplication_results.get("duplicates", [])
+            duplication_results.get("duplicates", []),
+            max_results=max_candidates
         )
 
-        # Step 3-5: Enrich and summarize top candidates
-        return self._enrich_and_summarize(
+        # Step 3-5: Enrich and summarize top candidates (40% -> 100%)
+        report_progress("Enriching candidates", 0.40)
+        result = self._enrich_and_summarize(
             ranked_candidates,
             max_candidates,
             include_test_coverage,
             language,
             project_path,
             min_similarity,
-            min_lines
+            min_lines,
+            progress_callback=report_progress
         )
+
+        # Complete
+        report_progress("Analysis complete", 1.0)
+        return result
+
+    def _validate_analysis_inputs(
+        self,
+        project_path: str,
+        language: str,
+        min_similarity: float,
+        min_lines: int,
+        max_candidates: int
+    ) -> None:
+        """Validate analysis inputs with clear error messages.
+
+        Args:
+            project_path: Project folder path
+            language: Programming language
+            min_similarity: Minimum similarity threshold
+            min_lines: Minimum lines to consider
+            max_candidates: Maximum candidates to return
+
+        Raises:
+            ValueError: If any input parameter is invalid
+        """
+        # Validate project path exists
+        if not os.path.exists(project_path):
+            raise ValueError(f"Project path does not exist: {project_path}")
+
+        if not os.path.isdir(project_path):
+            raise ValueError(f"Project path is not a directory: {project_path}")
+
+        # Validate min_similarity range
+        if not 0.0 <= min_similarity <= 1.0:
+            raise ValueError(
+                f"min_similarity must be between 0.0 and 1.0, got {min_similarity}"
+            )
+
+        # Validate min_lines is positive
+        if min_lines < 1:
+            raise ValueError(
+                f"min_lines must be a positive integer, got {min_lines}"
+            )
+
+        # Validate max_candidates is positive
+        if max_candidates < 1:
+            raise ValueError(
+                f"max_candidates must be a positive integer, got {max_candidates}"
+            )
+
+        # Log warning for unsupported languages (but don't fail)
+        supported_languages = ["python", "javascript", "typescript", "java", "go",
+                               "rust", "cpp", "c", "ruby"]
+        if language.lower() not in supported_languages:
+            self.logger.warning(
+                "unsupported_language",
+                language=language,
+                supported=supported_languages,
+                message=f"Language '{language}' may not be fully supported"
+            )
 
     def _get_top_candidates(
         self,
@@ -138,7 +273,8 @@ class DeduplicationAnalysisOrchestrator:
         language: str,
         project_path: str,
         min_similarity: float,
-        min_lines: int
+        min_lines: int,
+        progress_callback: Optional[Callable[[str, float], None]] = None
     ) -> Dict[str, Any]:
         """Enrich top candidates and generate summary.
 
@@ -150,34 +286,63 @@ class DeduplicationAnalysisOrchestrator:
             project_path: Project folder path
             min_similarity: Minimum similarity threshold
             min_lines: Minimum lines to consider
+            progress_callback: Optional progress reporting callback
 
         Returns:
             Analysis results with enriched candidates and metadata
         """
-        # Get top candidates
+        # Helper for progress reporting
+        def report(stage: str, percent: float) -> None:
+            if progress_callback:
+                progress_callback(stage, percent)
+
+        # Early return for empty candidate list
+        if not ranked_candidates:
+            self.logger.warning("no_candidates_to_enrich")
+            return {
+                "candidates": [],
+                "total_groups_analyzed": 0,
+                "top_candidates_count": 0,
+                "top_candidates_savings_potential": 0,
+                "analysis_metadata": self._build_analysis_metadata(
+                    language,
+                    min_similarity,
+                    min_lines,
+                    include_test_coverage,
+                    project_path
+                )
+            }
+
+        # Get top candidates (40% -> 50%)
+        report("Selecting top candidates", 0.50)
         top_candidates = self._get_top_candidates(ranked_candidates, max_candidates)
 
-        # Step 3: Check test coverage if requested (using optimized batch method)
+        # Step 3: Check test coverage if requested (50% -> 75%)
         if include_test_coverage:
+            report("Checking test coverage", 0.60)
             self._add_test_coverage_batch(top_candidates, language, project_path)
+            report("Test coverage complete", 0.75)
 
-        # Step 4: Generate recommendations
+        # Step 4: Generate recommendations (75% -> 90%)
+        report("Generating recommendations", 0.85)
         self._add_recommendations(top_candidates)
 
-        # Step 5: Calculate summary statistics
-        total_savings = self._calculate_total_savings(top_candidates)
+        # Step 5: Calculate summary statistics (90% -> 95%)
+        report("Calculating statistics", 0.90)
+        top_candidates_savings = self._calculate_total_savings(top_candidates)
 
         self.logger.info(
             "analysis_complete",
-            total_groups=len(ranked_candidates),
-            returned_candidates=len(top_candidates),
-            total_savings_potential=total_savings
+            total_groups_analyzed=len(ranked_candidates),
+            top_candidates_count=len(top_candidates),
+            top_candidates_savings_potential=top_candidates_savings
         )
 
         return {
             "candidates": top_candidates,
-            "total_groups": len(ranked_candidates),
-            "total_savings_potential": total_savings,
+            "total_groups_analyzed": len(ranked_candidates),
+            "top_candidates_count": len(top_candidates),
+            "top_candidates_savings_potential": top_candidates_savings,
             "analysis_metadata": self._build_analysis_metadata(
                 language,
                 min_similarity,
@@ -229,6 +394,100 @@ class DeduplicationAnalysisOrchestrator:
             affected_files=len(candidate.get("files", []))
         )
         candidate["recommendation"] = recommendation
+
+    def _parallel_enrich(
+        self,
+        candidates: List[Dict[str, Any]],
+        enrich_func: Callable[[Dict[str, Any], ...], None],
+        operation_name: str,
+        error_field: str,
+        default_error_value: Any,
+        parallel: bool = True,
+        max_workers: int = 4,
+        **kwargs
+    ) -> List[Dict[str, Any]]:
+        """Generic parallel enrichment helper to reduce code duplication.
+
+        This method consolidates the duplicate ThreadPoolExecutor pattern used
+        in _add_test_coverage and _add_recommendations, improving maintainability
+        and reducing the codebase by ~40 lines.
+
+        Args:
+            candidates: List of candidates to enrich
+            enrich_func: Function to call for each candidate (signature: func(candidate, **kwargs))
+            operation_name: Name of operation for logging (e.g., "test_coverage", "recommendation")
+            error_field: Field name to store error message (e.g., "test_coverage_error")
+            default_error_value: Default value to set on error (e.g., {}, False)
+            parallel: Whether to use parallel execution (default: True)
+            max_workers: Maximum number of threads for parallel execution
+            **kwargs: Additional keyword arguments to pass to enrich_func
+
+        Returns:
+            List of candidates that failed enrichment (for monitoring)
+
+        Example:
+            failed = self._parallel_enrich(
+                candidates,
+                self._enrich_with_test_coverage,
+                "test_coverage",
+                "test_coverage_error",
+                {},
+                language=language,
+                project_path=project_path
+            )
+        """
+        failed_candidates: List[Dict[str, Any]] = []
+
+        if parallel and len(candidates) > 1:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {
+                    executor.submit(enrich_func, candidate, **kwargs): candidate
+                    for candidate in candidates
+                }
+                # Wait for all to complete
+                for future in as_completed(futures):
+                    candidate = futures[future]
+                    try:
+                        future.result()
+                    except Exception as e:
+                        self.logger.error(
+                            f"{operation_name}_enrichment_failed",
+                            candidate_id=candidate.get("id", "unknown"),
+                            error=str(e)
+                        )
+                        # Mark candidate with error state
+                        candidate[error_field] = str(e)
+                        # Set default error value (could be dict, bool, etc.)
+                        if isinstance(default_error_value, dict):
+                            for key, value in default_error_value.items():
+                                candidate[key] = value
+                        failed_candidates.append(candidate)
+        else:
+            for candidate in candidates:
+                try:
+                    enrich_func(candidate, **kwargs)
+                except Exception as e:
+                    self.logger.error(
+                        f"{operation_name}_enrichment_failed",
+                        candidate_id=candidate.get("id", "unknown"),
+                        error=str(e)
+                    )
+                    # Mark candidate with error state
+                    candidate[error_field] = str(e)
+                    # Set default error value
+                    if isinstance(default_error_value, dict):
+                        for key, value in default_error_value.items():
+                            candidate[key] = value
+                    failed_candidates.append(candidate)
+
+        self.logger.info(
+            f"{operation_name}_added",
+            candidate_count=len(candidates),
+            failed_count=len(failed_candidates),
+            parallel=parallel
+        )
+
+        return failed_candidates
 
     def _add_test_coverage_batch(
         self,
@@ -313,7 +572,7 @@ class DeduplicationAnalysisOrchestrator:
         project_path: str,
         parallel: bool = True,
         max_workers: int = 4
-    ) -> None:
+    ) -> List[Dict[str, Any]]:
         """Add test coverage information to candidates (legacy method).
 
         Args:
@@ -323,38 +582,27 @@ class DeduplicationAnalysisOrchestrator:
             parallel: Whether to use parallel execution (default: True)
             max_workers: Maximum number of threads for parallel execution
 
+        Returns:
+            List of candidates that failed enrichment (for monitoring)
+
         Note:
             This is the legacy implementation. Use _add_test_coverage_batch()
-            for better performance (60-80% faster).
+            for better performance (60-80% faster). Now refactored to use
+            _parallel_enrich() to reduce code duplication.
         """
-        if parallel and len(candidates) > 1:
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                futures = {
-                    executor.submit(
-                        self._enrich_with_test_coverage,
-                        candidate,
-                        language,
-                        project_path
-                    ): candidate
-                    for candidate in candidates
-                }
-                # Wait for all to complete
-                for future in as_completed(futures):
-                    try:
-                        future.result()
-                    except Exception as e:
-                        self.logger.error(
-                            "test_coverage_enrichment_failed",
-                            error=str(e)
-                        )
-        else:
-            for candidate in candidates:
-                self._enrich_with_test_coverage(candidate, language, project_path)
-
-        self.logger.debug(
-            "test_coverage_added",
-            candidate_count=len(candidates),
-            parallel=parallel
+        return self._parallel_enrich(
+            candidates=candidates,
+            enrich_func=self._enrich_with_test_coverage,
+            operation_name="test_coverage",
+            error_field="test_coverage_error",
+            default_error_value={
+                "test_coverage": {},
+                "has_tests": False
+            },
+            parallel=parallel,
+            max_workers=max_workers,
+            language=language,
+            project_path=project_path
         )
 
     def _add_recommendations(
@@ -362,40 +610,34 @@ class DeduplicationAnalysisOrchestrator:
         candidates: List[Dict[str, Any]],
         parallel: bool = True,
         max_workers: int = 4
-    ) -> None:
+    ) -> List[Dict[str, Any]]:
         """Add recommendations to candidates.
 
         Args:
             candidates: List of candidates to enrich
             parallel: Whether to use parallel execution (default: True)
             max_workers: Maximum number of threads for parallel execution
-        """
-        if parallel and len(candidates) > 1:
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                futures = {
-                    executor.submit(
-                        self._enrich_with_recommendation,
-                        candidate
-                    ): candidate
-                    for candidate in candidates
-                }
-                # Wait for all to complete
-                for future in as_completed(futures):
-                    try:
-                        future.result()
-                    except Exception as e:
-                        self.logger.error(
-                            "recommendation_enrichment_failed",
-                            error=str(e)
-                        )
-        else:
-            for candidate in candidates:
-                self._enrich_with_recommendation(candidate)
 
-        self.logger.debug(
-            "recommendations_added",
-            candidate_count=len(candidates),
-            parallel=parallel
+        Returns:
+            List of candidates that failed enrichment (for monitoring)
+
+        Note:
+            Now refactored to use _parallel_enrich() to reduce code duplication.
+        """
+        return self._parallel_enrich(
+            candidates=candidates,
+            enrich_func=self._enrich_with_recommendation,
+            operation_name="recommendations",
+            error_field="recommendation_error",
+            default_error_value={
+                "recommendation": {
+                    "action": "error",
+                    "reasoning": "Failed to generate recommendation",
+                    "priority": "low"
+                }
+            },
+            parallel=parallel,
+            max_workers=max_workers
         )
 
     def _calculate_total_savings(
