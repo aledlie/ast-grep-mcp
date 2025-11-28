@@ -84,6 +84,7 @@ class RuleTemplate:
         note: Optional additional explanation
         fix: Optional fix suggestion
         category: Rule category (general, security, performance, style)
+        constraints: Optional additional ast-grep constraints (e.g., kind field)
     """
     id: str
     name: str
@@ -95,6 +96,7 @@ class RuleTemplate:
     note: Optional[str] = None
     fix: Optional[str] = None
     category: str = 'general'
+    constraints: Optional[Dict[str, Any]] = None
 
 
 @dataclass

@@ -87,7 +87,7 @@ def template_to_linting_rule(template: RuleTemplate) -> LintingRule:
         pattern=template.pattern,
         note=template.note,
         fix=template.fix,
-        constraints=None  # Templates don't have constraints by default
+        constraints=template.constraints
     )
 
 

@@ -181,7 +181,8 @@ RULE_TEMPLATES: Dict[str, RuleTemplate] = {
         message='Use specific exception types instead of bare except',
         note='Bare except catches all exceptions including system exits and keyboard interrupts.',
         fix='Replace with except Exception: or specific exception types',
-        category='security'
+        category='security',
+        constraints={'kind': 'except_clause'}
     ),
     'no-mutable-defaults': RuleTemplate(
         id='no-mutable-defaults',
@@ -366,7 +367,7 @@ def create_rule_from_template(
         pattern=overrides.get('pattern', template.pattern),
         note=overrides.get('note', template.note),
         fix=overrides.get('fix', template.fix),
-        constraints=overrides.get('constraints')
+        constraints=overrides.get('constraints', template.constraints)
     )
 
 

@@ -292,11 +292,19 @@ def scan_for_vulnerability(
 
     for pattern_def in patterns:
         try:
+            # Build ast-grep command arguments
+            args = [
+                "-p", pattern_def["pattern"],
+                "-l", language,
+                "--json=stream",
+                project_folder
+            ]
+
             # Execute ast-grep with pattern
             results = stream_ast_grep_results(
-                pattern=pattern_def["pattern"],
-                project_folder=project_folder,
-                language=language
+                "run",
+                args,
+                max_results=0  # No limit
             )
 
             for match in results:

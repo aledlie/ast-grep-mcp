@@ -46,7 +46,7 @@ def find_duplication_tool(
     detector = DuplicationDetector()
     results = detector.find_duplication(
         project_folder=project_folder,
-        language=language,
+        construct_type="function_definition",  # Default to functions
         min_similarity=min_similarity,
         min_lines=min_lines,
         exclude_patterns=exclude_patterns
