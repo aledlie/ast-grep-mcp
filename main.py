@@ -13,6 +13,7 @@ Migration Status (2025-11-24):
   * Refactor initialization (main.register_mcp_tools(), main._query_cache access)
 - Files affected: 20+ test files with 1,150+ total tests
 """
+from ast_grep_mcp.utils.console_logger import console
 
 # Entry point
 from ast_grep_mcp.server.runner import run_mcp_server, mcp as _mcp

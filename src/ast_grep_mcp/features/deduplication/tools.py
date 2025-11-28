@@ -103,72 +103,27 @@ def analyze_deduplication_candidates_tool(
             "venv", "vendor", "__pycache__", ".git"
         ]
 
-    # Step 1: Find duplicates
-    detector = DuplicationDetector()
-    duplication_results = detector.find_duplication(
-        project_folder=project_path,
+    # Delegate to orchestrator
+    orchestrator = DeduplicationAnalysisOrchestrator()
+    result = orchestrator.analyze_candidates(
+        project_path=project_path,
         language=language,
         min_similarity=min_similarity,
+        include_test_coverage=include_test_coverage,
         min_lines=min_lines,
+        max_candidates=max_candidates,
         exclude_patterns=exclude_patterns
-    )
-
-    # Step 2: Analyze and rank candidates
-    ranker = DuplicationRanker()
-    ranked_candidates = ranker.rank_deduplication_candidates(
-        duplication_results.get("duplicates", [])
-    )
-
-    # Step 3: Check test coverage if requested
-    if include_test_coverage:
-        coverage_detector = TestCoverageDetector()
-        for candidate in ranked_candidates[:max_candidates]:
-            files = candidate.get("files", [])
-            if files:
-                coverage_map = coverage_detector.get_test_coverage_for_files(
-                    files, language, project_path
-                )
-                candidate["test_coverage"] = coverage_map
-                candidate["has_tests"] = any(coverage_map.values())
-
-    # Step 4: Generate recommendations
-    recommendation_engine = RecommendationEngine()
-    for candidate in ranked_candidates[:max_candidates]:
-        recommendation = recommendation_engine.generate_deduplication_recommendation(
-            score=candidate.get("score", 0),
-            complexity=candidate.get("complexity_score", 5),
-            lines_saved=candidate.get("lines_saved", 0),
-            has_tests=candidate.get("has_tests", False),
-            affected_files=len(candidate.get("files", []))
-        )
-        candidate["recommendation"] = recommendation
-
-    # Calculate summary stats
-    total_savings = sum(
-        c.get("lines_saved", 0) * len(c.get("files", []))
-        for c in ranked_candidates[:max_candidates]
     )
 
     logger.info(
         "analyze_candidates_complete",
-        total_groups=len(ranked_candidates),
-        returned_candidates=min(max_candidates, len(ranked_candidates)),
-        total_savings_potential=total_savings,
+        total_groups=result["total_groups"],
+        returned_candidates=len(result["candidates"]),
+        total_savings_potential=result["total_savings_potential"],
         include_test_coverage=include_test_coverage
     )
 
-    return {
-        "candidates": ranked_candidates[:max_candidates],
-        "total_groups": len(ranked_candidates),
-        "total_savings_potential": total_savings,
-        "analysis_metadata": {
-            "language": language,
-            "min_similarity": min_similarity,
-            "min_lines": min_lines,
-            "include_test_coverage": include_test_coverage,
-            "project_path": project_path
-        }
-    }
+    return result
 
 
 def apply_deduplication_tool(
