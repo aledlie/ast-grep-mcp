@@ -5,22 +5,19 @@ This module provides MCP tool definitions for code complexity analysis
 and Sentry integration testing.
 """
 
-import glob
 import os
-import subprocess
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
-from typing import Any, Dict, List, Literal, Set
+from typing import Any, Dict, List, Literal
 
 import sentry_sdk
 from pydantic import Field
 
 from ast_grep_mcp.core.logging import get_logger
-from ast_grep_mcp.models.complexity import ComplexityThresholds, FunctionComplexity
+from ast_grep_mcp.models.complexity import ComplexityThresholds
 
-from .analyzer import analyze_file_complexity
-from .storage import ComplexityStorage
+from .complexity_analyzer import ParallelComplexityAnalyzer
+from .complexity_file_finder import ComplexityFileFinder
+from .complexity_statistics import ComplexityStatisticsAggregator
 
 # Note: detect_code_smells_impl is imported inside detect_code_smells_tool()
 # to avoid circular import (quality.smells imports from complexity.analyzer)
@@ -107,43 +104,18 @@ def analyze_complexity_tool(
             lines=length_threshold
         )
 
-        # Find files to analyze
-        project_path = Path(project_folder)
-        if not project_path.exists():
-            raise ValueError(f"Project folder does not exist: {project_folder}")
+        # Initialize modules
+        file_finder = ComplexityFileFinder()
+        analyzer = ParallelComplexityAnalyzer()
+        statistics = ComplexityStatisticsAggregator()
 
-        # Get language-specific file extensions
-        lang_extensions = {
-            "python": [".py"],
-            "typescript": [".ts", ".tsx"],
-            "javascript": [".js", ".jsx"],
-            "java": [".java"]
-        }
-        extensions = lang_extensions.get(language.lower(), [".py"])
-
-        # Find all matching files
-        all_files: Set[str] = set()
-        for pattern in include_patterns:
-            for ext in extensions:
-                glob_pattern = str(project_path / pattern)
-                if not glob_pattern.endswith(ext):
-                    if glob_pattern.endswith("*"):
-                        glob_pattern = glob_pattern[:-1] + f"*{ext}"
-                    else:
-                        glob_pattern = glob_pattern + f"/**/*{ext}"
-                for file_path in glob.glob(glob_pattern, recursive=True):
-                    all_files.add(file_path)
-
-        # Filter excluded files
-        files_to_analyze: List[str] = []
-        for file_path in all_files:
-            excluded = False
-            for exclude_pattern in exclude_patterns:
-                if any(part in file_path for part in exclude_pattern.replace("**", "").replace("*", "").split("/")):
-                    excluded = True
-                    break
-            if not excluded:
-                files_to_analyze.append(file_path)
+        # Step 1: Find files to analyze
+        files_to_analyze = file_finder.find_files(
+            project_folder,
+            language,
+            include_patterns,
+            exclude_patterns
+        )
 
         logger.info(
             "files_found",
@@ -165,152 +137,66 @@ def analyze_complexity_tool(
                 "message": f"No {language} files found in project matching the include patterns"
             }
 
-        # Analyze files in parallel
-        all_functions: List[FunctionComplexity] = []
-
-        def analyze_single_file(file_path: str) -> List[FunctionComplexity]:
-            return analyze_file_complexity(file_path, language.lower(), thresholds)
-
-        with ThreadPoolExecutor(max_workers=max_threads) as executor:
-            futures = {executor.submit(analyze_single_file, f): f for f in files_to_analyze}
-            for future in as_completed(futures):
-                try:
-                    result = future.result()
-                    all_functions.extend(result)
-                except Exception as e:
-                    file_path = futures[future]
-                    logger.warning("file_analysis_failed", file=file_path, error=str(e))
-
-        # Filter to only functions exceeding thresholds
-        exceeding_functions = [f for f in all_functions if f.exceeds]
-
-        # Sort by combined complexity score (highest first)
-        exceeding_functions.sort(
-            key=lambda f: f.metrics.cyclomatic + f.metrics.cognitive,
-            reverse=True
+        # Step 2: Analyze files in parallel
+        all_functions = analyzer.analyze_files(
+            files_to_analyze,
+            language,
+            thresholds,
+            max_threads
         )
 
-        # Calculate summary statistics
-        total_functions = len(all_functions)
-        if total_functions > 0:
-            avg_cyclomatic = sum(f.metrics.cyclomatic for f in all_functions) / total_functions
-            avg_cognitive = sum(f.metrics.cognitive for f in all_functions) / total_functions
-            max_cyclomatic = max(f.metrics.cyclomatic for f in all_functions)
-            max_cognitive = max(f.metrics.cognitive for f in all_functions)
-            max_nesting = max(f.metrics.nesting_depth for f in all_functions)
-        else:
-            avg_cyclomatic = avg_cognitive = 0
-            max_cyclomatic = max_cognitive = max_nesting = 0
+        # Step 3: Filter exceeding functions
+        exceeding_functions = analyzer.filter_exceeding_functions(all_functions)
 
+        # Step 4: Calculate summary statistics
         execution_time = time.time() - start_time
-        duration_ms = int(execution_time * 1000)
+        summary = statistics.calculate_summary(
+            all_functions,
+            exceeding_functions,
+            len(files_to_analyze),
+            execution_time
+        )
 
-        # Build results dict for storage
-        results_data = {
-            "total_functions": total_functions,
-            "total_files": len(files_to_analyze),
-            "avg_cyclomatic": round(avg_cyclomatic, 2),
-            "avg_cognitive": round(avg_cognitive, 2),
-            "max_cyclomatic": max_cyclomatic,
-            "max_cognitive": max_cognitive,
-            "max_nesting": max_nesting,
-            "violation_count": len(exceeding_functions),
-            "duration_ms": duration_ms
-        }
-
-        # Store results if requested
+        # Step 5: Store results if requested
         run_id = None
         stored_at = None
         if store_results:
-            try:
-                storage = ComplexityStorage()
-                # Get git info
-                commit_hash = None
-                branch_name = None
-                try:
-                    commit_result = subprocess.run(
-                        ["git", "rev-parse", "HEAD"],
-                        cwd=project_folder, capture_output=True, text=True, timeout=5
-                    )
-                    if commit_result.returncode == 0:
-                        commit_hash = commit_result.stdout.strip() or None
-                    branch_result = subprocess.run(
-                        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                        cwd=project_folder, capture_output=True, text=True, timeout=5
-                    )
-                    if branch_result.returncode == 0:
-                        branch_name = branch_result.stdout.strip() or None
-                except Exception:
-                    pass
+            run_id, stored_at = statistics.store_results(
+                project_folder,
+                summary,
+                all_functions
+            )
 
-                run_id = storage.store_analysis_run(
-                    project_folder, results_data, all_functions, commit_hash, branch_name
-                )
-                stored_at = str(storage.db_path)
-            except Exception as e:
-                logger.warning("storage_failed", error=str(e))
-
-        # Get trends if requested
+        # Step 6: Get trends if requested
         trends = None
         if include_trends:
-            try:
-                storage = ComplexityStorage()
-                trends = storage.get_project_trends(project_folder, days=30)
-            except Exception as e:
-                logger.warning("trends_failed", error=str(e))
+            trends = statistics.get_trends(project_folder, days=30)
 
         logger.info(
             "tool_completed",
             tool="analyze_complexity",
             execution_time_seconds=round(execution_time, 3),
-            total_functions=total_functions,
+            total_functions=summary["total_functions"],
             exceeding_threshold=len(exceeding_functions),
             status="success"
         )
 
-        # Format response
-        response: Dict[str, Any] = {
-            "summary": {
-                "total_functions": total_functions,
-                "total_files": len(files_to_analyze),
-                "exceeding_threshold": len(exceeding_functions),
-                "avg_cyclomatic": round(avg_cyclomatic, 2),
-                "avg_cognitive": round(avg_cognitive, 2),
-                "max_cyclomatic": max_cyclomatic,
-                "max_cognitive": max_cognitive,
-                "max_nesting": max_nesting,
-                "analysis_time_seconds": round(execution_time, 3)
-            },
-            "thresholds": {
-                "cyclomatic": cyclomatic_threshold,
-                "cognitive": cognitive_threshold,
-                "nesting_depth": nesting_threshold,
-                "length": length_threshold
-            },
-            "functions": [
-                {
-                    "name": f.function_name,
-                    "file": f.file_path,
-                    "lines": f"{f.start_line}-{f.end_line}",
-                    "cyclomatic": f.metrics.cyclomatic,
-                    "cognitive": f.metrics.cognitive,
-                    "nesting_depth": f.metrics.nesting_depth,
-                    "length": f.metrics.lines,
-                    "exceeds": f.exceeds
-                }
-                for f in exceeding_functions
-            ],
-            "message": f"Found {len(exceeding_functions)} function(s) exceeding complexity thresholds out of {total_functions} total"
+        # Step 7: Format and return response
+        thresholds_dict = {
+            "cyclomatic": cyclomatic_threshold,
+            "cognitive": cognitive_threshold,
+            "nesting_depth": nesting_threshold,
+            "length": length_threshold
         }
 
-        if run_id:
-            response["storage"] = {
-                "run_id": run_id,
-                "stored_at": stored_at
-            }
-
-        if trends:
-            response["trends"] = trends
+        response = statistics.format_response(
+            summary,
+            thresholds_dict,
+            exceeding_functions,
+            run_id,
+            stored_at,
+            trends
+        )
 
         return response
 

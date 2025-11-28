@@ -9,6 +9,9 @@ from typing import Any, Dict, List, Optional
 
 from ...core.logging import get_logger
 
+from .priority_classifier import DeduplicationPriorityClassifier
+from .score_calculator import DeduplicationScoreCalculator
+
 
 class DuplicationRanker:
     """Ranks duplication candidates by refactoring value."""
@@ -16,6 +19,8 @@ class DuplicationRanker:
     def __init__(self):
         """Initialize the ranker."""
         self.logger = get_logger("deduplication.ranker")
+        self.score_calculator = DeduplicationScoreCalculator()
+        self.priority_classifier = DeduplicationPriorityClassifier()
 
     def calculate_deduplication_score(
         self,
@@ -42,56 +47,27 @@ class DuplicationRanker:
         Returns:
             Score from 0-100, higher is better for refactoring
         """
-        scores = {}
+        # Delegate to score calculator
+        total_score, score_components = self.score_calculator.calculate_total_score(
+            duplicate_group,
+            complexity,
+            test_coverage,
+            impact_analysis
+        )
 
-        # Calculate savings score (40% weight)
+        # Log the result
         lines_saved = duplicate_group.get("potential_line_savings", 0)
-        # Normalize to 0-100 (cap at 500 lines for max score)
-        savings_score = min(lines_saved / 5, 100)
-        scores["savings"] = savings_score * 0.4
-
-        # Calculate complexity score (20% weight)
-        # Lower complexity is better
-        if complexity:
-            complexity_value = complexity.get("complexity_score", 5)
-            # Invert: 1 = 100, 7 = 0
-            complexity_score = max(0, 100 - (complexity_value - 1) * 16.67)
-        else:
-            complexity_score = 50  # Default middle score
-        scores["complexity"] = complexity_score * 0.2
-
-        # Calculate risk score (25% weight)
-        # Based on test coverage and breaking change risk
-        risk_score = 50  # Default
-        if test_coverage is not None:
-            # Higher coverage = lower risk
-            risk_score = test_coverage
-        if impact_analysis:
-            breaking_risk = impact_analysis.get("breaking_change_risk", "medium")
-            risk_multipliers = {"low": 1.0, "medium": 0.7, "high": 0.3}
-            risk_score *= risk_multipliers.get(breaking_risk, 0.7)
-        scores["risk"] = risk_score * 0.25
-
-        # Calculate effort score (15% weight)
-        # Based on number of files and instances
         instance_count = len(duplicate_group.get("instances", []))
-        file_count = len(set(inst.get("file", "") for inst in duplicate_group.get("instances", [])))
-        # More instances and files = more effort
-        effort_score = max(0, 100 - (instance_count * 5 + file_count * 10))
-        scores["effort"] = effort_score * 0.15
-
-        # Calculate total score
-        total_score = sum(scores.values())
 
         self.logger.info(
             "deduplication_score_calculated",
-            total_score=round(total_score, 2),
-            breakdown=scores,
+            total_score=total_score,
+            breakdown=score_components,
             lines_saved=lines_saved,
             instance_count=instance_count
         )
 
-        return round(total_score, 2)
+        return total_score
 
     def rank_deduplication_candidates(
         self,
@@ -112,24 +88,29 @@ class DuplicationRanker:
 
         for candidate in candidates:
             # Calculate score
-            score = self.calculate_deduplication_score(
+            total_score, score_components = self.score_calculator.calculate_total_score(
                 candidate,
                 complexity=candidate.get("complexity_analysis"),
                 test_coverage=candidate.get("test_coverage"),
                 impact_analysis=candidate.get("impact_analysis")
             )
 
-            # Add ranking info
+            # Get priority label
+            priority = self.priority_classifier.get_priority_label(total_score)
+
+            # Build ranked candidate
             ranked_candidate = {
                 **candidate,
-                "score": score,
-                "priority": self._get_priority_label(score)
+                "score": total_score,
+                "priority": priority
             }
 
+            # Add detailed breakdown if requested
             if include_analysis:
-                ranked_candidate["score_breakdown"] = self._get_score_breakdown(
+                ranked_candidate["score_breakdown"] = self.priority_classifier.get_score_breakdown(
                     candidate,
-                    score
+                    total_score,
+                    score_components
                 )
 
             ranked.append(ranked_candidate)
@@ -150,55 +131,6 @@ class DuplicationRanker:
 
         return ranked
 
-    def _get_priority_label(self, score: float) -> str:
-        """Get priority label from score."""
-        if score >= 80:
-            return "critical"
-        elif score >= 60:
-            return "high"
-        elif score >= 40:
-            return "medium"
-        elif score >= 20:
-            return "low"
-        else:
-            return "minimal"
-
-    def _get_score_breakdown(
-        self,
-        candidate: Dict[str, Any],
-        total_score: float
-    ) -> Dict[str, Any]:
-        """Get detailed score breakdown."""
-        lines_saved = candidate.get("potential_line_savings", 0)
-        instance_count = len(candidate.get("instances", []))
-
-        return {
-            "total_score": total_score,
-            "factors": {
-                "lines_saved": lines_saved,
-                "instance_count": instance_count,
-                "complexity": candidate.get("complexity_analysis", {}).get("complexity_score", "N/A"),
-                "test_coverage": candidate.get("test_coverage", "N/A"),
-                "breaking_risk": candidate.get("impact_analysis", {}).get("breaking_change_risk", "N/A")
-            },
-            "recommendation": self._get_recommendation(total_score, lines_saved, instance_count)
-        }
-
-    def _get_recommendation(
-        self,
-        score: float,
-        lines_saved: int,
-        instance_count: int
-    ) -> str:
-        """Generate recommendation based on score and metrics."""
-        if score >= 80:
-            return f"Immediate refactoring recommended. Will save {lines_saved} lines across {instance_count} instances."
-        elif score >= 60:
-            return "High-value refactoring opportunity. Consider prioritizing in next sprint."
-        elif score >= 40:
-            return "Moderate refactoring value. Include in technical debt backlog."
-        else:
-            return "Low priority. Consider deferring unless part of larger refactoring."
 
 
 # Standalone functions for backward compatibility and convenience

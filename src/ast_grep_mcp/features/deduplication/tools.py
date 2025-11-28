@@ -8,12 +8,10 @@ a clean API for the MCP server.
 from typing import Any, Dict, List, Optional
 
 from ...core.logging import get_logger
+from .analysis_orchestrator import DeduplicationAnalysisOrchestrator
 from .applicator import DeduplicationApplicator
 from .benchmark import DeduplicationBenchmark
-from .coverage import TestCoverageDetector
 from .detector import DuplicationDetector
-from .ranker import DuplicationRanker
-from .recommendations import RecommendationEngine
 
 
 def find_duplication_tool(

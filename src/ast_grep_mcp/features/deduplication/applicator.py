@@ -1,13 +1,13 @@
 """Apply deduplication refactoring with validation and rollback."""
 
-import hashlib
-import json
 import os
-import shutil
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from ...core.logging import get_logger
+from .applicator_backup import DeduplicationBackupManager
+from .applicator_executor import RefactoringExecutor
+from .applicator_post_validator import RefactoringPostValidator
+from .applicator_validator import RefactoringPlanValidator
 from .generator import CodeGenerator
 
 __all__ = [
@@ -25,6 +25,9 @@ class DeduplicationApplicator:
         """Initialize the deduplication applicator."""
         self.logger = get_logger("deduplication.applicator")
         self.code_generator = CodeGenerator()
+        self.validator = RefactoringPlanValidator()
+        self.executor = RefactoringExecutor()
+        self.post_validator = RefactoringPostValidator()
 
     def apply_deduplication(
         self,
@@ -65,276 +68,205 @@ class DeduplicationApplicator:
             backup=backup
         )
 
+        # Initialize validation results
+        validation_result: Dict[str, Any] = {
+            "pre_validation": {"passed": False, "errors": []},
+            "post_validation": {"passed": False, "errors": []}
+        }
+
         try:
+            # Validate inputs
             if not os.path.isdir(project_folder):
                 raise ValueError(f"Project folder does not exist: {project_folder}")
-
             if not refactoring_plan:
                 raise ValueError("refactoring_plan is required")
 
+            # Extract plan components
             files_affected = refactoring_plan.get("files_affected", [])
             generated_code = refactoring_plan.get("generated_code", {})
             language = refactoring_plan.get("language", "python")
-
-            validation_result: Dict[str, Any] = {
-                "pre_validation": {"passed": False, "errors": []},
-                "post_validation": {"passed": False, "errors": []}
-            }
+            strategy = refactoring_plan.get("strategy", "extract_function")
 
             if not files_affected:
-                return {"status": "no_changes", "message": "No files affected", "dry_run": dry_run, "validation": validation_result}
+                return self._build_response("no_changes", "No files affected", validation_result, dry_run=dry_run, group_id=group_id)
 
-            files_to_modify = []
-            for file_info in files_affected:
-                file_path = file_info if isinstance(file_info, str) else file_info.get("file", "")
-                if file_path and os.path.isfile(file_path):
-                    files_to_modify.append(file_path)
-                elif file_path and os.path.isfile(os.path.join(project_folder, file_path)):
-                    files_to_modify.append(os.path.join(project_folder, file_path))
-
+            # Resolve file paths
+            files_to_modify = self._resolve_file_paths(files_affected, project_folder)
             if not files_to_modify:
-                return {"status": "no_files", "message": "No valid files found", "dry_run": dry_run, "validation": validation_result}
+                return self._build_response("no_files", "No valid files found", validation_result, dry_run=dry_run, group_id=group_id)
 
-            # Phase 3.3: Multi-File Orchestration
+            # Create orchestration plan
             orchestration_plan = self._plan_file_modification_order(
-                files_to_modify=files_to_modify,
-                generated_code=generated_code,
-                extract_to_file=extract_to_file,
-                project_folder=project_folder,
-                language=language
+                files_to_modify, generated_code, extract_to_file, project_folder, language
             )
 
-            self.logger.info(
-                "orchestration_planned",
-                create_files=len(orchestration_plan.get("create_files", [])),
-                update_files=len(orchestration_plan.get("update_files", [])),
-                import_additions=len(orchestration_plan.get("import_additions", {}))
-            )
+            # PRE-VALIDATION: Validate generated code syntax
+            pre_validation_result = self.validator.validate_plan(refactoring_plan, group_id, project_folder)
+            validation_result["pre_validation"] = pre_validation_result.to_dict()
 
-            # PRE-VALIDATION
-            self.logger.info("pre_validation_start", stage="pre_validation")
-            pre_validation_errors: List[Dict[str, Any]] = []
-
-            extracted_function = generated_code.get("extracted_function", "")
-            if extracted_function:
-                is_valid, error_msg = self._validate_code_for_language(extracted_function, language)
-                if not is_valid:
-                    pre_validation_errors.append({
-                        "type": "extracted_function",
-                        "file": extract_to_file or "target file",
-                        "error": error_msg,
-                        "code_preview": extracted_function[:200],
-                        "suggestion": self._suggest_syntax_fix(error_msg, language)
-                    })
-
-            replacements = generated_code.get("replacements", {})
-            for file_path, replacement in replacements.items():
-                new_content = replacement.get("new_content", "")
-                if new_content:
-                    is_valid, error_msg = self._validate_code_for_language(new_content, language)
-                    if not is_valid:
-                        pre_validation_errors.append({
-                            "type": "replacement_code",
-                            "file": file_path,
-                            "error": error_msg,
-                            "suggestion": self._suggest_syntax_fix(error_msg, language)
-                        })
-
-            validation_result["pre_validation"] = {
-                "passed": len(pre_validation_errors) == 0,
-                "errors": pre_validation_errors
-            }
-
-            if pre_validation_errors:
-                return {
-                    "status": "failed",
-                    "dry_run": dry_run,
-                    "message": f"Pre-validation failed with {len(pre_validation_errors)} error(s)",
-                    "validation": validation_result,
-                    "errors": pre_validation_errors,
-                    "group_id": group_id
-                }
-
-            # DRY RUN
-            strategy = refactoring_plan.get("strategy", "extract_function")
-            if dry_run:
-                changes_preview = []
-                for fp in files_to_modify:
-                    with open(fp, 'r') as f:
-                        changes_preview.append({"file": fp, "lines": len(f.read().splitlines())})
-                return {
-                    "status": "preview",
-                    "dry_run": True,
-                    "message": f"Preview of changes to {len(files_to_modify)} file(s)",
-                    "changes_preview": changes_preview,
-                    "validation": validation_result,
-                    "group_id": group_id,
-                    "strategy": strategy
-                }
-
-            # APPLICATION
-            backup_id: Optional[str] = None
-            all_affected_files = list(files_to_modify)
-
-            # Add files that will be created/modified
-            create_files = orchestration_plan.get("create_files", [])
-            for create_info in create_files:
-                target_path = create_info.get("path", "")
-                if target_path and os.path.exists(target_path):
-                    all_affected_files.append(target_path)
-
-            if backup:
-                # Compute hashes of original files
-                original_hashes: Dict[str, str] = {}
-                for file_path in all_affected_files:
-                    if os.path.exists(file_path):
-                        original_hashes[file_path] = self.get_file_hash(file_path)
-
-                # Create backup
-                backup_id = self.create_deduplication_backup(
-                    files_to_backup=[fp for fp in all_affected_files if os.path.exists(fp)],
-                    project_folder=project_folder,
-                    duplicate_group_id=group_id,
-                    strategy=strategy,
-                    original_hashes=original_hashes
+            if not pre_validation_result.is_valid:
+                return self._build_response(
+                    "failed",
+                    f"Pre-validation failed with {len(pre_validation_result.errors)} error(s)",
+                    validation_result,
+                    errors=pre_validation_result.errors,
+                    dry_run=dry_run,
+                    group_id=group_id
                 )
 
-            modified_files = []
-            failed_files: List[Dict[str, Any]] = []
+            # DRY RUN: Preview changes
+            if dry_run:
+                return self._build_dry_run_response(files_to_modify, validation_result, group_id, strategy)
 
+            # CREATE BACKUP
+            backup_id: Optional[str] = None
+            if backup:
+                backup_manager = DeduplicationBackupManager(project_folder)
+                backup_id = backup_manager.create_backup(
+                    files=[fp for fp in files_to_modify if os.path.exists(fp)],
+                    metadata={
+                        "duplicate_group_id": group_id,
+                        "strategy": strategy,
+                        "file_count": len(files_to_modify)
+                    }
+                )
+
+            # APPLY CHANGES
             try:
-                # Step 1: Create new files for extracted functions
-                for create_info in orchestration_plan.get("create_files", []):
-                    target_path = create_info.get("path", "")
-                    content = create_info.get("content", "")
-
-                    if not target_path or not content:
-                        continue
-
-                    try:
-                        target_dir = os.path.dirname(target_path)
-                        if target_dir and not os.path.exists(target_dir):
-                            os.makedirs(target_dir, exist_ok=True)
-
-                        mode = 'a' if os.path.exists(target_path) and create_info.get("append", False) else 'w'
-                        prefix = "\n\n" if mode == 'a' else ""
-
-                        with open(target_path, mode) as f:
-                            f.write(prefix + content)
-
-                        modified_files.append(target_path)
-                        self.logger.info("file_created", file=target_path, mode=mode)
-
-                    except Exception as e:
-                        failed_files.append({
-                            "file": target_path,
-                            "operation": "create",
-                            "error": str(e)
-                        })
-                        raise  # Fail fast for atomicity
-
-                # Step 2: Update duplicate location files
-                for update_info in orchestration_plan.get("update_files", []):
-                    file_path = update_info.get("path", "")
-
-                    if not file_path or not os.path.exists(file_path):
-                        continue
-
-                    try:
-                        with open(file_path, 'r') as f:
-                            current_content = f.read()
-
-                        new_content = current_content
-
-                        # Apply replacement
-                        replacement = replacements.get(file_path, {})
-                        if replacement.get("new_content"):
-                            new_content = replacement["new_content"]
-
-                        # Add import statement
-                        import_info = orchestration_plan.get("import_additions", {}).get(file_path)
-                        if import_info:
-                            new_content = self._add_import_to_content(
-                                content=new_content,
-                                import_statement=import_info.get("import_statement", ""),
-                                language=language
-                            )
-
-                        with open(file_path, 'w') as f:
-                            f.write(new_content)
-
-                        if file_path not in modified_files:
-                            modified_files.append(file_path)
-                        self.logger.info("file_updated", file=file_path)
-
-                    except Exception as e:
-                        failed_files.append({
-                            "file": file_path,
-                            "operation": "update",
-                            "error": str(e)
-                        })
-                        raise  # Fail fast
+                apply_result = self.executor.apply_changes(
+                    orchestration_plan,
+                    generated_code.get("replacements", {}),
+                    language,
+                    dry_run=False
+                )
+                modified_files = apply_result["modified_files"]
 
             except Exception as e:
-                # Rollback on failure
+                # Rollback on application failure
                 if backup_id:
-                    restored = self.restore_from_backup(backup_id, project_folder)
-                    self.logger.warning(
-                        "orchestration_rollback",
-                        backup_id=backup_id,
-                        files_restored=len(restored),
-                        failed_files=failed_files,
-                        error=str(e)
-                    )
+                    backup_manager = DeduplicationBackupManager(project_folder)
+                    backup_manager.rollback(backup_id)
                 raise
 
-            # POST-VALIDATION
-            from ..rewrite.service import validate_syntax
-            post_validation_errors: List[Dict[str, Any]] = []
-            for fp in modified_files:
-                if os.path.exists(fp):
-                    result = validate_syntax(fp, language)
-                    if not result["valid"]:
-                        post_validation_errors.append({
-                            "type": "modified_file",
-                            "file": fp,
-                            "error": result.get("error", ""),
-                            "suggestion": self._suggest_syntax_fix(result.get("error"), language)
-                        })
+            # POST-VALIDATION: Validate modified files
+            post_validation_result = self.post_validator.validate_modified_files(modified_files, language)
+            validation_result["post_validation"] = post_validation_result.to_dict()
 
-            validation_result["post_validation"] = {
-                "passed": len(post_validation_errors) == 0,
-                "errors": post_validation_errors
-            }
+            # AUTO-ROLLBACK if post-validation fails
+            if not post_validation_result.is_valid and backup_id:
+                backup_manager = DeduplicationBackupManager(project_folder)
+                restored = backup_manager.rollback(backup_id)
+                return self._build_response(
+                    "rolled_back",
+                    f"Rolled back due to {len(post_validation_result.errors)} validation error(s)",
+                    validation_result,
+                    files_restored=restored,
+                    backup_id=backup_id,
+                    errors=post_validation_result.errors,
+                    group_id=group_id
+                )
 
-            # AUTO-ROLLBACK if validation fails
-            if post_validation_errors and backup_id:
-                restored = self.restore_from_backup(backup_id, project_folder)
-                return {
-                    "status": "rolled_back",
-                    "message": f"Rolled back due to {len(post_validation_errors)} validation error(s)",
-                    "files_restored": restored,
-                    "backup_id": backup_id,
-                    "validation": validation_result,
-                    "errors": post_validation_errors,
-                    "group_id": group_id
-                }
-
-            return {
-                "status": "success",
-                "dry_run": False,
-                "message": f"Applied deduplication to {len(modified_files)} file(s)",
-                "files_modified": modified_files,
-                "backup_id": backup_id,
-                "validation": validation_result,
-                "group_id": group_id,
-                "strategy": strategy,
-                "rollback_command": f"rollback_rewrite(project_folder='{project_folder}', backup_id='{backup_id}')"
-            }
+            # SUCCESS
+            return self._build_response(
+                "success",
+                f"Applied deduplication to {len(modified_files)} file(s)",
+                validation_result,
+                files_modified=modified_files,
+                backup_id=backup_id,
+                group_id=group_id,
+                strategy=strategy,
+                rollback_command=f"rollback_rewrite(project_folder='{project_folder}', backup_id='{backup_id}')"
+            )
 
         except Exception as e:
             self.logger.error("apply_deduplication_failed", error=str(e)[:200])
             raise
+
+    def _resolve_file_paths(
+        self,
+        files_affected: List[Any],
+        project_folder: str
+    ) -> List[str]:
+        """Resolve file paths from files_affected list.
+
+        Args:
+            files_affected: List of file paths or file info dicts
+            project_folder: Project root folder
+
+        Returns:
+            List of resolved absolute file paths
+        """
+        files_to_modify = []
+        for file_info in files_affected:
+            file_path = file_info if isinstance(file_info, str) else file_info.get("file", "")
+            if file_path and os.path.isfile(file_path):
+                files_to_modify.append(file_path)
+            elif file_path and os.path.isfile(os.path.join(project_folder, file_path)):
+                files_to_modify.append(os.path.join(project_folder, file_path))
+        return files_to_modify
+
+    def _build_response(
+        self,
+        status: str,
+        message: str,
+        validation_result: Dict[str, Any],
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Build standardized response dictionary.
+
+        Args:
+            status: Response status
+            message: Response message
+            validation_result: Validation results
+            **kwargs: Additional response fields
+
+        Returns:
+            Response dictionary
+        """
+        response = {
+            "status": status,
+            "message": message,
+            "validation": validation_result,
+            "dry_run": kwargs.get("dry_run", False)
+        }
+        response.update(kwargs)
+        return response
+
+    def _build_dry_run_response(
+        self,
+        files_to_modify: List[str],
+        validation_result: Dict[str, Any],
+        group_id: int,
+        strategy: str
+    ) -> Dict[str, Any]:
+        """Build dry run preview response.
+
+        Args:
+            files_to_modify: List of files that would be modified
+            validation_result: Validation results
+            group_id: Duplication group ID
+            strategy: Refactoring strategy
+
+        Returns:
+            Preview response dictionary
+        """
+        changes_preview = []
+        for fp in files_to_modify:
+            with open(fp, 'r') as f:
+                changes_preview.append({
+                    "file": fp,
+                    "lines": len(f.read().splitlines())
+                })
+
+        return {
+            "status": "preview",
+            "dry_run": True,
+            "message": f"Preview of changes to {len(files_to_modify)} file(s)",
+            "changes_preview": changes_preview,
+            "validation": validation_result,
+            "group_id": group_id,
+            "strategy": strategy
+        }
 
     def _plan_file_modification_order(
         self,
