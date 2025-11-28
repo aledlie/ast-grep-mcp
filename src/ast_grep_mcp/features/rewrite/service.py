@@ -24,6 +24,83 @@ from ast_grep_mcp.features.rewrite.backup import (
 )
 
 
+def _validate_python_syntax(content: str, file_path: str) -> Dict[str, Any]:
+    """Validate Python syntax.
+
+    Args:
+        content: File content
+        file_path: Path to file (for error messages)
+
+    Returns:
+        Dict with 'valid' and 'error' keys
+    """
+    try:
+        compile(content, file_path, 'exec')
+        return {"valid": True, "error": None}
+    except SyntaxError as e:
+        return {"valid": False, "error": f"Line {e.lineno}: {e.msg}"}
+
+
+def _validate_javascript_syntax(content: str) -> Dict[str, Any]:
+    """Validate JavaScript/TypeScript syntax using Node.js.
+
+    Args:
+        content: File content
+
+    Returns:
+        Dict with 'valid' and 'error' keys
+    """
+    try:
+        node_code = f"""
+try {{
+    new Function({json.dumps(content)});
+    console.log("VALID");
+}} catch(e) {{
+    console.log("INVALID: " + e.message);
+}}
+"""
+        node_result = subprocess.run(
+            ["node", "-e", node_code],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if "INVALID:" in node_result.stdout:
+            error_msg = node_result.stdout.replace("INVALID: ", "").strip()
+            return {"valid": False, "error": error_msg}
+        return {"valid": True, "error": None}
+    except (subprocess.SubprocessError, FileNotFoundError):
+        return {"valid": True, "error": "JavaScript validation skipped (node not available)"}
+
+
+def _validate_java_syntax(file_path: str) -> Dict[str, Any]:
+    """Validate Java syntax using javac.
+
+    Args:
+        file_path: Path to Java file
+
+    Returns:
+        Dict with 'valid' and 'error' keys
+    """
+    try:
+        javac_result = subprocess.run(
+            ["javac", "-Xlint:none", file_path],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if javac_result.returncode != 0:
+            return {"valid": False, "error": javac_result.stderr[:500]}
+
+        # Clean up .class file if compilation succeeded
+        class_file = file_path.replace('.java', '.class')
+        if os.path.exists(class_file):
+            os.remove(class_file)
+        return {"valid": True, "error": None}
+    except (subprocess.SubprocessError, FileNotFoundError):
+        return {"valid": True, "error": "Java validation skipped (javac not available)"}
+
+
 def validate_syntax(file_path: str, language: str) -> Dict[str, Any]:
     """Validate syntax of a rewritten file.
 
@@ -45,64 +122,22 @@ def validate_syntax(file_path: str, language: str) -> Dict[str, Any]:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
-        # Python syntax validation
-        if language == "python":
-            try:
-                compile(content, file_path, 'exec')
-            except SyntaxError as e:
-                result["valid"] = False
-                result["error"] = f"Line {e.lineno}: {e.msg}"
-                return result
+        # Language-specific validators
+        validators = {
+            "python": lambda: _validate_python_syntax(content, file_path),
+            "javascript": lambda: _validate_javascript_syntax(content),
+            "typescript": lambda: _validate_javascript_syntax(content),
+            "tsx": lambda: _validate_javascript_syntax(content),
+            "jsx": lambda: _validate_javascript_syntax(content),
+            "java": lambda: _validate_java_syntax(file_path)
+        }
 
-        # JavaScript/TypeScript validation (using external validator if available)
-        elif language in ["javascript", "typescript", "tsx", "jsx"]:
-            # Try using node if available
-            try:
-                node_code = f"""
-try {{
-    new Function({json.dumps(content)});
-    console.log("VALID");
-}} catch(e) {{
-    console.log("INVALID: " + e.message);
-}}
-"""
-                node_result = subprocess.run(
-                    ["node", "-e", node_code],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
-                )
-                if "INVALID:" in node_result.stdout:
-                    result["valid"] = False
-                    result["error"] = node_result.stdout.replace("INVALID: ", "").strip()
-            except (subprocess.SubprocessError, FileNotFoundError):
-                # Node not available, skip validation
-                result["valid"] = True
-                result["error"] = "JavaScript validation skipped (node not available)"
-
-        # Java validation
-        elif language == "java":
-            # Basic Java syntax check using javac if available
-            try:
-                javac_result = subprocess.run(
-                    ["javac", "-Xlint:none", file_path],
-                    capture_output=True,
-                    text=True,
-                    timeout=10
-                )
-                if javac_result.returncode != 0:
-                    result["valid"] = False
-                    result["error"] = javac_result.stderr[:500]  # Limit error message
-                # Clean up .class file if compilation succeeded
-                else:
-                    class_file = file_path.replace('.java', '.class')
-                    if os.path.exists(class_file):
-                        os.remove(class_file)
-            except (subprocess.SubprocessError, FileNotFoundError):
-                result["valid"] = True
-                result["error"] = "Java validation skipped (javac not available)"
-
-        # For other languages, basic checks only
+        # Get validator for language
+        validator = validators.get(language)
+        if validator:
+            validation = validator()
+            result["valid"] = validation["valid"]
+            result["error"] = validation["error"]
         else:
             result["valid"] = True
             result["error"] = f"Syntax validation not supported for {language}"

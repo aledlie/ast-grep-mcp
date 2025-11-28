@@ -5,7 +5,7 @@ import json
 import os
 import shutil
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from ast_grep_mcp.core.logging import get_logger
 
@@ -310,6 +310,86 @@ def restore_backup(backup_id: str, project_folder: str) -> Dict[str, Any]:
     return result
 
 
+def _calculate_backup_size(backup_dir: str) -> int:
+    """Calculate total size of all files in backup directory.
+
+    Args:
+        backup_dir: Path to backup directory
+
+    Returns:
+        Total size in bytes
+    """
+    return sum(
+        os.path.getsize(os.path.join(backup_dir, root, file))
+        for root, _, files in os.walk(backup_dir)
+        for file in files
+    )
+
+
+def _build_backup_info(metadata: Dict[str, Any], backup_name: str, backup_size: int) -> Dict[str, Any]:
+    """Build backup information dictionary from metadata.
+
+    Args:
+        metadata: Backup metadata loaded from JSON
+        backup_name: Name of the backup directory
+        backup_size: Total size of backup in bytes
+
+    Returns:
+        Formatted backup information dictionary
+    """
+    backup_info = {
+        "backup_id": metadata.get("backup_id", backup_name),
+        "timestamp": metadata.get("timestamp"),
+        "backup_type": metadata.get("backup_type", "standard"),
+        "file_count": len(metadata.get("files", [])),
+        "size_bytes": backup_size,
+        "project_folder": metadata.get("project_folder"),
+    }
+
+    # Add deduplication info if present
+    if "deduplication_metadata" in metadata:
+        dedup_meta = metadata["deduplication_metadata"]
+        backup_info["deduplication_info"] = {
+            "duplicate_group_id": dedup_meta.get("duplicate_group_id"),
+            "strategy": dedup_meta.get("strategy")
+        }
+
+    return backup_info
+
+
+def _load_backup_info(backup_dir: str, backup_name: str, logger: Any) -> Optional[Dict[str, Any]]:
+    """Load and parse backup information from a backup directory.
+
+    Args:
+        backup_dir: Full path to backup directory
+        backup_name: Name of the backup
+        logger: Logger instance
+
+    Returns:
+        Backup info dict or None if invalid
+    """
+    metadata_path = os.path.join(backup_dir, "backup-metadata.json")
+
+    # Skip if no metadata
+    if not os.path.exists(metadata_path):
+        return None
+
+    try:
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+
+        backup_size = _calculate_backup_size(backup_dir)
+        return _build_backup_info(metadata, backup_name, backup_size)
+
+    except (json.JSONDecodeError, IOError) as e:
+        logger.warning(
+            "failed_to_load_backup_metadata",
+            backup_name=backup_name,
+            error=str(e)
+        )
+        return None
+
+
 def list_available_backups(project_folder: str) -> List[Dict[str, Any]]:
     """List all available backups in the project.
 
@@ -320,7 +400,6 @@ def list_available_backups(project_folder: str) -> List[Dict[str, Any]]:
         List of backup information dictionaries
     """
     logger = get_logger("rewrite.backup")
-
     backup_base_dir = os.path.join(project_folder, ".ast-grep-backups")
 
     if not os.path.exists(backup_base_dir):
@@ -335,48 +414,9 @@ def list_available_backups(project_folder: str) -> List[Dict[str, Any]]:
         if not os.path.isdir(backup_dir):
             continue
 
-        metadata_path = os.path.join(backup_dir, "backup-metadata.json")
-
-        # Skip if no metadata
-        if not os.path.exists(metadata_path):
-            continue
-
-        try:
-            with open(metadata_path, "r") as f:
-                metadata = json.load(f)
-
-            # Calculate backup size
-            backup_size = sum(
-                os.path.getsize(os.path.join(backup_dir, root, file))
-                for root, _, files in os.walk(backup_dir)
-                for file in files
-            )
-
-            backup_info = {
-                "backup_id": metadata.get("backup_id", backup_name),
-                "timestamp": metadata.get("timestamp"),
-                "backup_type": metadata.get("backup_type", "standard"),
-                "file_count": len(metadata.get("files", [])),
-                "size_bytes": backup_size,
-                "project_folder": metadata.get("project_folder"),
-            }
-
-            # Add deduplication info if present
-            if "deduplication_metadata" in metadata:
-                backup_info["deduplication_info"] = {
-                    "duplicate_group_id": metadata["deduplication_metadata"].get("duplicate_group_id"),
-                    "strategy": metadata["deduplication_metadata"].get("strategy")
-                }
-
+        backup_info = _load_backup_info(backup_dir, backup_name, logger)
+        if backup_info:
             backups.append(backup_info)
-
-        except (json.JSONDecodeError, IOError) as e:
-            logger.warning(
-                "failed_to_load_backup_metadata",
-                backup_name=backup_name,
-                error=str(e)
-            )
-            continue
 
     # Sort by timestamp (newest first)
     backups.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
