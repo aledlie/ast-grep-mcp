@@ -23,6 +23,191 @@ from .complexity_statistics import ComplexityStatisticsAggregator
 # to avoid circular import (quality.smells imports from complexity.analyzer)
 
 
+# Helper functions extracted from analyze_complexity_tool
+
+def _validate_inputs(language: str) -> None:
+    """Validate input parameters for complexity analysis.
+
+    Args:
+        language: The programming language to validate
+
+    Raises:
+        ValueError: If the language is not supported
+    """
+    supported_langs = ["python", "typescript", "javascript", "java"]
+    if language.lower() not in supported_langs:
+        raise ValueError(f"Unsupported language '{language}'. Supported: {', '.join(supported_langs)}")
+
+
+def _find_files_to_analyze(
+    project_folder: str,
+    language: str,
+    include_patterns: List[str],
+    exclude_patterns: List[str],
+    logger
+) -> tuple[List[str], ComplexityFileFinder]:
+    """Find files to analyze based on patterns.
+
+    Args:
+        project_folder: The project folder to analyze
+        language: The programming language
+        include_patterns: Glob patterns for files to include
+        exclude_patterns: Glob patterns for files to exclude
+        logger: Logger instance
+
+    Returns:
+        Tuple of (files to analyze, file finder instance)
+    """
+    file_finder = ComplexityFileFinder()
+    files_to_analyze = file_finder.find_files(
+        project_folder,
+        language,
+        include_patterns,
+        exclude_patterns
+    )
+
+    logger.info(
+        "files_found",
+        total_files=len(files_to_analyze),
+        include_patterns=include_patterns,
+        exclude_patterns=exclude_patterns
+    )
+
+    return files_to_analyze, file_finder
+
+
+def _analyze_files_parallel(
+    files_to_analyze: List[str],
+    language: str,
+    thresholds: ComplexityThresholds,
+    max_threads: int
+) -> tuple[List[Any], List[Any], ParallelComplexityAnalyzer]:
+    """Analyze files in parallel for complexity metrics.
+
+    Args:
+        files_to_analyze: List of files to analyze
+        language: The programming language
+        thresholds: Complexity thresholds
+        max_threads: Number of parallel threads
+
+    Returns:
+        Tuple of (all functions, exceeding functions, analyzer instance)
+    """
+    analyzer = ParallelComplexityAnalyzer()
+
+    # Analyze files in parallel
+    all_functions = analyzer.analyze_files(
+        files_to_analyze,
+        language,
+        thresholds,
+        max_threads
+    )
+
+    # Filter exceeding functions
+    exceeding_functions = analyzer.filter_exceeding_functions(all_functions)
+
+    return all_functions, exceeding_functions, analyzer
+
+
+def _calculate_summary_statistics(
+    all_functions: List[Any],
+    exceeding_functions: List[Any],
+    total_files: int,
+    execution_time: float
+) -> tuple[Dict[str, Any], ComplexityStatisticsAggregator]:
+    """Calculate summary statistics from analysis results.
+
+    Args:
+        all_functions: All analyzed functions
+        exceeding_functions: Functions exceeding thresholds
+        total_files: Total number of files analyzed
+        execution_time: Analysis execution time
+
+    Returns:
+        Tuple of (summary dictionary, statistics instance)
+    """
+    statistics = ComplexityStatisticsAggregator()
+    summary = statistics.calculate_summary(
+        all_functions,
+        exceeding_functions,
+        total_files,
+        execution_time
+    )
+
+    return summary, statistics
+
+
+def _store_and_generate_trends(
+    store_results: bool,
+    include_trends: bool,
+    project_folder: str,
+    summary: Dict[str, Any],
+    all_functions: List[Any],
+    statistics: ComplexityStatisticsAggregator
+) -> tuple[Any, Any, Any]:
+    """Store results and generate trends if requested.
+
+    Args:
+        store_results: Whether to store results
+        include_trends: Whether to include trends
+        project_folder: The project folder
+        summary: Summary statistics
+        all_functions: All analyzed functions
+        statistics: Statistics aggregator instance
+
+    Returns:
+        Tuple of (run_id, stored_at, trends)
+    """
+    run_id = None
+    stored_at = None
+    trends = None
+
+    if store_results:
+        run_id, stored_at = statistics.store_results(
+            project_folder,
+            summary,
+            all_functions
+        )
+
+    if include_trends:
+        trends = statistics.get_trends(project_folder, days=30)
+
+    return run_id, stored_at, trends
+
+
+def _format_response(
+    summary: Dict[str, Any],
+    thresholds_dict: Dict[str, int],
+    exceeding_functions: List[Any],
+    run_id: Any,
+    stored_at: Any,
+    trends: Any,
+    statistics: ComplexityStatisticsAggregator
+) -> Dict[str, Any]:
+    """Format the final response dictionary.
+
+    Args:
+        summary: Summary statistics
+        thresholds_dict: Complexity thresholds used
+        exceeding_functions: Functions exceeding thresholds
+        run_id: Storage run ID
+        stored_at: Storage location
+        trends: Trend data
+        statistics: Statistics aggregator instance
+
+    Returns:
+        Formatted response dictionary
+    """
+    return statistics.format_response(
+        summary,
+        thresholds_dict,
+        exceeding_functions,
+        run_id,
+        stored_at,
+        trends
+    )
+
+
 def analyze_complexity_tool(
     project_folder: str,
     language: str,
@@ -91,10 +276,8 @@ def analyze_complexity_tool(
     )
 
     try:
-        # Validate language
-        supported_langs = ["python", "typescript", "javascript", "java"]
-        if language.lower() not in supported_langs:
-            raise ValueError(f"Unsupported language '{language}'. Supported: {', '.join(supported_langs)}")
+        # Step 1: Validate inputs
+        _validate_inputs(language)
 
         # Set up thresholds
         thresholds = ComplexityThresholds(
@@ -104,26 +287,16 @@ def analyze_complexity_tool(
             lines=length_threshold
         )
 
-        # Initialize modules
-        file_finder = ComplexityFileFinder()
-        analyzer = ParallelComplexityAnalyzer()
-        statistics = ComplexityStatisticsAggregator()
-
-        # Step 1: Find files to analyze
-        files_to_analyze = file_finder.find_files(
+        # Step 2: Find files to analyze
+        files_to_analyze, file_finder = _find_files_to_analyze(
             project_folder,
             language,
             include_patterns,
-            exclude_patterns
+            exclude_patterns,
+            logger
         )
 
-        logger.info(
-            "files_found",
-            total_files=len(files_to_analyze),
-            include_patterns=include_patterns,
-            exclude_patterns=exclude_patterns
-        )
-
+        # Handle no files found case
         if not files_to_analyze:
             execution_time = time.time() - start_time
             return {
@@ -137,40 +310,32 @@ def analyze_complexity_tool(
                 "message": f"No {language} files found in project matching the include patterns"
             }
 
-        # Step 2: Analyze files in parallel
-        all_functions = analyzer.analyze_files(
+        # Step 3: Analyze files in parallel
+        all_functions, exceeding_functions, analyzer = _analyze_files_parallel(
             files_to_analyze,
             language,
             thresholds,
             max_threads
         )
 
-        # Step 3: Filter exceeding functions
-        exceeding_functions = analyzer.filter_exceeding_functions(all_functions)
-
         # Step 4: Calculate summary statistics
         execution_time = time.time() - start_time
-        summary = statistics.calculate_summary(
+        summary, statistics = _calculate_summary_statistics(
             all_functions,
             exceeding_functions,
             len(files_to_analyze),
             execution_time
         )
 
-        # Step 5: Store results if requested
-        run_id = None
-        stored_at = None
-        if store_results:
-            run_id, stored_at = statistics.store_results(
-                project_folder,
-                summary,
-                all_functions
-            )
-
-        # Step 6: Get trends if requested
-        trends = None
-        if include_trends:
-            trends = statistics.get_trends(project_folder, days=30)
+        # Step 5: Store results and generate trends
+        run_id, stored_at, trends = _store_and_generate_trends(
+            store_results,
+            include_trends,
+            project_folder,
+            summary,
+            all_functions,
+            statistics
+        )
 
         logger.info(
             "tool_completed",
@@ -181,7 +346,7 @@ def analyze_complexity_tool(
             status="success"
         )
 
-        # Step 7: Format and return response
+        # Step 6: Format and return response
         thresholds_dict = {
             "cyclomatic": cyclomatic_threshold,
             "cognitive": cognitive_threshold,
@@ -189,13 +354,14 @@ def analyze_complexity_tool(
             "length": length_threshold
         }
 
-        response = statistics.format_response(
+        response = _format_response(
             summary,
             thresholds_dict,
             exceeding_functions,
             run_id,
             stored_at,
-            trends
+            trends,
+            statistics
         )
 
         return response

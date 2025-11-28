@@ -10,10 +10,10 @@ from ast_grep_mcp.utils.console_logger import console
 # Add the parent directory to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from ast_grep_mcp.features.quality.smells import (
-    _count_function_parameters,
-    _extract_classes_from_file,
-    _find_magic_numbers,
+from ast_grep_mcp.features.quality.smells_detectors import (
+    ParameterBloatDetector,
+    LargeClassDetector,
+    MagicNumberDetector,
 )
 
 
@@ -23,73 +23,85 @@ class TestParameterCount:
     def test_no_parameters(self):
         """Function with no parameters."""
         code = "def func():\n    pass"
-        result = _count_function_parameters(code, "python")
+        detector = ParameterBloatDetector(5)
+        result = detector._count_parameters(code, "python")
         assert result == 0
 
     def test_single_parameter(self):
         """Function with single parameter."""
         code = "def func(x):\n    return x"
-        result = _count_function_parameters(code, "python")
+        detector = ParameterBloatDetector(5)
+        result = detector._count_parameters(code, "python")
         assert result == 1
 
     def test_multiple_parameters(self):
         """Function with multiple parameters."""
         code = "def func(a, b, c):\n    return a + b + c"
-        result = _count_function_parameters(code, "python")
+        detector = ParameterBloatDetector(5)
+        result = detector._count_parameters(code, "python")
         assert result == 3
 
     def test_self_excluded(self):
         """Self parameter should be excluded in Python."""
         code = "def func(self, x, y):\n    return x + y"
-        result = _count_function_parameters(code, "python")
+        detector = ParameterBloatDetector(5)
+        result = detector._count_parameters(code, "python")
         assert result == 2
 
     def test_cls_excluded(self):
         """Cls parameter should be excluded in Python."""
         code = "def func(cls, x):\n    return x"
-        result = _count_function_parameters(code, "python")
+        detector = ParameterBloatDetector(5)
+        result = detector._count_parameters(code, "python")
         assert result == 1
 
     def test_default_values(self):
         """Parameters with default values."""
         code = "def func(a, b=10, c='test'):\n    pass"
-        result = _count_function_parameters(code, "python")
+        detector = ParameterBloatDetector(5)
+        result = detector._count_parameters(code, "python")
         assert result == 3
 
     def test_type_annotations(self):
         """Parameters with type annotations."""
         code = "def func(a: int, b: str, c: List[int]):\n    pass"
-        result = _count_function_parameters(code, "python")
+        detector = ParameterBloatDetector(5)
+        result = detector._count_parameters(code, "python")
         assert result == 3
 
     def test_complex_types(self):
         """Parameters with complex type annotations."""
         code = "def func(a: Dict[str, Any], b: Callable[[int], str]):\n    pass"
-        result = _count_function_parameters(code, "python")
+        detector = ParameterBloatDetector(5)
+        result = detector._count_parameters(code, "python")
         assert result == 2
 
     def test_async_function(self):
         """Async function parameters."""
         code = "async def func(a, b, c):\n    pass"
-        result = _count_function_parameters(code, "python")
+        detector = ParameterBloatDetector(5)
+        result = detector._count_parameters(code, "python")
         assert result == 3
 
     def test_javascript_function(self):
         """JavaScript function parameters."""
         code = "function func(a, b, c) { return a; }"
-        result = _count_function_parameters(code, "javascript")
+        detector = ParameterBloatDetector(5)
+        result = detector._count_parameters(code, "javascript")
         assert result == 3
 
     def test_typescript_function(self):
         """TypeScript function with types."""
         code = "function func(a: number, b: string): void { }"
-        result = _count_function_parameters(code, "typescript")
+        detector = ParameterBloatDetector(5)
+        result = detector._count_parameters(code, "typescript")
         assert result == 2
 
     def test_args_kwargs(self):
         """Args and kwargs."""
         code = "def func(a, *args, **kwargs):\n    pass"
-        result = _count_function_parameters(code, "python")
+        detector = ParameterBloatDetector(5)
+        result = detector._count_parameters(code, "python")
         # Should count a, *args, **kwargs as separate params
         assert result >= 1
 
@@ -101,14 +113,16 @@ class TestMagicNumbers:
         """Code without magic numbers."""
         code = "x = 0\ny = 1"
         lines = code.split('\n')
-        result = _find_magic_numbers(code, lines, "python")
+        detector = MagicNumberDetector(enabled=True)
+        result = detector._find_magic_numbers(code, lines, "python")
         assert len(result) == 0
 
     def test_simple_magic_number(self):
         """Simple magic number detection."""
         code = "delay = calculate(3600)"  # Not in allowed list, in function call
         lines = code.split('\n')
-        result = _find_magic_numbers(code, lines, "python")
+        detector = MagicNumberDetector(enabled=True)
+        result = detector._find_magic_numbers(code, lines, "python")
         # 3600 is a magic number
         assert any(m["value"] == "3600" for m in result)
 
@@ -116,14 +130,16 @@ class TestMagicNumbers:
         """Common values should not be flagged."""
         code = "x = 0\ny = 1\nz = 2\na = 10\nb = 100"
         lines = code.split('\n')
-        result = _find_magic_numbers(code, lines, "python")
+        detector = MagicNumberDetector(enabled=True)
+        result = detector._find_magic_numbers(code, lines, "python")
         assert len(result) == 0
 
     def test_comments_excluded(self):
         """Numbers in comments should be excluded."""
         code = "# Port 8080\nx = some_func()"
         lines = code.split('\n')
-        result = _find_magic_numbers(code, lines, "python")
+        detector = MagicNumberDetector(enabled=True)
+        result = detector._find_magic_numbers(code, lines, "python")
         # 8080 is in a comment, should be excluded
         assert not any(m["value"] == "8080" for m in result)
 
@@ -131,7 +147,8 @@ class TestMagicNumbers:
         """Float magic numbers."""
         code = "rate = 0.15"
         lines = code.split('\n')
-        result = _find_magic_numbers(code, lines, "python")
+        detector = MagicNumberDetector(enabled=True)
+        result = detector._find_magic_numbers(code, lines, "python")
         # 0.15 should be flagged (not in allowed list)
         assert len(result) >= 1
 
@@ -139,7 +156,8 @@ class TestMagicNumbers:
         """Multiple magic numbers on same line."""
         code = "result = 42 + 123"
         lines = code.split('\n')
-        result = _find_magic_numbers(code, lines, "python")
+        detector = MagicNumberDetector(enabled=True)
+        result = detector._find_magic_numbers(code, lines, "python")
         # Both 42 and 123 should be flagged
         assert len(result) >= 2
 
@@ -147,7 +165,8 @@ class TestMagicNumbers:
         """Numbers in range() should be excluded."""
         code = "for i in range(50):\n    pass"
         lines = code.split('\n')
-        result = _find_magic_numbers(code, lines, "python")
+        detector = MagicNumberDetector(enabled=True)
+        result = detector._find_magic_numbers(code, lines, "python")
         # range() calls are excluded
         assert len(result) == 0
 
@@ -172,7 +191,8 @@ class MyClass:
             f.flush()
 
             try:
-                result = _extract_classes_from_file(f.name, "python")
+                detector = LargeClassDetector(300, 20)
+                result = detector._extract_classes(f.name, "python")
                 # May or may not find class depending on ast-grep pattern
                 assert isinstance(result, list)
             finally:
@@ -188,7 +208,8 @@ def standalone_function():
             f.flush()
 
             try:
-                result = _extract_classes_from_file(f.name, "python")
+                detector = LargeClassDetector(300, 20)
+                result = detector._extract_classes(f.name, "python")
                 assert isinstance(result, list)
             finally:
                 os.unlink(f.name)
@@ -210,7 +231,8 @@ class TestCodeSmellDetection:
     def test_parameter_bloat_detection(self):
         """Detect parameter bloat smell."""
         code = "def func(a, b, c, d, e, f, g, h):\n    pass"
-        param_count = _count_function_parameters(code, "python")
+        detector = ParameterBloatDetector(5)
+        param_count = detector._count_parameters(code, "python")
         assert param_count == 8
         assert param_count > 5  # Default threshold
 
@@ -221,27 +243,31 @@ class TestEdgeCases:
     def test_empty_function(self):
         """Empty function should have 0 parameters."""
         code = "def empty(): pass"
-        result = _count_function_parameters(code, "python")
+        detector = ParameterBloatDetector(5)
+        result = detector._count_parameters(code, "python")
         assert result == 0
 
     def test_lambda_not_counted(self):
         """Lambdas are not regular functions."""
         code = "f = lambda x, y: x + y"
         # This shouldn't match our function pattern
-        result = _count_function_parameters(code, "python")
+        detector = ParameterBloatDetector(5)
+        result = detector._count_parameters(code, "python")
         assert result == 0  # No 'def' pattern match
 
     def test_nested_parentheses_in_params(self):
         """Handle nested parentheses in parameter types."""
         code = "def func(callback: Callable[[int, int], str]):\n    pass"
-        result = _count_function_parameters(code, "python")
+        detector = ParameterBloatDetector(5)
+        result = detector._count_parameters(code, "python")
         assert result == 1
 
     def test_no_magic_in_strings(self):
         """Numbers in strings shouldn't be flagged."""
         code = 'message = "Error code: 404"'
         lines = code.split('\n')
-        result = _find_magic_numbers(code, lines, "python")
+        detector = MagicNumberDetector(enabled=True)
+        result = detector._find_magic_numbers(code, lines, "python")
         # 404 is in a string, should ideally be excluded
         # (simplified implementation may still catch it)
         assert isinstance(result, list)

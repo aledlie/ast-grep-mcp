@@ -38,21 +38,13 @@ from ast_grep_mcp.features.quality.rules import (
     load_rules_from_project,
     save_rule_to_project,
 )
-from ast_grep_mcp.features.quality.smells import (
-    _count_function_parameters,
-    _extract_classes_from_file,
-    _find_magic_numbers,
-    detect_code_smells_impl,
-)
+from ast_grep_mcp.features.quality.smells import detect_code_smells_impl
 from ast_grep_mcp.features.quality.tools import register_quality_tools
 from ast_grep_mcp.features.quality.validator import validate_linting_rules_impl, validate_rule_definition, validate_rule_pattern
 
 __all__ = [
     # Smells
     "detect_code_smells_impl",
-    "_count_function_parameters",
-    "_find_magic_numbers",
-    "_extract_classes_from_file",
     # Rules
     "RULE_TEMPLATES",
     "get_available_templates",
