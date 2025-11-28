@@ -66,10 +66,17 @@ mcp = main.mcp
 register_mcp_tools()
 
 # Ensure caching is enabled for benchmarks
+# Initialize the modular cache (used by the actual implementation)
+from ast_grep_mcp.core import config as core_config
+from ast_grep_mcp.core import cache as core_cache
+
+core_config.CACHE_ENABLED = True
+if core_cache._query_cache is None:
+    core_cache.init_query_cache(max_size=100, ttl_seconds=300)
+
+# Also set main.CACHE_ENABLED for backward compatibility
 main.CACHE_ENABLED = True
-if main._query_cache is None:
-    from main import QueryCache
-    main._query_cache = QueryCache(max_size=100, ttl_seconds=300)
+main._query_cache = core_cache._query_cache  # Point to the same instance
 
 
 class BenchmarkResult:
@@ -653,18 +660,39 @@ class TestDeduplicationBenchmarks:
         dedup_benchmark_runner: DeduplicationBenchmarkRunner
     ) -> None:
         """Benchmark calculate_deduplication_score function."""
-        from main import calculate_deduplication_score
+        from ast_grep_mcp.features.deduplication.ranker import get_ranker
 
-        # Test with various inputs
+        ranker = get_ranker()
+
+        # Test with various inputs (using new duplicate_group dict API)
         test_cases = [
-            (100, 3, True, 2, 5),    # High value candidate
-            (10, 8, False, 10, 50),  # Low value candidate
-            (50, 5, True, 5, 10),    # Medium value candidate
+            {  # High value candidate
+                "potential_line_savings": 100,
+                "instances": [
+                    {"file": "a.py", "line": 10},
+                    {"file": "b.py", "line": 20},
+                    {"file": "a.py", "line": 50}
+                ]
+            },
+            {  # Low value candidate
+                "potential_line_savings": 10,
+                "instances": [
+                    {"file": f"file{i}.py", "line": i * 10}
+                    for i in range(8)
+                ]
+            },
+            {  # Medium value candidate
+                "potential_line_savings": 50,
+                "instances": [
+                    {"file": f"module{i % 5}.py", "line": i * 5}
+                    for i in range(5)
+                ]
+            },
         ]
 
         def run_scoring() -> None:
-            for lines, complexity, has_tests, files, calls in test_cases:
-                calculate_deduplication_score(lines, complexity, has_tests, files, calls)
+            for duplicate_group in test_cases:
+                ranker.calculate_deduplication_score(duplicate_group)
 
         result = dedup_benchmark_runner.run_benchmark(
             "scoring",
@@ -704,36 +732,10 @@ class TestDeduplicationBenchmarks:
         # Should complete quickly for 50 candidates
         assert result.mean < 0.01, f"Ranking too slow: {result.mean*1000:.3f}ms"
 
-    def test_benchmark_analyze_duplicate_variations(
-        self,
-        dedup_benchmark_runner: DeduplicationBenchmarkRunner
-    ) -> None:
-        """Benchmark analyze_duplicate_variations function."""
-        from main import analyze_duplicate_variations
-
-        # Create test duplicate group
-        group = [
-            {
-                "text": f'''def process_data_{i}(data):
-    result = []
-    for item in data:
-        if item > {i}:
-            result.append(item * {i + 1})
-    return result'''
-            }
-            for i in range(10)  # 10 duplicates in group
-        ]
-
-        result = dedup_benchmark_runner.run_benchmark(
-            "pattern_analysis",
-            analyze_duplicate_variations,
-            20,  # iterations
-            group,
-            "python"
-        )
-
-        # Pattern analysis should be reasonable
-        assert result.mean < 0.1, f"Variation analysis too slow: {result.mean*1000:.3f}ms"
+    # test_benchmark_analyze_duplicate_variations - DELETED
+    # Function analyze_duplicate_variations never existed in modular architecture
+    # Variation analysis is now done via DuplicationAnalyzer.classify_variations()
+    # which is tested elsewhere in the test suite
 
     def test_benchmark_get_test_coverage_for_files(
         self,

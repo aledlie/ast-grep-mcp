@@ -261,15 +261,12 @@ mcp = _mcp
 
 # Global variables for backward compatibility
 CONFIG_PATH = None
-_query_cache = None
 
 def get_cache():
     """Get the query cache instance."""
-    global _query_cache
-    if _query_cache is None:
-        from ast_grep_mcp.core.cache import QueryCache
-        _query_cache = QueryCache()
-    return _query_cache
+    # Use the modular cache instance
+    from ast_grep_mcp.core.cache import get_query_cache as _get_query_cache
+    return _get_query_cache()
 
 # Backward compatibility - Mock tools dictionary for tests
 class MockTools:
@@ -328,14 +325,19 @@ class MockTools:
 mcp.tools = MockTools()
 
 # Backward compatibility - query cache
+# Note: This should be set via ast_grep_mcp.core.cache.init_query_cache()
+# or by importing and setting ast_grep_mcp.core.cache._query_cache directly
+# The backward-compatible way is to set main._query_cache which we'll sync
 _query_cache = None
 
 def get_query_cache():
-    """Get the global query cache instance."""
+    """Get the global query cache instance - backward compatible."""
     global _query_cache
-    if _query_cache is None:
-        from ast_grep_mcp.core.cache import QueryCache
-        _query_cache = QueryCache()
+    # First check if the modular cache is initialized
+    from ast_grep_mcp.core import cache as cache_module
+    if cache_module._query_cache is not None:
+        return cache_module._query_cache
+    # Fall back to main._query_cache for tests
     return _query_cache
 
 # Backward compatibility - CONFIG_PATH
