@@ -5,6 +5,7 @@ current benchmark results against baseline measurements.
 """
 from typing import Any, Dict, List
 
+from ...constants import DeduplicationDefaults
 from ...core.logging import get_logger
 
 
@@ -13,11 +14,11 @@ class RegressionDetector:
 
     # Default regression thresholds for different operations
     DEFAULT_THRESHOLDS = {
-        "pattern_analysis": 0.15,  # 15% slowdown allowed
-        "code_generation": 0.10,   # 10% slowdown allowed
-        "full_workflow": 0.20,     # 20% slowdown allowed
-        "scoring": 0.05,           # 5% slowdown allowed
-        "test_coverage": 0.15      # 15% slowdown allowed
+        "pattern_analysis": DeduplicationDefaults.REGRESSION_PATTERN_ANALYSIS,
+        "code_generation": DeduplicationDefaults.REGRESSION_CODE_GENERATION,
+        "full_workflow": DeduplicationDefaults.REGRESSION_FULL_WORKFLOW,
+        "scoring": DeduplicationDefaults.REGRESSION_SCORING,
+        "test_coverage": DeduplicationDefaults.REGRESSION_TEST_COVERAGE
     }
 
     def __init__(self, thresholds: Dict[str, float] | None = None):

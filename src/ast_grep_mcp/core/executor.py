@@ -9,6 +9,7 @@ from typing import Any, Dict, Generator, List, Optional, Tuple, cast
 import sentry_sdk
 import yaml
 
+from ast_grep_mcp.constants import FileConstants, StreamDefaults
 from ast_grep_mcp.core.config import CONFIG_PATH
 from ast_grep_mcp.core.exceptions import (
     AstGrepExecutionError,
@@ -164,7 +165,7 @@ def filter_files_by_size(
         # No filtering needed
         return ([], [])
 
-    max_size_bytes = max_size_mb * 1024 * 1024
+    max_size_bytes = max_size_mb * FileConstants.BYTES_PER_MB
     files_to_search: List[str] = []
     skipped_files: List[str] = []
 
@@ -213,7 +214,7 @@ def filter_files_by_size(
                     logger.debug(
                         "file_skipped_size",
                         file=file_path,
-                        size_mb=round(file_size / (1024 * 1024), 2),
+                        size_mb=round(file_size / FileConstants.BYTES_PER_MB, 2),
                         max_size_mb=max_size_mb
                     )
                 else:
@@ -256,7 +257,7 @@ def stream_ast_grep_results(
     command: str,
     args: List[str],
     max_results: int = 0,
-    progress_interval: int = 100
+    progress_interval: int = StreamDefaults.PROGRESS_INTERVAL
 ) -> Generator[Dict[str, Any], None, None]:
     """Stream ast-grep JSON results line-by-line with early termination support.
 
@@ -357,7 +358,7 @@ def stream_ast_grep_results(
                     # Skip invalid JSON lines (shouldn't happen with ast-grep)
                     logger.warning(
                         "stream_json_parse_error",
-                        line_preview=line[:100],
+                        line_preview=line[:FileConstants.LINE_PREVIEW_LENGTH],
                         error=str(e)
                     )
                     sentry_sdk.capture_exception(e)
@@ -365,7 +366,7 @@ def stream_ast_grep_results(
                         message="JSON parse error in ast-grep stream",
                         category="ast-grep.stream",
                         level="warning",
-                        data={"line_preview": line[:100]}
+                        data={"line_preview": line[:FileConstants.LINE_PREVIEW_LENGTH]}
                     )
                     continue
 
@@ -373,7 +374,7 @@ def stream_ast_grep_results(
         returncode = process.wait()
 
         # Check for errors
-        if returncode != 0 and returncode != -15:  # -15 is SIGTERM from early termination
+        if returncode != 0 and returncode != StreamDefaults.SIGTERM_RETURN_CODE:  # SIGTERM from early termination
             stderr_output = process.stderr.read() if process.stderr else ""
             execution_time = time.time() - start_time
 

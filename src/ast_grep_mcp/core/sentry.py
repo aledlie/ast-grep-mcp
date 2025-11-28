@@ -5,6 +5,7 @@ from typing import Any
 import sentry_sdk
 from sentry_sdk.integrations.anthropic import AnthropicIntegration
 
+from ast_grep_mcp.constants import LoggingDefaults
 from ast_grep_mcp.core.logging import get_logger
 
 # Re-export capture_exception for backward compatibility
@@ -46,7 +47,7 @@ def init_sentry(service_name: str = "ast-grep-mcp") -> None:
         send_default_pii=True,
         # Additional options
         attach_stacktrace=True,
-        max_breadcrumbs=50,
+        max_breadcrumbs=LoggingDefaults.MAX_BREADCRUMBS,
         debug=os.getenv("SENTRY_ENVIRONMENT") == "development",
         # Tag every event with service name
         before_send=_tag_event,

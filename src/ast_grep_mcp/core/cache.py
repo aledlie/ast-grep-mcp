@@ -4,6 +4,8 @@ import time
 from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Tuple
 
+from ast_grep_mcp.constants import CacheDefaults
+
 
 class QueryCache:
     """Simple LRU cache with TTL for ast-grep query results.
@@ -12,12 +14,12 @@ class QueryCache:
     Uses OrderedDict for LRU eviction and timestamps for TTL expiration.
     """
 
-    def __init__(self, max_size: int = 100, ttl_seconds: int = 300):
+    def __init__(self, max_size: int = CacheDefaults.DEFAULT_CACHE_SIZE, ttl_seconds: int = CacheDefaults.CLEANUP_INTERVAL_SECONDS):
         """Initialize the cache.
 
         Args:
-            max_size: Maximum number of entries to cache
-            ttl_seconds: Time-to-live for cache entries in seconds
+            max_size: Maximum number of entries to cache (default: CacheDefaults.DEFAULT_CACHE_SIZE)
+            ttl_seconds: Time-to-live for cache entries in seconds (default: CacheDefaults.CLEANUP_INTERVAL_SECONDS)
         """
         self.max_size = max_size
         self.ttl_seconds = ttl_seconds
@@ -39,7 +41,7 @@ class QueryCache:
         # Create a stable string representation
         key_parts = [command, project_folder] + sorted(args)
         key_str = "|".join(key_parts)
-        return hashlib.sha256(key_str.encode()).hexdigest()[:16]
+        return hashlib.sha256(key_str.encode()).hexdigest()[:CacheDefaults.CACHE_KEY_LENGTH]
 
     def get(self, command: str, args: List[str], project_folder: str) -> Optional[List[Dict[str, Any]]]:
         """Get cached results if available and not expired.

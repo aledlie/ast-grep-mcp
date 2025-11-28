@@ -46,6 +46,7 @@ class CacheDefaults:
     MAX_SIZE_MB = 100
     CLEANUP_INTERVAL_SECONDS = 300  # 5 minutes
     DEFAULT_CACHE_SIZE = 100  # Number of cached items
+    CACHE_KEY_LENGTH = 16  # Length of truncated SHA256 hash for cache keys
 
 
 class FilePatterns:
@@ -78,6 +79,7 @@ class StreamDefaults:
     DEFAULT_TIMEOUT_MS = 120000  # 2 minutes
     MAX_TIMEOUT_MS = 600000  # 10 minutes
     PROGRESS_INTERVAL = 100  # Log progress every N matches
+    SIGTERM_RETURN_CODE = -15  # Return code for SIGTERM signal
 
 
 class ValidationDefaults:
@@ -85,6 +87,15 @@ class ValidationDefaults:
 
     MAX_FILE_SIZE_MB = 10  # Skip files larger than this
     SYNTAX_CHECK_TIMEOUT_SECONDS = 5
+
+
+class FileConstants:
+    """Constants for file operations."""
+
+    BYTES_PER_KB = 1024
+    BYTES_PER_MB = 1024 * 1024
+    BYTES_PER_GB = 1024 * 1024 * 1024
+    LINE_PREVIEW_LENGTH = 100  # Maximum characters to show in line preview
 
 
 class DeduplicationDefaults:
@@ -98,6 +109,13 @@ class DeduplicationDefaults:
     COMPLEXITY_WEIGHT = 0.20
     RISK_WEIGHT = 0.25
     EFFORT_WEIGHT = 0.15
+
+    # Regression thresholds for performance benchmarks
+    REGRESSION_PATTERN_ANALYSIS = 0.15  # 15% slowdown allowed
+    REGRESSION_CODE_GENERATION = 0.10   # 10% slowdown allowed
+    REGRESSION_FULL_WORKFLOW = 0.20     # 20% slowdown allowed
+    REGRESSION_SCORING = 0.05            # 5% slowdown allowed
+    REGRESSION_TEST_COVERAGE = 0.15     # 15% slowdown allowed
 
 
 class SecurityScanDefaults:
@@ -132,6 +150,7 @@ class LoggingDefaults:
     DEFAULT_LEVEL = "INFO"
     MAX_LOG_SIZE_MB = 10
     BACKUP_COUNT = 5  # Number of log files to keep
+    MAX_BREADCRUMBS = 50  # Maximum Sentry breadcrumbs to keep
 
 
 # Language-specific extensions mapping

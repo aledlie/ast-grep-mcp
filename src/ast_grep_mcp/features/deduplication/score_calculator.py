@@ -5,17 +5,18 @@ This module handles calculating individual component scores
 """
 from typing import Any, Dict, Optional
 
+from ...constants import DeduplicationDefaults
 from ...core.logging import get_logger
 
 
 class DeduplicationScoreCalculator:
     """Calculates component scores for deduplication priority."""
 
-    # Scoring weights
-    WEIGHT_SAVINGS = 0.4  # 40%
-    WEIGHT_COMPLEXITY = 0.2  # 20%
-    WEIGHT_RISK = 0.25  # 25%
-    WEIGHT_EFFORT = 0.15  # 15%
+    # Scoring weights from constants
+    WEIGHT_SAVINGS = DeduplicationDefaults.SAVINGS_WEIGHT
+    WEIGHT_COMPLEXITY = DeduplicationDefaults.COMPLEXITY_WEIGHT
+    WEIGHT_RISK = DeduplicationDefaults.RISK_WEIGHT
+    WEIGHT_EFFORT = DeduplicationDefaults.EFFORT_WEIGHT
 
     def __init__(self):
         """Initialize the score calculator."""

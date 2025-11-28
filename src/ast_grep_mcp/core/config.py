@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 import yaml
 
+from ast_grep_mcp.constants import CacheDefaults
 from ast_grep_mcp.core.exceptions import ConfigurationError
 from ast_grep_mcp.core.logging import configure_logging, get_logger
 from ast_grep_mcp.models.config import AstGrepConfig
@@ -15,8 +16,8 @@ CONFIG_PATH: Optional[str] = None
 
 # Global cache configuration (set by parse_args_and_get_config)
 CACHE_ENABLED: bool = True
-CACHE_SIZE: int = 100
-CACHE_TTL: int = 300
+CACHE_SIZE: int = CacheDefaults.DEFAULT_CACHE_SIZE
+CACHE_TTL: int = CacheDefaults.CLEANUP_INTERVAL_SECONDS  # Actually 300 seconds, reused for TTL
 
 # Global cache instance (will be set after cache.py is extracted)
 _query_cache: Optional[Any] = None
@@ -117,14 +118,14 @@ For more information, see: https://github.com/ast-grep/ast-grep-mcp
         type=int,
         metavar='N',
         default=None,
-        help='Maximum number of cached query results (default: 100). Can also be set via CACHE_SIZE env var.'
+        help=f'Maximum number of cached query results (default: {CacheDefaults.DEFAULT_CACHE_SIZE}). Can also be set via CACHE_SIZE env var.'
     )
     parser.add_argument(
         '--cache-ttl',
         type=int,
         metavar='SECONDS',
         default=None,
-        help='Time-to-live for cached results in seconds (default: 300). Can also be set via CACHE_TTL env var.'
+        help=f'Time-to-live for cached results in seconds (default: {CacheDefaults.CLEANUP_INTERVAL_SECONDS}). Can also be set via CACHE_TTL env var.'
     )
     args = parser.parse_args()
 
@@ -171,20 +172,20 @@ For more information, see: https://github.com/ast-grep/ast-grep-mcp
         CACHE_SIZE = args.cache_size
     elif os.environ.get('CACHE_SIZE'):
         try:
-            CACHE_SIZE = int(os.environ.get('CACHE_SIZE', '100'))
+            CACHE_SIZE = int(os.environ.get('CACHE_SIZE', str(CacheDefaults.DEFAULT_CACHE_SIZE)))
         except ValueError:
-            cache_logger.warning("invalid_cache_size_env", using_default=100)
-            CACHE_SIZE = 100
+            cache_logger.warning("invalid_cache_size_env", using_default=CacheDefaults.DEFAULT_CACHE_SIZE)
+            CACHE_SIZE = CacheDefaults.DEFAULT_CACHE_SIZE
 
     # Set cache TTL
     if args.cache_ttl is not None:
         CACHE_TTL = args.cache_ttl
     elif os.environ.get('CACHE_TTL'):
         try:
-            CACHE_TTL = int(os.environ.get('CACHE_TTL', '300'))
+            CACHE_TTL = int(os.environ.get('CACHE_TTL', str(CacheDefaults.CLEANUP_INTERVAL_SECONDS)))
         except ValueError:
-            cache_logger.warning("invalid_cache_ttl_env", using_default=300)
-            CACHE_TTL = 300
+            cache_logger.warning("invalid_cache_ttl_env", using_default=CacheDefaults.CLEANUP_INTERVAL_SECONDS)
+            CACHE_TTL = CacheDefaults.CLEANUP_INTERVAL_SECONDS
 
     # Note: Cache initialization will happen after cache.py is extracted
     # For now, just log the configuration

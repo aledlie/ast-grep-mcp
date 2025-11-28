@@ -2,6 +2,8 @@
 from dataclasses import dataclass, field
 from typing import List
 
+from ast_grep_mcp.constants import ComplexityDefaults
+
 
 @dataclass
 class ComplexityMetrics:
@@ -28,7 +30,7 @@ class FunctionComplexity:
 @dataclass
 class ComplexityThresholds:
     """Configurable thresholds with sensible defaults."""
-    cyclomatic: int = 10
-    cognitive: int = 15
-    nesting_depth: int = 4
-    lines: int = 50
+    cyclomatic: int = ComplexityDefaults.CYCLOMATIC_THRESHOLD
+    cognitive: int = ComplexityDefaults.COGNITIVE_THRESHOLD
+    nesting_depth: int = ComplexityDefaults.NESTING_THRESHOLD
+    lines: int = ComplexityDefaults.LENGTH_THRESHOLD
