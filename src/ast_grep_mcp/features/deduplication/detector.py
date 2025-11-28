@@ -347,23 +347,56 @@ class DuplicationDetector:
 
         return groups
 
+    def _get_item_key(self, item: Dict[str, Any]) -> str:
+        """Get unique key for an item."""
+        file = item.get('file', '')
+        line = item.get('range', {}).get('start', {}).get('line', 0)
+        return f"{file}:{line}"
+
+    def _build_item_to_groups_map(self, groups: List[List[Dict[str, Any]]]) -> Dict[str, List[int]]:
+        """Build mapping from items to group indices."""
+        item_to_groups: Dict[str, List[int]] = {}
+        for idx, group in enumerate(groups):
+            for item in group:
+                key = self._get_item_key(item)
+                if key not in item_to_groups:
+                    item_to_groups[key] = []
+                item_to_groups[key].append(idx)
+        return item_to_groups
+
+    def _add_unique_items(self, target: List[Dict[str, Any]], source: List[Dict[str, Any]]) -> None:
+        """Add unique items from source to target."""
+        for item in source:
+            if not any(self._items_equal(item, existing) for existing in target):
+                target.append(item)
+
+    def _process_group_connections(
+        self,
+        current_idx: int,
+        groups: List[List[Dict[str, Any]]],
+        item_to_groups: Dict[str, List[int]],
+        used_groups: set,
+        to_merge: list,
+        merged_group: list
+    ) -> None:
+        """Process connections for a single group."""
+        for item in groups[current_idx]:
+            key = self._get_item_key(item)
+            for connected_idx in item_to_groups.get(key, []):
+                if connected_idx not in used_groups:
+                    to_merge.append(connected_idx)
+                    used_groups.add(connected_idx)
+                    self._add_unique_items(merged_group, groups[connected_idx])
+
     def _merge_overlapping_groups(self, groups: List[List[Dict[str, Any]]]) -> List[List[Dict[str, Any]]]:
         """Merge groups that share common members."""
         if not groups:
             return []
 
-        # Create a mapping of items to group indices
-        item_to_groups: Dict[str, List[int]] = {}
+        # Build mapping of items to groups
+        item_to_groups = self._build_item_to_groups_map(groups)
 
-        for idx, group in enumerate(groups):
-            for item in group:
-                # Use file + line as unique identifier
-                key = f"{item.get('file', '')}:{item.get('range', {}).get('start', {}).get('line', 0)}"
-                if key not in item_to_groups:
-                    item_to_groups[key] = []
-                item_to_groups[key].append(idx)
-
-        # Merge groups that share items
+        # Merge connected groups
         merged = []
         used_groups = set()
 
@@ -374,23 +407,14 @@ class DuplicationDetector:
             merged_group = group.copy()
             used_groups.add(idx)
 
-            # Find all connected groups
+            # Process all connected groups
             to_merge = [idx]
             while to_merge:
                 current_idx = to_merge.pop()
-                for item in groups[current_idx]:
-                    key = f"{item.get('file', '')}:{item.get('range', {}).get('start', {}).get('line', 0)}"
-                    for connected_idx in item_to_groups.get(key, []):
-                        if connected_idx not in used_groups:
-                            to_merge.append(connected_idx)
-                            used_groups.add(connected_idx)
-                            # Add unique items from connected group
-                            for connected_item in groups[connected_idx]:
-                                if not any(
-                                    self._items_equal(connected_item, existing)
-                                    for existing in merged_group
-                                ):
-                                    merged_group.append(connected_item)
+                self._process_group_connections(
+                    current_idx, groups, item_to_groups,
+                    used_groups, to_merge, merged_group
+                )
 
             merged.append(merged_group)
 

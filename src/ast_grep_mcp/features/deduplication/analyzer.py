@@ -485,6 +485,48 @@ class PatternAnalyzer:
 
         return None
 
+    def _score_literal_variation(self) -> tuple[int, str]:
+        """Score literal category variation."""
+        return 1, "Simple value substitution"
+
+    def _score_identifier_variation(self, severity: str) -> tuple[int, str]:
+        """Score identifier category variation."""
+        if severity == VariationSeverity.LOW:
+            return 1, "Simple identifier rename"
+        return 2, "Identifier with semantic differences"
+
+    def _score_expression_variation(self, severity: str) -> tuple[int, str]:
+        """Score expression category variation."""
+        if severity == VariationSeverity.LOW:
+            return 3, "Minor expression variation"
+        if severity == VariationSeverity.MEDIUM:
+            return 4, "Different operations or function calls"
+        return 4, "Significant expression restructuring"
+
+    def _score_type_variation(self, severity: str) -> tuple[int, str]:
+        """Score type category variation."""
+        if severity == VariationSeverity.LOW:
+            return 4, "Simple type substitution"
+        if severity == VariationSeverity.MEDIUM:
+            return 5, "Generic type variation"
+        return 6, "Complex type system changes"
+
+    def _score_logic_variation(self, severity: str, old_value: str, new_value: str) -> tuple[int, str]:
+        """Score logic category variation."""
+        if "inserted" in str(old_value) or "deleted" in str(new_value):
+            return 7, "Added or removed logic branches"
+        if severity == VariationSeverity.HIGH:
+            return 7, "Significant control flow differences"
+        return 5, "Conditional logic variation"
+
+    def _get_complexity_level(self, score: int) -> str:
+        """Get complexity level from score."""
+        if score <= 2:
+            return "trivial"
+        if score <= 4:
+            return "moderate"
+        return "complex"
+
     def _calculate_variation_complexity(
         self,
         category: str,
@@ -501,65 +543,24 @@ class PatternAnalyzer:
         - 4-5: Moderate (type/complex expression)
         - 6-7: Complex (logic/structure)
         """
-        score = 1
-        reasoning = ""
+        # Use a mapping to handle category scoring
+        scorers = {
+            VariationCategory.LITERAL: lambda: self._score_literal_variation(),
+            VariationCategory.IDENTIFIER: lambda: self._score_identifier_variation(severity),
+            VariationCategory.EXPRESSION: lambda: self._score_expression_variation(severity),
+            VariationCategory.TYPE: lambda: self._score_type_variation(severity),
+            VariationCategory.LOGIC: lambda: self._score_logic_variation(severity, old_value, new_value)
+        }
 
-        if category == VariationCategory.LITERAL:
-            score = 1
-            reasoning = "Simple value substitution"
-
-        elif category == VariationCategory.IDENTIFIER:
-            if severity == VariationSeverity.LOW:
-                score = 1
-                reasoning = "Simple identifier rename"
-            else:
-                score = 2
-                reasoning = "Identifier with semantic differences"
-
-        elif category == VariationCategory.EXPRESSION:
-            if severity == VariationSeverity.LOW:
-                score = 3
-                reasoning = "Minor expression variation"
-            elif severity == VariationSeverity.MEDIUM:
-                score = 4
-                reasoning = "Different operations or function calls"
-            else:
-                score = 4
-                reasoning = "Significant expression restructuring"
-
-        elif category == VariationCategory.TYPE:
-            if severity == VariationSeverity.LOW:
-                score = 4
-                reasoning = "Simple type substitution"
-            elif severity == VariationSeverity.MEDIUM:
-                score = 5
-                reasoning = "Generic type variation"
-            else:
-                score = 6
-                reasoning = "Complex type system changes"
-
-        elif category == VariationCategory.LOGIC:
-            if "inserted" in str(old_value) or "deleted" in str(new_value):
-                score = 7
-                reasoning = "Added or removed logic branches"
-            elif severity == VariationSeverity.HIGH:
-                score = 7
-                reasoning = "Significant control flow differences"
-            else:
-                score = 5
-                reasoning = "Conditional logic variation"
-
+        # Get score and reasoning for the category
+        scorer = scorers.get(category)
+        if scorer:
+            score, reasoning = scorer()
         else:
-            score = 3
-            reasoning = "Unknown variation type"
+            score, reasoning = 3, "Unknown variation type"
 
         # Determine complexity level
-        if score <= 2:
-            level = "trivial"
-        elif score <= 4:
-            level = "moderate"
-        else:
-            level = "complex"
+        level = self._get_complexity_level(score)
 
         return {
             "score": score,
