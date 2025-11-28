@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 """
 Schema.org Tools CLI
 ====================
@@ -24,6 +25,7 @@ Examples:
     schema-tools.py properties Person
     schema-tools.py properties Article --no-inherited
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import argparse
 import asyncio
@@ -35,8 +37,8 @@ from typing import Any, Dict, List
 try:
     from main import SchemaOrgClient
 except ImportError:
-    print("Error: Could not import SchemaOrgClient from main.py", file=sys.stderr)
-    print("Make sure you're running this script from the ast-grep-mcp directory", file=sys.stderr)
+    console.error("Error: Could not import SchemaOrgClient from main.py")
+    console.error("Make sure you're running this script from the ast-grep-mcp directory")
     sys.exit(1)
 
 
@@ -254,16 +256,16 @@ Examples:
         if args.command == 'search':
             results = await cli.search_schemas(args.query, args.limit)
             if args.json:
-                print(json.dumps(results, indent=2))
+                console.json(results)
             else:
-                print(format_search_results(results))
+                console.log(format_search_results(results))
 
         elif args.command == 'type':
             type_info = await cli.get_schema_type(args.type_name)
             if args.json:
-                print(json.dumps(type_info, indent=2))
+                console.json(type_info)
             else:
-                print(format_type_info(type_info))
+                console.log(format_type_info(type_info))
 
         elif args.command == 'properties':
             properties = await cli.get_type_properties(
@@ -271,15 +273,15 @@ Examples:
                 include_inherited=not args.no_inherited
             )
             if args.json:
-                print(json.dumps(properties, indent=2))
+                console.json(properties)
             else:
-                print(format_properties(properties, args.type_name))
+                console.log(format_properties(properties, args.type_name))
 
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
+        console.error(f"Error: {e}")
         sys.exit(1)
     except Exception as e:
-        print(f"Unexpected error: {e}", file=sys.stderr)
+        console.error(f"Unexpected error: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

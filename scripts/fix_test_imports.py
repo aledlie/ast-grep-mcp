@@ -18,6 +18,7 @@ Examples:
     # Fix specific file
     uv run python scripts/fix_test_imports.py --file tests/unit/test_alignment.py
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import argparse
 import re
@@ -388,23 +389,23 @@ def fix_test_file(file_path: Path, dry_run: bool = False) -> Tuple[bool, str]:
             new_content = add_fixtures_to_test_functions(new_content, fixture_mappings)
 
         if dry_run:
-            print(f"\n{'='*80}")
-            print(f"File: {file_path}")
-            print(f"{'='*80}")
-            print(f"Imported from main: {', '.join(sorted(imported_names))}")
-            print(f"\nNew imports:")
+            console.log(f"\n{'='*80}")
+            console.log(f"File: {file_path}")
+            console.log(f"{'='*80}")
+            console.log(f"Imported from main: {', '.join(sorted(imported_names))}")
+            console.log(f"\nNew imports:")
             for imp in new_imports:
-                print(f"  {imp}")
+                console.log(f"  {imp}")
             if class_imports:
-                print(f"\nClass imports (need fixtures):")
+                console.log(f"\nClass imports (need fixtures):")
                 for imp in class_imports:
-                    print(f"  {imp}")
+                    console.log(f"  {imp}")
             if fixture_mappings:
-                print(f"\nFixture mappings:")
+                console.log(f"\nFixture mappings:")
                 for func, fixture in sorted(fixture_mappings.items()):
-                    print(f"  {func}() -> {fixture}.{func}()")
+                    console.log(f"  {func}() -> {fixture}.{func}()")
             if unmapped:
-                print(f"\n⚠️  Unmapped (still in main.py): {', '.join(sorted(unmapped))}")
+                console.log(f"\n⚠️  Unmapped (still in main.py): {', '.join(sorted(unmapped))}")
             return True, "Dry run - no changes made"
 
         # Write updated content
@@ -469,7 +470,7 @@ def recommendation_engine():
     try:
         if not conftest_path.exists():
             if dry_run:
-                print(f"\nWould create {conftest_path} with fixtures")
+                console.log(f"\nWould create {conftest_path} with fixtures")
                 return True, "Dry run - would create conftest.py"
 
             conftest_path.write_text(f"import pytest\n{fixture_code}")
@@ -482,7 +483,7 @@ def recommendation_engine():
             return True, "Fixtures already exist in conftest.py"
 
         if dry_run:
-            print(f"\nWould add fixtures to {conftest_path}")
+            console.log(f"\nWould add fixtures to {conftest_path}")
             return True, "Dry run - would add fixtures"
 
         # Append fixtures
@@ -523,19 +524,19 @@ def main():
     else:
         test_files = sorted(Path("tests/unit").glob("test_*.py"))
 
-    print(f"{'='*80}")
-    print(f"Test Import Fixer - Phase 11A")
-    print(f"{'='*80}")
-    print(f"Mode: {'DRY RUN' if args.dry_run else 'APPLY CHANGES'}")
-    print(f"Files to process: {len(test_files)}")
-    print()
+    console.log(f"{'='*80}")
+    console.log(f"Test Import Fixer - Phase 11A")
+    console.log(f"{'='*80}")
+    console.log(f"Mode: {'DRY RUN' if args.dry_run else 'APPLY CHANGES'}")
+    console.log(f"Files to process: {len(test_files)}")
+    console.blank()
 
     # Update conftest.py first
     if not args.skip_conftest:
         success, message = update_conftest(args.dry_run)
         status = "✓" if success else "✗"
-        print(f"{status} conftest.py: {message}")
-        print()
+        console.log(f"{status} conftest.py: {message}")
+        console.blank()
 
     # Process test files
     results = []
@@ -544,40 +545,40 @@ def main():
         results.append((file_path, success, message))
 
         status = "✓" if success else "✗"
-        print(f"{status} {file_path.name}: {message}")
+        console.log(f"{status} {file_path.name}: {message}")
 
     # Summary
-    print()
-    print(f"{'='*80}")
-    print("Summary")
-    print(f"{'='*80}")
+    console.blank()
+    console.log(f"{'='*80}")
+    console.log("Summary")
+    console.log(f"{'='*80}")
 
     successful = sum(1 for _, success, _ in results if success)
     failed = len(results) - successful
 
-    print(f"Total files: {len(results)}")
-    print(f"Successful: {successful}")
-    print(f"Failed: {failed}")
+    console.log(f"Total files: {len(results)}")
+    console.success(f"Successful: {successful}")
+    console.error(f"Failed: {failed}")
 
     if failed > 0:
-        print("\nFailed files:")
+        console.error("\nFailed files:")
         for file_path, success, message in results:
             if not success:
-                print(f"  - {file_path.name}: {message}")
+                console.log(f"  - {file_path.name}: {message}")
 
     if args.dry_run:
-        print("\n⚠️  This was a dry run. Use without --dry-run to apply changes.")
+        console.log("\n⚠️  This was a dry run. Use without --dry-run to apply changes.")
         return 0
 
     if failed == 0:
-        print("\n✓ All imports fixed successfully!")
-        print("\nNext steps:")
-        print("  1. Run tests: uv run pytest tests/unit/ -v")
-        print("  2. Check for any remaining issues")
-        print("  3. Commit changes: git add tests/ && git commit -m 'fix: update test imports (Phase 11A)'")
+        console.success("\n✓ All imports fixed successfully!")
+        console.log("\nNext steps:")
+        console.log("  1. Run tests: uv run pytest tests/unit/ -v")
+        console.log("  2. Check for any remaining issues")
+        console.log("  3. Commit changes: git add tests/ && git commit -m 'fix: update test imports (Phase 11A)'")
         return 0
     else:
-        print("\n✗ Some files failed. Review errors above.")
+        console.error("\n✗ Some files failed. Review errors above.")
         return 1
 
 

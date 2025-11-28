@@ -3,9 +3,11 @@
 
 import re
 from pathlib import Path
+from ast_grep_mcp.utils.console_logger import console
 
 def fix_file(filepath: Path) -> bool:
     """Fix orphaned import statement closing in a file."""
+
     with open(filepath, 'r') as f:
         lines = f.readlines()
 
@@ -46,7 +48,7 @@ def fix_file(filepath: Path) -> bool:
 
                 # Skip the orphaned lines
                 if j < len(lines) and lines[j].strip() == ')':
-                    print(f"  Fixing {filepath.name}: Removing orphaned lines {i+2} to {j+1}")
+                    console.log(f"  Fixing {filepath.name}: Removing orphaned lines {i+2} to {j+1}")
                     new_lines.append(line)
                     # Skip to after the closing paren
                     for k in range(i + 1, j + 1):
@@ -85,20 +87,20 @@ def main():
         'tests/unit/test_call_site.py',
     ]
 
-    print("Fixing migration syntax errors...")
+    console.log("Fixing migration syntax errors...")
     fixed_count = 0
 
     for filepath in test_files:
         path = Path(filepath)
         if not path.exists():
-            print(f"  Skipping {filepath} - not found")
+            console.log(f"  Skipping {filepath} - not found")
             continue
 
-        print(f"\nProcessing {filepath}")
+        console.log(f"\nProcessing {filepath}")
         if fix_file(path):
             fixed_count += 1
 
-    print(f"\n✓ Fixed {fixed_count} files")
+    console.success(f"\n✓ Fixed {fixed_count} files")
 
 if __name__ == '__main__':
     main()

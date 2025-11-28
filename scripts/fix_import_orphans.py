@@ -5,10 +5,12 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from ast_grep_mcp.utils.console_logger import console
 
 
 def find_orphaned_imports(lines):
     """Find lines that are orphaned from old import blocks."""
+
     orphaned_ranges = []
     i = 0
 
@@ -73,7 +75,7 @@ def remove_orphaned_lines(filepath: Path):
     if not orphaned:
         return False
 
-    print(f"\n  Fixing {filepath.name}:")
+    console.log(f"\n  Fixing {filepath.name}:")
     new_lines = []
     skip_until = -1
 
@@ -87,7 +89,7 @@ def remove_orphaned_lines(filepath: Path):
             if start <= i < end:
                 is_orphaned = True
                 skip_until = end
-                print(f"    Removing lines {start + 1}-{end}: {repr(lines[start].strip()[:50])}")
+                console.log(f"    Removing lines {start + 1}-{end}: {repr(lines[start].strip()[:50])}")
                 break
 
         if not is_orphaned:
@@ -131,9 +133,9 @@ def main():
         'tests/unit/test_call_site.py',
     ]
 
-    print("=" * 80)
-    print("Fixing orphaned import lines from migration")
-    print("=" * 80)
+    console.log("=" * 80)
+    console.log("Fixing orphaned import lines from migration")
+    console.log("=" * 80)
 
     fixed_count = 0
     failed = []
@@ -141,14 +143,14 @@ def main():
     for filepath_str in error_files:
         filepath = Path(filepath_str)
         if not filepath.exists():
-            print(f"\n  Skipping {filepath} - not found")
+            console.log(f"\n  Skipping {filepath} - not found")
             continue
 
         # Check syntax before
         valid_before, error_before = check_syntax(filepath)
 
         if valid_before:
-            print(f"\n  Skipping {filepath.name} - already valid")
+            console.log(f"\n  Skipping {filepath.name} - already valid")
             continue
 
         # Try to fix
@@ -157,24 +159,24 @@ def main():
             valid_after, error_after = check_syntax(filepath)
 
             if valid_after:
-                print(f"    ✓ Fixed!")
+                console.success(f"    ✓ Fixed!")
                 fixed_count += 1
             else:
-                print(f"    ✗ Still has errors:")
-                print(f"      {error_after.strip()}")
+                console.log(f"    ✗ Still has errors:")
+                console.log(f"      {error_after.strip()}")
                 failed.append(filepath_str)
         else:
-            print(f"\n  No orphaned imports found in {filepath.name}")
-            print(f"    Original error: {error_before.strip()}")
+            console.log(f"\n  No orphaned imports found in {filepath.name}")
+            console.error(f"    Original error: {error_before.strip()}")
             failed.append(filepath_str)
 
-    print("\n" + "=" * 80)
-    print(f"Results: {fixed_count} files fixed")
+    console.log("\n" + "=" * 80)
+    console.log(f"Results: {fixed_count} files fixed")
 
     if failed:
-        print(f"\n{len(failed)} files still have errors:")
+        console.error(f"\n{len(failed)} files still have errors:")
         for f in failed:
-            print(f"  - {f}")
+            console.log(f"  - {f}")
         return 1
 
     return 0

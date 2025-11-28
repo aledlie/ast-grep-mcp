@@ -4,6 +4,7 @@
 This script updates all test files to import from the proper modular structure
 instead of from main.py, enabling the removal of backward compatibility imports.
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import os
 import re
@@ -189,7 +190,7 @@ def group_imports_by_module(imports: List[str]) -> Dict[str, List[str]]:
                 groups[module] = []
             groups[module].append(name)
         else:
-            print(f"WARNING: No module mapping for '{name}'")
+            console.warning(f"WARNING: No module mapping for '{name}'")
 
     return groups
 
@@ -221,7 +222,7 @@ def migrate_file(filepath: Path, dry_run: bool = True) -> bool:
     if 'from main import' not in content:
         return False
 
-    print(f"\n{'[DRY RUN] ' if dry_run else ''}Processing: {filepath}")
+    console.log(f"\n{'[DRY RUN] ' if dry_run else ''}Processing: {filepath}")
 
     # Extract imports from main
     imports, line_numbers = extract_main_imports(content)
@@ -229,7 +230,7 @@ def migrate_file(filepath: Path, dry_run: bool = True) -> bool:
     if not imports:
         return False
 
-    print(f"  Found {len(imports)} imports from main")
+    console.log(f"  Found {len(imports)} imports from main")
 
     # Group by target module
     groups = group_imports_by_module(imports)
@@ -257,14 +258,14 @@ def migrate_file(filepath: Path, dry_run: bool = True) -> bool:
     new_content = '\n'.join(new_lines)
 
     # Show diff
-    print(f"  Will add {len(new_import_lines)} new import lines")
+    console.log(f"  Will add {len(new_import_lines)} new import lines")
     for line in new_import_lines:
-        print(f"    + {line}")
+        console.log(f"    + {line}")
 
     if not dry_run:
         with open(filepath, 'w') as f:
             f.write(new_content)
-        print(f"  ✓ Updated {filepath}")
+        console.success(f"  ✓ Updated {filepath}")
 
     return True
 
@@ -281,38 +282,38 @@ def main():
     dry_run = not args.apply
 
     if dry_run:
-        print("=" * 80)
-        print("DRY RUN MODE - No files will be modified")
-        print("Run with --apply to apply changes")
-        print("=" * 80)
+        console.log("=" * 80)
+        console.log("DRY RUN MODE - No files will be modified")
+        console.log("Run with --apply to apply changes")
+        console.log("=" * 80)
 
     if args.file:
         # Migrate single file
         filepath = Path(args.file)
         if not filepath.exists():
-            print(f"ERROR: File not found: {filepath}")
+            console.error(f"ERROR: File not found: {filepath}")
             return 1
 
         migrated = migrate_file(filepath, dry_run=dry_run)
         if not migrated:
-            print(f"No migration needed for {filepath}")
+            console.log(f"No migration needed for {filepath}")
     else:
         # Migrate all test files
         test_dir = Path('tests')
         test_files = list(test_dir.rglob('*.py'))
 
-        print(f"Found {len(test_files)} test files")
+        console.log(f"Found {len(test_files)} test files")
 
         migrated_count = 0
         for filepath in sorted(test_files):
             if migrate_file(filepath, dry_run=dry_run):
                 migrated_count += 1
 
-        print("\n" + "=" * 80)
-        print(f"Migration complete: {migrated_count} files {'would be' if dry_run else 'were'} updated")
+        console.log("\n" + "=" * 80)
+        console.success(f"Migration complete: {migrated_count} files {'would be' if dry_run else 'were'} updated")
 
         if dry_run:
-            print("\nRun with --apply to apply changes")
+            console.log("\nRun with --apply to apply changes")
 
     return 0
 

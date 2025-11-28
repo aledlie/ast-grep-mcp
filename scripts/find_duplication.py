@@ -9,6 +9,7 @@ Usage:
     python scripts/find_duplication.py /path/to/project --language python --analyze  # Use ranked analysis
     python scripts/find_duplication.py /path/to/project --language python --detailed  # Show diff previews
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import argparse
 import difflib
@@ -192,15 +193,15 @@ def generate_diff_preview(instances: List[Dict[str, Any]], max_lines: int = 15) 
 
 def format_summary(summary: Dict[str, Any]) -> None:
     """Format the summary section"""
-    print("\n" + "=" * 80)
-    print(cp.bold("DUPLICATION ANALYSIS SUMMARY"))
-    print("=" * 80)
-    print(f"Total constructs analyzed:    {summary['total_constructs']}")
-    print(f"Duplicate groups found:       {cp.yellow(str(summary['duplicate_groups']))}")
-    print(f"Total duplicated lines:       {summary['total_duplicated_lines']}")
-    print(f"Potential line savings:       {cp.green(str(summary['potential_line_savings']))}")
-    print(f"Analysis time:                {summary['analysis_time_seconds']:.3f}s")
-    print("=" * 80)
+    console.log("\n" + "=" * 80)
+    console.log(cp.bold("DUPLICATION ANALYSIS SUMMARY"))
+    console.log("=" * 80)
+    console.log(f"Total constructs analyzed:    {summary['total_constructs']}")
+    console.log(f"Duplicate groups found:       {cp.yellow(str(summary['duplicate_groups']))}")
+    console.log(f"Total duplicated lines:       {summary['total_duplicated_lines']}")
+    console.log(f"Potential line savings:       {cp.green(str(summary['potential_line_savings']))}")
+    console.log(f"Analysis time:                {summary['analysis_time_seconds']:.3f}s")
+    console.log("=" * 80)
 
 
 def format_duplication_groups(groups: List[Dict[str, Any]], detailed: bool = False) -> None:
@@ -208,27 +209,27 @@ def format_duplication_groups(groups: List[Dict[str, Any]], detailed: bool = Fal
     if not groups:
         return
 
-    print("\n" + "-" * 80)
-    print(cp.bold("DUPLICATION GROUPS"))
-    print("-" * 80)
+    console.log("\n" + "-" * 80)
+    console.log(cp.bold("DUPLICATION GROUPS"))
+    console.log("-" * 80)
 
     for group in groups:
         group_id = group['group_id']
         similarity = group['similarity_score']
-        print(f"\n{cp.cyan('Group ' + str(group_id))} (Similarity: {cp.yellow(f'{similarity:.1%}')})")
-        print(f"   Found {len(group['instances'])} duplicate instances:")
+        console.log(f"\n{cp.cyan('Group ' + str(group_id))} (Similarity: {cp.yellow(f'{similarity:.1%}')})")
+        console.log(f"   Found {len(group['instances'])} duplicate instances:")
         for instance in group['instances']:
-            print(f"   {cp.dim('-')} {instance['file']}:{instance['lines']}")
+            console.log(f"   {cp.dim('-')} {instance['file']}:{instance['lines']}")
             if instance['code_preview'] and not detailed:
                 preview = instance['code_preview'][:100].replace('\n', ' ')
-                print(f"     {cp.dim('Preview:')} {preview}...")
+                console.log(f"     {cp.dim('Preview:')} {preview}...")
 
         if detailed and len(group['instances']) >= 2:
-            print(f"\n   {cp.bold('Diff Preview:')}")
+            console.log(f"\n   {cp.bold('Diff Preview:')}")
             diff = generate_diff_preview(group['instances'])
             if diff:
                 for line in diff.split('\n'):
-                    print(f"   {line}")
+                    console.log(f"   {line}")
 
 
 def format_refactoring_suggestions(suggestions: List[Dict[str, Any]]) -> None:
@@ -236,21 +237,21 @@ def format_refactoring_suggestions(suggestions: List[Dict[str, Any]]) -> None:
     if not suggestions:
         return
 
-    print("\n" + "-" * 80)
-    print(cp.bold("REFACTORING SUGGESTIONS"))
-    print("-" * 80)
+    console.log("\n" + "-" * 80)
+    console.log(cp.bold("REFACTORING SUGGESTIONS"))
+    console.log("-" * 80)
 
     for suggestion in suggestions:
-        print(f"\n{cp.yellow('Suggestion #' + str(suggestion['group_id']))}: {suggestion['type']}")
-        print(f"   {suggestion['description']}")
-        print(f"   Duplicates: {suggestion['duplicate_count']} instances")
-        print(f"   Lines per instance: {suggestion['lines_per_duplicate']}")
-        print(f"   Total duplicated: {cp.green(str(suggestion['total_duplicated_lines']))} lines")
-        print("\n   Locations:")
+        console.log(f"\n{cp.yellow('Suggestion #' + str(suggestion['group_id']))}: {suggestion['type']}")
+        console.log(f"   {suggestion['description']}")
+        console.log(f"   Duplicates: {suggestion['duplicate_count']} instances")
+        console.log(f"   Lines per instance: {suggestion['lines_per_duplicate']}")
+        console.log(f"   Total duplicated: {cp.green(str(suggestion['total_duplicated_lines']))} lines")
+        console.log("\n   Locations:")
         for loc in suggestion['locations']:
-            print(f"   {cp.dim('-')} {loc}")
-        print("\n   Recommendation:")
-        print(f"   {suggestion['suggestion']}")
+            console.log(f"   {cp.dim('-')} {loc}")
+        console.log("\n   Recommendation:")
+        console.log(f"   {suggestion['suggestion']}")
 
 
 def format_analyze_results(result: Dict[str, Any], detailed: bool = False) -> None:
@@ -259,24 +260,24 @@ def format_analyze_results(result: Dict[str, Any], detailed: bool = False) -> No
     candidates = result.get('candidates', [])
 
     # Summary header
-    print("\n" + "=" * 80)
-    print(cp.bold("DEDUPLICATION CANDIDATE ANALYSIS"))
-    print("=" * 80)
-    print(f"Project:                      {metadata.get('project_path', 'N/A')}")
-    print(f"Language:                     {metadata.get('language', 'N/A')}")
-    print(f"Total constructs analyzed:    {metadata.get('total_constructs_analyzed', 0)}")
-    print(f"Candidate groups found:       {cp.yellow(str(result.get('total_groups', 0)))}")
-    print(f"Total potential savings:      {cp.green(str(result.get('total_savings_potential', 0)))} lines")
-    print(f"Analysis time:                {metadata.get('analysis_time_seconds', 0):.3f}s")
-    print("=" * 80)
+    console.log("\n" + "=" * 80)
+    console.log(cp.bold("DEDUPLICATION CANDIDATE ANALYSIS"))
+    console.log("=" * 80)
+    console.log(f"Project:                      {metadata.get('project_path', 'N/A')}")
+    console.log(f"Language:                     {metadata.get('language', 'N/A')}")
+    console.log(f"Total constructs analyzed:    {metadata.get('total_constructs_analyzed', 0)}")
+    console.log(f"Candidate groups found:       {cp.yellow(str(result.get('total_groups', 0)))}")
+    console.log(f"Total potential savings:      {cp.green(str(result.get('total_savings_potential', 0)))} lines")
+    console.log(f"Analysis time:                {metadata.get('analysis_time_seconds', 0):.3f}s")
+    console.log("=" * 80)
 
     if not candidates:
-        print(f"\n{cp.green('No duplication candidates found.')}")
+        console.log(f"\n{cp.green('No duplication candidates found.')}")
         return
 
     # Ranked candidates
-    print(f"\n{cp.bold('RANKED CANDIDATES')} (highest priority first)")
-    print("-" * 80)
+    console.log(f"\n{cp.bold('RANKED CANDIDATES')} (highest priority first)")
+    console.log("-" * 80)
 
     for candidate in candidates:
         rank = candidate.get('rank', '?')
@@ -287,63 +288,63 @@ def format_analyze_results(result: Dict[str, Any], detailed: bool = False) -> No
         avg_lines = candidate.get('avg_lines_per_instance', 0)
 
         # Header with rank and priority
-        print(f"\n{cp.bold(f'#{rank}')} {format_priority_level(priority)} Group {candidate.get('group_id', '?')}")
+        console.log(f"\n{cp.bold(f'#{rank}')} {format_priority_level(priority)} Group {candidate.get('group_id', '?')}")
 
         # Metrics
-        print(f"   Priority Score: {format_complexity_bar(priority)}")
-        print(f"   Similarity:     {similarity:.1%}")
-        print(f"   Instances:      {instances}")
-        print(f"   Lines/Instance: {avg_lines}")
-        print(f"   Savings:        {cp.green(str(savings))} lines")
+        console.log(f"   Priority Score: {format_complexity_bar(priority)}")
+        console.log(f"   Similarity:     {similarity:.1%}")
+        console.log(f"   Instances:      {instances}")
+        console.log(f"   Lines/Instance: {avg_lines}")
+        console.log(f"   Savings:        {cp.green(str(savings))} lines")
 
         # Files affected
         files = candidate.get('files_affected', [])
         if files:
-            print(f"\n   {cp.cyan('Files Affected:')}")
+            console.log(f"\n   {cp.cyan('Files Affected:')}")
             for f in files[:5]:  # Limit display
-                print(f"   {cp.dim('-')} {f}")
+                console.log(f"   {cp.dim('-')} {f}")
             if len(files) > 5:
-                print(f"   {cp.dim(f'... and {len(files) - 5} more')}")
+                console.log(f"   {cp.dim(f'... and {len(files) - 5} more')}")
 
         # Instances with locations
         candidate_instances = candidate.get('instances', [])
         if candidate_instances:
-            print(f"\n   {cp.cyan('Instances:')}")
+            console.log(f"\n   {cp.cyan('Instances:')}")
             for inst in candidate_instances[:5]:
                 file_path = inst.get('file', '')
                 start = inst.get('start_line', 0)
                 end = inst.get('end_line', 0)
-                print(f"   {cp.dim('-')} {file_path}:{start}-{end}")
+                console.log(f"   {cp.dim('-')} {file_path}:{start}-{end}")
             if len(candidate_instances) > 5:
-                print(f"   {cp.dim(f'... and {len(candidate_instances) - 5} more')}")
+                console.log(f"   {cp.dim(f'... and {len(candidate_instances) - 5} more')}")
 
         # Recommendation
         rec = candidate.get('recommendation', '')
         if rec:
-            print(f"\n   {cp.yellow('Recommendation:')}")
+            console.log(f"\n   {cp.yellow('Recommendation:')}")
             # Wrap long recommendations
             words = rec.split()
             line = "   "
             for word in words:
                 if len(line) + len(word) > 75:
-                    print(line)
+                    console.log(line)
                     line = "   " + word
                 else:
                     line += " " + word if line.strip() else word
             if line.strip():
-                print(line)
+                console.log(line)
 
         # Detailed diff preview
         if detailed and candidate_instances and len(candidate_instances) >= 2:
-            print(f"\n   {cp.bold('Diff Preview:')}")
+            console.log(f"\n   {cp.bold('Diff Preview:')}")
             diff = generate_diff_preview(candidate_instances)
             if diff:
                 for line in diff.split('\n'):
-                    print(f"   {line}")
+                    console.log(f"   {line}")
 
     # Summary message
     if result.get('message'):
-        print(f"\n{result['message']}")
+        console.log(f"\n{result['message']}")
 
 
 def main_cli() -> None:
@@ -475,53 +476,53 @@ Examples:
 
     # Validate project folder
     if not os.path.isabs(args.project_folder):
-        print(f"Error: Project folder must be an absolute path: {args.project_folder}", file=sys.stderr)
+        console.error(f"Error: Project folder must be an absolute path: {args.project_folder}")
         sys.exit(1)
 
     if not os.path.isdir(args.project_folder):
-        print(f"Error: Project folder does not exist: {args.project_folder}", file=sys.stderr)
+        console.error(f"Error: Project folder does not exist: {args.project_folder}")
         sys.exit(1)
 
     # Validate similarity threshold
     if not 0.0 <= args.min_similarity <= 1.0:
-        print("Error: min-similarity must be between 0.0 and 1.0", file=sys.stderr)
+        console.error("Error: min-similarity must be between 0.0 and 1.0")
         sys.exit(1)
 
     # Validate min lines
     if args.min_lines < 1:
-        print("Error: min-lines must be at least 1", file=sys.stderr)
+        console.error("Error: min-lines must be at least 1")
         sys.exit(1)
 
     # Validate max constructs
     if args.max_constructs < 0:
-        print("Error: max-constructs must be 0 (unlimited) or positive", file=sys.stderr)
+        console.error("Error: max-constructs must be 0 (unlimited) or positive")
         sys.exit(1)
 
     # Show analysis parameters
     if not args.json:
-        print(f"Analyzing: {args.project_folder}")
-        print(f"Language: {args.language}")
+        console.log(f"Analyzing: {args.project_folder}")
+        console.log(f"Language: {args.language}")
         if not args.analyze:
-            print(f"Construct type: {args.construct_type}")
-        print(f"Min similarity: {args.min_similarity:.1%}")
-        print(f"Min lines: {args.min_lines}")
+            console.log(f"Construct type: {args.construct_type}")
+        console.log(f"Min similarity: {args.min_similarity:.1%}")
+        console.log(f"Min lines: {args.min_lines}")
         if args.max_constructs > 0:
-            print(f"Max constructs: {args.max_constructs}")
+            console.log(f"Max constructs: {args.max_constructs}")
         else:
-            print("Max constructs: unlimited")
+            console.log("Max constructs: unlimited")
         if args.exclude_patterns:
-            print(f"Excluding patterns: {', '.join(args.exclude_patterns)}")
+            console.log(f"Excluding patterns: {', '.join(args.exclude_patterns)}")
         if args.analyze:
-            print(f"Mode: {cp.cyan('Ranked Analysis')}")
+            console.log(f"Mode: {cp.cyan('Ranked Analysis')}")
         if args.detailed:
-            print(f"Output: {cp.cyan('Detailed with diff previews')}")
-        print("\nSearching for duplicates...")
+            console.log(f"Output: {cp.cyan('Detailed with diff previews')}")
+        console.log("\nSearching for duplicates...")
 
     try:
         if args.analyze:
             # Use analyze_deduplication_candidates tool
             if analyze_deduplication_candidates is None:
-                print("Error: analyze_deduplication_candidates tool not available", file=sys.stderr)
+                console.error("Error: analyze_deduplication_candidates tool not available")
                 sys.exit(1)
 
             result = analyze_deduplication_candidates(
@@ -535,7 +536,7 @@ Examples:
             )
 
             if args.json:
-                print(json.dumps(result, indent=2))
+                console.json(result)
             else:
                 format_analyze_results(result, detailed=args.detailed)
         else:
@@ -552,7 +553,7 @@ Examples:
 
             if args.json:
                 # Output as JSON
-                print(json.dumps(result, indent=2))
+                console.json(result)
             else:
                 # Format and display results
                 format_summary(result['summary'])
@@ -561,10 +562,10 @@ Examples:
 
                 # Print message
                 if result.get('message'):
-                    print(f"\n{result['message']}")
+                    console.log(f"\n{result['message']}")
 
     except Exception as e:
-        print(f"\nError: {e}", file=sys.stderr)
+        console.error(f"\nError: {e}")
         if not args.json:
             import traceback
             traceback.print_exc()

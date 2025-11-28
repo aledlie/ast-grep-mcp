@@ -17,6 +17,7 @@ Usage:
     # Custom output file
     python scripts/run_benchmarks.py --output benchmark_report.md
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import argparse
 import subprocess
@@ -39,10 +40,10 @@ def run_benchmarks(
     Returns:
         Exit code (0 = success, 1 = failure)
     """
-    print("=" * 80)
-    print("AST-Grep MCP Server - Performance Benchmarks")
-    print("=" * 80)
-    print()
+    console.log("=" * 80)
+    console.log("AST-Grep MCP Server - Performance Benchmarks")
+    console.log("=" * 80)
+    console.blank()
 
     # Build pytest command
     cmd = ["uv", "run", "python", "-m", "pytest", "tests/test_benchmark.py", "-v", "-s"]
@@ -50,54 +51,54 @@ def run_benchmarks(
     # Add markers to skip CI-only tests
     cmd.extend(["-m", "not skipif"])
 
-    print(f"Running command: {' '.join(cmd)}")
-    print()
+    console.log(f"Running command: {' '.join(cmd)}")
+    console.blank()
 
     # Run benchmarks
     try:
         result = subprocess.run(cmd, check=False)
 
         if result.returncode != 0:
-            print()
-            print("❌ Benchmarks failed")
+            console.blank()
+            console.error("❌ Benchmarks failed")
             return 1
 
     except FileNotFoundError:
-        print("❌ Error: uv not found. Please install uv first.")
+        console.error("❌ Error: uv not found. Please install uv first.")
         return 1
     except KeyboardInterrupt:
-        print()
-        print("⚠️  Benchmarks interrupted")
+        console.blank()
+        console.log("⚠️  Benchmarks interrupted")
         return 1
 
-    print()
-    print("✅ Benchmarks completed successfully")
+    console.blank()
+    console.success("✅ Benchmarks completed successfully")
 
     # Check if baseline file exists
     baseline_file = Path("tests/benchmark_baseline.json")
 
     if save_baseline:
-        print()
-        print("📊 Saving baseline metrics...")
+        console.blank()
+        console.log("📊 Saving baseline metrics...")
         # The BenchmarkRunner in the test suite handles saving
         # We just need to indicate it should be saved
-        print(f"   Baseline saved to: {baseline_file}")
+        console.log(f"   Baseline saved to: {baseline_file}")
 
     if check_regression and baseline_file.exists():
-        print()
-        print("🔍 Checking for performance regressions...")
+        console.blank()
+        console.log("🔍 Checking for performance regressions...")
         # Regression check happens in the test suite
         # If we got here without errors, no regressions detected
-        print("   ✅ No regressions detected (< 10% slowdown)")
+        console.log("   ✅ No regressions detected (< 10% slowdown)")
     elif check_regression:
-        print()
-        print("⚠️  No baseline found - skipping regression check")
-        print("   Run with --save-baseline to create baseline")
+        console.blank()
+        console.log("⚠️  No baseline found - skipping regression check")
+        console.log("   Run with --save-baseline to create baseline")
 
-    print()
-    print("=" * 80)
-    print(f"Benchmark report: {output_file}")
-    print("=" * 80)
+    console.blank()
+    console.log("=" * 80)
+    console.log(f"Benchmark report: {output_file}")
+    console.log("=" * 80)
 
     return 0
 

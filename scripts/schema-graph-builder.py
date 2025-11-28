@@ -19,6 +19,7 @@ Example:
     python3 schema-graph-builder.py ~/code/PersonalSite https://www.aledlie.com
     python3 schema-graph-builder.py ~/code/IntegrityStudioClients/fisterra https://fisterra-dance.com --output-dir analysis
 """
+from ast_grep_mcp.utils.console_logger import console
 
 import argparse
 import json
@@ -278,29 +279,29 @@ class SchemaGraphBuilder:
         """
         all_entities = []
 
-        print(f"\n{'='*80}")
-        print(f"Building Entity Graph for {self.project_name}")
-        print(f"{'='*80}")
-        print(f"Base URL: {self.base_url}")
-        print(f"Source files: {len(json_files)}")
+        console.log(f"\n{'='*80}")
+        console.log(f"Building Entity Graph for {self.project_name}")
+        console.log(f"{'='*80}")
+        console.log(f"Base URL: {self.base_url}")
+        console.log(f"Source files: {len(json_files)}")
 
         # Extract entities from all files
         for json_file in json_files:
-            print(f"\nProcessing {json_file.name}...")
+            console.log(f"\nProcessing {json_file.name}...")
             with open(json_file, 'r') as f:
                 data = json.load(f)
 
             entities = self.extract_entities_from_schema(data)
-            print(f"  Extracted {len(entities)} entities")
+            console.log(f"  Extracted {len(entities)} entities")
             all_entities.extend(entities)
 
         self.stats['entities_extracted'] = len(all_entities)
 
         # Merge duplicates
-        print("\nMerging duplicate entities...")
+        console.log("\nMerging duplicate entities...")
         unique_entities = self.merge_duplicate_entities(all_entities)
         self.stats['entities_unique'] = len(unique_entities)
-        print(f"  {len(all_entities)} entities → {len(unique_entities)} unique entities")
+        console.log(f"  {len(all_entities)} entities → {len(unique_entities)} unique entities")
 
         # Sort for consistent output
         unique_entities.sort(key=lambda e: e['@id'])
@@ -607,7 +608,7 @@ Examples:
 
     # Validate directory
     if not args.directory.exists():
-        print(f"Error: Directory not found: {args.directory}", file=sys.stderr)
+        console.error(f"Error: Directory not found: {args.directory}")
         sys.exit(1)
 
     # Set output directory
@@ -622,100 +623,100 @@ Examples:
     builder = SchemaGraphBuilder(args.base_url, args.name)
 
     # Discover JSON files
-    print(f"\n{'='*80}")
-    print("Schema.org Entity Graph Builder")
-    print(f"{'='*80}")
-    print(f"Directory: {args.directory}")
-    print(f"Base URL: {args.base_url}")
-    print(f"Output: {output_dir}")
-    print()
+    console.log(f"\n{'='*80}")
+    console.log("Schema.org Entity Graph Builder")
+    console.log(f"{'='*80}")
+    console.log(f"Directory: {args.directory}")
+    console.log(f"Base URL: {args.base_url}")
+    console.log(f"Output: {output_dir}")
+    console.blank()
 
     json_files = builder.discover_json_schemas(args.directory, args.exclude)
 
     if not json_files:
-        print("No Schema.org JSON files found.", file=sys.stderr)
+        console.error("No Schema.org JSON files found.")
         sys.exit(1)
 
-    print(f"Found {len(json_files)} Schema.org JSON files:")
+    console.log(f"Found {len(json_files)} Schema.org JSON files:")
     for f in json_files:
-        print(f"  - {f.relative_to(args.directory)}")
+        console.log(f"  - {f.relative_to(args.directory)}")
 
     # Build entity graph
     graph = builder.build_entity_graph(json_files)
 
     # Analyze relationships
-    print(f"\n{'='*80}")
-    print("Analyzing Relationships")
-    print(f"{'='*80}")
+    console.log(f"\n{'='*80}")
+    console.log("Analyzing Relationships")
+    console.log(f"{'='*80}")
     analysis = builder.analyze_relationships(graph)
 
-    print(f"\nTotal entities: {analysis['total_entities']}")
-    print("\nEntities by type:")
+    console.log(f"\nTotal entities: {analysis['total_entities']}")
+    console.log("\nEntities by type:")
     for entity_type, count in sorted(analysis['entities_by_type'].items()):
-        print(f"  {entity_type}: {count}")
+        console.log(f"  {entity_type}: {count}")
 
-    print(f"\nTotal relationships: {analysis['total_relationships']}")
-    print("\nRelationships by property:")
+    console.log(f"\nTotal relationships: {analysis['total_relationships']}")
+    console.log("\nRelationships by property:")
     for prop, count in sorted(analysis['relationships_by_property'].items()):
-        print(f"  {prop}: {count}")
+        console.log(f"  {prop}: {count}")
 
     # Validate all @id values
-    print(f"\n{'='*80}")
-    print("Validating @id Values")
-    print(f"{'='*80}")
+    console.log(f"\n{'='*80}")
+    console.log("Validating @id Values")
+    console.log(f"{'='*80}")
     validation_results = builder.validate_all_entity_ids(graph)
 
     valid_count = sum(1 for r in validation_results if r['valid'])
-    print(f"\n✅ {valid_count}/{len(validation_results)} @id values passed validation")
+    console.log(f"\n✅ {valid_count}/{len(validation_results)} @id values passed validation")
 
     if any(not r['valid'] for r in validation_results):
-        print("\n⚠️ Validation warnings:")
+        console.log("\n⚠️ Validation warnings:")
         for result in validation_results:
             if not result['valid']:
-                print(f"\n  {result['entity_id']} ({result['entity_type']}):")
+                console.log(f"\n  {result['entity_id']} ({result['entity_type']}):")
                 for warning in result['warnings']:
-                    print(f"    - {warning}")
+                    console.log(f"    - {warning}")
 
     # Save outputs
-    print(f"\n{'='*80}")
-    print("Saving Outputs")
-    print(f"{'='*80}")
+    console.log(f"\n{'='*80}")
+    console.log("Saving Outputs")
+    console.log(f"{'='*80}")
 
     # Save unified graph
     graph_file = output_dir / 'unified-entity-graph.json'
     with open(graph_file, 'w') as graph_f:
         json.dump(graph, graph_f, indent=2)
-    print(f"\n✅ Unified entity graph: {graph_file}")
+    console.log(f"\n✅ Unified entity graph: {graph_file}")
 
     # Save analysis
     analysis_file = output_dir / 'entity-graph-analysis.json'
     with open(analysis_file, 'w') as analysis_f:
         json.dump(analysis, analysis_f, indent=2)
-    print(f"✅ Graph analysis: {analysis_file}")
+    console.log(f"✅ Graph analysis: {analysis_file}")
 
     # Save validation results
     validation_file = output_dir / 'entity-id-validation.json'
     with open(validation_file, 'w') as validation_f:
         json.dump(validation_results, validation_f, indent=2)
-    print(f"✅ Validation results: {validation_file}")
+    console.log(f"✅ Validation results: {validation_file}")
 
     # Generate documentation
     documentation = builder.generate_documentation(graph, analysis, json_files)
     doc_file = output_dir / 'ENTITY-GRAPH-SUMMARY.md'
     with open(doc_file, 'w') as doc_f:
         doc_f.write(documentation)
-    print(f"✅ Documentation: {doc_file}")
+    console.log(f"✅ Documentation: {doc_file}")
 
     # Print summary
-    print(f"\n{'='*80}")
-    print("Build Complete")
-    print(f"{'='*80}")
-    print("\n📊 Summary:")
-    print(f"  - {analysis['total_entities']} unique entities")
-    print(f"  - {len(analysis['entities_by_type'])} Schema.org types")
-    print(f"  - {analysis['total_relationships']} relationships")
-    print(f"  - {valid_count}/{len(validation_results)} @id values valid")
-    print(f"\n📁 Output directory: {output_dir}")
+    console.log(f"\n{'='*80}")
+    console.success("Build Complete")
+    console.log(f"{'='*80}")
+    console.log("\n📊 Summary:")
+    console.log(f"  - {analysis['total_entities']} unique entities")
+    console.log(f"  - {len(analysis['entities_by_type'])} Schema.org types")
+    console.log(f"  - {analysis['total_relationships']} relationships")
+    console.log(f"  - {valid_count}/{len(validation_results)} @id values valid")
+    console.log(f"\n📁 Output directory: {output_dir}")
 
     # JSON output mode
     if args.json:
