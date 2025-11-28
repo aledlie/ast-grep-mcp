@@ -142,6 +142,94 @@ def run_command(args: List[str], input_text: Optional[str] = None) -> subprocess
         raise not_found_error from e
 
 
+def _get_language_extensions(language: str) -> Optional[List[str]]:
+    """Get file extensions for a language.
+
+    Args:
+        language: Programming language name
+
+    Returns:
+        List of extensions or None if language not found
+    """
+    lang_map = {
+        'python': ['.py', '.pyi'],
+        'javascript': ['.js', '.jsx', '.mjs'],
+        'typescript': ['.ts', '.tsx'],
+        'java': ['.java'],
+        'rust': ['.rs'],
+        'go': ['.go'],
+        'c': ['.c', '.h'],
+        'cpp': ['.cpp', '.hpp', '.cc', '.cxx', '.h'],
+        'ruby': ['.rb'],
+        'php': ['.php'],
+        'swift': ['.swift'],
+        'kotlin': ['.kt', '.kts'],
+    }
+    return lang_map.get(language.lower())
+
+
+def _should_skip_directory(dirname: str) -> bool:
+    """Check if directory should be skipped.
+
+    Args:
+        dirname: Directory name
+
+    Returns:
+        True if should skip, False otherwise
+    """
+    if dirname.startswith('.'):
+        return True
+    return dirname in ['node_modules', 'venv', '.venv', 'build', 'dist']
+
+
+def _process_file(
+    file: str,
+    root: str,
+    lang_extensions: Optional[List[str]],
+    max_size_bytes: int,
+    logger: Any
+) -> Tuple[Optional[str], Optional[str]]:
+    """Process a single file for size filtering.
+
+    Args:
+        file: File name
+        root: Root directory path
+        lang_extensions: Language-specific extensions
+        max_size_bytes: Maximum size in bytes
+        logger: Logger instance
+
+    Returns:
+        Tuple of (file_to_search, skipped_file) - only one will be non-None
+    """
+    # Skip hidden files
+    if file.startswith('.'):
+        return (None, None)
+
+    # Check language filter
+    if lang_extensions and not any(file.endswith(ext) for ext in lang_extensions):
+        return (None, None)
+
+    file_path = os.path.join(root, file)
+
+    try:
+        file_size = os.path.getsize(file_path)
+
+        if file_size > max_size_bytes:
+            logger.debug(
+                "file_skipped_size",
+                file=file_path,
+                size_mb=round(file_size / FileConstants.BYTES_PER_MB, 2),
+                max_size_mb=max_size_bytes / FileConstants.BYTES_PER_MB
+            )
+            return (None, file_path)
+
+        return (file_path, None)
+
+    except OSError as e:
+        logger.debug("file_stat_error", file=file_path, error=str(e))
+        return (None, None)
+
+
 def filter_files_by_size(
     directory: str,
     max_size_mb: Optional[int] = None,
@@ -170,60 +258,22 @@ def filter_files_by_size(
     skipped_files: List[str] = []
 
     # Get language extensions if specified
-    lang_extensions: Optional[List[str]] = None
-    if language:
-        # Common extensions by language (simplified)
-        lang_map = {
-            'python': ['.py', '.pyi'],
-            'javascript': ['.js', '.jsx', '.mjs'],
-            'typescript': ['.ts', '.tsx'],
-            'java': ['.java'],
-            'rust': ['.rs'],
-            'go': ['.go'],
-            'c': ['.c', '.h'],
-            'cpp': ['.cpp', '.hpp', '.cc', '.cxx', '.h'],
-            'ruby': ['.rb'],
-            'php': ['.php'],
-            'swift': ['.swift'],
-            'kotlin': ['.kt', '.kts'],
-        }
-        lang_extensions = lang_map.get(language.lower())
+    lang_extensions = _get_language_extensions(language) if language else None
 
     # Walk directory and check file sizes
     for root, dirs, files in os.walk(directory):
-        # Skip hidden directories and common ignore patterns
-        dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['node_modules', 'venv', '.venv', 'build', 'dist']]
+        # Filter directories in-place
+        dirs[:] = [d for d in dirs if not _should_skip_directory(d)]
 
         for file in files:
-            # Skip hidden files
-            if file.startswith('.'):
-                continue
+            file_to_search, skipped_file = _process_file(
+                file, root, lang_extensions, max_size_bytes, logger
+            )
 
-            # Check language filter
-            if lang_extensions:
-                if not any(file.endswith(ext) for ext in lang_extensions):
-                    continue
-
-            file_path = os.path.join(root, file)
-
-            try:
-                file_size = os.path.getsize(file_path)
-
-                if file_size > max_size_bytes:
-                    skipped_files.append(file_path)
-                    logger.debug(
-                        "file_skipped_size",
-                        file=file_path,
-                        size_mb=round(file_size / FileConstants.BYTES_PER_MB, 2),
-                        max_size_mb=max_size_mb
-                    )
-                else:
-                    files_to_search.append(file_path)
-
-            except OSError as e:
-                # Skip files we can't stat
-                logger.debug("file_stat_error", file=file_path, error=str(e))
-                continue
+            if file_to_search:
+                files_to_search.append(file_to_search)
+            elif skipped_file:
+                skipped_files.append(skipped_file)
 
     if skipped_files:
         logger.info(
