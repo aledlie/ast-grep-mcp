@@ -77,59 +77,61 @@ JAVA_METHOD_TEMPLATE: str = """{javadoc}{annotations}{modifiers}{type_params}{re
 }}"""
 
 
-def format_java_code(code: str) -> str:
-    """Format Java code using google-java-format or basic formatting fallback.
-
-    Attempts to use google-java-format for professional formatting. Falls back
-    to basic formatting rules if the tool is not available.
+def _try_google_java_format(code: str) -> Optional[str]:
+    """Try to format Java code using google-java-format.
 
     Args:
-        code: Java source code string to format
+        code: Java source code to format
 
     Returns:
-        Formatted Java code string
-
-    Examples:
-        >>> format_java_code("public class Foo{int x;}")
-        'public class Foo {\\n    int x;\\n}'
+        Formatted code if successful, None if tool unavailable or error
     """
-    # Try google-java-format if available
-    if shutil.which("google-java-format"):
+    if not shutil.which("google-java-format"):
+        return None
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode='w', suffix='.java', delete=False
+        ) as f:
+            f.write(code)
+            temp_path = f.name
+
+        result = subprocess.run(
+            ["google-java-format", temp_path],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        # Clean up temp file
         try:
-            with tempfile.NamedTemporaryFile(
-                mode='w', suffix='.java', delete=False
-            ) as f:
-                f.write(code)
-                temp_path = f.name
+            os.unlink(temp_path)
+        except OSError:
+            pass
 
-            result = subprocess.run(
-                ["google-java-format", temp_path],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
+        if result.returncode == 0:
+            return result.stdout
 
-            # Clean up temp file
-            try:
-                os.unlink(temp_path)
-            except OSError:
-                pass
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError):
+        pass
 
-            if result.returncode == 0:
-                return result.stdout
+    return None
 
-        except (subprocess.TimeoutExpired, subprocess.SubprocessError):
-            pass  # Fall through to basic formatting
 
-    # Basic formatting fallback
-    lines = code.split('\n')
-    formatted_lines: list[str] = []
-    indent_level = 0
+def _process_java_imports(lines: list[str]) -> tuple[list[str], list[str]]:
+    """Separate and sort Java import statements.
+
+    Args:
+        lines: Raw code lines
+
+    Returns:
+        Tuple of (sorted_import_lines, non_import_lines)
+    """
     import_lines: list[str] = []
     non_import_lines: list[str] = []
     in_imports = False
 
-    # First pass: separate imports from other code
+    # Separate imports from other code
     for line in lines:
         stripped = line.strip()
         if stripped.startswith('import '):
@@ -156,9 +158,25 @@ def format_java_code(code: str) -> str:
 
     import_lines.sort(key=import_sort_key)
 
-    # Reconstruct with sorted imports
+    return import_lines, non_import_lines
+
+
+def _merge_package_imports_code(
+    import_lines: list[str],
+    non_import_lines: list[str]
+) -> list[str]:
+    """Merge package declaration, imports, and code with proper spacing.
+
+    Args:
+        import_lines: Sorted import statements
+        non_import_lines: Package declaration and code
+
+    Returns:
+        Merged lines with proper spacing
+    """
     all_lines: list[str] = []
     found_package = False
+
     for line in non_import_lines:
         if line.startswith('package '):
             all_lines.append(line)
@@ -173,8 +191,22 @@ def format_java_code(code: str) -> str:
     if not found_package and import_lines:
         all_lines = import_lines + [''] + all_lines
 
-    # Second pass: apply indentation and brace formatting
-    for line in all_lines:
+    return all_lines
+
+
+def _apply_java_indentation(lines: list[str]) -> str:
+    """Apply consistent indentation and brace formatting.
+
+    Args:
+        lines: Code lines to format
+
+    Returns:
+        Formatted code string with proper indentation
+    """
+    formatted_lines: list[str] = []
+    indent_level = 0
+
+    for line in lines:
         stripped = line.strip()
         if not stripped:
             formatted_lines.append('')
@@ -202,6 +234,34 @@ def format_java_code(code: str) -> str:
         indent_level = max(0, indent_level + open_braces)
 
     return '\n'.join(formatted_lines)
+
+
+def format_java_code(code: str) -> str:
+    """Format Java code using google-java-format or basic formatting fallback.
+
+    Attempts to use google-java-format for professional formatting. Falls back
+    to basic formatting rules if the tool is not available.
+
+    Args:
+        code: Java source code string to format
+
+    Returns:
+        Formatted Java code string
+
+    Examples:
+        >>> format_java_code("public class Foo{int x;}")
+        'public class Foo {\\n    int x;\\n}'
+    """
+    # Try external formatter first
+    formatted = _try_google_java_format(code)
+    if formatted is not None:
+        return formatted
+
+    # Fall back to basic formatting
+    lines = code.split('\n')
+    import_lines, non_import_lines = _process_java_imports(lines)
+    all_lines = _merge_package_imports_code(import_lines, non_import_lines)
+    return _apply_java_indentation(all_lines)
 
 
 def format_java_method(
@@ -342,6 +402,23 @@ def format_typescript_class(
     )
 
 
+def _select_typescript_template(use_arrow: bool, is_async: bool) -> str:
+    """Select the appropriate TypeScript function template.
+
+    Args:
+        use_arrow: Use arrow function syntax
+        is_async: Function is async
+
+    Returns:
+        Template string
+    """
+    if use_arrow:
+        return TYPESCRIPT_ARROW_FUNCTION_TEMPLATE
+    if is_async:
+        return TYPESCRIPT_ASYNC_FUNCTION_TEMPLATE
+    return TYPESCRIPT_FUNCTION_TEMPLATE
+
+
 def format_typescript_function(
     name: str,
     params: List[Tuple[str, str]],
@@ -374,9 +451,7 @@ def format_typescript_function(
     async_str = "async " if is_async else ""
 
     # Format type parameters
-    type_params_str = ""
-    if type_params:
-        type_params_str = f"<{', '.join(type_params)}>"
+    type_params_str = f"<{', '.join(type_params)}>" if type_params else ""
 
     # Format parameters with types
     params_str = ", ".join(f"{p[0]}: {p[1]}" for p in params)
@@ -393,37 +468,25 @@ def format_typescript_function(
     indented_body = "\n".join(f"  {line}" if line.strip() else line
                                for line in body.split("\n"))
 
+    # Select template
+    template = _select_typescript_template(use_arrow, is_async)
+
+    # Format with appropriate template
+    format_args = {
+        "jsdoc": jsdoc_str,
+        "export": export_str,
+        "name": name,
+        "type_params": type_params_str,
+        "params": params_str,
+        "return_type": return_type_str,
+        "body": indented_body
+    }
+
+    # Arrow functions need the async keyword differently
     if use_arrow:
-        return TYPESCRIPT_ARROW_FUNCTION_TEMPLATE.format(
-            jsdoc=jsdoc_str,
-            export=export_str,
-            name=name,
-            **{"async": async_str},
-            type_params=type_params_str,
-            params=params_str,
-            return_type=return_type_str,
-            body=indented_body
-        )
-    elif is_async:
-        return TYPESCRIPT_ASYNC_FUNCTION_TEMPLATE.format(
-            jsdoc=jsdoc_str,
-            export=export_str,
-            name=name,
-            type_params=type_params_str,
-            params=params_str,
-            return_type=return_type_str,
-            body=indented_body
-        )
-    else:
-        return TYPESCRIPT_FUNCTION_TEMPLATE.format(
-            jsdoc=jsdoc_str,
-            export=export_str,
-            name=name,
-            type_params=type_params_str,
-            params=params_str,
-            return_type=return_type_str,
-            body=indented_body
-        )
+        format_args["async"] = async_str
+
+    return template.format(**format_args)
 
 
 # =============================================================================
@@ -441,6 +504,23 @@ JAVASCRIPT_ASYNC_FUNCTION_TEMPLATE: str = """{jsdoc}{export}async function {name
 JAVASCRIPT_ARROW_FUNCTION_TEMPLATE: str = """{jsdoc}{export}const {name} = {async}({params}) => {{
 {body}
 }};"""
+
+
+def _select_javascript_template(use_arrow: bool, is_async: bool) -> str:
+    """Select the appropriate JavaScript function template.
+
+    Args:
+        use_arrow: Use arrow function syntax
+        is_async: Function is async
+
+    Returns:
+        Template string
+    """
+    if use_arrow:
+        return JAVASCRIPT_ARROW_FUNCTION_TEMPLATE
+    if is_async:
+        return JAVASCRIPT_ASYNC_FUNCTION_TEMPLATE
+    return JAVASCRIPT_FUNCTION_TEMPLATE
 
 
 def format_javascript_function(
@@ -480,28 +560,20 @@ def format_javascript_function(
     indented_body = "\n".join(f"  {line}" if line.strip() else line
                                for line in body.split("\n"))
 
+    # Select template
+    template = _select_javascript_template(use_arrow, is_async)
+
+    # Format with appropriate template
+    format_args = {
+        "jsdoc": jsdoc_str,
+        "export": export_str,
+        "name": name,
+        "params": params_str,
+        "body": indented_body
+    }
+
+    # Arrow functions need the async keyword differently
     if use_arrow:
-        return JAVASCRIPT_ARROW_FUNCTION_TEMPLATE.format(
-            jsdoc=jsdoc_str,
-            export=export_str,
-            name=name,
-            **{"async": async_str},
-            params=params_str,
-            body=indented_body
-        )
-    elif is_async:
-        return JAVASCRIPT_ASYNC_FUNCTION_TEMPLATE.format(
-            jsdoc=jsdoc_str,
-            export=export_str,
-            name=name,
-            params=params_str,
-            body=indented_body
-        )
-    else:
-        return JAVASCRIPT_FUNCTION_TEMPLATE.format(
-            jsdoc=jsdoc_str,
-            export=export_str,
-            name=name,
-            params=params_str,
-            body=indented_body
-        )
+        format_args["async"] = async_str
+
+    return template.format(**format_args)
