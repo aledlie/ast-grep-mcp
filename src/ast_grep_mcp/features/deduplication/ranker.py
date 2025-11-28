@@ -213,29 +213,8 @@ def get_ranker() -> DuplicationRanker:
     return _ranker_instance
 
 
-def calculate_deduplication_score(
-    lines_saved: int,
-    complexity_score: int,
-    has_test_coverage: bool,
-    affected_files: int,
-    call_sites: int
-) -> float:
-    """Calculate deduplication score using singleton ranker.
-
-    Args:
-        lines_saved: Number of lines that would be saved
-        complexity_score: Complexity score (1-10)
-        has_test_coverage: Whether code has test coverage
-        affected_files: Number of files affected
-        call_sites: Number of call sites
-
-    Returns:
-        Score from 0-100
-    """
-    return get_ranker().calculate_deduplication_score(
-        lines_saved, complexity_score, has_test_coverage,
-        affected_files, call_sites
-    )
+# Note: calculate_deduplication_score is now a method on DuplicationRanker class
+# Use get_ranker().calculate_deduplication_score() or create a DuplicationRanker instance
 
 
 def rank_deduplication_candidates(

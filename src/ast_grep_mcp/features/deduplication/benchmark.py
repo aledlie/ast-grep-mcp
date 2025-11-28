@@ -7,7 +7,7 @@ import time
 from typing import Any, Callable, Dict, List
 
 from ...core.logging import get_logger
-from .ranker import calculate_deduplication_score, rank_deduplication_candidates
+from .ranker import get_ranker, rank_deduplication_candidates
 from .recommendations import generate_deduplication_recommendation
 from .reporting import create_enhanced_duplication_response
 
@@ -145,15 +145,35 @@ class DeduplicationBenchmark:
 
     def _benchmark_scoring(self, iterations: int) -> Dict[str, Any]:
         """Benchmark the scoring function."""
+        ranker = get_ranker()
         test_cases = [
-            (100, 3, True, 2, 5),
-            (10, 8, False, 10, 50),
-            (50, 5, True, 5, 10),
+            {  # High value candidate
+                "potential_line_savings": 100,
+                "instances": [
+                    {"file": "a.py", "line": 10},
+                    {"file": "b.py", "line": 20},
+                    {"file": "a.py", "line": 50}
+                ]
+            },
+            {  # Low value candidate
+                "potential_line_savings": 10,
+                "instances": [
+                    {"file": f"file{i}.py", "line": i * 10}
+                    for i in range(8)
+                ]
+            },
+            {  # Medium value candidate
+                "potential_line_savings": 50,
+                "instances": [
+                    {"file": f"module{i % 5}.py", "line": i * 5}
+                    for i in range(5)
+                ]
+            },
         ]
 
         def run_scoring() -> None:
-            for lines, complexity, has_tests, files, calls in test_cases:
-                calculate_deduplication_score(lines, complexity, has_tests, files, calls)
+            for duplicate_group in test_cases:
+                ranker.calculate_deduplication_score(duplicate_group)
 
         return self._run_timed_benchmark("scoring", run_scoring, iterations)
 
