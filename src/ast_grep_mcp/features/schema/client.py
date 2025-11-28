@@ -1,11 +1,22 @@
 """Schema.org client for fetching and querying vocabulary."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 import httpx
 import sentry_sdk
 
 from ast_grep_mcp.core.logging import get_logger
+
+# Global instance for singleton pattern
+_client_instance: Optional['SchemaOrgClient'] = None
+
+
+def get_schema_org_client() -> 'SchemaOrgClient':
+    """Get or create the global Schema.org client instance."""
+    global _client_instance
+    if _client_instance is None:
+        _client_instance = SchemaOrgClient()
+    return _client_instance
 
 
 class SchemaOrgClient:
@@ -131,26 +142,27 @@ class SchemaOrgClient:
 
         type_name = expected_types[0]
 
-        if type_name == 'Text':
-            return f"Example {property_data.get('name', 'text')}"
-        elif type_name == 'URL':
-            return 'https://example.com'
-        elif type_name == 'Date':
-            return '2024-01-01'
-        elif type_name == 'DateTime':
-            return '2024-01-01T12:00:00Z'
-        elif type_name in ('Number', 'Integer'):
-            return 42
-        elif type_name == 'Boolean':
-            return True
-        elif type_name == 'ImageObject':
-            return {
+        # Use a mapping to reduce nesting
+        type_examples = {
+            'Text': lambda: f"Example {property_data.get('name', 'text')}",
+            'URL': lambda: 'https://example.com',
+            'Date': lambda: '2024-01-01',
+            'DateTime': lambda: '2024-01-01T12:00:00Z',
+            'Number': lambda: 42,
+            'Integer': lambda: 42,
+            'Boolean': lambda: True,
+            'ImageObject': lambda: {
                 '@type': 'ImageObject',
                 'url': 'https://example.com/image.jpg',
                 'contentUrl': 'https://example.com/image.jpg'
             }
-        else:
-            return f"Example {property_data.get('name', 'value')}"
+        }
+
+        generator = type_examples.get(type_name)
+        if generator:
+            return generator()
+
+        return f"Example {property_data.get('name', 'value')}"
 
     async def get_schema_type(self, type_name: str) -> Dict[str, Any]:
         """Get detailed information about a schema.org type."""
@@ -243,16 +255,17 @@ class SchemaOrgClient:
             'children': self._find_sub_types(type_id)
         }
 
-    async def get_type_properties(self, type_name: str, include_inherited: bool = True) -> List[Dict[str, Any]]:
-        """Get all properties available for a type."""
-        await self.initialize()
+    def _collect_properties_for_type(
+        self,
+        type_id: str,
+        processed_props: Set[str],
+        inherit_from: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Collect properties for a specific type."""
+        properties = []
 
-        type_id = type_name if type_name.startswith('schema:') else f"schema:{type_name}"
-        properties: List[Dict[str, Any]] = []
-        processed_props: set[str] = set()
-
-        # Get direct properties
         for item in self.schema_data.values():
+            # Skip if not a property
             item_types = item.get('@type')
             if not item_types:
                 continue
@@ -261,14 +274,41 @@ class SchemaOrgClient:
             if 'rdf:Property' not in types_list:
                 continue
 
+            # Check if this property belongs to the type
             domains = self._normalize_to_array(item.get('schema:domainIncludes'))
             for domain in domains:
-                if isinstance(domain, dict) and domain.get('@id') == type_id:
-                    prop_id = item.get('@id', '')
-                    if prop_id and prop_id not in processed_props:
-                        processed_props.add(prop_id)
-                        properties.append(self._format_property(item))
+                if not isinstance(domain, dict):
+                    continue
+
+                if domain.get('@id') != type_id:
+                    continue
+
+                prop_id = item.get('@id', '')
+                if not prop_id or prop_id in processed_props:
                     break
+
+                processed_props.add(prop_id)
+                prop = self._format_property(item)
+
+                if inherit_from:
+                    prop['inheritedFrom'] = inherit_from
+
+                properties.append(prop)
+                break
+
+        return properties
+
+    async def get_type_properties(self, type_name: str, include_inherited: bool = True) -> List[Dict[str, Any]]:
+        """Get all properties available for a type."""
+        await self.initialize()
+
+        type_id = type_name if type_name.startswith('schema:') else f"schema:{type_name}"
+        processed_props: Set[str] = set()
+        properties: List[Dict[str, Any]] = []
+
+        # Get direct properties
+        direct_props = self._collect_properties_for_type(type_id, processed_props)
+        properties.extend(direct_props)
 
         # Get inherited properties if requested
         if include_inherited:
@@ -276,26 +316,12 @@ class SchemaOrgClient:
             if type_data:
                 super_types = self._extract_super_types(type_data)
                 for super_type in super_types:
-                    super_type_id = super_type['id']
-                    for item in self.schema_data.values():
-                        item_types = item.get('@type')
-                        if not item_types:
-                            continue
-
-                        types_list = self._normalize_to_array(item_types)
-                        if 'rdf:Property' not in types_list:
-                            continue
-
-                        domains = self._normalize_to_array(item.get('schema:domainIncludes'))
-                        for domain in domains:
-                            if isinstance(domain, dict) and domain.get('@id') == super_type_id:
-                                prop_id = item.get('@id', '')
-                                if prop_id and prop_id not in processed_props:
-                                    processed_props.add(prop_id)
-                                    prop = self._format_property(item)
-                                    prop['inheritedFrom'] = super_type['name']
-                                    properties.append(prop)
-                                break
+                    inherited_props = self._collect_properties_for_type(
+                        super_type['id'],
+                        processed_props,
+                        inherit_from=super_type['name']
+                    )
+                    properties.extend(inherited_props)
 
         properties.sort(key=lambda x: x['name'])
         return properties
@@ -347,178 +373,12 @@ class SchemaOrgClient:
         base_url = base_url.rstrip('/')
 
         # Normalize entity_type to lowercase
-        entity_type_lower = entity_type.lower()
+        entity_type = entity_type.lower()
 
-        # If entity_slug provided, append it to the path
+        # Generate the @id based on whether we have an entity_slug
         if entity_slug:
-            # Remove leading slash from slug if present
-            entity_slug = entity_slug.lstrip('/')
-            return f"{base_url}/{entity_slug}#{entity_type_lower}"
+            # For specific entities, include the slug in the path
+            return f"{base_url}/{entity_slug}#{entity_type}"
         else:
-            return f"{base_url}#{entity_type_lower}"
-
-    def validate_entity_id(self, entity_id: str) -> Dict[str, Any]:
-        """Validate an @id value against best practices.
-
-        Args:
-            entity_id: The @id value to validate
-
-        Returns:
-            Dictionary with validation results:
-            - valid: bool - Overall validity
-            - warnings: List[str] - Best practice warnings
-            - suggestions: List[str] - Improvement suggestions
-        """
-        warnings = []
-        suggestions = []
-
-        # Check if it's a valid URL
-        if not entity_id.startswith(('http://', 'https://')):
-            warnings.append("@id should be a full URL (http:// or https://)")
-
-        # Check for hash fragment
-        if '#' not in entity_id:
-            warnings.append("@id should include a hash fragment (e.g., #organization)")
-            suggestions.append("Add a descriptive fragment like #organization, #person, or #product")
-
-        # Check for problematic patterns
-        if any(pattern in entity_id.lower() for pattern in ['timestamp', 'date', 'time', 'random', 'temp']):
-            warnings.append("@id contains potentially unstable components (timestamp, date, random)")
-            suggestions.append("Use stable, permanent identifiers")
-
-        # Check for numeric-only fragment
-        if '#' in entity_id:
-            fragment = entity_id.split('#')[1]
-            if fragment.isdigit():
-                warnings.append("Fragment is numeric-only, consider using descriptive names")
-                suggestions.append("Use descriptive fragments like #organization instead of #1")
-
-        # Check for query parameters
-        if '?' in entity_id:
-            warnings.append("@id contains query parameters which may be unstable")
-            suggestions.append("Use clean URLs without query strings")
-
-        valid = len(warnings) == 0
-
-        return {
-            'valid': valid,
-            'entity_id': entity_id,
-            'warnings': warnings,
-            'suggestions': suggestions,
-            'best_practices': [
-                'Use canonical URL + hash fragment',
-                'Keep IDs stable (no timestamps or dynamic values)',
-                'Use descriptive fragments for debugging',
-                'One unchanging identifier per entity'
-            ] if warnings else []
-        }
-
-    async def build_entity_graph(
-        self,
-        entities: List[Dict[str, Any]],
-        base_url: str
-    ) -> Dict[str, Any]:
-        """Build a knowledge graph of related entities with proper @id references.
-
-        Args:
-            entities: List of entity definitions, each with:
-                - type: Schema.org type name
-                - slug: Optional URL slug
-                - properties: Dict of property values
-                - relationships: Optional dict of relationships to other entities
-            base_url: Base canonical URL for generating @id values
-
-        Returns:
-            Complete @graph structure with all entities properly connected
-
-        Example:
-            entities = [
-                {
-                    'type': 'Organization',
-                    'slug': None,  # Homepage entity
-                    'properties': {'name': 'Acme Corp'},
-                    'relationships': {'founder': 'person-john'}
-                },
-                {
-                    'type': 'Person',
-                    'slug': 'team/john',
-                    'id_fragment': 'person-john',  # Custom fragment for referencing
-                    'properties': {'name': 'John Doe'}
-                }
-            ]
-        """
-        await self.initialize()
-
-        graph_entities = []
-        entity_id_map = {}  # Map fragments to full @id values
-
-        # First pass: Generate all @id values
-        for entity in entities:
-            entity_type = entity['type']
-            slug = entity.get('slug')
-            id_fragment = entity.get('id_fragment', entity_type.lower())
-
-            # Generate @id
-            entity_id = self.generate_entity_id(base_url, entity_type, slug)
-            entity_id_map[id_fragment] = entity_id
-
-        # Second pass: Build complete entity objects with relationships
-        for entity in entities:
-            entity_type = entity['type']
-            slug = entity.get('slug')
-            id_fragment = entity.get('id_fragment', entity_type.lower())
-            properties = entity.get('properties', {})
-            relationships = entity.get('relationships', {})
-
-            # Get type info
-            type_info = await self.get_schema_type(entity_type)
-
-            # Build entity
-            entity_obj: Dict[str, Any] = {
-                '@type': type_info['name'],
-                '@id': entity_id_map[id_fragment]
-            }
-
-            # Add properties
-            entity_obj.update(properties)
-
-            # Add URL if slug provided
-            if slug:
-                entity_obj['url'] = f"{base_url.rstrip('/')}/{slug.lstrip('/')}"
-
-            # Add relationships using @id references
-            for rel_property, target_fragments in relationships.items():
-                # Handle both single values and lists
-                if isinstance(target_fragments, list):
-                    # Multiple relationships
-                    entity_obj[rel_property] = []
-                    for target_fragment in target_fragments:
-                        if target_fragment in entity_id_map:
-                            entity_obj[rel_property].append({'@id': entity_id_map[target_fragment]})
-                        else:
-                            entity_obj[rel_property].append(target_fragment)
-                else:
-                    # Single relationship
-                    if target_fragments in entity_id_map:
-                        entity_obj[rel_property] = {'@id': entity_id_map[target_fragments]}
-                    else:
-                        entity_obj[rel_property] = target_fragments
-
-            graph_entities.append(entity_obj)
-
-        return {
-            '@context': 'https://schema.org',
-            '@graph': graph_entities
-        }
-
-
-# Global schema.org client instance
-_schema_org_client: Optional[SchemaOrgClient] = None
-
-
-def get_schema_org_client() -> SchemaOrgClient:
-    """Get or create the global schema.org client."""
-    global _schema_org_client
-    if _schema_org_client is None:
-        _schema_org_client = SchemaOrgClient()
-    return _schema_org_client
+            # For generic entities, use base URL with hash fragment
+            return f"{base_url}/#{entity_type}"
