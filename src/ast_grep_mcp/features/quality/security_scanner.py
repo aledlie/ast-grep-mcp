@@ -10,6 +10,7 @@ This module provides functionality to detect common security vulnerabilities:
 - Unsafe deserialization
 """
 
+import copy
 import re
 import time
 from pathlib import Path
@@ -22,6 +23,33 @@ from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.standards import SecurityIssue, SecurityScanResult
 
 logger = get_logger(__name__)
+
+# =============================================================================
+# Scan Configuration
+# =============================================================================
+
+SCAN_CONFIG = {
+    "sql_injection": {
+        "patterns_dict": "SQL_INJECTION_PATTERNS",
+        "use_ast_grep": True
+    },
+    "xss": {
+        "patterns_dict": "XSS_PATTERNS",
+        "use_ast_grep": True
+    },
+    "command_injection": {
+        "patterns_dict": "COMMAND_INJECTION_PATTERNS",
+        "use_ast_grep": True
+    },
+    "hardcoded_secrets": {
+        "patterns_dict": None,
+        "use_regex": True
+    },
+    "insecure_crypto": {
+        "patterns_dict": "CRYPTO_PATTERNS",
+        "use_ast_grep": True
+    }
+}
 
 # =============================================================================
 # Vulnerability Patterns - SQL Injection
@@ -396,6 +424,131 @@ def scan_for_secrets_regex(
     return issues
 
 
+# =============================================================================
+# Helper Functions for Complexity Reduction
+# =============================================================================
+
+def _scan_for_issue_type(
+    issue_type: str,
+    config: Dict[str, Any],
+    project_folder: str,
+    language: str
+) -> List[SecurityIssue]:
+    """Scan for a specific vulnerability type.
+
+    Args:
+        issue_type: Type of vulnerability to scan for
+        config: Configuration for this issue type from SCAN_CONFIG
+        project_folder: Project root directory
+        language: Programming language
+
+    Returns:
+        List of security issues found
+    """
+    # Handle regex-based scanning (e.g., hardcoded secrets)
+    if config.get("use_regex"):
+        return scan_for_secrets_regex(project_folder, language)
+
+    # Handle ast-grep based scanning
+    patterns_dict_name = config.get("patterns_dict")
+    if not patterns_dict_name:
+        return []
+
+    # Get the patterns dictionary by name
+    patterns_dict = globals()[patterns_dict_name]
+    if language not in patterns_dict:
+        return []
+
+    # Deep copy patterns and add issue type
+    patterns = copy.deepcopy(patterns_dict[language])
+    for p in patterns:
+        p["issue_type"] = issue_type
+
+    return scan_for_vulnerability(project_folder, language, patterns)
+
+
+def _filter_by_severity(
+    issues: List[SecurityIssue],
+    severity_threshold: str,
+    max_issues: int
+) -> List[SecurityIssue]:
+    """Filter issues by severity threshold and limit count.
+
+    Args:
+        issues: All security issues found
+        severity_threshold: Minimum severity to include
+        max_issues: Maximum number of issues to return (0 = unlimited)
+
+    Returns:
+        Filtered list of security issues
+    """
+    severity_order = {"critical": 3, "high": 2, "medium": 1, "low": 0}
+    threshold_level = severity_order.get(severity_threshold, 0)
+
+    filtered = [
+        issue for issue in issues
+        if severity_order.get(issue.severity, 0) >= threshold_level
+    ]
+
+    if max_issues > 0:
+        filtered = filtered[:max_issues]
+
+    return filtered
+
+
+def _group_issues(
+    issues: List[SecurityIssue]
+) -> tuple[Dict[str, List[SecurityIssue]], Dict[str, List[SecurityIssue]]]:
+    """Group issues by severity and type.
+
+    Args:
+        issues: List of security issues to group
+
+    Returns:
+        Tuple of (issues_by_severity, issues_by_type)
+    """
+    by_severity: Dict[str, List[SecurityIssue]] = {}
+    by_type: Dict[str, List[SecurityIssue]] = {}
+
+    for issue in issues:
+        # Group by severity
+        if issue.severity not in by_severity:
+            by_severity[issue.severity] = []
+        by_severity[issue.severity].append(issue)
+
+        # Group by type
+        if issue.issue_type not in by_type:
+            by_type[issue.issue_type] = []
+        by_type[issue.issue_type].append(issue)
+
+    return by_severity, by_type
+
+
+def _build_summary(
+    by_severity: Dict[str, List[SecurityIssue]],
+    by_type: Dict[str, List[SecurityIssue]],
+    total_count: int
+) -> Dict[str, Any]:
+    """Build summary statistics for the scan results.
+
+    Args:
+        by_severity: Issues grouped by severity
+        by_type: Issues grouped by type
+        total_count: Total number of issues
+
+    Returns:
+        Summary dictionary with counts and statistics
+    """
+    return {
+        "total_issues": total_count,
+        "critical_count": len(by_severity.get("critical", [])),
+        "high_count": len(by_severity.get("high", [])),
+        "medium_count": len(by_severity.get("medium", [])),
+        "low_count": len(by_severity.get("low", [])),
+        "issue_types_found": list(by_type.keys())
+    }
+
+
 def detect_security_issues_impl(
     project_folder: str,
     language: str,
@@ -416,89 +569,44 @@ def detect_security_issues_impl(
         SecurityScanResult with all findings
     """
     start_time = time.time()
-    all_issues: List[SecurityIssue] = []
 
-    # Determine which scans to run
+    # Determine which issue types to scan
     scan_all = "all" in issue_types
+    types_to_scan = SCAN_CONFIG.keys() if scan_all else issue_types
 
-    # SQL Injection
-    if scan_all or "sql_injection" in issue_types:
-        if language in SQL_INJECTION_PATTERNS:
-            patterns = SQL_INJECTION_PATTERNS[language]
-            for p in patterns:
-                p["issue_type"] = "sql_injection"
-            issues = scan_for_vulnerability(project_folder, language, patterns)
+    # Run scans for each configured issue type
+    all_issues: List[SecurityIssue] = []
+    for issue_type in types_to_scan:
+        if issue_type in SCAN_CONFIG:
+            issues = _scan_for_issue_type(
+                issue_type=issue_type,
+                config=SCAN_CONFIG[issue_type],
+                project_folder=project_folder,
+                language=language
+            )
             all_issues.extend(issues)
 
-    # XSS
-    if scan_all or "xss" in issue_types:
-        if language in XSS_PATTERNS:
-            patterns = XSS_PATTERNS[language]
-            for p in patterns:
-                p["issue_type"] = "xss"
-            issues = scan_for_vulnerability(project_folder, language, patterns)
-            all_issues.extend(issues)
+    # Filter and limit results
+    filtered_issues = _filter_by_severity(
+        issues=all_issues,
+        severity_threshold=severity_threshold,
+        max_issues=max_issues
+    )
 
-    # Command Injection
-    if scan_all or "command_injection" in issue_types:
-        if language in COMMAND_INJECTION_PATTERNS:
-            patterns = COMMAND_INJECTION_PATTERNS[language]
-            for p in patterns:
-                p["issue_type"] = "command_injection"
-            issues = scan_for_vulnerability(project_folder, language, patterns)
-            all_issues.extend(issues)
+    # Group issues for reporting
+    by_severity, by_type = _group_issues(filtered_issues)
 
-    # Hardcoded Secrets
-    if scan_all or "hardcoded_secrets" in issue_types:
-        issues = scan_for_secrets_regex(project_folder, language)
-        all_issues.extend(issues)
+    # Build summary statistics
+    summary = _build_summary(
+        by_severity=by_severity,
+        by_type=by_type,
+        total_count=len(filtered_issues)
+    )
 
-    # Insecure Crypto
-    if scan_all or "insecure_crypto" in issue_types:
-        if language in CRYPTO_PATTERNS:
-            patterns = CRYPTO_PATTERNS[language]
-            for p in patterns:
-                p["issue_type"] = "insecure_crypto"
-            issues = scan_for_vulnerability(project_folder, language, patterns)
-            all_issues.extend(issues)
-
-    # Filter by severity
-    severity_order = {"critical": 3, "high": 2, "medium": 1, "low": 0}
-    threshold_level = severity_order.get(severity_threshold, 0)
-    filtered_issues = [
-        issue for issue in all_issues
-        if severity_order.get(issue.severity, 0) >= threshold_level
-    ]
-
-    # Limit results
-    if max_issues > 0:
-        filtered_issues = filtered_issues[:max_issues]
-
-    # Group by severity and type
-    by_severity: Dict[str, List[SecurityIssue]] = {}
-    by_type: Dict[str, List[SecurityIssue]] = {}
-
-    for issue in filtered_issues:
-        if issue.severity not in by_severity:
-            by_severity[issue.severity] = []
-        by_severity[issue.severity].append(issue)
-
-        if issue.issue_type not in by_type:
-            by_type[issue.issue_type] = []
-        by_type[issue.issue_type].append(issue)
-
-    # Summary
-    summary = {
-        "total_issues": len(filtered_issues),
-        "critical_count": len(by_severity.get("critical", [])),
-        "high_count": len(by_severity.get("high", [])),
-        "medium_count": len(by_severity.get("medium", [])),
-        "low_count": len(by_severity.get("low", [])),
-        "issue_types_found": list(by_type.keys())
-    }
-
+    # Calculate execution time
     execution_time = int((time.time() - start_time) * 1000)
 
+    # Return complete scan results
     return SecurityScanResult(
         summary=summary,
         issues=filtered_issues,
