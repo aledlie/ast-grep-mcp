@@ -1,0 +1,51 @@
+{
+  "config": {
+    "file_count": 100,
+    "files_per_candidate": 10,
+    "project_path": "/Users/alyshialedlie/code/ast-grep-mcp"
+  },
+  "benchmarks": [
+    {
+      "method": "legacy_sequential",
+      "elapsed_seconds": 0.6341200419992674,
+      "candidates": 9,
+      "total_files": 81
+    },
+    {
+      "method": "legacy_parallel",
+      "elapsed_seconds": 0.6734444159956183,
+      "candidates": 9,
+      "total_files": 81
+    },
+    {
+      "method": "batch_sequential",
+      "elapsed_seconds": 0.2434828339901287,
+      "candidates": 9,
+      "total_files": 81
+    },
+    {
+      "method": "batch_parallel",
+      "elapsed_seconds": 0.25094887500745244,
+      "candidates": 9,
+      "total_files": 81
+    }
+  ],
+  "speedups": {
+    "legacy_sequential": {
+      "speedup": 1.0,
+      "improvement_percent": 0.0
+    },
+    "legacy_parallel": {
+      "speedup": 0.9416070976871731,
+      "improvement_percent": -6.20140847029029
+    },
+    "batch_sequential": {
+      "speedup": 2.6043726845440607,
+      "improvement_percent": 61.6030376169044
+    },
+    "batch_parallel": {
+      "speedup": 2.5268893593582993,
+      "improvement_percent": 60.4256515507292
+    }
+  }
+}
