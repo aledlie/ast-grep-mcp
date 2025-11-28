@@ -75,7 +75,7 @@ CREATE INDEX IF NOT EXISTS idx_function_metrics_complexity ON function_metrics(c
 class ComplexityStorage:
     """SQLite storage for complexity analysis results."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Optional[Path] = None) -> None:
         self.db_path = db_path or self._get_default_db_path()
         self._init_db()
 

@@ -13,7 +13,7 @@ from ...core.logging import get_logger
 class ValidationResult:
     """Result of validation operation."""
 
-    def __init__(self, is_valid: bool, errors: List[Dict[str, Any]]):
+    def __init__(self, is_valid: bool, errors: List[Dict[str, Any]]) -> None:
         """Initialize validation result.
 
         Args:
@@ -34,7 +34,7 @@ class ValidationResult:
 class RefactoringPlanValidator:
     """Validates refactoring plans before application."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the validator."""
         self.logger = get_logger("deduplication.validator")
 

@@ -15,7 +15,7 @@ from .analyzer import analyze_file_complexity
 class ParallelComplexityAnalyzer:
     """Analyzes files in parallel for complexity metrics."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the parallel analyzer."""
         self.logger = get_logger("complexity.parallel_analyzer")
 

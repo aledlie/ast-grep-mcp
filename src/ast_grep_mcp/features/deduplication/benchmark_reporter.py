@@ -14,7 +14,7 @@ from ...core.logging import get_logger
 class BenchmarkReporter:
     """Generates benchmark reports and manages baselines."""
 
-    def __init__(self, baseline_file: str = "tests/dedup_benchmark_baseline.json"):
+    def __init__(self, baseline_file: str = "tests/dedup_benchmark_baseline.json") -> None:
         """Initialize the benchmark reporter.
 
         Args:

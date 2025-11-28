@@ -12,7 +12,7 @@ from ...core.logging import get_logger
 class PostValidationResult:
     """Result of post-validation operation."""
 
-    def __init__(self, is_valid: bool, errors: List[Dict[str, Any]]):
+    def __init__(self, is_valid: bool, errors: List[Dict[str, Any]]) -> None:
         """Initialize post-validation result.
 
         Args:
@@ -37,7 +37,7 @@ class PostValidationResult:
 class RefactoringPostValidator:
     """Validates files after refactoring modifications."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the post-validator."""
         self.logger = get_logger("deduplication.post_validator")
 

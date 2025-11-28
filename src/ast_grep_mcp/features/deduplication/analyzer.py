@@ -20,7 +20,7 @@ from ...models.deduplication import VariationCategory, VariationSeverity
 class PatternAnalyzer:
     """Analyzes patterns and variations in duplicate code."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the pattern analyzer."""
         self.logger = get_logger("deduplication.analyzer")
 
@@ -90,7 +90,7 @@ class PatternAnalyzer:
         language: str
     ) -> List[Dict[str, Any]]:
         """Extract literals from code using ast-grep."""
-        literals = []
+        literals: List[Dict[str, Any]] = []
 
         # Language file extensions
         ext_map = {

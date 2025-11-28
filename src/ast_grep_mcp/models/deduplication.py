@@ -303,7 +303,7 @@ class ParameterType:
         'any': 'Object'
     }
 
-    def __init__(self, base_type: str, language: str = 'python'):
+    def __init__(self, base_type: str, language: str = 'python') -> None:
         """Initialize parameter type.
 
         Args:
@@ -338,7 +338,7 @@ class ParameterInfo:
     """Represents a parameter for code generation with type information."""
 
     def __init__(self, name: str, param_type: Optional[ParameterType] = None,
-                 default_value: Optional[str] = None):
+                 default_value: Optional[str] = None) -> None:
         """Initialize parameter info.
 
         Args:

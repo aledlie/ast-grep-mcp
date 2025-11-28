@@ -16,7 +16,7 @@ from ...utils.formatters import format_generated_code
 class CodeGenerator:
     """Generates refactored code for deduplication."""
 
-    def __init__(self, language: str = "python"):
+    def __init__(self, language: str = "python") -> None:
         """Initialize the code generator.
 
         Args:
@@ -276,7 +276,7 @@ class CodeGenerator:
             elif category == "identifier":
                 return "Any"  # Will be refined based on usage
             elif category == "type":
-                return value  # Use the actual type
+                return str(value) if value else None  # Use the actual type
 
         elif self.language == "typescript":
             if category == "literal":
@@ -293,7 +293,7 @@ class CodeGenerator:
 
     def _find_external_dependencies(self, code: str) -> List[str]:
         """Find external dependencies that should be parameters."""
-        dependencies = []
+        dependencies: List[str] = []
 
         # Simple heuristic: find identifiers that look like they come from outside
         # This is language-specific and simplified
@@ -610,7 +610,7 @@ class CodeGenerator:
                         in_docstring = False
                         i += 1
                         break
-                elif docstring_quotes in line:
+                elif docstring_quotes and docstring_quotes in line:
                     in_docstring = False
                     i += 1
                     break

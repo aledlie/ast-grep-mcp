@@ -17,7 +17,7 @@ class DeduplicationPriorityClassifier:
     THRESHOLD_MEDIUM = 40
     THRESHOLD_LOW = 20
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the priority classifier."""
         self.logger = get_logger("deduplication.priority_classifier")
 
@@ -127,7 +127,7 @@ class DeduplicationPriorityClassifier:
         Returns:
             Dictionary mapping priority labels to candidate lists
         """
-        classified = {
+        classified: Dict[str, list[Dict[str, Any]]] = {
             "critical": [],
             "high": [],
             "medium": [],

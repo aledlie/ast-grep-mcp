@@ -17,7 +17,7 @@ from ...core.logging import get_logger
 class DeduplicationBackupManager:
     """Manages backups for deduplication operations."""
 
-    def __init__(self, project_folder: str):
+    def __init__(self, project_folder: str) -> None:
         """Initialize backup manager.
 
         Args:

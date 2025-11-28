@@ -16,14 +16,14 @@ from .reporting import create_enhanced_duplication_response
 class BenchmarkExecutor:
     """Executes timed benchmarks and collects statistics."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the benchmark executor."""
         self.logger = get_logger("deduplication.benchmark_executor")
 
     def run_timed_benchmark(
         self,
         name: str,
-        func: Callable,
+        func: Callable[..., Any],
         iterations: int,
         *args: Any,
         **kwargs: Any
@@ -63,10 +63,12 @@ class BenchmarkExecutor:
             "max_seconds": round(max(times), 6)
         }
 
+        mean_seconds = result["mean_seconds"]
+        assert isinstance(mean_seconds, (int, float))
         self.logger.info(
             "benchmark_complete",
             name=name,
-            mean_ms=round(result["mean_seconds"] * 1000, 3),
+            mean_ms=round(mean_seconds * 1000, 3),
             iterations=iterations
         )
 

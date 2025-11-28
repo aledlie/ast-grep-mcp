@@ -47,8 +47,7 @@ def validate_rule_pattern(pattern: str, language: str) -> RuleValidationResult:
             _ = run_ast_grep(
                 "run",
                 ["--pattern", pattern, "--lang", language],
-                input=test_code,
-                quiet=True
+                input_text=test_code
             )
 
         # If we get here, the pattern syntax is valid

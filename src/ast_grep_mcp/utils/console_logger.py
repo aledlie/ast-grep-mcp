@@ -4,6 +4,11 @@ This module provides a simple abstraction over print() statements that allows
 for consistent logging across CLI tools, scripts, and test utilities while
 maintaining compatibility with existing code.
 
+IMPORTANT: This module intentionally uses print() statements rather than
+the logging module because it's designed specifically for console output
+in CLI tools and scripts. The print() calls here are the correct implementation,
+not a code smell. This is a console output utility, not a logging utility.
+
 Usage:
     from ast_grep_mcp.utils.console_logger import console
 
@@ -39,7 +44,7 @@ class ConsoleLogger:
     while maintaining the simplicity needed for CLI tools and scripts.
     """
 
-    def __init__(self, quiet: bool = False, verbose: bool = False):
+    def __init__(self, quiet: bool = False, verbose: bool = False) -> None:
         """Initialize console logger.
 
         Args:

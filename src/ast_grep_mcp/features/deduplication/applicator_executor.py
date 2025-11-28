@@ -13,7 +13,7 @@ from ...core.logging import get_logger
 class RefactoringExecutor:
     """Executes the actual code modifications for refactoring."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the refactoring executor."""
         self.logger = get_logger("deduplication.executor")
 
@@ -319,7 +319,7 @@ class RefactoringExecutor:
         Returns:
             Dictionary with preview information
         """
-        preview = {
+        preview: Dict[str, Any] = {
             "files_to_create": [],
             "files_to_update": []
         }

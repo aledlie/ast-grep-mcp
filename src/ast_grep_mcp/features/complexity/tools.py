@@ -44,7 +44,7 @@ def _find_files_to_analyze(
     language: str,
     include_patterns: List[str],
     exclude_patterns: List[str],
-    logger
+    logger: Any
 ) -> tuple[List[str], ComplexityFileFinder]:
     """Find files to analyze based on patterns.
 
@@ -634,7 +634,7 @@ def register_complexity_tools(mcp: Any) -> None:
         mcp: FastMCP server instance
     """
 
-    @mcp.tool()
+    @mcp.tool()  # type: ignore[misc]
     def analyze_complexity(
         project_folder: str = Field(description="The absolute path to the project folder to analyze"),
         language: str = Field(description="The programming language (python, typescript, javascript, java)"),
@@ -669,7 +669,7 @@ def register_complexity_tools(mcp: Any) -> None:
             max_threads=max_threads
         )
 
-    @mcp.tool()
+    @mcp.tool()  # type: ignore[misc]
     def test_sentry_integration(
         test_type: Literal["error", "warning", "breadcrumb", "span"] = Field(
             default="breadcrumb",
@@ -680,7 +680,7 @@ def register_complexity_tools(mcp: Any) -> None:
         """Wrapper that calls the standalone test_sentry_integration_tool function."""
         return test_sentry_integration_tool(test_type=test_type, message=message)
 
-    @mcp.tool()
+    @mcp.tool()  # type: ignore[misc]
     def detect_code_smells(
         project_folder: str = Field(description="The absolute path to the project folder to analyze"),
         language: str = Field(description="The programming language (python, typescript, javascript, java)"),

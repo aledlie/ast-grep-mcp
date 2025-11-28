@@ -28,8 +28,8 @@ def register_all_tools(mcp: FastMCP) -> None:
     """
     register_search_tools(mcp)
     register_rewrite_tools(mcp)
-    mcp.tool(extract_function)
-    mcp.tool(rename_symbol)
+    mcp.tool()(extract_function)
+    mcp.tool()(rename_symbol)
     register_deduplication_tools(mcp)
     register_complexity_tools(mcp)
     register_quality_tools(mcp)

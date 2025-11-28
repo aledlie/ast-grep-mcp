@@ -2,14 +2,14 @@
 
 from typing import Any, Dict, Optional
 from pydantic import Field
-import structlog
 
+from ast_grep_mcp.core.logging import get_logger
 from .analyzer import CodeSelectionAnalyzer
 from .extractor import FunctionExtractor
 from .rename_coordinator import RenameCoordinator
 from ...models.refactoring import ExtractFunctionResult, RenameSymbolResult
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def extract_function_tool(

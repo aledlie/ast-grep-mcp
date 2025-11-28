@@ -537,9 +537,25 @@ def apply_standards_fixes_tool(
             violation_objects.append(violation)
 
         # Apply fixes
+        # Extract project folder from the first violation's file path
+        if violations:
+            first_file = violations[0].get("file", "")
+            import os
+            # Get the common prefix of all file paths as the project folder
+            all_files = [v.get("file", "") for v in violations if v.get("file")]
+            if all_files:
+                common_prefix = os.path.commonprefix(all_files)
+                # Get the directory part
+                project_folder_inferred = os.path.dirname(common_prefix) if not os.path.isdir(common_prefix) else common_prefix
+            else:
+                project_folder_inferred = os.getcwd()
+        else:
+            project_folder_inferred = os.getcwd()
+
         result = apply_fixes_batch(
             violations=violation_objects,
             language=language,
+            project_folder=project_folder_inferred,
             fix_types=fix_types,
             dry_run=dry_run,
             create_backup_flag=create_backup

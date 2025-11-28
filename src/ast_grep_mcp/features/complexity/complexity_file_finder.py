@@ -13,7 +13,7 @@ from ...core.logging import get_logger
 class ComplexityFileFinder:
     """Finds and filters files for complexity analysis."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the file finder."""
         self.logger = get_logger("complexity.file_finder")
 

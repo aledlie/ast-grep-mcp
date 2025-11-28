@@ -9,21 +9,21 @@ This module analyzes selected code regions to determine:
 
 import re
 from typing import Dict, List, Optional, Set, Tuple
-import structlog
 
+from ast_grep_mcp.core.logging import get_logger
 from ...models.refactoring import (
     CodeSelection,
     VariableInfo,
     VariableType,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class CodeSelectionAnalyzer:
     """Analyzes code selections for refactoring operations."""
 
-    def __init__(self, language: str):
+    def __init__(self, language: str) -> None:
         """Initialize analyzer for specific language.
 
         Args:

@@ -61,7 +61,7 @@ def process_data(data):
         code = """
 def hello():
     # This is a comment
-    console.log("Hello, World!")
+    print("Hello, World!")
 """
         normalized = normalize_code(code, "python")
         assert "def hello()" in normalized

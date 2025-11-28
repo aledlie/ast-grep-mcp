@@ -31,7 +31,7 @@ logger = get_logger(__name__)
 # =============================================================================
 
 # Safe patterns that can be auto-applied without review
-SAFE_FIX_PATTERNS = {
+SAFE_FIX_PATTERNS: Dict[str, Dict[str, Any]] = {
     # JavaScript/TypeScript
     "no-var": {"confidence": 1.0, "reason": "var → const/let is safe"},
     "no-console-log": {"confidence": 0.95, "reason": "console.log removal is usually safe"},
@@ -49,7 +49,7 @@ SAFE_FIX_PATTERNS = {
 }
 
 # Patterns that require review (lower confidence)
-REVIEW_REQUIRED_PATTERNS = {
+REVIEW_REQUIRED_PATTERNS: Dict[str, Dict[str, Any]] = {
     "no-eval-exec": {"confidence": 0.6, "reason": "eval/exec removal may break functionality"},
     "no-sql-injection": {"confidence": 0.7, "reason": "SQL parameterization needs careful review"},
     "no-empty-catch": {"confidence": 0.75, "reason": "Empty catch replacement may change behavior"},
@@ -72,7 +72,7 @@ def classify_fix_safety(rule_id: str, violation: RuleViolation) -> FixValidation
         pattern_info = SAFE_FIX_PATTERNS[rule_id]
         return FixValidation(
             is_safe=True,
-            confidence=pattern_info["confidence"],
+            confidence=float(pattern_info["confidence"]),
             warnings=[],
             errors=[],
             requires_review=False
@@ -83,8 +83,8 @@ def classify_fix_safety(rule_id: str, violation: RuleViolation) -> FixValidation
         pattern_info = REVIEW_REQUIRED_PATTERNS[rule_id]
         return FixValidation(
             is_safe=False,
-            confidence=pattern_info["confidence"],
-            warnings=[pattern_info["reason"]],
+            confidence=float(pattern_info["confidence"]),
+            warnings=[str(pattern_info["reason"])],
             errors=[],
             requires_review=True
         )
@@ -330,6 +330,7 @@ def apply_removal_fix(
 def apply_fixes_batch(
     violations: List[RuleViolation],
     language: str,
+    project_folder: str,
     fix_types: List[str] = ["safe"],
     dry_run: bool = True,
     create_backup_flag: bool = True
@@ -339,6 +340,7 @@ def apply_fixes_batch(
     Args:
         violations: List of violations to fix
         language: Programming language for syntax validation
+        project_folder: Project root folder
         fix_types: Types of fixes to apply ('safe', 'suggested', 'all')
         dry_run: If True, preview fixes without applying
         create_backup_flag: If True, create backup before applying fixes
@@ -388,7 +390,7 @@ def apply_fixes_batch(
         file_paths = list(set(v.file for v in fixable_violations))
         if file_paths:
             # Create backup
-            backup_id = create_backup(file_paths)
+            backup_id = create_backup(file_paths, project_folder)
             logger.info(f"Created backup {backup_id} for {len(file_paths)} files")
 
     # Group violations by file
@@ -399,7 +401,7 @@ def apply_fixes_batch(
         violations_by_file[violation.file].append(violation)
 
     # Apply fixes file by file
-    results: List[FixResult] = []
+    fix_results: List[FixResult] = []
     files_modified: Set[str] = set()
     fixes_successful = 0
     fixes_failed = 0
@@ -418,7 +420,7 @@ def apply_fixes_batch(
                 # Use removal fix (for patterns like no-console-log, no-debugger)
                 result = apply_removal_fix(file_path, violation, language)
 
-            results.append(result)
+            fix_results.append(result)
 
             if result.success and result.file_modified:
                 fixes_successful += 1
@@ -444,7 +446,7 @@ def apply_fixes_batch(
         files_modified=list(files_modified),
         backup_id=backup_id,
         validation_passed=validation_passed,
-        results=results,
+        results=fix_results,
         execution_time_ms=execution_time
     )
 

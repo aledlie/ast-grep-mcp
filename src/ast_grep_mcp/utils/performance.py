@@ -186,7 +186,7 @@ class PerformanceTimer:
         print(f"Elapsed: {timer.elapsed_ms}ms")
     """
 
-    def __init__(self, operation_name: str, log_on_exit: bool = True):
+    def __init__(self, operation_name: str, log_on_exit: bool = True) -> None:
         """Initialize performance timer.
 
         Args:

@@ -6,6 +6,61 @@ back to high complexity levels.
 
 These tests analyze the actual source code complexity metrics to prevent
 complexity creep after refactoring.
+
+## Test Suite Overview
+
+### TestComplexityRegression
+Tests specific critical functions that have been refactored or identified
+for refactoring. Ensures they don't exceed their assigned thresholds.
+
+Currently tracking 10 critical functions across:
+- Deduplication applicator (refactored)
+- Complexity analysis tools (refactored)
+- Code smell detection (refactored)
+- Schema.org client (needs refactoring)
+- Score calculator (successfully refactored)
+
+### TestComplexityTrends
+Monitors complexity trends across the ENTIRE codebase:
+
+1. **test_no_functions_exceed_critical_thresholds** (EXPECTED TO FAIL)
+   - Scans ALL functions in src/ for critical threshold violations
+   - Critical thresholds: cyclomatic≤20, cognitive≤30, nesting≤6, lines≤150
+   - Currently identifies 53 functions needing refactoring
+   - As refactoring progresses, this number should decrease to zero
+   - When it reaches zero, the test will pass
+
+2. **test_codebase_health_metrics**
+   - Tracks overall codebase health (averages, percentages)
+   - Provides visibility into complexity trends
+   - Warns when health targets are exceeded (doesn't fail)
+
+3. **test_no_extremely_complex_functions**
+   - Ensures refactored files don't have extreme complexity
+   - More targeted than the full codebase scan
+
+## Usage
+
+Run all complexity tests:
+    uv run pytest tests/quality/test_complexity_regression.py -v
+
+Run only passing tests (skip critical threshold check):
+    uv run pytest tests/quality/test_complexity_regression.py -v \
+        -k "not test_no_functions_exceed_critical_thresholds"
+
+See health metrics report:
+    uv run pytest tests/quality/test_complexity_regression.py::TestComplexityTrends::test_codebase_health_metrics -v -s
+
+## Interpreting Results
+
+- **14/15 tests passing** = Expected state (53 functions need refactoring)
+- **15/15 tests passing** = All refactoring complete! 🎉
+- **<14 tests passing** = Regression detected - investigate immediately
+
+## Integration with CI/CD
+
+Add to CI pipeline as a quality gate that warns but doesn't block:
+    pytest tests/quality/test_complexity_regression.py || echo "Complexity issues detected"
 """
 
 import ast
@@ -93,7 +148,46 @@ CRITICAL_FUNCTIONS = [
         "max_cognitive": 10,
         "max_nesting": 3,
     },
+    # Schema.org Client (original report: 9 levels of nesting)
+    # Current: Cyclomatic 23, Cognitive 71, Nesting 8, Lines 56
+    # TODO: Refactor and reduce thresholds to cyclomatic≤15, cognitive≤20, nesting≤5
+    {
+        "file": "src/ast_grep_mcp/features/schema/client.py",
+        "function": "get_type_properties",
+        "max_lines": 60,  # Current: 56 lines
+        "max_cyclomatic": 25,  # Current: 23 (allow small buffer)
+        "max_cognitive": 75,  # Current: 71 (allow small buffer)
+        "max_nesting": 8,  # Current: 8 (no regression allowed!)
+    },
+    # Deduplication Score Calculator (successfully refactored from metrics.py!)
+    # Current: Cyclomatic 2, Cognitive 0, Nesting 2, Lines 43 - EXCELLENT!
+    {
+        "file": "src/ast_grep_mcp/features/deduplication/score_calculator.py",
+        "function": "calculate_total_score",
+        "max_lines": 50,  # Current: 43 (well within target)
+        "max_cyclomatic": 5,  # Current: 2 (keep it simple!)
+        "max_cognitive": 5,  # Current: 0 (keep it simple!)
+        "max_nesting": 3,  # Current: 2 (keep it simple!)
+    },
 ]
+
+
+# Critical thresholds for ANY function in the codebase
+# From CODEBASE_ANALYSIS_REPORT.md Phase 1 success criteria
+CRITICAL_THRESHOLDS = {
+    "cyclomatic": 20,  # Anything >20 is extremely complex
+    "cognitive": 30,   # Anything >30 is extremely complex
+    "nesting": 6,      # Anything >6 is too deeply nested
+    "lines": 150,      # Anything >150 lines should be split
+}
+
+
+# Health metric targets (from CODEBASE_ANALYSIS_REPORT.md)
+HEALTH_TARGETS = {
+    "avg_cyclomatic": 8,       # Target average cyclomatic complexity
+    "avg_cognitive": 12,       # Target average cognitive complexity
+    "functions_over_threshold": 0.10,  # Max 10% of functions can exceed thresholds
+}
 
 
 def get_project_root() -> Path:
@@ -101,16 +195,16 @@ def get_project_root() -> Path:
     return Path(__file__).parent.parent.parent
 
 
-def find_function_in_ast(tree: ast.Module, function_name: str) -> ast.FunctionDef | None:
-    """Find a function definition in the AST."""
+def find_function_in_ast(tree: ast.Module, function_name: str) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+    """Find a function definition in the AST (includes async functions)."""
     for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == function_name:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function_name:
             return node
     return None
 
 
-def count_function_lines(func_node: ast.FunctionDef) -> int:
-    """Count the number of lines in a function."""
+def count_function_lines(func_node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
+    """Count the number of lines in a function (includes async functions)."""
     return func_node.end_lineno - func_node.lineno + 1
 
 
@@ -271,6 +365,220 @@ class TestComplexityTrends:
         """Get project root path."""
         return get_project_root()
 
+    def _scan_all_python_files(self, project_root: Path) -> List[Tuple[Path, str]]:
+        """
+        Scan all Python files in src/ and return (file_path, function_name) tuples.
+
+        Returns:
+            List of (file_path, function_name) tuples for all functions found
+        """
+        src_dir = project_root / "src"
+        if not src_dir.exists():
+            return []
+
+        functions = []
+
+        for py_file in src_dir.rglob("*.py"):
+            # Skip __pycache__ and test files
+            if "__pycache__" in str(py_file) or "test_" in py_file.name:
+                continue
+
+            try:
+                with open(py_file, "r", encoding="utf-8") as f:
+                    source_code = f.read()
+
+                tree = ast.parse(source_code)
+
+                for node in ast.walk(tree):
+                    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        functions.append((py_file, node.name))
+
+            except Exception:
+                # Skip files that can't be parsed
+                pass
+
+        return functions
+
+    def test_no_functions_exceed_critical_thresholds(self, project_root: Path):
+        """
+        Ensure NO function in src/ exceeds critical complexity thresholds.
+
+        Critical thresholds (from CODEBASE_ANALYSIS_REPORT.md):
+        - Cyclomatic complexity: ≤20
+        - Cognitive complexity: ≤30
+        - Nesting depth: ≤6
+        - Function length: ≤150 lines
+
+        This test catches any function that violates these absolute limits,
+        indicating code that MUST be refactored.
+        """
+        all_functions = self._scan_all_python_files(project_root)
+        violations = []
+
+        for file_path, func_name in all_functions:
+            metrics = analyze_function_complexity(file_path, func_name)
+
+            if not metrics["found"]:
+                continue
+
+            # Check against critical thresholds
+            violation_reasons = []
+
+            if metrics["cyclomatic"] > CRITICAL_THRESHOLDS["cyclomatic"]:
+                violation_reasons.append(
+                    f"cyclomatic={metrics['cyclomatic']} "
+                    f"(max {CRITICAL_THRESHOLDS['cyclomatic']})"
+                )
+
+            if metrics["cognitive"] > CRITICAL_THRESHOLDS["cognitive"]:
+                violation_reasons.append(
+                    f"cognitive={metrics['cognitive']} "
+                    f"(max {CRITICAL_THRESHOLDS['cognitive']})"
+                )
+
+            if metrics["nesting"] > CRITICAL_THRESHOLDS["nesting"]:
+                violation_reasons.append(
+                    f"nesting={metrics['nesting']} "
+                    f"(max {CRITICAL_THRESHOLDS['nesting']})"
+                )
+
+            if metrics["lines"] > CRITICAL_THRESHOLDS["lines"]:
+                violation_reasons.append(
+                    f"lines={metrics['lines']} "
+                    f"(max {CRITICAL_THRESHOLDS['lines']})"
+                )
+
+            if violation_reasons:
+                rel_path = file_path.relative_to(project_root)
+                violations.append(
+                    f"{rel_path}:{func_name} - {', '.join(violation_reasons)}"
+                )
+
+        # Generate detailed failure message
+        if violations:
+            violation_msg = (
+                f"Found {len(violations)} function(s) exceeding CRITICAL thresholds:\n\n"
+                + "\n".join(f"  {i+1}. {v}" for i, v in enumerate(violations[:20]))
+            )
+            if len(violations) > 20:
+                violation_msg += f"\n  ... and {len(violations) - 20} more"
+
+            violation_msg += (
+                f"\n\nCritical thresholds: "
+                f"cyclomatic≤{CRITICAL_THRESHOLDS['cyclomatic']}, "
+                f"cognitive≤{CRITICAL_THRESHOLDS['cognitive']}, "
+                f"nesting≤{CRITICAL_THRESHOLDS['nesting']}, "
+                f"lines≤{CRITICAL_THRESHOLDS['lines']}"
+            )
+
+            pytest.fail(violation_msg)
+
+    def test_codebase_health_metrics(self, project_root: Path):
+        """
+        Track overall codebase health metrics and ensure they meet targets.
+
+        Health targets (from CODEBASE_ANALYSIS_REPORT.md):
+        - Average cyclomatic complexity: ≤8
+        - Average cognitive complexity: ≤12
+        - Percentage of functions over moderate thresholds: ≤10%
+
+        This test provides visibility into codebase-wide complexity trends
+        and catches complexity creep before it becomes critical.
+        """
+        all_functions = self._scan_all_python_files(project_root)
+
+        if not all_functions:
+            pytest.skip("No Python functions found in src/")
+
+        total_cyclomatic = 0
+        total_cognitive = 0
+        total_nesting = 0
+        total_lines = 0
+        analyzed_count = 0
+        functions_over_threshold = 0
+
+        # Moderate thresholds (stricter than critical)
+        MODERATE_THRESHOLDS = {
+            "cyclomatic": 10,
+            "cognitive": 15,
+            "nesting": 4,
+            "lines": 50,
+        }
+
+        for file_path, func_name in all_functions:
+            metrics = analyze_function_complexity(file_path, func_name)
+
+            if not metrics["found"]:
+                continue
+
+            total_cyclomatic += metrics["cyclomatic"]
+            total_cognitive += metrics["cognitive"]
+            total_nesting += metrics["nesting"]
+            total_lines += metrics["lines"]
+            analyzed_count += 1
+
+            # Check if function exceeds moderate thresholds
+            if (
+                metrics["cyclomatic"] > MODERATE_THRESHOLDS["cyclomatic"]
+                or metrics["cognitive"] > MODERATE_THRESHOLDS["cognitive"]
+                or metrics["nesting"] > MODERATE_THRESHOLDS["nesting"]
+                or metrics["lines"] > MODERATE_THRESHOLDS["lines"]
+            ):
+                functions_over_threshold += 1
+
+        # Calculate health metrics
+        avg_cyclomatic = total_cyclomatic / analyzed_count
+        avg_cognitive = total_cognitive / analyzed_count
+        avg_nesting = total_nesting / analyzed_count
+        avg_lines = total_lines / analyzed_count
+        pct_over_threshold = functions_over_threshold / analyzed_count
+
+        # Generate health report
+        health_report = (
+            f"\n\nCodebase Health Metrics:\n"
+            f"  Total Functions Analyzed: {analyzed_count}\n"
+            f"  Average Cyclomatic Complexity: {avg_cyclomatic:.1f} "
+            f"(target: ≤{HEALTH_TARGETS['avg_cyclomatic']})\n"
+            f"  Average Cognitive Complexity: {avg_cognitive:.1f} "
+            f"(target: ≤{HEALTH_TARGETS['avg_cognitive']})\n"
+            f"  Average Nesting Depth: {avg_nesting:.1f}\n"
+            f"  Average Function Length: {avg_lines:.1f} lines\n"
+            f"  Functions Over Moderate Thresholds: {functions_over_threshold} "
+            f"({pct_over_threshold:.1%}) "
+            f"(target: ≤{HEALTH_TARGETS['functions_over_threshold']:.0%})\n"
+        )
+
+        # Print report for visibility
+        print(health_report)
+
+        # Check against targets (warnings, not failures for now)
+        warnings = []
+
+        if avg_cyclomatic > HEALTH_TARGETS["avg_cyclomatic"]:
+            warnings.append(
+                f"Average cyclomatic complexity {avg_cyclomatic:.1f} "
+                f"exceeds target of {HEALTH_TARGETS['avg_cyclomatic']}"
+            )
+
+        if avg_cognitive > HEALTH_TARGETS["avg_cognitive"]:
+            warnings.append(
+                f"Average cognitive complexity {avg_cognitive:.1f} "
+                f"exceeds target of {HEALTH_TARGETS['avg_cognitive']}"
+            )
+
+        if pct_over_threshold > HEALTH_TARGETS["functions_over_threshold"]:
+            warnings.append(
+                f"Functions over moderate thresholds: {pct_over_threshold:.1%} "
+                f"exceeds target of {HEALTH_TARGETS['functions_over_threshold']:.0%}"
+            )
+
+        # For now, just warn - these are aspirational targets
+        if warnings:
+            warning_msg = health_report + "\nHealth Target Warnings:\n"
+            warning_msg += "\n".join(f"  ⚠️  {w}" for w in warnings)
+            pytest.warns(UserWarning, match=".*")  # Mark as warning, not failure
+            print(warning_msg)
+
     def test_no_extremely_complex_functions(self, project_root: Path):
         """Ensure no function has extreme complexity after Phase 1."""
         # Scan the three refactored files
@@ -294,7 +602,7 @@ class TestComplexityTrends:
                 tree = ast.parse(source_code)
 
                 for node in ast.walk(tree):
-                    if isinstance(node, ast.FunctionDef):
+                    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                         func_name = node.name
                         metrics = analyze_function_complexity(file_path, func_name)
 

@@ -76,7 +76,7 @@ class SmellDetector(ABC):
 class LongFunctionDetector(SmellDetector):
     """Detects functions that are too long."""
 
-    def __init__(self, threshold: int):
+    def __init__(self, threshold: int) -> None:
         """Initialize with line threshold.
 
         Args:
@@ -130,7 +130,7 @@ class LongFunctionDetector(SmellDetector):
 class ParameterBloatDetector(SmellDetector):
     """Detects functions with too many parameters."""
 
-    def __init__(self, threshold: int):
+    def __init__(self, threshold: int) -> None:
         """Initialize with parameter count threshold.
 
         Args:
@@ -222,7 +222,7 @@ class ParameterBloatDetector(SmellDetector):
 class DeepNestingDetector(SmellDetector):
     """Detects excessive nesting depth in functions."""
 
-    def __init__(self, threshold: int):
+    def __init__(self, threshold: int) -> None:
         """Initialize with nesting depth threshold.
 
         Args:
@@ -277,7 +277,7 @@ class DeepNestingDetector(SmellDetector):
 class LargeClassDetector(SmellDetector):
     """Detects classes that are too large."""
 
-    def __init__(self, lines_threshold: int, methods_threshold: int):
+    def __init__(self, lines_threshold: int, methods_threshold: int) -> None:
         """Initialize with size thresholds.
 
         Args:
@@ -412,7 +412,7 @@ class LargeClassDetector(SmellDetector):
 class MagicNumberDetector(SmellDetector):
     """Detects magic numbers in code."""
 
-    def __init__(self, enabled: bool = True):
+    def __init__(self, enabled: bool = True) -> None:
         """Initialize magic number detector.
 
         Args:
@@ -516,7 +516,7 @@ class MagicNumberDetector(SmellDetector):
 class SmellAnalyzer:
     """Orchestrates smell detection across files."""
 
-    def __init__(self, detectors: List[SmellDetector]):
+    def __init__(self, detectors: List[SmellDetector]) -> None:
         """Initialize with a list of detectors.
 
         Args:

@@ -9,7 +9,7 @@ Handles:
 
 import os
 from typing import Dict, List, Optional, Set
-import structlog
+from ast_grep_mcp.core.logging import get_logger
 
 from ...models.refactoring import (
     SymbolReference,
@@ -19,13 +19,13 @@ from ...models.refactoring import (
 from ...features.rewrite.backup import create_backup, restore_backup
 from .renamer import SymbolRenamer
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class RenameCoordinator:
     """Coordinates multi-file symbol renaming."""
 
-    def __init__(self, language: str):
+    def __init__(self, language: str) -> None:
         """Initialize coordinator.
 
         Args:
@@ -112,7 +112,7 @@ class RenameCoordinator:
 
             # Step 5: Apply changes if not dry-run
             backup_id = None
-            files_modified = []
+            files_modified: List[str] = []
 
             if not dry_run:
                 backup_id, files_modified = self._apply_rename(

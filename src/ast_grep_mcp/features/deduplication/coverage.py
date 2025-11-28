@@ -12,7 +12,7 @@ from ...core.logging import get_logger
 class TestCoverageDetector:
     """Detects test coverage for source files to assess refactoring risk."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the test coverage detector."""
         self.logger = get_logger("deduplication.test_coverage")
 

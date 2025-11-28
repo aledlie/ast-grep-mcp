@@ -253,6 +253,180 @@ def run_ast_grep(command: str, args: List[str], input_text: Optional[str] = None
     return run_command(["ast-grep", command] + args, input_text)
 
 
+def _prepare_stream_command(command: str, args: List[str]) -> List[str]:
+    """Prepare the full ast-grep command with optional config.
+
+    Args:
+        command: ast-grep subcommand
+        args: Command arguments
+
+    Returns:
+        Full command list
+    """
+    final_args = args.copy()
+    if CONFIG_PATH:
+        final_args = ["--config", CONFIG_PATH] + final_args
+    return ["ast-grep", command] + final_args
+
+
+def _create_stream_process(full_command: List[str]) -> subprocess.Popen[str]:
+    """Create and start the subprocess for streaming.
+
+    Args:
+        full_command: Complete command list
+
+    Returns:
+        Started Popen process
+
+    Raises:
+        FileNotFoundError: If command not found
+    """
+    use_shell = sys.platform == "win32" and full_command[0] == "ast-grep"
+    return subprocess.Popen(
+        full_command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        shell=use_shell
+    )
+
+
+def _parse_json_line(line: str, logger: Any) -> Optional[Dict[str, Any]]:
+    """Parse a line of JSON output.
+
+    Args:
+        line: Line to parse
+        logger: Logger instance
+
+    Returns:
+        Parsed JSON dict or None if invalid
+    """
+    line = line.strip()
+    if not line:
+        return None
+
+    try:
+        return cast(Dict[str, Any], json.loads(line))
+    except json.JSONDecodeError as e:
+        logger.warning(
+            "stream_json_parse_error",
+            line_preview=line[:FileConstants.LINE_PREVIEW_LENGTH],
+            error=str(e)
+        )
+        sentry_sdk.capture_exception(e)
+        sentry_sdk.add_breadcrumb(
+            message="JSON parse error in ast-grep stream",
+            category="ast-grep.stream",
+            level="warning",
+            data={"line_preview": line[:FileConstants.LINE_PREVIEW_LENGTH]}
+        )
+        return None
+
+
+def _should_log_progress(
+    match_count: int,
+    last_progress_log: int,
+    progress_interval: int
+) -> bool:
+    """Check if progress should be logged.
+
+    Args:
+        match_count: Current match count
+        last_progress_log: Last logged count
+        progress_interval: Interval for logging
+
+    Returns:
+        True if should log progress
+    """
+    if progress_interval <= 0:
+        return False
+    return match_count - last_progress_log >= progress_interval
+
+
+def _terminate_process(process: subprocess.Popen[str], logger: Any, reason: str) -> None:
+    """Terminate a process gracefully, then forcefully if needed.
+
+    Args:
+        process: Process to terminate
+        logger: Logger instance
+        reason: Reason for termination
+    """
+    logger.info(f"stream_{reason}")
+    process.terminate()
+    try:
+        process.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+
+
+def _handle_stream_error(
+    returncode: int,
+    process: subprocess.Popen[str],
+    full_command: List[str],
+    start_time: float,
+    match_count: int,
+    logger: Any
+) -> None:
+    """Handle non-zero return codes from the process.
+
+    Args:
+        returncode: Process return code
+        process: Process instance
+        full_command: Command that was run
+        start_time: Start time for execution
+        match_count: Number of matches found
+        logger: Logger instance
+
+    Raises:
+        AstGrepExecutionError: If process failed
+    """
+    # SIGTERM from early termination is not an error
+    if returncode == 0 or returncode == StreamDefaults.SIGTERM_RETURN_CODE:
+        return
+
+    stderr_output = process.stderr.read() if process.stderr else ""
+    execution_time = time.time() - start_time
+
+    logger.error(
+        "stream_failed",
+        returncode=returncode,
+        stderr=stderr_output[:200],
+        execution_time_seconds=round(execution_time, 3)
+    )
+
+    error = AstGrepExecutionError(
+        command=full_command,
+        returncode=returncode,
+        stderr=stderr_output
+    )
+    sentry_sdk.capture_exception(error, extras={
+        "command": " ".join(full_command),
+        "returncode": returncode,
+        "stderr": stderr_output[:500],
+        "execution_time_seconds": round(execution_time, 3),
+        "match_count": match_count
+    })
+    raise error
+
+
+def _cleanup_process(process: Optional[subprocess.Popen[str]]) -> None:
+    """Ensure subprocess is properly cleaned up.
+
+    Args:
+        process: Process to cleanup (may be None)
+    """
+    if not process or process.poll() is not None:
+        return
+
+    process.terminate()
+    try:
+        process.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+
+
 def stream_ast_grep_results(
     command: str,
     args: List[str],
@@ -283,16 +457,8 @@ def stream_ast_grep_results(
     logger = get_logger("stream_results")
     start_time = time.time()
 
-    # Add config if specified
-    final_args = args.copy()
-    if CONFIG_PATH:
-        final_args = ["--config", CONFIG_PATH] + final_args
-
-    # Build full command
-    full_command = ["ast-grep", command] + final_args
-
-    # On Windows, ast-grep may be a batch file requiring shell
-    use_shell = (sys.platform == "win32" and full_command[0] == "ast-grep")
+    # Prepare command
+    full_command = _prepare_stream_command(command, args)
 
     logger.info(
         "stream_started",
@@ -302,103 +468,54 @@ def stream_ast_grep_results(
     )
 
     process = None
+    match_count = 0
+    last_progress_log = 0
+
     try:
-        # Start subprocess with stdout pipe
-        process = subprocess.Popen(
-            full_command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            shell=use_shell
-        )
+        # Start subprocess
+        process = _create_stream_process(full_command)
 
-        match_count = 0
-        last_progress_log = 0
-
-        # Read stdout line-by-line
+        # Process output lines
         if process.stdout:
             for line in process.stdout:
-                line = line.strip()
-                if not line:
+                # Parse JSON from line
+                match = _parse_json_line(line, logger)
+                if not match:
                     continue
 
-                try:
-                    # Parse each line as a JSON object
-                    match = cast(Dict[str, Any], json.loads(line))
-                    match_count += 1
+                match_count += 1
 
-                    # Log progress at intervals
-                    if progress_interval > 0 and match_count - last_progress_log >= progress_interval:
-                        logger.info(
-                            "stream_progress",
-                            matches_found=match_count,
-                            execution_time_seconds=round(time.time() - start_time, 3)
-                        )
-                        last_progress_log = match_count
-
-                    yield match
-
-                    # Early termination if max_results reached
-                    if max_results > 0 and match_count >= max_results:
-                        logger.info(
-                            "stream_early_termination",
-                            matches_found=match_count,
-                            max_results=max_results
-                        )
-                        # Terminate the subprocess
-                        process.terminate()
-                        try:
-                            process.wait(timeout=2)
-                        except subprocess.TimeoutExpired:
-                            process.kill()
-                            process.wait()
-                        break
-
-                except json.JSONDecodeError as e:
-                    # Skip invalid JSON lines (shouldn't happen with ast-grep)
-                    logger.warning(
-                        "stream_json_parse_error",
-                        line_preview=line[:FileConstants.LINE_PREVIEW_LENGTH],
-                        error=str(e)
+                # Log progress if needed
+                if _should_log_progress(match_count, last_progress_log, progress_interval):
+                    logger.info(
+                        "stream_progress",
+                        matches_found=match_count,
+                        execution_time_seconds=round(time.time() - start_time, 3)
                     )
-                    sentry_sdk.capture_exception(e)
-                    sentry_sdk.add_breadcrumb(
-                        message="JSON parse error in ast-grep stream",
-                        category="ast-grep.stream",
-                        level="warning",
-                        data={"line_preview": line[:FileConstants.LINE_PREVIEW_LENGTH]}
-                    )
-                    continue
+                    last_progress_log = match_count
 
-        # Wait for process to complete (if not terminated early)
+                yield match
+
+                # Check for early termination
+                if max_results > 0 and match_count >= max_results:
+                    logger.info(
+                        "stream_early_termination",
+                        matches_found=match_count,
+                        max_results=max_results
+                    )
+                    _terminate_process(process, logger, "early_termination")
+                    break
+
+        # Wait for process completion
         returncode = process.wait()
 
-        # Check for errors
-        if returncode != 0 and returncode != StreamDefaults.SIGTERM_RETURN_CODE:  # SIGTERM from early termination
-            stderr_output = process.stderr.read() if process.stderr else ""
-            execution_time = time.time() - start_time
+        # Handle any errors
+        _handle_stream_error(
+            returncode, process, full_command,
+            start_time, match_count, logger
+        )
 
-            logger.error(
-                "stream_failed",
-                returncode=returncode,
-                stderr=stderr_output[:200],
-                execution_time_seconds=round(execution_time, 3)
-            )
-
-            error = AstGrepExecutionError(
-                command=full_command,
-                returncode=returncode,
-                stderr=stderr_output
-            )
-            sentry_sdk.capture_exception(error, extras={
-                "command": " ".join(full_command),
-                "returncode": returncode,
-                "stderr": stderr_output[:500],
-                "execution_time_seconds": round(execution_time, 3),
-                "match_count": match_count
-            })
-            raise error
-
+        # Log completion
         execution_time = time.time() - start_time
         logger.info(
             "stream_completed",
@@ -418,11 +535,4 @@ def stream_ast_grep_results(
         raise not_found_error from e
 
     finally:
-        # Ensure subprocess is cleaned up
-        if process and process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+        _cleanup_process(process)

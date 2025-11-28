@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -266,6 +266,77 @@ def visualize_complexity(score: int) -> Dict[str, Any]:
     }
 
 
+def _prepare_lines_for_diff(lines: List[str]) -> List[str]:
+    """Ensure lines end with newline for proper diff format.
+
+    Args:
+        lines: List of lines to prepare
+
+    Returns:
+        Lines with proper newline endings
+    """
+    if lines and not lines[-1].endswith('\n'):
+        lines[-1] += '\n'
+    return lines
+
+
+def _parse_hunk_header(line: str) -> Dict[str, Any]:
+    """Parse a hunk header line from a unified diff.
+
+    Args:
+        line: Hunk header line starting with @@
+
+    Returns:
+        Dictionary with hunk metadata
+    """
+    match = re.match(r'@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@', line)
+    if match:
+        return {
+            'header': line,
+            'old_start': int(match.group(1)),
+            'old_count': int(match.group(2)) if match.group(2) else 1,
+            'new_start': int(match.group(3)),
+            'new_count': int(match.group(4)) if match.group(4) else 1,
+            'lines': []
+        }
+    return {
+        'header': line,
+        'lines': []
+    }
+
+
+def _process_diff_lines(diff_lines: List[str]) -> Tuple[List[Dict[str, Any]], int, int]:
+    """Process diff lines to extract hunks and count changes.
+
+    Args:
+        diff_lines: Lines from unified diff
+
+    Returns:
+        Tuple of (hunks, additions, deletions)
+    """
+    hunks: List[Dict[str, Any]] = []
+    additions = 0
+    deletions = 0
+    current_hunk: Optional[Dict[str, Any]] = None
+
+    for line in diff_lines:
+        if line.startswith('@@'):
+            if current_hunk:
+                hunks.append(current_hunk)
+            current_hunk = _parse_hunk_header(line)
+        elif current_hunk is not None:
+            current_hunk['lines'].append(line)
+            if line.startswith('+') and not line.startswith('+++'):
+                additions += 1
+            elif line.startswith('-') and not line.startswith('---'):
+                deletions += 1
+
+    if current_hunk:
+        hunks.append(current_hunk)
+
+    return hunks, additions, deletions
+
+
 def generate_file_diff(
     file_path: str,
     original_content: str,
@@ -288,10 +359,8 @@ def generate_file_diff(
     new_lines = new_content.splitlines(keepends=True)
 
     # Ensure lines end with newline for proper diff format
-    if original_lines and not original_lines[-1].endswith('\n'):
-        original_lines[-1] += '\n'
-    if new_lines and not new_lines[-1].endswith('\n'):
-        new_lines[-1] += '\n'
+    original_lines = _prepare_lines_for_diff(original_lines)
+    new_lines = _prepare_lines_for_diff(new_lines)
 
     # Generate unified diff
     diff_lines = list(difflib.unified_diff(
@@ -305,43 +374,8 @@ def generate_file_diff(
 
     unified_diff = ''.join(diff_lines)
 
-    # Parse hunks and count additions/deletions
-    hunks: List[Dict[str, Any]] = []
-    additions = 0
-    deletions = 0
-    current_hunk: Optional[Dict[str, Any]] = None
-
-    for line in diff_lines:
-        if line.startswith('@@'):
-            # Parse hunk header: @@ -start,count +start,count @@
-            if current_hunk:
-                hunks.append(current_hunk)
-
-            # Extract line numbers from hunk header
-            match = re.match(r'@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@', line)
-            if match:
-                current_hunk = {
-                    'header': line,
-                    'old_start': int(match.group(1)),
-                    'old_count': int(match.group(2)) if match.group(2) else 1,
-                    'new_start': int(match.group(3)),
-                    'new_count': int(match.group(4)) if match.group(4) else 1,
-                    'lines': []
-                }
-            else:
-                current_hunk = {
-                    'header': line,
-                    'lines': []
-                }
-        elif current_hunk is not None:
-            current_hunk['lines'].append(line)
-            if line.startswith('+') and not line.startswith('+++'):
-                additions += 1
-            elif line.startswith('-') and not line.startswith('---'):
-                deletions += 1
-
-    if current_hunk:
-        hunks.append(current_hunk)
+    # Process diff lines to extract hunks and count changes
+    hunks, additions, deletions = _process_diff_lines(diff_lines)
 
     # Generate formatted diff with line numbers
     formatted_diff = _format_diff_with_line_numbers(
@@ -492,6 +526,86 @@ def generate_multi_file_diff(
 # Code Formatting Functions
 # ============================================================================
 
+@dataclass
+class ImportSection:
+    """Container for organized import statements."""
+    import_lines: List[str]
+    from_import_lines: List[str]
+
+    def has_imports(self) -> bool:
+        """Check if there are any imports."""
+        return bool(self.import_lines or self.from_import_lines)
+
+    def format_sorted(self) -> List[str]:
+        """Return formatted and sorted import lines."""
+        result = []
+        if self.import_lines:
+            result.extend(sorted(self.import_lines))
+        if self.import_lines and self.from_import_lines:
+            result.append('')  # Blank line between import types
+        if self.from_import_lines:
+            result.extend(sorted(self.from_import_lines))
+        if self.has_imports():
+            result.append('')  # Blank line after imports
+        return result
+
+
+def _parse_import_line(line: str) -> List[str]:
+    """Parse an import line and handle multi-imports.
+
+    Args:
+        line: Import line to parse
+
+    Returns:
+        List of individual import statements
+    """
+    if ',' in line:
+        # Handle multi-imports like "import os, sys"
+        parts = line.replace('import ', '').split(',')
+        return [f'import {part.strip()}' for part in parts]
+    return [line]
+
+
+def _process_python_lines(lines: List[str]) -> List[str]:
+    """Process Python lines to organize imports and format code.
+
+    Args:
+        lines: List of Python code lines
+
+    Returns:
+        List of formatted lines
+    """
+    formatted_lines = []
+    imports = ImportSection([], [])
+    in_imports = True
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Check if this is an import line
+        if in_imports:
+            if stripped.startswith('import '):
+                imports.import_lines.extend(_parse_import_line(stripped))
+                continue
+            elif stripped.startswith('from '):
+                imports.from_import_lines.append(stripped)
+                continue
+            elif stripped:
+                # Non-import line found, end of import section
+                in_imports = False
+                # Add sorted imports before processing this line
+                formatted_lines.extend(imports.format_sorted())
+
+        # Process non-import lines
+        if not in_imports:
+            formatted_lines.append(_format_python_line(line))
+
+    # Handle case where file is only imports
+    if in_imports and imports.has_imports():
+        formatted_lines.extend(imports.format_sorted())
+
+    return formatted_lines
+
 def format_python_code(code: str, line_length: int = 88) -> str:
     """Format Python code using Black-style formatting.
 
@@ -518,7 +632,7 @@ def format_python_code(code: str, line_length: int = 88) -> str:
 
         try:
             formatted = black.format_str(code, mode=mode)
-            return formatted
+            return str(formatted)
         except Exception:
             # Black formatting failed, fall back to basic formatting
             return _basic_python_format(code, line_length)
@@ -548,51 +662,7 @@ def _basic_python_format(code: str, line_length: int = 88) -> str:
         return "\n"
 
     lines = code.split('\n')
-    formatted_lines = []
-    import_lines = []
-    from_import_lines = []
-    in_imports = True
-
-    for line in lines:
-        stripped = line.strip()
-
-        # Handle imports
-        if stripped.startswith('import ') and in_imports:
-            # Split multi-imports like "import os, sys"
-            if ',' in stripped:
-                parts = stripped.replace('import ', '').split(',')
-                for part in parts:
-                    import_lines.append(f'import {part.strip()}')
-            else:
-                import_lines.append(stripped)
-            continue
-
-        elif stripped.startswith('from ') and in_imports:
-            from_import_lines.append(stripped)
-            continue
-
-        elif stripped and in_imports:
-            # End of import section
-            in_imports = False
-
-            # Add sorted imports
-            if import_lines or from_import_lines:
-                formatted_lines.extend(sorted(import_lines))
-                if import_lines and from_import_lines:
-                    formatted_lines.append('')  # Blank line between import types
-                formatted_lines.extend(sorted(from_import_lines))
-                formatted_lines.append('')  # Blank line after imports
-
-        # Format the line
-        if not in_imports:
-            formatted_lines.append(_format_python_line(line))
-
-    # Handle case where file is only imports
-    if in_imports and (import_lines or from_import_lines):
-        formatted_lines.extend(sorted(import_lines))
-        if import_lines and from_import_lines:
-            formatted_lines.append('')
-        formatted_lines.extend(sorted(from_import_lines))
+    formatted_lines = _process_python_lines(lines)
 
     result = '\n'.join(formatted_lines)
 

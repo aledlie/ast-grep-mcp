@@ -21,7 +21,7 @@ __all__ = [
 class DeduplicationApplicator:
     """Applies deduplication refactoring with backup and validation."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the deduplication applicator."""
         self.logger = get_logger("deduplication.applicator")
         self.code_generator = CodeGenerator()
@@ -81,7 +81,9 @@ class DeduplicationApplicator:
                 group_id, extract_to_file
             )
             if plan_data.get("early_return"):
-                return plan_data["response"]
+                response = plan_data["response"]
+                assert isinstance(response, dict)
+                return response
 
             files_to_modify = plan_data["files_to_modify"]
             generated_code = plan_data["generated_code"]
@@ -438,7 +440,7 @@ class DeduplicationApplicator:
         status: str,
         message: str,
         validation_result: Dict[str, Any],
-        **kwargs
+        **kwargs: Any
     ) -> Dict[str, Any]:
         """Build standardized response dictionary.
 
@@ -710,7 +712,7 @@ class DeduplicationApplicator:
 # Module-level functions for backward compatibility with tests
 _applicator_instance = None
 
-def _get_applicator():
+def _get_applicator() -> Any:
     """Get or create the global applicator instance."""
     global _applicator_instance
     if _applicator_instance is None:
@@ -725,9 +727,11 @@ def _plan_file_modification_order(
     language: str
 ) -> Dict[str, Any]:
     """Module-level wrapper for _plan_file_modification_order."""
-    return _get_applicator()._plan_file_modification_order(
+    result = _get_applicator()._plan_file_modification_order(
         files_to_modify, generated_code, extract_to_file, project_folder, language
     )
+    assert isinstance(result, dict)
+    return result
 
 def _add_import_to_content(
     content: str,
@@ -735,7 +739,9 @@ def _add_import_to_content(
     language: str
 ) -> str:
     """Module-level wrapper for _add_import_to_content."""
-    return _get_applicator()._add_import_to_content(content, import_statement, language)
+    result = _get_applicator()._add_import_to_content(content, import_statement, language)
+    assert isinstance(result, str)
+    return result
 
 def _generate_import_for_extracted_function(
     source_file: str,
@@ -745,6 +751,8 @@ def _generate_import_for_extracted_function(
     project_folder: str
 ) -> str:
     """Module-level wrapper for _generate_import_for_extracted_function."""
-    return _get_applicator()._generate_import_for_extracted_function(
+    result = _get_applicator()._generate_import_for_extracted_function(
         source_file, target_file, function_name, language, project_folder
     )
+    assert isinstance(result, str)
+    return result

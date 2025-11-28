@@ -6,7 +6,8 @@ capabilities for the ast-grep MCP server.
 """
 
 # Core detection and analysis
-from .analyzer import PatternAnalyzer, VariationCategory, VariationSeverity
+from .analyzer import PatternAnalyzer
+from ...models.deduplication import VariationCategory, VariationSeverity
 from .applicator import DeduplicationApplicator
 from .benchmark import DeduplicationBenchmark, benchmark_deduplication
 

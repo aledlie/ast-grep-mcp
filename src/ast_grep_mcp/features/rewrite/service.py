@@ -5,7 +5,7 @@ import os
 import subprocess
 import tempfile
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import sentry_sdk
 import yaml
@@ -149,6 +149,264 @@ def validate_rewrites(modified_files: List[str], language: str) -> Dict[str, Any
     }
 
 
+def _validate_yaml_rule(yaml_rule: str) -> Dict[str, Any]:
+    """Validate and parse YAML rule.
+
+    Args:
+        yaml_rule: YAML rule string
+
+    Returns:
+        Parsed rule data dictionary
+
+    Raises:
+        InvalidYAMLError: If YAML is invalid
+        ValueError: If required fields are missing
+    """
+    try:
+        rule_data = yaml.safe_load(yaml_rule)
+    except yaml.YAMLError as e:
+        raise InvalidYAMLError(f"Invalid YAML rule: {e}", yaml_rule) from e
+
+    if not isinstance(rule_data, dict):
+        raise InvalidYAMLError("Rule must be a YAML dictionary", yaml_rule)
+
+    if "fix" not in rule_data:
+        raise ValueError("Rule must include a 'fix' field for code rewriting")
+
+    if "language" not in rule_data:
+        raise ValueError("Rule must include a 'language' field")
+
+    return rule_data
+
+
+def _create_temp_rule_file(yaml_rule: str) -> str:
+    """Write rule to temporary file.
+
+    Args:
+        yaml_rule: YAML rule string
+
+    Returns:
+        Path to temporary rule file
+    """
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+        f.write(yaml_rule)
+        return f.name
+
+
+def _build_command_args(
+    rule_file: str,
+    project_folder: str,
+    max_file_size_mb: int,
+    workers: int,
+    language: str
+) -> Tuple[List[str], List[str]]:
+    """Build command arguments for ast-grep.
+
+    Args:
+        rule_file: Path to rule file
+        project_folder: Project folder path
+        max_file_size_mb: Max file size in MB
+        workers: Number of worker threads
+        language: Programming language
+
+    Returns:
+        Tuple of (args, search_targets)
+    """
+    args = ["--rule", rule_file]
+
+    # Handle file size filtering
+    if max_file_size_mb > 0:
+        files_to_search, _ = filter_files_by_size(
+            project_folder,
+            max_size_mb=max_file_size_mb,
+            language=language
+        )
+        if files_to_search:
+            search_targets = files_to_search
+        else:
+            search_targets = []
+    else:
+        search_targets = [project_folder]
+
+    # Add worker threads
+    if workers > 0:
+        args.extend(["--threads", str(workers)])
+
+    return args, search_targets
+
+
+def _perform_dry_run(
+    args: List[str],
+    search_targets: List[str],
+    logger: Any,
+    start_time: float
+) -> Dict[str, Any]:
+    """Perform dry run to preview changes.
+
+    Args:
+        args: Command arguments
+        search_targets: Files/folders to search
+        logger: Logger instance
+        start_time: Start time for execution timing
+
+    Returns:
+        Dict with dry run results
+    """
+    if not search_targets:
+        return {
+            "message": "No files to rewrite (all exceeded size limit)",
+            "changes": []
+        }
+
+    full_args = args + ["--json=stream"] + search_targets
+    matches = list(stream_ast_grep_results("scan", full_args, max_results=0))
+
+    if not matches:
+        execution_time = time.time() - start_time
+        logger.info(
+            "rewrite_code_completed",
+            execution_time_seconds=round(execution_time, 3),
+            dry_run=True,
+            changes_found=0,
+            status="success"
+        )
+        return {
+            "dry_run": True,
+            "message": "No matches found - no changes would be applied",
+            "changes": []
+        }
+
+    # Format changes for preview
+    changes = []
+    for match in matches:
+        if "replacement" in match:
+            changes.append({
+                "file": match.get("file", "unknown"),
+                "line": match.get("range", {}).get("start", {}).get("line", 0),
+                "original": match.get("text", ""),
+                "replacement": match["replacement"],
+                "rule_id": match.get("ruleId", "unknown")
+            })
+
+    execution_time = time.time() - start_time
+    logger.info(
+        "rewrite_code_completed",
+        execution_time_seconds=round(execution_time, 3),
+        dry_run=True,
+        changes_found=len(changes),
+        status="success"
+    )
+
+    return {
+        "dry_run": True,
+        "message": f"Found {len(changes)} change(s) - set dry_run=false to apply",
+        "changes": changes
+    }
+
+
+def _apply_rewrites(
+    args: List[str],
+    search_targets: List[str],
+    rule_file: str,
+    project_folder: str,
+    backup: bool,
+    workers: int,
+    language: str,
+    logger: Any,
+    start_time: float
+) -> Dict[str, Any]:
+    """Apply actual code rewrites.
+
+    Args:
+        args: Command arguments
+        search_targets: Files/folders to search
+        rule_file: Path to rule file
+        project_folder: Project folder path
+        backup: Whether to create backup
+        workers: Number of worker threads
+        language: Programming language
+        logger: Logger instance
+        start_time: Start time for execution timing
+
+    Returns:
+        Dict with rewrite results
+    """
+    if not search_targets:
+        return {
+            "dry_run": False,
+            "message": "No files to rewrite (all exceeded size limit)",
+            "modified_files": [],
+            "backup_id": None
+        }
+
+    # Get list of files that will be modified
+    preview_args = args + ["--json=stream"] + search_targets
+    preview_matches = list(stream_ast_grep_results("scan", preview_args, max_results=0))
+    files_to_modify: List[str] = [f for f in set(m.get("file") for m in preview_matches if m.get("file")) if f is not None]
+
+    if not files_to_modify:
+        return {
+            "dry_run": False,
+            "message": "No changes applied - no matches found",
+            "modified_files": [],
+            "backup_id": None
+        }
+
+    # Create backup if requested
+    backup_id: Optional[str] = None
+    if backup:
+        backup_id = create_backup(files_to_modify, project_folder)
+        logger.info("backup_created", backup_id=backup_id, file_count=len(files_to_modify))
+
+    # Apply rewrite with --update-all
+    rewrite_args = ["--rule", rule_file, "--update-all"] + search_targets
+    if workers > 0:
+        rewrite_args.insert(0, "--threads")
+        rewrite_args.insert(1, str(workers))
+
+    result = run_ast_grep("scan", rewrite_args)
+
+    # Validate syntax of rewritten files
+    validation_summary = validate_rewrites(files_to_modify, language)
+
+    logger.info(
+        "syntax_validation",
+        validated=validation_summary["validated"],
+        passed=validation_summary["passed"],
+        failed=validation_summary["failed"],
+        skipped=validation_summary["skipped"]
+    )
+
+    execution_time = time.time() - start_time
+    logger.info(
+        "rewrite_code_completed",
+        execution_time_seconds=round(execution_time, 3),
+        dry_run=False,
+        modified_files=len(files_to_modify),
+        backup_id=backup_id,
+        validation_failed=validation_summary["failed"],
+        status="success"
+    )
+
+    response = {
+        "dry_run": False,
+        "message": f"Applied changes to {len(files_to_modify)} file(s)",
+        "modified_files": files_to_modify,
+        "backup_id": backup_id,
+        "output": result.stdout,
+        "validation": validation_summary
+    }
+
+    # Add warning if validation failed
+    if validation_summary["failed"] > 0:
+        response["warning"] = (
+            f"{validation_summary['failed']} file(s) failed syntax validation. "
+            f"Use rollback_rewrite(backup_id='{backup_id}') to restore if needed."
+        )
+
+    return response
+
+
 def rewrite_code_impl(
     project_folder: str,
     yaml_rule: str,
@@ -179,6 +437,7 @@ def rewrite_code_impl(
     """
     logger = get_logger("rewrite.rewrite_code")
     start_time = time.time()
+    rule_file: Optional[str] = None
 
     logger.info(
         "rewrite_code_started",
@@ -189,166 +448,26 @@ def rewrite_code_impl(
     )
 
     try:
-        # Validate YAML rule
-        try:
-            rule_data = yaml.safe_load(yaml_rule)
-        except yaml.YAMLError as e:
-            raise InvalidYAMLError(f"Invalid YAML rule: {e}", yaml_rule) from e
+        # Step 1: Validate YAML rule
+        rule_data = _validate_yaml_rule(yaml_rule)
+        language = rule_data.get("language", "unknown")
 
-        if not isinstance(rule_data, dict):
-            raise InvalidYAMLError("Rule must be a YAML dictionary", yaml_rule)
+        # Step 2: Create temporary rule file
+        rule_file = _create_temp_rule_file(yaml_rule)
 
-        if "fix" not in rule_data:
-            raise ValueError("Rule must include a 'fix' field for code rewriting")
+        # Step 3: Build command arguments
+        args, search_targets = _build_command_args(
+            rule_file, project_folder, max_file_size_mb, workers, language
+        )
 
-        if "language" not in rule_data:
-            raise ValueError("Rule must include a 'language' field")
-
-        # Write rule to temporary file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
-            f.write(yaml_rule)
-            rule_file = f.name
-
-        try:
-            # Build command args
-            args = ["--rule", rule_file]
-            if max_file_size_mb > 0:
-                files_to_search, _ = filter_files_by_size(
-                    project_folder,
-                    max_size_mb=max_file_size_mb,
-                    language=rule_data.get("language")
-                )
-                if files_to_search:
-                    search_targets = files_to_search
-                else:
-                    return {"message": "No files to rewrite (all exceeded size limit)", "changes": []}
-            else:
-                search_targets = [project_folder]
-
-            if workers > 0:
-                args.extend(["--threads", str(workers)])
-
-            args.extend(["--json=stream"] + search_targets)
-
-            # DRY RUN MODE: Preview changes
-            if dry_run:
-                matches = list(stream_ast_grep_results("scan", args, max_results=0))
-
-                if not matches:
-                    execution_time = time.time() - start_time
-                    logger.info(
-                        "rewrite_code_completed",
-                        execution_time_seconds=round(execution_time, 3),
-                        dry_run=True,
-                        changes_found=0,
-                        status="success"
-                    )
-                    return {
-                        "dry_run": True,
-                        "message": "No matches found - no changes would be applied",
-                        "changes": []
-                    }
-
-                # Format changes for preview
-                changes = []
-                for match in matches:
-                    if "replacement" in match:
-                        changes.append({
-                            "file": match.get("file", "unknown"),
-                            "line": match.get("range", {}).get("start", {}).get("line", 0),
-                            "original": match.get("text", ""),
-                            "replacement": match["replacement"],
-                            "rule_id": match.get("ruleId", "unknown")
-                        })
-
-                execution_time = time.time() - start_time
-                logger.info(
-                    "rewrite_code_completed",
-                    execution_time_seconds=round(execution_time, 3),
-                    dry_run=True,
-                    changes_found=len(changes),
-                    status="success"
-                )
-
-                return {
-                    "dry_run": True,
-                    "message": f"Found {len(changes)} change(s) - set dry_run=false to apply",
-                    "changes": changes
-                }
-
-            # ACTUAL REWRITE MODE: Apply changes
-            else:
-                # Get list of files that will be modified (before rewrite)
-                preview_matches = list(stream_ast_grep_results("scan", args, max_results=0))
-                files_to_modify = list(set(m.get("file") for m in preview_matches if m.get("file")))
-
-                if not files_to_modify:
-                    return {
-                        "dry_run": False,
-                        "message": "No changes applied - no matches found",
-                        "modified_files": [],
-                        "backup_id": None
-                    }
-
-                # Create backup if requested
-                backup_id: Optional[str] = None
-                if backup:
-                    backup_id = create_backup(files_to_modify, project_folder)
-                    logger.info("backup_created", backup_id=backup_id, file_count=len(files_to_modify))
-
-                # Apply rewrite with --update-all
-                rewrite_args = ["--rule", rule_file, "--update-all"] + search_targets
-                if workers > 0:
-                    rewrite_args.insert(0, "--threads")
-                    rewrite_args.insert(1, str(workers))
-
-                result = run_ast_grep("scan", rewrite_args)
-
-                # Validate syntax of rewritten files
-                language = rule_data.get("language", "unknown")
-                validation_summary = validate_rewrites(files_to_modify, language)
-
-                logger.info(
-                    "syntax_validation",
-                    validated=validation_summary["validated"],
-                    passed=validation_summary["passed"],
-                    failed=validation_summary["failed"],
-                    skipped=validation_summary["skipped"]
-                )
-
-                execution_time = time.time() - start_time
-                logger.info(
-                    "rewrite_code_completed",
-                    execution_time_seconds=round(execution_time, 3),
-                    dry_run=False,
-                    modified_files=len(files_to_modify),
-                    backup_id=backup_id,
-                    validation_failed=validation_summary["failed"],
-                    status="success"
-                )
-
-                response = {
-                    "dry_run": False,
-                    "message": f"Applied changes to {len(files_to_modify)} file(s)",
-                    "modified_files": files_to_modify,
-                    "backup_id": backup_id,
-                    "output": result.stdout,
-                    "validation": validation_summary
-                }
-
-                # Add warning if validation failed
-                if validation_summary["failed"] > 0:
-                    response["warning"] = (
-                        f"{validation_summary['failed']} file(s) failed syntax validation. "
-                        f"Use rollback_rewrite(backup_id='{backup_id}') to restore if needed."
-                    )
-
-                return response
-
-        finally:
-            # Clean up temporary rule file
-            if 'rule_file' in locals() and os.path.exists(rule_file):
-                os.unlink(rule_file)
+        # Step 4: Execute based on mode
+        if dry_run:
+            return _perform_dry_run(args, search_targets, logger, start_time)
+        else:
+            return _apply_rewrites(
+                args, search_targets, rule_file, project_folder,
+                backup, workers, language, logger, start_time
+            )
 
     except Exception as e:
         execution_time = time.time() - start_time
@@ -365,6 +484,10 @@ def rewrite_code_impl(
             "execution_time_seconds": round(execution_time, 3)
         })
         raise
+    finally:
+        # Clean up temporary rule file
+        if rule_file and os.path.exists(rule_file):
+            os.unlink(rule_file)
 
 
 def rollback_rewrite_impl(

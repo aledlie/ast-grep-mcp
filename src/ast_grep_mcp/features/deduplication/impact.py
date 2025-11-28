@@ -13,7 +13,7 @@ from ...core.logging import get_logger
 class ImpactAnalyzer:
     """Analyzes the impact of applying deduplication to code."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the impact analyzer."""
         self.logger = get_logger("deduplication.impact_analysis")
 

@@ -70,7 +70,7 @@ export SENTRY_ENVIRONMENT="production"
 
 ## Testing
 
-**1,586 tests total:** Unit tests (mocked) and integration tests (requires ast-grep binary)
+**1,600+ tests total:** Unit tests (mocked) and integration tests (requires ast-grep binary)
 
 **Key test files:**
 - `test_extract_function.py` - Function extraction (11 tests)
@@ -78,8 +78,70 @@ export SENTRY_ENVIRONMENT="production"
 - `test_complexity.py` - Complexity analysis (51 tests)
 - `test_code_smells.py` - Code smell detection (27 tests)
 - `test_apply_deduplication.py` - Deduplication (24 tests)
+- **`test_complexity_regression.py`** - Complexity regression prevention (15 tests)
 
 **Run specific:** `uv run pytest tests/unit/test_ranking.py -v`
+
+### Complexity Regression Tests (NEW!)
+
+Comprehensive test suite in `tests/quality/test_complexity_regression.py` that prevents complexity creep:
+
+**Purpose:** Track and prevent complexity regression across the entire codebase
+
+**Test Results (Current State):**
+- ✅ **14/15 tests passing**
+- ❌ **1 test expected to fail** - identifies 53 functions needing refactoring
+
+**Key Tests:**
+
+1. **test_function_complexity_thresholds** (10 parameterized tests)
+   - Tracks 10 critical functions that were refactored or need refactoring
+   - Prevents these functions from regressing to high complexity
+   - All currently passing after Phase 1 refactoring
+
+2. **test_no_functions_exceed_critical_thresholds** ⚠️ EXPECTED TO FAIL
+   - Scans ALL functions in `src/` for critical threshold violations
+   - Critical thresholds: cyclomatic≤20, cognitive≤30, nesting≤6, lines≤150
+   - Currently identifies **53 functions** needing refactoring
+   - As refactoring progresses, this count decreases toward zero
+   - When count reaches zero, test passes = codebase is healthy!
+
+3. **test_codebase_health_metrics**
+   - Tracks overall codebase health (averages, percentages over threshold)
+   - Provides visibility into complexity trends
+   - Prints health report with current metrics vs. targets
+
+4. **test_phase1_refactoring_impact**
+   - Verifies Phase 1 refactoring achieved goals
+   - Checks average complexity of refactored functions
+
+**Usage:**
+
+```bash
+# Run all complexity regression tests
+uv run pytest tests/quality/test_complexity_regression.py -v
+
+# Run only passing tests (skip critical threshold check)
+uv run pytest tests/quality/test_complexity_regression.py -v \
+    -k "not test_no_functions_exceed_critical_thresholds"
+
+# See health metrics report
+uv run pytest tests/quality/test_complexity_regression.py::TestComplexityTrends::test_codebase_health_metrics -v -s
+```
+
+**Interpreting Results:**
+- **14/15 passing** = Current state (refactoring in progress)
+- **15/15 passing** = All refactoring complete! 🎉
+- **<14 passing** = Regression detected - investigate immediately
+
+**CI/CD Integration:**
+Add as a quality gate that warns but doesn't block:
+```yaml
+- name: Complexity Regression Check
+  run: |
+    uv run pytest tests/quality/test_complexity_regression.py -v || \
+    echo "⚠️ 53 functions still need refactoring"
+```
 
 ## Features
 
@@ -410,3 +472,14 @@ dev/active/          # Feature planning docs
 
 **Deduplication:** See DEDUPLICATION-GUIDE.md for troubleshooting.
 - remember to check mcp tool registrations
+- High Complexity Functions: If encountering functions with high complexity metrics, see recent refactoring examples in git history (commits from 2025-11-28) for patterns on extracting helper functions
+  and reducing cognitive load.
+
+  Important Notes
+
+  - Always use console_logger.py abstraction instead of print() in scripts and tests
+  - Import configuration values from constants.py rather than hardcoding magic numbers
+  - Check MCP tool registrations when adding new features
+  - Run complexity regression tests after significant refactoring
+  - Use code-refactor-agent (Opus model) for large-scale complexity reduction tasks
+  - All refactored functions maintain 100% backward compatibility

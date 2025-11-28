@@ -21,7 +21,7 @@ class RegressionDetector:
         "test_coverage": DeduplicationDefaults.REGRESSION_TEST_COVERAGE
     }
 
-    def __init__(self, thresholds: Dict[str, float] | None = None):
+    def __init__(self, thresholds: Dict[str, float] | None = None) -> None:
         """Initialize the regression detector.
 
         Args:

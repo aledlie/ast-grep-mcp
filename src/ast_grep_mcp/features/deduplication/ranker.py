@@ -16,7 +16,7 @@ from .score_calculator import DeduplicationScoreCalculator
 class DuplicationRanker:
     """Ranks duplication candidates by refactoring value."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the ranker."""
         self.logger = get_logger("deduplication.ranker")
         self.score_calculator = DeduplicationScoreCalculator()
@@ -162,4 +162,4 @@ def rank_deduplication_candidates(
     Returns:
         Ranked and enriched candidates
     """
-    return get_ranker().rank_deduplication_candidates(candidates, max_results)
+    return get_ranker().rank_deduplication_candidates(candidates, include_analysis=True)[:max_results]

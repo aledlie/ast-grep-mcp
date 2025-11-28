@@ -9,7 +9,7 @@ This module handles:
 
 import re
 from typing import Dict, List, Optional, Tuple
-import structlog
+from ast_grep_mcp.core.logging import get_logger
 
 from ...models.refactoring import (
     CodeSelection,
@@ -20,13 +20,13 @@ from ...models.refactoring import (
 )
 from ...features.rewrite.backup import create_backup, restore_backup
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class FunctionExtractor:
     """Handles function extraction refactoring."""
 
-    def __init__(self, language: str):
+    def __init__(self, language: str) -> None:
         """Initialize extractor for specific language.
 
         Args:
@@ -156,7 +156,7 @@ class FunctionExtractor:
             FunctionSignature
         """
         # Build parameter list
-        parameters = []
+        parameters: List[Dict[str, str]] = []
         for param_name in selection.parameters_needed:
             # Find variable info for type inference
             var_info = next(
@@ -164,9 +164,10 @@ class FunctionExtractor:
                 None
             )
 
-            param = {
+            param_type = var_info.inferred_type if var_info and var_info.inferred_type else ""
+            param: Dict[str, str] = {
                 "name": param_name,
-                "type": var_info.inferred_type if var_info else None,
+                "type": param_type,
             }
             parameters.append(param)
 

@@ -192,7 +192,7 @@ def verify_backup_integrity(backup_id: str, project_folder: str) -> Dict[str, An
     backup_dir = os.path.join(project_folder, ".ast-grep-backups", backup_id)
     metadata_path = os.path.join(backup_dir, "backup-metadata.json")
 
-    result = {
+    result: Dict[str, Any] = {
         "valid": False,
         "errors": [],
         "warnings": [],
@@ -265,7 +265,7 @@ def restore_backup(backup_id: str, project_folder: str) -> Dict[str, Any]:
     # First verify backup integrity
     verification = verify_backup_integrity(backup_id, project_folder)
 
-    result = {
+    result: Dict[str, Any] = {
         "success": False,
         "restored_files": [],
         "errors": []

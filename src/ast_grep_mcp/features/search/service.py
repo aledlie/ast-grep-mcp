@@ -401,7 +401,8 @@ def find_code_by_rule_impl(
                 matches.append(match)
 
             if output_format == "text":
-                result = format_matches_as_text(matches)
+                result_str = format_matches_as_text(matches)
+                result: Union[str, List[Dict[str, Any]]] = result_str
             else:
                 result = matches
         else:
@@ -412,13 +413,15 @@ def find_code_by_rule_impl(
             )
 
             if output_format == "json":
-                result = json.loads(cmd_result.stdout.strip()) if cmd_result.stdout.strip() else []
+                parsed_json = json.loads(cmd_result.stdout.strip()) if cmd_result.stdout.strip() else []
+                result = parsed_json
             else:
                 result = cmd_result.stdout.strip()
 
             # Cache the result
             if CACHE_ENABLED and cache:
-                cache.put("scan", cache_key_parts, project_folder, result)
+                if isinstance(result, list):
+                    cache.put("scan", cache_key_parts, project_folder, result)
 
         execution_time = time.time() - start_time
         match_count = len(result) if isinstance(result, list) else result.count('\n')

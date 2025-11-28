@@ -12,7 +12,7 @@ import os
 import re
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
-import structlog
+from ast_grep_mcp.core.logging import get_logger
 
 from ...models.refactoring import (
     SymbolReference,
@@ -22,13 +22,13 @@ from ...models.refactoring import (
 from ...core.executor import run_ast_grep
 from ...features.rewrite.backup import create_backup, restore_backup
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class SymbolRenamer:
     """Handles symbol renaming operations."""
 
-    def __init__(self, language: str):
+    def __init__(self, language: str) -> None:
         """Initialize renamer for specific language.
 
         Args:

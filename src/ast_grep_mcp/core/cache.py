@@ -14,7 +14,7 @@ class QueryCache:
     Uses OrderedDict for LRU eviction and timestamps for TTL expiration.
     """
 
-    def __init__(self, max_size: int = CacheDefaults.DEFAULT_CACHE_SIZE, ttl_seconds: int = CacheDefaults.CLEANUP_INTERVAL_SECONDS):
+    def __init__(self, max_size: int = CacheDefaults.DEFAULT_CACHE_SIZE, ttl_seconds: int = CacheDefaults.CLEANUP_INTERVAL_SECONDS) -> None:
         """Initialize the cache.
 
         Args:

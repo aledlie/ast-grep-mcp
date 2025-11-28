@@ -16,7 +16,7 @@ from .recommendations import RecommendationEngine
 class DeduplicationAnalysisOrchestrator:
     """Orchestrates the complete deduplication candidate analysis workflow."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the orchestrator."""
         self.logger = get_logger("deduplication.analysis_orchestrator")
         self.detector = DuplicationDetector()
@@ -64,7 +64,7 @@ class DeduplicationAnalysisOrchestrator:
         # Step 1: Find duplicates
         duplication_results = self.detector.find_duplication(
             project_folder=project_path,
-            language=language,
+            construct_type="function_definition",
             min_similarity=min_similarity,
             min_lines=min_lines,
             exclude_patterns=exclude_patterns or []
@@ -414,4 +414,4 @@ class DeduplicationAnalysisOrchestrator:
             c.get("lines_saved", 0) * len(c.get("files", []))
             for c in candidates
         )
-        return total
+        return int(total)

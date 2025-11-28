@@ -18,7 +18,7 @@ class DeduplicationScoreCalculator:
     WEIGHT_RISK = DeduplicationDefaults.RISK_WEIGHT
     WEIGHT_EFFORT = DeduplicationDefaults.EFFORT_WEIGHT
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the score calculator."""
         self.logger = get_logger("deduplication.score_calculator")
 
@@ -87,7 +87,7 @@ class DeduplicationScoreCalculator:
             weighted_score=weighted_score
         )
 
-        return weighted_score
+        return float(weighted_score)
 
     def calculate_complexity_score(
         self,
@@ -119,7 +119,7 @@ class DeduplicationScoreCalculator:
             weighted_score=weighted_score
         )
 
-        return weighted_score
+        return float(weighted_score)
 
     def calculate_risk_score(
         self,
@@ -138,12 +138,12 @@ class DeduplicationScoreCalculator:
         Returns:
             Weighted risk score
         """
-        risk_score = 50  # Default
+        risk_score: float = 50.0  # Default
 
         # Test coverage component
         if test_coverage is not None:
             # Higher coverage = lower risk = higher score
-            risk_score = test_coverage
+            risk_score = float(test_coverage)
 
         # Breaking change risk component
         if impact_analysis:
@@ -161,7 +161,7 @@ class DeduplicationScoreCalculator:
             weighted_score=weighted_score
         )
 
-        return weighted_score
+        return float(weighted_score)
 
     def calculate_effort_score(self, duplicate_group: Dict[str, Any]) -> float:
         """Calculate effort score (15% weight).
@@ -192,4 +192,4 @@ class DeduplicationScoreCalculator:
             weighted_score=weighted_score
         )
 
-        return weighted_score
+        return float(weighted_score)

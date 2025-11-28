@@ -1,7 +1,7 @@
 """Performance benchmarking for deduplication functions."""
 
 import time
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from ...core.logging import get_logger
 
@@ -13,7 +13,7 @@ from .regression_detector import RegressionDetector
 class DeduplicationBenchmark:
     """Runs performance benchmarks for deduplication functions."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the benchmark runner."""
         self.logger = get_logger("deduplication.benchmark")
 
@@ -62,7 +62,7 @@ class DeduplicationBenchmark:
 
         # Step 2: Check for regressions if requested
         regression_detected = False
-        regression_errors = []
+        regression_errors: List[str] = []
 
         if check_regression:
             baseline_map = self.reporter.load_baseline()

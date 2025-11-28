@@ -24,6 +24,12 @@ from .metrics import (
     get_complexity_patterns,
 )
 
+__all__ = [
+    "extract_functions_from_file",
+    "analyze_file_complexity",
+    "calculate_nesting_depth",
+]
+
 
 def extract_functions_from_file(file_path: str, language: str) -> List[Dict[str, Any]]:
     """Extract all functions from a file using ast-grep.

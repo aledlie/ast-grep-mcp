@@ -13,7 +13,7 @@ All metrics are calculated using ast-grep patterns and text-based analysis.
 import json
 import re
 import subprocess
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional, Tuple
 
 # =============================================================================
 # COMPLEXITY PATTERNS
@@ -189,6 +189,158 @@ def calculate_cyclomatic_complexity(code: str, language: str) -> int:
     return complexity
 
 
+# =============================================================================
+# COGNITIVE COMPLEXITY HELPER FUNCTIONS
+# =============================================================================
+
+
+def _get_control_flow_keywords(language: str, patterns: Dict[str, Any]) -> List[str]:
+    """Get control flow keywords for a specific language.
+
+    Args:
+        language: Programming language name
+        patterns: Language complexity patterns
+
+    Returns:
+        List of control flow keywords that add complexity
+    """
+    if language.lower() == "python":
+        # Python: elif is separate, else doesn't count
+        return ["if", "elif", "for", "while", "except", "with"]
+    elif language.lower() in ("typescript", "javascript"):
+        # JS/TS: catch, switch add; else if handled specially
+        return ["if", "for", "while", "catch", "switch", "do"]
+    elif language.lower() == "java":
+        return ["if", "for", "while", "catch", "switch", "do"]
+    else:
+        # Default to nesting constructs from patterns (may be empty list)
+        structural_keywords: List[str] = patterns.get("nesting_constructs", [])
+        return structural_keywords
+
+
+def _calculate_line_indentation(line: str, base_indent: Optional[int]) -> Tuple[int, Optional[int]]:
+    """Calculate the nesting level from line indentation.
+
+    Args:
+        line: Source code line
+        base_indent: Base indentation level (None if not yet determined)
+
+    Returns:
+        Tuple of (current_nesting_level, updated_base_indent)
+    """
+    stripped = line.lstrip()
+    if not stripped:
+        return 0, base_indent
+
+    indent = len(line) - len(stripped)
+
+    # Set base indent on first non-empty line
+    if base_indent is None:
+        return 0, indent
+
+    # Calculate nesting level (assume 4 spaces per level)
+    indent_diff = indent - base_indent
+    current_nesting = max(0, indent_diff // 4)
+
+    return current_nesting, base_indent
+
+
+def _is_comment_line(stripped: str) -> bool:
+    """Check if a line is a comment.
+
+    Args:
+        stripped: Left-stripped line content
+
+    Returns:
+        True if line is a comment
+    """
+    return stripped.startswith('#') or stripped.startswith('//') or stripped.startswith('/*')
+
+
+def _match_control_flow_keyword(stripped: str, control_flow: List[str]) -> Optional[str]:
+    """Check if line starts with a control flow keyword.
+
+    Args:
+        stripped: Left-stripped line content
+        control_flow: List of control flow keywords
+
+    Returns:
+        Matched keyword or None
+    """
+    for keyword in control_flow:
+        # Match keyword at start of line (after stripping)
+        # Use word boundary to avoid matching 'format' when looking for 'for'
+        pattern = rf'^{keyword}(?:\s|\(|:)'
+        if re.match(pattern, stripped):
+            return keyword
+    return None
+
+
+def _calculate_keyword_complexity(keyword: str, stripped: str, current_nesting: int) -> int:
+    """Calculate complexity increment for a control flow keyword.
+
+    Args:
+        keyword: Matched control flow keyword
+        stripped: Left-stripped line content
+        current_nesting: Current nesting level
+
+    Returns:
+        Complexity increment (1 + nesting penalty for most keywords)
+    """
+    # Handle else if / elif specially - they add +1 but no nesting penalty
+    if keyword == "elif" or stripped.startswith("else if"):
+        return 1
+
+    # Base increment + nesting penalty for all other keywords
+    return 1 + current_nesting
+
+
+def _count_logical_operator_sequences(stripped: str, language: str) -> int:
+    """Count logical operator sequences in a line.
+
+    Based on SonarSource spec: Each sequence of logical operators adds complexity.
+    Changes from AND to OR (or vice versa) increment the count.
+    Examples: "a && b && c" = +1, "a && b || c" = +2
+
+    Args:
+        stripped: Left-stripped line content
+        language: Programming language
+
+    Returns:
+        Complexity increment from logical operators
+    """
+    # Get language-specific patterns
+    if language.lower() == "python":
+        and_pattern = r'\band\b'
+        or_pattern = r'\bor\b'
+    else:
+        # C-style uses && and ||
+        and_pattern = r'&&'
+        or_pattern = r'\|\|'
+
+    # Find all operator matches with positions
+    and_matches = list(re.finditer(and_pattern, stripped))
+    or_matches = list(re.finditer(or_pattern, stripped))
+
+    if not and_matches and not or_matches:
+        return 0
+
+    # Combine and sort by position
+    all_ops: List[Tuple[int, str]] = (
+        [(m.start(), 'and') for m in and_matches] +
+        [(m.start(), 'or') for m in or_matches]
+    )
+    all_ops.sort(key=lambda x: x[0])
+
+    # Count sequences (changes in operator type)
+    sequences = 1  # First sequence
+    for i in range(1, len(all_ops)):
+        if all_ops[i][1] != all_ops[i-1][1]:
+            sequences += 1
+
+    return sequences
+
+
 def calculate_cognitive_complexity(code: str, language: str) -> int:
     """Calculate cognitive complexity with nesting penalties.
 
@@ -207,98 +359,32 @@ def calculate_cognitive_complexity(code: str, language: str) -> int:
     """
     patterns = get_complexity_patterns(language)
     complexity = 0
+    base_indent: Optional[int] = None
 
-    lines = code.split('\n')
-    base_indent = None
+    # Get language-specific control flow keywords
+    control_flow = _get_control_flow_keywords(language, patterns)
 
-    # Keywords that add +1 AND increase nesting level
-    structural_keywords = patterns.get("nesting_constructs", [])
-
-    # Language-specific adjustments
-    if language.lower() in ("python",):
-        # Python: elif is separate, else doesn't count
-        control_flow = ["if", "elif", "for", "while", "except", "with"]
-        # else doesn't add complexity in Python
-    elif language.lower() in ("typescript", "javascript"):
-        # JS/TS: catch, switch add; else if handled specially
-        control_flow = ["if", "for", "while", "catch", "switch", "do"]
-    elif language.lower() == "java":
-        control_flow = ["if", "for", "while", "catch", "switch", "do"]
-    else:
-        control_flow = structural_keywords
-
-    for line in lines:
+    # Process each line
+    for line in code.split('\n'):
         stripped = line.lstrip()
-        if not stripped:
+
+        # Skip empty lines and comments
+        if not stripped or _is_comment_line(stripped):
             continue
 
-        # Skip comments
-        if stripped.startswith('#') or stripped.startswith('//') or stripped.startswith('/*'):
-            continue
-
-        # Calculate current indentation for nesting level
-        indent = len(line) - len(stripped)
-        if base_indent is None and stripped:
-            base_indent = indent
-
-        # Estimate nesting level from indentation
-        if base_indent is not None:
-            indent_diff = indent - base_indent
-            # Assume 4 spaces or 1 tab per level
-            current_nesting = max(0, indent_diff // 4)
-        else:
-            current_nesting = 0
+        # Calculate nesting level from indentation
+        current_nesting, base_indent = _calculate_line_indentation(line, base_indent)
 
         # Check for control flow keywords
-        keyword_found = False
-        for keyword in control_flow:
-            # Match keyword at start of line (after stripping)
-            # Use word boundary to avoid matching 'format' when looking for 'for'
-            pattern = rf'^{keyword}(?:\s|\(|:)'
-            if re.match(pattern, stripped):
-                # Handle else if / elif specially
-                if keyword in ("elif",) or stripped.startswith("else if"):
-                    # else if adds +1 but no nesting penalty (continues same branch)
-                    complexity += 1
-                else:
-                    # Base increment + nesting penalty
-                    complexity += 1
-                    complexity += current_nesting
-                keyword_found = True
-                break
-
-        # Handle 'else if' in C-style languages
-        if not keyword_found and stripped.startswith("else if"):
+        keyword = _match_control_flow_keyword(stripped, control_flow)
+        if keyword:
+            complexity += _calculate_keyword_complexity(keyword, stripped, current_nesting)
+        # Handle 'else if' in C-style languages (not caught by keyword match)
+        elif stripped.startswith("else if"):
             complexity += 1  # No nesting penalty for else if
 
-        # Count logical operator sequences (not individual operators)
-        # Each change from AND to OR or vice versa adds +1
-        # "a && b && c" = +1, "a && b || c" = +2
-        if language.lower() in ("python",):
-            # Python uses 'and' and 'or'
-            and_pattern = r'\band\b'
-            or_pattern = r'\bor\b'
-        else:
-            # C-style uses && and ||
-            and_pattern = r'&&'
-            or_pattern = r'\|\|'
-
-        and_matches = list(re.finditer(and_pattern, stripped))
-        or_matches = list(re.finditer(or_pattern, stripped))
-
-        if and_matches or or_matches:
-            # Combine and sort by position
-            all_ops = [(m.start(), 'and') for m in and_matches] + \
-                      [(m.start(), 'or') for m in or_matches]
-            all_ops.sort(key=lambda x: x[0])
-
-            if all_ops:
-                # Count sequences (changes in operator type)
-                sequences = 1  # First sequence
-                for i in range(1, len(all_ops)):
-                    if all_ops[i][1] != all_ops[i-1][1]:
-                        sequences += 1
-                complexity += sequences
+        # Count logical operator sequences
+        complexity += _count_logical_operator_sequences(stripped, language)
 
     return complexity
 

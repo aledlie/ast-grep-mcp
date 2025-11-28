@@ -139,7 +139,7 @@ def _create_detectors(
     class_lines: int,
     class_methods: int,
     detect_magic_numbers: bool
-) -> List:
+) -> List[Any]:
     """Create and configure smell detectors.
 
     Args:

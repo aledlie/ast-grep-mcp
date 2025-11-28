@@ -15,7 +15,7 @@ from .storage import ComplexityStorage
 class ComplexityStatisticsAggregator:
     """Aggregates statistics and formats complexity analysis results."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the statistics aggregator."""
         self.logger = get_logger("complexity.statistics")
 
@@ -143,7 +143,7 @@ class ComplexityStatisticsAggregator:
             )
 
             self.logger.info("results_stored", run_id=run_id)
-            return run_id, str(storage.db_path)
+            return str(run_id), str(storage.db_path)
 
         except Exception as e:
             self.logger.warning("storage_failed", error=str(e))
@@ -153,7 +153,7 @@ class ComplexityStatisticsAggregator:
         self,
         project_folder: str,
         days: int = 30
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[List[Dict[str, Any]]]:
         """Get historical trend data for project.
 
         Args:

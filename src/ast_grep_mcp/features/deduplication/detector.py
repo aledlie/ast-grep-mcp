@@ -16,7 +16,7 @@ from ...core.logging import get_logger
 class DuplicationDetector:
     """Core duplication detection functionality."""
 
-    def __init__(self, language: str = "python"):
+    def __init__(self, language: str = "python") -> None:
         """Initialize the duplication detector.
 
         Args:
@@ -122,7 +122,7 @@ class DuplicationDetector:
             )
             raise
 
-    def _validate_parameters(self, min_similarity: float, min_lines: int, max_constructs: int):
+    def _validate_parameters(self, min_similarity: float, min_lines: int, max_constructs: int) -> None:
         """Validate input parameters."""
         if min_similarity < 0.0 or min_similarity > 1.0:
             raise ValueError("min_similarity must be between 0.0 and 1.0")
