@@ -134,7 +134,8 @@ For more information, see: https://github.com/ast-grep/ast-grep-mcp
         try:
             validate_config_file(CONFIG_PATH)
         except ConfigurationError as e:
-            print(f"Error: {e}")
+            logger = get_logger("config")
+            logger.error("config_validation_failed", config_path=CONFIG_PATH, error=str(e))
             sys.exit(1)
     elif os.environ.get('AST_GREP_CONFIG'):
         env_config = os.environ.get('AST_GREP_CONFIG')
@@ -143,7 +144,8 @@ For more information, see: https://github.com/ast-grep/ast-grep-mcp
             try:
                 validate_config_file(CONFIG_PATH)
             except ConfigurationError as e:
-                print(f"Error: {e}")
+                logger = get_logger("config")
+                logger.error("config_validation_failed", config_path=CONFIG_PATH, error=str(e))
                 sys.exit(1)
 
     # Determine log level with precedence: --log-level flag > LOG_LEVEL env > INFO
@@ -171,7 +173,7 @@ For more information, see: https://github.com/ast-grep/ast-grep-mcp
         try:
             CACHE_SIZE = int(os.environ.get('CACHE_SIZE', '100'))
         except ValueError:
-            print("Warning: Invalid CACHE_SIZE env var, using default (100)")
+            cache_logger.warning("invalid_cache_size_env", using_default=100)
             CACHE_SIZE = 100
 
     # Set cache TTL
@@ -181,7 +183,7 @@ For more information, see: https://github.com/ast-grep/ast-grep-mcp
         try:
             CACHE_TTL = int(os.environ.get('CACHE_TTL', '300'))
         except ValueError:
-            print("Warning: Invalid CACHE_TTL env var, using default (300)")
+            cache_logger.warning("invalid_cache_ttl_env", using_default=300)
             CACHE_TTL = 300
 
     # Note: Cache initialization will happen after cache.py is extracted
