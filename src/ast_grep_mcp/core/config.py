@@ -63,17 +63,18 @@ def validate_config_file(config_path: str) -> AstGrepConfig:
         raise ConfigurationError(config_path, f"Validation failed: {e}") from e
 
 
-def parse_args_and_get_config() -> None:
-    """Parse command-line arguments and determine config path."""
-    global CONFIG_PATH, CACHE_ENABLED, CACHE_SIZE, CACHE_TTL, _query_cache
+def _create_argument_parser() -> argparse.ArgumentParser:
+    """Create and configure the argument parser.
 
+    Returns:
+        Configured ArgumentParser instance.
+    """
     # Determine how the script was invoked
     prog = None
     if sys.argv[0].endswith('main.py'):
         # Direct execution: python main.py
         prog = 'python main.py'
 
-    # Parse command-line arguments
     parser = argparse.ArgumentParser(
         prog=prog,
         description='ast-grep MCP Server - Provides structural code search capabilities via Model Context Protocol',
@@ -127,28 +128,55 @@ For more information, see: https://github.com/ast-grep/ast-grep-mcp
         default=None,
         help=f'Time-to-live for cached results in seconds (default: {CacheDefaults.CLEANUP_INTERVAL_SECONDS}). Can also be set via CACHE_TTL env var.'
     )
-    args = parser.parse_args()
+    return parser
 
-    # Determine config path with precedence: --config flag > AST_GREP_CONFIG env > None
+
+def _resolve_and_validate_config_path(args: argparse.Namespace) -> Optional[str]:
+    """Resolve and validate config file path from args or environment.
+
+    Precedence: --config flag > AST_GREP_CONFIG env > None
+
+    Args:
+        args: Parsed command-line arguments.
+
+    Returns:
+        Path to config file or None if not specified.
+
+    Note:
+        Calls sys.exit(1) if validation fails.
+    """
+    config_path = None
+
     if args.config:
-        CONFIG_PATH = args.config
+        config_path = args.config
         try:
-            validate_config_file(CONFIG_PATH)
+            validate_config_file(config_path)
         except ConfigurationError as e:
             logger = get_logger("config")
-            logger.error("config_validation_failed", config_path=CONFIG_PATH, error=str(e))
+            logger.error("config_validation_failed", config_path=config_path, error=str(e))
             sys.exit(1)
     elif os.environ.get('AST_GREP_CONFIG'):
         env_config = os.environ.get('AST_GREP_CONFIG')
         if env_config:
-            CONFIG_PATH = env_config
+            config_path = env_config
             try:
-                validate_config_file(CONFIG_PATH)
+                validate_config_file(config_path)
             except ConfigurationError as e:
                 logger = get_logger("config")
-                logger.error("config_validation_failed", config_path=CONFIG_PATH, error=str(e))
+                logger.error("config_validation_failed", config_path=config_path, error=str(e))
                 sys.exit(1)
 
+    return config_path
+
+
+def _configure_logging_from_args(args: argparse.Namespace) -> None:
+    """Configure logging based on command-line arguments and environment.
+
+    Precedence: --log-level/--log-file flags > env vars > defaults
+
+    Args:
+        args: Parsed command-line arguments.
+    """
     # Determine log level with precedence: --log-level flag > LOG_LEVEL env > INFO
     log_level = args.log_level or os.environ.get('LOG_LEVEL', 'INFO')
 
@@ -158,38 +186,71 @@ For more information, see: https://github.com/ast-grep/ast-grep-mcp
     # Configure logging
     configure_logging(log_level=log_level, log_file=log_file)
 
-    # Get logger for cache initialization
+
+def _configure_cache_from_args(args: argparse.Namespace) -> tuple[bool, int, int]:
+    """Configure cache settings from command-line arguments and environment.
+
+    Precedence: command-line flags > env vars > defaults
+
+    Args:
+        args: Parsed command-line arguments.
+
+    Returns:
+        Tuple of (cache_enabled, cache_size, cache_ttl).
+    """
     cache_logger = get_logger("cache.init")
 
     # Check if caching is disabled
+    cache_enabled = True
     if args.no_cache:
-        CACHE_ENABLED = False
+        cache_enabled = False
     elif os.environ.get('CACHE_DISABLED'):
-        CACHE_ENABLED = False
+        cache_enabled = False
 
     # Set cache size
+    cache_size = CacheDefaults.DEFAULT_CACHE_SIZE
     if args.cache_size is not None:
-        CACHE_SIZE = args.cache_size
+        cache_size = args.cache_size
     elif os.environ.get('CACHE_SIZE'):
         try:
-            CACHE_SIZE = int(os.environ.get('CACHE_SIZE', str(CacheDefaults.DEFAULT_CACHE_SIZE)))
+            cache_size = int(os.environ.get('CACHE_SIZE', str(CacheDefaults.DEFAULT_CACHE_SIZE)))
         except ValueError:
             cache_logger.warning("invalid_cache_size_env", using_default=CacheDefaults.DEFAULT_CACHE_SIZE)
-            CACHE_SIZE = CacheDefaults.DEFAULT_CACHE_SIZE
+            cache_size = CacheDefaults.DEFAULT_CACHE_SIZE
 
     # Set cache TTL
+    cache_ttl = CacheDefaults.CLEANUP_INTERVAL_SECONDS
     if args.cache_ttl is not None:
-        CACHE_TTL = args.cache_ttl
+        cache_ttl = args.cache_ttl
     elif os.environ.get('CACHE_TTL'):
         try:
-            CACHE_TTL = int(os.environ.get('CACHE_TTL', str(CacheDefaults.CLEANUP_INTERVAL_SECONDS)))
+            cache_ttl = int(os.environ.get('CACHE_TTL', str(CacheDefaults.CLEANUP_INTERVAL_SECONDS)))
         except ValueError:
             cache_logger.warning("invalid_cache_ttl_env", using_default=CacheDefaults.CLEANUP_INTERVAL_SECONDS)
-            CACHE_TTL = CacheDefaults.CLEANUP_INTERVAL_SECONDS
+            cache_ttl = CacheDefaults.CLEANUP_INTERVAL_SECONDS
 
-    # Note: Cache initialization will happen after cache.py is extracted
-    # For now, just log the configuration
+    # Log the configuration
     cache_logger.info("cache_config",
-                     cache_enabled=CACHE_ENABLED,
-                     cache_size=CACHE_SIZE,
-                     cache_ttl=CACHE_TTL)
+                     cache_enabled=cache_enabled,
+                     cache_size=cache_size,
+                     cache_ttl=cache_ttl)
+
+    return cache_enabled, cache_size, cache_ttl
+
+
+def parse_args_and_get_config() -> None:
+    """Parse command-line arguments and determine config path."""
+    global CONFIG_PATH, CACHE_ENABLED, CACHE_SIZE, CACHE_TTL
+
+    # Parse arguments
+    parser = _create_argument_parser()
+    args = parser.parse_args()
+
+    # Resolve and validate config
+    CONFIG_PATH = _resolve_and_validate_config_path(args)
+
+    # Configure logging
+    _configure_logging_from_args(args)
+
+    # Configure cache
+    CACHE_ENABLED, CACHE_SIZE, CACHE_TTL = _configure_cache_from_args(args)
