@@ -4,9 +4,47 @@ import glob as glob_module
 import os
 import re as regex_module
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Optional, Callable
 
 from ...core.logging import get_logger
+
+
+# Helper function for JavaScript-like languages
+def _get_javascript_patterns(source_name: str) -> List[str]:
+    """Get import patterns for JavaScript-like languages."""
+    return [
+        f"from ['\"].*{source_name}['\"]",
+        f"require\\(['\"].*{source_name}['\"]\\)",
+        f"import.*{source_name}",
+    ]
+
+
+# Helper function for Ruby-like patterns
+def _get_ruby_patterns(source_name: str) -> List[str]:
+    """Get import patterns for Ruby."""
+    return [f"require.*{source_name}"]
+
+
+# Configuration-driven pattern for import patterns
+IMPORT_PATTERN_CONFIG: Dict[str, Callable[[str], List[str]]] = {
+    "python": lambda source_name: [
+        f"from {source_name} import",
+        f"from .{source_name} import",
+        f"import {source_name}",
+        f"from.*{source_name}.*import",
+    ],
+    "javascript": _get_javascript_patterns,
+    "js": _get_javascript_patterns,
+    "typescript": _get_javascript_patterns,
+    "ts": _get_javascript_patterns,
+    "tsx": _get_javascript_patterns,
+    "java": lambda source_name: [
+        f"import.*\\.{source_name};",
+        f"\\b{source_name}\\b",  # Direct class usage
+    ],
+    "ruby": _get_ruby_patterns,
+    "rb": _get_ruby_patterns,
+}
 
 
 class TestCoverageDetector:
@@ -203,6 +241,57 @@ class TestCoverageDetector:
 
         return [os.path.normpath(p) for p in potential_paths]
 
+    def _read_file_content(self, file_path: str) -> Optional[str]:
+        """Read file content safely.
+
+        Args:
+            file_path: Path to the file
+
+        Returns:
+            File content or None if file cannot be read
+        """
+        if not os.path.exists(file_path):
+            return None
+
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                return f.read()
+        except (IOError, OSError):
+            return None
+
+    def _check_import_patterns(self, patterns: List[str], content: str) -> bool:
+        """Check if any import pattern matches in content.
+
+        Args:
+            patterns: List of regex patterns to check
+            content: File content to search in
+
+        Returns:
+            True if any pattern matches
+        """
+        for pattern in patterns:
+            if regex_module.search(pattern, content, regex_module.IGNORECASE):
+                return True
+        return False
+
+    def _check_go_same_directory(
+        self,
+        test_file_path: str,
+        source_file_path: str
+    ) -> bool:
+        """Check if Go files are in the same directory (automatic access).
+
+        Args:
+            test_file_path: Path to test file
+            source_file_path: Path to source file
+
+        Returns:
+            True if files are in the same directory
+        """
+        source_dir = os.path.dirname(source_file_path)
+        test_dir = os.path.dirname(test_file_path)
+        return os.path.normpath(source_dir) == os.path.normpath(test_dir)
+
     def _check_test_file_references_source(
         self,
         test_file_path: str,
@@ -219,65 +308,27 @@ class TestCoverageDetector:
         Returns:
             True if the test file appears to test the source file
         """
-        if not os.path.exists(test_file_path):
-            return False
-
-        try:
-            with open(test_file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-        except (IOError, OSError):
+        # Early return: read file content
+        content = self._read_file_content(test_file_path)
+        if content is None:
             return False
 
         # Get the module/class name from source file
         source_name = os.path.splitext(os.path.basename(source_file_path))[0]
         lang = language.lower()
 
-        # Check for imports/references based on language
-        if lang == "python":
-            # Check for: from <module> import, import <module>
-            import_patterns = [
-                f"from {source_name} import",
-                f"from .{source_name} import",
-                f"import {source_name}",
-                f"from.*{source_name}.*import",
-            ]
-            for pattern in import_patterns:
-                if regex_module.search(pattern, content, regex_module.IGNORECASE):
-                    return True
-
-        elif lang in ("javascript", "js", "typescript", "ts", "tsx"):
-            # Check for: require('<module>'), import from '<module>'
-            import_patterns = [
-                f"from ['\"].*{source_name}['\"]",
-                f"require\\(['\"].*{source_name}['\"]\\)",
-                f"import.*{source_name}",
-            ]
-            for pattern in import_patterns:
-                if regex_module.search(pattern, content, regex_module.IGNORECASE):
-                    return True
-
-        elif lang == "java":
-            # Check for: import <package>.<ClassName>
-            class_name = source_name
-            if regex_module.search(f"import.*\\.{class_name};", content):
-                return True
-            # Also check if class name is directly used
-            if regex_module.search(f"\\b{class_name}\\b", content):
-                return True
-
-        elif lang == "go":
-            # Go test files in same directory automatically have access
-            source_dir = os.path.dirname(source_file_path)
-            test_dir = os.path.dirname(test_file_path)
-            if os.path.normpath(source_dir) == os.path.normpath(test_dir):
+        # Special case: Go files in same directory have automatic access
+        if lang == "go":
+            if self._check_go_same_directory(test_file_path, source_file_path):
                 return True
             # Check for package import
             if regex_module.search(f"import.*{source_name}", content):
                 return True
 
-        elif lang in ("ruby", "rb"):
-            # Check for require/require_relative
-            if regex_module.search(f"require.*{source_name}", content, regex_module.IGNORECASE):
+        # Configuration-driven pattern checking
+        if lang in IMPORT_PATTERN_CONFIG:
+            patterns = IMPORT_PATTERN_CONFIG[lang](source_name)
+            if self._check_import_patterns(patterns, content):
                 return True
 
         # Fallback: check if source file name appears anywhere in test

@@ -9,6 +9,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from ...constants import ParallelProcessing
 from ...core.logging import get_logger
+from .config import AnalysisConfig
 from .coverage import TestCoverageDetector
 from .detector import DuplicationDetector
 from .ranker import DuplicationRanker
@@ -86,7 +87,10 @@ class DeduplicationAnalysisOrchestrator:
         exclude_patterns: List[str] | None = None,
         progress_callback: Optional[ProgressCallback] = None
     ) -> Dict[str, Any]:
-        """Analyze a project for deduplication candidates.
+        """Analyze a project for deduplication candidates (legacy interface).
+
+        This method provides backward compatibility by converting individual
+        parameters to AnalysisConfig. New code should use analyze_candidates_with_config().
 
         This orchestrates a 4-step workflow:
         1. Find duplicates
@@ -112,33 +116,81 @@ class DeduplicationAnalysisOrchestrator:
         Raises:
             ValueError: If input parameters are invalid
         """
+        # Convert to AnalysisConfig (validation happens in AnalysisConfig.__post_init__)
+        config = AnalysisConfig(
+            project_path=project_path,
+            language=language,
+            min_similarity=min_similarity,
+            include_test_coverage=include_test_coverage,
+            min_lines=min_lines,
+            max_candidates=max_candidates,
+            exclude_patterns=exclude_patterns,
+            progress_callback=progress_callback
+        )
+        return self.analyze_candidates_with_config(config)
+
+    def analyze_candidates_with_config(
+        self,
+        config: AnalysisConfig
+    ) -> Dict[str, Any]:
+        """Analyze a project for deduplication candidates (recommended interface).
+
+        This is the modern, cleaner API that accepts an AnalysisConfig object
+        instead of 8 separate parameters.
+
+        This orchestrates a 4-step workflow:
+        1. Find duplicates
+        2. Rank candidates by refactoring value
+        3. Check test coverage (if requested)
+        4. Generate recommendations
+
+        Args:
+            config: Analysis configuration object
+
+        Returns:
+            Analysis results with ranked candidates and metadata
+
+        Raises:
+            ValueError: If configuration is invalid
+
+        Example:
+            >>> config = AnalysisConfig(
+            ...     project_path="/path/to/project",
+            ...     language="python",
+            ...     min_similarity=0.9,
+            ...     max_candidates=50
+            ... )
+            >>> orchestrator = DeduplicationAnalysisOrchestrator()
+            >>> results = orchestrator.analyze_candidates_with_config(config)
+        """
         # Validate inputs early (fail-fast)
         self._validate_analysis_inputs(
-            project_path, language, min_similarity,
-            min_lines, max_candidates
+            config.project_path,
+            config.language,
+            config.min_similarity,
+            config.min_lines,
+            config.max_candidates
         )
 
         # Helper function for progress reporting
         def report_progress(stage: str, percent: float) -> None:
             """Report progress if callback is provided."""
-            if progress_callback:
-                progress_callback(stage, percent)
+            if config.progress_callback:
+                config.progress_callback(stage, percent)
 
         self.logger.info(
             "analysis_start",
-            project_path=project_path,
-            language=language,
-            max_candidates=max_candidates
+            **config.to_dict()
         )
 
         # Step 1: Find duplicates (0% -> 25%)
         report_progress("Finding duplicate code", 0.0)
         duplication_results = self.detector.find_duplication(
-            project_folder=project_path,
+            project_folder=config.project_path,
             construct_type="function_definition",
-            min_similarity=min_similarity,
-            min_lines=min_lines,
-            exclude_patterns=exclude_patterns or []
+            min_similarity=config.min_similarity,
+            min_lines=config.min_lines,
+            exclude_patterns=config.exclude_patterns or []
         )
 
         # Step 2: Rank candidates by refactoring value (25% -> 40%)
@@ -146,19 +198,14 @@ class DeduplicationAnalysisOrchestrator:
         report_progress("Ranking candidates by value", 0.25)
         ranked_candidates = self.ranker.rank_deduplication_candidates(
             duplication_results.get("duplicates", []),
-            max_results=max_candidates
+            max_results=config.max_candidates
         )
 
         # Step 3-5: Enrich and summarize top candidates (40% -> 100%)
         report_progress("Enriching candidates", 0.40)
-        result = self._enrich_and_summarize(
+        result = self._enrich_and_summarize_with_config(
             ranked_candidates,
-            max_candidates,
-            include_test_coverage,
-            language,
-            project_path,
-            min_similarity,
-            min_lines,
+            config,
             progress_callback=report_progress
         )
 
@@ -246,7 +293,10 @@ class DeduplicationAnalysisOrchestrator:
         include_test_coverage: bool,
         project_path: str
     ) -> Dict[str, Any]:
-        """Build analysis metadata dictionary.
+        """Build analysis metadata dictionary (legacy interface).
+
+        Maintained for backward compatibility. New code should use
+        _build_analysis_metadata_from_config().
 
         Args:
             language: Programming language
@@ -266,6 +316,26 @@ class DeduplicationAnalysisOrchestrator:
             "project_path": project_path
         }
 
+    def _build_analysis_metadata_from_config(
+        self,
+        config: AnalysisConfig
+    ) -> Dict[str, Any]:
+        """Build analysis metadata dictionary from config.
+
+        Args:
+            config: Analysis configuration object
+
+        Returns:
+            Analysis metadata dictionary
+        """
+        return {
+            "language": config.language,
+            "min_similarity": config.min_similarity,
+            "min_lines": config.min_lines,
+            "include_test_coverage": config.include_test_coverage,
+            "project_path": config.project_path
+        }
+
     def _enrich_and_summarize(
         self,
         ranked_candidates: List[Dict[str, Any]],
@@ -277,7 +347,10 @@ class DeduplicationAnalysisOrchestrator:
         min_lines: int,
         progress_callback: Optional[Callable[[str, float], None]] = None
     ) -> Dict[str, Any]:
-        """Enrich top candidates and generate summary.
+        """Enrich top candidates and generate summary (legacy interface).
+
+        Maintained for backward compatibility. New code should use
+        _enrich_and_summarize_with_config().
 
         Args:
             ranked_candidates: All ranked candidates
@@ -287,6 +360,41 @@ class DeduplicationAnalysisOrchestrator:
             project_path: Project folder path
             min_similarity: Minimum similarity threshold
             min_lines: Minimum lines to consider
+            progress_callback: Optional progress reporting callback
+
+        Returns:
+            Analysis results with enriched candidates and metadata
+        """
+        # Convert to config and call new method
+        config = AnalysisConfig(
+            project_path=project_path,
+            language=language,
+            min_similarity=min_similarity,
+            include_test_coverage=include_test_coverage,
+            min_lines=min_lines,
+            max_candidates=max_candidates,
+            progress_callback=progress_callback
+        )
+        return self._enrich_and_summarize_with_config(
+            ranked_candidates,
+            config,
+            progress_callback=progress_callback
+        )
+
+    def _enrich_and_summarize_with_config(
+        self,
+        ranked_candidates: List[Dict[str, Any]],
+        config: AnalysisConfig,
+        progress_callback: Optional[Callable[[str, float], None]] = None
+    ) -> Dict[str, Any]:
+        """Enrich top candidates and generate summary using config object.
+
+        This is the modern, cleaner API that accepts an AnalysisConfig object
+        instead of 8 separate parameters.
+
+        Args:
+            ranked_candidates: All ranked candidates
+            config: Analysis configuration object
             progress_callback: Optional progress reporting callback
 
         Returns:
@@ -305,28 +413,32 @@ class DeduplicationAnalysisOrchestrator:
                 "total_groups_analyzed": 0,
                 "top_candidates_count": 0,
                 "top_candidates_savings_potential": 0,
-                "analysis_metadata": self._build_analysis_metadata(
-                    language,
-                    min_similarity,
-                    min_lines,
-                    include_test_coverage,
-                    project_path
-                )
+                "analysis_metadata": self._build_analysis_metadata_from_config(config)
             }
 
         # Get top candidates (40% -> 50%)
         report("Selecting top candidates", 0.50)
-        top_candidates = self._get_top_candidates(ranked_candidates, max_candidates)
+        top_candidates = self._get_top_candidates(ranked_candidates, config.max_candidates)
 
         # Step 3: Check test coverage if requested (50% -> 75%)
-        if include_test_coverage:
+        if config.include_test_coverage:
             report("Checking test coverage", 0.60)
-            self._add_test_coverage_batch(top_candidates, language, project_path)
+            self._add_test_coverage_batch(
+                top_candidates,
+                config.language,
+                config.project_path,
+                parallel=config.parallel,
+                max_workers=config.max_workers
+            )
             report("Test coverage complete", 0.75)
 
         # Step 4: Generate recommendations (75% -> 90%)
         report("Generating recommendations", 0.85)
-        self._add_recommendations(top_candidates)
+        self._add_recommendations(
+            top_candidates,
+            parallel=config.parallel,
+            max_workers=config.max_workers
+        )
 
         # Step 5: Calculate summary statistics (90% -> 95%)
         report("Calculating statistics", 0.90)
@@ -344,13 +456,7 @@ class DeduplicationAnalysisOrchestrator:
             "total_groups_analyzed": len(ranked_candidates),
             "top_candidates_count": len(top_candidates),
             "top_candidates_savings_potential": top_candidates_savings,
-            "analysis_metadata": self._build_analysis_metadata(
-                language,
-                min_similarity,
-                min_lines,
-                include_test_coverage,
-                project_path
-            )
+            "analysis_metadata": self._build_analysis_metadata_from_config(config)
         }
 
     def _enrich_with_test_coverage(
