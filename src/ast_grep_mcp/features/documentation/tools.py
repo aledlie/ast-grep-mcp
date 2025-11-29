@@ -278,6 +278,28 @@ def generate_readme_sections_tool(
         raise
 
 
+def _format_route_for_output(route) -> Dict[str, Any]:
+    """Format a single route for API output.
+
+    Args:
+        route: ApiRoute object
+
+    Returns:
+        Dictionary with route details
+    """
+    return {
+        "path": route.path,
+        "method": route.method,
+        "handler_name": route.handler_name,
+        "file_path": route.file_path,
+        "line_number": route.line_number,
+        "parameters": [
+            {"name": p.name, "location": p.location, "type": p.type_hint, "required": p.required}
+            for p in route.parameters
+        ],
+    }
+
+
 def generate_api_docs_tool(
     project_folder: str,
     language: str,
@@ -375,25 +397,7 @@ def generate_api_docs_tool(
         )
 
         return {
-            "routes": [
-                {
-                    "path": r.path,
-                    "method": r.method,
-                    "handler_name": r.handler_name,
-                    "file_path": r.file_path,
-                    "line_number": r.line_number,
-                    "parameters": [
-                        {
-                            "name": p.name,
-                            "location": p.location,
-                            "type": p.type_hint,
-                            "required": p.required,
-                        }
-                        for p in r.parameters
-                    ],
-                }
-                for r in result.routes
-            ],
+            "routes": [_format_route_for_output(r) for r in result.routes],
             "markdown": result.markdown,
             "openapi_spec": result.openapi_spec,
             "framework": result.framework,
