@@ -10,13 +10,10 @@ import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from ast_grep_mcp.core.logging import get_logger
-from ast_grep_mcp.features.complexity.analyzer import (
-    calculate_nesting_depth,
-    extract_functions_from_file
-)
+from ast_grep_mcp.features.complexity.analyzer import calculate_nesting_depth, extract_functions_from_file
 from ast_grep_mcp.features.quality.smells_helpers import calculate_smell_severity
 
 
@@ -351,62 +348,155 @@ class LargeClassDetector(SmellDetector):
 
     def _extract_classes(self, file_path: str, language: str) -> List[Dict[str, Any]]:
         """Extract all classes from a file using ast-grep."""
-        classes: List[Dict[str, Any]] = []
+        pattern = self._get_class_pattern(language)
 
-        # Define class patterns per language
+        try:
+            matches = self._run_ast_grep_for_classes(file_path, language, pattern)
+            return self._process_class_matches(matches, language)
+        except Exception as e:
+            self.logger.warning("extract_classes_failed", file=file_path, error=str(e))
+            return []
+
+    def _get_class_pattern(self, language: str) -> str:
+        """Get the ast-grep pattern for class detection based on language.
+
+        Args:
+            language: Programming language
+
+        Returns:
+            Pattern string for ast-grep
+        """
         class_patterns = {
             "python": "class $NAME($$$): $$$",
             "typescript": "class $NAME { $$$ }",
             "javascript": "class $NAME { $$$ }",
             "java": "class $NAME { $$$ }"
         }
+        return class_patterns.get(language.lower(), class_patterns["python"])
 
-        pattern = class_patterns.get(language.lower(), class_patterns["python"])
+    def _run_ast_grep_for_classes(
+        self,
+        file_path: str,
+        language: str,
+        pattern: str
+    ) -> List[Dict[str, Any]]:
+        """Run ast-grep to find class matches.
 
-        try:
-            result = subprocess.run(
-                ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                matches = json.loads(result.stdout)
-                if isinstance(matches, list):
-                    for match in matches:
-                        # Extract class name
-                        cls_name = "unknown"
-                        meta_vars = match.get("metaVariables", {})
-                        if "NAME" in meta_vars:
-                            name_data = meta_vars["NAME"]
-                            if isinstance(name_data, dict):
-                                cls_name = name_data.get("text", "unknown")
-                            elif isinstance(name_data, str):
-                                cls_name = name_data
+        Args:
+            file_path: Path to file to analyze
+            language: Programming language
+            pattern: ast-grep pattern to use
 
-                        # Get line numbers
-                        range_info = match.get("range", {})
-                        start_line = range_info.get("start", {}).get("line", 0) + 1
-                        end_line = range_info.get("end", {}).get("line", 0) + 1
+        Returns:
+            List of match dictionaries from ast-grep output
+        """
+        result = subprocess.run(
+            ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
 
-                        # Count methods in class
-                        code = match.get("text", "")
-                        method_count = 0
-                        if language.lower() == "python":
-                            method_count = len(re.findall(r'^\s+def\s+', code, re.MULTILINE))
-                        else:
-                            method_count = len(re.findall(r'^\s+\w+\s*\([^)]*\)\s*\{', code, re.MULTILINE))
+        # Early return for failed or empty results
+        if result.returncode != 0 or not result.stdout.strip():
+            return []
 
-                        classes.append({
-                            "name": cls_name,
-                            "start_line": start_line,
-                            "end_line": end_line,
-                            "method_count": method_count
-                        })
-        except Exception as e:
-            self.logger.warning("extract_classes_failed", file=file_path, error=str(e))
+        matches = json.loads(result.stdout)
+        return matches if isinstance(matches, list) else []
 
+    def _process_class_matches(
+        self,
+        matches: List[Dict[str, Any]],
+        language: str
+    ) -> List[Dict[str, Any]]:
+        """Process ast-grep matches into class information.
+
+        Args:
+            matches: Raw match data from ast-grep
+            language: Programming language
+
+        Returns:
+            List of class information dictionaries
+        """
+        classes = []
+        for match in matches:
+            cls_info = self._extract_class_info(match, language)
+            classes.append(cls_info)
         return classes
+
+    def _extract_class_info(self, match: Dict[str, Any], language: str) -> Dict[str, Any]:
+        """Extract class information from a single ast-grep match.
+
+        Args:
+            match: Single match dictionary from ast-grep
+            language: Programming language
+
+        Returns:
+            Dictionary with class name, lines, and method count
+        """
+        cls_name = self._extract_class_name(match)
+        start_line, end_line = self._extract_line_range(match)
+        method_count = self._count_methods_in_class(match.get("text", ""), language)
+
+        return {
+            "name": cls_name,
+            "start_line": start_line,
+            "end_line": end_line,
+            "method_count": method_count
+        }
+
+    def _extract_class_name(self, match: Dict[str, Any]) -> str:
+        """Extract class name from ast-grep match metavariables.
+
+        Args:
+            match: Match dictionary from ast-grep
+
+        Returns:
+            Class name or "unknown" if not found
+        """
+        meta_vars = match.get("metaVariables", {})
+        if "NAME" not in meta_vars:
+            return "unknown"
+
+        name_data = meta_vars["NAME"]
+
+        # Handle both dict and string formats
+        if isinstance(name_data, dict):
+            result = name_data.get("text", "unknown")
+            return str(result) if result is not None else "unknown"
+        elif isinstance(name_data, str):
+            return name_data
+        else:
+            return "unknown"
+
+    def _extract_line_range(self, match: Dict[str, Any]) -> tuple[int, int]:
+        """Extract start and end line numbers from ast-grep match.
+
+        Args:
+            match: Match dictionary from ast-grep
+
+        Returns:
+            Tuple of (start_line, end_line), 1-indexed
+        """
+        range_info = match.get("range", {})
+        start_line = range_info.get("start", {}).get("line", 0) + 1
+        end_line = range_info.get("end", {}).get("line", 0) + 1
+        return start_line, end_line
+
+    def _count_methods_in_class(self, code: str, language: str) -> int:
+        """Count the number of methods in a class.
+
+        Args:
+            code: Class code as string
+            language: Programming language
+
+        Returns:
+            Number of methods found
+        """
+        if language.lower() == "python":
+            return len(re.findall(r'^\s+def\s+', code, re.MULTILINE))
+        else:
+            return len(re.findall(r'^\s+\w+\s*\([^)]*\)\s*\{', code, re.MULTILINE))
 
 
 class MagicNumberDetector(SmellDetector):
