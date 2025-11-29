@@ -502,6 +502,164 @@ class DeduplicationAnalysisOrchestrator:
         )
         candidate["recommendation"] = recommendation
 
+    def _handle_enrichment_error(
+        self,
+        candidate: Dict[str, Any],
+        error: Exception,
+        operation_name: str,
+        error_field: str,
+        default_error_value: Any,
+        error_message: Optional[str] = None
+    ) -> None:
+        """Handle enrichment errors by logging and updating candidate.
+
+        Args:
+            candidate: The candidate that failed
+            error: The exception that occurred (or TimeoutError)
+            operation_name: Name of operation for logging
+            error_field: Field name to store error message
+            default_error_value: Default value to set on error
+            error_message: Optional custom error message (for timeouts)
+        """
+        # Log the error
+        if isinstance(error, TimeoutError):
+            self.logger.error(
+                f"{operation_name}_timeout",
+                candidate_id=candidate.get("id", "unknown"),
+                timeout_seconds=error_message  # Pass timeout value via error_message
+            )
+            candidate[error_field] = f"Operation timed out after {error_message}s"
+        else:
+            self.logger.error(
+                f"{operation_name}_enrichment_failed",
+                candidate_id=candidate.get("id", "unknown"),
+                error=str(error)
+            )
+            candidate[error_field] = str(error)
+
+        # Set default error value
+        if isinstance(default_error_value, dict):
+            for key, value in default_error_value.items():
+                candidate[key] = value
+
+    def _process_completed_future(
+        self,
+        future: Any,
+        candidate: Dict[str, Any],
+        timeout_seconds: int,
+        operation_name: str,
+        error_field: str,
+        default_error_value: Any,
+        failed_candidates: List[Dict[str, Any]]
+    ) -> None:
+        """Process a completed future and handle any errors.
+
+        Args:
+            future: The completed future to process
+            candidate: The candidate being processed
+            timeout_seconds: Timeout for the operation
+            operation_name: Name of operation for logging
+            error_field: Field name to store error message
+            default_error_value: Default value to set on error
+            failed_candidates: List to append failed candidates to
+        """
+        try:
+            # Wait for individual future with per-candidate timeout
+            future.result(timeout=timeout_seconds)
+        except TimeoutError as e:
+            self._handle_enrichment_error(
+                candidate, e, operation_name, error_field,
+                default_error_value, error_message=str(timeout_seconds)
+            )
+            failed_candidates.append(candidate)
+        except Exception as e:
+            self._handle_enrichment_error(
+                candidate, e, operation_name, error_field,
+                default_error_value
+            )
+            failed_candidates.append(candidate)
+
+    def _process_parallel_enrichment(
+        self,
+        candidates: List[Dict[str, Any]],
+        enrich_func: Callable[[Dict[str, Any], ...], None],
+        operation_name: str,
+        error_field: str,
+        default_error_value: Any,
+        max_workers: int,
+        timeout_seconds: int,
+        kwargs: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Process enrichment in parallel using ThreadPoolExecutor.
+
+        Args:
+            candidates: List of candidates to enrich
+            enrich_func: Function to call for each candidate
+            operation_name: Name of operation for logging
+            error_field: Field name to store error message
+            default_error_value: Default value to set on error
+            max_workers: Maximum number of threads
+            timeout_seconds: Timeout per candidate
+            kwargs: Additional arguments for enrich_func
+
+        Returns:
+            List of failed candidates
+        """
+        failed_candidates: List[Dict[str, Any]] = []
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(enrich_func, candidate, **kwargs): candidate
+                for candidate in candidates
+            }
+
+            # Process futures as they complete
+            for future in as_completed(futures):
+                candidate = futures[future]
+                self._process_completed_future(
+                    future, candidate, timeout_seconds,
+                    operation_name, error_field, default_error_value,
+                    failed_candidates
+                )
+
+        return failed_candidates
+
+    def _process_sequential_enrichment(
+        self,
+        candidates: List[Dict[str, Any]],
+        enrich_func: Callable[[Dict[str, Any], ...], None],
+        operation_name: str,
+        error_field: str,
+        default_error_value: Any,
+        kwargs: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Process enrichment sequentially.
+
+        Args:
+            candidates: List of candidates to enrich
+            enrich_func: Function to call for each candidate
+            operation_name: Name of operation for logging
+            error_field: Field name to store error message
+            default_error_value: Default value to set on error
+            kwargs: Additional arguments for enrich_func
+
+        Returns:
+            List of failed candidates
+        """
+        failed_candidates: List[Dict[str, Any]] = []
+
+        for candidate in candidates:
+            try:
+                enrich_func(candidate, **kwargs)
+            except Exception as e:
+                self._handle_enrichment_error(
+                    candidate, e, operation_name, error_field,
+                    default_error_value
+                )
+                failed_candidates.append(candidate)
+
+        return failed_candidates
+
     def _parallel_enrich(
         self,
         candidates: List[Dict[str, Any]],
@@ -546,8 +704,6 @@ class DeduplicationAnalysisOrchestrator:
                 project_path=project_path
             )
         """
-        failed_candidates: List[Dict[str, Any]] = []
-
         # Use default timeout if not specified
         timeout_seconds = (
             timeout_per_candidate
@@ -555,62 +711,19 @@ class DeduplicationAnalysisOrchestrator:
             else ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS
         )
 
+        # Choose processing strategy based on parallel flag and candidate count
         if parallel and len(candidates) > 1:
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                futures = {
-                    executor.submit(enrich_func, candidate, **kwargs): candidate
-                    for candidate in candidates
-                }
-                # Process futures as they complete (no global timeout on iteration)
-                for future in as_completed(futures):
-                    candidate = futures[future]
-                    try:
-                        # Wait for individual future with per-candidate timeout
-                        future.result(timeout=timeout_seconds)
-                    except TimeoutError:
-                        self.logger.error(
-                            f"{operation_name}_timeout",
-                            candidate_id=candidate.get("id", "unknown"),
-                            timeout_seconds=timeout_seconds
-                        )
-                        # Mark candidate with timeout error
-                        candidate[error_field] = f"Operation timed out after {timeout_seconds}s"
-                        # Set default error value
-                        if isinstance(default_error_value, dict):
-                            for key, value in default_error_value.items():
-                                candidate[key] = value
-                        failed_candidates.append(candidate)
-                    except Exception as e:
-                        self.logger.error(
-                            f"{operation_name}_enrichment_failed",
-                            candidate_id=candidate.get("id", "unknown"),
-                            error=str(e)
-                        )
-                        # Mark candidate with error state
-                        candidate[error_field] = str(e)
-                        # Set default error value (could be dict, bool, etc.)
-                        if isinstance(default_error_value, dict):
-                            for key, value in default_error_value.items():
-                                candidate[key] = value
-                        failed_candidates.append(candidate)
+            failed_candidates = self._process_parallel_enrichment(
+                candidates, enrich_func, operation_name, error_field,
+                default_error_value, max_workers, timeout_seconds, kwargs
+            )
         else:
-            for candidate in candidates:
-                try:
-                    enrich_func(candidate, **kwargs)
-                except Exception as e:
-                    self.logger.error(
-                        f"{operation_name}_enrichment_failed",
-                        candidate_id=candidate.get("id", "unknown"),
-                        error=str(e)
-                    )
-                    # Mark candidate with error state
-                    candidate[error_field] = str(e)
-                    # Set default error value
-                    if isinstance(default_error_value, dict):
-                        for key, value in default_error_value.items():
-                            candidate[key] = value
-                    failed_candidates.append(candidate)
+            failed_candidates = self._process_sequential_enrichment(
+                candidates, enrich_func, operation_name, error_field,
+                default_error_value, kwargs
+            )
 
+        # Log summary
         self.logger.info(
             f"{operation_name}_added",
             candidate_count=len(candidates),
