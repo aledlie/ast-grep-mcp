@@ -376,52 +376,168 @@ def scan_for_secrets_regex(
     issues = []
     project_path = Path(project_folder)
 
-    # File extensions by language
+    # Get file extensions for language
+    exts = _get_language_extensions(language)
+
+    # Scan files by extension
+    for ext in exts:
+        file_issues = _scan_files_for_secrets(project_path, ext)
+        issues.extend(file_issues)
+
+    return issues
+
+
+def _get_language_extensions(language: str) -> List[str]:
+    """Get file extensions for a programming language.
+
+    Args:
+        language: Programming language name
+
+    Returns:
+        List of file extensions
+    """
     extensions = {
         "python": [".py"],
         "javascript": [".js"],
         "typescript": [".ts", ".tsx"],
         "java": [".java"]
     }
+    return extensions.get(language, [".py", ".js", ".ts", ".java"])
 
-    exts = extensions.get(language, [".py", ".js", ".ts", ".java"])
 
-    # Scan files
-    for ext in exts:
-        for file_path in project_path.rglob(f"*{ext}"):
-            if any(part in str(file_path) for part in ["node_modules", "__pycache__", "venv", ".venv", "dist", "build"]):
-                continue
+def _should_skip_file(file_path: Path) -> bool:
+    """Check if a file should be skipped during scanning.
 
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    lines = content.splitlines()
+    Args:
+        file_path: Path to check
 
-                for pattern_def in SECRET_REGEX_PATTERNS:
-                    for line_num, line in enumerate(lines, start=1):
-                        matches = re.finditer(pattern_def["regex"], line, re.IGNORECASE)
-                        for match in matches:
-                            issue = SecurityIssue(
-                                file=str(file_path),
-                                line=line_num,
-                                column=match.start() + 1,
-                                end_line=line_num,
-                                end_column=match.end() + 1,
-                                issue_type="hardcoded_secret",
-                                severity=pattern_def["severity"],
-                                title=pattern_def["title"],
-                                description=pattern_def["description"],
-                                code_snippet=line.strip(),
-                                remediation=pattern_def["remediation"],
-                                cwe_id=pattern_def.get("cwe"),
-                                confidence=0.85
-                            )
-                            issues.append(issue)
+    Returns:
+        True if file should be skipped
+    """
+    skip_dirs = ["node_modules", "__pycache__", "venv", ".venv", "dist", "build"]
+    return any(part in str(file_path) for part in skip_dirs)
 
-            except Exception as e:
-                logger.warning(f"Secret scan failed for {file_path}: {e}")
+
+def _scan_files_for_secrets(project_path: Path, ext: str) -> List[SecurityIssue]:
+    """Scan all files with given extension for secrets.
+
+    Args:
+        project_path: Project root path
+        ext: File extension to scan
+
+    Returns:
+        List of security issues found
+    """
+    issues = []
+
+    for file_path in project_path.rglob(f"*{ext}"):
+        if _should_skip_file(file_path):
+            continue
+
+        file_issues = _scan_single_file_for_secrets(file_path)
+        issues.extend(file_issues)
 
     return issues
+
+
+def _scan_single_file_for_secrets(file_path: Path) -> List[SecurityIssue]:
+    """Scan a single file for hardcoded secrets.
+
+    Args:
+        file_path: Path to file to scan
+
+    Returns:
+        List of security issues found in file
+    """
+    issues = []
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            lines = content.splitlines()
+
+        # Check each pattern against file content
+        for pattern_def in SECRET_REGEX_PATTERNS:
+            pattern_issues = _scan_lines_for_pattern(
+                lines,
+                pattern_def,
+                str(file_path)
+            )
+            issues.extend(pattern_issues)
+
+    except Exception as e:
+        logger.warning(f"Secret scan failed for {file_path}: {e}")
+
+    return issues
+
+
+def _scan_lines_for_pattern(
+    lines: List[str],
+    pattern_def: Dict[str, Any],
+    file_path: str
+) -> List[SecurityIssue]:
+    """Scan lines for a specific secret pattern.
+
+    Args:
+        lines: File lines to scan
+        pattern_def: Pattern definition with regex and metadata
+        file_path: Path to file being scanned
+
+    Returns:
+        List of security issues found
+    """
+    issues = []
+
+    for line_num, line in enumerate(lines, start=1):
+        matches = re.finditer(pattern_def["regex"], line, re.IGNORECASE)
+
+        for match in matches:
+            issue = _create_secret_issue(
+                file_path=file_path,
+                line_num=line_num,
+                line=line,
+                match=match,
+                pattern_def=pattern_def
+            )
+            issues.append(issue)
+
+    return issues
+
+
+def _create_secret_issue(
+    file_path: str,
+    line_num: int,
+    line: str,
+    match: re.Match,
+    pattern_def: Dict[str, Any]
+) -> SecurityIssue:
+    """Create a SecurityIssue for a found secret.
+
+    Args:
+        file_path: Path to file containing the secret
+        line_num: Line number where secret found
+        line: The line containing the secret
+        match: Regex match object
+        pattern_def: Pattern definition with metadata
+
+    Returns:
+        SecurityIssue object
+    """
+    return SecurityIssue(
+        file=file_path,
+        line=line_num,
+        column=match.start() + 1,
+        end_line=line_num,
+        end_column=match.end() + 1,
+        issue_type="hardcoded_secret",
+        severity=pattern_def["severity"],
+        title=pattern_def["title"],
+        description=pattern_def["description"],
+        code_snippet=line.strip(),
+        remediation=pattern_def["remediation"],
+        cwe_id=pattern_def.get("cwe"),
+        confidence=0.85
+    )
 
 
 # =============================================================================

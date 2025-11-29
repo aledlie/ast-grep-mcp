@@ -1,18 +1,19 @@
 # Phase 2 Refactoring - Action Plan & Recommendations
 
 **Date:** 2025-11-28
-**Current Status:** 28 functions exceeding critical thresholds (down from 48)
-**Phase 1 + Session Progress:** 45% complete (21 functions refactored)
+**Current Status:** 25 functions exceeding critical thresholds (down from 48)
+**Phase 1 + Session Progress:** 48% complete (23 functions refactored)
 
 ## Executive Summary
 
-Phase 1 refactoring successfully reduced complexity violations from **48 → 32 functions** (33% reduction). Current session continued this progress with additional refactorings, bringing violations down to **28 functions** (42% total reduction).
+Phase 1 refactoring successfully reduced complexity violations from **48 → 32 functions** (33% reduction). Current session continued this progress with additional refactorings, bringing violations down to **25 functions** (48% total reduction).
 
 ### Key Achievements from Phase 1 + Current Session
 
-✅ **21 functions refactored** with zero behavioral regressions (updated 2025-11-28)
+✅ **23 functions refactored** with zero behavioral regressions (updated 2025-11-28)
 ✅ **95% complexity reduction** in format_java_code (cyclomatic 39→7, cognitive 60→3)
 ✅ **94% complexity reduction** in apply_fixes_batch (cyclomatic 26→4, cognitive 39→2)
+✅ **94% complexity reduction** in scan_for_secrets_regex (cognitive 36→2, nesting 8→2)
 ✅ **90% complexity reduction** in detect_security_issues_impl (cyclomatic 31→3, cognitive 57→8)
 ✅ **80% complexity reduction** in analyze_file_complexity (cognitive 45→9)
 ✅ **14/15 regression tests passing**
@@ -76,12 +77,12 @@ Based on test failures and analysis, here are the **actual** top 10 functions to
    - **Estimated Time:** 20-25 minutes
    - **Impact:** MEDIUM - Strategy generation, can use Phase 1 config pattern
 
-#### 7. **quality/security_scanner.py:scan_for_secrets_regex**
-   - **Metrics:** Cognitive=36 (20% over), Nesting=8 (33% over)
-   - **Issue:** Nested regex pattern matching loops
-   - **Strategy:** Extract pattern matchers, reduce nesting
-   - **Estimated Time:** 15-20 minutes
-   - **Impact:** MEDIUM-HIGH - Security scanning
+#### 7. ~~**quality/security_scanner.py:scan_for_secrets_regex**~~ ✅ COMPLETED
+   - **Metrics:** ~~Cognitive=36 (20% over), Nesting=8 (33% over)~~ → Cognitive=2 (93% under), Nesting=2 (67% under)
+   - **Issue:** ~~Nested regex pattern matching loops~~ RESOLVED
+   - **Strategy:** ✅ Extracted 6 helper methods: _get_language_extensions, _should_skip_file, _scan_files_for_secrets, _scan_single_file_for_secrets, _scan_lines_for_pattern, _create_secret_issue
+   - **Result:** **94% cognitive reduction**, 75% nesting reduction, 60% LOC reduction
+   - **Impact:** HIGH - Security scanning now clean and maintainable
 
 ### Medium Priority (Moderate Complexity)
 
@@ -562,7 +563,7 @@ uv run pytest tests/ -k "complexity" -v
 
 ### High Priority (Should Complete)
 - [ ] deduplication/recommendations.py:_generate_dedup_refactoring_strategies
-- [ ] quality/security_scanner.py:scan_for_secrets_regex
+- [x] quality/security_scanner.py:scan_for_secrets_regex ✅ **COMPLETED** (cognitive: 36→2, nesting: 8→2)
 - [ ] quality/smells_detectors.py:_extract_classes
 - [ ] complexity/analyzer.py:_extract_classes_from_file
 - [ ] quality/enforcer.py:load_rule_set
