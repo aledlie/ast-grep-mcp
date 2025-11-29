@@ -34,34 +34,8 @@ class SchemaOrgClient:
             return
 
         try:
-            self.logger.info("fetching_schema_org_data", url=self.SCHEMA_URL)
-            with sentry_sdk.start_span(op="http.client", name="Fetch Schema.org vocabulary") as span:
-                span.set_data("url", self.SCHEMA_URL)
-                async with httpx.AsyncClient(timeout=30.0) as client:
-                    response = await client.get(self.SCHEMA_URL)
-                    response.raise_for_status()
-                    data = response.json()
-                span.set_data("status_code", response.status_code)
-                span.set_data("content_length", len(str(data)))
-
-            if not data:
-                raise RuntimeError("No data received from schema.org")
-
-            # Index all types and properties by their @id
-            if data.get('@graph') and isinstance(data['@graph'], list):
-                for item in data['@graph']:
-                    if item and isinstance(item, dict) and item.get('@id'):
-                        self.schema_data[item['@id']] = item
-                        # Also index by label for easier lookup
-                        label = item.get('rdfs:label')
-                        if isinstance(label, str):
-                            self.schema_data[f"schema:{label}"] = item
-            else:
-                raise RuntimeError("Invalid schema.org data format: missing @graph array")
-
-            if not self.schema_data:
-                raise RuntimeError("No schema data was loaded")
-
+            data = await self._fetch_schema_data()
+            self._validate_and_index_data(data)
             self.initialized = True
             self.logger.info("schema_org_loaded", entry_count=len(self.schema_data))
         except Exception as e:
@@ -72,6 +46,47 @@ class SchemaOrgClient:
                 "operation": "schema_org_initialize"
             })
             raise RuntimeError(f"Failed to initialize schema.org client: {e}") from e
+
+    async def _fetch_schema_data(self) -> Dict[str, Any]:
+        """Fetch schema.org data from remote endpoint."""
+        self.logger.info("fetching_schema_org_data", url=self.SCHEMA_URL)
+        with sentry_sdk.start_span(op="http.client", name="Fetch Schema.org vocabulary") as span:
+            span.set_data("url", self.SCHEMA_URL)
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(self.SCHEMA_URL)
+                response.raise_for_status()
+                data = response.json()
+            span.set_data("status_code", response.status_code)
+            span.set_data("content_length", len(str(data)))
+
+        if not data:
+            raise RuntimeError("No data received from schema.org")
+
+        return data
+
+    def _validate_and_index_data(self, data: Dict[str, Any]) -> None:
+        """Validate data format and index all types and properties."""
+        graph = data.get('@graph')
+        if not graph or not isinstance(graph, list):
+            raise RuntimeError("Invalid schema.org data format: missing @graph array")
+
+        for item in graph:
+            if not item or not isinstance(item, dict):
+                continue
+
+            item_id = item.get('@id')
+            if not item_id:
+                continue
+
+            self.schema_data[item_id] = item
+
+            # Also index by label for easier lookup
+            label = item.get('rdfs:label')
+            if isinstance(label, str):
+                self.schema_data[f"schema:{label}"] = item
+
+        if not self.schema_data:
+            raise RuntimeError("No schema data was loaded")
 
     def _normalize_to_array(self, value: Any) -> List[Any]:
         """Normalize a value or array to a list."""
