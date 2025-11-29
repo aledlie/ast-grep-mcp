@@ -1,6 +1,8 @@
 # format_java_code Refactoring Plan
 **Date:** 2025-11-28
 **Target Function:** `src/ast_grep_mcp/utils/templates.py::format_java_code` (lines 80-204)
+**Status:** ✅ COMPLETE
+**Commit:** `a16fce2` - refactor(utils): extract java code formatting into focused functions
 
 ## Executive Summary
 Refactor the `format_java_code` function to reduce complexity from 39 cyclomatic/60 cognitive to ≤20/≤30 by extracting distinct responsibilities into focused helper functions.

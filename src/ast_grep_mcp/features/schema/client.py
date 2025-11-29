@@ -375,7 +375,7 @@ class SchemaOrgClient:
             entity_slug: Optional specific identifier (e.g., 'john-doe', 'widget-a')
 
         Returns:
-            Properly formatted @id like 'https://example.com/#organization' or
+            Properly formatted @id like 'https://example.com#organization' or
             'https://example.com/products/widget-a#product'
 
         Best practices from https://momenticmarketing.com/blog/id-schema-for-seo-llms-knowledge-graphs:
@@ -392,8 +392,178 @@ class SchemaOrgClient:
 
         # Generate the @id based on whether we have an entity_slug
         if entity_slug:
+            # Remove leading slash from slug if present
+            slug = entity_slug.lstrip('/')
             # For specific entities, include the slug in the path
-            return f"{base_url}/{entity_slug}#{entity_type}"
+            return f"{base_url}/{slug}#{entity_type}"
         else:
-            # For generic entities, use base URL with hash fragment
-            return f"{base_url}/#{entity_type}"
+            # For generic entities, use base URL with hash fragment (no slash before #)
+            return f"{base_url}#{entity_type}"
+
+    def validate_entity_id(self, entity_id: str) -> Dict[str, Any]:
+        """Validate an @id value against Schema.org and SEO best practices.
+
+        Args:
+            entity_id: The @id value to validate
+
+        Returns:
+            Dictionary with validation results:
+            - entity_id: The validated @id
+            - valid: Whether the @id follows all best practices
+            - warnings: List of issues found
+            - suggestions: Specific improvements to make
+            - best_practices: Key principles to follow
+        """
+        warnings = []
+        suggestions = []
+        best_practices = [
+            "Use canonical URLs with hash fragments",
+            "Keep IDs stable (no timestamps or session IDs)",
+            "Use descriptive entity types in fragments",
+            "One unchanging identifier per entity",
+            "Avoid query parameters in @id values"
+        ]
+
+        # Check if it's a full URL with protocol
+        if not entity_id.startswith(('http://', 'https://')):
+            warnings.append("@id must be a full URL starting with http:// or https://")
+            suggestions.append(f"Change to: https://example.com/{entity_id}")
+
+        # Check for hash fragment
+        if '#' not in entity_id:
+            warnings.append("@id should include a hash fragment (#) for referenceability")
+            suggestions.append("Add a descriptive fragment like #organization or #product")
+
+        # Check for query parameters (unstable IDs)
+        if '?' in entity_id:
+            warnings.append("@id contains query parameters which may change over time")
+            suggestions.append("Remove query parameters and use path + fragment instead")
+
+        # Check for numeric-only fragment
+        if '#' in entity_id:
+            fragment = entity_id.split('#')[1]
+            if fragment.isdigit():
+                warnings.append("@id fragment is numeric-only which is not descriptive")
+                suggestions.append("Use descriptive fragment like #organization or #product")
+            # Check for timestamps or session IDs in path or fragment
+            elif 'timestamp' in entity_id.lower() or 'session' in entity_id.lower():
+                warnings.append("@id appears to contain unstable components (timestamp/session)")
+                suggestions.append("Use stable identifiers without timestamps or session IDs")
+
+        # Check for http instead of https
+        if entity_id.startswith('http://'):
+            warnings.append("Using http:// instead of https://")
+            suggestions.append("Use https:// for security and consistency")
+
+        return {
+            'entity_id': entity_id,
+            'valid': len(warnings) == 0,
+            'warnings': warnings,
+            'suggestions': suggestions,
+            'best_practices': best_practices
+        }
+
+    async def build_entity_graph(
+        self,
+        entities: List[Dict[str, Any]],
+        base_url: str
+    ) -> Dict[str, Any]:
+        """Build a knowledge graph of related entities with proper @id references.
+
+        Args:
+            entities: List of entity definitions with type, properties, and relationships
+            base_url: Base canonical URL for generating @id values
+
+        Returns:
+            Complete JSON-LD @graph with all entities properly connected via @id references
+
+        Entity Definition Format:
+            {
+                "type": "Organization",           # Required: Schema.org type
+                "slug": "about",                  # Optional: URL path segment
+                "id_fragment": "org-acme",        # Optional: Custom fragment for referencing
+                "properties": {                   # Required: Entity properties
+                    "name": "Acme Corp",
+                    "url": "https://example.com"
+                },
+                "relationships": {                # Optional: References to other entities
+                    "founder": "person-john"      # References id_fragment of another entity
+                }
+            }
+        """
+        await self.initialize()
+
+        # First pass: Create @id values for all entities
+        entity_id_map = {}  # Maps id_fragment to full @id
+        for entity in entities:
+            entity_type = entity.get('type')
+            if not entity_type:
+                raise ValueError("Each entity must have a 'type' field")
+
+            id_fragment = entity.get('id_fragment')
+            slug = entity.get('slug')
+
+            # Generate @id
+            if id_fragment and not slug:
+                # Custom fragment without slug
+                entity_id = f"{base_url}#{id_fragment}"
+            else:
+                # Auto-generate (with or without slug)
+                entity_id = self.generate_entity_id(base_url, entity_type, slug)
+
+            if id_fragment:
+                entity_id_map[id_fragment] = entity_id
+
+        # Second pass: Build graph entities with resolved relationships
+        graph = []
+        for entity in entities:
+            entity_type = entity.get('type')
+            properties = entity.get('properties', {})
+            relationships = entity.get('relationships', {})
+            id_fragment = entity.get('id_fragment')
+            slug = entity.get('slug')
+
+            # Generate @id for this entity
+            if id_fragment and not slug:
+                # Custom fragment without slug
+                entity_id = entity_id_map.get(id_fragment, f"{base_url}#{id_fragment}")
+            else:
+                # Auto-generate (with or without slug)
+                entity_id = self.generate_entity_id(base_url, entity_type, slug)
+
+            # Build entity object
+            entity_obj: Dict[str, Any] = {
+                '@type': entity_type,
+                '@id': entity_id
+            }
+
+            # Add properties
+            entity_obj.update(properties)
+
+            # If entity has a slug, add url property (unless already specified)
+            if slug and 'url' not in entity_obj:
+                # Generate URL from slug (remove fragment from @id)
+                entity_url = entity_id.split('#')[0]
+                entity_obj['url'] = entity_url
+
+            # Resolve relationships to @id references
+            for rel_property, rel_target in relationships.items():
+                if rel_target in entity_id_map:
+                    # Single reference
+                    entity_obj[rel_property] = {'@id': entity_id_map[rel_target]}
+                elif isinstance(rel_target, list):
+                    # Multiple references
+                    entity_obj[rel_property] = [
+                        {'@id': entity_id_map[target]} if target in entity_id_map else target
+                        for target in rel_target
+                    ]
+                else:
+                    # Direct value (not a reference)
+                    entity_obj[rel_property] = rel_target
+
+            graph.append(entity_obj)
+
+        return {
+            '@context': 'https://schema.org',
+            '@graph': graph
+        }

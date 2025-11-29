@@ -1,6 +1,8 @@
 # Code Smells Detector Refactoring Plan
-Date: 2025-11-28
-Target: src/ast_grep_mcp/features/quality/smells.py
+**Date:** 2025-11-28
+**Target:** src/ast_grep_mcp/features/quality/smells.py
+**Status:** ✅ COMPLETE (see smells-refactor-results-2025-11-28.md)
+**Commit:** `ddf8b0e` - refactor(smells): reduce _extract_classes complexity by 82%
 
 ## Executive Summary
 
