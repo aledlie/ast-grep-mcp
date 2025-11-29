@@ -1,6 +1,52 @@
 """Recommendation engine for deduplication refactoring."""
 
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List
+
+
+# Configuration-driven strategy definitions
+STRATEGY_CONFIG = {
+    "extract_function": {
+        "base_score": 70.0,
+        "description": "Extract duplicate code into a shared function",
+        "scoring_rules": [
+            {"condition": lambda c, l, a, s, h: c <= 5, "adjustment": +20},
+            {"condition": lambda c, l, a, s, h: c > 10, "adjustment": -20},
+            {"condition": lambda c, l, a, s, h: l >= 10, "adjustment": +10},
+            {"condition": lambda c, l, a, s, h: a >= 3, "adjustment": +10},
+        ],
+        "effort_fn": lambda c, l, a, h: "low" if c <= 5 else "medium",
+        "risk_fn": lambda c, l, a, h: "low" if h else "medium",
+        "best_for": "Simple, stateless duplicates with clear inputs/outputs"
+    },
+    "extract_class": {
+        "base_score": 50.0,
+        "description": "Extract duplicate code into a shared class with state",
+        "scoring_rules": [
+            {"condition": lambda c, l, a, s, h: c > 10, "adjustment": +30},
+            {"condition": lambda c, l, a, s, h: 5 < c <= 10, "adjustment": +15},
+            {"condition": lambda c, l, a, s, h: l >= 20, "adjustment": +15},
+            {"condition": lambda c, l, a, s, h: a >= 2, "adjustment": +10},
+            {"condition": lambda c, l, a, s, h: c <= 3 and l < 10, "adjustment": -20},
+        ],
+        "effort_fn": lambda c, l, a, h: "medium" if c <= 10 else "high",
+        "risk_fn": lambda c, l, a, h: "medium" if h else "high",
+        "best_for": "Complex duplicates with shared state or multiple related functions"
+    },
+    "inline": {
+        "base_score": 30.0,
+        "description": "Keep code duplicated (intentional duplication)",
+        "scoring_rules": [
+            {"condition": lambda c, l, a, s, h: s < 40, "adjustment": +40},
+            {"condition": lambda c, l, a, s, h: 40 <= s < 60, "adjustment": +20},
+            {"condition": lambda c, l, a, s, h: a == 1, "adjustment": +20},
+            {"condition": lambda c, l, a, s, h: l < 5, "adjustment": +20},
+            {"condition": lambda c, l, a, s, h: s > 80, "adjustment": -30},
+        ],
+        "effort_fn": lambda c, l, a, h: "none",
+        "risk_fn": lambda c, l, a, h: "none",
+        "best_for": "Intentional duplication, very small code blocks, or domain-specific variations"
+    }
+}
 
 
 class RecommendationEngine:
@@ -71,6 +117,71 @@ class RecommendationEngine:
             "effort_value_ratio": round(effort_value_ratio, 2)
         }
 
+    def _calculate_strategy_score(
+        self,
+        base_score: float,
+        rules: List[Dict[str, Any]],
+        complexity: int,
+        lines_saved: int,
+        affected_files: int,
+        score: float,
+        has_tests: bool
+    ) -> float:
+        """Calculate strategy score by applying scoring rules.
+
+        Args:
+            base_score: Initial score for the strategy
+            rules: List of scoring rules with conditions and adjustments
+            complexity: Cyclomatic complexity
+            lines_saved: Lines that would be saved
+            affected_files: Number of affected files
+            score: Overall duplication score
+            has_tests: Whether tests exist
+
+        Returns:
+            Calculated score within range [0, 100]
+        """
+        current_score = base_score
+
+        for rule in rules:
+            if rule["condition"](complexity, lines_saved, affected_files, score, has_tests):
+                current_score += rule["adjustment"]
+
+        return min(100, max(0, current_score))
+
+    def _build_strategy_dict(
+        self,
+        name: str,
+        config: Dict[str, Any],
+        suitability_score: float,
+        complexity: int,
+        lines_saved: int,
+        affected_files: int,
+        has_tests: bool
+    ) -> Dict[str, Any]:
+        """Build a strategy dictionary from configuration.
+
+        Args:
+            name: Strategy name
+            config: Strategy configuration
+            suitability_score: Calculated suitability score
+            complexity: Cyclomatic complexity
+            lines_saved: Lines that would be saved
+            affected_files: Number of affected files
+            has_tests: Whether tests exist
+
+        Returns:
+            Complete strategy dictionary
+        """
+        return {
+            "name": name,
+            "description": config["description"],
+            "suitability_score": suitability_score,
+            "effort": config["effort_fn"](complexity, lines_saved, affected_files, has_tests),
+            "risk": config["risk_fn"](complexity, lines_saved, affected_files, has_tests),
+            "best_for": config["best_for"]
+        }
+
     def _generate_dedup_refactoring_strategies(
         self,
         complexity: int,
@@ -96,74 +207,31 @@ class RecommendationEngine:
         """
         strategies: List[Dict[str, Any]] = []
 
-        # Strategy 1: Extract Function
-        # Best for simple, stateless duplicates
-        extract_fn_score = 70.0
-        if complexity <= 5:
-            extract_fn_score += 20
-        elif complexity > 10:
-            extract_fn_score -= 20
-        if lines_saved >= 10:
-            extract_fn_score += 10
-        if affected_files >= 3:
-            extract_fn_score += 10
+        # Process each strategy from configuration
+        for strategy_name, config in STRATEGY_CONFIG.items():
+            # Calculate score using rules
+            suitability_score = self._calculate_strategy_score(
+                base_score=config["base_score"],
+                rules=config["scoring_rules"],
+                complexity=complexity,
+                lines_saved=lines_saved,
+                affected_files=affected_files,
+                score=score,
+                has_tests=has_tests
+            )
 
-        strategies.append({
-            "name": "extract_function",
-            "description": "Extract duplicate code into a shared function",
-            "suitability_score": min(100, max(0, extract_fn_score)),
-            "effort": "low" if complexity <= 5 else "medium",
-            "risk": "low" if has_tests else "medium",
-            "best_for": "Simple, stateless duplicates with clear inputs/outputs"
-        })
+            # Build strategy dictionary
+            strategy = self._build_strategy_dict(
+                name=strategy_name,
+                config=config,
+                suitability_score=suitability_score,
+                complexity=complexity,
+                lines_saved=lines_saved,
+                affected_files=affected_files,
+                has_tests=has_tests
+            )
 
-        # Strategy 2: Extract Class
-        # Best for stateful or complex duplicates
-        extract_class_score = 50.0
-        if complexity > 10:
-            extract_class_score += 30
-        elif complexity > 5:
-            extract_class_score += 15
-        if lines_saved >= 20:
-            extract_class_score += 15
-        if affected_files >= 2:
-            extract_class_score += 10
-        # Penalty for very simple code
-        if complexity <= 3 and lines_saved < 10:
-            extract_class_score -= 20
-
-        strategies.append({
-            "name": "extract_class",
-            "description": "Extract duplicate code into a shared class with state",
-            "suitability_score": min(100, max(0, extract_class_score)),
-            "effort": "medium" if complexity <= 10 else "high",
-            "risk": "medium" if has_tests else "high",
-            "best_for": "Complex duplicates with shared state or multiple related functions"
-        })
-
-        # Strategy 3: Inline (keep duplication)
-        # Best when duplication is intentional or low value
-        inline_score = 30.0
-        if score < 40:
-            inline_score += 40
-        elif score < 60:
-            inline_score += 20
-        if affected_files == 1:
-            inline_score += 20
-        if lines_saved < 5:
-            inline_score += 20
-        # Strong penalty for high-value duplicates
-        if score > 80:
-            inline_score -= 30
-
-        strategies.append({
-            "name": "inline",
-            "description": "Keep code duplicated (intentional duplication)",
-            "suitability_score": min(100, max(0, inline_score)),
-            "effort": "none",
-            "risk": "none",
-            "best_for": "Intentional duplication, very small code blocks, or domain-specific variations"
-        })
+            strategies.append(strategy)
 
         # Sort strategies by suitability score (highest first)
         strategies.sort(key=lambda s: s["suitability_score"], reverse=True)
