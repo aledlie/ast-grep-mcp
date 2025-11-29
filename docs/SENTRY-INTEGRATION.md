@@ -34,12 +34,14 @@ The ast-grep-mcp server includes comprehensive Sentry integration for production
 
 ### Error Tracking
 
-All 18 MCP tools include automatic error capture:
+All 30 MCP tools include automatic error capture:
 
 - **Code Search Tools**: ast-grep subprocess failures, YAML parsing errors, pattern matching errors
 - **Code Rewrite Tools**: Backup failures, syntax validation errors, rollback failures
 - **Schema.org Tools**: HTTP fetch failures, JSON parsing errors, validation errors
 - **Batch Operations**: Parallel execution failures, query deduplication errors
+- **Security Scanner**: Vulnerability detection errors, pattern matching failures
+- **Quality Tools**: Report generation errors, auto-fix validation failures
 
 ### Performance Monitoring
 
@@ -234,6 +236,9 @@ Example tools with performance tracking:
 - **rewrite_code**: Backup creation, ast-grep fix, syntax validation
 - **batch_search**: Parallel query execution, deduplication
 - **search_schemas**: HTTP fetch, JSON parsing, indexing
+- **detect_security_issues**: Security scan execution time, vulnerability counts
+- **apply_standards_fixes**: Auto-fix application time, validation passes
+- **generate_quality_report**: Report generation time, metric collection
 
 ### AI Monitoring (If Using Anthropic SDK)
 

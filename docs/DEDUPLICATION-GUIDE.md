@@ -2,8 +2,9 @@
 
 This guide covers the enhanced code deduplication system in ast-grep-mcp, which provides intelligent detection, analysis, and automated refactoring of duplicate code.
 
-**Last Updated:** 2025-11-24
+**Last Updated:** 2025-11-29
 **Architecture:** Modular (v2.0) - See [MODULE-GUIDE.md](MODULE-GUIDE.md) for implementation details
+**Code Quality:** ✅ ZERO complexity violations (all deduplication modules refactored)
 
 > **Note:** This guide uses MCP tool names. For direct module imports in custom scripts, see the [Module Architecture](#module-architecture) section.
 
@@ -780,18 +781,25 @@ The deduplication feature is implemented as a modular system under `src/ast_grep
 ```
 features/deduplication/
 ├── __init__.py          # Public API exports
-├── detector.py          # DuplicationDetector class (547 lines)
-├── analyzer.py          # PatternAnalyzer, variation analysis (582 lines)
-├── generator.py         # CodeGenerator for refactoring (351 lines)
-├── ranker.py            # DuplicationRanker scoring (201 lines)
-├── applicator.py        # Multi-file orchestration (632 lines)
-├── coverage.py          # Test coverage detection (392 lines)
-├── impact.py            # Impact analysis (507 lines)
-├── recommendations.py   # Recommendation engine (186 lines)
-├── reporting.py         # Enhanced reporting with diffs (400 lines)
-├── benchmark.py         # Performance benchmarking (290 lines)
-└── tools.py             # MCP tool definitions (274 lines)
+├── detector.py          # DuplicationDetector class
+├── analyzer.py          # PatternAnalyzer, variation analysis
+├── generator.py         # CodeGenerator for refactoring
+├── ranker.py            # DuplicationRanker scoring
+├── applicator.py        # Multi-file orchestration
+├── coverage.py          # Test coverage detection
+├── impact.py            # Impact analysis (refactored 2025-11-28)
+├── recommendations.py   # Recommendation engine
+├── reporting.py         # Enhanced reporting with diffs
+├── benchmark.py         # Performance benchmarking
+└── tools.py             # MCP tool definitions
 ```
+
+**Recent Refactoring (2025-11-28/29):**
+- `impact.py`: `_assess_breaking_change_risk` reduced from 44→0 cognitive complexity (100%)
+- `impact.py`: `_parallel_enrich` reduced from 74→2 cognitive complexity (97%)
+- `impact.py`: `_find_import_references` reduced from 31→5 cognitive complexity (84%)
+- Shared utilities extracted to `utils/syntax_validation.py` (DRY principle)
+- See [PATTERNS.md](../PATTERNS.md) for refactoring techniques used
 
 ### Direct Module Imports
 

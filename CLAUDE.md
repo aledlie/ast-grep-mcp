@@ -14,11 +14,11 @@ doppler run -- uv run main.py    # Run with Doppler secrets (production)
 
 ## Project Overview
 
-Modular MCP server with 57 modules combining ast-grep structural code search with Schema.org tools, refactoring assistants, enhanced deduplication, and code quality standards.
+Modular MCP server with 63 modules combining ast-grep structural code search with Schema.org tools, refactoring assistants, enhanced deduplication, code quality standards, and documentation generation.
 
 **Architecture:** Clean modular design with entry point (`main.py`) and organized features under `src/ast_grep_mcp/` (core, models, utils, features, server).
 
-**30 MCP Tools:** Code search (4), Code rewrite (3), Refactoring (2), Deduplication (4), Schema.org (8), Complexity (3), Code Quality (6)
+**37 MCP Tools:** Code search (4), Code rewrite (3), Refactoring (2), Deduplication (4), Schema.org (8), Complexity (2), Code Quality (4), Documentation (5)
 
 **Dependencies:** ast-grep CLI (required), Doppler CLI (optional), Python 3.13+, uv package manager
 
@@ -46,21 +46,22 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 
 ## Architecture
 
-**57 Modules organized under `src/ast_grep_mcp/`:**
+**63 Modules organized under `src/ast_grep_mcp/`:**
 
 ```
 src/ast_grep_mcp/
 ├── core/           # Config, cache, executor, logging, sentry
-├── models/         # Data models for refactoring, deduplication, complexity
+├── models/         # Data models for refactoring, deduplication, complexity, documentation
 ├── utils/          # Templates, formatters, text, validation, syntax_validation
-├── features/       # Feature modules (38 modules)
+├── features/       # Feature modules (44 modules)
 │   ├── search/         # Code search (2 modules)
 │   ├── rewrite/        # Code rewrite (3 modules)
 │   ├── refactoring/    # Refactoring assistants (5 modules)
 │   ├── schema/         # Schema.org integration (2 modules)
 │   ├── deduplication/  # Deduplication (12 modules)
 │   ├── complexity/     # Complexity analysis (4 modules)
-│   └── quality/        # Code quality (5 modules)
+│   ├── quality/        # Code quality (5 modules)
+│   └── documentation/  # Documentation generation (6 modules)
 └── server/         # MCP server registry and runner
 ```
 
@@ -106,12 +107,20 @@ from ast_grep_mcp.utils.syntax_validation import suggest_syntax_fix
 - Dry-run mode, backups, rollback support
 - Multi-file atomic updates
 
+### Documentation Generation
+- **generate_docstrings**: Auto-generate docstrings/JSDoc from function signatures (Google, NumPy, Sphinx, JSDoc, Javadoc styles)
+- **generate_readme_sections**: Create README sections from code structure analysis
+- **generate_api_docs**: Build API documentation from route definitions (Express, FastAPI, Flask) with OpenAPI 3.0 spec
+- **generate_changelog**: Generate changelogs from git commits (Keep a Changelog, Conventional formats)
+- **sync_documentation**: Keep documentation synchronized with code, detect stale params and broken links
+
 ## Testing
 
 **1,600+ tests:** Unit (mocked) and integration (requires ast-grep)
 
 **Key Test Suites:**
 - `test_complexity_regression.py` - Complexity tracking (15 tests, **all passing**)
+- `test_documentation.py` - Documentation generation (32 tests)
 - `test_extract_function.py` - Function extraction (11 tests)
 - `test_rename_symbol.py` - Symbol renaming (21 tests)
 - `test_apply_deduplication.py` - Deduplication (24 tests)
@@ -241,6 +250,15 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 
 ## Recent Updates
 
+### 2025-11-29: Documentation Generation Feature
+- Added `generate_docstrings` tool with 5 docstring styles (Google, NumPy, Sphinx, JSDoc, Javadoc)
+- Added `generate_readme_sections` tool with project analysis
+- Added `generate_api_docs` tool with OpenAPI 3.0 spec generation
+- Added `generate_changelog` tool with Keep a Changelog and Conventional formats
+- Added `sync_documentation` tool for detecting stale docs and broken links
+- 32 new tests for documentation generation
+- Total MCP tools: 32 (added 5 documentation tools)
+
 ### 2025-11-28: Phase 2 Complexity Refactoring COMPLETE 🎉
 - ✅ **ZERO violations achieved** (48 → 0 functions, 100% complete)
 - ✅ Refactored all 25 remaining complex functions
@@ -295,7 +313,7 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 
 ---
 
-**Last Updated:** 2025-11-28
+**Last Updated:** 2025-11-29
 **Code Quality:** ✅ ZERO violations (15/15 tests passing)
 **Refactoring Patterns:** See [PATTERNS.md](PATTERNS.md)
-**Session Report:** See [SESSION_REPORT_2025-11-28_Phase2_Complete.md](SESSION_REPORT_2025-11-28_Phase2_Complete.md)
+**Documentation Generation:** 5 new tools, 32 tests passing
