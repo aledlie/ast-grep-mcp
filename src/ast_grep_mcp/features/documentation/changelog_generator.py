@@ -344,6 +344,84 @@ def _group_commits_by_version(
     )]
 
 
+# Keep a Changelog section order
+_KEEPACHANGELOG_SECTION_ORDER = [
+    ChangeType.ADDED,
+    ChangeType.CHANGED,
+    ChangeType.DEPRECATED,
+    ChangeType.REMOVED,
+    ChangeType.FIXED,
+    ChangeType.SECURITY,
+]
+
+
+def _format_changelog_entry(entry: ChangelogEntry) -> str:
+    """Format a single changelog entry.
+
+    Args:
+        entry: Changelog entry
+
+    Returns:
+        Formatted entry string
+    """
+    # Remove conventional commit prefix if present
+    msg = re.sub(r'^(\w+)(?:\([^)]+\))?!?:\s*', '', entry.description)
+
+    # Add scope if present
+    if entry.scope:
+        msg = f'**{entry.scope}:** {msg}'
+
+    # Mark breaking changes
+    if entry.is_breaking:
+        msg = f'**BREAKING:** {msg}'
+
+    # Add references
+    refs = []
+    if entry.issues:
+        refs.extend([f'#{i}' for i in entry.issues])
+    if entry.prs:
+        refs.extend([f'PR #{p}' for p in entry.prs])
+    if entry.commit_hash:
+        refs.append(f'({entry.commit_hash})')
+
+    if refs:
+        msg = f'{msg} {" ".join(refs)}'
+
+    return f'- {msg}'
+
+
+def _format_keepachangelog_version(version: ChangelogVersion) -> List[str]:
+    """Format a single version for Keep a Changelog.
+
+    Args:
+        version: Version to format
+
+    Returns:
+        List of formatted lines
+    """
+    lines = []
+
+    # Version header
+    if version.is_unreleased:
+        lines.append('## [Unreleased]')
+    else:
+        lines.append(f'## [{version.version}] - {version.date}')
+    lines.append('')
+
+    # Sections in order
+    for change_type in _KEEPACHANGELOG_SECTION_ORDER:
+        entries = version.entries.get(change_type, [])
+        if not entries:
+            continue
+
+        lines.append(f'### {change_type.value}')
+        lines.append('')
+        lines.extend([_format_changelog_entry(e) for e in entries])
+        lines.append('')
+
+    return lines
+
+
 def _format_keepachangelog(versions: List[ChangelogVersion], project_name: str = "") -> str:
     """Format changelog in Keep a Changelog format.
 
@@ -354,75 +432,93 @@ def _format_keepachangelog(versions: List[ChangelogVersion], project_name: str =
     Returns:
         Markdown string
     """
-    lines = ['# Changelog', '']
-    lines.append('All notable changes to this project will be documented in this file.')
-    lines.append('')
-    lines.append('The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),')
-    lines.append('and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).')
-    lines.append('')
-
-    # Order of sections
-    section_order = [
-        ChangeType.ADDED,
-        ChangeType.CHANGED,
-        ChangeType.DEPRECATED,
-        ChangeType.REMOVED,
-        ChangeType.FIXED,
-        ChangeType.SECURITY,
+    lines = [
+        '# Changelog',
+        '',
+        'All notable changes to this project will be documented in this file.',
+        '',
+        'The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),',
+        'and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).',
+        '',
     ]
 
     for version in versions:
-        # Version header
-        if version.is_unreleased:
-            lines.append('## [Unreleased]')
-        else:
-            lines.append(f'## [{version.version}] - {version.date}')
-        lines.append('')
-
-        # Sections
-        for change_type in section_order:
-            if change_type not in version.entries:
-                continue
-
-            entries = version.entries[change_type]
-            if not entries:
-                continue
-
-            lines.append(f'### {change_type.value}')
-            lines.append('')
-
-            for entry in entries:
-                # Format entry
-                msg = entry.description
-
-                # Remove conventional commit prefix if present
-                msg = re.sub(r'^(\w+)(?:\([^)]+\))?!?:\s*', '', msg)
-
-                # Add scope if present
-                if entry.scope:
-                    msg = f'**{entry.scope}:** {msg}'
-
-                # Mark breaking changes
-                if entry.is_breaking:
-                    msg = f'**BREAKING:** {msg}'
-
-                # Add references
-                refs = []
-                if entry.issues:
-                    refs.extend([f'#{i}' for i in entry.issues])
-                if entry.prs:
-                    refs.extend([f'PR #{p}' for p in entry.prs])
-                if entry.commit_hash:
-                    refs.append(f'({entry.commit_hash})')
-
-                if refs:
-                    msg = f'{msg} {" ".join(refs)}'
-
-                lines.append(f'- {msg}')
-
-            lines.append('')
+        lines.extend(_format_keepachangelog_version(version))
 
     return '\n'.join(lines)
+
+
+# Conventional changelog type names
+_CONVENTIONAL_TYPE_NAMES: Dict[ChangeType, str] = {
+    ChangeType.ADDED: 'Features',
+    ChangeType.FIXED: 'Bug Fixes',
+    ChangeType.CHANGED: 'Changes',
+    ChangeType.REMOVED: 'Removed',
+    ChangeType.SECURITY: 'Security',
+}
+
+# Conventional changelog section order
+_CONVENTIONAL_SECTION_ORDER = [
+    ChangeType.ADDED,
+    ChangeType.FIXED,
+    ChangeType.CHANGED,
+    ChangeType.REMOVED,
+    ChangeType.SECURITY,
+]
+
+
+def _format_conventional_entry(entry: ChangelogEntry) -> str:
+    """Format a single entry for conventional changelog.
+
+    Args:
+        entry: Changelog entry
+
+    Returns:
+        Formatted entry string (without bullet)
+    """
+    msg = re.sub(r'^(\w+)(?:\([^)]+\))?!?:\s*', '', entry.description)
+    commit_ref = f' ({entry.commit_hash})' if entry.commit_hash else ''
+    if entry.is_breaking:
+        msg = f'**BREAKING:** {msg}'
+    return f'{msg}{commit_ref}'
+
+
+def _format_conventional_section(
+    change_type: ChangeType,
+    entries: List[ChangelogEntry],
+) -> List[str]:
+    """Format a section of the conventional changelog.
+
+    Args:
+        change_type: The type of changes
+        entries: Entries for this type
+
+    Returns:
+        List of formatted lines
+    """
+    if not entries:
+        return []
+
+    type_name = _CONVENTIONAL_TYPE_NAMES.get(change_type, 'Other')
+    lines = [f'### {type_name}', '']
+
+    # Group by scope
+    by_scope: Dict[str, List[ChangelogEntry]] = {}
+    for entry in entries:
+        scope = entry.scope or 'general'
+        by_scope.setdefault(scope, []).append(entry)
+
+    for scope, scope_entries in sorted(by_scope.items()):
+        if len(by_scope) > 1:
+            lines.append(f'* **{scope}**')
+            for entry in scope_entries:
+                lines.append(f'  * {_format_conventional_entry(entry)}')
+        else:
+            for entry in scope_entries:
+                lines.append(f'* {_format_conventional_entry(entry)}')
+
+    lines.append('')
+    return lines
 
 
 def _format_conventional(versions: List[ChangelogVersion], project_name: str = "") -> str:
@@ -445,50 +541,10 @@ def _format_conventional(versions: List[ChangelogVersion], project_name: str = "
             lines.append(f'## {version.version} ({version.date})')
         lines.append('')
 
-        # Group by scope within type
-        for change_type in [ChangeType.ADDED, ChangeType.FIXED, ChangeType.CHANGED, ChangeType.REMOVED, ChangeType.SECURITY]:
-            if change_type not in version.entries:
-                continue
-
-            entries = version.entries[change_type]
-            if not entries:
-                continue
-
-            type_name = {
-                ChangeType.ADDED: 'Features',
-                ChangeType.FIXED: 'Bug Fixes',
-                ChangeType.CHANGED: 'Changes',
-                ChangeType.REMOVED: 'Removed',
-                ChangeType.SECURITY: 'Security',
-            }.get(change_type, 'Other')
-
-            lines.append(f'### {type_name}')
-            lines.append('')
-
-            # Group by scope
-            by_scope: Dict[str, List[ChangelogEntry]] = {}
-            for entry in entries:
-                scope = entry.scope or 'general'
-                if scope not in by_scope:
-                    by_scope[scope] = []
-                by_scope[scope].append(entry)
-
-            for scope, scope_entries in sorted(by_scope.items()):
-                if len(by_scope) > 1:
-                    lines.append(f'* **{scope}**')
-                    for entry in scope_entries:
-                        msg = re.sub(r'^(\w+)(?:\([^)]+\))?!?:\s*', '', entry.description)
-                        commit_ref = f' ({entry.commit_hash})' if entry.commit_hash else ''
-                        lines.append(f'  * {msg}{commit_ref}')
-                else:
-                    for entry in scope_entries:
-                        msg = re.sub(r'^(\w+)(?:\([^)]+\))?!?:\s*', '', entry.description)
-                        commit_ref = f' ({entry.commit_hash})' if entry.commit_hash else ''
-                        if entry.is_breaking:
-                            msg = f'**BREAKING:** {msg}'
-                        lines.append(f'* {msg}{commit_ref}')
-
-            lines.append('')
+        # Sections in order
+        for change_type in _CONVENTIONAL_SECTION_ORDER:
+            entries = version.entries.get(change_type, [])
+            lines.extend(_format_conventional_section(change_type, entries))
 
     return '\n'.join(lines)
 
