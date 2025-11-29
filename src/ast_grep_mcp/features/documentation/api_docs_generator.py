@@ -7,7 +7,7 @@ import json
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import sentry_sdk
 
@@ -26,6 +26,78 @@ logger = get_logger(__name__)
 # Framework Detection
 # =============================================================================
 
+# JS API frameworks: (dep_key, framework_name)
+_JS_API_FRAMEWORKS: List[Tuple[str, str]] = [
+    ('express', 'express'),
+    ('fastify', 'fastify'),
+    ('@nestjs/core', 'nestjs'),
+    ('koa', 'koa'),
+    ('hono', 'hono'),
+]
+
+# Python API frameworks: (pattern, framework_name) - order matters (first match wins)
+_PYTHON_API_FRAMEWORKS: List[Tuple[str, str]] = [
+    ('fastapi', 'fastapi'),
+    ('flask', 'flask'),
+    ('django', 'django'),
+    ('starlette', 'starlette'),
+]
+
+
+def _detect_js_api_framework(project_folder: str) -> Optional[str]:
+    """Detect JavaScript API framework from package.json.
+
+    Args:
+        project_folder: Project root
+
+    Returns:
+        Framework name or None
+    """
+    package_json = os.path.join(project_folder, 'package.json')
+    if not os.path.exists(package_json):
+        return None
+
+    try:
+        with open(package_json, 'r') as f:
+            data = json.load(f)
+        deps = {**data.get('dependencies', {}), **data.get('devDependencies', {})}
+    except (json.JSONDecodeError, OSError):
+        return None
+
+    for dep_key, framework_name in _JS_API_FRAMEWORKS:
+        if dep_key in deps:
+            return framework_name
+    return None
+
+
+def _detect_python_api_framework(project_folder: str) -> Optional[str]:
+    """Detect Python API framework from dependency files.
+
+    Args:
+        project_folder: Project root
+
+    Returns:
+        Framework name or None
+    """
+    deps_content = ""
+    for filename in ['requirements.txt', 'pyproject.toml']:
+        filepath = os.path.join(project_folder, filename)
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, 'r') as f:
+                    deps_content += f.read().lower()
+            except OSError:
+                pass
+
+    if not deps_content:
+        return None
+
+    for pattern, framework_name in _PYTHON_API_FRAMEWORKS:
+        if pattern in deps_content:
+            return framework_name
+    return None
+
+
 def _detect_framework(project_folder: str, language: str) -> Optional[str]:
     """Detect web framework used in the project.
 
@@ -36,51 +108,13 @@ def _detect_framework(project_folder: str, language: str) -> Optional[str]:
     Returns:
         Framework name or None
     """
-    # Check package.json for JS frameworks
-    package_json = os.path.join(project_folder, 'package.json')
-    if os.path.exists(package_json):
-        try:
-            with open(package_json, 'r') as f:
-                data = json.load(f)
-            deps = {**data.get('dependencies', {}), **data.get('devDependencies', {})}
+    # Check JS frameworks first
+    js_framework = _detect_js_api_framework(project_folder)
+    if js_framework:
+        return js_framework
 
-            if 'express' in deps:
-                return 'express'
-            if 'fastify' in deps:
-                return 'fastify'
-            if '@nestjs/core' in deps:
-                return 'nestjs'
-            if 'koa' in deps:
-                return 'koa'
-            if 'hono' in deps:
-                return 'hono'
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    # Check Python dependencies
-    requirements = os.path.join(project_folder, 'requirements.txt')
-    pyproject = os.path.join(project_folder, 'pyproject.toml')
-
-    deps_content = ""
-    for file in [requirements, pyproject]:
-        if os.path.exists(file):
-            try:
-                with open(file, 'r') as f:
-                    deps_content += f.read().lower()
-            except OSError:
-                pass
-
-    if deps_content:
-        if 'fastapi' in deps_content:
-            return 'fastapi'
-        if 'flask' in deps_content:
-            return 'flask'
-        if 'django' in deps_content:
-            return 'django'
-        if 'starlette' in deps_content:
-            return 'starlette'
-
-    return None
+    # Then check Python frameworks
+    return _detect_python_api_framework(project_folder)
 
 
 # =============================================================================
@@ -406,6 +440,78 @@ def _generate_markdown_docs(routes: List[ApiRoute], framework: str) -> str:
     return '\n'.join(lines)
 
 
+def _build_openapi_param(param: RouteParameter) -> Dict[str, Any]:
+    """Build OpenAPI parameter object.
+
+    Args:
+        param: Route parameter
+
+    Returns:
+        OpenAPI parameter object
+    """
+    param_obj: Dict[str, Any] = {
+        'name': param.name,
+        'in': param.location if param.location != 'body' else 'query',
+        'required': param.required,
+        'schema': {'type': param.type_hint or 'string'},
+    }
+    if param.description:
+        param_obj['description'] = param.description
+    return param_obj
+
+
+def _build_openapi_request_body(body_params: List[RouteParameter]) -> Dict[str, Any]:
+    """Build OpenAPI request body object.
+
+    Args:
+        body_params: Body parameters
+
+    Returns:
+        OpenAPI requestBody object
+    """
+    properties = {p.name: {'type': p.type_hint or 'string'} for p in body_params}
+    return {
+        'content': {
+            'application/json': {
+                'schema': {
+                    'type': 'object',
+                    'properties': properties,
+                }
+            }
+        }
+    }
+
+
+def _build_openapi_operation(route: ApiRoute) -> Dict[str, Any]:
+    """Build OpenAPI operation object for a route.
+
+    Args:
+        route: API route
+
+    Returns:
+        OpenAPI operation object
+    """
+    method = route.method.lower()
+    operation: Dict[str, Any] = {
+        'operationId': route.handler_name,
+        'summary': route.description or f'{route.method} {route.path}',
+        'responses': {'200': {'description': 'Successful response'}},
+    }
+
+    # Add parameters
+    parameters = [_build_openapi_param(p) for p in route.parameters]
+    if parameters:
+        operation['parameters'] = parameters
+
+    # Add request body for POST/PUT/PATCH
+    if method in ('post', 'put', 'patch'):
+        body_params = [p for p in route.parameters if p.location == 'body']
+        if body_params:
+            operation['requestBody'] = _build_openapi_request_body(body_params)
+
+    return operation
+
+
 def _generate_openapi_spec(routes: List[ApiRoute], project_name: str = "API") -> Dict[str, Any]:
     """Generate OpenAPI 3.0 specification.
 
@@ -418,71 +524,14 @@ def _generate_openapi_spec(routes: List[ApiRoute], project_name: str = "API") ->
     """
     spec: Dict[str, Any] = {
         'openapi': '3.0.0',
-        'info': {
-            'title': project_name,
-            'version': '1.0.0',
-        },
+        'info': {'title': project_name, 'version': '1.0.0'},
         'paths': {},
     }
 
     for route in routes:
-        path = route.path
-        method = route.method.lower()
-
-        # Initialize path if not exists
-        if path not in spec['paths']:
-            spec['paths'][path] = {}
-
-        # Build operation object
-        operation: Dict[str, Any] = {
-            'operationId': route.handler_name,
-            'summary': route.description or f'{route.method} {route.path}',
-            'responses': {
-                '200': {
-                    'description': 'Successful response',
-                },
-            },
-        }
-
-        # Add parameters
-        parameters = []
-        for param in route.parameters:
-            param_obj: Dict[str, Any] = {
-                'name': param.name,
-                'in': param.location if param.location != 'body' else 'query',
-                'required': param.required,
-            }
-            if param.type_hint:
-                param_obj['schema'] = {'type': param.type_hint}
-            else:
-                param_obj['schema'] = {'type': 'string'}
-            if param.description:
-                param_obj['description'] = param.description
-            parameters.append(param_obj)
-
-        if parameters:
-            operation['parameters'] = parameters
-
-        # Add request body for POST/PUT/PATCH
-        if method in ('post', 'put', 'patch'):
-            body_params = [p for p in route.parameters if p.location == 'body']
-            if body_params:
-                properties = {}
-                for p in body_params:
-                    properties[p.name] = {'type': p.type_hint or 'string'}
-
-                operation['requestBody'] = {
-                    'content': {
-                        'application/json': {
-                            'schema': {
-                                'type': 'object',
-                                'properties': properties,
-                            }
-                        }
-                    }
-                }
-
-        spec['paths'][path][method] = operation
+        if route.path not in spec['paths']:
+            spec['paths'][route.path] = {}
+        spec['paths'][route.path][route.method.lower()] = _build_openapi_operation(route)
 
     return spec
 
