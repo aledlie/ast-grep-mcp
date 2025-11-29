@@ -3,6 +3,7 @@
 from mcp.server.fastmcp import FastMCP
 
 from ast_grep_mcp.features.complexity.tools import register_complexity_tools
+from ast_grep_mcp.features.cross_language.tools import register_cross_language_tools
 from ast_grep_mcp.features.deduplication.tools import register_deduplication_tools
 from ast_grep_mcp.features.documentation.tools import register_documentation_tools
 from ast_grep_mcp.features.quality.tools import register_quality_tools
@@ -26,8 +27,10 @@ def register_all_tools(mcp: FastMCP) -> None:
     7. Schema.org (8 tools)
     8. Documentation (5 tools - generate_docstrings, generate_readme_sections,
        generate_api_docs, generate_changelog, sync_documentation)
+    9. Cross-Language (5 tools - search_multi_language, find_language_equivalents,
+       convert_code_language, refactor_polyglot, generate_language_bindings)
 
-    Total: 32 tools
+    Total: 37 tools
     """
     register_search_tools(mcp)
     register_rewrite_tools(mcp)
@@ -38,3 +41,4 @@ def register_all_tools(mcp: FastMCP) -> None:
     register_quality_tools(mcp)
     register_schema_tools(mcp)
     register_documentation_tools(mcp)
+    register_cross_language_tools(mcp)
