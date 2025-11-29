@@ -274,65 +274,183 @@ class ImpactAnalyzer:
         Returns:
             List of import reference info dicts
         """
-        import_refs: List[Dict[str, Any]] = []
-
+        # Early return for empty input
         if not function_names:
-            return import_refs
+            return []
 
+        import_refs: List[Dict[str, Any]] = []
         lang = language.lower()
 
+        # Process up to 10 function names
         for func_name in function_names[:10]:
-            # Build import pattern based on language
-            if lang == "python":
-                # from module import func_name or import module
-                patterns = [
-                    f"from $MODULE import {func_name}",
-                    f"from $MODULE import $$$, {func_name}, $$$"
-                ]
-            elif lang in ("javascript", "typescript", "jsx", "tsx"):
-                patterns = [
-                    f"import {{ {func_name} }} from $MODULE",
-                    f"import {{ $$$, {func_name}, $$$ }} from $MODULE"
-                ]
-            elif lang in ("java",):
-                patterns = [f"import $$$$.{func_name}"]
-            elif lang == "go":
-                # Go imports are package-level, not function-level
-                continue
-            else:
+            patterns = self._get_import_patterns(func_name, lang)
+            if not patterns:
                 continue
 
-            for pattern in patterns:
-                try:
-                    args = ["--pattern", pattern, "--lang", language, "--json", project_root]
-                    result = run_ast_grep("run", args)
-
-                    if result.returncode == 0 and result.stdout.strip():
-                        matches = json.loads(result.stdout)
-
-                        for match in matches:
-                            file_path = match.get("file", "")
-
-                            if file_path in exclude_files:
-                                continue
-
-                            if not os.path.isabs(file_path):
-                                file_path = os.path.join(project_root, file_path)
-
-                            import_ref = {
-                                "file": file_path,
-                                "line": match.get("range", {}).get("start", {}).get("line", 0) + 1,
-                                "column": match.get("range", {}).get("start", {}).get("column", 0),
-                                "imported_name": func_name,
-                                "context": match.get("text", "")[:100],
-                                "type": "import"
-                            }
-                            import_refs.append(import_ref)
-
-                except (json.JSONDecodeError, subprocess.SubprocessError):
-                    continue
+            refs = self._search_import_patterns(
+                patterns, func_name, language, project_root, exclude_files
+            )
+            import_refs.extend(refs)
 
         return import_refs
+
+    def _get_import_patterns(self, func_name: str, language: str) -> List[str]:
+        """Get language-specific import patterns for a function name.
+
+        Args:
+            func_name: Function name to search for
+            language: Language (lowercase)
+
+        Returns:
+            List of ast-grep patterns to search for
+        """
+        # Configuration-driven pattern mapping
+        pattern_map = {
+            "python": [
+                f"from $MODULE import {func_name}",
+                f"from $MODULE import $$$, {func_name}, $$$"
+            ],
+            "javascript": [
+                f"import {{ {func_name} }} from $MODULE",
+                f"import {{ $$$, {func_name}, $$$ }} from $MODULE"
+            ],
+            "typescript": [
+                f"import {{ {func_name} }} from $MODULE",
+                f"import {{ $$$, {func_name}, $$$ }} from $MODULE"
+            ],
+            "jsx": [
+                f"import {{ {func_name} }} from $MODULE",
+                f"import {{ $$$, {func_name}, $$$ }} from $MODULE"
+            ],
+            "tsx": [
+                f"import {{ {func_name} }} from $MODULE",
+                f"import {{ $$$, {func_name}, $$$ }} from $MODULE"
+            ],
+            "java": [f"import $$$$.{func_name}"],
+            "go": []  # Go imports are package-level, not function-level
+        }
+
+        return pattern_map.get(language, [])
+
+    def _search_import_patterns(
+        self,
+        patterns: List[str],
+        func_name: str,
+        language: str,
+        project_root: str,
+        exclude_files: List[str]
+    ) -> List[Dict[str, Any]]:
+        """Search for import patterns using ast-grep.
+
+        Args:
+            patterns: List of patterns to search for
+            func_name: Function name being searched
+            language: Programming language
+            project_root: Project root path
+            exclude_files: Files to exclude from results
+
+        Returns:
+            List of import reference info dicts
+        """
+        import_refs = []
+
+        for pattern in patterns:
+            matches = self._execute_import_search(pattern, language, project_root)
+            if not matches:
+                continue
+
+            refs = self._process_import_matches(
+                matches, func_name, project_root, exclude_files
+            )
+            import_refs.extend(refs)
+
+        return import_refs
+
+    def _execute_import_search(
+        self, pattern: str, language: str, project_root: str
+    ) -> List[Dict[str, Any]]:
+        """Execute ast-grep search for a specific pattern.
+
+        Args:
+            pattern: ast-grep pattern to search for
+            language: Programming language
+            project_root: Project root path
+
+        Returns:
+            List of match dictionaries from ast-grep
+        """
+        try:
+            args = ["--pattern", pattern, "--lang", language, "--json", project_root]
+            result = run_ast_grep("run", args)
+
+            if result.returncode != 0 or not result.stdout.strip():
+                return []
+
+            return json.loads(result.stdout)
+
+        except (json.JSONDecodeError, subprocess.SubprocessError):
+            return []
+
+    def _process_import_matches(
+        self,
+        matches: List[Dict[str, Any]],
+        func_name: str,
+        project_root: str,
+        exclude_files: List[str]
+    ) -> List[Dict[str, Any]]:
+        """Process ast-grep matches into import reference info.
+
+        Args:
+            matches: List of matches from ast-grep
+            func_name: Function name that was searched
+            project_root: Project root path
+            exclude_files: Files to exclude from results
+
+        Returns:
+            List of import reference info dicts
+        """
+        import_refs = []
+
+        for match in matches:
+            file_path = match.get("file", "")
+
+            # Skip excluded files
+            if file_path in exclude_files:
+                continue
+
+            # Ensure absolute path
+            if not os.path.isabs(file_path):
+                file_path = os.path.join(project_root, file_path)
+
+            import_ref = self._create_import_ref(match, file_path, func_name)
+            import_refs.append(import_ref)
+
+        return import_refs
+
+    def _create_import_ref(
+        self, match: Dict[str, Any], file_path: str, func_name: str
+    ) -> Dict[str, Any]:
+        """Create an import reference info dictionary from a match.
+
+        Args:
+            match: Match data from ast-grep
+            file_path: Absolute file path
+            func_name: Function name that was imported
+
+        Returns:
+            Import reference info dict
+        """
+        range_data = match.get("range", {})
+        start_data = range_data.get("start", {})
+
+        return {
+            "file": file_path,
+            "line": start_data.get("line", 0) + 1,
+            "column": start_data.get("column", 0),
+            "imported_name": func_name,
+            "context": match.get("text", "")[:100],
+            "type": "import"
+        }
 
     def _estimate_lines_changed(
         self,
