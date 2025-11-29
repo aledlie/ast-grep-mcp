@@ -746,6 +746,20 @@ def register_mcp_tools() -> None:
     mcp.tools._tools["list_rule_templates"] = list_rule_templates_tool
     mcp.tools._tools["enforce_standards"] = enforce_standards_tool
 
+    # Documentation tools (5)
+    from ast_grep_mcp.features.documentation.tools import (
+        generate_docstrings_tool,
+        generate_readme_sections_tool,
+        generate_api_docs_tool,
+        generate_changelog_tool,
+        sync_documentation_tool,
+    )
+    mcp.tools._tools["generate_docstrings"] = generate_docstrings_tool
+    mcp.tools._tools["generate_readme_sections"] = generate_readme_sections_tool
+    mcp.tools._tools["generate_api_docs"] = generate_api_docs_tool
+    mcp.tools._tools["generate_changelog"] = generate_changelog_tool
+    mcp.tools._tools["sync_documentation"] = sync_documentation_tool
+
     # Note: Schema.org tools are not yet included as they still use
     # nested function definitions within register_schema_tools() that cannot be
     # easily imported. Tests for these tools will need to be updated to import
