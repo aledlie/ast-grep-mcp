@@ -22,60 +22,26 @@ Modular MCP server with 57 modules combining ast-grep structural code search wit
 
 **Dependencies:** ast-grep CLI (required), Doppler CLI (optional), Python 3.13+, uv package manager
 
-## Recent Work: Phase 1 Complexity Refactoring (2025-11-28)
+## Code Quality Status 🏆
 
-**Status:** 33% complete (48 → 32 violations)
-**Next Session:** See [PHASE1_NEXT_SESSION_GUIDE.md](PHASE1_NEXT_SESSION_GUIDE.md)
-**Full Summary:** See [PHASE1_REFACTORING_SUMMARY.md](PHASE1_REFACTORING_SUMMARY.md)
+> **✅ ZERO COMPLEXITY VIOLATIONS** (as of 2025-11-28)
+>
+> Phase 1 + Phase 2 refactoring **100% COMPLETE**: All 48 complexity violations resolved
+> - **Quality Gate:** ✅ PASSING (15/15 regression tests)
+> - **Test Coverage:** ✅ 278/278 module tests passing
+> - **Patterns Documented:** See [PATTERNS.md](PATTERNS.md) for proven refactoring techniques
 
-### Completed Refactorings
+**Critical Thresholds (All Met):**
+- Cyclomatic complexity: ≤20 ✅
+- Cognitive complexity: ≤30 ✅
+- Nesting depth: ≤6 ✅
+- Function length: ≤150 lines ✅
 
-**Critical Functions (3):**
-1. ✅ `format_java_code` - 95% complexity reduction (cyclomatic 39→7, cognitive 60→3)
-2. ✅ `detect_security_issues_impl` - 90% reduction (cyclomatic 31→3, cognitive 57→8)
-3. ✅ `parse_args_and_get_config` - 90% cyclomatic, 97% cognitive reduction
-
-**Additional Functions (13):**
-- Complexity calculators: `calculate_cyclomatic_complexity`, `calculate_cognitive_complexity`
-- Quality tools: MCP wrappers refactored with service layer separation
-- Search, schema, deduplication modules: Various helper extraction
-
-### Refactoring Patterns Used
-
-1. **Extract Method** - Breaking down large functions into focused helpers
-2. **Configuration-Driven Design** - Replacing repetitive if-blocks with data structures
-3. **Early Returns** - Reducing nesting with guard clauses
-4. **Service Layer Separation** - Extracting business logic from MCP wrappers
-
-### Testing
-
-**Complexity Regression Tests:**
+**Maintaining Quality:**
 ```bash
-# Check current violations
-uv run pytest tests/quality/test_complexity_regression.py::TestComplexityTrends::test_no_functions_exceed_critical_thresholds -v
-
-# Run all regression tests
+# Run before committing to ensure no regressions
 uv run pytest tests/quality/test_complexity_regression.py -v
 ```
-
-**Current Results:**
-- ✅ 14/15 tests passing
-- ⚠️ 1 expected failure tracking 32 remaining violations
-- Target: 15/15 passing (0 violations)
-
-**Critical Thresholds:**
-- Cyclomatic complexity: ≤20
-- Cognitive complexity: ≤30
-- Nesting depth: ≤6
-- Function length: ≤150 lines
-
-### Next Priority Functions (Top 5)
-
-1. `_merge_overlapping_groups` - cognitive=58 (93% over limit) ⚠️ HIGHEST
-2. `execute_rules_batch` - cognitive=45, nesting=8
-3. `analyze_file_complexity` - cognitive=45
-4. `_check_test_file_references_source` - cyclomatic=30, cognitive=44
-5. `get_test_coverage_for_files_batch` - cognitive=40
 
 ## Architecture
 
@@ -85,7 +51,7 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 src/ast_grep_mcp/
 ├── core/           # Config, cache, executor, logging, sentry
 ├── models/         # Data models for refactoring, deduplication, complexity
-├── utils/          # Templates, formatters, text, validation
+├── utils/          # Templates, formatters, text, validation, syntax_validation
 ├── features/       # Feature modules (38 modules)
 │   ├── search/         # Code search (2 modules)
 │   ├── rewrite/        # Code rewrite (3 modules)
@@ -109,6 +75,9 @@ from ast_grep_mcp.features.rewrite.service import rewrite_code_impl
 from ast_grep_mcp.core.config import get_config
 from ast_grep_mcp.core.cache import get_cache
 from ast_grep_mcp.core.executor import execute_ast_grep
+
+# Import shared utilities
+from ast_grep_mcp.utils.syntax_validation import suggest_syntax_fix
 ```
 
 ## Key Features
@@ -116,7 +85,7 @@ from ast_grep_mcp.core.executor import execute_ast_grep
 ### Code Complexity Analysis
 - Cyclomatic, cognitive complexity, nesting depth, function length
 - SQLite storage at `~/.local/share/ast-grep-mcp/complexity.db`
-- Regression tests prevent complexity creep
+- Regression tests prevent complexity creep (15 tests enforcing thresholds)
 
 ### Code Quality & Standards
 - Custom linting rules (24+ templates)
@@ -141,7 +110,7 @@ from ast_grep_mcp.core.executor import execute_ast_grep
 **1,600+ tests:** Unit (mocked) and integration (requires ast-grep)
 
 **Key Test Suites:**
-- `test_complexity_regression.py` - Complexity tracking (15 tests)
+- `test_complexity_regression.py` - Complexity tracking (15 tests, **all passing**)
 - `test_extract_function.py` - Function extraction (11 tests)
 - `test_rename_symbol.py` - Symbol renaming (21 tests)
 - `test_apply_deduplication.py` - Deduplication (24 tests)
@@ -151,7 +120,7 @@ from ast_grep_mcp.core.executor import execute_ast_grep
 ```bash
 uv run pytest tests/ -q --tb=no                     # All tests
 uv run pytest tests/unit/test_ranking.py -v         # Specific suite
-uv run pytest tests/quality/ -v                     # Quality tests only
+uv run pytest tests/quality/ -v                     # Quality tests (15 passing)
 ```
 
 ## Configuration
@@ -200,6 +169,7 @@ Without Doppler:
 - **YAML rules:** Requires `kind` field; add `stopBy: end` to relational rules
 - **Streaming:** Early termination on `max_results` (SIGTERM → SIGKILL)
 - **Sentry:** Optional monitoring with zero overhead when disabled
+- **Refactoring:** See [PATTERNS.md](PATTERNS.md) for proven complexity reduction techniques
 
 ## Standalone Tools
 
@@ -216,31 +186,72 @@ python scripts/run_benchmarks.py --check-regression
 
 ## Key Documentation
 
-**Project:**
-- README.md - Full project overview
-- CLAUDE.md - This file (development guide)
+### Project
+- [README.md](README.md) - Full project overview
+- [CLAUDE.md](CLAUDE.md) - This file (development guide)
+- [PATTERNS.md](PATTERNS.md) - **Proven refactoring patterns** (80-100% complexity reduction)
 
-**Features:**
+### Features
 - [DEDUPLICATION-GUIDE.md](DEDUPLICATION-GUIDE.md) - Complete deduplication workflow
 
-**Infrastructure:**
+### Infrastructure
 - [SENTRY-INTEGRATION.md](docs/SENTRY-INTEGRATION.md) - Error tracking setup
 - [DOPPLER-MIGRATION.md](docs/DOPPLER-MIGRATION.md) - Secret management
 - [CONFIGURATION.md](CONFIGURATION.md) - Configuration options
 - [BENCHMARKING.md](BENCHMARKING.md) - Performance testing
 
-**Refactoring:**
-- [PHASE1_REFACTORING_SUMMARY.md](PHASE1_REFACTORING_SUMMARY.md) - Session summary
-- [PHASE1_NEXT_SESSION_GUIDE.md](PHASE1_NEXT_SESSION_GUIDE.md) - Quick reference
-- [COMPLEXITY_REFACTORING_REPORT.md](COMPLEXITY_REFACTORING_REPORT.md) - Detailed analysis
+### Code Quality & Refactoring
+- [PATTERNS.md](PATTERNS.md) - **Proven refactoring patterns and techniques**
+- [PHASE2_SESSION2_COMPLETE.md](PHASE2_SESSION2_COMPLETE.md) - Phase 2 completion summary
+- [SESSION_REPORT_2025-11-28_Phase2_Complete.md](SESSION_REPORT_2025-11-28_Phase2_Complete.md) - Session report
+- [PHASE2_ACTION_PLAN.md](PHASE2_ACTION_PLAN.md) - Complete action plan (archived)
+
+## Refactoring Best Practices
+
+**For new code or refactoring work, follow these proven patterns:**
+
+1. **High Cognitive Complexity (>40)** → Use Extract Method pattern
+   - Break into 4-6 focused helpers (20-30 lines each)
+   - Expected: 80-97% reduction
+   - See [PATTERNS.md](PATTERNS.md#pattern-1-extract-method)
+
+2. **High Cyclomatic Complexity (>30)** → Use Configuration-Driven Design
+   - Replace if-elif chains with lookup dictionaries
+   - Expected: 90-95% reduction
+   - See [PATTERNS.md](PATTERNS.md#pattern-2-configuration-driven-design)
+
+3. **Deep Nesting (>6)** → Use Early Returns / Guard Clauses
+   - Fail fast with guard clauses at function start
+   - Expected: 50-75% nesting reduction
+   - See [PATTERNS.md](PATTERNS.md#pattern-4-early-returns--guard-clauses)
+
+4. **Duplicate Code** → Apply DRY Principle
+   - Extract to shared utility modules
+   - See [PATTERNS.md](PATTERNS.md#pattern-5-dry-principle-dont-repeat-yourself)
+
+**Quick Pattern Reference:**
+```bash
+# See full pattern documentation
+cat PATTERNS.md
+
+# Check if refactoring needed
+uv run pytest tests/quality/test_complexity_regression.py -v
+```
 
 ## Recent Updates
 
-### 2025-11-28: Phase 1 Complexity Refactoring
-- Reduced violations from 48 → 32 functions (33% progress)
-- Refactored 16 critical functions
-- Established refactoring patterns for continued work
-- Created comprehensive documentation and next session guide
+### 2025-11-28: Phase 2 Complexity Refactoring COMPLETE 🎉
+- ✅ **ZERO violations achieved** (48 → 0 functions, 100% complete)
+- ✅ Refactored all 25 remaining complex functions
+- ✅ Created [PATTERNS.md](PATTERNS.md) with proven refactoring techniques
+- ✅ Quality gate now **PASSING** (15/15 regression tests)
+- ✅ 278 module tests passing (all refactored code verified)
+- **Key Achievements:**
+  - 100% cognitive reduction in _assess_breaking_change_risk (44→0)
+  - 97% cognitive reduction in _parallel_enrich (74→2, highest violation)
+  - 94% reduction in both _extract_classes functions (35→2 each)
+  - Eliminated 118 lines of duplicate code via DRY principle
+  - Created shared utils/syntax_validation.py module
 
 ### 2025-11-27: Security Scanner & Auto-Fix
 - Added `detect_security_issues` tool (SQL injection, XSS, command injection, secrets, crypto)
@@ -279,4 +290,11 @@ python scripts/run_benchmarks.py --check-regression
 
 **Deduplication:** See [DEDUPLICATION-GUIDE.md](DEDUPLICATION-GUIDE.md) for troubleshooting.
 
-**Complexity Issues:** See [PHASE1_NEXT_SESSION_GUIDE.md](PHASE1_NEXT_SESSION_GUIDE.md) for refactoring guidance.
+**Code Quality:** All complexity violations resolved. See [PATTERNS.md](PATTERNS.md) for maintaining quality standards.
+
+---
+
+**Last Updated:** 2025-11-28
+**Code Quality:** ✅ ZERO violations (15/15 tests passing)
+**Refactoring Patterns:** See [PATTERNS.md](PATTERNS.md)
+**Session Report:** See [SESSION_REPORT_2025-11-28_Phase2_Complete.md](SESSION_REPORT_2025-11-28_Phase2_Complete.md)

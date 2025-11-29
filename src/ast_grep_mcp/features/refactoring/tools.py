@@ -12,6 +12,49 @@ from ...models.refactoring import ExtractFunctionResult, RenameSymbolResult
 logger = get_logger(__name__)
 
 
+def _format_extract_function_response(
+    result: ExtractFunctionResult,
+    selection: Any,
+    language: str
+) -> Dict[str, Any]:
+    """Format extract function result for tool response.
+
+    Args:
+        result: Extract function result
+        selection: Code selection analysis
+        language: Programming language
+
+    Returns:
+        Formatted response dictionary
+    """
+    if result.success:
+        # Get function signature string based on language
+        if result.function_signature and language == "python":
+            signature_str = result.function_signature.to_python_signature()
+        elif result.function_signature:
+            signature_str = result.function_signature.to_typescript_signature()
+        else:
+            signature_str = None
+
+        return {
+            "success": True,
+            "function_name": result.function_signature.name if result.function_signature else None,
+            "function_signature": signature_str,
+            "parameters": selection.parameters_needed,
+            "return_values": selection.return_values,
+            "diff_preview": result.diff_preview,
+            "backup_id": result.backup_id,
+            "warnings": result.warnings,
+            "has_early_returns": selection.has_early_returns,
+            "has_exceptions": selection.has_exceptions,
+        }
+    else:
+        return {
+            "success": False,
+            "error": result.error,
+        }
+
+
 def extract_function_tool(
     project_folder: str,
     file_path: str,
@@ -113,31 +156,8 @@ def extract_function_tool(
             dry_run=dry_run,
         )
 
-        # Format response
-        if result.success:
-            return {
-                "success": True,
-                "function_name": result.function_signature.name if result.function_signature else None,
-                "function_signature": (
-                    result.function_signature.to_python_signature()
-                    if result.function_signature and language == "python"
-                    else result.function_signature.to_typescript_signature()
-                    if result.function_signature
-                    else None
-                ),
-                "parameters": selection.parameters_needed,
-                "return_values": selection.return_values,
-                "diff_preview": result.diff_preview,
-                "backup_id": result.backup_id,
-                "warnings": result.warnings,
-                "has_early_returns": selection.has_early_returns,
-                "has_exceptions": selection.has_exceptions,
-            }
-        else:
-            return {
-                "success": False,
-                "error": result.error,
-            }
+        # Format response using helper
+        return _format_extract_function_response(result, selection, language)
 
     except Exception as e:
         logger.error("extract_function_tool_error", error=str(e))

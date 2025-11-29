@@ -7,6 +7,7 @@ import os
 from typing import Any, Dict, List, Optional
 
 from ...core.logging import get_logger
+from ...utils.syntax_validation import suggest_syntax_fix
 
 
 class PostValidationResult:
@@ -113,9 +114,10 @@ class RefactoringPostValidator:
                     "type": "syntax_error",
                     "file": file_path,
                     "error": result.get("error", "Unknown syntax error"),
-                    "suggestion": self._suggest_syntax_fix(
+                    "suggestion": suggest_syntax_fix(
                         result.get("error"),
-                        language
+                        language,
+                        context="file"
                     )
                 })
                 self.logger.warning(
@@ -320,41 +322,3 @@ class RefactoringPostValidator:
 
         return errors
 
-    def _suggest_syntax_fix(
-        self,
-        error: Optional[str],
-        language: str
-    ) -> str:
-        """Generate syntax fix suggestion based on error.
-
-        Args:
-            error: Error message
-            language: Programming language
-
-        Returns:
-            Suggested fix message
-        """
-        if not error:
-            return "Review file for syntax errors"
-
-        error_lower = error.lower()
-
-        # Common Python errors
-        if "indentation" in error_lower:
-            return "Fix indentation - ensure consistent use of spaces/tabs"
-        elif "unexpected eof" in error_lower or "unexpected indent" in error_lower:
-            return "Check for missing closing brackets, parentheses, or quotes"
-        elif "invalid syntax" in error_lower:
-            return "Review syntax near the error location - check for typos"
-
-        # Common brace/bracket errors
-        elif "unbalanced" in error_lower or "mismatched" in error_lower:
-            if "brace" in error_lower:
-                return "Balance opening and closing braces {}"
-            elif "parenthes" in error_lower:
-                return "Balance opening and closing parentheses ()"
-            elif "bracket" in error_lower:
-                return "Balance opening and closing brackets []"
-
-        # Generic suggestion
-        return f"Review {language} syntax and fix the error: {error[:100]}"

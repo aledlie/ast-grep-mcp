@@ -136,58 +136,124 @@ class ImpactAnalyzer:
         Returns:
             List of extracted names
         """
+        if not code:
+            return []
+
+        # Get language-specific patterns and extract names
+        patterns = self._get_language_patterns(language.lower())
+        names = self._apply_extraction_patterns(code, patterns)
+
+        # Filter and deduplicate
+        return self._filter_extracted_names(names)
+
+    def _get_language_patterns(self, language: str) -> List[str]:
+        """Get regex patterns for extracting names from code in a specific language.
+
+        Args:
+            language: Programming language (lowercase)
+
+        Returns:
+            List of regex patterns to apply
+        """
+        # Configuration-driven pattern mapping
+        pattern_config = {
+            "python": [
+                r'\bdef\s+(\w+)\s*\(',      # def function_name(
+                r'\bclass\s+(\w+)'           # class ClassName
+            ],
+            "javascript": [
+                r'\bfunction\s+(\w+)\s*\(',  # function name(
+                r'\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>',  # arrow functions
+                r'^\s*(\w+)\s*\([^)]*\)\s*\{',  # methods
+            ],
+            "typescript": [
+                r'\bfunction\s+(\w+)\s*\(',
+                r'\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>',
+                r'^\s*(\w+)\s*\([^)]*\)\s*\{',
+            ],
+            "jsx": [
+                r'\bfunction\s+(\w+)\s*\(',
+                r'\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>',
+                r'^\s*(\w+)\s*\([^)]*\)\s*\{',
+            ],
+            "tsx": [
+                r'\bfunction\s+(\w+)\s*\(',
+                r'\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>',
+                r'^\s*(\w+)\s*\([^)]*\)\s*\{',
+            ],
+            "java": [
+                r'\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{',  # methods
+                r'\bclass\s+(\w+)',  # classes
+            ],
+            "csharp": [
+                r'\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{',
+                r'\bclass\s+(\w+)',
+            ],
+            "cpp": [
+                r'\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{',
+                r'\bclass\s+(\w+)',
+            ],
+            "c": [
+                r'\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{',
+                r'\bclass\s+(\w+)',
+            ],
+            "go": [
+                r'\bfunc\s+(?:\([^)]*\)\s+)?(\w+)\s*\(',  # func FunctionName( or func (r *Receiver) MethodName(
+            ],
+            "rust": [
+                r'\bfn\s+(\w+)\s*[<(]',      # fn function_name( or fn function_name<
+                r'\bstruct\s+(\w+)',          # struct StructName
+            ],
+        }
+
+        return pattern_config.get(language, [])
+
+    def _apply_extraction_patterns(self, code: str, patterns: List[str]) -> List[str]:
+        """Apply regex patterns to extract names from code.
+
+        Args:
+            code: Source code to analyze
+            patterns: List of regex patterns to apply
+
+        Returns:
+            List of all extracted names (may contain duplicates)
+        """
         names: List[str] = []
 
-        if not code:
-            return names
+        for pattern in patterns:
+            # Use MULTILINE flag for patterns that match line beginnings
+            flags = re.MULTILINE if pattern.startswith('^') else 0
+            matches = re.findall(pattern, code, flags)
+            names.extend(matches)
 
-        lang = language.lower()
+        return names
 
-        # Language-specific patterns for extracting names
-        if lang == "python":
-            # Match: def function_name( or class ClassName
-            func_matches = re.findall(r'\bdef\s+(\w+)\s*\(', code)
-            class_matches = re.findall(r'\bclass\s+(\w+)', code)
-            names.extend(func_matches)
-            names.extend(class_matches)
+    def _filter_extracted_names(self, names: List[str]) -> List[str]:
+        """Filter and deduplicate extracted function/class names.
 
-        elif lang in ("javascript", "typescript", "jsx", "tsx"):
-            # Match: function name( or const name = or name( { for methods
-            func_matches = re.findall(r'\bfunction\s+(\w+)\s*\(', code)
-            arrow_matches = re.findall(r'\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>', code)
-            method_matches = re.findall(r'^\s*(\w+)\s*\([^)]*\)\s*\{', code, re.MULTILINE)
-            names.extend(func_matches)
-            names.extend(arrow_matches)
-            names.extend(method_matches)
+        Removes common keywords and duplicates while preserving order.
 
-        elif lang in ("java", "csharp", "cpp", "c"):
-            # Match: returnType methodName( or class ClassName
-            method_matches = re.findall(r'\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{', code)
-            class_matches = re.findall(r'\bclass\s+(\w+)', code)
-            names.extend(method_matches)
-            names.extend(class_matches)
+        Args:
+            names: List of extracted names (may contain duplicates)
 
-        elif lang == "go":
-            # Match: func FunctionName( or func (r *Receiver) MethodName(
-            func_matches = re.findall(r'\bfunc\s+(?:\([^)]*\)\s+)?(\w+)\s*\(', code)
-            names.extend(func_matches)
-
-        elif lang == "rust":
-            # Match: fn function_name( or struct StructName
-            func_matches = re.findall(r'\bfn\s+(\w+)\s*[<(]', code)
-            struct_matches = re.findall(r'\bstruct\s+(\w+)', code)
-            names.extend(func_matches)
-            names.extend(struct_matches)
-
-        # Deduplicate and filter common words
+        Returns:
+            Filtered and deduplicated list of names
+        """
+        common_words = {"new", "get", "set", "if", "for", "while", "return", "main", "init", "test"}
         filtered_names = []
         seen = set()
-        common_words = {"new", "get", "set", "if", "for", "while", "return", "main", "init", "test"}
 
         for name in names:
-            if name and name not in seen and name.lower() not in common_words:
-                seen.add(name)
-                filtered_names.append(name)
+            # Skip empty names, duplicates, and common words
+            if not name:
+                continue
+            if name in seen:
+                continue
+            if name.lower() in common_words:
+                continue
+
+            seen.add(name)
+            filtered_names.append(name)
 
         return filtered_names
 

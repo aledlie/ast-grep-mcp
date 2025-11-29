@@ -75,48 +75,30 @@ class DeduplicationApplicator:
         }
 
         try:
-            # Step 1: Validate inputs and extract plan components
-            plan_data = self._validate_and_extract_plan(
+            # Step 1: Validate and prepare plan
+            plan_result = self._validate_and_prepare_plan(
                 project_folder, refactoring_plan, validation_result,
-                group_id, extract_to_file
+                group_id, extract_to_file, dry_run, backup
             )
-            if plan_data.get("early_return"):
-                response = plan_data["response"]
-                assert isinstance(response, dict)
-                return response
+            if "early_return" in plan_result:
+                return plan_result["early_return"]
 
-            files_to_modify = plan_data["files_to_modify"]
-            generated_code = plan_data["generated_code"]
-            language = plan_data["language"]
-            strategy = plan_data["strategy"]
-            orchestration_plan = plan_data["orchestration_plan"]
+            # Extract plan components
+            files_to_modify = plan_result["files_to_modify"]
+            generated_code = plan_result["generated_code"]
+            language = plan_result["language"]
+            strategy = plan_result["strategy"]
+            orchestration_plan = plan_result["orchestration_plan"]
+            backup_id = plan_result["backup_id"]
 
-            # Step 2: Perform pre-validation
-            pre_validation_response = self._perform_pre_validation(
-                refactoring_plan, group_id, project_folder, validation_result, dry_run
-            )
-            if pre_validation_response:
-                return pre_validation_response
-
-            # Step 3: Handle dry-run mode
-            if dry_run:
-                return self._handle_dry_run(
-                    files_to_modify, validation_result, group_id, strategy
-                )
-
-            # Step 4: Create backup if needed
-            backup_id = self._create_backup_if_needed(
-                backup, project_folder, files_to_modify, group_id, strategy
-            )
-
-            # Step 5: Apply changes with validation
+            # Step 2: Apply changes with validation
             apply_result = self._apply_changes_with_validation(
                 orchestration_plan, generated_code, language, backup_id, project_folder
             )
 
             modified_files = apply_result["modified_files"]
 
-            # Step 6: Handle post-validation and potential rollback
+            # Step 3: Handle post-validation and potential rollback
             rollback_response = self._validate_and_rollback_if_needed(
                 modified_files, language, validation_result, backup_id,
                 project_folder, group_id
@@ -124,7 +106,7 @@ class DeduplicationApplicator:
             if rollback_response:
                 return rollback_response
 
-            # Step 7: Build and return success response
+            # Step 4: Build and return success response
             return self._build_success_response(
                 modified_files, validation_result, backup_id,
                 project_folder, group_id, strategy
@@ -134,7 +116,74 @@ class DeduplicationApplicator:
             self.logger.error("apply_deduplication_failed", error=str(e)[:200])
             raise
 
-    def _validate_and_extract_plan(
+    def _validate_and_prepare_plan(
+        self,
+        project_folder: str,
+        refactoring_plan: Dict[str, Any],
+        validation_result: Dict[str, Any],
+        group_id: int,
+        extract_to_file: Optional[str],
+        dry_run: bool,
+        backup: bool = True
+    ) -> Dict[str, Any]:
+        """Validate inputs, extract plan components, perform pre-validation and handle dry-run.
+
+        This consolidated method combines validation, pre-validation, dry-run handling,
+        and backup creation to reduce cyclomatic complexity in the main function.
+
+        Args:
+            project_folder: Project root folder
+            refactoring_plan: The refactoring plan
+            validation_result: Validation results dict
+            group_id: Duplication group ID
+            extract_to_file: Optional file to extract to
+            dry_run: Whether in dry-run mode
+            backup: Whether to create backup
+
+        Returns:
+            Dict with plan data or early_return response
+        """
+        # Extract and validate plan components
+        plan_data = self._extract_plan_components(
+            project_folder, refactoring_plan, validation_result, group_id, extract_to_file
+        )
+        if "early_return" in plan_data:
+            return plan_data
+
+        # Perform pre-validation
+        pre_validation_response = self._perform_pre_validation(
+            refactoring_plan, group_id, project_folder, validation_result, dry_run
+        )
+        if pre_validation_response:
+            return {"early_return": pre_validation_response}
+
+        # Handle dry-run mode
+        if dry_run:
+            return {
+                "early_return": self._handle_dry_run(
+                    plan_data["files_to_modify"],
+                    validation_result,
+                    group_id,
+                    plan_data["strategy"]
+                )
+            }
+
+        # Create backup if needed
+        backup_id = self._create_backup_if_needed(
+            backup,
+            project_folder,
+            plan_data["files_to_modify"],
+            group_id,
+            plan_data["strategy"]
+        )
+
+        # Return complete plan with backup_id
+        return {
+            **plan_data,
+            "backup_id": backup_id
+        }
+
+    def _extract_plan_components(
         self,
         project_folder: str,
         refactoring_plan: Dict[str, Any],
@@ -152,7 +201,7 @@ class DeduplicationApplicator:
             extract_to_file: Optional file to extract to
 
         Returns:
-            Dict with extracted plan data or early return response
+            Dict with extracted plan data or early_return response
         """
         # Validate inputs
         if not os.path.isdir(project_folder):
@@ -168,8 +217,7 @@ class DeduplicationApplicator:
 
         if not files_affected:
             return {
-                "early_return": True,
-                "response": self._build_response(
+                "early_return": self._build_response(
                     "no_changes", "No files affected", validation_result,
                     dry_run=True, group_id=group_id
                 )
@@ -179,8 +227,7 @@ class DeduplicationApplicator:
         files_to_modify = self._resolve_file_paths(files_affected, project_folder)
         if not files_to_modify:
             return {
-                "early_return": True,
-                "response": self._build_response(
+                "early_return": self._build_response(
                     "no_files", "No valid files found", validation_result,
                     dry_run=True, group_id=group_id
                 )
@@ -192,7 +239,6 @@ class DeduplicationApplicator:
         )
 
         return {
-            "early_return": False,
             "files_to_modify": files_to_modify,
             "generated_code": generated_code,
             "language": language,

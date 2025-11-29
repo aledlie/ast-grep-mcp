@@ -113,6 +113,118 @@ def load_custom_rules(project_folder: str, language: str) -> List[LintingRule]:
     return filtered_rules
 
 
+def _load_rules_from_templates(
+    rule_ids: Set[str],
+    language: str
+) -> List[LintingRule]:
+    """Load and filter rules from RULE_TEMPLATES by language.
+
+    Args:
+        rule_ids: Set of rule IDs to load
+        language: Target language for filtering
+
+    Returns:
+        List of LintingRule objects matching the language
+    """
+    rules: List[LintingRule] = []
+    for rule_id in rule_ids:
+        if rule_id in RULE_TEMPLATES:
+            template = RULE_TEMPLATES[rule_id]
+            if template.language == language:
+                rules.append(template_to_linting_rule(template))
+    return rules
+
+
+def _load_all_rules(language: str, logger: Any) -> RuleSet:
+    """Load 'all' rule set - combines all built-in rule sets.
+
+    Args:
+        language: Target language for filtering
+        logger: Logger instance
+
+    Returns:
+        RuleSet containing all built-in rules for the language
+    """
+    all_rule_ids: Set[str] = set()
+    for set_config in RULE_SETS.values():
+        all_rule_ids.update(set_config["rules"])
+
+    rules = _load_rules_from_templates(all_rule_ids, language)
+
+    logger.info("rule_set_loaded", rule_set="all", language=language, rules_count=len(rules))
+    return RuleSet(
+        name="all",
+        description=f"All built-in rules for {language}",
+        rules=rules,
+        priority=100
+    )
+
+
+def _load_custom_rule_set(project_folder: str, language: str, logger: Any) -> RuleSet:
+    """Load custom rule set from .ast-grep-rules/ directory.
+
+    Args:
+        project_folder: Project root for loading custom rules
+        language: Target language for filtering
+        logger: Logger instance
+
+    Returns:
+        RuleSet containing custom rules
+    """
+    custom_rules = load_custom_rules(project_folder, language)
+    logger.info("rule_set_loaded", rule_set="custom", language=language, rules_count=len(custom_rules))
+    return RuleSet(
+        name="custom",
+        description="Custom rules from .ast-grep-rules/",
+        rules=custom_rules,
+        priority=150
+    )
+
+
+def _load_builtin_rule_set(
+    rule_set_name: str,
+    language: str,
+    logger: Any
+) -> RuleSet:
+    """Load a built-in rule set by name.
+
+    Args:
+        rule_set_name: Name of built-in rule set
+        language: Target language for filtering
+        logger: Logger instance
+
+    Returns:
+        RuleSet object with loaded rules
+
+    Raises:
+        ValueError: If rule set not found
+    """
+    if rule_set_name not in RULE_SETS:
+        available = ", ".join(list(RULE_SETS.keys()) + ["custom", "all"])
+        raise ValueError(
+            f"Rule set '{rule_set_name}' not found. "
+            f"Available: {available}"
+        )
+
+    set_config = RULE_SETS[rule_set_name]
+    rule_ids = set(set_config["rules"])
+    rules = _load_rules_from_templates(rule_ids, language)
+
+    logger.info(
+        "rule_set_loaded",
+        rule_set=rule_set_name,
+        language=language,
+        rules_count=len(rules)
+    )
+
+    return RuleSet(
+        name=rule_set_name,
+        description=set_config["description"],
+        rules=rules,
+        priority=set_config["priority"]
+    )
+
+
 def load_rule_set(
     rule_set_name: str,
     project_folder: str,
@@ -133,70 +245,14 @@ def load_rule_set(
     """
     logger = get_logger("load_rule_set")
 
-    # Handle 'all' rule set - combines all built-in sets
+    # Dispatch to appropriate loader based on rule set type
     if rule_set_name == "all":
-        all_rule_ids: Set[str] = set()
-        for set_config in RULE_SETS.values():
-            all_rule_ids.update(set_config["rules"])
+        return _load_all_rules(language, logger)
 
-        rules: List[LintingRule] = []
-        for rid in all_rule_ids:
-            if rid in RULE_TEMPLATES:
-                template = RULE_TEMPLATES[rid]
-                if template.language == language:
-                    rules.append(template_to_linting_rule(template))
-
-        logger.info("rule_set_loaded", rule_set="all", language=language, rules_count=len(rules))
-        return RuleSet(
-            name="all",
-            description=f"All built-in rules for {language}",
-            rules=rules,
-            priority=100
-        )
-
-    # Handle custom rule set - load from .ast-grep-rules/
     if rule_set_name == "custom":
-        custom_rules = load_custom_rules(project_folder, language)
-        logger.info("rule_set_loaded", rule_set="custom", language=language, rules_count=len(custom_rules))
-        return RuleSet(
-            name="custom",
-            description="Custom rules from .ast-grep-rules/",
-            rules=custom_rules,
-            priority=150
-        )
+        return _load_custom_rule_set(project_folder, language, logger)
 
-    # Handle built-in rule sets
-    if rule_set_name not in RULE_SETS:
-        available = ", ".join(list(RULE_SETS.keys()) + ["custom", "all"])
-        raise ValueError(
-            f"Rule set '{rule_set_name}' not found. "
-            f"Available: {available}"
-        )
-
-    set_config = RULE_SETS[rule_set_name]
-    rule_ids = set_config["rules"]
-
-    # Filter rules by language
-    rules = []
-    for rule_id in rule_ids:
-        if rule_id in RULE_TEMPLATES:
-            template = RULE_TEMPLATES[rule_id]
-            if template.language == language:
-                rules.append(template_to_linting_rule(template))
-
-    logger.info(
-        "rule_set_loaded",
-        rule_set=rule_set_name,
-        language=language,
-        rules_count=len(rules)
-    )
-
-    return RuleSet(
-        name=rule_set_name,
-        description=set_config["description"],
-        rules=rules,
-        priority=set_config["priority"]
-    )
+    return _load_builtin_rule_set(rule_set_name, language, logger)
 
 
 # =============================================================================
@@ -370,8 +426,8 @@ def _execute_rule_with_limit(
 
 
 def _process_rule_result(
-    future,
-    futures: Dict,
+    future: Any,
+    futures: Dict[Any, LintingRule],
     all_violations: List[RuleViolation],
     violations_lock: threading.Lock,
     context: RuleExecutionContext
@@ -422,7 +478,6 @@ def execute_rules_batch(
     Returns:
         Combined list of all violations found
     """
-    logger = context.logger
     all_violations: List[RuleViolation] = []
     violations_lock = threading.Lock()
 

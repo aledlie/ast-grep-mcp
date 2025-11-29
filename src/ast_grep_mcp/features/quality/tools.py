@@ -326,6 +326,29 @@ def _get_default_exclude_patterns() -> List[str]:
     ]
 
 
+def _validate_enforcement_inputs(severity_threshold: str, output_format: str) -> None:
+    """Validate input parameters for enforce_standards.
+
+    Args:
+        severity_threshold: Severity threshold to validate
+        output_format: Output format to validate
+
+    Raises:
+        ValueError: If parameters are invalid
+    """
+    if severity_threshold not in ["error", "warning", "info"]:
+        raise ValueError(
+            f"Invalid severity_threshold: {severity_threshold}. "
+            "Must be 'error', 'warning', or 'info'."
+        )
+
+    if output_format not in ["json", "text"]:
+        raise ValueError(
+            f"Invalid output_format: {output_format}. "
+            "Must be 'json' or 'text'."
+        )
+
+
 def _format_enforcement_output(
     result: EnforcementResult,
     output_format: str
@@ -443,18 +466,8 @@ def enforce_standards_tool(
     )
 
     try:
-        # Validate inputs
-        if severity_threshold not in ["error", "warning", "info"]:
-            raise ValueError(
-                f"Invalid severity_threshold: {severity_threshold}. "
-                "Must be 'error', 'warning', or 'info'."
-            )
-
-        if output_format not in ["json", "text"]:
-            raise ValueError(
-                f"Invalid output_format: {output_format}. "
-                "Must be 'json' or 'text'."
-            )
+        # Validate inputs using helper
+        _validate_enforcement_inputs(severity_threshold, output_format)
 
         # Execute enforcement
         result = enforce_standards_impl(

@@ -223,6 +223,26 @@ def _build_search_args(
     return args + ["--json=stream"] + search_targets
 
 
+def _format_cached_results(
+    matches: List[Dict[str, Any]],
+    output_format: str
+) -> Union[str, List[Dict[str, Any]]]:
+    """
+    Format cached search results based on output format.
+
+    Returns:
+        Formatted results (string for text, list for json)
+    """
+    if output_format == "text":
+        if not matches:
+            return "No matches found"
+        text_output = format_matches_as_text(matches)
+        header = f"Found {len(matches)} matches"
+        return header + ":\n\n" + text_output
+
+    return matches
+
+
 def _check_cache(
     cache: Any,
     stream_args: List[str],
@@ -253,14 +273,7 @@ def _check_cache(
         cached_results=len(matches)
     )
 
-    if output_format == "text":
-        if not matches:
-            return "No matches found"
-        text_output = format_matches_as_text(matches)
-        header = f"Found {len(matches)} matches"
-        return header + ":\n\n" + text_output
-
-    return matches
+    return _format_cached_results(matches, output_format)
 
 
 def _execute_search(
@@ -303,6 +316,78 @@ def _format_search_results(
         return header + ":\n\n" + text_output
 
     return matches
+
+
+def _is_early_return_value(value: Any) -> bool:
+    """
+    Check if a value represents an early return (empty results).
+
+    Returns:
+        True if value is an empty result or string message
+    """
+    if isinstance(value, str):
+        return True
+    if isinstance(value, list) and len(value) == 0:
+        return True
+    if isinstance(value, list) and value and not isinstance(value[0], str):
+        return True
+    return False
+
+
+def _validate_output_format(output_format: str) -> None:
+    """
+    Validate output format parameter.
+
+    Raises:
+        ValueError: If output format is invalid
+    """
+    if output_format not in ["text", "json"]:
+        raise ValueError(f"Invalid output_format: {output_format}. Must be 'text' or 'json'.")
+
+
+def _handle_empty_search_targets(
+    search_targets: List[str],
+    output_format: str
+) -> Union[str, List[Any], None]:
+    """
+    Handle case where all files were skipped by size filtering.
+
+    Returns:
+        Empty result message/list, or None if search_targets is not empty
+    """
+    if not search_targets:
+        return "No matches found (all files exceeded size limit)" if output_format == "text" else []
+    return None
+
+
+def _validate_and_prepare_search(
+    project_folder: str,
+    pattern: str,
+    language: str,
+    max_file_size_mb: int,
+    output_format: str,
+    logger: Any
+) -> Union[List[str], str, List[Any]]:
+    """
+    Validate inputs and prepare search targets.
+
+    Returns:
+        Search targets list, or early return value (empty result) if validation fails
+    """
+    # Validate output format
+    _validate_output_format(output_format)
+
+    # Prepare search targets with file size filtering
+    search_targets = _prepare_search_targets(
+        project_folder, max_file_size_mb, language, logger
+    )
+
+    # Handle case where all files were skipped
+    empty_result = _handle_empty_search_targets(search_targets, output_format)
+    if empty_result is not None:
+        return empty_result
+
+    return search_targets
 
 
 def find_code_impl(
@@ -350,20 +435,17 @@ def find_code_impl(
     )
 
     try:
-        if output_format not in ["text", "json"]:
-            raise ValueError(f"Invalid output_format: {output_format}. Must be 'text' or 'json'.")
-
-        # Prepare search targets with file size filtering
-        search_targets = _prepare_search_targets(
-            project_folder, max_file_size_mb, language, logger
+        # Validate and prepare search
+        search_targets = _validate_and_prepare_search(
+            project_folder, pattern, language, max_file_size_mb, output_format, logger
         )
 
-        # Handle case where all files were skipped
-        if not search_targets:
-            return "No matches found (all files exceeded size limit)" if output_format == "text" else []
+        # Handle early return (empty results)
+        if _is_early_return_value(search_targets):
+            return search_targets  # type: ignore[return-value]
 
         # Build ast-grep arguments
-        stream_args = _build_search_args(pattern, language, workers, search_targets)
+        stream_args = _build_search_args(pattern, language, workers, search_targets)  # type: ignore[arg-type]
 
         # Check cache first
         cache = get_query_cache()

@@ -200,9 +200,20 @@ class SymbolRenamer:
             ref.is_definition = True
 
         # Check for import
-        if "import" in context:
+        if self._is_python_import(context):
             ref.is_import = True
             self._extract_python_import_source(ref, context)
+
+    def _is_python_import(self, context: str) -> bool:
+        """Check if context indicates a Python import statement.
+
+        Args:
+            context: The context string
+
+        Returns:
+            True if this is an import statement
+        """
+        return "import" in context
 
     def _is_python_definition(self, context: str) -> bool:
         """Check if context indicates a Python definition.
@@ -222,10 +233,11 @@ class SymbolRenamer:
             ref: SymbolReference to update
             context: The context string containing import
         """
+        # Only process "from X import Y" style imports
         if "from" not in context:
             return
 
-        # from module import symbol
+        # Extract module name from "from module import symbol"
         match = re.search(r'from\s+([\w.]+)', context)
         if match:
             ref.import_source = match.group(1)
@@ -242,13 +254,35 @@ class SymbolRenamer:
             ref.is_definition = True
 
         # Check for import
-        if "import" in context:
+        if self._is_javascript_import(context):
             ref.is_import = True
             self._extract_javascript_import_source(ref, context)
 
         # Check for export
-        if "export" in context:
+        if self._is_javascript_export(context):
             ref.is_export = True
+
+    def _is_javascript_import(self, context: str) -> bool:
+        """Check if context indicates a JavaScript/TypeScript import statement.
+
+        Args:
+            context: The context string
+
+        Returns:
+            True if this is an import statement
+        """
+        return "import" in context
+
+    def _is_javascript_export(self, context: str) -> bool:
+        """Check if context indicates a JavaScript/TypeScript export statement.
+
+        Args:
+            context: The context string
+
+        Returns:
+            True if this is an export statement
+        """
+        return "export" in context
 
     def _is_javascript_definition(self, context: str) -> bool:
         """Check if context indicates a JavaScript/TypeScript definition.

@@ -15,13 +15,8 @@ from ast_grep_mcp.features.search.service import (
 from ast_grep_mcp.models.base import DumpFormat
 
 
-def register_search_tools(mcp: FastMCP) -> None:
-    """Register search-related MCP tools.
-
-    Args:
-        mcp: FastMCP instance to register tools with
-    """
-
+def _register_dump_syntax_tree(mcp: FastMCP) -> None:
+    """Register dump_syntax_tree tool."""
     @mcp.tool()
     def dump_syntax_tree(
         code: str = Field(description="The code you need"),
@@ -45,6 +40,9 @@ def register_search_tools(mcp: FastMCP) -> None:
         """
         return dump_syntax_tree_impl(code, language, format)
 
+
+def _register_test_match_code_rule(mcp: FastMCP) -> None:
+    """Register test_match_code_rule tool."""
     @mcp.tool()
     def test_match_code_rule(
         code: str = Field(description="The code to test against the rule"),
@@ -60,6 +58,9 @@ def register_search_tools(mcp: FastMCP) -> None:
         """
         return test_match_code_rule_impl(code, yaml_rule)
 
+
+def _register_find_code(mcp: FastMCP) -> None:
+    """Register find_code tool."""
     @mcp.tool()
     def find_code(
         project_folder: str = Field(
@@ -126,6 +127,9 @@ def register_search_tools(mcp: FastMCP) -> None:
             workers
         )
 
+
+def _register_find_code_by_rule(mcp: FastMCP) -> None:
+    """Register find_code_by_rule tool."""
     @mcp.tool()
     def find_code_by_rule(
         project_folder: str = Field(
@@ -173,3 +177,15 @@ def register_search_tools(mcp: FastMCP) -> None:
             max_results,
             output_format  # type: ignore[arg-type]
         )
+
+
+def register_search_tools(mcp: FastMCP) -> None:
+    """Register search-related MCP tools.
+
+    Args:
+        mcp: FastMCP instance to register tools with
+    """
+    _register_dump_syntax_tree(mcp)
+    _register_test_match_code_rule(mcp)
+    _register_find_code(mcp)
+    _register_find_code_by_rule(mcp)

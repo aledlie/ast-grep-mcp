@@ -6,11 +6,38 @@ including function extraction, parameter inference, and import generation.
 """
 
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Callable
 
 from ...core.logging import get_logger
 from ...models.deduplication import FunctionTemplate
 from ...utils.formatters import format_generated_code
+
+
+# Language-specific configuration for function generation
+FUNCTION_GENERATORS: Dict[str, Callable] = {}
+
+# Language-specific configuration for type inference
+TYPE_INFERENCE_CONFIG: Dict[str, Dict[str, Dict[str, str]]] = {
+    "python": {
+        "literal": {
+            "string": "str",
+            "number_int": "int",
+            "number_float": "float",
+            "boolean": "bool"
+        },
+        "identifier": {"default": "Any"},
+        "type": {"use_value": True}
+    },
+    "typescript": {
+        "literal": {
+            "string": "string",
+            "number": "number",
+            "boolean": "boolean"
+        },
+        "identifier": {"default": "any"},
+        "type": {"use_value": False}
+    }
+}
 
 
 class CodeGenerator:
@@ -24,6 +51,76 @@ class CodeGenerator:
         """
         self.language = language
         self.logger = get_logger("deduplication.generator")
+
+    def _generate_python_function(
+        self,
+        function_name: str,
+        parameters: List[Dict[str, str]],
+        body: str,
+        return_type: Optional[str],
+        docstring: Optional[str]
+    ) -> str:
+        """Generate Python function using template system."""
+        param_tuples = [(p["name"], p.get("type")) for p in parameters]
+        template = FunctionTemplate(
+            name=function_name,
+            parameters=param_tuples,
+            body=body,
+            return_type=return_type,
+            docstring=docstring
+        )
+        return template.generate()
+
+    def _generate_js_ts_function(
+        self,
+        function_name: str,
+        parameters: List[Dict[str, str]],
+        body: str,
+        return_type: Optional[str],
+        docstring: Optional[str]
+    ) -> str:
+        """Generate JavaScript/TypeScript function."""
+        param_list = self._format_js_parameters(parameters)
+        type_annotation = f": {return_type}" if return_type and self.language == "typescript" else ""
+
+        function_code = f"function {function_name}({param_list}){type_annotation} {{\n"
+        if docstring:
+            function_code += f"    // {docstring}\n"
+
+        indented_body = "\n".join(f"    {line}" for line in body.split("\n"))
+        function_code += indented_body + "\n}"
+        return function_code
+
+    def _generate_java_function(
+        self,
+        function_name: str,
+        parameters: List[Dict[str, str]],
+        body: str,
+        return_type: Optional[str],
+        docstring: Optional[str]
+    ) -> str:
+        """Generate Java method."""
+        param_list = ", ".join(f"{p.get('type', 'Object')} {p['name']}" for p in parameters)
+        return_annotation = return_type if return_type else "void"
+
+        function_code = f"public {return_annotation} {function_name}({param_list}) {{\n"
+        if docstring:
+            function_code += f"    // {docstring}\n"
+
+        indented_body = "\n".join(f"    {line}" for line in body.split("\n"))
+        function_code += indented_body + "\n}"
+        return function_code
+
+    def _generate_generic_function(
+        self,
+        function_name: str,
+        parameters: List[Dict[str, str]],
+        body: str,
+        **kwargs
+    ) -> str:
+        """Generate generic function format."""
+        param_list = ", ".join(p["name"] for p in parameters)
+        return f"function {function_name}({param_list}) {{\n{body}\n}}"
 
     def generate_extracted_function(
         self,
@@ -53,80 +150,39 @@ class CodeGenerator:
             language=self.language
         )
 
-        # Use template system for Python
-        if self.language == "python":
-            # Convert parameter dicts to tuples for FunctionTemplate
-            param_tuples = [
-                (p["name"], p.get("type"))
-                for p in parameters
-            ]
+        # Language-specific generators map
+        generators = {
+            "python": self._generate_python_function,
+            "javascript": self._generate_js_ts_function,
+            "typescript": self._generate_js_ts_function,
+            "java": self._generate_java_function
+        }
 
-            # Create and use template
-            template = FunctionTemplate(
-                name=function_name,
-                parameters=param_tuples,
-                body=body,
-                return_type=return_type,
-                docstring=docstring
-            )
+        # Get the appropriate generator or use generic
+        generator = generators.get(self.language, self._generate_generic_function)
+        function_code = generator(function_name, parameters, body, return_type, docstring)
 
-            function_code = template.generate()
+        # Format the generated code
+        return self._format_generated_code(function_code, function_name)
 
-        elif self.language in ["javascript", "typescript"]:
-            # Use render function for JS/TS
-            param_list = self._format_js_parameters(parameters)
-            type_annotation = f": {return_type}" if return_type and self.language == "typescript" else ""
-
-            function_code = f"function {function_name}({param_list}){type_annotation} {{\n"
-
-            if docstring:
-                function_code += f"    // {docstring}\n"
-
-            # Indent body
-            indented_body = "\n".join(f"    {line}" for line in body.split("\n"))
-            function_code += indented_body + "\n}"
-
-        elif self.language == "java":
-            # Java method generation
-            param_list = ", ".join(
-                f"{p.get('type', 'Object')} {p['name']}"
-                for p in parameters
-            )
-            return_annotation = return_type if return_type else "void"
-
-            function_code = f"public {return_annotation} {function_name}({param_list}) {{\n"
-
-            if docstring:
-                function_code += f"    // {docstring}\n"
-
-            # Indent body
-            indented_body = "\n".join(f"    {line}" for line in body.split("\n"))
-            function_code += indented_body + "\n}"
-
-        else:
-            # Generic function format
-            param_list = ", ".join(p["name"] for p in parameters)
-            function_code = f"function {function_name}({param_list}) {{\n"
-            function_code += body + "\n}"
-
-        # Format the generated code before returning
+    def _format_generated_code(self, function_code: str, function_name: str) -> str:
+        """Format generated code with error handling."""
         try:
-            function_code = format_generated_code(function_code, self.language)
+            formatted_code = format_generated_code(function_code, self.language)
             self.logger.info(
                 "formatted_generated_function",
                 function_name=function_name,
                 language=self.language
             )
+            return formatted_code
         except Exception as e:
-            # If formatting fails, return unformatted code
             self.logger.warning(
                 "formatting_failed",
                 function_name=function_name,
                 language=self.language,
                 error=str(e)
             )
-
-        return function_code
+            return function_code
 
     def generate_function_call(
         self,
@@ -260,34 +316,48 @@ class CodeGenerator:
         else:
             return ", ".join(p["name"] for p in parameters)
 
+    def _get_literal_type(self, literal_type: str, value: str, lang_config: Dict) -> Optional[str]:
+        """Get type mapping for literal values."""
+        if literal_type == "string":
+            return lang_config.get("string")
+        elif literal_type == "number":
+            # For Python, distinguish int from float
+            if self.language == "python" and "." not in value:
+                return lang_config.get("number_int", "int")
+            elif self.language == "python":
+                return lang_config.get("number_float", "float")
+            else:
+                return lang_config.get("number")
+        elif literal_type == "boolean":
+            return lang_config.get("boolean")
+        return None
+
     def _infer_parameter_type(self, variation: Dict[str, Any]) -> Optional[str]:
         """Infer parameter type from variation."""
         category = variation.get("category", "")
         value = variation.get("old_value", "")
 
-        if self.language == "python":
-            if category == "literal":
-                if variation.get("literal_type") == "string":
-                    return "str"
-                elif variation.get("literal_type") == "number":
-                    return "int" if "." not in value else "float"
-                elif variation.get("literal_type") == "boolean":
-                    return "bool"
-            elif category == "identifier":
-                return "Any"  # Will be refined based on usage
-            elif category == "type":
-                return str(value) if value else None  # Use the actual type
+        # Get language configuration
+        lang_config = TYPE_INFERENCE_CONFIG.get(self.language, {})
+        if not lang_config:
+            return None
 
-        elif self.language == "typescript":
-            if category == "literal":
-                if variation.get("literal_type") == "string":
-                    return "string"
-                elif variation.get("literal_type") == "number":
-                    return "number"
-                elif variation.get("literal_type") == "boolean":
-                    return "boolean"
-            elif category == "identifier":
-                return "any"
+        # Get category configuration
+        category_config = lang_config.get(category, {})
+        if not category_config:
+            return None
+
+        # Handle different categories
+        if category == "literal":
+            literal_type = variation.get("literal_type", "")
+            return self._get_literal_type(literal_type, value, category_config)
+        elif category == "identifier":
+            return category_config.get("default")
+        elif category == "type":
+            # Use value directly for type category if configured
+            if category_config.get("use_value"):
+                return str(value) if value else None
+            return None
 
         return None
 
@@ -445,6 +515,46 @@ class CodeGenerator:
 
         return "\n".join(lines)
 
+    def _process_conditional(self, match: re.Match[str], variables: Dict[str, str]) -> str:
+        """Process conditional template blocks."""
+        condition_type = match.group(1)  # 'if' or 'unless'
+        var_name = match.group(2)
+        content = match.group(3)
+
+        var_value = variables.get(var_name, "")
+        is_truthy = var_value and var_value.lower() not in ("false", "0", "")
+
+        if condition_type == "if":
+            return content if is_truthy else ""
+        return "" if is_truthy else content  # unless
+
+    def _process_each_loop(self, match: re.Match[str], variables: Dict[str, str], strict: bool) -> str:
+        """Process each loop template blocks."""
+        var_name = match.group(1)
+        loop_content = match.group(2)
+
+        if var_name not in variables:
+            if strict:
+                raise ValueError(f"Missing list variable: {var_name}")
+            return ""
+
+        items = variables[var_name].split(",") if variables[var_name] else []
+        result = "".join(loop_content.replace("{{.}}", item.strip()) for item in items)
+
+        # Remove trailing space if the loop content ends with a space
+        if loop_content.endswith(" ") and result.endswith(" "):
+            result = result.rstrip()
+        return result
+
+    def _substitute_simple_variable(self, match: re.Match[str], variables: Dict[str, str], strict: bool) -> str:
+        """Substitute simple template variable."""
+        var_name = match.group(1)
+        if var_name not in variables:
+            if strict:
+                raise ValueError(f"Missing required variable: {var_name}")
+            return ""
+        return variables[var_name]
+
     def substitute_template_variables(
         self,
         template: str,
@@ -473,61 +583,27 @@ class CodeGenerator:
         result = template
 
         # Process conditionals (if/unless)
-        def process_conditional(match: re.Match[str]) -> str:
-            condition_type = match.group(1)  # 'if' or 'unless'
-            var_name = match.group(2)
-            content = match.group(3)
-
-            var_value = variables.get(var_name, "")
-            is_truthy = var_value and var_value.lower() not in ("false", "0", "")
-
-            if condition_type == "if":
-                return content if is_truthy else ""
-            else:  # unless
-                return "" if is_truthy else content
-
-        # Process {{#if var}}...{{/if}} and {{#unless var}}...{{/unless}}
         result = re.sub(
             r'\{\{#(if|unless)\s+(\w+)\}\}(.*?)\{\{/\1\}\}',
-            process_conditional,
+            lambda m: self._process_conditional(m, variables),
             result,
             flags=re.DOTALL
         )
 
         # Process loops {{#each items}}{{.}}{{/each}}
-        def process_each(match: re.Match[str]) -> str:
-            var_name = match.group(1)
-            loop_content = match.group(2)
-
-            if var_name not in variables:
-                if strict:
-                    raise ValueError(f"Missing list variable: {var_name}")
-                return ""
-
-            items = variables[var_name].split(",") if variables[var_name] else []
-            result = "".join(loop_content.replace("{{.}}", item.strip()) for item in items)
-            # Remove trailing space if the loop content ends with a space
-            if loop_content.endswith(" ") and result.endswith(" "):
-                result = result.rstrip()
-            return result
-
         result = re.sub(
             r'\{\{#each\s+(\w+)\}\}(.*?)\{\{/each\}\}',
-            process_each,
+            lambda m: self._process_each_loop(m, variables, strict),
             result,
             flags=re.DOTALL
         )
 
         # Process simple variables {{var}}
-        def substitute_var(match: re.Match[str]) -> str:
-            var_name = match.group(1)
-            if var_name not in variables:
-                if strict:
-                    raise ValueError(f"Missing required variable: {var_name}")
-                return ""
-            return variables[var_name]
-
-        result = re.sub(r'\{\{(\w+)\}\}', substitute_var, result)
+        result = re.sub(
+            r'\{\{(\w+)\}\}',
+            lambda m: self._substitute_simple_variable(m, variables, strict),
+            result
+        )
 
         return result
 
@@ -590,54 +666,121 @@ class CodeGenerator:
         if not lines or (len(lines) == 1 and not lines[0].strip()):
             return 1
 
-        i = 0
+        # Skip module docstring (if present)
+        position = self._skip_python_module_docstring(lines, start=0)
+
+        # Skip top-level comments
+        position = self._skip_python_comments(lines, start=position)
+
+        # Find end of existing imports
+        last_import_line = self._find_last_import_line(lines, start=position)
+
+        return last_import_line + 1
+
+    def _skip_python_module_docstring(self, lines: List[str], start: int) -> int:
+        """Skip module-level docstring and return position after it.
+
+        Args:
+            lines: List of file lines
+            start: Starting position
+
+        Returns:
+            Position after docstring (or start if no docstring found)
+        """
+        position = start
         in_docstring = False
         docstring_quotes = None
 
-        # Skip module docstring
-        while i < len(lines):
-            line = lines[i].strip()
+        while position < len(lines):
+            line = lines[position].strip()
+
+            # Skip empty lines and comments
             if not line or line.startswith("#"):
-                i += 1
+                position += 1
                 continue
 
-            # Check for docstring
+            # Check for docstring start/end
             if line.startswith('"""') or line.startswith("'''"):
+                quotes = line[:3]
+
                 if not in_docstring:
-                    docstring_quotes = line[:3]
+                    # Starting a docstring
+                    docstring_quotes = quotes
                     in_docstring = True
-                    if line.count(docstring_quotes) >= 2:
-                        in_docstring = False
-                        i += 1
-                        break
-                elif docstring_quotes and docstring_quotes in line:
-                    in_docstring = False
-                    i += 1
-                    break
-                i += 1
+
+                    # Check if docstring closes on same line
+                    if line.count(quotes) >= 2:
+                        return position + 1
+
+                elif docstring_quotes and quotes == docstring_quotes:
+                    # Closing the docstring
+                    return position + 1
+
+                position += 1
                 continue
 
+            # If we're in a docstring, keep skipping
             if in_docstring:
-                i += 1
+                position += 1
                 continue
 
+            # Found non-docstring content
             break
 
-        # Skip comments
-        while i < len(lines) and lines[i].strip().startswith("#"):
-            i += 1
+        return position
 
-        # Skip existing imports
-        last_import = i
-        while i < len(lines):
-            line = lines[i].strip()
-            if line.startswith("import ") or line.startswith("from "):
-                last_import = i + 1
+    def _skip_python_comments(self, lines: List[str], start: int) -> int:
+        """Skip comment lines and return position after comments.
+
+        Args:
+            lines: List of file lines
+            start: Starting position
+
+        Returns:
+            Position after comments
+        """
+        position = start
+        while position < len(lines) and lines[position].strip().startswith("#"):
+            position += 1
+        return position
+
+    def _find_last_import_line(self, lines: List[str], start: int) -> int:
+        """Find the last import statement line.
+
+        Args:
+            lines: List of file lines
+            start: Starting position
+
+        Returns:
+            Position of last import (or start if no imports found)
+        """
+        position = start
+        last_import = start
+
+        while position < len(lines):
+            line = lines[position].strip()
+
+            # Track import statements
+            if self._is_import_line(line):
+                last_import = position + 1
+            # Stop at first non-import, non-comment, non-empty line
             elif line and not line.startswith("#"):
                 break
-            i += 1
 
-        return last_import + 1
+            position += 1
+
+        return last_import
+
+    def _is_import_line(self, line: str) -> bool:
+        """Check if line is an import statement.
+
+        Args:
+            line: Stripped line to check
+
+        Returns:
+            True if line is an import statement
+        """
+        return line.startswith("import ") or line.startswith("from ")
 
     def _detect_js_import_point(self, lines: List[str]) -> int:
         """Find import insertion point for JavaScript/TypeScript files."""

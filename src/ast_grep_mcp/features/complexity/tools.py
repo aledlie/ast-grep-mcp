@@ -208,6 +208,136 @@ def _format_response(
     )
 
 
+def _handle_no_files_found(language: str, execution_time: float) -> Dict[str, Any]:
+    """Handle the case when no files are found to analyze.
+
+    Args:
+        language: The programming language
+        execution_time: Time taken for the analysis attempt
+
+    Returns:
+        Response dictionary for no files found case
+    """
+    return {
+        "summary": {
+            "total_functions": 0,
+            "total_files": 0,
+            "exceeding_threshold": 0,
+            "analysis_time_seconds": round(execution_time, 3)
+        },
+        "functions": [],
+        "message": f"No {language} files found in project matching the include patterns"
+    }
+
+
+def _create_thresholds_dict(
+    cyclomatic_threshold: int,
+    cognitive_threshold: int,
+    nesting_threshold: int,
+    length_threshold: int
+) -> Dict[str, int]:
+    """Create thresholds dictionary for response.
+
+    Args:
+        cyclomatic_threshold: Cyclomatic complexity threshold
+        cognitive_threshold: Cognitive complexity threshold
+        nesting_threshold: Maximum nesting depth threshold
+        length_threshold: Function length threshold in lines
+
+    Returns:
+        Dictionary of threshold values
+    """
+    return {
+        "cyclomatic": cyclomatic_threshold,
+        "cognitive": cognitive_threshold,
+        "nesting_depth": nesting_threshold,
+        "length": length_threshold
+    }
+
+
+def _execute_analysis(
+    project_folder: str,
+    language: str,
+    thresholds: ComplexityThresholds,
+    files_to_analyze: List[str],
+    store_results: bool,
+    include_trends: bool,
+    max_threads: int,
+    start_time: float,
+    logger: Any
+) -> Dict[str, Any]:
+    """Execute the main analysis workflow.
+
+    Args:
+        project_folder: Project folder to analyze
+        language: Programming language
+        thresholds: Complexity thresholds
+        files_to_analyze: List of files to analyze
+        store_results: Whether to store results
+        include_trends: Whether to include trends
+        max_threads: Number of parallel threads
+        start_time: Analysis start time
+        logger: Logger instance
+
+    Returns:
+        Analysis response dictionary
+    """
+    # Analyze files in parallel
+    all_functions, exceeding_functions, analyzer = _analyze_files_parallel(
+        files_to_analyze,
+        language,
+        thresholds,
+        max_threads
+    )
+
+    # Calculate summary statistics
+    execution_time = time.time() - start_time
+    summary, statistics = _calculate_summary_statistics(
+        all_functions,
+        exceeding_functions,
+        len(files_to_analyze),
+        execution_time
+    )
+
+    # Store results and generate trends
+    run_id, stored_at, trends = _store_and_generate_trends(
+        store_results,
+        include_trends,
+        project_folder,
+        summary,
+        all_functions,
+        statistics
+    )
+
+    logger.info(
+        "tool_completed",
+        tool="analyze_complexity",
+        execution_time_seconds=round(execution_time, 3),
+        total_functions=summary["total_functions"],
+        exceeding_threshold=len(exceeding_functions),
+        status="success"
+    )
+
+    # Create thresholds dict from the thresholds object
+    thresholds_dict = {
+        "cyclomatic": thresholds.cyclomatic,
+        "cognitive": thresholds.cognitive,
+        "nesting_depth": thresholds.nesting_depth,
+        "length": thresholds.lines
+    }
+
+    # Format and return response
+    return _format_response(
+        summary,
+        thresholds_dict,
+        exceeding_functions,
+        run_id,
+        stored_at,
+        trends,
+        statistics
+    )
+
+
 def analyze_complexity_tool(
     project_folder: str,
     language: str,
@@ -276,7 +406,7 @@ def analyze_complexity_tool(
     )
 
     try:
-        # Step 1: Validate inputs
+        # Validate inputs
         _validate_inputs(language)
 
         # Set up thresholds
@@ -287,7 +417,7 @@ def analyze_complexity_tool(
             lines=length_threshold
         )
 
-        # Step 2: Find files to analyze
+        # Find files to analyze
         files_to_analyze, file_finder = _find_files_to_analyze(
             project_folder,
             language,
@@ -299,72 +429,20 @@ def analyze_complexity_tool(
         # Handle no files found case
         if not files_to_analyze:
             execution_time = time.time() - start_time
-            return {
-                "summary": {
-                    "total_functions": 0,
-                    "total_files": 0,
-                    "exceeding_threshold": 0,
-                    "analysis_time_seconds": round(execution_time, 3)
-                },
-                "functions": [],
-                "message": f"No {language} files found in project matching the include patterns"
-            }
+            return _handle_no_files_found(language, execution_time)
 
-        # Step 3: Analyze files in parallel
-        all_functions, exceeding_functions, analyzer = _analyze_files_parallel(
-            files_to_analyze,
+        # Execute the main analysis workflow
+        return _execute_analysis(
+            project_folder,
             language,
             thresholds,
-            max_threads
-        )
-
-        # Step 4: Calculate summary statistics
-        execution_time = time.time() - start_time
-        summary, statistics = _calculate_summary_statistics(
-            all_functions,
-            exceeding_functions,
-            len(files_to_analyze),
-            execution_time
-        )
-
-        # Step 5: Store results and generate trends
-        run_id, stored_at, trends = _store_and_generate_trends(
+            files_to_analyze,
             store_results,
             include_trends,
-            project_folder,
-            summary,
-            all_functions,
-            statistics
+            max_threads,
+            start_time,
+            logger
         )
-
-        logger.info(
-            "tool_completed",
-            tool="analyze_complexity",
-            execution_time_seconds=round(execution_time, 3),
-            total_functions=summary["total_functions"],
-            exceeding_threshold=len(exceeding_functions),
-            status="success"
-        )
-
-        # Step 6: Format and return response
-        thresholds_dict = {
-            "cyclomatic": cyclomatic_threshold,
-            "cognitive": cognitive_threshold,
-            "nesting_depth": nesting_threshold,
-            "length": length_threshold
-        }
-
-        response = _format_response(
-            summary,
-            thresholds_dict,
-            exceeding_functions,
-            run_id,
-            stored_at,
-            trends,
-            statistics
-        )
-
-        return response
 
     except Exception as e:
         execution_time = time.time() - start_time
@@ -511,6 +589,63 @@ def test_sentry_integration_tool(
         raise
 
 
+def _get_default_smell_exclude_patterns() -> List[str]:
+    """Get default exclude patterns for code smell detection."""
+    return [
+        "**/node_modules/**", "**/__pycache__/**", "**/venv/**",
+        "**/.venv/**", "**/site-packages/**", "**/test*/**", "**/*test*"
+    ]
+
+
+def _prepare_smell_detection_params(
+    include_patterns: List[str] | None,
+    exclude_patterns: List[str] | None
+) -> tuple[List[str], List[str]]:
+    """Prepare and validate parameters for smell detection.
+
+    Args:
+        include_patterns: Glob patterns for files to include
+        exclude_patterns: Glob patterns for files to exclude
+
+    Returns:
+        Tuple of (include_patterns, exclude_patterns) with defaults applied
+    """
+    if include_patterns is None:
+        include_patterns = ["**/*"]
+    if exclude_patterns is None:
+        exclude_patterns = _get_default_smell_exclude_patterns()
+    return include_patterns, exclude_patterns
+
+
+def _process_smell_detection_result(
+    result: Dict[str, Any],
+    start_time: float,
+    logger: Any
+) -> Dict[str, Any]:
+    """Add execution time and log completion metrics.
+
+    Args:
+        result: Smell detection result dictionary
+        start_time: Start time of the analysis
+        logger: Logger instance
+
+    Returns:
+        Result dictionary with execution_time_ms added
+    """
+    execution_time = time.time() - start_time
+    result["execution_time_ms"] = round(execution_time * 1000)
+
+    logger.info(
+        "tool_completed",
+        tool="detect_code_smells",
+        files_analyzed=result.get("files_analyzed", 0),
+        total_smells=result.get("total_smells", 0),
+        execution_time_seconds=round(execution_time, 3)
+    )
+
+    return result
+
+
 def detect_code_smells_tool(
     project_folder: str,
     language: str,
@@ -526,53 +661,49 @@ def detect_code_smells_tool(
     max_threads: int = 4
 ) -> Dict[str, Any]:
     """
-    Detect common code smells and anti-patterns in a project.
+    Detect common code smells, anti-patterns in a project.
 
-    Identifies patterns that indicate potential design or maintainability issues:
+    Identifies patterns that indicate potential design, maintainability issues:
     - Long Functions: Functions exceeding line count threshold
-    - Parameter Bloat: Functions with too many parameters (>5)
+    - Parameter Bloat: Functions having too many parameters (>5)
     - Deep Nesting: Excessive nesting depth (>4 levels)
-    - Large Classes: Classes with too many methods or lines
+    - Large Classes: Classes having too many methods, lines
     - Magic Numbers: Hard-coded literals (excludes 0, 1, -1, 2, 10, 100)
 
-    Each smell is rated by severity (high/medium/low) based on how far it exceeds thresholds
-    and includes actionable suggestions for refactoring.
+    Each smell is rated by severity (high/medium/low) based on how far it exceeds thresholds,
+    includes actionable suggestions to improve code.
 
     Args:
-        project_folder: The absolute path to the project folder to analyze
-        language: The programming language (python, typescript, javascript, java)
-        include_patterns: Glob patterns for files to include (e.g., ['src/**/*.py'])
-        exclude_patterns: Glob patterns for files to exclude
-        long_function_lines: Line count threshold for long function smell (default: 50)
-        parameter_count: Parameter count threshold for parameter bloat (default: 5)
-        nesting_depth: Nesting depth threshold for deep nesting smell (default: 4)
-        class_lines: Line count threshold for large class smell (default: 300)
-        class_methods: Method count threshold for large class smell (default: 20)
+        project_folder: Absolute path to the project folder to analyze
+        language: Programming language (python, typescript, javascript, java)
+        include_patterns: Glob patterns selecting files to include (e.g., ['src/**/*.py'])
+        exclude_patterns: Glob patterns selecting files to exclude
+        long_function_lines: Line count threshold detecting long function smell (default: 50)
+        parameter_count: Parameter count threshold detecting parameter bloat (default: 5)
+        nesting_depth: Nesting depth threshold detecting deep nesting smell (default: 4)
+        class_lines: Line count threshold detecting large class smell (default: 300)
+        class_methods: Method count threshold detecting large class smell (default: 20)
         detect_magic_numbers: Whether to detect magic number smells
         severity_filter: Filter by severity: 'all', 'high', 'medium', 'low'
-        max_threads: Number of parallel threads for analysis (default: 4)
+        max_threads: Number of parallel threads used in analysis (default: 4)
 
     Returns:
-        Dictionary with analysis results including summary and detected smells by severity
+        Dictionary containing analysis results including summary, detected smells by severity
 
     Example usage:
         detect_code_smells_tool(project_folder="/path/to/project", language="python")
         detect_code_smells_tool(project_folder="/path/to/project", language="typescript", severity_filter="high")
     """
-    # Set defaults
-    if include_patterns is None:
-        include_patterns = ["**/*"]
-    if exclude_patterns is None:
-        exclude_patterns = [
-            "**/node_modules/**", "**/__pycache__/**", "**/venv/**",
-            "**/.venv/**", "**/site-packages/**", "**/test*/**", "**/*test*"
-        ]
-
     # Import here to avoid circular import with quality.smells
     from ast_grep_mcp.features.quality.smells import detect_code_smells_impl
 
     logger = get_logger("tool.detect_code_smells")
     start_time = time.time()
+
+    # Prepare parameters with defaults
+    include_patterns, exclude_patterns = _prepare_smell_detection_params(
+        include_patterns, exclude_patterns
+    )
 
     logger.info(
         "tool_invoked",
@@ -597,18 +728,8 @@ def detect_code_smells_tool(
             max_threads=max_threads
         )
 
-        execution_time = time.time() - start_time
-        result["execution_time_ms"] = round(execution_time * 1000)
-
-        logger.info(
-            "tool_completed",
-            tool="detect_code_smells",
-            files_analyzed=result.get("files_analyzed", 0),
-            total_smells=result.get("total_smells", 0),
-            execution_time_seconds=round(execution_time, 3)
-        )
-
-        return result
+        # Process result and add execution time
+        return _process_smell_detection_result(result, start_time, logger)
 
     except Exception as e:
         execution_time = time.time() - start_time

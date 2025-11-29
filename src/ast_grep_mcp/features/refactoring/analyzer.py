@@ -329,6 +329,85 @@ class CodeSelectionAnalyzer:
         # Classify variables based on scope analysis
         self._classify_variable_types(selection, variables, all_lines)
 
+    def _is_variable_defined_before(
+        self,
+        var_name: str,
+        before_lines: List[str],
+    ) -> bool:
+        """Check if variable is defined before selection.
+
+        Args:
+            var_name: Variable name to check
+            before_lines: Lines before the selection
+
+        Returns:
+            True if variable is assigned before selection
+        """
+        return any(
+            re.search(rf'\b{re.escape(var_name)}\s*=', line)
+            for line in before_lines
+        )
+
+    def _is_variable_used_after(
+        self,
+        var_name: str,
+        after_lines: List[str],
+    ) -> bool:
+        """Check if variable is used after selection.
+
+        Args:
+            var_name: Variable name to check
+            after_lines: Lines after the selection
+
+        Returns:
+            True if variable is referenced after selection
+        """
+        return any(
+            re.search(rf'\b{re.escape(var_name)}\b', line)
+            for line in after_lines
+        )
+
+    def _get_variable_classification(
+        self,
+        var_info: VariableInfo,
+        defined_before: bool,
+        used_after: bool,
+    ) -> VariableType:
+        """Classify variable type based on usage pattern.
+
+        Classification rules:
+        - Written in selection, not defined before, used after → MODIFIED
+        - Written in selection, not defined before, not used after → LOCAL
+        - Only read, defined before → PARAMETER
+        - Only read, not defined before → PARAMETER (global/builtin)
+        - Written and defined before and used after → MODIFIED
+
+        Args:
+            var_info: Variable information
+            defined_before: True if defined before selection
+            used_after: True if used after selection
+
+        Returns:
+            Appropriate VariableType
+        """
+        is_written = var_info.is_written
+        is_read = var_info.is_read
+
+        # Created in selection
+        if is_written and not defined_before:
+            return VariableType.MODIFIED if used_after else VariableType.LOCAL
+
+        # Only read (must be parameter)
+        if is_read and not is_written:
+            return VariableType.PARAMETER
+
+        # Modified existing variable
+        if is_written and defined_before and used_after:
+            return VariableType.MODIFIED
+
+        # Default: keep existing type
+        return var_info.variable_type
+
     def _analyze_js_ts_variables(
         self,
         selection: CodeSelection,
@@ -478,35 +557,16 @@ class CodeSelectionAnalyzer:
         after_lines = all_lines[selection.end_line:]
 
         for var_name, var_info in variables.items():
-            # Check if variable is defined before selection
-            defined_before = any(
-                re.search(rf'\b{re.escape(var_name)}\s*=', line)
-                for line in before_lines
-            )
+            # Detect scope context
+            defined_before = self._is_variable_defined_before(var_name, before_lines)
+            used_after = self._is_variable_used_after(var_name, after_lines)
 
-            # Check if variable is used after selection
-            used_after = any(
-                re.search(rf'\b{re.escape(var_name)}\b', line)
-                for line in after_lines
+            # Classify based on usage pattern
+            var_info.variable_type = self._get_variable_classification(
+                var_info,
+                defined_before,
+                used_after,
             )
-
-            # Classify
-            if var_info.is_written and not defined_before:
-                # Variable is created in selection
-                if used_after:
-                    var_info.variable_type = VariableType.MODIFIED
-                else:
-                    var_info.variable_type = VariableType.LOCAL
-            elif var_info.is_read and not var_info.is_written:
-                # Variable is only read, must come from outside
-                if defined_before:
-                    var_info.variable_type = VariableType.PARAMETER
-                else:
-                    # Check if it's a global or built-in
-                    var_info.variable_type = VariableType.PARAMETER
-            elif var_info.is_written and defined_before and used_after:
-                # Variable is modified and used after
-                var_info.variable_type = VariableType.MODIFIED
 
     def _determine_parameters_and_returns(self, selection: CodeSelection) -> None:
         """Determine which variables should be parameters and return values.

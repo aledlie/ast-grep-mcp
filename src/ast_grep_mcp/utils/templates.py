@@ -419,6 +419,50 @@ def _select_typescript_template(use_arrow: bool, is_async: bool) -> str:
     return TYPESCRIPT_FUNCTION_TEMPLATE
 
 
+def _format_typescript_params(params: List[Tuple[str, str]]) -> str:
+    """Format TypeScript function parameters with types.
+
+    Args:
+        params: List of (param_name, param_type) tuples
+
+    Returns:
+        Formatted parameters string
+    """
+    return ", ".join(f"{p[0]}: {p[1]}" for p in params)
+
+
+def _format_typescript_return_type(return_type: str, is_async: bool) -> str:
+    """Format TypeScript return type annotation.
+
+    Args:
+        return_type: Return type annotation
+        is_async: Whether function is async
+
+    Returns:
+        Formatted return type string
+    """
+    if not return_type:
+        return ""
+
+    if is_async and not return_type.startswith("Promise"):
+        return f": Promise<{return_type}>"
+
+    return f": {return_type}"
+
+
+def _indent_function_body(body: str) -> str:
+    """Indent function body with 2 spaces (JS/TS convention).
+
+    Args:
+        body: Function body to indent
+
+    Returns:
+        Indented body string
+    """
+    return "\n".join(f"  {line}" if line.strip() else line
+                     for line in body.split("\n"))
+
+
 def format_typescript_function(
     name: str,
     params: List[Tuple[str, str]],
@@ -449,24 +493,13 @@ def format_typescript_function(
     # Format placeholders
     export_str = "export " if export else ""
     async_str = "async " if is_async else ""
-
-    # Format type parameters
     type_params_str = f"<{', '.join(type_params)}>" if type_params else ""
-
-    # Format parameters with types
-    params_str = ", ".join(f"{p[0]}: {p[1]}" for p in params)
-
-    # Format return type
-    return_type_str = f": {return_type}" if return_type else ""
-    if is_async and return_type and not return_type.startswith("Promise"):
-        return_type_str = f": Promise<{return_type}>"
-
-    # Format JSDoc
     jsdoc_str = f"{jsdoc}\n" if jsdoc else ""
 
-    # Indent body (2 spaces for JS/TS convention)
-    indented_body = "\n".join(f"  {line}" if line.strip() else line
-                               for line in body.split("\n"))
+    # Format parameters and return type
+    params_str = _format_typescript_params(params)
+    return_type_str = _format_typescript_return_type(return_type, is_async)
+    indented_body = _indent_function_body(body)
 
     # Select template
     template = _select_typescript_template(use_arrow, is_async)
@@ -523,6 +556,18 @@ def _select_javascript_template(use_arrow: bool, is_async: bool) -> str:
     return JAVASCRIPT_FUNCTION_TEMPLATE
 
 
+def _format_javascript_params(params: List[str]) -> str:
+    """Format JavaScript function parameters.
+
+    Args:
+        params: List of parameter names
+
+    Returns:
+        Formatted parameters string
+    """
+    return ", ".join(params)
+
+
 def format_javascript_function(
     name: str,
     params: List[str],
@@ -549,16 +594,11 @@ def format_javascript_function(
     # Format placeholders
     export_str = "export " if export else ""
     async_str = "async " if is_async else ""
-
-    # Format parameters (no types)
-    params_str = ", ".join(params)
-
-    # Format JSDoc
     jsdoc_str = f"{jsdoc}\n" if jsdoc else ""
 
-    # Indent body (2 spaces for JS/TS convention)
-    indented_body = "\n".join(f"  {line}" if line.strip() else line
-                               for line in body.split("\n"))
+    # Format parameters and indent body
+    params_str = _format_javascript_params(params)
+    indented_body = _indent_function_body(body)
 
     # Select template
     template = _select_javascript_template(use_arrow, is_async)

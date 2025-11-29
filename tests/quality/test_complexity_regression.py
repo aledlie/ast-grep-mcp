@@ -91,7 +91,7 @@ CRITICAL_FUNCTIONS = [
     },
     {
         "file": "src/ast_grep_mcp/features/deduplication/applicator.py",
-        "function": "_validate_and_extract_plan",
+        "function": "_validate_and_prepare_plan",
         "max_lines": 100,
         "max_cyclomatic": 15,
         "max_cognitive": 20,

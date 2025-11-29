@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from ...core.logging import get_logger
+from ...utils.syntax_validation import suggest_syntax_fix, validate_code_for_language
 
 
 class ValidationResult:
@@ -157,7 +158,7 @@ class RefactoringPlanValidator:
         # Validate extracted function
         extracted_function = generated_code.get('extracted_function', '')
         if extracted_function:
-            is_valid, error_msg = self._validate_code_for_language(
+            is_valid, error_msg = validate_code_for_language(
                 extracted_function,
                 language
             )
@@ -167,7 +168,7 @@ class RefactoringPlanValidator:
                     "file": "extracted function",
                     "error": error_msg,
                     "code_preview": extracted_function[:200],
-                    "suggestion": self._suggest_syntax_fix(error_msg, language)
+                    "suggestion": suggest_syntax_fix(error_msg, language, context="code")
                 })
 
         # Validate replacements
@@ -175,7 +176,7 @@ class RefactoringPlanValidator:
         for file_path, replacement in replacements.items():
             new_content = replacement.get('new_content', '')
             if new_content:
-                is_valid, error_msg = self._validate_code_for_language(
+                is_valid, error_msg = validate_code_for_language(
                     new_content,
                     language
                 )
@@ -184,91 +185,8 @@ class RefactoringPlanValidator:
                         "type": "replacement_code",
                         "file": file_path,
                         "error": error_msg,
-                        "suggestion": self._suggest_syntax_fix(error_msg, language)
+                        "suggestion": suggest_syntax_fix(error_msg, language, context="code")
                     })
 
         return errors
 
-    def _validate_code_for_language(
-        self,
-        code: str,
-        language: str
-    ) -> Tuple[bool, str]:
-        """Validate code syntax for specific language.
-
-        Args:
-            code: Code to validate
-            language: Programming language
-
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
-        if not code or not code.strip():
-            return False, "Code is empty"
-
-        if language.lower() == "python":
-            try:
-                import ast
-                ast.parse(code)
-                return True, ""
-            except SyntaxError as e:
-                return False, f"Python syntax error: {e}"
-            except Exception as e:
-                return False, f"Validation error: {e}"
-
-        elif language.lower() in ["javascript", "typescript"]:
-            # Basic validation - check for obvious syntax errors
-            if code.count('{') != code.count('}'):
-                return False, "Mismatched braces"
-            if code.count('(') != code.count(')'):
-                return False, "Mismatched parentheses"
-            if code.count('[') != code.count(']'):
-                return False, "Mismatched brackets"
-            return True, ""
-
-        elif language.lower() == "java":
-            # Basic Java validation
-            if code.count('{') != code.count('}'):
-                return False, "Mismatched braces"
-            if code.count('(') != code.count(')'):
-                return False, "Mismatched parentheses"
-            return True, ""
-
-        else:
-            # For unsupported languages, do basic checks
-            self.logger.warning("unsupported_language_validation", language=language)
-            return True, ""
-
-    def _suggest_syntax_fix(self, error: Optional[str], language: str) -> str:
-        """Generate syntax fix suggestion based on error.
-
-        Args:
-            error: Error message
-            language: Programming language
-
-        Returns:
-            Suggested fix message
-        """
-        if not error:
-            return "Check code syntax and formatting"
-
-        error_lower = error.lower()
-
-        # Common Python errors
-        if "indentation" in error_lower:
-            return "Fix indentation - ensure consistent use of spaces/tabs"
-        elif "unexpected eof" in error_lower or "unexpected indent" in error_lower:
-            return "Check for missing closing brackets, parentheses, or quotes"
-        elif "invalid syntax" in error_lower:
-            return "Review syntax near the error location - check for typos"
-
-        # Common brace/bracket errors
-        elif "mismatched" in error_lower:
-            if "brace" in error_lower:
-                return "Balance opening and closing braces {}"
-            elif "parenthes" in error_lower:
-                return "Balance opening and closing parentheses ()"
-            elif "bracket" in error_lower:
-                return "Balance opening and closing brackets []"
-
-        return f"Review {language} syntax and fix the error: {error[:100]}"
