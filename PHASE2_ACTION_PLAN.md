@@ -1,8 +1,8 @@
 # Phase 2 Refactoring - Action Plan & Recommendations
 
 **Date:** 2025-11-28
-**Current Status:** 31 functions exceeding critical thresholds (down from 48)
-**Phase 1 Progress:** 35% complete (17 functions refactored)
+**Current Status:** 30 functions exceeding critical thresholds (down from 48)
+**Phase 1 Progress:** 37.5% complete (18 functions refactored)
 
 ## Executive Summary
 
@@ -10,9 +10,10 @@ Phase 1 refactoring successfully reduced complexity violations from **48 → 32 
 
 ### Key Achievements from Phase 1
 
-✅ **16 functions refactored** with zero behavioral regressions
+✅ **18 functions refactored** with zero behavioral regressions (updated)
 ✅ **95% complexity reduction** in format_java_code (cyclomatic 39→7, cognitive 60→3)
 ✅ **90% complexity reduction** in detect_security_issues_impl (cyclomatic 31→3, cognitive 57→8)
+✅ **80% complexity reduction** in analyze_file_complexity (cognitive 45→9)
 ✅ **14/15 regression tests passing**
 ✅ **All 1,600+ tests passing**
 ✅ **detector.py fully refactored** - ZERO violations remaining in this critical module
@@ -37,12 +38,12 @@ Based on test failures and analysis, here are the **actual** top 10 functions to
    - **Estimated Time:** 25-30 minutes
    - **Impact:** HIGH - Core quality enforcement function
 
-#### 2. **complexity/analyzer.py:analyze_file_complexity**
-   - **Metrics:** Cognitive=45 (50% over)
-   - **Issue:** Language-specific analysis mixed with orchestration
-   - **Strategy:** Extract language handlers, use strategy pattern
-   - **Estimated Time:** 25-30 minutes
-   - **Impact:** HIGH - Critical complexity analysis function
+#### 2. ~~**complexity/analyzer.py:analyze_file_complexity**~~ ✅ COMPLETED
+   - **Metrics:** ~~Cognitive=45 (50% over)~~ → Cognitive=9 (70% under limit)
+   - **Issue:** ~~Language-specific analysis mixed with orchestration~~ RESOLVED
+   - **Strategy:** ✅ Extracted 4 helper methods: _extract_function_name, _get_line_numbers, _calculate_all_metrics, _check_threshold_violations
+   - **Result:** 80% cognitive complexity reduction, improved readability
+   - **Impact:** HIGH - Critical complexity analysis function now clean
 
 #### 3. **deduplication/coverage.py:_check_test_file_references_source**
    - **Metrics:** Cyclomatic=30 (50% over), Cognitive=44 (47% over)

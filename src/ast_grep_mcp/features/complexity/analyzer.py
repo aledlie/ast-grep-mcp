@@ -8,7 +8,7 @@ extracting functions, and calculating complexity metrics for each function.
 import json
 import re
 import subprocess
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.complexity import (
@@ -262,6 +262,94 @@ def _find_magic_numbers(content: str, lines: List[str], language: str) -> List[D
     return magic_numbers[:50]
 
 
+def _extract_function_name(func: Dict[str, Any]) -> str:
+    """Extract function name from ast-grep match.
+
+    Args:
+        func: Function match from ast-grep
+
+    Returns:
+        Function name or "unknown" if not found
+    """
+    meta_vars = func.get("metaVariables", {})
+    if "NAME" not in meta_vars:
+        return "unknown"
+
+    name_data = meta_vars["NAME"]
+    if isinstance(name_data, dict):
+        return name_data.get("text", "unknown")
+    elif isinstance(name_data, str):
+        return name_data
+    return "unknown"
+
+
+def _get_line_numbers(func: Dict[str, Any]) -> Tuple[int, int]:
+    """Extract line numbers from ast-grep range info.
+
+    Args:
+        func: Function match from ast-grep
+
+    Returns:
+        Tuple of (start_line, end_line), 1-indexed
+    """
+    range_info = func.get("range", {})
+    start_line = range_info.get("start", {}).get("line", 0) + 1
+    end_line = range_info.get("end", {}).get("line", 0) + 1
+    return start_line, end_line
+
+
+def _calculate_all_metrics(code: str, language: str) -> ComplexityMetrics:
+    """Calculate all complexity metrics for a function.
+
+    Args:
+        code: Function source code
+        language: Programming language
+
+    Returns:
+        ComplexityMetrics with all calculated values
+    """
+    cyclomatic = calculate_cyclomatic_complexity(code, language)
+    cognitive = calculate_cognitive_complexity(code, language)
+    nesting = calculate_nesting_depth(code, language)
+    lines = len(code.split('\n'))
+    param_count = _count_function_parameters(code, language)
+
+    return ComplexityMetrics(
+        cyclomatic=cyclomatic,
+        cognitive=cognitive,
+        nesting_depth=nesting,
+        lines=lines,
+        parameter_count=param_count
+    )
+
+
+def _check_threshold_violations(
+    metrics: ComplexityMetrics,
+    thresholds: ComplexityThresholds
+) -> List[str]:
+    """Check which thresholds are exceeded.
+
+    Args:
+        metrics: Calculated metrics
+        thresholds: Threshold values
+
+    Returns:
+        List of exceeded threshold names
+    """
+    exceeds: List[str] = []
+
+    if metrics.cyclomatic > thresholds.cyclomatic:
+        exceeds.append("cyclomatic")
+    if metrics.cognitive > thresholds.cognitive:
+        exceeds.append("cognitive")
+    if metrics.nesting_depth > thresholds.nesting_depth:
+        exceeds.append("nesting")
+    if metrics.lines > thresholds.lines:
+        exceeds.append("length")
+
+    return exceeds
+
+
 def analyze_file_complexity(
     file_path: str,
     language: str,
@@ -287,53 +375,10 @@ def analyze_file_complexity(
             if not code:
                 continue
 
-            # Extract function name from match
-            # Try to get from metaVariables or parse from code
-            func_name = "unknown"
-            meta_vars = func.get("metaVariables", {})
-            if "NAME" in meta_vars:
-                name_data = meta_vars["NAME"]
-                if isinstance(name_data, dict):
-                    func_name = name_data.get("text", "unknown")
-                elif isinstance(name_data, str):
-                    func_name = name_data
-
-            # Get line numbers
-            range_info = func.get("range", {})
-            start_line = range_info.get("start", {}).get("line", 0) + 1
-            end_line = range_info.get("end", {}).get("line", 0) + 1
-
-            # Calculate metrics
-            cyclomatic = calculate_cyclomatic_complexity(code, language)
-            cognitive = calculate_cognitive_complexity(code, language)
-            nesting = calculate_nesting_depth(code, language)
-            lines = len(code.split('\n'))
-
-            # Count parameters (simple heuristic)
-            param_count = 0
-            if '(' in code and ')' in code:
-                param_section = code[code.index('('):code.index(')')]
-                if param_section.strip('()'):
-                    param_count = param_section.count(',') + 1
-
-            metrics = ComplexityMetrics(
-                cyclomatic=cyclomatic,
-                cognitive=cognitive,
-                nesting_depth=nesting,
-                lines=lines,
-                parameter_count=param_count
-            )
-
-            # Check which thresholds are exceeded
-            exceeds: List[str] = []
-            if cyclomatic > thresholds.cyclomatic:
-                exceeds.append("cyclomatic")
-            if cognitive > thresholds.cognitive:
-                exceeds.append("cognitive")
-            if nesting > thresholds.nesting_depth:
-                exceeds.append("nesting")
-            if lines > thresholds.lines:
-                exceeds.append("length")
+            func_name = _extract_function_name(func)
+            start_line, end_line = _get_line_numbers(func)
+            metrics = _calculate_all_metrics(code, language)
+            exceeds = _check_threshold_violations(metrics, thresholds)
 
             results.append(FunctionComplexity(
                 file_path=file_path,
