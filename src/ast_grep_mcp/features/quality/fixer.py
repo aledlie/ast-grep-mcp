@@ -354,53 +354,143 @@ def apply_fixes_batch(
     fixable_violations = _filter_violations_by_fix_type(violations, fix_types)
 
     if dry_run:
-        # Dry run - validate fixes without applying
-        results = []
-        for violation in fixable_violations:
-            validation = classify_fix_safety(violation.rule_id, violation)
-
-            # Create a preview fix result
-            results.append(FixResult(
-                violation=violation,
-                success=validation.is_safe,
-                file_modified=False,
-                original_code=violation.code_snippet,
-                fixed_code=violation.fix_suggestion or "(fix pattern not specified)",
-                syntax_valid=True,
-                fix_type='safe' if validation.is_safe else 'suggested'
-            ))
-
-        execution_time = int((time.time() - start_time) * 1000)
-
-        return FixBatchResult(
-            total_violations=len(fixable_violations),
-            fixes_attempted=0,
-            fixes_successful=0,
-            fixes_failed=0,
-            files_modified=[],
-            validation_passed=True,
-            results=results,
-            execution_time_ms=execution_time
-        )
+        result = _execute_dry_run(fixable_violations, start_time)
+        return result
 
     # Real run - apply fixes
-    backup_id = None
-    if create_backup_flag:
-        # Get unique file paths
-        file_paths = list(set(v.file for v in fixable_violations))
-        if file_paths:
-            # Create backup
-            backup_id = create_backup(file_paths, project_folder)
-            logger.info(f"Created backup {backup_id} for {len(file_paths)} files")
+    backup_id = _create_backup_if_needed(
+        fixable_violations,
+        project_folder,
+        create_backup_flag
+    )
 
     # Group violations by file
+    violations_by_file = _group_violations_by_file(fixable_violations)
+
+    # Apply fixes and collect results
+    fix_results, files_modified, fixes_successful, fixes_failed, validation_passed = (
+        _execute_real_run(violations_by_file, language)
+    )
+
+    # If any fixes failed and we have a backup, offer rollback
+    if fixes_failed > 0 and backup_id:
+        logger.warning(f"{fixes_failed} fixes failed. Backup {backup_id} available for rollback")
+
+    return _build_batch_result(
+        fixable_violations,
+        fix_results,
+        files_modified,
+        fixes_successful,
+        fixes_failed,
+        validation_passed,
+        backup_id,
+        start_time
+    )
+
+
+def _execute_dry_run(
+    fixable_violations: List[RuleViolation],
+    start_time: float
+) -> FixBatchResult:
+    """Execute a dry run preview of fixes without applying them.
+
+    Args:
+        fixable_violations: Violations to preview
+        start_time: Batch operation start time
+
+    Returns:
+        FixBatchResult with preview information
+    """
+    results = []
+    for violation in fixable_violations:
+        validation = classify_fix_safety(violation.rule_id, violation)
+
+        # Create a preview fix result
+        results.append(FixResult(
+            violation=violation,
+            success=validation.is_safe,
+            file_modified=False,
+            original_code=violation.code_snippet,
+            fixed_code=violation.fix_suggestion or "(fix pattern not specified)",
+            syntax_valid=True,
+            fix_type='safe' if validation.is_safe else 'suggested'
+        ))
+
+    execution_time = int((time.time() - start_time) * 1000)
+
+    return FixBatchResult(
+        total_violations=len(fixable_violations),
+        fixes_attempted=0,
+        fixes_successful=0,
+        fixes_failed=0,
+        files_modified=[],
+        validation_passed=True,
+        results=results,
+        execution_time_ms=execution_time
+    )
+
+
+def _create_backup_if_needed(
+    fixable_violations: List[RuleViolation],
+    project_folder: str,
+    create_backup_flag: bool
+) -> Optional[str]:
+    """Create backup of files if requested.
+
+    Args:
+        fixable_violations: Violations with files to backup
+        project_folder: Project root folder
+        create_backup_flag: Whether to create backup
+
+    Returns:
+        Backup ID if created, None otherwise
+    """
+    if not create_backup_flag:
+        return None
+
+    # Get unique file paths
+    file_paths = list(set(v.file for v in fixable_violations))
+    if not file_paths:
+        return None
+
+    # Create backup
+    backup_id = create_backup(file_paths, project_folder)
+    logger.info(f"Created backup {backup_id} for {len(file_paths)} files")
+    return backup_id
+
+
+def _group_violations_by_file(
+    fixable_violations: List[RuleViolation]
+) -> Dict[str, List[RuleViolation]]:
+    """Group violations by file path.
+
+    Args:
+        fixable_violations: Violations to group
+
+    Returns:
+        Dictionary mapping file paths to their violations
+    """
     violations_by_file: Dict[str, List[RuleViolation]] = {}
     for violation in fixable_violations:
         if violation.file not in violations_by_file:
             violations_by_file[violation.file] = []
         violations_by_file[violation.file].append(violation)
+    return violations_by_file
 
-    # Apply fixes file by file
+
+def _execute_real_run(
+    violations_by_file: Dict[str, List[RuleViolation]],
+    language: str
+) -> Tuple[List[FixResult], Set[str], int, int, bool]:
+    """Execute actual fix application.
+
+    Args:
+        violations_by_file: Violations grouped by file
+        language: Programming language for validation
+
+    Returns:
+        Tuple of (results, files_modified, fixes_successful, fixes_failed, validation_passed)
+    """
     fix_results: List[FixResult] = []
     files_modified: Set[str] = set()
     fixes_successful = 0
@@ -412,30 +502,105 @@ def apply_fixes_batch(
         file_violations.sort(key=lambda v: v.line, reverse=True)
 
         for violation in file_violations:
-            # Determine fix method
-            if violation.fix_suggestion:
-                # Use pattern-based fix
-                result = apply_pattern_fix(file_path, violation, violation.fix_suggestion, language)
-            else:
-                # Use removal fix (for patterns like no-console-log, no-debugger)
-                result = apply_removal_fix(file_path, violation, language)
-
+            result = _apply_single_fix(file_path, violation, language)
             fix_results.append(result)
 
-            if result.success and result.file_modified:
-                fixes_successful += 1
-                files_modified.add(file_path)
+            # Update counters based on result
+            fixes_successful, fixes_failed, validation_passed = _process_fix_result(
+                result,
+                file_path,
+                fixes_successful,
+                fixes_failed,
+                validation_passed,
+                files_modified
+            )
 
-                if not result.syntax_valid:
-                    validation_passed = False
-            elif not result.success:
-                fixes_failed += 1
-                validation_passed = False
+    return fix_results, files_modified, fixes_successful, fixes_failed, validation_passed
 
-    # If any fixes failed and we have a backup, offer rollback
-    if fixes_failed > 0 and backup_id:
-        logger.warning(f"{fixes_failed} fixes failed. Backup {backup_id} available for rollback")
 
+def _apply_single_fix(
+    file_path: str,
+    violation: RuleViolation,
+    language: str
+) -> FixResult:
+    """Apply a single fix to a violation.
+
+    Args:
+        file_path: Path to file containing violation
+        violation: The violation to fix
+        language: Programming language for validation
+
+    Returns:
+        FixResult with outcome
+    """
+    # Determine fix method
+    if violation.fix_suggestion:
+        # Use pattern-based fix
+        return apply_pattern_fix(file_path, violation, violation.fix_suggestion, language)
+    else:
+        # Use removal fix (for patterns like no-console-log, no-debugger)
+        return apply_removal_fix(file_path, violation, language)
+
+
+def _process_fix_result(
+    result: FixResult,
+    file_path: str,
+    fixes_successful: int,
+    fixes_failed: int,
+    validation_passed: bool,
+    files_modified: Set[str]
+) -> Tuple[int, int, bool]:
+    """Process a single fix result and update counters.
+
+    Args:
+        result: The fix result to process
+        file_path: Path to the modified file
+        fixes_successful: Current successful fix count
+        fixes_failed: Current failed fix count
+        validation_passed: Current validation status
+        files_modified: Set of modified file paths
+
+    Returns:
+        Tuple of (updated_fixes_successful, updated_fixes_failed, updated_validation_passed)
+    """
+    if result.success and result.file_modified:
+        fixes_successful += 1
+        files_modified.add(file_path)
+
+        if not result.syntax_valid:
+            validation_passed = False
+    elif not result.success:
+        fixes_failed += 1
+        validation_passed = False
+
+    return fixes_successful, fixes_failed, validation_passed
+
+
+def _build_batch_result(
+    fixable_violations: List[RuleViolation],
+    fix_results: List[FixResult],
+    files_modified: Set[str],
+    fixes_successful: int,
+    fixes_failed: int,
+    validation_passed: bool,
+    backup_id: Optional[str],
+    start_time: float
+) -> FixBatchResult:
+    """Build the final batch result.
+
+    Args:
+        fixable_violations: All violations that were fixable
+        fix_results: Results from all fix attempts
+        files_modified: Set of modified file paths
+        fixes_successful: Number of successful fixes
+        fixes_failed: Number of failed fixes
+        validation_passed: Whether all validations passed
+        backup_id: Backup ID if created
+        start_time: Batch operation start time
+
+    Returns:
+        FixBatchResult with complete batch information
+    """
     execution_time = int((time.time() - start_time) * 1000)
 
     return FixBatchResult(
