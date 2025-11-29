@@ -1,12 +1,7 @@
 # Refactoring Patterns - Proven Complexity Reduction Techniques
 
-**Source:** Phase 1 & Phase 2 Complexity Refactoring (48 functions, 100% success)
 **Effectiveness:** 80-100% complexity reduction with zero behavioral regressions
 **Last Updated:** 2025-11-28
-
-## Overview
-
-This document captures proven refactoring patterns derived from successfully refactoring 48 complex functions in the ast-grep-mcp codebase. These patterns achieved 80-100% complexity reduction while maintaining zero behavioral regressions across 1,600+ tests.
 
 ## Pattern Selection Guide
 
