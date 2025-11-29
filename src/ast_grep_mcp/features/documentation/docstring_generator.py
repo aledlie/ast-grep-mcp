@@ -915,6 +915,81 @@ def _generate_javadoc(func: FunctionSignature) -> str:
 
 
 # =============================================================================
+# Main Generator Helpers
+# =============================================================================
+
+def _process_file_for_docstrings(
+    file_path: str,
+    parser: "FunctionSignatureParser",
+    doc_style: DocstringStyle,
+    language: str,
+    overwrite_existing: bool,
+    skip_private: bool,
+) -> Tuple[int, int, int, int, List[GeneratedDocstring]]:
+    """Process a single file and generate docstrings for its functions.
+
+    Args:
+        file_path: Path to the source file
+        parser: FunctionSignatureParser instance
+        doc_style: Docstring style to use
+        language: Programming language
+        overwrite_existing: Whether to overwrite existing docstrings
+        skip_private: Whether to skip private functions
+
+    Returns:
+        Tuple of (total, documented, generated, skipped, docstrings)
+    """
+    total = 0
+    documented = 0
+    generated = 0
+    skipped = 0
+    docstrings: List[GeneratedDocstring] = []
+
+    functions = parser.parse_file(file_path)
+    total = len(functions)
+
+    for func in functions:
+        should_skip, _ = _should_skip_function(func, skip_private)
+        if should_skip:
+            skipped += 1
+            continue
+
+        if func.existing_docstring and not overwrite_existing:
+            documented += 1
+            continue
+
+        docstring = _generate_docstring_for_function(func, doc_style, language)
+        docstrings.append(docstring)
+        generated += 1
+
+    return total, documented, generated, skipped, docstrings
+
+
+def _apply_docstrings_to_files(
+    docstrings_by_file: Dict[str, List[GeneratedDocstring]],
+    language: str,
+) -> List[str]:
+    """Apply generated docstrings to files.
+
+    Args:
+        docstrings_by_file: Docstrings grouped by file path
+        language: Programming language
+
+    Returns:
+        List of modified file paths
+    """
+    files_modified = []
+    for file_path, docstrings in docstrings_by_file.items():
+        try:
+            if _apply_docstring_to_file(file_path, docstrings, language):
+                files_modified.append(file_path)
+        except Exception as e:
+            logger.error("file_write_error", file=file_path, error=str(e))
+            sentry_sdk.capture_exception(e)
+    return files_modified
+
+
+# =============================================================================
 # Main Generator
 # =============================================================================
 
@@ -1084,6 +1159,7 @@ def generate_docstrings_impl(
     Returns:
         DocstringGenerationResult with generated docstrings
     """
+    import glob
     start_time = time.time()
 
     logger.info(
@@ -1096,69 +1172,39 @@ def generate_docstrings_impl(
     )
 
     # Determine style
-    if style == "auto":
-        doc_style = _detect_project_style(project_folder, language)
-    else:
-        doc_style = DocstringStyle(style)
+    doc_style = _detect_project_style(project_folder, language) if style == "auto" else DocstringStyle(style)
 
     # Find files matching pattern
-    import glob
     pattern_path = os.path.join(project_folder, file_pattern)
     files = glob.glob(pattern_path, recursive=True)
 
     parser = FunctionSignatureParser(language)
-
     total_functions = 0
     functions_documented = 0
     functions_generated = 0
     functions_skipped = 0
     all_docstrings: List[GeneratedDocstring] = []
-    files_modified: List[str] = []
-
-    # Group docstrings by file for batch application
     docstrings_by_file: Dict[str, List[GeneratedDocstring]] = {}
 
+    # Process each file
     for file_path in files:
         try:
-            functions = parser.parse_file(file_path)
-            total_functions += len(functions)
-
-            for func in functions:
-                # Check if should skip
-                should_skip, reason = _should_skip_function(func, skip_private)
-                if should_skip:
-                    functions_skipped += 1
-                    continue
-
-                # Check existing docstring
-                if func.existing_docstring and not overwrite_existing:
-                    functions_documented += 1
-                    continue
-
-                # Generate docstring
-                docstring = _generate_docstring_for_function(func, doc_style, language)
-                all_docstrings.append(docstring)
-                functions_generated += 1
-
-                # Group by file
-                if file_path not in docstrings_by_file:
-                    docstrings_by_file[file_path] = []
-                docstrings_by_file[file_path].append(docstring)
-
+            total, documented, generated, skipped, docstrings = _process_file_for_docstrings(
+                file_path, parser, doc_style, language, overwrite_existing, skip_private
+            )
+            total_functions += total
+            functions_documented += documented
+            functions_generated += generated
+            functions_skipped += skipped
+            all_docstrings.extend(docstrings)
+            if docstrings:
+                docstrings_by_file[file_path] = docstrings
         except Exception as e:
             logger.warning("file_parse_error", file=file_path, error=str(e))
             sentry_sdk.capture_exception(e)
-            continue
 
     # Apply docstrings if not dry run
-    if not dry_run:
-        for file_path, docstrings in docstrings_by_file.items():
-            try:
-                if _apply_docstring_to_file(file_path, docstrings, language):
-                    files_modified.append(file_path)
-            except Exception as e:
-                logger.error("file_write_error", file=file_path, error=str(e))
-                sentry_sdk.capture_exception(e)
+    files_modified = _apply_docstrings_to_files(docstrings_by_file, language) if not dry_run else []
 
     execution_time = int((time.time() - start_time) * 1000)
 
