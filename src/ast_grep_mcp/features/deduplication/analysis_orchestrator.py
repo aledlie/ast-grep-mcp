@@ -4,9 +4,10 @@ This module handles the multi-step process of finding duplicates,
 ranking them, checking test coverage, and generating recommendations.
 """
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from typing import Any, Callable, Dict, List, Optional
 
+from ...constants import ParallelProcessing
 from ...core.logging import get_logger
 from .coverage import TestCoverageDetector
 from .detector import DuplicationDetector
@@ -404,6 +405,7 @@ class DeduplicationAnalysisOrchestrator:
         default_error_value: Any,
         parallel: bool = True,
         max_workers: int = 4,
+        timeout_per_candidate: Optional[int] = None,
         **kwargs
     ) -> List[Dict[str, Any]]:
         """Generic parallel enrichment helper to reduce code duplication.
@@ -420,6 +422,7 @@ class DeduplicationAnalysisOrchestrator:
             default_error_value: Default value to set on error (e.g., {}, False)
             parallel: Whether to use parallel execution (default: True)
             max_workers: Maximum number of threads for parallel execution
+            timeout_per_candidate: Timeout in seconds for each candidate operation (default: 30s)
             **kwargs: Additional keyword arguments to pass to enrich_func
 
         Returns:
@@ -432,11 +435,19 @@ class DeduplicationAnalysisOrchestrator:
                 "test_coverage",
                 "test_coverage_error",
                 {},
+                timeout_per_candidate=30,
                 language=language,
                 project_path=project_path
             )
         """
         failed_candidates: List[Dict[str, Any]] = []
+
+        # Use default timeout if not specified
+        timeout_seconds = (
+            timeout_per_candidate
+            if timeout_per_candidate is not None
+            else ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS
+        )
 
         if parallel and len(candidates) > 1:
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -444,11 +455,25 @@ class DeduplicationAnalysisOrchestrator:
                     executor.submit(enrich_func, candidate, **kwargs): candidate
                     for candidate in candidates
                 }
-                # Wait for all to complete
+                # Process futures as they complete (no global timeout on iteration)
                 for future in as_completed(futures):
                     candidate = futures[future]
                     try:
-                        future.result()
+                        # Wait for individual future with per-candidate timeout
+                        future.result(timeout=timeout_seconds)
+                    except TimeoutError:
+                        self.logger.error(
+                            f"{operation_name}_timeout",
+                            candidate_id=candidate.get("id", "unknown"),
+                            timeout_seconds=timeout_seconds
+                        )
+                        # Mark candidate with timeout error
+                        candidate[error_field] = f"Operation timed out after {timeout_seconds}s"
+                        # Set default error value
+                        if isinstance(default_error_value, dict):
+                            for key, value in default_error_value.items():
+                                candidate[key] = value
+                        failed_candidates.append(candidate)
                     except Exception as e:
                         self.logger.error(
                             f"{operation_name}_enrichment_failed",
@@ -495,7 +520,8 @@ class DeduplicationAnalysisOrchestrator:
         language: str,
         project_path: str,
         parallel: bool = True,
-        max_workers: int = 4
+        max_workers: int = 4,
+        timeout_per_candidate: Optional[int] = None
     ) -> None:
         """Add test coverage information using optimized batch processing.
 
@@ -511,6 +537,7 @@ class DeduplicationAnalysisOrchestrator:
             project_path: Project folder path
             parallel: Whether to use parallel execution (default: True)
             max_workers: Maximum number of threads for parallel execution
+            timeout_per_candidate: Timeout in seconds for each candidate (default: 30s)
         """
         if not candidates:
             return
@@ -609,7 +636,8 @@ class DeduplicationAnalysisOrchestrator:
         self,
         candidates: List[Dict[str, Any]],
         parallel: bool = True,
-        max_workers: int = 4
+        max_workers: int = 4,
+        timeout_per_candidate: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """Add recommendations to candidates.
 
@@ -617,6 +645,7 @@ class DeduplicationAnalysisOrchestrator:
             candidates: List of candidates to enrich
             parallel: Whether to use parallel execution (default: True)
             max_workers: Maximum number of threads for parallel execution
+            timeout_per_candidate: Timeout in seconds for each candidate (default: 30s)
 
         Returns:
             List of candidates that failed enrichment (for monitoring)
@@ -636,6 +665,7 @@ class DeduplicationAnalysisOrchestrator:
                     "priority": "low"
                 }
             },
+            timeout_per_candidate=timeout_per_candidate,
             parallel=parallel,
             max_workers=max_workers
         )

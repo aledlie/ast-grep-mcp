@@ -21,6 +21,10 @@ class ParallelProcessing:
     DEFAULT_WORKERS = 4
     MAX_WORKERS = 16
 
+    # Timeout configuration for parallel operations
+    DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS = 30  # 30 seconds per candidate
+    MAX_TIMEOUT_SECONDS = 300  # 5 minutes max total timeout
+
     @staticmethod
     def get_optimal_workers(max_threads: int = 0) -> int:
         """Calculate optimal worker count based on CPU cores.

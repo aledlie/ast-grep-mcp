@@ -334,6 +334,81 @@ def execute_rule(
         return []
 
 
+def _should_stop_execution(
+    violations_count: int,
+    max_violations: int
+) -> bool:
+    """Check if execution should stop due to violation limit."""
+    return max_violations > 0 and violations_count >= max_violations
+
+
+def _execute_rule_with_limit(
+    rule: LintingRule,
+    context: RuleExecutionContext,
+    all_violations: List[RuleViolation],
+    violations_lock: threading.Lock
+) -> List[RuleViolation]:
+    """Execute a single rule with violation limit checking.
+
+    Args:
+        rule: The linting rule to execute
+        context: Execution context
+        all_violations: Shared list of all violations (for limit checking)
+        violations_lock: Lock for thread-safe access to all_violations
+
+    Returns:
+        List of violations found by this rule
+    """
+    # Check limit before executing
+    with violations_lock:
+        if _should_stop_execution(len(all_violations), context.max_violations):
+            context.logger.info("max_violations_reached", current=len(all_violations))
+            return []
+
+    # Execute the rule
+    return execute_rule(rule, context)
+
+
+def _process_rule_result(
+    future,
+    futures: Dict,
+    all_violations: List[RuleViolation],
+    violations_lock: threading.Lock,
+    context: RuleExecutionContext
+) -> bool:
+    """Process the result from a completed rule execution future.
+
+    Args:
+        future: Completed future
+        futures: Map of all futures to their rules
+        all_violations: List to append violations to
+        violations_lock: Lock for thread-safe access
+        context: Execution context for logging and limits
+
+    Returns:
+        True if execution should continue, False if max violations reached
+    """
+    try:
+        violations = future.result()
+
+        with violations_lock:
+            all_violations.extend(violations)
+
+            # Check if we should stop
+            if _should_stop_execution(len(all_violations), context.max_violations):
+                # Cancel remaining futures
+                for f in futures:
+                    if not f.done():
+                        f.cancel()
+                return False  # Stop processing
+
+    except Exception as e:
+        rule = futures[future]
+        context.logger.warning("rule_batch_execution_failed", rule_id=rule.id, error=str(e))
+
+    return True  # Continue processing
+
+
 def execute_rules_batch(
     rules: List[LintingRule],
     context: RuleExecutionContext
@@ -349,40 +424,34 @@ def execute_rules_batch(
     """
     logger = context.logger
     all_violations: List[RuleViolation] = []
-
-    # Track total violations to respect max_violations
     violations_lock = threading.Lock()
-
-    def execute_with_limit(rule: LintingRule) -> List[RuleViolation]:
-        """Execute rule and check max_violations limit."""
-        with violations_lock:
-            if context.max_violations > 0 and len(all_violations) >= context.max_violations:
-                logger.info("max_violations_reached", current=len(all_violations))
-                return []
-
-        return execute_rule(rule, context)
 
     # Execute rules in parallel
     with ThreadPoolExecutor(max_workers=context.max_threads) as executor:
-        futures = {executor.submit(execute_with_limit, rule): rule for rule in rules}
+        # Submit all rules for execution
+        futures = {
+            executor.submit(
+                _execute_rule_with_limit,
+                rule,
+                context,
+                all_violations,
+                violations_lock
+            ): rule
+            for rule in rules
+        }
 
+        # Process results as they complete
         for future in as_completed(futures):
-            try:
-                violations = future.result()
-                with violations_lock:
-                    all_violations.extend(violations)
+            should_continue = _process_rule_result(
+                future,
+                futures,
+                all_violations,
+                violations_lock,
+                context
+            )
 
-                    # Stop submitting new tasks if max reached
-                    if context.max_violations > 0 and len(all_violations) >= context.max_violations:
-                        # Cancel pending futures
-                        for f in futures:
-                            if not f.done():
-                                f.cancel()
-                        break
-
-            except Exception as e:
-                rule = futures[future]
-                logger.warning("rule_batch_execution_failed", rule_id=rule.id, error=str(e))
+            if not should_continue:
+                break
 
     return all_violations
 

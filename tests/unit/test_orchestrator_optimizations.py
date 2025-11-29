@@ -801,3 +801,150 @@ class TestParallelEnrichUtility:
             # Verify execution completed successfully
             assert len(failed) == 0
             assert all(c["done"] is True for c in test_candidates)
+
+    def test_parallel_enrich_timeout_parameter_accepted(self):
+        """Test that timeout_per_candidate parameter is accepted."""
+        import time
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        candidates = [{"id": "c1"}, {"id": "c2"}]
+
+        def enrich_func(candidate):
+            time.sleep(0.1)  # Brief delay
+            candidate["done"] = True
+
+        # Call with explicit timeout parameter
+        failed = orchestrator._parallel_enrich(
+            candidates=candidates,
+            enrich_func=enrich_func,
+            operation_name="test",
+            error_field="error",
+            default_error_value={},
+            parallel=True,
+            timeout_per_candidate=5  # 5 seconds should be plenty
+        )
+
+        # Verify successful execution with timeout set
+        assert len(failed) == 0
+        assert all(c["done"] is True for c in candidates)
+
+    def test_parallel_enrich_timeout_uses_default(self):
+        """Test that default timeout is used when not specified."""
+        import time
+        from ast_grep_mcp.constants import ParallelProcessing
+
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        candidates = [{"id": "c1"}]
+
+        def enrich_func(candidate):
+            time.sleep(0.05)  # Brief delay
+            candidate["done"] = True
+
+        # Call without timeout parameter - should use default
+        failed = orchestrator._parallel_enrich(
+            candidates=candidates,
+            enrich_func=enrich_func,
+            operation_name="test",
+            error_field="error",
+            default_error_value={},
+            parallel=True
+        )
+
+        # Verify execution completed (default timeout should be sufficient)
+        assert len(failed) == 0
+        assert candidates[0]["done"] is True
+        # Verify default timeout constant exists
+        assert ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS > 0
+
+    def test_parallel_enrich_timeout_constant_exists(self):
+        """Test that timeout constants are properly defined."""
+        from ast_grep_mcp.constants import ParallelProcessing
+
+        # Verify timeout constants exist and have reasonable values
+        assert hasattr(ParallelProcessing, 'DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS')
+        assert hasattr(ParallelProcessing, 'MAX_TIMEOUT_SECONDS')
+        assert ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS > 0
+        assert ParallelProcessing.MAX_TIMEOUT_SECONDS > ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS
+
+    def test_parallel_enrich_timeout_parameter_is_passed_through(self):
+        """Test that timeout parameter is accepted and doesn't cause errors.
+
+        Note: This test verifies the parameter plumbing rather than actual timeout
+        behavior, since Python threads cannot be forcibly interrupted.
+        """
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        candidates = [{"id": "c1"}]
+
+        def enrich_func(candidate):
+            candidate["done"] = True
+
+        # Call with various timeout values - all should work
+        for timeout_val in [None, 10, 30, 60]:
+            test_candidates = [{"id": "c1"}]
+            failed = orchestrator._parallel_enrich(
+                candidates=test_candidates,
+                enrich_func=enrich_func,
+                operation_name="test",
+                error_field="error",
+                default_error_value={},
+                parallel=True,
+                timeout_per_candidate=timeout_val
+            )
+            assert len(failed) == 0
+            assert test_candidates[0]["done"] is True
+
+    def test_parallel_enrich_timeout_in_method_signatures(self):
+        """Test that timeout parameters exist in public method signatures."""
+        orchestrator = DeduplicationAnalysisOrchestrator()
+
+        # Verify _parallel_enrich has timeout parameter
+        import inspect
+        parallel_sig = inspect.signature(orchestrator._parallel_enrich)
+        assert 'timeout_per_candidate' in parallel_sig.parameters
+
+        # Verify _add_recommendations has timeout parameter
+        rec_sig = inspect.signature(orchestrator._add_recommendations)
+        assert 'timeout_per_candidate' in rec_sig.parameters
+
+        # Verify _add_test_coverage_batch has timeout parameter
+        cov_sig = inspect.signature(orchestrator._add_test_coverage_batch)
+        assert 'timeout_per_candidate' in cov_sig.parameters
+
+    def test_add_recommendations_accepts_timeout(self):
+        """Test that _add_recommendations accepts timeout_per_candidate parameter."""
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        candidates = [{"id": "c1", "similarity": 0.9, "lines_saved": 100}]
+
+        # Call with timeout parameter - should not raise
+        failed = orchestrator._add_recommendations(
+            candidates=candidates,
+            parallel=False,  # Sequential to avoid actual parallelism
+            timeout_per_candidate=30
+        )
+
+        # Verify it ran without error
+        assert isinstance(failed, list)
+        assert "recommendation" in candidates[0]
+
+    def test_add_test_coverage_batch_accepts_timeout(self, temp_project_dir):
+        """Test that _add_test_coverage_batch accepts timeout_per_candidate parameter."""
+        from pathlib import Path
+
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        temp_path = Path(temp_project_dir)
+        candidates = [{"id": "c1", "files": [str(temp_path / "test.py")]}]
+
+        # Create test file
+        test_file = temp_path / "test.py"
+        test_file.write_text("print('hello')")
+
+        # Call with timeout parameter - should not raise
+        orchestrator._add_test_coverage_batch(
+            candidates=candidates,
+            language="python",
+            project_path=str(temp_project_dir),
+            parallel=False,  # Sequential to avoid complexity
+            timeout_per_candidate=30
+        )
+
+        # Verify it ran without error and added coverage info
+        assert "test_coverage" in candidates[0] or "has_tests" in candidates[0]
