@@ -142,9 +142,17 @@ class SchemaOrgClient:
                 label = range_type.get('rdfs:label')
                 expected_types.append(label if isinstance(label, str) else r['@id'].replace('schema:', ''))
 
+        # Ensure name is always a string
+        raw_label = prop.get('rdfs:label', '')
+        name = raw_label if isinstance(raw_label, str) else str(raw_label) if raw_label else ''
+
+        # Ensure description is always a string
+        raw_comment = prop.get('rdfs:comment', 'No description available')
+        description = raw_comment if isinstance(raw_comment, str) else str(raw_comment) if raw_comment else 'No description available'
+
         return {
-            'name': prop.get('rdfs:label', ''),
-            'description': prop.get('rdfs:comment', 'No description available'),
+            'name': name,
+            'description': description,
             'id': prop.get('@id', ''),
             'expectedTypes': expected_types
         }
@@ -338,7 +346,8 @@ class SchemaOrgClient:
                     )
                     properties.extend(inherited_props)
 
-        properties.sort(key=lambda x: x['name'])
+        # Sort by name, handling cases where name might not be a string
+        properties.sort(key=lambda x: str(x.get('name', '')) if x.get('name') else '')
         return properties
 
     async def generate_example(self, type_name: str, custom_properties: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
