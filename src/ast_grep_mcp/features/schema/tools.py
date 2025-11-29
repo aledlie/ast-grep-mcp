@@ -10,6 +10,7 @@ from pydantic import Field
 
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.schema.client import get_schema_org_client
+from ast_grep_mcp.features.schema.enhancement_service import analyze_entity_graph
 
 
 def get_schema_type_tool(type_name: str) -> Dict[str, Any]:
@@ -570,3 +571,84 @@ def register_schema_tools(mcp: FastMCP) -> None:
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone build_entity_graph_tool function."""
         return build_entity_graph_tool(entities=entities, base_url=base_url)
+
+    @mcp.tool()
+    def enhance_entity_graph(
+        input_source: str = Field(
+            description="File path or directory path containing JSON-LD Schema.org markup"
+        ),
+        input_type: str = Field(
+            default="file",
+            description="Input source type: 'file' for single file, 'directory' for scanning all .json files"
+        ),
+        output_mode: str = Field(
+            default="analysis",
+            description="Output mode: 'analysis' for enhancement suggestions, 'enhanced' for complete graph with placeholders, 'diff' for additions only"
+        )
+    ) -> Dict[str, Any]:
+        """Analyze existing Schema.org JSON-LD graphs and suggest enhancements.
+
+        Examines JSON-LD structured data and provides recommendations based on:
+        - Schema.org vocabulary standards
+        - Google Rich Results guidelines
+        - SEO best practices
+
+        Returns entity-level analysis with:
+        - Missing property suggestions with priorities (critical/high/medium)
+        - Missing entity type suggestions (FAQPage, BreadcrumbList, etc.)
+        - SEO completeness scores (0-100)
+        - Validation issues (broken @id references)
+        - Example values for all suggestions
+
+        Output Modes:
+        - analysis: Detailed suggestions with priorities and examples
+        - enhanced: Complete graph with all suggestions applied (placeholder values)
+        - diff: Only the additions needed (for merging with existing markup)
+        """
+        logger = get_logger("tool.enhance_entity_graph")
+        start_time = time.time()
+
+        logger.info(
+            "tool_invoked",
+            tool="enhance_entity_graph",
+            input_source=input_source,
+            input_type=input_type,
+            output_mode=output_mode
+        )
+
+        try:
+            result = asyncio.run(analyze_entity_graph(
+                input_source=input_source,
+                input_type=input_type,
+                output_mode=output_mode
+            ))
+
+            execution_time = time.time() - start_time
+            logger.info(
+                "tool_completed",
+                tool="enhance_entity_graph",
+                execution_time_seconds=round(execution_time, 3),
+                entity_count=len(result.get('entity_enhancements', [])),
+                seo_score=result.get('overall_seo_score', 0),
+                status="success"
+            )
+
+            return result
+
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(
+                "tool_failed",
+                tool="enhance_entity_graph",
+                execution_time_seconds=round(execution_time, 3),
+                error=str(e)[:200],
+                status="failed"
+            )
+            sentry_sdk.capture_exception(e, extras={
+                "tool": "enhance_entity_graph",
+                "input_source": input_source,
+                "input_type": input_type,
+                "output_mode": output_mode,
+                "execution_time_seconds": round(execution_time, 3)
+            })
+            raise
