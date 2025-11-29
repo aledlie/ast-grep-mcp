@@ -584,9 +584,17 @@ api_key = os.environ.get("API_KEY")  # SAFE
 
 - **ZERO complexity violations** in codebase (48→0)
 - **15/15 regression tests passing** for complexity thresholds
-- **Refactoring patterns documented** in PATTERNS.md
+- **Refactoring patterns documented** in docs/PATTERNS.md
 - **94% complexity reduction** in security scanner
 - **84% complexity reduction** in auto-fixer
+- **87% complexity reduction** in schema/client.py (pre-existing violations fixed)
+
+### Additional Refactoring (2025-11-29)
+
+| File | Function | Reduction | Commit |
+|------|----------|-----------|--------|
+| schema/client.py | `validate_entity_id` | 87% cyclomatic | `bf9e90d` |
+| schema/client.py | `build_entity_graph` | 86% cognitive | `bf9e90d` |
 
 ### Remaining Future Enhancements
 
