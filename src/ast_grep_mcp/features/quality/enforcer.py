@@ -275,12 +275,21 @@ def parse_match_to_violation(match: Dict[str, Any], rule: LintingRule) -> RuleVi
     end = range_info.get("end", {})
 
     # Extract metavariables if present
+    # ast-grep returns format: {"single": {"NAME": {"text": "..."}}, "multi": {...}}
     meta_vars = None
     if "metaVariables" in match:
-        meta_vars = {
-            var["name"]: var["text"]
-            for var in match["metaVariables"]
-        }
+        meta_vars = {}
+        meta_data = match["metaVariables"]
+        # Handle "single" metavariables (single captures like $NAME)
+        if "single" in meta_data and isinstance(meta_data["single"], dict):
+            for var_name, var_info in meta_data["single"].items():
+                if isinstance(var_info, dict) and "text" in var_info:
+                    meta_vars[var_name] = var_info["text"]
+        # Handle "multi" metavariables (multiple captures like $$$ARGS)
+        if "multi" in meta_data and isinstance(meta_data["multi"], dict):
+            for var_name, var_list in meta_data["multi"].items():
+                if isinstance(var_list, list):
+                    meta_vars[var_name] = [v.get("text", "") for v in var_list if isinstance(v, dict)]
 
     return RuleViolation(
         file=match.get("file", ""),
