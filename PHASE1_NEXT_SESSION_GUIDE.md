@@ -1,7 +1,8 @@
 # Phase 1 Refactoring - Next Session Quick Guide
 
-**Current Status:** 24/48 violations remaining (50% complete) ✅
-**Last Updated:** 2025-11-28 (Session 2)
+**Current Status:** 19/48 violations remaining (60% complete) ✅
+**Last Updated:** 2025-11-28 22:55 PST (Session 2 Complete)
+**Latest Commit:** `ddf8b0e` - refactor(smells): reduce _extract_classes complexity by 82%
 
 ## Quick Start Commands
 
@@ -18,95 +19,87 @@ uv run pytest tests/ -k "deduplication" -v
 
 ## Priority List: Top 10 Functions to Refactor Next
 
-### Critical (Highest Complexity - Do These First!)
+### Critical (Cognitive Complexity >30)
 
-1. **deduplication/detector.py:_merge_overlapping_groups**
-   - Cognitive: 58 (93% over limit) ⚠️ HIGHEST IN CODEBASE
-   - Nesting: 8 (33% over limit)
-   - Strategy: Extract connection processing logic, reduce nested loops
-   - Estimated time: 30-40 minutes
-
-2. **quality/enforcer.py:execute_rules_batch**
-   - Cognitive: 45 (50% over limit)
-   - Nesting: 8 (33% over limit)
-   - Strategy: Extract batch processing helpers, reduce error handling nesting
-   - Estimated time: 20-30 minutes
-
-3. **complexity/analyzer.py:analyze_file_complexity**
-   - Cognitive: 45 (50% over limit)
-   - Strategy: Extract language-specific analysis, separate concerns
-   - Estimated time: 20-30 minutes
-
-4. **deduplication/coverage.py:_check_test_file_references_source**
-   - Cyclomatic: 30 (50% over limit)
-   - Cognitive: 44 (47% over limit)
-   - Strategy: Extract reference checking logic, use early returns
-   - Estimated time: 20-25 minutes
-
-### High Priority (Moderate Complexity)
-
-5. **deduplication/coverage.py:get_test_coverage_for_files_batch**
-   - Cognitive: 40 (33% over limit)
-   - Strategy: Extract batch processing, parallelize operations
+1. **schema/client.py:initialize**
+   - Cognitive: 34 (13% over limit)
+   - Strategy: Extract schema type initialization, separate HTTP client setup
    - Estimated time: 15-20 minutes
 
-6. **quality/fixer.py:apply_fixes_batch**
-   - Cyclomatic: 26 (30% over limit)
-   - Cognitive: 39 (30% over limit)
-   - Strategy: Extract fix application logic, reduce branching
-   - Estimated time: 20-25 minutes
-
-7. **deduplication/recommendations.py:_generate_dedup_refactoring_strategies**
-   - Cyclomatic: 37 (85% over limit)
-   - Strategy: Configuration-driven strategy generation
+2. **refactoring/renamer.py:_classify_reference**
+   - Cognitive: 33 (10% over limit)
+   - Strategy: Extract classification rules to configuration-driven approach
    - Estimated time: 15-20 minutes
 
-8. **quality/security_scanner.py:scan_for_secrets_regex**
-   - Cognitive: 36 (20% over limit)
-   - Nesting: 8 (33% over limit)
-   - Strategy: Extract pattern matching, reduce nesting
+3. **quality/enforcer.py:load_rule_set**
+   - Cognitive: 32 (7% over limit)
+   - Strategy: Extract rule loading logic, simplify conditional chains
+   - Estimated time: 10-15 minutes
+
+### High Priority (Cyclomatic >22 or Lines >160)
+
+4. **complexity/tools.py:analyze_complexity_tool**
+   - Lines: 174 (16% over limit)
+   - Strategy: Extract parameter processing and result formatting helpers
    - Estimated time: 15-20 minutes
 
-9. **quality/smells_detectors.py:_extract_classes**
-   - Cognitive: 35 (17% over limit)
-   - Nesting: 7 (17% over limit)
-   - Strategy: Extract class detection logic, early returns
+5. **deduplication/generator.py:_infer_parameter_type**
+   - Cyclomatic: 24 (20% over limit)
+   - Strategy: Configuration-driven type inference with mapping dictionary
    - Estimated time: 15-20 minutes
 
-10. **complexity/analyzer.py:_extract_classes_from_file**
-    - Cognitive: 35 (17% over limit)
-    - Nesting: 7 (17% over limit)
-    - Strategy: Similar to #9, extract detection patterns
-    - Estimated time: 15-20 minutes
+6. **deduplication/applicator_post_validator.py:_suggest_syntax_fix**
+   - Cyclomatic: 24 (20% over limit)
+   - Strategy: Extract fix suggestion rules, reduce conditional nesting
+   - Estimated time: 15-20 minutes
 
-**Total Estimated Time for Top 10:** ~3.5 hours
+7. **refactoring/analyzer.py:_classify_variable_types**
+   - Cyclomatic: 24 (20% over limit)
+   - Strategy: Configuration-driven classification with pattern matching
+   - Estimated time: 15-20 minutes
 
-## Remaining 22 Functions (Medium/Low Priority)
+8. **deduplication/impact.py:_extract_function_names_from_code**
+   - Cyclomatic: 24 (20% over limit)
+   - Strategy: Extract language-specific parsing logic
+   - Estimated time: 15-20 minutes
 
-After completing the top 10, tackle these in batches by module:
+### Medium Priority (Minor violations 5-20% over)
 
-### Deduplication Module (4 more)
-- `_calculate_variation_complexity` - cyclomatic=28
-- `generate_extracted_function` - cyclomatic=23
+9. **deduplication/generator.py:generate_extracted_function**
+   - Cyclomatic: 23 (15% over limit)
+   - Strategy: Extract template variable substitution
+   - Estimated time: 10-15 minutes
+
+10. **deduplication/generator.py:substitute_template_variables**
+    - Cyclomatic: 22 (10% over limit)
+    - Strategy: Configuration-driven variable substitution
+    - Estimated time: 10-15 minutes
+
+**Total Estimated Time for Top 10:** ~2.5 hours
+
+## Remaining 9 Functions (Lower Priority)
+
+After completing the top 8, tackle these remaining functions:
+
+### Deduplication Module (3 more)
 - `_suggest_syntax_fix` (applicator_validator) - cyclomatic=23
-- `_suggest_syntax_fix` (applicator_post_validator) - cyclomatic=24
+- `apply_deduplication` (applicator) - cyclomatic=21
+- `substitute_template_variables` (generator) - cyclomatic=22
 
-### Quality Module (2 more)
-- `enforce_standards_tool` - cyclomatic=22
-- `load_rule_set` - cognitive=32
+### Quality/Complexity Tools (3 more)
+- `enforce_standards_tool` (quality/tools) - cyclomatic=22
+- `detect_code_smells_tool` (complexity/tools) - cyclomatic=22
+- `register_search_tools` (search/tools) - lines=158
 
-### Complexity Module (2 more)
-- `analyze_complexity_tool` - lines=174
-- `detect_code_smells_tool` - cyclomatic=22
+### Search/Refactoring (2 more)
+- `find_code_impl` (search/service) - cyclomatic=22
+- `extract_function_tool` (refactoring/tools) - cyclomatic=21
 
 ### Utils/Templates (2 more)
-- `format_typescript_function` - nesting=7
-- `format_javascript_function` - nesting=7
+- `format_typescript_function` (utils/templates) - nesting=7
+- `format_javascript_function` (utils/templates) - nesting=7
 
-### Other Modules (~10 more)
-- Various functions in rewrite, backup, search, schema modules
-
-**Total Remaining Estimated Time:** ~2.5 hours
+**Total Remaining Estimated Time:** ~1.5 hours
 
 ## Refactoring Strategy by Complexity Type
 
