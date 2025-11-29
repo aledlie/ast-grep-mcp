@@ -6,7 +6,7 @@ synchronized with code changes.
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import sentry_sdk
 
@@ -26,6 +26,54 @@ logger = get_logger(__name__)
 # Docstring Analysis
 # =============================================================================
 
+def _extract_python_docstring_params(docstring: str) -> List[str]:
+    """Extract parameter names from Python docstrings.
+
+    Supports Google, NumPy, and Sphinx styles.
+
+    Args:
+        docstring: Docstring content
+
+    Returns:
+        List of parameter names
+    """
+    params = []
+
+    # Google style: Args:
+    args_match = re.search(r'Args:\s*\n((?:\s+\w+.*\n?)+)', docstring)
+    if args_match:
+        for line in args_match.group(1).split('\n'):
+            param_match = re.match(r'\s+(\w+)(?:\s*\(|\s*:)', line)
+            if param_match:
+                params.append(param_match.group(1))
+
+    # NumPy style: Parameters
+    params_match = re.search(r'Parameters\s*\n-+\s*\n((?:.*\n?)+?)(?:\n\w|\Z)', docstring)
+    if params_match:
+        for line in params_match.group(1).split('\n'):
+            param_match = re.match(r'(\w+)\s*:', line)
+            if param_match:
+                params.append(param_match.group(1))
+
+    # Sphinx style: :param name:
+    for match in re.finditer(r':param\s+(\w+):', docstring):
+        params.append(match.group(1))
+
+    return params
+
+
+def _extract_js_docstring_params(docstring: str) -> List[str]:
+    """Extract parameter names from JSDoc/Javadoc docstrings.
+
+    Args:
+        docstring: Docstring content
+
+    Returns:
+        List of parameter names
+    """
+    return [m.group(1) for m in re.finditer(r'@param\s+(?:\{[^}]+\}\s+)?(\w+)', docstring)]
+
+
 def _extract_docstring_params(docstring: str, language: str) -> List[str]:
     """Extract documented parameter names from a docstring.
 
@@ -36,40 +84,11 @@ def _extract_docstring_params(docstring: str, language: str) -> List[str]:
     Returns:
         List of documented parameter names
     """
-    params = []
-
     if language == "python":
-        # Google style: Args:
-        args_match = re.search(r'Args:\s*\n((?:\s+\w+.*\n?)+)', docstring)
-        if args_match:
-            for line in args_match.group(1).split('\n'):
-                param_match = re.match(r'\s+(\w+)(?:\s*\(|\s*:)', line)
-                if param_match:
-                    params.append(param_match.group(1))
-
-        # NumPy style: Parameters
-        params_match = re.search(r'Parameters\s*\n-+\s*\n((?:.*\n?)+?)(?:\n\w|\Z)', docstring)
-        if params_match:
-            for line in params_match.group(1).split('\n'):
-                param_match = re.match(r'(\w+)\s*:', line)
-                if param_match:
-                    params.append(param_match.group(1))
-
-        # Sphinx style: :param name:
-        for match in re.finditer(r':param\s+(\w+):', docstring):
-            params.append(match.group(1))
-
-    elif language in ("typescript", "javascript"):
-        # JSDoc style: @param {type} name
-        for match in re.finditer(r'@param\s+(?:\{[^}]+\}\s+)?(\w+)', docstring):
-            params.append(match.group(1))
-
-    elif language == "java":
-        # Javadoc style: @param name
-        for match in re.finditer(r'@param\s+(\w+)', docstring):
-            params.append(match.group(1))
-
-    return params
+        return _extract_python_docstring_params(docstring)
+    elif language in ("typescript", "javascript", "java"):
+        return _extract_js_docstring_params(docstring)
+    return []
 
 
 def _extract_docstring_return(docstring: str, language: str) -> bool:
@@ -353,6 +372,107 @@ def _find_markdown_files(project_folder: str) -> List[str]:
     return list(set(files))
 
 
+def _check_function_docstring(
+    func: FunctionSignature,
+    language: str,
+) -> Tuple[List[DocSyncIssue], bool, bool, Optional[Dict[str, Any]]]:
+    """Check a single function's docstring.
+
+    Args:
+        func: Function signature
+        language: Programming language
+
+    Returns:
+        Tuple of (issues, is_documented, is_stale, suggestion)
+    """
+    # Skip private functions (single underscore prefix)
+    if func.name.startswith('_') and not func.name.startswith('__'):
+        return [], False, False, None
+
+    issues = _check_docstring_sync(func, language)
+    is_documented = bool(func.existing_docstring)
+    is_stale = is_documented and any(i.issue_type == 'stale' for i in issues)
+
+    suggestion = None
+    if not func.existing_docstring:
+        suggestion = {
+            'file': func.file_path,
+            'line': func.start_line,
+            'function': func.name,
+            'action': 'add_docstring',
+        }
+
+    return issues, is_documented, is_stale, suggestion
+
+
+def _check_docstrings_in_files(
+    project_folder: str,
+    language: str,
+    include_patterns: List[str],
+    exclude_patterns: List[str],
+) -> Tuple[List[DocSyncIssue], int, int, int, int, List[Dict[str, Any]]]:
+    """Check docstrings across source files.
+
+    Returns:
+        Tuple of (issues, total, documented, undocumented, stale, suggestions)
+    """
+    source_files = _find_source_files(project_folder, language, include_patterns, exclude_patterns)
+    parser = FunctionSignatureParser(language)
+
+    all_issues: List[DocSyncIssue] = []
+    total_functions = 0
+    documented_functions = 0
+    undocumented_functions = 0
+    stale_docstrings = 0
+    suggestions: List[Dict[str, Any]] = []
+
+    for file_path in source_files:
+        try:
+            functions = parser.parse_file(file_path)
+            total_functions += len(functions)
+
+            for func in functions:
+                issues, is_documented, is_stale, suggestion = _check_function_docstring(func, language)
+                all_issues.extend(issues)
+
+                if is_documented:
+                    documented_functions += 1
+                    if is_stale:
+                        stale_docstrings += 1
+                elif suggestion:  # Only count non-private undocumented functions
+                    undocumented_functions += 1
+                    suggestions.append(suggestion)
+
+        except Exception as e:
+            logger.warning("file_parse_error", file=file_path, error=str(e))
+            sentry_sdk.capture_exception(e)
+
+    return all_issues, total_functions, documented_functions, undocumented_functions, stale_docstrings, suggestions
+
+
+def _check_markdown_link_issues(project_folder: str) -> List[DocSyncIssue]:
+    """Check all markdown files for broken links.
+
+    Args:
+        project_folder: Project root
+
+    Returns:
+        List of broken link issues
+    """
+    all_issues: List[DocSyncIssue] = []
+    md_files = _find_markdown_files(project_folder)
+
+    for file_path in md_files:
+        try:
+            link_issues = _check_markdown_links(file_path, project_folder)
+            all_issues.extend(link_issues)
+        except Exception as e:
+            logger.warning("link_check_error", file=file_path, error=str(e))
+            sentry_sdk.capture_exception(e)
+
+    return all_issues
+
+
 def sync_documentation_impl(
     project_folder: str,
     language: str,
@@ -376,12 +496,9 @@ def sync_documentation_impl(
     """
     start_time = time.time()
 
-    if doc_types is None:
-        doc_types = ['all']
-    if include_patterns is None:
-        include_patterns = ['all']
-    if exclude_patterns is None:
-        exclude_patterns = []
+    doc_types = doc_types or ['all']
+    include_patterns = include_patterns or ['all']
+    exclude_patterns = exclude_patterns or []
 
     logger.info(
         "sync_documentation_started",
@@ -396,67 +513,23 @@ def sync_documentation_impl(
     documented_functions = 0
     undocumented_functions = 0
     stale_docstrings = 0
-    files_updated: List[str] = []
     suggestions: List[Dict[str, Any]] = []
 
     # Check docstrings
     if 'all' in doc_types or 'docstrings' in doc_types:
-        # Find source files
-        source_files = _find_source_files(
+        issues, total, documented, undocumented, stale, suggs = _check_docstrings_in_files(
             project_folder, language, include_patterns, exclude_patterns
         )
-
-        # Parse functions and check docstrings
-        parser = FunctionSignatureParser(language)
-
-        for file_path in source_files:
-            try:
-                functions = parser.parse_file(file_path)
-                total_functions += len(functions)
-
-                for func in functions:
-                    # Skip private functions (single underscore prefix)
-                    if func.name.startswith('_') and not func.name.startswith('__'):
-                        continue
-
-                    # Check sync
-                    issues = _check_docstring_sync(func, language)
-                    all_issues.extend(issues)
-
-                    # Count stats
-                    if func.existing_docstring:
-                        documented_functions += 1
-                        # Check if stale
-                        stale_issues = [i for i in issues if i.issue_type == 'stale']
-                        if stale_issues:
-                            stale_docstrings += 1
-                    else:
-                        undocumented_functions += 1
-
-                    # Generate suggestion if undocumented
-                    if not func.existing_docstring:
-                        suggestions.append({
-                            'file': func.file_path,
-                            'line': func.start_line,
-                            'function': func.name,
-                            'action': 'add_docstring',
-                        })
-
-            except Exception as e:
-                logger.warning("file_parse_error", file=file_path, error=str(e))
-                sentry_sdk.capture_exception(e)
+        all_issues.extend(issues)
+        total_functions = total
+        documented_functions = documented
+        undocumented_functions = undocumented
+        stale_docstrings = stale
+        suggestions = suggs
 
     # Check markdown links
     if 'all' in doc_types or 'links' in doc_types:
-        md_files = _find_markdown_files(project_folder)
-
-        for file_path in md_files:
-            try:
-                link_issues = _check_markdown_links(file_path, project_folder)
-                all_issues.extend(link_issues)
-            except Exception as e:
-                logger.warning("link_check_error", file=file_path, error=str(e))
-                sentry_sdk.capture_exception(e)
+        all_issues.extend(_check_markdown_link_issues(project_folder))
 
     # Sort issues by severity
     severity_order = {'error': 0, 'warning': 1, 'info': 2}
@@ -481,7 +554,7 @@ def sync_documentation_impl(
         stale_docstrings=stale_docstrings,
         issues=all_issues,
         suggestions=suggestions,
-        files_updated=files_updated,
+        files_updated=[],
         check_only=check_only,
         execution_time_ms=execution_time,
     )
