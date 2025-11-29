@@ -14,11 +14,11 @@ doppler run -- uv run main.py    # Run with Doppler secrets (production)
 
 ## Project Overview
 
-Modular MCP server with 63 modules combining ast-grep structural code search with Schema.org tools, refactoring assistants, enhanced deduplication, code quality standards, and documentation generation.
+Modular MCP server with 64 modules combining ast-grep structural code search with Schema.org tools, refactoring assistants, enhanced deduplication, code quality standards, and documentation generation.
 
 **Architecture:** Clean modular design with entry point (`main.py`) and organized features under `src/ast_grep_mcp/` (core, models, utils, features, server).
 
-**37 MCP Tools:** Code search (4), Code rewrite (3), Refactoring (2), Deduplication (4), Schema.org (8), Complexity (2), Code Quality (4), Documentation (5)
+**38 MCP Tools:** Code search (4), Code rewrite (3), Refactoring (2), Deduplication (4), Schema.org (9), Complexity (2), Code Quality (4), Documentation (5)
 
 **Dependencies:** ast-grep CLI (required), Doppler CLI (optional), Python 3.13+, uv package manager
 
@@ -46,18 +46,18 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 
 ## Architecture
 
-**63 Modules organized under `src/ast_grep_mcp/`:**
+**64 Modules organized under `src/ast_grep_mcp/`:**
 
 ```
 src/ast_grep_mcp/
 ├── core/           # Config, cache, executor, logging, sentry
-├── models/         # Data models for refactoring, deduplication, complexity, documentation
+├── models/         # Data models for refactoring, deduplication, complexity, documentation, schema_enhancement
 ├── utils/          # Templates, formatters, text, validation, syntax_validation
-├── features/       # Feature modules (44 modules)
+├── features/       # Feature modules (45 modules)
 │   ├── search/         # Code search (2 modules)
 │   ├── rewrite/        # Code rewrite (3 modules)
 │   ├── refactoring/    # Refactoring assistants (5 modules)
-│   ├── schema/         # Schema.org integration (2 modules)
+│   ├── schema/         # Schema.org integration (4 modules: client, tools, enhancement_rules, enhancement_service)
 │   ├── deduplication/  # Deduplication (12 modules)
 │   ├── complexity/     # Complexity analysis (4 modules)
 │   ├── quality/        # Code quality (5 modules)
@@ -250,6 +250,18 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 
 ## Recent Updates
 
+### 2025-11-29: Entity Graph Enhancement Tool
+- Added `enhance_entity_graph` tool for analyzing existing Schema.org JSON-LD graphs
+- Suggests missing properties based on Schema.org vocabulary and Google Rich Results guidelines
+- Suggests missing entity types (FAQPage, WebSite, BreadcrumbList, Review)
+- Calculates SEO completeness scores (0-100) for entities and overall graph
+- Validates @id references across the graph
+- Three output modes: analysis, enhanced (with placeholders), diff (additions only)
+- 51 new tests covering all enhancement functionality
+- New models: `schema_enhancement.py` with 6 dataclasses/enums
+- New modules: `enhancement_rules.py`, `enhancement_service.py`
+- Total MCP tools: 38 (added 1 Schema.org tool)
+
 ### 2025-11-29: Documentation Generation Feature
 - Added `generate_docstrings` tool with 5 docstring styles (Google, NumPy, Sphinx, JSDoc, Javadoc)
 - Added `generate_readme_sections` tool with project analysis
@@ -257,7 +269,7 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 - Added `generate_changelog` tool with Keep a Changelog and Conventional formats
 - Added `sync_documentation` tool for detecting stale docs and broken links
 - 32 new tests for documentation generation
-- Total MCP tools: 32 (added 5 documentation tools)
+- Total MCP tools: 37 (added 5 documentation tools)
 
 ### 2025-11-28: Phase 2 Complexity Refactoring COMPLETE 🎉
 - ✅ **ZERO violations achieved** (48 → 0 functions, 100% complete)
