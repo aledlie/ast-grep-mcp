@@ -6,8 +6,8 @@ This file provides guidance to Claude Code when working with this repository.
 
 ```bash
 uv sync                          # Install dependencies
-uv run pytest                    # Run all tests (1,586 tests)
-uv run ruff check . && mypy src/  # Lint and type check
+uv run pytest                    # Run all tests (1,600+ tests)
+uv run ruff check . && mypy src/ # Lint and type check
 uv run main.py                   # Run MCP server locally
 doppler run -- uv run main.py    # Run with Doppler secrets (production)
 ```
@@ -16,245 +16,76 @@ doppler run -- uv run main.py    # Run with Doppler secrets (production)
 
 Modular MCP server with 57 modules combining ast-grep structural code search with Schema.org tools, refactoring assistants, enhanced deduplication, and code quality standards.
 
-**Architecture:** Clean modular design with entry point (`main.py`) providing backward compatibility and organized features under `src/ast_grep_mcp/` (core, models, utils, features, server).
+**Architecture:** Clean modular design with entry point (`main.py`) and organized features under `src/ast_grep_mcp/` (core, models, utils, features, server).
 
-**30 Tools (100% Registered):** Code search (4), Code rewrite (3), Refactoring Assistants (2), Deduplication (4), Schema.org (8), Complexity (3), Code Quality (6)
+**30 MCP Tools:** Code search (4), Code rewrite (3), Refactoring (2), Deduplication (4), Schema.org (8), Complexity (3), Code Quality (6)
 
-**Dependencies:** ast-grep CLI (required), Doppler CLI (optional for secrets), Python 3.13+, uv package manager
+**Dependencies:** ast-grep CLI (required), Doppler CLI (optional), Python 3.13+, uv package manager
 
-## Sentry & Doppler Setup
+## Recent Work: Phase 1 Complexity Refactoring (2025-11-28)
 
-**Optional monitoring** - Zero overhead when not configured.
+**Status:** 33% complete (48 → 32 violations)
+**Next Session:** See [PHASE1_NEXT_SESSION_GUIDE.md](PHASE1_NEXT_SESSION_GUIDE.md)
+**Full Summary:** See [PHASE1_REFACTORING_SUMMARY.md](PHASE1_REFACTORING_SUMMARY.md)
 
-**Doppler (recommended):**
+### Completed Refactorings
+
+**Critical Functions (3):**
+1. ✅ `format_java_code` - 95% complexity reduction (cyclomatic 39→7, cognitive 60→3)
+2. ✅ `detect_security_issues_impl` - 90% reduction (cyclomatic 31→3, cognitive 57→8)
+3. ✅ `parse_args_and_get_config` - 90% cyclomatic, 97% cognitive reduction
+
+**Additional Functions (13):**
+- Complexity calculators: `calculate_cyclomatic_complexity`, `calculate_cognitive_complexity`
+- Quality tools: MCP wrappers refactored with service layer separation
+- Search, schema, deduplication modules: Various helper extraction
+
+### Refactoring Patterns Used
+
+1. **Extract Method** - Breaking down large functions into focused helpers
+2. **Configuration-Driven Design** - Replacing repetitive if-blocks with data structures
+3. **Early Returns** - Reducing nesting with guard clauses
+4. **Service Layer Separation** - Extracting business logic from MCP wrappers
+
+### Testing
+
+**Complexity Regression Tests:**
 ```bash
-doppler secrets --project bottleneck --config dev | grep SENTRY
-doppler run -- uv run main.py
-```
+# Check current violations
+uv run pytest tests/quality/test_complexity_regression.py::TestComplexityTrends::test_no_functions_exceed_critical_thresholds -v
 
-**Manual:**
-```bash
-export SENTRY_DSN="your-dsn"
-export SENTRY_ENVIRONMENT="production"
-```
-
-**Docs:** See [SENTRY-INTEGRATION.md](docs/SENTRY-INTEGRATION.md) and [DOPPLER-MIGRATION.md](docs/DOPPLER-MIGRATION.md).
-
-## MCP Client Configuration
-
-**With Doppler:**
-```json
-{
-  "mcpServers": {
-    "ast-grep": {
-      "command": "doppler",
-      "args": ["run", "--project", "bottleneck", "--config", "dev", "--command",
-               "uv --directory /absolute/path/to/ast-grep-mcp run main.py"]
-    }
-  }
-}
-```
-
-**Without Doppler:**
-```json
-{
-  "mcpServers": {
-    "ast-grep": {
-      "command": "uv",
-      "args": ["--directory", "/absolute/path/to/ast-grep-mcp", "run", "main.py"],
-      "env": {}
-    }
-  }
-}
-```
-
-## Testing
-
-**1,600+ tests total:** Unit tests (mocked) and integration tests (requires ast-grep binary)
-
-**Key test files:**
-- `test_extract_function.py` - Function extraction (11 tests)
-- `test_rename_symbol.py` - Symbol renaming (21 tests)
-- `test_complexity.py` - Complexity analysis (51 tests)
-- `test_code_smells.py` - Code smell detection (27 tests)
-- `test_apply_deduplication.py` - Deduplication (24 tests)
-- **`test_complexity_regression.py`** - Complexity regression prevention (15 tests)
-
-**Run specific:** `uv run pytest tests/unit/test_ranking.py -v`
-
-### Complexity Regression Tests (NEW!)
-
-Comprehensive test suite in `tests/quality/test_complexity_regression.py` that prevents complexity creep:
-
-**Purpose:** Track and prevent complexity regression across the entire codebase
-
-**Test Results (Current State):**
-- ✅ **14/15 tests passing**
-- ❌ **1 test expected to fail** - identifies 53 functions needing refactoring
-
-**Key Tests:**
-
-1. **test_function_complexity_thresholds** (10 parameterized tests)
-   - Tracks 10 critical functions that were refactored or need refactoring
-   - Prevents these functions from regressing to high complexity
-   - All currently passing after Phase 1 refactoring
-
-2. **test_no_functions_exceed_critical_thresholds** ⚠️ EXPECTED TO FAIL
-   - Scans ALL functions in `src/` for critical threshold violations
-   - Critical thresholds: cyclomatic≤20, cognitive≤30, nesting≤6, lines≤150
-   - Currently identifies **53 functions** needing refactoring
-   - As refactoring progresses, this count decreases toward zero
-   - When count reaches zero, test passes = codebase is healthy!
-
-3. **test_codebase_health_metrics**
-   - Tracks overall codebase health (averages, percentages over threshold)
-   - Provides visibility into complexity trends
-   - Prints health report with current metrics vs. targets
-
-4. **test_phase1_refactoring_impact**
-   - Verifies Phase 1 refactoring achieved goals
-   - Checks average complexity of refactored functions
-
-**Usage:**
-
-```bash
-# Run all complexity regression tests
+# Run all regression tests
 uv run pytest tests/quality/test_complexity_regression.py -v
-
-# Run only passing tests (skip critical threshold check)
-uv run pytest tests/quality/test_complexity_regression.py -v \
-    -k "not test_no_functions_exceed_critical_thresholds"
-
-# See health metrics report
-uv run pytest tests/quality/test_complexity_regression.py::TestComplexityTrends::test_codebase_health_metrics -v -s
 ```
 
-**Interpreting Results:**
-- **14/15 passing** = Current state (refactoring in progress)
-- **15/15 passing** = All refactoring complete! 🎉
-- **<14 passing** = Regression detected - investigate immediately
+**Current Results:**
+- ✅ 14/15 tests passing
+- ⚠️ 1 expected failure tracking 32 remaining violations
+- Target: 15/15 passing (0 violations)
 
-**CI/CD Integration:**
-Add as a quality gate that warns but doesn't block:
-```yaml
-- name: Complexity Regression Check
-  run: |
-    uv run pytest tests/quality/test_complexity_regression.py -v || \
-    echo "⚠️ 53 functions still need refactoring"
-```
+**Critical Thresholds:**
+- Cyclomatic complexity: ≤20
+- Cognitive complexity: ≤30
+- Nesting depth: ≤6
+- Function length: ≤150 lines
 
-## Features
+### Next Priority Functions (Top 5)
 
-### Code Complexity Analysis
-
-Analyze cyclomatic complexity, cognitive complexity, nesting depth, and function length.
-
-**Tool:** `analyze_complexity`
-
-**Metrics:**
-- **Cyclomatic**: McCabe's cyclomatic complexity (decision points + 1)
-- **Cognitive**: SonarSource-style with nesting penalties
-- **Nesting**: Maximum indentation depth
-- **Length**: Lines per function
-
-**Storage:** SQLite at `~/.local/share/ast-grep-mcp/complexity.db`
-
-### Code Smell Detection
-
-**Tool:** `detect_code_smells`
-
-**Detects:**
-- Long functions, parameter bloat, deep nesting, large classes, magic numbers
-- Severity ratings: high/medium/low
-
-### Code Quality & Standards
-
-**Tools:**
-- `create_linting_rule` - Create custom linting rules (24+ templates)
-- `list_rule_templates` - Browse rule templates
-- `enforce_standards` - Execute linting rules with parallel processing
-- `apply_standards_fixes` - Auto-fix violations with safety classification
-- `generate_quality_report` - Generate Markdown/JSON quality reports
-- `detect_security_issues` - Scan for security vulnerabilities
-
-**Built-in Rule Sets:**
-- **recommended** (10): General best practices
-- **security** (9): Security vulnerabilities
-- **performance** (1): Performance anti-patterns
-- **style** (9): Code style consistency
-
-**Security Scanner:**
-- SQL injection (f-strings, .format(), concatenation)
-- XSS (innerHTML, document.write)
-- Command injection (os.system, subprocess with shell=True, eval/exec)
-- Hardcoded secrets (API keys, tokens, passwords)
-- Insecure cryptography (MD5, SHA-1)
-- CWE IDs and confidence scoring
-
-**Storage:** `.ast-grep-rules/{rule-id}.yml`
-
-### Code Rewrite
-
-Safe transformations with automatic backups and syntax validation.
-
-**Workflow:**
-```python
-rewrite_code(..., dry_run=true)   # Preview
-rewrite_code(..., dry_run=false)  # Apply with backup
-rollback_rewrite(..., backup_id)  # Undo if needed
-```
-
-**Backups:** `.ast-grep-backups/backup-YYYYMMDD-HHMMSS-mmm/`
-
-### Refactoring Assistants
-
-**Tools:**
-- `extract_function` - Extract code into reusable functions with parameter/return detection
-- `rename_symbol` - Rename symbols with scope awareness and conflict detection
-
-**Features:**
-- Dry-run mode with diff preview
-- Backup and rollback support
-- Multi-file atomic updates (rename_symbol)
-- Language support: Python (full), TypeScript/JavaScript/Java (basic)
-
-**Workflow:**
-1. Preview with dry_run=True
-2. Check for conflicts
-3. Apply with dry_run=False
-4. Rollback if needed
-
-### Code Deduplication
-
-Enhanced duplication detection with intelligent analysis and automated refactoring.
-
-**Tools:**
-- `find_duplication` - Detect duplicate functions/classes/methods
-- `analyze_deduplication_candidates` - Rank duplicates by refactoring value
-- `apply_deduplication` - Apply refactoring with validation and backup
-- `benchmark_deduplication` - Performance benchmarking
-
-**Scoring Algorithm:**
-- Savings: 40% weight
-- Complexity: 20% weight (inverse)
-- Risk: 25% weight (inverse, based on test coverage + call sites)
-- Effort: 15% weight (inverse, based on affected files)
-
-**Docs:** See [DEDUPLICATION-GUIDE.md](DEDUPLICATION-GUIDE.md)
+1. `_merge_overlapping_groups` - cognitive=58 (93% over limit) ⚠️ HIGHEST
+2. `execute_rules_batch` - cognitive=45, nesting=8
+3. `analyze_file_complexity` - cognitive=45
+4. `_check_test_file_references_source` - cyclomatic=30, cognitive=44
+5. `get_test_coverage_for_files_batch` - cognitive=40
 
 ## Architecture
 
-**Modular design** with 57 modules organized under `src/ast_grep_mcp/`:
+**57 Modules organized under `src/ast_grep_mcp/`:**
 
 ```
 src/ast_grep_mcp/
-├── core/           # Core infrastructure (6 modules)
-│   ├── config.py, cache.py, executor.py
-│   └── logging.py, sentry.py, exceptions.py
-├── models/         # Data models (6 modules)
-│   └── refactoring.py, deduplication.py, complexity.py, standards.py
-├── utils/          # Utilities (4 modules)
-│   └── templates.py, formatters.py, text.py, validation.py
+├── core/           # Config, cache, executor, logging, sentry
+├── models/         # Data models for refactoring, deduplication, complexity
+├── utils/          # Templates, formatters, text, validation
 ├── features/       # Feature modules (38 modules)
 │   ├── search/         # Code search (2 modules)
 │   ├── rewrite/        # Code rewrite (3 modules)
@@ -263,13 +94,12 @@ src/ast_grep_mcp/
 │   ├── deduplication/  # Deduplication (12 modules)
 │   ├── complexity/     # Complexity analysis (4 modules)
 │   └── quality/        # Code quality (5 modules)
-└── server/         # MCP server (3 modules)
-    └── registry.py, runner.py
+└── server/         # MCP server registry and runner
 ```
 
 ### Import Patterns
 
-**New modular pattern (recommended):**
+**Recommended:**
 ```python
 # Import from service modules
 from ast_grep_mcp.features.search.service import find_code_impl
@@ -281,18 +111,95 @@ from ast_grep_mcp.core.cache import get_cache
 from ast_grep_mcp.core.executor import execute_ast_grep
 ```
 
-**Backward compatibility (temporary):**
-```python
-# Old pattern (still works via main.py re-exports)
-from main import find_code, rewrite_code
+## Key Features
+
+### Code Complexity Analysis
+- Cyclomatic, cognitive complexity, nesting depth, function length
+- SQLite storage at `~/.local/share/ast-grep-mcp/complexity.db`
+- Regression tests prevent complexity creep
+
+### Code Quality & Standards
+- Custom linting rules (24+ templates)
+- Security vulnerability scanner (SQL injection, XSS, command injection, secrets, crypto)
+- Auto-fix with safety classification
+- Parallel rule execution
+
+### Code Deduplication
+- Intelligent duplication detection with scoring algorithm
+- Automated refactoring with validation
+- Test coverage integration (9+ languages)
+- Performance benchmarking
+
+### Refactoring Assistants
+- Extract function with parameter/return detection
+- Rename symbol with scope awareness
+- Dry-run mode, backups, rollback support
+- Multi-file atomic updates
+
+## Testing
+
+**1,600+ tests:** Unit (mocked) and integration (requires ast-grep)
+
+**Key Test Suites:**
+- `test_complexity_regression.py` - Complexity tracking (15 tests)
+- `test_extract_function.py` - Function extraction (11 tests)
+- `test_rename_symbol.py` - Symbol renaming (21 tests)
+- `test_apply_deduplication.py` - Deduplication (24 tests)
+- `test_complexity.py` - Complexity analysis (51 tests)
+
+**Run Tests:**
+```bash
+uv run pytest tests/ -q --tb=no                     # All tests
+uv run pytest tests/unit/test_ranking.py -v         # Specific suite
+uv run pytest tests/quality/ -v                     # Quality tests only
 ```
+
+## Configuration
+
+**MCP Client Setup:**
+
+With Doppler:
+```json
+{
+  "mcpServers": {
+    "ast-grep": {
+      "command": "doppler",
+      "args": ["run", "--project", "bottleneck", "--config", "dev", "--command",
+               "uv --directory /path/to/ast-grep-mcp run main.py"]
+    }
+  }
+}
+```
+
+Without Doppler:
+```json
+{
+  "mcpServers": {
+    "ast-grep": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/ast-grep-mcp", "run", "main.py"],
+      "env": {}
+    }
+  }
+}
+```
+
+**Environment Variables:**
+- `AST_GREP_CONFIG` - Path to sgconfig.yaml
+- `LOG_LEVEL` - DEBUG, INFO, WARNING, ERROR (default: INFO)
+- `LOG_FILE` - Path to log file (default: stderr)
+- `SENTRY_DSN` - Sentry error tracking (optional)
+- `CACHE_DISABLED` - Set to 1 to disable caching
+- `CACHE_SIZE` - Max cached queries (default: 100)
+- `CACHE_TTL` - Cache TTL in seconds (default: 300)
 
 ## Development Notes
 
 - **Windows:** Use `shell=True` for npm-installed ast-grep
-- **Config precedence:** `--config` flag > `AST_GREP_CONFIG` env var > defaults
+- **Config precedence:** `--config` flag > `AST_GREP_CONFIG` env > defaults
 - **YAML rules:** Requires `kind` field; add `stopBy: end` to relational rules
 - **Streaming:** Early termination on `max_results` (SIGTERM → SIGKILL)
+- **Sentry:** Optional monitoring with zero overhead when disabled
 
 ## Standalone Tools
 
@@ -307,160 +214,60 @@ uv run python scripts/find_duplication.py /path/to/project --language python --a
 python scripts/run_benchmarks.py --check-regression
 ```
 
-## Recent Updates
+## Key Documentation
 
-### 2025-11-27: Security Vulnerability Scanner (Phase 3)
-
-**New MCP tool:**
-- **`detect_security_issues`** - Comprehensive security vulnerability scanning
-
-**Vulnerability Detection:**
-- **SQL Injection**: f-strings, .format(), string concatenation in SQL queries
-- **XSS**: innerHTML assignment, document.write with user input
-- **Command Injection**: os.system, subprocess with shell=True, eval/exec
-- **Hardcoded Secrets**: API keys, tokens, passwords (regex-based detection)
-- **Insecure Cryptography**: MD5, SHA-1 usage
+**Project:**
+- README.md - Full project overview
+- CLAUDE.md - This file (development guide)
 
 **Features:**
-- CWE (Common Weakness Enumeration) IDs for each issue type
-- Confidence scoring (0.0-1.0) for vulnerability detection
-- Severity levels: critical, high, medium, low
-- ast-grep pattern-based detection for code structure
-- Regex-based detection for secrets
-- Language support: Python, JavaScript, TypeScript, Java
+- [DEDUPLICATION-GUIDE.md](DEDUPLICATION-GUIDE.md) - Complete deduplication workflow
 
-**Components:** 1 new module (~650 lines) in `src/ast_grep_mcp/features/quality/`
-- `security_scanner.py` - Vulnerability detection engine
+**Infrastructure:**
+- [SENTRY-INTEGRATION.md](docs/SENTRY-INTEGRATION.md) - Error tracking setup
+- [DOPPLER-MIGRATION.md](docs/DOPPLER-MIGRATION.md) - Secret management
+- [CONFIGURATION.md](CONFIGURATION.md) - Configuration options
+- [BENCHMARKING.md](BENCHMARKING.md) - Performance testing
 
-**Usage:**
-```python
-# Scan for all security issues
-result = detect_security_issues(
-    project_folder="/path/to/project",
-    language="python",
-    issue_types=["all"],
-    severity_threshold="medium"
-)
+**Refactoring:**
+- [PHASE1_REFACTORING_SUMMARY.md](PHASE1_REFACTORING_SUMMARY.md) - Session summary
+- [PHASE1_NEXT_SESSION_GUIDE.md](PHASE1_NEXT_SESSION_GUIDE.md) - Quick reference
+- [COMPLEXITY_REFACTORING_REPORT.md](COMPLEXITY_REFACTORING_REPORT.md) - Detailed analysis
 
-# Scan for specific vulnerability types
-result = detect_security_issues(
-    project_folder="/path/to/project",
-    language="javascript",
-    issue_types=["sql_injection", "xss", "hardcoded_secrets"],
-    severity_threshold="critical",
-    max_issues=50
-)
-```
+## Recent Updates
 
-### 2025-11-27: Code Quality Auto-Fix & Reporting (Phases 4-5)
+### 2025-11-28: Phase 1 Complexity Refactoring
+- Reduced violations from 48 → 32 functions (33% progress)
+- Refactored 16 critical functions
+- Established refactoring patterns for continued work
+- Created comprehensive documentation and next session guide
 
-**New MCP tools:**
-1. **`apply_standards_fixes`** - Automatically fix code quality violations with safety checks
-   - Safe fix classification (confidence 0.6-1.0)
-   - Pattern-based fixes with metavariable substitution
-   - Batch operations with automatic backup/rollback
-   - Dry-run preview mode
-   - Syntax validation (Python/JS/TS/Java)
+### 2025-11-27: Security Scanner & Auto-Fix
+- Added `detect_security_issues` tool (SQL injection, XSS, command injection, secrets, crypto)
+- Added `apply_standards_fixes` tool with safety classification
+- Added `generate_quality_report` tool (Markdown/JSON formats)
 
-2. **`generate_quality_report`** - Generate comprehensive quality reports
-   - Markdown format (human-readable with tables)
-   - JSON format (machine-readable structured data)
-   - Top issues and problematic files
-   - Auto-fix suggestions and recommendations
-
-**Components:** 2 new modules (~945 lines) in `src/ast_grep_mcp/features/quality/`
-- `fixer.py` - Auto-fix engine with safety classification
-- `reporter.py` - Report generation (Markdown/JSON)
-
-**Complete Workflow:**
-```python
-# 1. Find violations
-result = enforce_standards(project_folder="/path", language="python")
-
-# 2. Auto-fix safe violations
-fixed = apply_standards_fixes(
-    violations=result["violations"],
-    language="python",
-    fix_types=["safe"],
-    dry_run=False
-)
-
-# 3. Generate report
-report = generate_quality_report(
-    enforcement_result=result,
-    output_format="markdown",
-    save_to_file="quality-report.md"
-)
-```
-
-### 2025-11-26: Refactoring Assistants (Phases 1-2)
-
-**New MCP tools:**
-1. **`extract_function`** - Extract code with parameter/return detection (11/11 tests passing)
-2. **`rename_symbol`** - Scope-aware symbol renaming (21/21 tests passing)
-
-**Components:** 5 modules (~2,144 lines) in `src/ast_grep_mcp/features/refactoring/`
+### 2025-11-26: Refactoring Assistants
+- Added `extract_function` tool with parameter/return detection
+- Added `rename_symbol` tool with scope-aware renaming
+- 32 tests passing for both tools
 
 ### 2025-11-25: Tool Registration Complete
+- 100% tool registration (30 tools)
+- Consistent two-layer pattern (standalone + MCP wrapper)
+- Full backward compatibility maintained
 
-**Achievement:** 100% tool registration (27 tools) with WebSocket/MCP compatibility
+### 2025-11-24: Modular Architecture & Code Quality
+- Migrated to 57-module architecture
+- Added code complexity analysis tools
+- Added code smell detection
+- Created linting rule system (24+ templates)
 
-**Improvements:**
-- Consistent two-layer pattern (standalone `*_tool` + MCP wrapper)
-- Pydantic Field() annotations for parameter validation
-- Full backward compatibility
-
-### 2025-11-24: Modular Architecture Refactoring
-
-**Major achievement:** Modular architecture migration with 57 modules created
-
-**Results:**
-- 57 modules created under `src/ast_grep_mcp/`
-- 10 phases completed over 13 days
-- Zero breaking changes
-
-### 2025-11-24: Code Quality & Standards
-
-**New features:**
-- `create_linting_rule`, `list_rule_templates` - Rule definition system (24+ templates)
-- `enforce_standards` - Standards enforcement with parallel processing
-
-### 2025-11-24: Code Analysis & Metrics
-
-**New tools:**
-- `analyze_complexity` - Cyclomatic, cognitive, nesting, length metrics
-- `detect_code_smells` - Long functions, parameter bloat, deep nesting, etc.
-
-### 2025-11-23: Enhanced Deduplication System
-
-**Complete rewrite** with intelligent analysis and automated refactoring (6 phases)
-
-**Impact:**
-- 4 new MCP tools
+### 2025-11-23: Enhanced Deduplication
+- Complete rewrite with intelligent analysis
+- Automated refactoring with validation
 - 1,000+ new tests
-- Supports 9+ languages for test coverage detection
-
-### 2025-11-17: Sentry & Doppler Integration
-
-- Error tracking (optional, zero overhead when disabled)
-- Doppler secret management
-- Comprehensive documentation
-
-## Repository Structure
-
-```
-main.py              # Entry point with backward compatibility exports
-src/ast_grep_mcp/    # Modular codebase (57 modules)
-tests/               # 1,586 tests
-scripts/             # Standalone tools
-docs/                # Main documentation
-dev/active/          # Feature planning docs
-```
-
-**Key docs:**
-- **Project:** README.md, CLAUDE.md
-- **Features:** DEDUPLICATION-GUIDE.md
-- **Infrastructure:** SENTRY-INTEGRATION.md, DOPPLER-MIGRATION.md, CONFIGURATION.md, BENCHMARKING.md
+- 9+ language test coverage support
 
 ## Troubleshooting
 
@@ -470,16 +277,6 @@ dev/active/          # Feature planning docs
 
 **Tests:** Ensure ast-grep installed (`ast-grep --version`), clear `.coverage` artifacts.
 
-**Deduplication:** See DEDUPLICATION-GUIDE.md for troubleshooting.
-- remember to check mcp tool registrations
-- High Complexity Functions: If encountering functions with high complexity metrics, see recent refactoring examples in git history (commits from 2025-11-28) for patterns on extracting helper functions
-  and reducing cognitive load.
+**Deduplication:** See [DEDUPLICATION-GUIDE.md](DEDUPLICATION-GUIDE.md) for troubleshooting.
 
-  Important Notes
-
-  - Always use console_logger.py abstraction instead of print() in scripts and tests
-  - Import configuration values from constants.py rather than hardcoding magic numbers
-  - Check MCP tool registrations when adding new features
-  - Run complexity regression tests after significant refactoring
-  - Use code-refactor-agent (Opus model) for large-scale complexity reduction tasks
-  - All refactored functions maintain 100% backward compatibility
+**Complexity Issues:** See [PHASE1_NEXT_SESSION_GUIDE.md](PHASE1_NEXT_SESSION_GUIDE.md) for refactoring guidance.
