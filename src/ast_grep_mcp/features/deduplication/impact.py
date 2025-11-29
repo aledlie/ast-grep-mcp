@@ -4,7 +4,7 @@ import json
 import os
 import re
 import subprocess
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from ...core import run_ast_grep
 from ...core.logging import get_logger
@@ -406,84 +406,29 @@ class ImpactAnalyzer:
         risk_factors = []
         risk_score = 0
 
-        # Factor 1: External call sites exist
-        if external_call_sites:
-            call_count = len([s for s in external_call_sites if s.get("type") == "function_call"])
-            import_count = len([s for s in external_call_sites if s.get("type") == "import"])
+        # Calculate risk from each factor
+        score, factors = self._calculate_external_reference_risk(external_call_sites)
+        risk_score += score
+        risk_factors.extend(factors)
 
-            if call_count > 0:
-                risk_factors.append(f"Found {call_count} external call site(s) that may need updates")
-                risk_score += min(call_count, 3)  # Cap at 3
+        score, factors = self._calculate_public_api_risk(function_names, language)
+        risk_score += score
+        risk_factors.extend(factors)
 
-            if import_count > 0:
-                risk_factors.append(f"Found {import_count} import statement(s) referencing the code")
-                risk_score += min(import_count, 2)  # Cap at 2
+        score, factors = self._calculate_cross_module_risk(files_in_group)
+        risk_score += score
+        risk_factors.extend(factors)
 
-        # Factor 2: Check if functions appear to be public API
-        for name in function_names:
-            # Heuristics for public API
-            is_public = False
+        score, factors = self._calculate_test_file_risk(files_in_group)
+        risk_score += score
+        risk_factors.extend(factors)
 
-            # Python: no underscore prefix
-            if language.lower() == "python" and not name.startswith("_"):
-                is_public = True
+        score, factors = self._calculate_reexport_risk(files_in_group)
+        risk_score += score
+        risk_factors.extend(factors)
 
-            # Java/C#: typically PascalCase for public
-            if language.lower() in ("java", "csharp") and name[0].isupper():
-                is_public = True
-
-            if is_public:
-                risk_factors.append(f"Function '{name}' appears to be public API")
-                risk_score += 2
-                break  # Only count once
-
-        # Factor 3: Cross-module dependencies
-        if len(files_in_group) > 1:
-            # Check if files are in different directories (different modules)
-            directories = set()
-            for file_path in files_in_group:
-                directories.add(os.path.dirname(file_path))
-
-            if len(directories) > 1:
-                risk_factors.append(f"Duplicates span {len(directories)} different modules/directories")
-                risk_score += 2
-
-        # Factor 4: Test files involved
-        test_files = [f for f in files_in_group if "test" in f.lower() or "spec" in f.lower()]
-        if test_files:
-            risk_factors.append(f"{len(test_files)} test file(s) contain duplicates - lower risk")
-            risk_score -= 1  # Reduce risk for test-only changes
-
-        # Factor 5: Check for __init__.py or index files (re-exports)
-        reexport_files = [f for f in files_in_group
-                         if os.path.basename(f) in ("__init__.py", "index.ts", "index.js", "mod.rs")]
-        if reexport_files:
-            risk_factors.append("Code is in module export file - higher breakage risk")
-            risk_score += 3
-
-        # Determine risk level
-        if risk_score <= 1:
-            level = "low"
-            recommendations = [
-                "Safe to proceed with standard review",
-                "Run tests after applying changes"
-            ]
-        elif risk_score <= 4:
-            level = "medium"
-            recommendations = [
-                "Review external call sites before applying",
-                "Consider updating call sites in the same commit",
-                "Run comprehensive test suite after changes"
-            ]
-        else:
-            level = "high"
-            recommendations = [
-                "Carefully review all external references",
-                "Consider deprecating old functions instead of removing",
-                "Update external call sites first",
-                "May require coordinated changes across modules",
-                "Consider feature flag for gradual rollout"
-            ]
+        # Determine risk level and recommendations
+        level, recommendations = self._determine_risk_level(risk_score)
 
         return {
             "level": level,
@@ -492,6 +437,133 @@ class ImpactAnalyzer:
             "recommendations": recommendations,
             "external_reference_count": len(external_call_sites)
         }
+
+    def _calculate_external_reference_risk(
+        self, external_call_sites: List[Dict[str, Any]]
+    ) -> Tuple[int, List[str]]:
+        """Calculate risk from external references."""
+        if not external_call_sites:
+            return 0, []
+
+        factors = []
+        score = 0
+
+        call_count = len([s for s in external_call_sites if s.get("type") == "function_call"])
+        import_count = len([s for s in external_call_sites if s.get("type") == "import"])
+
+        if call_count > 0:
+            factors.append(f"Found {call_count} external call site(s) that may need updates")
+            score += min(call_count, 3)  # Cap at 3
+
+        if import_count > 0:
+            factors.append(f"Found {import_count} import statement(s) referencing the code")
+            score += min(import_count, 2)  # Cap at 2
+
+        return score, factors
+
+    def _calculate_public_api_risk(
+        self, function_names: List[str], language: str
+    ) -> Tuple[int, List[str]]:
+        """Calculate risk from public API exposure."""
+        lang_lower = language.lower()
+
+        for name in function_names:
+            if self._is_public_api(name, lang_lower):
+                return 2, [f"Function '{name}' appears to be public API"]
+
+        return 0, []
+
+    def _is_public_api(self, name: str, language: str) -> bool:
+        """Check if a function name appears to be public API."""
+        # Python: no underscore prefix
+        if language == "python" and not name.startswith("_"):
+            return True
+
+        # Java/C#: typically PascalCase for public
+        if language in ("java", "csharp") and name[0].isupper():
+            return True
+
+        return False
+
+    def _calculate_cross_module_risk(
+        self, files_in_group: List[str]
+    ) -> Tuple[int, List[str]]:
+        """Calculate risk from cross-module dependencies."""
+        if len(files_in_group) <= 1:
+            return 0, []
+
+        directories = {os.path.dirname(f) for f in files_in_group}
+
+        if len(directories) > 1:
+            factor = f"Duplicates span {len(directories)} different modules/directories"
+            return 2, [factor]
+
+        return 0, []
+
+    def _calculate_test_file_risk(
+        self, files_in_group: List[str]
+    ) -> Tuple[int, List[str]]:
+        """Calculate risk adjustment for test files."""
+        test_files = [f for f in files_in_group if "test" in f.lower() or "spec" in f.lower()]
+
+        if test_files:
+            factor = f"{len(test_files)} test file(s) contain duplicates - lower risk"
+            return -1, [factor]  # Negative score reduces risk
+
+        return 0, []
+
+    def _calculate_reexport_risk(
+        self, files_in_group: List[str]
+    ) -> Tuple[int, List[str]]:
+        """Calculate risk from re-export files."""
+        reexport_filenames = {"__init__.py", "index.ts", "index.js", "mod.rs"}
+        reexport_files = [
+            f for f in files_in_group
+            if os.path.basename(f) in reexport_filenames
+        ]
+
+        if reexport_files:
+            return 3, ["Code is in module export file - higher breakage risk"]
+
+        return 0, []
+
+    def _determine_risk_level(self, risk_score: int) -> Tuple[str, List[str]]:
+        """Determine risk level and recommendations based on score."""
+        # Configuration-driven risk levels
+        risk_levels = {
+            "low": {
+                "max_score": 1,
+                "recommendations": [
+                    "Safe to proceed with standard review",
+                    "Run tests after applying changes"
+                ]
+            },
+            "medium": {
+                "max_score": 4,
+                "recommendations": [
+                    "Review external call sites before applying",
+                    "Consider updating call sites in the same commit",
+                    "Run comprehensive test suite after changes"
+                ]
+            },
+            "high": {
+                "max_score": float('inf'),
+                "recommendations": [
+                    "Carefully review all external references",
+                    "Consider deprecating old functions instead of removing",
+                    "Update external call sites first",
+                    "May require coordinated changes across modules",
+                    "Consider feature flag for gradual rollout"
+                ]
+            }
+        }
+
+        for level_name, config in risk_levels.items():
+            if risk_score <= config["max_score"]:
+                return level_name, config["recommendations"]
+
+        # Should never reach here, but return high as failsafe
+        return "high", risk_levels["high"]["recommendations"]
 
 
 # Module-level function for backwards compatibility
