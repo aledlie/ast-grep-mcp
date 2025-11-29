@@ -170,36 +170,107 @@ class SymbolRenamer:
         """
         context = ref.context.strip()
 
-        if self.language == "python":
-            # Check for definition
-            if context.startswith("def ") or context.startswith("class "):
-                ref.is_definition = True
+        # Use language-specific classifier
+        classifier = self._get_language_classifier()
+        if classifier:
+            classifier(ref, context)
 
-            # Check for import
-            if "import" in context:
-                ref.is_import = True
-                # Extract import source
-                if "from" in context:
-                    # from module import symbol
-                    match = re.search(r'from\s+([\w.]+)', context)
-                    if match:
-                        ref.import_source = match.group(1)
+    def _get_language_classifier(self):
+        """Get the appropriate classifier function for the current language.
 
-        elif self.language in ("typescript", "javascript"):
-            # Check for definition
-            if re.search(r'\b(function|class|const|let|var)\s+', context):
-                ref.is_definition = True
+        Returns:
+            Classifier function or None if language not supported
+        """
+        classifiers = {
+            "python": self._classify_python_reference,
+            "typescript": self._classify_javascript_reference,
+            "javascript": self._classify_javascript_reference,
+        }
+        return classifiers.get(self.language)
 
-            # Check for import/export
-            if "import" in context:
-                ref.is_import = True
-                # Extract source
-                match = re.search(r'from\s+["\']([^"\']+)["\']', context)
-                if match:
-                    ref.import_source = match.group(1)
+    def _classify_python_reference(self, ref: SymbolReference, context: str) -> None:
+        """Classify a Python reference.
 
-            if "export" in context:
-                ref.is_export = True
+        Args:
+            ref: SymbolReference to classify (modified in place)
+            context: The context string (stripped)
+        """
+        # Check for definition
+        if self._is_python_definition(context):
+            ref.is_definition = True
+
+        # Check for import
+        if "import" in context:
+            ref.is_import = True
+            self._extract_python_import_source(ref, context)
+
+    def _is_python_definition(self, context: str) -> bool:
+        """Check if context indicates a Python definition.
+
+        Args:
+            context: The context string
+
+        Returns:
+            True if this is a definition
+        """
+        return context.startswith("def ") or context.startswith("class ")
+
+    def _extract_python_import_source(self, ref: SymbolReference, context: str) -> None:
+        """Extract import source from Python import statement.
+
+        Args:
+            ref: SymbolReference to update
+            context: The context string containing import
+        """
+        if "from" not in context:
+            return
+
+        # from module import symbol
+        match = re.search(r'from\s+([\w.]+)', context)
+        if match:
+            ref.import_source = match.group(1)
+
+    def _classify_javascript_reference(self, ref: SymbolReference, context: str) -> None:
+        """Classify a JavaScript/TypeScript reference.
+
+        Args:
+            ref: SymbolReference to classify (modified in place)
+            context: The context string (stripped)
+        """
+        # Check for definition
+        if self._is_javascript_definition(context):
+            ref.is_definition = True
+
+        # Check for import
+        if "import" in context:
+            ref.is_import = True
+            self._extract_javascript_import_source(ref, context)
+
+        # Check for export
+        if "export" in context:
+            ref.is_export = True
+
+    def _is_javascript_definition(self, context: str) -> bool:
+        """Check if context indicates a JavaScript/TypeScript definition.
+
+        Args:
+            context: The context string
+
+        Returns:
+            True if this is a definition
+        """
+        return bool(re.search(r'\b(function|class|const|let|var)\s+', context))
+
+    def _extract_javascript_import_source(self, ref: SymbolReference, context: str) -> None:
+        """Extract import source from JavaScript/TypeScript import statement.
+
+        Args:
+            ref: SymbolReference to update
+            context: The context string containing import
+        """
+        match = re.search(r'from\s+["\']([^"\']+)["\']', context)
+        if match:
+            ref.import_source = match.group(1)
 
     def build_scope_tree(
         self,
