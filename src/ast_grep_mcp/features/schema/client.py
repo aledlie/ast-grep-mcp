@@ -548,15 +548,15 @@ class SchemaOrgClient:
 
             # Resolve relationships to @id references
             for rel_property, rel_target in relationships.items():
-                if rel_target in entity_id_map:
-                    # Single reference
-                    entity_obj[rel_property] = {'@id': entity_id_map[rel_target]}
-                elif isinstance(rel_target, list):
+                if isinstance(rel_target, list):
                     # Multiple references
                     entity_obj[rel_property] = [
                         {'@id': entity_id_map[target]} if target in entity_id_map else target
                         for target in rel_target
                     ]
+                elif rel_target in entity_id_map:
+                    # Single reference
+                    entity_obj[rel_property] = {'@id': entity_id_map[rel_target]}
                 else:
                     # Direct value (not a reference)
                     entity_obj[rel_property] = rel_target
