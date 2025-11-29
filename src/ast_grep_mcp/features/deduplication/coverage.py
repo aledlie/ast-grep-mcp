@@ -4,7 +4,7 @@ import glob as glob_module
 import os
 import re as regex_module
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List, Set, Optional, Callable
+from typing import Dict, List, Set, Optional, Callable, Tuple
 
 from ...core.logging import get_logger
 
@@ -551,77 +551,184 @@ class TestCoverageDetector:
         # Pre-compute all test files once (major optimization)
         test_files = self._find_all_test_files(language, project_root)
 
-        coverage_map: Dict[str, bool] = {}
-        covered_count = 0
-
+        # Process files using appropriate strategy
         if parallel and len(file_paths) > 1:
-            # Parallel batch processing
-            self.logger.debug(
-                "batch_coverage_parallel_start",
-                file_count=len(file_paths),
-                max_workers=max_workers
+            coverage_map, covered_count = self._process_parallel_batch(
+                file_paths, language, project_root, test_files, max_workers
             )
-
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                futures = {
-                    executor.submit(
-                        self._has_test_coverage_optimized,
-                        file_path,
-                        language,
-                        project_root,
-                        test_files
-                    ): file_path
-                    for file_path in file_paths
-                }
-
-                for future in as_completed(futures):
-                    file_path = futures[future]
-                    try:
-                        has_coverage = future.result()
-                        coverage_map[file_path] = has_coverage
-                        if has_coverage:
-                            covered_count += 1
-                    except Exception as e:
-                        self.logger.error(
-                            "test_coverage_check_failed",
-                            file_path=file_path,
-                            error=str(e)
-                        )
-                        # Mark as no coverage on error
-                        coverage_map[file_path] = False
         else:
-            # Sequential batch processing (still faster due to pre-computed test files)
-            self.logger.debug(
-                "batch_coverage_sequential_start",
-                file_count=len(file_paths)
+            coverage_map, covered_count = self._process_sequential_batch(
+                file_paths, language, project_root, test_files
             )
 
-            for file_path in file_paths:
-                try:
-                    has_coverage = self._has_test_coverage_optimized(
-                        file_path, language, project_root, test_files
-                    )
-                    coverage_map[file_path] = has_coverage
-                    if has_coverage:
-                        covered_count += 1
-                except Exception as e:
-                    self.logger.error(
-                        "test_coverage_check_failed",
-                        file_path=file_path,
-                        error=str(e)
-                    )
-                    coverage_map[file_path] = False
-
-        self.logger.info(
-            "batch_coverage_analysis_complete",
-            total_files=len(file_paths),
-            files_with_coverage=covered_count,
-            files_without_coverage=len(file_paths) - covered_count,
-            parallel=parallel,
-            test_files_found=len(test_files)
+        # Log final results
+        self._log_batch_results(
+            len(file_paths), covered_count, parallel, len(test_files)
         )
 
         return coverage_map
+
+    def _process_file_coverage(
+        self,
+        file_path: str,
+        language: str,
+        project_root: str,
+        test_files: Set[str]
+    ) -> bool:
+        """Process coverage check for a single file with error handling.
+
+        Args:
+            file_path: Path to the source file
+            language: Programming language
+            project_root: Root directory
+            test_files: Pre-computed set of test files
+
+        Returns:
+            True if test coverage exists, False otherwise or on error
+        """
+        try:
+            return self._has_test_coverage_optimized(
+                file_path, language, project_root, test_files
+            )
+        except Exception as e:
+            self.logger.error(
+                "test_coverage_check_failed",
+                file_path=file_path,
+                error=str(e)
+            )
+            return False
+
+    def _process_parallel_batch(
+        self,
+        file_paths: List[str],
+        language: str,
+        project_root: str,
+        test_files: Set[str],
+        max_workers: int
+    ) -> Tuple[Dict[str, bool], int]:
+        """Process files in parallel for coverage checking.
+
+        Args:
+            file_paths: List of source file paths
+            language: Programming language
+            project_root: Root directory
+            test_files: Pre-computed set of test files
+            max_workers: Maximum number of threads
+
+        Returns:
+            Tuple of (coverage_map, covered_count)
+        """
+        self.logger.debug(
+            "batch_coverage_parallel_start",
+            file_count=len(file_paths),
+            max_workers=max_workers
+        )
+
+        coverage_map: Dict[str, bool] = {}
+        covered_count = 0
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            futures = {
+                executor.submit(
+                    self._has_test_coverage_optimized,
+                    file_path,
+                    language,
+                    project_root,
+                    test_files
+                ): file_path
+                for file_path in file_paths
+            }
+
+            # Process results as they complete
+            for future in as_completed(futures):
+                file_path = futures[future]
+                has_coverage = self._get_future_result(future, file_path)
+                coverage_map[file_path] = has_coverage
+                if has_coverage:
+                    covered_count += 1
+
+        return coverage_map, covered_count
+
+    def _process_sequential_batch(
+        self,
+        file_paths: List[str],
+        language: str,
+        project_root: str,
+        test_files: Set[str]
+    ) -> Tuple[Dict[str, bool], int]:
+        """Process files sequentially for coverage checking.
+
+        Args:
+            file_paths: List of source file paths
+            language: Programming language
+            project_root: Root directory
+            test_files: Pre-computed set of test files
+
+        Returns:
+            Tuple of (coverage_map, covered_count)
+        """
+        self.logger.debug(
+            "batch_coverage_sequential_start",
+            file_count=len(file_paths)
+        )
+
+        coverage_map: Dict[str, bool] = {}
+        covered_count = 0
+
+        for file_path in file_paths:
+            has_coverage = self._process_file_coverage(
+                file_path, language, project_root, test_files
+            )
+            coverage_map[file_path] = has_coverage
+            if has_coverage:
+                covered_count += 1
+
+        return coverage_map, covered_count
+
+    def _get_future_result(self, future, file_path: str) -> bool:
+        """Get result from future with error handling.
+
+        Args:
+            future: Concurrent future object
+            file_path: Path to file being processed
+
+        Returns:
+            Coverage status or False on error
+        """
+        try:
+            return future.result()
+        except Exception as e:
+            self.logger.error(
+                "test_coverage_check_failed",
+                file_path=file_path,
+                error=str(e)
+            )
+            return False
+
+    def _log_batch_results(
+        self,
+        total_files: int,
+        covered_count: int,
+        parallel: bool,
+        test_files_count: int
+    ) -> None:
+        """Log the final batch processing results.
+
+        Args:
+            total_files: Total number of files processed
+            covered_count: Number of files with coverage
+            parallel: Whether parallel processing was used
+            test_files_count: Number of test files found
+        """
+        self.logger.info(
+            "batch_coverage_analysis_complete",
+            total_files=total_files,
+            files_with_coverage=covered_count,
+            files_without_coverage=total_files - covered_count,
+            parallel=parallel,
+            test_files_found=test_files_count
+        )
 
 
 # Module-level functions for backwards compatibility

@@ -92,12 +92,12 @@ class AnalysisConfig:
 
         if self.min_lines < 1:
             raise ValueError(
-                f"min_lines must be positive, got {self.min_lines}"
+                f"min_lines must be a positive integer, got {self.min_lines}"
             )
 
         if self.max_candidates < 1:
             raise ValueError(
-                f"max_candidates must be positive, got {self.max_candidates}"
+                f"max_candidates must be a positive integer, got {self.max_candidates}"
             )
 
         if self.max_workers < 1:
