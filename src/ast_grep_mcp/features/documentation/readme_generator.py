@@ -180,6 +180,99 @@ def _detect_language(project_folder: str) -> str:
     return 'unknown'
 
 
+# JS framework detection: (dep_key, framework_name)
+_JS_FRAMEWORKS: List[Tuple[str, str]] = [
+    ('react', 'React'),
+    ('next', 'Next.js'),
+    ('vue', 'Vue.js'),
+    ('angular', 'Angular'),
+    ('@angular/core', 'Angular'),
+    ('express', 'Express'),
+    ('fastify', 'Fastify'),
+    ('nestjs', 'NestJS'),
+    ('@nestjs/core', 'NestJS'),
+    ('electron', 'Electron'),
+]
+
+# Python framework detection: (pattern, framework_name)
+_PYTHON_FRAMEWORKS: List[Tuple[str, str]] = [
+    ('django', 'Django'),
+    ('flask', 'Flask'),
+    ('fastapi', 'FastAPI'),
+    ('pytest', 'pytest'),
+    ('sqlalchemy', 'SQLAlchemy'),
+    ('pydantic', 'Pydantic'),
+]
+
+
+def _detect_js_frameworks(project_folder: str) -> List[str]:
+    """Detect JavaScript frameworks from package.json.
+
+    Args:
+        project_folder: Project root
+
+    Returns:
+        List of detected framework names
+    """
+    package_json = os.path.join(project_folder, 'package.json')
+    if not os.path.exists(package_json):
+        return []
+
+    try:
+        with open(package_json, 'r') as f:
+            data = json.load(f)
+        deps = {**data.get('dependencies', {}), **data.get('devDependencies', {})}
+    except (json.JSONDecodeError, OSError):
+        return []
+
+    frameworks = []
+    seen = set()  # Avoid duplicates like Angular appearing twice
+    for dep_key, framework_name in _JS_FRAMEWORKS:
+        if dep_key in deps and framework_name not in seen:
+            frameworks.append(framework_name)
+            seen.add(framework_name)
+    return frameworks
+
+
+def _get_python_deps_content(project_folder: str) -> str:
+    """Read Python dependency files content.
+
+    Args:
+        project_folder: Project root
+
+    Returns:
+        Combined lowercase content of dependency files
+    """
+    deps_content = ""
+    files = ['requirements.txt', 'pyproject.toml']
+
+    for filename in files:
+        filepath = os.path.join(project_folder, filename)
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, 'r') as f:
+                    deps_content += f.read().lower()
+            except OSError:
+                pass
+    return deps_content
+
+
+def _detect_python_frameworks(project_folder: str) -> List[str]:
+    """Detect Python frameworks from requirements.txt and pyproject.toml.
+
+    Args:
+        project_folder: Project root
+
+    Returns:
+        List of detected framework names
+    """
+    deps_content = _get_python_deps_content(project_folder)
+    if not deps_content:
+        return []
+
+    return [name for pattern, name in _PYTHON_FRAMEWORKS if pattern in deps_content]
+
+
 def _detect_frameworks(project_folder: str, language: str) -> List[str]:
     """Detect frameworks used in the project.
 
@@ -190,67 +283,8 @@ def _detect_frameworks(project_folder: str, language: str) -> List[str]:
     Returns:
         List of detected frameworks
     """
-    frameworks = []
-
-    # Check package.json for JS frameworks
-    package_json = os.path.join(project_folder, 'package.json')
-    if os.path.exists(package_json):
-        try:
-            with open(package_json, 'r') as f:
-                data = json.load(f)
-            deps = {**data.get('dependencies', {}), **data.get('devDependencies', {})}
-
-            if 'react' in deps:
-                frameworks.append('React')
-            if 'next' in deps:
-                frameworks.append('Next.js')
-            if 'vue' in deps:
-                frameworks.append('Vue.js')
-            if 'angular' in deps or '@angular/core' in deps:
-                frameworks.append('Angular')
-            if 'express' in deps:
-                frameworks.append('Express')
-            if 'fastify' in deps:
-                frameworks.append('Fastify')
-            if 'nestjs' in deps or '@nestjs/core' in deps:
-                frameworks.append('NestJS')
-            if 'electron' in deps:
-                frameworks.append('Electron')
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    # Check for Python frameworks
-    requirements = os.path.join(project_folder, 'requirements.txt')
-    pyproject = os.path.join(project_folder, 'pyproject.toml')
-
-    deps_content = ""
-    if os.path.exists(requirements):
-        try:
-            with open(requirements, 'r') as f:
-                deps_content += f.read().lower()
-        except OSError:
-            pass
-    if os.path.exists(pyproject):
-        try:
-            with open(pyproject, 'r') as f:
-                deps_content += f.read().lower()
-        except OSError:
-            pass
-
-    if deps_content:
-        if 'django' in deps_content:
-            frameworks.append('Django')
-        if 'flask' in deps_content:
-            frameworks.append('Flask')
-        if 'fastapi' in deps_content:
-            frameworks.append('FastAPI')
-        if 'pytest' in deps_content:
-            frameworks.append('pytest')
-        if 'sqlalchemy' in deps_content:
-            frameworks.append('SQLAlchemy')
-        if 'pydantic' in deps_content:
-            frameworks.append('Pydantic')
-
+    frameworks = _detect_js_frameworks(project_folder)
+    frameworks.extend(_detect_python_frameworks(project_folder))
     return frameworks
 
 
@@ -386,6 +420,61 @@ def _get_project_description(project_folder: str) -> Optional[str]:
     return None
 
 
+def _get_js_dependencies(project_folder: str, max_deps: int = 10) -> List[str]:
+    """Get JavaScript dependencies from package.json.
+
+    Args:
+        project_folder: Project root
+        max_deps: Maximum dependencies to return
+
+    Returns:
+        List of dependency names
+    """
+    package_json = os.path.join(project_folder, 'package.json')
+    if not os.path.exists(package_json):
+        return []
+
+    try:
+        with open(package_json, 'r') as f:
+            data = json.load(f)
+        deps = data.get('dependencies', {})
+        return list(deps.keys())[:max_deps]
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def _get_python_dependencies(project_folder: str, max_deps: int = 10) -> List[str]:
+    """Get Python dependencies from requirements.txt.
+
+    Args:
+        project_folder: Project root
+        max_deps: Maximum dependencies to return
+
+    Returns:
+        List of dependency names
+    """
+    requirements = os.path.join(project_folder, 'requirements.txt')
+    if not os.path.exists(requirements):
+        return []
+
+    dependencies = []
+    try:
+        with open(requirements, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                pkg = re.split(r'[<>=!~\[]', line)[0].strip()
+                if pkg:
+                    dependencies.append(pkg)
+                if len(dependencies) >= max_deps:
+                    break
+    except OSError:
+        pass
+
+    return dependencies
+
+
 def _get_main_dependencies(project_folder: str, language: str) -> List[str]:
     """Get main project dependencies.
 
@@ -396,36 +485,8 @@ def _get_main_dependencies(project_folder: str, language: str) -> List[str]:
     Returns:
         List of main dependency names
     """
-    dependencies = []
-
-    # Check package.json
-    package_json = os.path.join(project_folder, 'package.json')
-    if os.path.exists(package_json):
-        try:
-            with open(package_json, 'r') as f:
-                data = json.load(f)
-            deps = data.get('dependencies', {})
-            dependencies.extend(list(deps.keys())[:10])  # Top 10
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    # Check requirements.txt
-    requirements = os.path.join(project_folder, 'requirements.txt')
-    if os.path.exists(requirements):
-        try:
-            with open(requirements, 'r') as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#'):
-                        # Extract package name
-                        pkg = re.split(r'[<>=!~\[]', line)[0].strip()
-                        if pkg:
-                            dependencies.append(pkg)
-                        if len(dependencies) >= 10:
-                            break
-        except OSError:
-            pass
-
+    dependencies = _get_js_dependencies(project_folder)
+    dependencies.extend(_get_python_dependencies(project_folder, max_deps=10 - len(dependencies)))
     return dependencies
 
 
