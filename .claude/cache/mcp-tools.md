@@ -1,7 +1,7 @@
-# ast-grep-mcp MCP Tools (37 Total)
+# ast-grep-mcp MCP Tools (38 Total)
 
 > **Auto-generated cache** - Updated when tools are modified via git commits.
-> Last updated: 2025-11-29
+> Last updated: 2025-11-30
 
 ## Search Tools (4)
 | Tool | Description |
@@ -49,7 +49,7 @@
 | `generate_quality_report` | Generate comprehensive code quality reports (Markdown/JSON) |
 | `detect_security_issues` | Scan for security vulnerabilities (SQL injection, XSS, command injection, secrets, crypto) |
 
-## Schema.org Tools (8)
+## Schema.org Tools (9)
 | Tool | Description |
 |------|-------------|
 | `get_schema_type` | Get detailed information about a schema.org type |
@@ -60,6 +60,7 @@
 | `generate_entity_id` | Generate proper @id values following Schema.org best practices |
 | `validate_entity_id` | Validate @id values against Schema.org best practices |
 | `build_entity_graph` | Build knowledge graph of related entities with @id references |
+| `enhance_entity_graph` | Analyze existing JSON-LD graphs and suggest enhancements based on Schema.org and Google Rich Results guidelines |
 
 ## Documentation Tools (5)
 | Tool | Description |
@@ -82,7 +83,7 @@
 | Deduplication | `src/ast_grep_mcp/features/deduplication/tools.py` | 4 |
 | Complexity | `src/ast_grep_mcp/features/complexity/tools.py` | 3 |
 | Quality | `src/ast_grep_mcp/features/quality/tools.py` | 6 |
-| Schema | `src/ast_grep_mcp/features/schema/tools.py` | 8 |
+| Schema | `src/ast_grep_mcp/features/schema/tools.py` | 9 |
 | Documentation | `src/ast_grep_mcp/features/documentation/tools.py` | 5 |
 
-**Total: 37 MCP tools** across 8 categories
+**Total: 38 MCP tools** across 8 categories
