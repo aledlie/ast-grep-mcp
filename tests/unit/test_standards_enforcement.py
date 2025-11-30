@@ -582,6 +582,7 @@ class TestParseMatchToViolation:
 
     def test_parse_complete_match(self):
         """Test parsing complete ast-grep match."""
+        # ast-grep returns metaVariables in nested dict format with "single"/"multi" keys
         match = {
             "file": "/path/to/file.py",
             "range": {
@@ -589,9 +590,11 @@ class TestParseMatchToViolation:
                 "end": {"line": 10, "column": 15}
             },
             "text": "eval(user_input)",
-            "metaVariables": [
-                {"name": "VAR", "text": "user_input"}
-            ]
+            "metaVariables": {
+                "single": {
+                    "VAR": {"text": "user_input"}
+                }
+            }
         }
 
         rule = LintingRule(

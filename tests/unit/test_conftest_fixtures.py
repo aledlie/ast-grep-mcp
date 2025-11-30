@@ -245,7 +245,7 @@ class TestDeduplicationFixtures:
         assert "complexity" in candidate
         assert "risk_level" in candidate
         assert "recommendation" in candidate
-        assert "duplicates" in candidate
+        assert "duplication_groups" in candidate
 
 
 class TestSubprocessFixtures:
