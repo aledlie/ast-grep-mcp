@@ -477,6 +477,86 @@ def build_entity_graph_tool(
         raise
 
 
+def enhance_entity_graph_tool(
+    input_source: str,
+    input_type: str = "file",
+    output_mode: str = "analysis"
+) -> Dict[str, Any]:
+    """
+    Analyze existing Schema.org JSON-LD graphs and suggest enhancements.
+
+    Examines JSON-LD structured data and provides recommendations based on:
+    - Schema.org vocabulary standards
+    - Google Rich Results guidelines
+    - SEO best practices
+
+    Args:
+        input_source: File path or directory path containing JSON-LD Schema.org markup
+        input_type: Input source type: 'file' for single file, 'directory' for scanning all .json files
+        output_mode: Output mode: 'analysis' for enhancement suggestions, 'enhanced' for complete graph, 'diff' for additions only
+
+    Returns:
+        Entity-level analysis with:
+        - Missing property suggestions with priorities (critical/high/medium)
+        - Missing entity type suggestions (FAQPage, BreadcrumbList, etc.)
+        - SEO completeness scores (0-100)
+        - Validation issues (broken @id references)
+        - Example values for all suggestions
+
+    Output Modes:
+        - analysis: Detailed suggestions with priorities and examples
+        - enhanced: Complete graph with all suggestions applied (placeholder values)
+        - diff: Only the additions needed (for merging with existing markup)
+    """
+    logger = get_logger("tool.enhance_entity_graph")
+    start_time = time.time()
+
+    logger.info(
+        "tool_invoked",
+        tool="enhance_entity_graph",
+        input_source=input_source,
+        input_type=input_type,
+        output_mode=output_mode
+    )
+
+    try:
+        result = asyncio.run(analyze_entity_graph(
+            input_source=input_source,
+            input_type=input_type,
+            output_mode=output_mode
+        ))
+
+        execution_time = time.time() - start_time
+        logger.info(
+            "tool_completed",
+            tool="enhance_entity_graph",
+            execution_time_seconds=round(execution_time, 3),
+            entity_count=len(result.get('entity_enhancements', [])),
+            seo_score=result.get('overall_seo_score', 0),
+            status="success"
+        )
+
+        return result
+
+    except Exception as e:
+        execution_time = time.time() - start_time
+        logger.error(
+            "tool_failed",
+            tool="enhance_entity_graph",
+            execution_time_seconds=round(execution_time, 3),
+            error=str(e)[:200],
+            status="failed"
+        )
+        sentry_sdk.capture_exception(e, extras={
+            "tool": "enhance_entity_graph",
+            "input_source": input_source,
+            "input_type": input_type,
+            "output_mode": output_mode,
+            "execution_time_seconds": round(execution_time, 3)
+        })
+        raise
+
+
 def register_schema_tools(mcp: FastMCP) -> None:
     """Register Schema.org-related MCP tools.
 
@@ -586,69 +666,9 @@ def register_schema_tools(mcp: FastMCP) -> None:
             description="Output mode: 'analysis' for enhancement suggestions, 'enhanced' for complete graph with placeholders, 'diff' for additions only"
         )
     ) -> Dict[str, Any]:
-        """Analyze existing Schema.org JSON-LD graphs and suggest enhancements.
-
-        Examines JSON-LD structured data and provides recommendations based on:
-        - Schema.org vocabulary standards
-        - Google Rich Results guidelines
-        - SEO best practices
-
-        Returns entity-level analysis with:
-        - Missing property suggestions with priorities (critical/high/medium)
-        - Missing entity type suggestions (FAQPage, BreadcrumbList, etc.)
-        - SEO completeness scores (0-100)
-        - Validation issues (broken @id references)
-        - Example values for all suggestions
-
-        Output Modes:
-        - analysis: Detailed suggestions with priorities and examples
-        - enhanced: Complete graph with all suggestions applied (placeholder values)
-        - diff: Only the additions needed (for merging with existing markup)
-        """
-        logger = get_logger("tool.enhance_entity_graph")
-        start_time = time.time()
-
-        logger.info(
-            "tool_invoked",
-            tool="enhance_entity_graph",
+        """Wrapper that calls the standalone enhance_entity_graph_tool function."""
+        return enhance_entity_graph_tool(
             input_source=input_source,
             input_type=input_type,
             output_mode=output_mode
         )
-
-        try:
-            result = asyncio.run(analyze_entity_graph(
-                input_source=input_source,
-                input_type=input_type,
-                output_mode=output_mode
-            ))
-
-            execution_time = time.time() - start_time
-            logger.info(
-                "tool_completed",
-                tool="enhance_entity_graph",
-                execution_time_seconds=round(execution_time, 3),
-                entity_count=len(result.get('entity_enhancements', [])),
-                seo_score=result.get('overall_seo_score', 0),
-                status="success"
-            )
-
-            return result
-
-        except Exception as e:
-            execution_time = time.time() - start_time
-            logger.error(
-                "tool_failed",
-                tool="enhance_entity_graph",
-                execution_time_seconds=round(execution_time, 3),
-                error=str(e)[:200],
-                status="failed"
-            )
-            sentry_sdk.capture_exception(e, extras={
-                "tool": "enhance_entity_graph",
-                "input_source": input_source,
-                "input_type": input_type,
-                "output_mode": output_mode,
-                "execution_time_seconds": round(execution_time, 3)
-            })
-            raise
