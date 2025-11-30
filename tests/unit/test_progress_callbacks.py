@@ -36,7 +36,7 @@ class TestProgressCallbacks:
         # Mock detector
         mock_detector = Mock()
         mock_detector.find_duplication.return_value = {
-            "duplicates": [
+            "duplication_groups": [
                 {"similarity": 0.9, "lines_saved": 100, "complexity_score": 3,
                  "files": ["/tmp/file1.py", "/tmp/file2.py"]},
                 {"similarity": 0.85, "lines_saved": 50, "complexity_score": 2,
@@ -289,7 +289,7 @@ class TestProgressCallbacks:
 
         # Mock detector to return no duplicates
         mock_detector = Mock()
-        mock_detector.find_duplication.return_value = {"duplicates": []}
+        mock_detector.find_duplication.return_value = {"duplication_groups": []}
         orchestrator.detector = mock_detector
 
         result = orchestrator.analyze_candidates(
@@ -345,7 +345,7 @@ class TestProgressCallbackIntegration:
         # Mock components
         mock_detector = Mock()
         mock_detector.find_duplication.return_value = {
-            "duplicates": [
+            "duplication_groups": [
                 {"similarity": 0.9, "lines_saved": 100, "complexity_score": 3,
                  "files": ["/tmp/file1.py"]},
             ]

@@ -229,7 +229,7 @@ class TestInputValidation:
 
         # Mock the detector to avoid actual analysis
         mock_detector = Mock()
-        mock_detector.find_duplication.return_value = {"duplicates": []}
+        mock_detector.find_duplication.return_value = {"duplication_groups": []}
         orchestrator.detector = mock_detector
 
         # This should pass validation but return empty results
@@ -285,7 +285,7 @@ class TestNamingConsistency:
         # Mock detector to return some candidates
         mock_detector = Mock()
         mock_detector.find_duplication.return_value = {
-            "duplicates": [
+            "duplication_groups": [
                 {"lines_saved": 50, "complexity_score": 5},
                 {"lines_saved": 30, "complexity_score": 3},
             ]
@@ -316,7 +316,7 @@ class TestNamingConsistency:
         # Mock detector to return 5 candidates
         mock_detector = Mock()
         mock_detector.find_duplication.return_value = {
-            "duplicates": [
+            "duplication_groups": [
                 {"lines_saved": i * 10, "complexity_score": i}
                 for i in range(1, 6)
             ]
@@ -344,7 +344,7 @@ class TestNamingConsistency:
         # Mock detector to return candidates with known savings
         mock_detector = Mock()
         mock_detector.find_duplication.return_value = {
-            "duplicates": [
+            "duplication_groups": [
                 {"lines_saved": 100, "complexity_score": 1, "files": ["a.py"]},
                 {"lines_saved": 50, "complexity_score": 2, "files": ["b.py"]},
                 {"lines_saved": 25, "complexity_score": 3, "files": ["c.py"]},
@@ -372,7 +372,7 @@ class TestNamingConsistency:
         # Mock detector with non-empty duplicates to test analysis_complete log
         mock_detector = Mock()
         mock_detector.find_duplication.return_value = {
-            "duplicates": [
+            "duplication_groups": [
                 {
                     "similarity": 0.9,
                     "lines_saved": 100,

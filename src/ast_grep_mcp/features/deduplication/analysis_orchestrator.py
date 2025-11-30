@@ -197,7 +197,7 @@ class DeduplicationAnalysisOrchestrator:
         # Pass max_candidates for early exit optimization (avoids unnecessary rank numbering)
         report_progress("Ranking candidates by value", 0.25)
         ranked_candidates = self.ranker.rank_deduplication_candidates(
-            duplication_results.get("duplicates", []),
+            duplication_results.get("duplication_groups", []),
             max_results=config.max_candidates
         )
 

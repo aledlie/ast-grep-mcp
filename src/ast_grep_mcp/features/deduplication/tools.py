@@ -117,9 +117,9 @@ def analyze_deduplication_candidates_tool(
 
     logger.info(
         "analyze_candidates_complete",
-        total_groups=result["total_groups"],
-        returned_candidates=len(result["candidates"]),
-        total_savings_potential=result["total_savings_potential"],
+        total_groups=result.get("total_groups_analyzed", 0),
+        returned_candidates=len(result.get("candidates", [])),
+        total_savings_potential=result.get("top_candidates_savings_potential", 0),
         include_test_coverage=include_test_coverage
     )
 

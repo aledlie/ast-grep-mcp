@@ -322,8 +322,13 @@ def format_analyze_results(result: Dict[str, Any], detailed: bool = False) -> No
         rec = candidate.get('recommendation', '')
         if rec:
             console.log(f"\n   {cp.yellow('Recommendation:')}")
+            # Handle both dict and string formats
+            if isinstance(rec, dict):
+                rec_text = rec.get('recommendation_text', str(rec))
+            else:
+                rec_text = str(rec)
             # Wrap long recommendations
-            words = rec.split()
+            words = rec_text.split()
             line = "   "
             for word in words:
                 if len(line) + len(word) > 75:

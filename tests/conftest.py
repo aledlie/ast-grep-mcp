@@ -875,7 +875,7 @@ def sample_deduplication_result() -> dict:
                 "complexity": 5,
                 "risk_level": "low",
                 "recommendation": "extract_function",
-                "duplicates": [
+                "duplication_groups": [
                     {"file": "file1.py", "start_line": 10, "end_line": 20},
                     {"file": "file2.py", "start_line": 15, "end_line": 25}
                 ]
