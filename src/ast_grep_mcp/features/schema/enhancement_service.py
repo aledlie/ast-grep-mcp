@@ -86,49 +86,136 @@ def _load_entities_from_file(file_path: Path) -> List[Dict[str, Any]]:
 
 
 def _load_entities_from_directory(dir_path: Path) -> List[Dict[str, Any]]:
-    """Load entities from all JSON files in a directory."""
+    """Load entities from Schema.org JSON-LD files in a directory.
+
+    Filters out common non-schema directories (node_modules, .git, etc.)
+    and only processes files that contain valid Schema.org JSON-LD data.
+    """
     if not dir_path.is_dir():
         raise ValueError(f"Expected directory but got file: {dir_path}")
 
     logger.debug("scanning_directory", path=str(dir_path))
     json_files = list(dir_path.glob("**/*.json"))
 
+    # Filter out files in excluded directories
+    excluded_dirs = {
+        'node_modules', '.git', '.svn', '.hg', '__pycache__', '.tox',
+        '.pytest_cache', '.mypy_cache', 'dist', 'build', '.next',
+        '.nuxt', 'coverage', '.cache', 'vendor', 'bower_components'
+    }
+    json_files = [
+        f for f in json_files
+        if not any(excluded in f.parts for excluded in excluded_dirs)
+    ]
+
     if not json_files:
         logger.warning("no_json_files_found", path=str(dir_path))
         return []
 
-    logger.info("found_json_files", count=len(json_files))
+    logger.info("found_json_files_after_filtering", count=len(json_files))
     entities: List[Dict[str, Any]] = []
+    schema_files_found = 0
 
     for json_file in json_files:
         try:
             with open(json_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            entities.extend(_extract_entities_from_data(data))
-            logger.debug("parsed_file", file=str(json_file))
+
+            # Only process files that look like Schema.org JSON-LD
+            if not _is_schema_org_data(data):
+                logger.debug("skipping_non_schema_file", file=str(json_file))
+                continue
+
+            schema_files_found += 1
+            extracted = _extract_entities_from_data(data)
+            entities.extend(extracted)
+            logger.debug("parsed_schema_file", file=str(json_file), entities=len(extracted))
+
         except json.JSONDecodeError as e:
-            logger.error("json_parse_error", file=str(json_file), error=str(e))
+            logger.debug("json_parse_error", file=str(json_file), error=str(e))
+            continue
+        except Exception as e:
+            logger.debug("file_read_error", file=str(json_file), error=str(e))
             continue
 
+    logger.info(
+        "directory_scan_complete",
+        total_files=len(json_files),
+        schema_files=schema_files_found,
+        entities_found=len(entities)
+    )
     return entities
+
+
+def _is_schema_org_data(data: Any) -> bool:
+    """Check if data appears to be Schema.org JSON-LD.
+
+    Returns True if the data contains Schema.org markers:
+    - @context containing 'schema.org'
+    - @type field (indicates a typed entity)
+    - @graph field (indicates a graph of entities)
+    """
+    if not isinstance(data, (dict, list)):
+        return False
+
+    # Handle list of entities
+    if isinstance(data, list):
+        return any(_is_schema_org_data(item) for item in data[:5])  # Check first 5
+
+    # Check for @context with schema.org
+    context = data.get('@context', '')
+    if isinstance(context, str) and 'schema.org' in context.lower():
+        return True
+    if isinstance(context, list) and any(
+        'schema.org' in str(c).lower() for c in context
+    ):
+        return True
+
+    # Check for @graph (common in Schema.org)
+    if '@graph' in data:
+        return True
+
+    # Check for @type (indicates typed entity)
+    if '@type' in data:
+        return True
+
+    return False
+
+
+def _is_valid_entity(item: Any) -> bool:
+    """Check if item is a valid Schema.org entity (dict with @type)."""
+    return isinstance(item, dict) and '@type' in item
+
+
+def _extract_entities_from_list(items: List[Any]) -> List[Dict[str, Any]]:
+    """Extract valid entities from a list."""
+    return [item for item in items if _is_valid_entity(item)]
 
 
 def _extract_entities_from_data(data: Any) -> List[Dict[str, Any]]:
-    """Extract entities from parsed JSON-LD data."""
-    entities: List[Dict[str, Any]] = []
+    """Extract entities from parsed JSON-LD data.
 
+    Only returns dict items that have @type (valid Schema.org entities).
+    Filters out primitives, lists, and dicts without @type.
+    """
+    # Handle @graph container
     if isinstance(data, dict) and '@graph' in data:
         graph = data['@graph']
         if isinstance(graph, list):
-            entities.extend(graph)
-        else:
-            entities.append(graph)
-    elif isinstance(data, dict):
-        entities.append(data)
-    elif isinstance(data, list):
-        entities.extend(data)
+            return _extract_entities_from_list(graph)
+        if _is_valid_entity(graph):
+            return [graph]
+        return []
 
-    return entities
+    # Handle single entity
+    if _is_valid_entity(data):
+        return [data]
+
+    # Handle array of entities
+    if isinstance(data, list):
+        return _extract_entities_from_list(data)
+
+    return []
 
 
 # =============================================================================
