@@ -47,7 +47,7 @@ IMPORT_PATTERN_CONFIG: Dict[str, Callable[[str], List[str]]] = {
 }
 
 
-class TestCoverageDetector:
+class CoverageDetector:
     """Detects test coverage for source files to assess refactoring risk."""
 
     def __init__(self) -> None:
@@ -732,7 +732,7 @@ class TestCoverageDetector:
 
 
 # Module-level functions for backwards compatibility
-_detector = TestCoverageDetector()
+_detector = CoverageDetector()
 
 def find_test_file_patterns(language: str) -> List[str]:
     """Get test file patterns for a given programming language."""

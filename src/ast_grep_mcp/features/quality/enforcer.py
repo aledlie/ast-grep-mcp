@@ -362,7 +362,7 @@ def execute_rule(
         # Execute using streaming parser
         violations: List[RuleViolation] = []
 
-        with sentry_sdk.start_span(op="execute_rule", description=f"Rule: {rule.id}"):
+        with sentry_sdk.start_span(op="execute_rule", name=f"Rule: {rule.id}"):
             matches = list(stream_ast_grep_results(
                 "scan",
                 args,
@@ -719,7 +719,7 @@ def enforce_standards_impl(
         raise ValueError(f"Project folder does not exist: {project_folder}")
 
     # Load rule set
-    with sentry_sdk.start_span(op="load_rule_set", description=f"Set: {rule_set}"):
+    with sentry_sdk.start_span(op="load_rule_set", name=f"Set: {rule_set}"):
         if rule_set == "custom" and custom_rules:
             # Load specific custom rules by ID
             all_custom = load_custom_rules(str(project_path), language)
@@ -778,7 +778,7 @@ def enforce_standards_impl(
     )
 
     # Execute rules in parallel
-    with sentry_sdk.start_span(op="execute_rules", description=f"Rules: {len(rule_set_obj.rules)}"):
+    with sentry_sdk.start_span(op="execute_rules", name=f"Rules: {len(rule_set_obj.rules)}"):
         all_violations = execute_rules_batch(rule_set_obj.rules, context)
 
     # Filter by severity threshold

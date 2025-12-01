@@ -400,7 +400,7 @@ def save_rule_to_project(rule: LintingRule, project_folder: str) -> str:
         rule_file = rules_dir / f"{rule.id}.yml"
         rule_dict = rule.to_yaml_dict()
 
-        with sentry_sdk.start_span(op="save_rule", description="Write rule YAML file"):
+        with sentry_sdk.start_span(op="save_rule", name="Write rule YAML file"):
             with open(rule_file, 'w') as f:
                 yaml.dump(rule_dict, f, default_flow_style=False, sort_keys=False)
 

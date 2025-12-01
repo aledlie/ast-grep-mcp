@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Optional
 from ...constants import ParallelProcessing
 from ...core.logging import get_logger
 from .config import AnalysisConfig
-from .coverage import TestCoverageDetector
+from .coverage import CoverageDetector
 from .detector import DuplicationDetector
 from .ranker import DuplicationRanker
 from .recommendations import RecommendationEngine
@@ -53,15 +53,15 @@ class DeduplicationAnalysisOrchestrator:
         self._ranker = value
 
     @property
-    def coverage_detector(self) -> TestCoverageDetector:
-        """Get or create TestCoverageDetector instance (lazy initialization)."""
+    def coverage_detector(self) -> CoverageDetector:
+        """Get or create CoverageDetector instance (lazy initialization)."""
         if not hasattr(self, '_coverage_detector'):
-            self._coverage_detector = TestCoverageDetector()
+            self._coverage_detector = CoverageDetector()
         return self._coverage_detector
 
     @coverage_detector.setter
-    def coverage_detector(self, value: TestCoverageDetector) -> None:
-        """Set TestCoverageDetector instance (for testing/dependency injection)."""
+    def coverage_detector(self, value: CoverageDetector) -> None:
+        """Set CoverageDetector instance (for testing/dependency injection)."""
         self._coverage_detector = value
 
     @property

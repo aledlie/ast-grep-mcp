@@ -12,7 +12,7 @@ from .applicator import DeduplicationApplicator
 from .benchmark import DeduplicationBenchmark, benchmark_deduplication
 
 # Supporting modules
-from .coverage import TestCoverageDetector, find_test_file_patterns, get_test_coverage_for_files, has_test_coverage
+from .coverage import CoverageDetector, find_test_file_patterns, get_test_coverage_for_files, has_test_coverage
 from .detector import DuplicationDetector
 from .generator import CodeGenerator
 from .impact import ImpactAnalyzer, analyze_deduplication_impact
@@ -38,7 +38,7 @@ __all__ = [
     "DuplicationRanker",
 
     # Supporting classes
-    "TestCoverageDetector",
+    "CoverageDetector",
     "ImpactAnalyzer",
     "RecommendationEngine",
     "DeduplicationApplicator",

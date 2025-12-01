@@ -43,7 +43,7 @@ def validate_rule_pattern(pattern: str, language: str) -> RuleValidationResult:
         }.get(language, 'function test() {}')
 
         # Try to run ast-grep with the pattern
-        with sentry_sdk.start_span(op="validate_pattern", description="Test ast-grep pattern"):
+        with sentry_sdk.start_span(op="validate_pattern", name="Test ast-grep pattern"):
             _ = run_ast_grep(
                 "run",
                 ["--pattern", pattern, "--lang", language],

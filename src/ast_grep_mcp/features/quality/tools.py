@@ -79,7 +79,7 @@ def _save_rule_if_requested(
             f"Cannot save invalid rule. Errors: {', '.join(validation_result.errors)}"
         )
 
-    with sentry_sdk.start_span(op="save_rule", description="Save rule to project"):
+    with sentry_sdk.start_span(op="save_rule", name="Save rule to project"):
         return save_rule_to_project(rule, project_folder)
 
 
@@ -169,7 +169,7 @@ def create_linting_rule_tool(
     )
 
     try:
-        with sentry_sdk.start_span(op="create_linting_rule", description="Create custom linting rule"):
+        with sentry_sdk.start_span(op="create_linting_rule", name="Create custom linting rule"):
             # Create rule using helper
             rule = _create_rule_from_params(
                 rule_name, description, pattern, severity,
@@ -180,7 +180,7 @@ def create_linting_rule_tool(
                 logger.info("rule_created_from_template", template_id=use_template)
 
             # Validate the rule
-            with sentry_sdk.start_span(op="validate_rule", description="Validate rule definition"):
+            with sentry_sdk.start_span(op="validate_rule", name="Validate rule definition"):
                 validation_result = validate_rule_definition(rule)
 
             # Save if requested
@@ -255,7 +255,7 @@ def list_rule_templates_tool(
     )
 
     try:
-        with sentry_sdk.start_span(op="list_templates", description="Get rule templates"):
+        with sentry_sdk.start_span(op="list_templates", name="Get rule templates"):
             templates = get_available_templates(language=language, category=category)
 
             # Get unique languages and categories from all templates

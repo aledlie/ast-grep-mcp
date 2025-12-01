@@ -12,7 +12,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from ast_grep_mcp.features.deduplication.coverage import TestCoverageDetector
+from ast_grep_mcp.features.deduplication.coverage import CoverageDetector
 
 
 class TestBatchCoverageOptimization:
@@ -42,8 +42,8 @@ class TestBatchCoverageOptimization:
 
     @pytest.fixture
     def detector(self):
-        """Create a TestCoverageDetector instance."""
-        return TestCoverageDetector()
+        """Create a CoverageDetector instance."""
+        return CoverageDetector()
 
     def test_find_all_test_files_python(self, detector, temp_project):
         """Test finding all test files in a Python project."""
@@ -176,8 +176,8 @@ class TestBatchVsSequentialEquivalence:
 
     @pytest.fixture
     def detector(self):
-        """Create a TestCoverageDetector instance."""
-        return TestCoverageDetector()
+        """Create a CoverageDetector instance."""
+        return CoverageDetector()
 
     def test_batch_sequential_equivalence(self, detector):
         """Test that batch and sequential produce identical results."""
@@ -232,8 +232,8 @@ class TestBatchCoverageIntegration:
 
     @pytest.fixture
     def mock_detector(self):
-        """Create a mock TestCoverageDetector."""
-        detector = Mock(spec=TestCoverageDetector)
+        """Create a mock CoverageDetector."""
+        detector = Mock(spec=CoverageDetector)
         detector.get_test_coverage_for_files_batch = Mock(
             return_value={
                 "/path/to/file1.py": True,
