@@ -8,16 +8,32 @@ Performance optimization (v0.2.0):
 - Replaced SequenceMatcher O(n²) with MinHash O(n) for similarity calculation
 - Added LSH indexing for scalable candidate retrieval
 - Improved structure hash using token pattern fingerprints
+
+Hybrid Pipeline (v0.3.0):
+- Two-stage similarity: fast MinHash filter + precise AST verification
+- Scientific basis: TACC (ICSE 2023) demonstrates optimal precision/recall
+- Configurable thresholds and weights for tuning behavior
 """
 
 import time
 from difflib import SequenceMatcher
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from ...core.executor import stream_ast_grep_results
 from ...core.logging import get_logger
 from ...core.usage_tracking import OperationType, track_operation
-from .similarity import EnhancedStructureHash, MinHashSimilarity, SimilarityConfig
+from .similarity import (
+    EnhancedStructureHash,
+    HybridSimilarity,
+    HybridSimilarityConfig,
+    HybridSimilarityResult,
+    MinHashSimilarity,
+    SimilarityConfig,
+)
+
+
+# Type alias for similarity mode selection
+SimilarityMode = Literal["minhash", "hybrid", "sequence_matcher"]
 
 
 class DuplicationDetector:
@@ -27,22 +43,42 @@ class DuplicationDetector:
         self,
         language: str = "python",
         use_minhash: bool = True,
+        similarity_mode: SimilarityMode = "hybrid",
         similarity_config: Optional[SimilarityConfig] = None,
+        hybrid_config: Optional[HybridSimilarityConfig] = None,
     ) -> None:
         """Initialize the duplication detector.
 
         Args:
             language: Programming language to analyze
-            use_minhash: Use MinHash O(n) similarity (True) or SequenceMatcher O(n²) (False)
+            use_minhash: Legacy parameter - use similarity_mode instead.
+                        If False, overrides similarity_mode to 'sequence_matcher'.
+            similarity_mode: Similarity calculation mode:
+                - 'hybrid': Two-stage pipeline (recommended) - fast MinHash filter + AST verification
+                - 'minhash': Fast MinHash only (O(n)) - good for large codebases
+                - 'sequence_matcher': Precise but slow (O(n²)) - for small codebases
             similarity_config: Configuration for MinHash similarity calculation
+            hybrid_config: Configuration for hybrid pipeline behavior
         """
         self.language = language
         self.logger = get_logger("deduplication.detector")
-        self.use_minhash = use_minhash
 
-        # Initialize MinHash similarity calculator
+        # Handle legacy use_minhash parameter
+        if not use_minhash:
+            similarity_mode = "sequence_matcher"
+        self.similarity_mode = similarity_mode
+        self.use_minhash = similarity_mode != "sequence_matcher"
+
+        # Initialize similarity calculators
         self._minhash = MinHashSimilarity(similarity_config)
+        self._hybrid = HybridSimilarity(similarity_config, hybrid_config)
         self._structure_hash = EnhancedStructureHash()
+
+        self.logger.info(
+            "detector_initialized",
+            language=language,
+            similarity_mode=similarity_mode,
+        )
 
     def find_duplication(
         self,
@@ -259,8 +295,10 @@ class DuplicationDetector:
     def calculate_similarity(self, code1: str, code2: str) -> float:
         """Calculate similarity between two code snippets.
 
-        Uses MinHash O(n) by default for scalability, with fallback to
-        SequenceMatcher O(n²) for precise comparison when needed.
+        Uses the configured similarity mode:
+        - 'hybrid': Two-stage pipeline (recommended) - fast filter + precise verification
+        - 'minhash': Fast MinHash only (O(n)) - good for large codebases
+        - 'sequence_matcher': Precise but slow (O(n²)) - for small codebases
 
         Args:
             code1: First code snippet.
@@ -272,15 +310,37 @@ class DuplicationDetector:
         if not code1 or not code2:
             return 0.0
 
-        if self.use_minhash:
+        if self.similarity_mode == "hybrid":
+            # Two-stage hybrid pipeline - optimal precision/recall
+            return self._hybrid.estimate_similarity(code1, code2)
+        elif self.similarity_mode == "minhash":
             # Fast MinHash estimation - O(n) complexity
             return self._minhash.estimate_similarity(code1, code2)
+        else:
+            # Fallback to SequenceMatcher - O(n²) complexity
+            norm1 = self._normalize_code(code1)
+            norm2 = self._normalize_code(code2)
+            matcher = SequenceMatcher(None, norm1, norm2)
+            return matcher.ratio()
 
-        # Fallback to SequenceMatcher - O(n²) complexity
-        norm1 = self._normalize_code(code1)
-        norm2 = self._normalize_code(code2)
-        matcher = SequenceMatcher(None, norm1, norm2)
-        return matcher.ratio()
+    def calculate_similarity_detailed(
+        self,
+        code1: str,
+        code2: str,
+    ) -> HybridSimilarityResult:
+        """Calculate similarity with detailed hybrid pipeline results.
+
+        Returns full details about which stages were executed and
+        individual similarity scores from each stage.
+
+        Args:
+            code1: First code snippet.
+            code2: Second code snippet.
+
+        Returns:
+            HybridSimilarityResult with detailed similarity information.
+        """
+        return self._hybrid.calculate_hybrid_similarity(code1, code2)
 
     def calculate_similarity_precise(self, code1: str, code2: str) -> float:
         """Calculate precise similarity using SequenceMatcher.
