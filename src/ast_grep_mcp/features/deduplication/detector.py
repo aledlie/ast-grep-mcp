@@ -3,6 +3,11 @@ Duplication detection module.
 
 This module provides the core functionality for detecting duplicate code
 in a codebase using ast-grep pattern matching and similarity analysis.
+
+Performance optimization (v0.2.0):
+- Replaced SequenceMatcher O(n²) with MinHash O(n) for similarity calculation
+- Added LSH indexing for scalable candidate retrieval
+- Improved structure hash using token pattern fingerprints
 """
 
 import time
@@ -11,19 +16,33 @@ from typing import Any, Dict, List, Optional
 
 from ...core.executor import stream_ast_grep_results
 from ...core.logging import get_logger
+from ...core.usage_tracking import OperationType, track_operation
+from .similarity import EnhancedStructureHash, MinHashSimilarity, SimilarityConfig
 
 
 class DuplicationDetector:
     """Core duplication detection functionality."""
 
-    def __init__(self, language: str = "python") -> None:
+    def __init__(
+        self,
+        language: str = "python",
+        use_minhash: bool = True,
+        similarity_config: Optional[SimilarityConfig] = None,
+    ) -> None:
         """Initialize the duplication detector.
 
         Args:
             language: Programming language to analyze
+            use_minhash: Use MinHash O(n) similarity (True) or SequenceMatcher O(n²) (False)
+            similarity_config: Configuration for MinHash similarity calculation
         """
         self.language = language
         self.logger = get_logger("deduplication.detector")
+        self.use_minhash = use_minhash
+
+        # Initialize MinHash similarity calculator
+        self._minhash = MinHashSimilarity(similarity_config)
+        self._structure_hash = EnhancedStructureHash()
 
     def find_duplication(
         self,
@@ -64,63 +83,78 @@ class DuplicationDetector:
             exclude_patterns=exclude_patterns
         )
 
-        try:
-            # Validate parameters
-            self._validate_parameters(min_similarity, min_lines, max_constructs)
+        # Track usage for cost monitoring
+        with track_operation(
+            "find_duplication",
+            OperationType.FIND_DUPLICATION,
+            metadata={"language": self.language, "construct_type": construct_type}
+        ) as tracker:
+            try:
+                # Validate parameters
+                self._validate_parameters(min_similarity, min_lines, max_constructs)
 
-            # Get pattern for the construct type
-            pattern = self._get_construct_pattern(construct_type)
+                # Get pattern for the construct type
+                pattern = self._get_construct_pattern(construct_type)
 
-            # Find all instances of the construct
-            all_matches = self._find_constructs(
-                project_folder,
-                pattern,
-                max_constructs,
-                exclude_patterns
-            )
+                # Find all instances of the construct
+                all_matches = self._find_constructs(
+                    project_folder,
+                    pattern,
+                    max_constructs,
+                    exclude_patterns
+                )
 
-            if not all_matches:
+                # Update tracker with metrics
+                tracker.files_processed = len(set(m.get('file', '') for m in all_matches))
+                tracker.lines_analyzed = sum(
+                    len(m.get('text', '').split('\n')) for m in all_matches
+                )
+
+                if not all_matches:
+                    execution_time = time.time() - start_time
+                    return self._empty_result(construct_type, execution_time)
+
+                # Group duplicates by similarity
+                duplication_groups = self.group_duplicates(all_matches, min_similarity, min_lines)
+
+                # Generate refactoring suggestions
+                suggestions = self.generate_refactoring_suggestions(
+                    duplication_groups,
+                    construct_type
+                )
+
+                # Calculate statistics
+                stats = self._calculate_statistics(all_matches, duplication_groups, suggestions)
+
+                # Update tracker with match count
+                tracker.matches_found = len(duplication_groups)
+
                 execution_time = time.time() - start_time
-                return self._empty_result(construct_type, execution_time)
+                self.logger.info(
+                    "find_duplication_completed",
+                    execution_time_seconds=round(execution_time, 3),
+                    total_constructs=len(all_matches),
+                    duplicate_groups=len(duplication_groups),
+                    status="success"
+                )
 
-            # Group duplicates by similarity
-            duplication_groups = self.group_duplicates(all_matches, min_similarity, min_lines)
+                return self._format_result(
+                    all_matches,
+                    duplication_groups,
+                    suggestions,
+                    stats,
+                    execution_time
+                )
 
-            # Generate refactoring suggestions
-            suggestions = self.generate_refactoring_suggestions(
-                duplication_groups,
-                construct_type
-            )
-
-            # Calculate statistics
-            stats = self._calculate_statistics(all_matches, duplication_groups, suggestions)
-
-            execution_time = time.time() - start_time
-            self.logger.info(
-                "find_duplication_completed",
-                execution_time_seconds=round(execution_time, 3),
-                total_constructs=len(all_matches),
-                duplicate_groups=len(duplication_groups),
-                status="success"
-            )
-
-            return self._format_result(
-                all_matches,
-                duplication_groups,
-                suggestions,
-                stats,
-                execution_time
-            )
-
-        except Exception as e:
-            execution_time = time.time() - start_time
-            self.logger.error(
-                "find_duplication_failed",
-                execution_time_seconds=round(execution_time, 3),
-                error=str(e)[:200],
-                status="failed"
-            )
-            raise
+            except Exception as e:
+                execution_time = time.time() - start_time
+                self.logger.error(
+                    "find_duplication_failed",
+                    execution_time_seconds=round(execution_time, 3),
+                    error=str(e)[:200],
+                    status="failed"
+                )
+                raise
 
     def _validate_parameters(self, min_similarity: float, min_lines: int, max_constructs: int) -> None:
         """Validate input parameters."""
@@ -223,15 +257,48 @@ class DuplicationDetector:
         return all_matches
 
     def calculate_similarity(self, code1: str, code2: str) -> float:
-        """Calculate similarity between two code snippets using normalized sequence matching."""
+        """Calculate similarity between two code snippets.
+
+        Uses MinHash O(n) by default for scalability, with fallback to
+        SequenceMatcher O(n²) for precise comparison when needed.
+
+        Args:
+            code1: First code snippet.
+            code2: Second code snippet.
+
+        Returns:
+            Similarity score between 0.0 and 1.0.
+        """
         if not code1 or not code2:
             return 0.0
 
-        # Normalize whitespace for comparison
+        if self.use_minhash:
+            # Fast MinHash estimation - O(n) complexity
+            return self._minhash.estimate_similarity(code1, code2)
+
+        # Fallback to SequenceMatcher - O(n²) complexity
         norm1 = self._normalize_code(code1)
         norm2 = self._normalize_code(code2)
+        matcher = SequenceMatcher(None, norm1, norm2)
+        return matcher.ratio()
 
-        # Use SequenceMatcher for similarity
+    def calculate_similarity_precise(self, code1: str, code2: str) -> float:
+        """Calculate precise similarity using SequenceMatcher.
+
+        Use this for final verification of candidates identified by MinHash.
+
+        Args:
+            code1: First code snippet.
+            code2: Second code snippet.
+
+        Returns:
+            Precise similarity score between 0.0 and 1.0.
+        """
+        if not code1 or not code2:
+            return 0.0
+
+        norm1 = self._normalize_code(code1)
+        norm2 = self._normalize_code(code2)
         matcher = SequenceMatcher(None, norm1, norm2)
         return matcher.ratio()
 
@@ -301,17 +368,18 @@ class DuplicationDetector:
         return buckets
 
     def _calculate_structure_hash(self, code: str) -> int:
-        """Calculate a hash based on code structure for bucketing."""
-        # Simple hash based on number of lines and key tokens
-        lines = code.split('\n')
-        line_count = len(lines)
+        """Calculate a hash based on code structure for bucketing.
 
-        # Count some structural elements
-        keywords = ['def', 'class', 'if', 'for', 'while', 'return', 'function', 'var', 'let', 'const']
-        keyword_count = sum(1 for line in lines for kw in keywords if kw in line)
+        Uses enhanced token pattern fingerprinting for better bucket distribution.
+        Groups code by control flow, definitions, returns, and indentation depth.
 
-        # Create a simple hash that groups similar structures
-        return (line_count // 5) * 1000 + keyword_count
+        Args:
+            code: Source code to hash.
+
+        Returns:
+            Structure hash integer for bucket assignment.
+        """
+        return self._structure_hash.calculate(code)
 
     def _find_similar_in_bucket(
         self,
@@ -375,9 +443,9 @@ class DuplicationDetector:
         current_idx: int,
         groups: List[List[Dict[str, Any]]],
         item_to_groups: Dict[str, List[int]],
-        used_groups: set,
-        to_merge: list,
-        merged_group: list
+        used_groups: set[int],
+        to_merge: list[int],
+        merged_group: list[Dict[str, Any]]
     ) -> None:
         """Process connections for a single group."""
         for item in groups[current_idx]:
