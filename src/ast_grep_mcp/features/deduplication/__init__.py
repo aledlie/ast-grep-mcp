@@ -3,6 +3,10 @@ Deduplication feature module.
 
 This module provides comprehensive code deduplication detection and refactoring
 capabilities for the ast-grep MCP server.
+
+Version History:
+- v1.0.0: Initial release with MinHash similarity
+- v1.1.0: Added hybrid two-stage similarity pipeline (TACC-inspired)
 """
 
 # Core detection and analysis
@@ -10,6 +14,16 @@ from .analyzer import PatternAnalyzer
 from ...models.deduplication import VariationCategory, VariationSeverity
 from .applicator import DeduplicationApplicator
 from .benchmark import DeduplicationBenchmark, benchmark_deduplication
+
+# Similarity calculation
+from .similarity import (
+    HybridSimilarity,
+    HybridSimilarityConfig,
+    HybridSimilarityResult,
+    MinHashSimilarity,
+    SimilarityConfig,
+    SimilarityResult,
+)
 
 # Supporting modules
 from .coverage import CoverageDetector, find_test_file_patterns, get_test_coverage_for_files, has_test_coverage
@@ -36,6 +50,14 @@ __all__ = [
     "PatternAnalyzer",
     "CodeGenerator",
     "DuplicationRanker",
+
+    # Similarity classes (v1.1.0)
+    "HybridSimilarity",
+    "HybridSimilarityConfig",
+    "HybridSimilarityResult",
+    "MinHashSimilarity",
+    "SimilarityConfig",
+    "SimilarityResult",
 
     # Supporting classes
     "CoverageDetector",
@@ -70,4 +92,4 @@ __all__ = [
 ]
 
 # Version info
-__version__ = "1.0.0"
+__version__ = "1.1.0"

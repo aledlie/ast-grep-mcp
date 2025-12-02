@@ -122,6 +122,36 @@ class DeduplicationDefaults:
     REGRESSION_TEST_COVERAGE = 0.15     # 15% slowdown allowed
 
 
+class HybridSimilarityDefaults:
+    """Defaults for hybrid two-stage similarity pipeline.
+
+    Scientific basis: TACC (Token and AST-based Code Clone detector)
+    from ICSE 2023 demonstrates that combining MinHash filtering with
+    AST verification yields optimal precision/recall balance.
+    """
+
+    # Stage 1: MinHash filter threshold for early exit
+    # Code pairs below this threshold skip Stage 2 (AST verification)
+    MINHASH_EARLY_EXIT_THRESHOLD = 0.5
+
+    # Stage 2 weights for combining MinHash and AST similarity
+    # Must sum to 1.0. AST gets higher weight due to structural precision.
+    MINHASH_WEIGHT = 0.4
+    AST_WEIGHT = 0.6
+
+    # Minimum token count to use hybrid approach
+    # Very short code snippets may not benefit from AST analysis
+    MIN_TOKENS_FOR_AST = 10
+
+    # Maximum code length (lines) for AST analysis
+    # Very long code may be too expensive for detailed AST comparison
+    MAX_LINES_FOR_FULL_AST = 500
+
+    # AST tree edit distance normalization factor
+    # Used to convert raw edit distance to 0-1 similarity score
+    TREE_EDIT_DISTANCE_NORMALIZATION = 100
+
+
 class SecurityScanDefaults:
     """Defaults for security scanning."""
 
