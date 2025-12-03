@@ -152,6 +152,52 @@ class HybridSimilarityDefaults:
     TREE_EDIT_DISTANCE_NORMALIZATION = 100
 
 
+class SemanticSimilarityDefaults:
+    """Defaults for CodeBERT-based semantic similarity (Phase 5).
+
+    Scientific basis: GraphCodeBERT (2024) produces 768-dimensional
+    embeddings capturing semantic meaning for Type-4 clone detection.
+
+    Note: Semantic similarity is OPTIONAL and requires:
+    - transformers library
+    - torch (PyTorch)
+    - GPU recommended for performance
+
+    Install with: pip install ast-grep-mcp[semantic]
+    """
+
+    # Whether semantic similarity is enabled by default
+    # Set to False to require explicit opt-in
+    ENABLE_SEMANTIC = False
+
+    # Weight for semantic similarity in three-stage hybrid score
+    # When enabled, weights are rebalanced: MinHash (0.2), AST (0.5), Semantic (0.3)
+    SEMANTIC_WEIGHT = 0.3
+
+    # Rebalanced weights when semantic is enabled (must sum to 1.0)
+    MINHASH_WEIGHT_WITH_SEMANTIC = 0.2
+    AST_WEIGHT_WITH_SEMANTIC = 0.5
+
+    # Minimum similarity from Stage 2 (AST) to proceed to Stage 3 (Semantic)
+    # This provides a second early-exit point to avoid expensive model inference
+    SEMANTIC_STAGE_THRESHOLD = 0.6
+
+    # Default model for CodeBERT embeddings
+    MODEL_NAME = "microsoft/codebert-base"
+
+    # Maximum token length for CodeBERT input
+    MAX_TOKEN_LENGTH = 512
+
+    # Device selection: 'auto', 'cpu', 'cuda', or 'mps'
+    DEFAULT_DEVICE = "auto"
+
+    # Whether to cache embeddings for repeated comparisons
+    CACHE_EMBEDDINGS = True
+
+    # Whether to L2-normalize embeddings (recommended for cosine similarity)
+    NORMALIZE_EMBEDDINGS = True
+
+
 class SecurityScanDefaults:
     """Defaults for security scanning."""
 

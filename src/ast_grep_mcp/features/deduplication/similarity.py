@@ -28,11 +28,14 @@ Compared to SequenceMatcher O(n²), this enables:
 import re
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
-from typing import Dict, List, Literal, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Set, Tuple
+
+if TYPE_CHECKING:
+    import torch
 
 from datasketch import MinHash, MinHashLSH
 
-from ...constants import HybridSimilarityDefaults
+from ...constants import HybridSimilarityDefaults, SemanticSimilarityDefaults
 from ...core.logging import get_logger
 
 
@@ -101,11 +104,15 @@ SimilarityMethod = Literal["minhash", "ast", "hybrid", "sequence_matcher"]
 
 @dataclass
 class HybridSimilarityConfig:
-    """Configuration for hybrid two-stage similarity pipeline.
+    """Configuration for hybrid two/three-stage similarity pipeline.
 
     Scientific basis: TACC (Token and AST-based Code Clone detector)
     from ICSE 2023 demonstrates that combining MinHash filtering with
     AST/structural verification yields optimal precision/recall balance.
+
+    Phase 5 adds optional Stage 3: CodeBERT semantic similarity for
+    Type-4 (semantic) clone detection. When enabled, weights are
+    rebalanced to include semantic contribution.
     """
 
     minhash_early_exit_threshold: float = HybridSimilarityDefaults.MINHASH_EARLY_EXIT_THRESHOLD
@@ -126,6 +133,22 @@ class HybridSimilarityConfig:
     use_sequence_matcher_for_ast: bool = True
     """Use SequenceMatcher for AST-like structural comparison (more accurate than tree edit)."""
 
+    # Phase 5: Semantic similarity options
+    enable_semantic: bool = SemanticSimilarityDefaults.ENABLE_SEMANTIC
+    """Enable Stage 3 CodeBERT semantic similarity (requires transformers + torch)."""
+
+    semantic_weight: float = SemanticSimilarityDefaults.SEMANTIC_WEIGHT
+    """Weight for semantic similarity when enabled (0.0-1.0)."""
+
+    semantic_stage_threshold: float = SemanticSimilarityDefaults.SEMANTIC_STAGE_THRESHOLD
+    """Minimum AST similarity to proceed to Stage 3 (second early-exit point)."""
+
+    semantic_model_name: str = SemanticSimilarityDefaults.MODEL_NAME
+    """CodeBERT model name for semantic embeddings."""
+
+    semantic_device: str = SemanticSimilarityDefaults.DEFAULT_DEVICE
+    """Device for semantic model inference: 'auto', 'cpu', 'cuda', 'mps'."""
+
     def __post_init__(self) -> None:
         """Validate configuration values."""
         if not (0.0 <= self.minhash_early_exit_threshold <= 1.0):
@@ -134,17 +157,36 @@ class HybridSimilarityConfig:
             raise ValueError("minhash_weight must be between 0.0 and 1.0")
         if not (0.0 <= self.ast_weight <= 1.0):
             raise ValueError("ast_weight must be between 0.0 and 1.0")
-        total_weight = self.minhash_weight + self.ast_weight
-        if abs(total_weight - 1.0) > 0.001:
-            raise ValueError(f"minhash_weight + ast_weight must equal 1.0, got {total_weight}")
+        if not (0.0 <= self.semantic_weight <= 1.0):
+            raise ValueError("semantic_weight must be between 0.0 and 1.0")
+        if not (0.0 <= self.semantic_stage_threshold <= 1.0):
+            raise ValueError("semantic_stage_threshold must be between 0.0 and 1.0")
+
+        # Validate weight sum based on whether semantic is enabled
+        if self.enable_semantic:
+            total_weight = self.minhash_weight + self.ast_weight + self.semantic_weight
+            if abs(total_weight - 1.0) > 0.001:
+                raise ValueError(
+                    f"minhash_weight + ast_weight + semantic_weight must equal 1.0 "
+                    f"when semantic is enabled, got {total_weight}"
+                )
+        else:
+            total_weight = self.minhash_weight + self.ast_weight
+            if abs(total_weight - 1.0) > 0.001:
+                raise ValueError(f"minhash_weight + ast_weight must equal 1.0, got {total_weight}")
 
 
 @dataclass
 class HybridSimilarityResult:
-    """Result of hybrid two-stage similarity calculation.
+    """Result of hybrid two/three-stage similarity calculation.
 
     Provides detailed information about which stages were executed
     and the individual similarity scores from each stage.
+
+    Stages:
+    - Stage 1: MinHash filter (fast, O(n))
+    - Stage 2: AST structural verification (precise, O(n))
+    - Stage 3: CodeBERT semantic similarity (optional, requires GPU)
     """
 
     similarity: float
@@ -162,14 +204,26 @@ class HybridSimilarityResult:
     ast_similarity: Optional[float] = None
     """Stage 2 AST similarity score (None if Stage 2 was skipped)."""
 
+    semantic_similarity: Optional[float] = None
+    """Stage 3 CodeBERT semantic similarity (None if Stage 3 disabled or skipped)."""
+
     stage1_passed: bool = False
     """Whether the code pair passed Stage 1 filtering."""
+
+    stage2_passed: bool = False
+    """Whether the code pair passed Stage 2 filtering (for Stage 3)."""
 
     early_exit: bool = False
     """Whether Stage 2 was skipped due to low Stage 1 similarity."""
 
+    semantic_skipped: bool = False
+    """Whether Stage 3 was skipped (disabled, unavailable, or low Stage 2 similarity)."""
+
     token_count: int = 0
     """Number of tokens in the compared code (for diagnostics)."""
+
+    semantic_model: Optional[str] = None
+    """CodeBERT model used for semantic similarity (if applicable)."""
 
     def to_dict(self) -> Dict[str, object]:
         """Convert result to dictionary for serialization."""
@@ -179,9 +233,13 @@ class HybridSimilarityResult:
             "verified": self.verified,
             "minhash_similarity": round(self.minhash_similarity, 4),
             "ast_similarity": round(self.ast_similarity, 4) if self.ast_similarity is not None else None,
+            "semantic_similarity": round(self.semantic_similarity, 4) if self.semantic_similarity is not None else None,
             "stage1_passed": self.stage1_passed,
+            "stage2_passed": self.stage2_passed,
             "early_exit": self.early_exit,
+            "semantic_skipped": self.semantic_skipped,
             "token_count": self.token_count,
+            "semantic_model": self.semantic_model,
         }
 
 
@@ -640,21 +698,22 @@ class MinHashSimilarity:
 
 class HybridSimilarity:
     """
-    Hybrid two-stage similarity calculator combining MinHash and AST-like analysis.
+    Hybrid two/three-stage similarity calculator combining MinHash, AST, and CodeBERT.
 
-    Implements a two-stage pipeline for optimal precision/recall balance:
+    Implements a multi-stage pipeline for optimal precision/recall balance:
     - Stage 1: Fast MinHash filter (O(n)) - quickly eliminate dissimilar code pairs
     - Stage 2: Precise structural verification for candidates that pass Stage 1
+    - Stage 3: CodeBERT semantic similarity (optional) for Type-4 clone detection
 
-    Scientific basis: TACC (Token and AST-based Code Clone detector) from ICSE 2023
-    demonstrates that combining token-based filtering with structural verification
-    yields superior results compared to either approach alone.
+    Scientific basis:
+    - TACC (ICSE 2023): Token + AST hybrid yields optimal precision/recall
+    - GraphCodeBERT (2024): Semantic embeddings capture functional equivalence
 
     Key benefits:
     - Returns quickly for obviously dissimilar code (Stage 1 only)
     - Provides high-precision results for similar code candidates (Stage 1 + Stage 2)
+    - Optional semantic analysis for detecting functionally equivalent code
     - Reports which method was used and confidence level
-    - Improves both speed AND accuracy compared to pure SequenceMatcher approach
     """
 
     def __init__(
@@ -675,12 +734,57 @@ class HybridSimilarity:
         # Initialize MinHash calculator for Stage 1
         self._minhash = MinHashSimilarity(self.minhash_config)
 
+        # Lazy-initialized semantic similarity calculator for Stage 3
+        self._semantic: Optional["SemanticSimilarity"] = None
+        self._semantic_available: Optional[bool] = None
+
+    def _get_semantic_calculator(self) -> Optional["SemanticSimilarity"]:
+        """Get or create the semantic similarity calculator.
+
+        Returns:
+            SemanticSimilarity instance if available and enabled, None otherwise.
+        """
+        if not self.hybrid_config.enable_semantic:
+            return None
+
+        if self._semantic_available is False:
+            return None
+
+        if self._semantic is not None:
+            return self._semantic
+
+        # Check if semantic similarity is available
+        if not _check_transformers_available():
+            self._semantic_available = False
+            self.logger.info(
+                "semantic_similarity_unavailable",
+                reason="transformers or torch not installed",
+            )
+            return None
+
+        # Create semantic calculator with config from hybrid_config
+        try:
+            semantic_config = SemanticSimilarityConfig(
+                model_name=self.hybrid_config.semantic_model_name,
+                device=self.hybrid_config.semantic_device,
+            )
+            self._semantic = SemanticSimilarity(semantic_config)
+            self._semantic_available = True
+            return self._semantic
+        except Exception as e:
+            self._semantic_available = False
+            self.logger.warning(
+                "semantic_similarity_init_failed",
+                error=str(e),
+            )
+            return None
+
     def calculate_hybrid_similarity(
         self,
         code1: str,
         code2: str,
     ) -> HybridSimilarityResult:
-        """Calculate similarity using hybrid two-stage pipeline.
+        """Calculate similarity using hybrid two/three-stage pipeline.
 
         Stage 1: Fast MinHash filter (O(n))
         - If similarity < early_exit_threshold, return immediately
@@ -688,7 +792,11 @@ class HybridSimilarity:
 
         Stage 2: Precise structural verification (O(n) to O(n log n))
         - Uses normalized SequenceMatcher for AST-like comparison
-        - Combines with MinHash score using configured weights
+        - If semantic disabled, combines with MinHash using configured weights
+
+        Stage 3: CodeBERT semantic similarity (optional)
+        - Only runs if enable_semantic=True and AST similarity >= semantic_stage_threshold
+        - Combines all three scores using configured weights
 
         Args:
             code1: First code snippet.
@@ -705,9 +813,13 @@ class HybridSimilarity:
                 verified=False,
                 minhash_similarity=0.0,
                 ast_similarity=None,
+                semantic_similarity=None,
                 stage1_passed=False,
+                stage2_passed=False,
                 early_exit=True,
+                semantic_skipped=True,
                 token_count=0,
+                semantic_model=None,
             )
 
         # Count tokens for diagnostics
@@ -731,15 +843,32 @@ class HybridSimilarity:
                 verified=False,
                 minhash_similarity=minhash_sim,
                 ast_similarity=None,
+                semantic_similarity=None,
                 stage1_passed=False,
+                stage2_passed=False,
                 early_exit=True,
+                semantic_skipped=True,
                 token_count=avg_token_count,
+                semantic_model=None,
             )
 
         # Stage 2: Precise structural verification
         ast_sim = self._calculate_ast_similarity(code1, code2)
 
-        # Weighted combination
+        # Check if Stage 3 (semantic) should run
+        semantic_calc = self._get_semantic_calculator()
+        should_run_semantic = (
+            semantic_calc is not None
+            and ast_sim >= self.hybrid_config.semantic_stage_threshold
+        )
+
+        if should_run_semantic and semantic_calc is not None:
+            # Stage 3: CodeBERT semantic similarity
+            return self._calculate_with_semantic(
+                code1, code2, minhash_sim, ast_sim, avg_token_count, semantic_calc
+            )
+
+        # Two-stage result (no semantic)
         combined_similarity = (
             self.hybrid_config.minhash_weight * minhash_sim
             + self.hybrid_config.ast_weight * ast_sim
@@ -751,6 +880,8 @@ class HybridSimilarity:
             ast_similarity=round(ast_sim, 4),
             combined_similarity=round(combined_similarity, 4),
             weights=f"{self.hybrid_config.minhash_weight}/{self.hybrid_config.ast_weight}",
+            semantic_enabled=self.hybrid_config.enable_semantic,
+            semantic_skipped=True,
         )
 
         return HybridSimilarityResult(
@@ -759,10 +890,102 @@ class HybridSimilarity:
             verified=True,
             minhash_similarity=minhash_sim,
             ast_similarity=ast_sim,
+            semantic_similarity=None,
             stage1_passed=True,
+            stage2_passed=ast_sim >= self.hybrid_config.semantic_stage_threshold,
             early_exit=False,
+            semantic_skipped=True,
             token_count=avg_token_count,
+            semantic_model=None,
         )
+
+    def _calculate_with_semantic(
+        self,
+        code1: str,
+        code2: str,
+        minhash_sim: float,
+        ast_sim: float,
+        token_count: int,
+        semantic_calc: "SemanticSimilarity",
+    ) -> HybridSimilarityResult:
+        """Calculate three-stage similarity with semantic analysis.
+
+        Args:
+            code1: First code snippet.
+            code2: Second code snippet.
+            minhash_sim: Stage 1 MinHash similarity.
+            ast_sim: Stage 2 AST similarity.
+            token_count: Average token count for diagnostics.
+            semantic_calc: SemanticSimilarity calculator instance.
+
+        Returns:
+            HybridSimilarityResult with all three stages.
+        """
+        try:
+            semantic_sim = semantic_calc.calculate_similarity(code1, code2)
+
+            # Three-stage weighted combination
+            combined_similarity = (
+                self.hybrid_config.minhash_weight * minhash_sim
+                + self.hybrid_config.ast_weight * ast_sim
+                + self.hybrid_config.semantic_weight * semantic_sim
+            )
+
+            self.logger.debug(
+                "hybrid_semantic_complete",
+                minhash_similarity=round(minhash_sim, 4),
+                ast_similarity=round(ast_sim, 4),
+                semantic_similarity=round(semantic_sim, 4),
+                combined_similarity=round(combined_similarity, 4),
+                weights=(
+                    f"{self.hybrid_config.minhash_weight}/"
+                    f"{self.hybrid_config.ast_weight}/"
+                    f"{self.hybrid_config.semantic_weight}"
+                ),
+            )
+
+            return HybridSimilarityResult(
+                similarity=combined_similarity,
+                method="hybrid",
+                verified=True,
+                minhash_similarity=minhash_sim,
+                ast_similarity=ast_sim,
+                semantic_similarity=semantic_sim,
+                stage1_passed=True,
+                stage2_passed=True,
+                early_exit=False,
+                semantic_skipped=False,
+                token_count=token_count,
+                semantic_model=semantic_calc.config.model_name,
+            )
+
+        except Exception as e:
+            # Fall back to two-stage if semantic fails
+            self.logger.warning(
+                "semantic_similarity_failed",
+                error=str(e),
+                fallback="two_stage",
+            )
+
+            combined_similarity = (
+                self.hybrid_config.minhash_weight * minhash_sim
+                + self.hybrid_config.ast_weight * ast_sim
+            )
+
+            return HybridSimilarityResult(
+                similarity=combined_similarity,
+                method="hybrid",
+                verified=True,
+                minhash_similarity=minhash_sim,
+                ast_similarity=ast_sim,
+                semantic_similarity=None,
+                stage1_passed=True,
+                stage2_passed=True,
+                early_exit=False,
+                semantic_skipped=True,
+                token_count=token_count,
+                semantic_model=None,
+            )
 
     def _calculate_ast_similarity(self, code1: str, code2: str) -> float:
         """Calculate AST-like structural similarity between two code snippets.
@@ -1293,3 +1516,379 @@ class EnhancedStructureHash:
         )
 
         return buckets
+
+
+# Optional imports for semantic similarity (CodeBERT)
+# These are only loaded when SemanticSimilarity is instantiated
+_TRANSFORMERS_AVAILABLE: Optional[bool] = None
+_torch: Any = None
+_transformers: Any = None
+
+
+def _check_transformers_available() -> bool:
+    """Check if transformers and torch are available.
+
+    Returns:
+        True if both transformers and torch can be imported.
+    """
+    global _TRANSFORMERS_AVAILABLE, _torch, _transformers
+
+    if _TRANSFORMERS_AVAILABLE is not None:
+        return _TRANSFORMERS_AVAILABLE
+
+    try:
+        import torch
+        import transformers
+
+        _torch = torch
+        _transformers = transformers
+        _TRANSFORMERS_AVAILABLE = True
+    except ImportError:
+        _TRANSFORMERS_AVAILABLE = False
+
+    return _TRANSFORMERS_AVAILABLE
+
+
+@dataclass
+class SemanticSimilarityConfig:
+    """Configuration for CodeBERT-based semantic similarity.
+
+    CodeBERT produces 768-dimensional embeddings that capture semantic
+    meaning beyond syntactic patterns. This enables Type-4 (semantic)
+    clone detection - finding functionally equivalent code with
+    different implementations.
+
+    Scientific basis: GraphCodeBERT (2024) demonstrates superior
+    code understanding through pre-training on code-comment pairs
+    and data flow analysis.
+    """
+
+    model_name: str = "microsoft/codebert-base"
+    """Pre-trained model to use for embeddings."""
+
+    max_length: int = 512
+    """Maximum token length for code input (CodeBERT limit)."""
+
+    device: str = "auto"
+    """Device for inference: 'auto', 'cpu', 'cuda', or 'mps'."""
+
+    batch_size: int = 8
+    """Batch size for embedding generation (for bulk operations)."""
+
+    cache_embeddings: bool = True
+    """Whether to cache computed embeddings for reuse."""
+
+    normalize_embeddings: bool = True
+    """Whether to L2-normalize embeddings (recommended for cosine similarity)."""
+
+
+@dataclass
+class SemanticSimilarityResult:
+    """Result of semantic similarity calculation using CodeBERT.
+
+    Provides detailed information about the semantic comparison,
+    including confidence metrics and model information.
+    """
+
+    similarity: float
+    """Cosine similarity between code embeddings (0.0 to 1.0)."""
+
+    model_used: str
+    """Name of the model used for embedding generation."""
+
+    embedding_dim: int
+    """Dimensionality of the embeddings (768 for CodeBERT)."""
+
+    truncated: bool = False
+    """Whether input code was truncated to fit model's max_length."""
+
+    code1_tokens: int = 0
+    """Number of tokens in first code snippet (before truncation)."""
+
+    code2_tokens: int = 0
+    """Number of tokens in second code snippet (before truncation)."""
+
+    def to_dict(self) -> Dict[str, object]:
+        """Convert result to dictionary for serialization."""
+        return {
+            "similarity": round(self.similarity, 4),
+            "model_used": self.model_used,
+            "embedding_dim": self.embedding_dim,
+            "truncated": self.truncated,
+            "code1_tokens": self.code1_tokens,
+            "code2_tokens": self.code2_tokens,
+        }
+
+
+class SemanticSimilarity:
+    """
+    CodeBERT-based semantic similarity calculator for Type-4 clone detection.
+
+    Uses Microsoft's CodeBERT model to generate 768-dimensional embeddings
+    that capture semantic meaning of code, enabling detection of functionally
+    equivalent code with different implementations.
+
+    Key features:
+    - Lazy model loading (model loaded on first use)
+    - Embedding caching for performance
+    - Automatic device selection (CUDA/MPS/CPU)
+    - Graceful fallback when transformers not available
+
+    Example usage:
+        >>> semantic = SemanticSimilarity()
+        >>> similarity = semantic.calculate_similarity(code1, code2)
+        >>> print(f"Semantic similarity: {similarity:.2f}")
+
+    Note: Requires optional dependencies: `pip install transformers torch`
+    """
+
+    def __init__(self, config: Optional[SemanticSimilarityConfig] = None) -> None:
+        """Initialize the semantic similarity calculator.
+
+        Args:
+            config: Configuration options. Uses defaults if not provided.
+
+        Raises:
+            ImportError: If transformers or torch are not installed and
+                        is_available() returns False.
+        """
+        self.config = config or SemanticSimilarityConfig()
+        self.logger = get_logger("deduplication.semantic_similarity")
+
+        # Lazy-loaded model and tokenizer
+        self._model: Any = None
+        self._tokenizer: Any = None
+        self._device: Optional[str] = None
+
+        # Embedding cache (code_hash -> embedding tensor)
+        self._embedding_cache: Dict[int, Any] = {}
+
+        # Track initialization state
+        self._initialized = False
+
+    @staticmethod
+    def is_available() -> bool:
+        """Check if semantic similarity is available.
+
+        Returns:
+            True if transformers and torch are installed.
+        """
+        return _check_transformers_available()
+
+    def _load_model(self) -> None:
+        """Load the CodeBERT model and tokenizer.
+
+        This is called lazily on first use to avoid loading the model
+        (~400MB) until actually needed.
+
+        Raises:
+            ImportError: If transformers or torch are not installed.
+            RuntimeError: If model loading fails.
+        """
+        if self._initialized:
+            return
+
+        if not _check_transformers_available():
+            raise ImportError(
+                "Semantic similarity requires 'transformers' and 'torch' packages. "
+                "Install with: pip install transformers torch"
+            )
+
+        import torch
+        from transformers import AutoModel, AutoTokenizer
+
+        self.logger.info(
+            "loading_codebert_model",
+            model_name=self.config.model_name,
+        )
+
+        try:
+            # Load tokenizer and model
+            self._tokenizer = AutoTokenizer.from_pretrained(self.config.model_name)
+            self._model = AutoModel.from_pretrained(self.config.model_name)
+
+            # Determine device
+            self._device = self._select_device(torch_module=torch)
+
+            # Move model to device
+            self._model = self._model.to(self._device)
+            self._model.eval()
+
+            self._initialized = True
+
+            self.logger.info(
+                "codebert_model_loaded",
+                model_name=self.config.model_name,
+                device=self._device,
+            )
+
+        except Exception as e:
+            self.logger.error(
+                "codebert_model_load_failed",
+                model_name=self.config.model_name,
+                error=str(e),
+            )
+            raise RuntimeError(f"Failed to load CodeBERT model: {e}") from e
+
+    def _select_device(self, torch_module: Any) -> str:
+        """Select the appropriate device for inference.
+
+        Args:
+            torch_module: The torch module.
+
+        Returns:
+            Device string ('cuda', 'mps', or 'cpu').
+        """
+        if self.config.device != "auto":
+            return self.config.device
+
+        # Check for CUDA (NVIDIA GPU)
+        if torch_module.cuda.is_available():
+            return "cuda"
+
+        # Check for MPS (Apple Silicon)
+        if hasattr(torch_module.backends, "mps") and torch_module.backends.mps.is_available():
+            return "mps"
+
+        return "cpu"
+
+    def get_embedding(self, code: str) -> Any:
+        """Generate embedding vector for code using CodeBERT.
+
+        Args:
+            code: Source code to embed.
+
+        Returns:
+            PyTorch tensor of shape (768,) containing the embedding.
+
+        Raises:
+            ImportError: If transformers/torch not available.
+            RuntimeError: If embedding generation fails.
+        """
+        self._load_model()
+
+        import torch
+
+        # Check cache
+        code_hash = hash(code)
+        if self.config.cache_embeddings and code_hash in self._embedding_cache:
+            return self._embedding_cache[code_hash]
+
+        # Tokenize
+        inputs = self._tokenizer(
+            code,
+            return_tensors="pt",
+            truncation=True,
+            max_length=self.config.max_length,
+            padding=True,
+        )
+
+        # Move inputs to device
+        inputs = {k: v.to(self._device) for k, v in inputs.items()}
+
+        # Generate embeddings
+        with torch.no_grad():
+            outputs = self._model(**inputs)
+
+            # Use [CLS] token embedding (first token)
+            # Shape: (1, sequence_length, 768) -> (768,)
+            embedding = outputs.last_hidden_state[:, 0, :].squeeze(0)
+
+            # Optionally normalize
+            if self.config.normalize_embeddings:
+                embedding = torch.nn.functional.normalize(embedding, p=2, dim=0)
+
+        # Cache embedding
+        if self.config.cache_embeddings:
+            self._embedding_cache[code_hash] = embedding
+
+        return embedding
+
+    def calculate_similarity(self, code1: str, code2: str) -> float:
+        """Calculate semantic similarity between two code snippets.
+
+        Uses cosine similarity between CodeBERT embeddings.
+
+        Args:
+            code1: First code snippet.
+            code2: Second code snippet.
+
+        Returns:
+            Similarity score (0.0 to 1.0).
+
+        Raises:
+            ImportError: If transformers/torch not available.
+        """
+        if not code1 or not code2:
+            return 0.0
+
+        import torch.nn.functional as F
+
+        emb1 = self.get_embedding(code1)
+        emb2 = self.get_embedding(code2)
+
+        # Cosine similarity
+        similarity: float = F.cosine_similarity(
+            emb1.unsqueeze(0),
+            emb2.unsqueeze(0),
+            dim=1,
+        ).item()
+
+        # Normalize to 0-1 range (cosine similarity is -1 to 1)
+        return (similarity + 1.0) / 2.0
+
+    def calculate_similarity_detailed(
+        self, code1: str, code2: str
+    ) -> SemanticSimilarityResult:
+        """Calculate semantic similarity with detailed results.
+
+        Args:
+            code1: First code snippet.
+            code2: Second code snippet.
+
+        Returns:
+            SemanticSimilarityResult with detailed information.
+        """
+        if not code1 or not code2:
+            return SemanticSimilarityResult(
+                similarity=0.0,
+                model_used=self.config.model_name,
+                embedding_dim=768,
+                truncated=False,
+                code1_tokens=0,
+                code2_tokens=0,
+            )
+
+        self._load_model()
+
+        # Get token counts before truncation
+        tokens1: int = self._tokenizer(code1, return_tensors="pt")["input_ids"].shape[1]
+        tokens2: int = self._tokenizer(code2, return_tensors="pt")["input_ids"].shape[1]
+
+        truncated = tokens1 > self.config.max_length or tokens2 > self.config.max_length
+
+        similarity = self.calculate_similarity(code1, code2)
+
+        return SemanticSimilarityResult(
+            similarity=similarity,
+            model_used=self.config.model_name,
+            embedding_dim=768,
+            truncated=truncated,
+            code1_tokens=tokens1,
+            code2_tokens=tokens2,
+        )
+
+    def clear_cache(self) -> None:
+        """Clear the embedding cache."""
+        self._embedding_cache.clear()
+        self.logger.debug("embedding_cache_cleared")
+
+    def get_cache_stats(self) -> Dict[str, int]:
+        """Get cache statistics.
+
+        Returns:
+            Dictionary with cache size and hit count.
+        """
+        return {
+            "cache_size": len(self._embedding_cache),
+        }

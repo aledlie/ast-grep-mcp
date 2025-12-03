@@ -29,6 +29,20 @@ dev = [
     "types-pyyaml>=6.0.12.20250809",
 ]
 
+# Phase 5: CodeBERT semantic similarity (optional)
+# Enables Type-4 (semantic) clone detection using transformer embeddings
+# Note: Requires ~400MB model download on first use
+semantic = [
+    "transformers>=4.35.0",
+    "torch>=2.0.0",
+]
+
+# All optional features
+all = [
+    "transformers>=4.35.0",
+    "torch>=2.0.0",
+]
+
 [project.scripts]
 ast-grep-server = "main:run_mcp_server"
 
@@ -46,6 +60,7 @@ markers = [
     "unit: Unit tests (fast, mocked dependencies)",
     "integration: Integration tests (requires ast-grep binary)",
     "slow: Slow tests that may take longer to run",
+    "semantic: Tests requiring transformers and torch (Phase 5 CodeBERT)",
 ]
 
 [tool.coverage.run]
