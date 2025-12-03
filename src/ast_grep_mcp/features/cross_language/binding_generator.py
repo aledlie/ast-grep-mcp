@@ -3,19 +3,20 @@
 This module provides functionality to generate API client bindings
 for multiple programming languages from API specifications.
 """
+
 import json
 import re
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.cross_language import (
+    BINDING_LANGUAGES,
     ApiEndpoint,
     BindingGenerationResult,
     BindingStyle,
     GeneratedBinding,
-    BINDING_LANGUAGES,
 )
 
 logger = get_logger(__name__)
@@ -48,6 +49,7 @@ OPENAPI_TO_TYPESCRIPT = {
 # Name Converters
 # =============================================================================
 
+
 def _to_camel_case(name: str) -> str:
     """Convert snake_case or kebab-case to camelCase."""
     parts = re.split(r"[-_]", name)
@@ -63,6 +65,7 @@ def _to_pascal_case(name: str) -> str:
 # =============================================================================
 # OpenAPI Parsing Helpers
 # =============================================================================
+
 
 def _parse_parameter(param: Dict[str, Any]) -> Dict[str, Any]:
     """Parse a single OpenAPI parameter."""
@@ -81,7 +84,7 @@ def _parse_request_body(operation: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return None
     content = operation["requestBody"].get("content", {})
     if "application/json" in content:
-        return content["application/json"].get("schema", {})
+        return cast(Dict[str, Any], content["application/json"].get("schema", {}))
     return None
 
 
@@ -161,16 +164,17 @@ def _load_api_spec(file_path: str) -> Tuple[str, str, str, List[ApiEndpoint]]:
 def _parse_spec_content(content: str, suffix: str) -> Dict[str, Any]:
     """Parse spec content based on file extension."""
     if suffix == ".json":
-        return json.loads(content)
+        return cast(Dict[str, Any], json.loads(content))
     if suffix in [".yaml", ".yml"]:
         try:
             import yaml
-            return yaml.safe_load(content)
+
+            return cast(Dict[str, Any], yaml.safe_load(content))
         except ImportError:
             raise ValueError("PyYAML is required to parse YAML files")
     # Try JSON as fallback
     try:
-        return json.loads(content)
+        return cast(Dict[str, Any], json.loads(content))
     except json.JSONDecodeError:
         raise ValueError(f"Unsupported API spec format: {suffix}")
 
@@ -179,10 +183,11 @@ def _parse_spec_content(content: str, suffix: str) -> Dict[str, Any]:
 # Parameter Processing Helpers
 # =============================================================================
 
+
 def _classify_parameters(
     parameters: List[Dict[str, Any]],
-    type_converter: callable,
-) -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
+    type_converter: Callable[[str], str],
+) -> Tuple[List[Tuple[str, str, bool]], List[str], List[Tuple[str, str]]]:
     """Classify parameters into params list, path params, and query params.
 
     Returns:
@@ -212,6 +217,7 @@ def _classify_parameters(
 # =============================================================================
 # Python Binding Generator
 # =============================================================================
+
 
 def _python_param_string(params: List[Tuple[str, str, bool]], has_body: bool) -> str:
     """Build Python parameter string."""
@@ -244,7 +250,7 @@ def _python_method_body(
     if query_params:
         lines.append("        params = {}")
         for orig_name, camel_name in query_params:
-            lines.append(f'        if {camel_name} is not None:')
+            lines.append(f"        if {camel_name} is not None:")
             lines.append(f'            params["{orig_name}"] = {camel_name}')
 
     # Request call
@@ -256,10 +262,12 @@ def _python_method_body(
         args.append("params=params")
 
     lines.append(f"        response = self.session.{method_lower}({', '.join(args)})")
-    lines.extend([
-        "        response.raise_for_status()",
-        "        return response.json()",
-    ])
+    lines.extend(
+        [
+            "        response.raise_for_status()",
+            "        return response.json()",
+        ]
+    )
     return lines
 
 
@@ -292,23 +300,25 @@ def _generate_python_binding(
     ]
 
     types_generated = []
-    type_converter = lambda t: OPENAPI_TO_PYTHON.get(t, "Any")
+
+    def type_converter(t: str) -> str:
+        return OPENAPI_TO_PYTHON.get(t, "Any")
 
     for endpoint in endpoints:
         method_name = _to_camel_case(endpoint.operation_id)
-        params, path_params, query_params = _classify_parameters(
-            endpoint.parameters, type_converter
-        )
+        params, path_params, query_params = _classify_parameters(endpoint.parameters, type_converter)
         params_str = _python_param_string(params, bool(endpoint.request_body))
 
-        lines.extend([
-            f"    def {method_name}({params_str}) -> Dict[str, Any]:",
-            f'        """',
-            f"        {endpoint.summary or endpoint.description or endpoint.operation_id}",
-            "",
-            f"        {endpoint.method} {endpoint.path}",
-            '        """',
-        ])
+        lines.extend(
+            [
+                f"    def {method_name}({params_str}) -> Dict[str, Any]:",
+                '        """',
+                f"        {endpoint.summary or endpoint.description or endpoint.operation_id}",
+                "",
+                f"        {endpoint.method} {endpoint.path}",
+                '        """',
+            ]
+        )
         lines.extend(_python_method_body(endpoint, path_params, query_params))
         lines.append("")
         types_generated.append(method_name)
@@ -326,6 +336,7 @@ def _generate_python_binding(
 # =============================================================================
 # TypeScript Binding Generator
 # =============================================================================
+
 
 def _ts_param_string(params: List[Tuple[str, str, bool]], has_body: bool) -> str:
     """Build TypeScript parameter string."""
@@ -416,24 +427,26 @@ def _generate_typescript_binding(
     ]
 
     types_generated = []
-    type_converter = lambda t: OPENAPI_TO_TYPESCRIPT.get(t, "unknown")
+
+    def type_converter(t: str) -> str:
+        return OPENAPI_TO_TYPESCRIPT.get(t, "unknown")
 
     for endpoint in endpoints:
         method_name = _to_camel_case(endpoint.operation_id)
-        params, path_params_raw, query_params = _classify_parameters(
-            endpoint.parameters, type_converter
-        )
+        params, path_params_raw, query_params = _classify_parameters(endpoint.parameters, type_converter)
         # Convert path_params to tuples with camel names
         path_params = [(p, _to_camel_case(p)) for p in path_params_raw]
         params_str = _ts_param_string(params, bool(endpoint.request_body))
 
-        lines.extend([
-            "  /**",
-            f"   * {endpoint.summary or endpoint.description or endpoint.operation_id}",
-            f"   * {endpoint.method} {endpoint.path}",
-            "   */",
-            f"  async {method_name}({params_str}): Promise<unknown> {{",
-        ])
+        lines.extend(
+            [
+                "  /**",
+                f"   * {endpoint.summary or endpoint.description or endpoint.operation_id}",
+                f"   * {endpoint.method} {endpoint.path}",
+                "   */",
+                f"  async {method_name}({params_str}): Promise<unknown> {{",
+            ]
+        )
         lines.extend(_ts_method_body(endpoint, path_params, query_params))
         lines.extend(["  }", ""])
         types_generated.append(method_name)
@@ -453,6 +466,7 @@ def _generate_typescript_binding(
 # =============================================================================
 # JavaScript Binding Generator
 # =============================================================================
+
 
 def _js_param_string(params: List[Tuple[str, str, bool]], has_body: bool) -> str:
     """Build JavaScript parameter string (no types)."""
@@ -497,34 +511,38 @@ def _generate_javascript_binding(
     ]
 
     types_generated = []
+
     # JavaScript doesn't need types but we reuse the classification
-    type_converter = lambda t: t
+    def type_converter(t: str) -> str:
+        return t
 
     for endpoint in endpoints:
         method_name = _to_camel_case(endpoint.operation_id)
-        params, path_params_raw, query_params = _classify_parameters(
-            endpoint.parameters, type_converter
-        )
+        params, path_params_raw, query_params = _classify_parameters(endpoint.parameters, type_converter)
         path_params = [(p, _to_camel_case(p)) for p in path_params_raw]
         params_str = _js_param_string(params, bool(endpoint.request_body))
 
-        lines.extend([
-            "  /**",
-            f"   * {endpoint.summary or endpoint.description or endpoint.operation_id}",
-            f"   * {endpoint.method} {endpoint.path}",
-            "   */",
-            f"  async {method_name}({params_str}) {{",
-        ])
+        lines.extend(
+            [
+                "  /**",
+                f"   * {endpoint.summary or endpoint.description or endpoint.operation_id}",
+                f"   * {endpoint.method} {endpoint.path}",
+                "   */",
+                f"  async {method_name}({params_str}) {{",
+            ]
+        )
         # Reuse TS method body generation (same structure)
         lines.extend(_ts_method_body(endpoint, path_params, query_params))
         lines.extend(["  }", ""])
         types_generated.append(method_name)
 
-    lines.extend([
-        "}",
-        "",
-        f"module.exports = {{ {class_name} }};",
-    ])
+    lines.extend(
+        [
+            "}",
+            "",
+            f"module.exports = {{ {class_name} }};",
+        ]
+    )
 
     return GeneratedBinding(
         language="javascript",

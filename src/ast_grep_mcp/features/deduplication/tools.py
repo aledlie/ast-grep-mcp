@@ -15,11 +15,7 @@ from .detector import DuplicationDetector
 
 
 def find_duplication_tool(
-    project_folder: str,
-    language: str,
-    min_similarity: float = 0.8,
-    min_lines: int = 5,
-    exclude_patterns: Optional[List[str]] = None
+    project_folder: str, language: str, min_similarity: float = 0.8, min_lines: int = 5, exclude_patterns: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """Find duplicate functions/classes/methods in a codebase.
 
@@ -38,10 +34,7 @@ def find_duplication_tool(
     logger = get_logger("deduplication.tool.find")
 
     if exclude_patterns is None:
-        exclude_patterns = [
-            "site-packages", "node_modules", ".venv",
-            "venv", "vendor", "__pycache__", ".git"
-        ]
+        exclude_patterns = ["site-packages", "node_modules", ".venv", "venv", "vendor", "__pycache__", ".git"]
 
     detector = DuplicationDetector()
     results = detector.find_duplication(
@@ -49,14 +42,14 @@ def find_duplication_tool(
         construct_type="function_definition",  # Default to functions
         min_similarity=min_similarity,
         min_lines=min_lines,
-        exclude_patterns=exclude_patterns
+        exclude_patterns=exclude_patterns,
     )
 
     logger.info(
         "find_duplication_complete",
         duplicate_groups=results.get("duplicate_groups", 0),
         total_duplicates=results.get("total_duplicates", 0),
-        total_lines_duplicated=results.get("total_lines_duplicated", 0)
+        total_lines_duplicated=results.get("total_lines_duplicated", 0),
     )
 
     return results
@@ -69,7 +62,7 @@ def analyze_deduplication_candidates_tool(
     include_test_coverage: bool = True,
     min_lines: int = 5,
     max_candidates: int = 100,
-    exclude_patterns: Optional[List[str]] = None
+    exclude_patterns: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Analyze a project for deduplication candidates and return ranked results.
 
@@ -98,10 +91,7 @@ def analyze_deduplication_candidates_tool(
     logger = get_logger("deduplication.tool.analyze")
 
     if exclude_patterns is None:
-        exclude_patterns = [
-            "site-packages", "node_modules", ".venv",
-            "venv", "vendor", "__pycache__", ".git"
-        ]
+        exclude_patterns = ["site-packages", "node_modules", ".venv", "venv", "vendor", "__pycache__", ".git"]
 
     # Delegate to orchestrator
     orchestrator = DeduplicationAnalysisOrchestrator()
@@ -112,7 +102,7 @@ def analyze_deduplication_candidates_tool(
         include_test_coverage=include_test_coverage,
         min_lines=min_lines,
         max_candidates=max_candidates,
-        exclude_patterns=exclude_patterns
+        exclude_patterns=exclude_patterns,
     )
 
     logger.info(
@@ -120,7 +110,7 @@ def analyze_deduplication_candidates_tool(
         total_groups=result.get("total_groups_analyzed", 0),
         returned_candidates=len(result.get("candidates", [])),
         total_savings_potential=result.get("top_candidates_savings_potential", 0),
-        include_test_coverage=include_test_coverage
+        include_test_coverage=include_test_coverage,
     )
 
     return result
@@ -132,7 +122,7 @@ def apply_deduplication_tool(
     refactoring_plan: Dict[str, Any],
     dry_run: bool = True,
     backup: bool = True,
-    extract_to_file: Optional[str] = None
+    extract_to_file: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Apply automated deduplication refactoring with comprehensive syntax validation.
 
@@ -165,7 +155,7 @@ def apply_deduplication_tool(
         refactoring_plan=refactoring_plan,
         dry_run=dry_run,
         backup=backup,
-        extract_to_file=extract_to_file
+        extract_to_file=extract_to_file,
     )
 
     logger.info(
@@ -173,17 +163,13 @@ def apply_deduplication_tool(
         status=result.get("status"),
         group_id=group_id,
         dry_run=dry_run,
-        files_modified=len(result.get("files_modified", []))
+        files_modified=len(result.get("files_modified", [])),
     )
 
     return result
 
 
-def benchmark_deduplication_tool(
-    iterations: int = 10,
-    save_baseline: bool = False,
-    check_regression: bool = True
-) -> Dict[str, Any]:
+def benchmark_deduplication_tool(iterations: int = 10, save_baseline: bool = False, check_regression: bool = True) -> Dict[str, Any]:
     """Run performance benchmarks for deduplication functions.
 
     Benchmarks the following operations:
@@ -207,17 +193,13 @@ def benchmark_deduplication_tool(
     logger = get_logger("deduplication.tool.benchmark")
 
     benchmark = DeduplicationBenchmark()
-    results = benchmark.benchmark_deduplication(
-        iterations=iterations,
-        save_baseline=save_baseline,
-        check_regression=check_regression
-    )
+    results = benchmark.benchmark_deduplication(iterations=iterations, save_baseline=save_baseline, check_regression=check_regression)
 
     logger.info(
         "benchmark_complete",
         total_benchmarks=results.get("total_benchmarks"),
         regression_detected=results.get("regression_detected"),
-        execution_time_seconds=results.get("execution_time_seconds")
+        execution_time_seconds=results.get("execution_time_seconds"),
     )
 
     return results
@@ -241,10 +223,7 @@ def register_deduplication_tools(mcp: Any) -> Any:
         language: str = Field(description="Programming language"),
         min_similarity: float = Field(default=0.8, description="Minimum similarity threshold (0-1)"),
         min_lines: int = Field(default=5, description="Minimum lines to consider"),
-        exclude_patterns: Optional[List[str]] = Field(
-            default=None,
-            description="Path patterns to exclude"
-        )
+        exclude_patterns: Optional[List[str]] = Field(default=None, description="Path patterns to exclude"),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone find_duplication_tool function."""
         return find_duplication_tool(
@@ -252,7 +231,7 @@ def register_deduplication_tools(mcp: Any) -> Any:
             language=language,
             min_similarity=min_similarity,
             min_lines=min_lines,
-            exclude_patterns=exclude_patterns
+            exclude_patterns=exclude_patterns,
         )
 
     @mcp.tool()  # type: ignore[misc]
@@ -263,10 +242,7 @@ def register_deduplication_tools(mcp: Any) -> Any:
         include_test_coverage: bool = Field(default=True, description="Whether to check test coverage for prioritization"),
         min_lines: int = Field(default=5, description="Minimum number of lines to consider for duplication"),
         max_candidates: int = Field(default=100, description="Maximum number of candidates to return"),
-        exclude_patterns: Optional[List[str]] = Field(
-            default=None,
-            description="Path patterns to exclude from analysis"
-        )
+        exclude_patterns: Optional[List[str]] = Field(default=None, description="Path patterns to exclude from analysis"),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone analyze_deduplication_candidates_tool function."""
         return analyze_deduplication_candidates_tool(
@@ -276,7 +252,7 @@ def register_deduplication_tools(mcp: Any) -> Any:
             include_test_coverage=include_test_coverage,
             min_lines=min_lines,
             max_candidates=max_candidates,
-            exclude_patterns=exclude_patterns
+            exclude_patterns=exclude_patterns,
         )
 
     @mcp.tool()  # type: ignore[misc]
@@ -288,10 +264,7 @@ def register_deduplication_tools(mcp: Any) -> Any:
         ),
         dry_run: bool = Field(default=True, description="Preview changes without applying (default: true for safety)"),
         backup: bool = Field(default=True, description="Create backup before applying changes (default: true)"),
-        extract_to_file: Optional[str] = Field(
-            default=None,
-            description="Where to place extracted function (auto-detect if None)"
-        )
+        extract_to_file: Optional[str] = Field(default=None, description="Where to place extracted function (auto-detect if None)"),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone apply_deduplication_tool function."""
         return apply_deduplication_tool(
@@ -300,18 +273,14 @@ def register_deduplication_tools(mcp: Any) -> Any:
             refactoring_plan=refactoring_plan,
             dry_run=dry_run,
             backup=backup,
-            extract_to_file=extract_to_file
+            extract_to_file=extract_to_file,
         )
 
     @mcp.tool()  # type: ignore[misc]
     def benchmark_deduplication(
         iterations: int = Field(default=10, description="Number of iterations per benchmark (default: 10)"),
         save_baseline: bool = Field(default=False, description="Save results as new baseline for regression detection"),
-        check_regression: bool = Field(default=True, description="Check results against baseline for performance regressions")
+        check_regression: bool = Field(default=True, description="Check results against baseline for performance regressions"),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone benchmark_deduplication_tool function."""
-        return benchmark_deduplication_tool(
-            iterations=iterations,
-            save_baseline=save_baseline,
-            check_regression=check_regression
-        )
+        return benchmark_deduplication_tool(iterations=iterations, save_baseline=save_baseline, check_regression=check_regression)

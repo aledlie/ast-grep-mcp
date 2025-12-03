@@ -34,30 +34,26 @@ def validate_rule_pattern(pattern: str, language: str) -> RuleValidationResult:
     try:
         # Create a minimal test file for the language
         test_code = {
-            'python': 'def test(): pass',
-            'typescript': 'function test() {}',
-            'javascript': 'function test() {}',
-            'java': 'class Test { void test() {} }',
-            'go': 'func test() {}',
-            'rust': 'fn test() {}',
-        }.get(language, 'function test() {}')
+            "python": "def test(): pass",
+            "typescript": "function test() {}",
+            "javascript": "function test() {}",
+            "java": "class Test { void test() {} }",
+            "go": "func test() {}",
+            "rust": "fn test() {}",
+        }.get(language, "function test() {}")
 
         # Try to run ast-grep with the pattern
         with sentry_sdk.start_span(op="validate_pattern", name="Test ast-grep pattern"):
-            _ = run_ast_grep(
-                "run",
-                ["--pattern", pattern, "--lang", language],
-                input_text=test_code
-            )
+            _ = run_ast_grep("run", ["--pattern", pattern, "--lang", language], input_text=test_code)
 
         # If we get here, the pattern syntax is valid
         logger.info("pattern_validated", language=language, pattern_length=len(pattern))
 
     except subprocess.CalledProcessError as e:
-        error_msg = e.stderr.strip() if hasattr(e, 'stderr') and e.stderr else str(e)
+        error_msg = e.stderr.strip() if hasattr(e, "stderr") and e.stderr else str(e)
 
         # Check if it's a syntax error
-        if 'parse error' in error_msg.lower() or 'invalid pattern' in error_msg.lower():
+        if "parse error" in error_msg.lower() or "invalid pattern" in error_msg.lower():
             errors.append(f"Pattern syntax error: {error_msg}")
             logger.warning("pattern_syntax_error", error=error_msg)
         else:
@@ -93,7 +89,7 @@ def validate_rule_definition(rule: LintingRule) -> RuleValidationResult:
     warnings: List[str] = []
 
     # Validate severity
-    if rule.severity not in ['error', 'warning', 'info']:
+    if rule.severity not in ["error", "warning", "info"]:
         errors.append(f"Invalid severity '{rule.severity}'. Must be one of: error, warning, info")
 
     # Validate language
@@ -102,7 +98,7 @@ def validate_rule_definition(rule: LintingRule) -> RuleValidationResult:
         errors.append(f"Unsupported language '{rule.language}'. Supported: {', '.join(supported_languages)}")
 
     # Validate ID format (kebab-case)
-    if not re.match(r'^[a-z][a-z0-9-]*$', rule.id):
+    if not re.match(r"^[a-z][a-z0-9-]*$", rule.id):
         errors.append(f"Invalid rule ID '{rule.id}'. Use kebab-case (e.g., 'no-console-log')")
 
     # Validate message
@@ -123,21 +119,12 @@ def validate_rule_definition(rule: LintingRule) -> RuleValidationResult:
         warnings.append("No fix suggestion provided - consider adding one to help developers")
 
     is_valid = len(errors) == 0
-    logger.info(
-        "rule_validated",
-        rule_id=rule.id,
-        is_valid=is_valid,
-        error_count=len(errors),
-        warning_count=len(warnings)
-    )
+    logger.info("rule_validated", rule_id=rule.id, is_valid=is_valid, error_count=len(errors), warning_count=len(warnings))
 
     return RuleValidationResult(is_valid=is_valid, errors=errors, warnings=warnings)
 
 
-def validate_linting_rules_impl(
-    rules: List[LintingRule],
-    fail_fast: bool = False
-) -> Dict[str, Any]:
+def validate_linting_rules_impl(rules: List[LintingRule], fail_fast: bool = False) -> Dict[str, Any]:
     """Validate multiple linting rules.
 
     Args:
@@ -152,12 +139,7 @@ def validate_linting_rules_impl(
 
     for rule in rules:
         validation = validate_rule_definition(rule)
-        results.append({
-            "rule_id": rule.id,
-            "is_valid": validation.is_valid,
-            "errors": validation.errors,
-            "warnings": validation.warnings
-        })
+        results.append({"rule_id": rule.id, "is_valid": validation.is_valid, "errors": validation.errors, "warnings": validation.warnings})
 
         if fail_fast and not validation.is_valid:
             break
@@ -167,19 +149,6 @@ def validate_linting_rules_impl(
     valid = sum(1 for r in results if r["is_valid"])
     invalid = total - valid
 
-    logger.info(
-        "validation_completed",
-        total=total,
-        valid=valid,
-        invalid=invalid,
-        fail_fast=fail_fast
-    )
+    logger.info("validation_completed", total=total, valid=valid, invalid=invalid, fail_fast=fail_fast)
 
-    return {
-        "summary": {
-            "total": total,
-            "valid": valid,
-            "invalid": invalid
-        },
-        "results": results
-    }
+    return {"summary": {"total": total, "valid": valid, "invalid": invalid}, "results": results}

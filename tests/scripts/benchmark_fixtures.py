@@ -14,15 +14,14 @@ Usage:
     python tests/scripts/benchmark_fixtures.py --fixture temp_dir
     python tests/scripts/benchmark_fixtures.py --json
 """
-from ast_grep_mcp.utils.console_logger import console
-
 import argparse
-import json
 import subprocess
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Optional
+
+from ast_grep_mcp.utils.console_logger import console
 
 
 @dataclass
@@ -231,7 +230,7 @@ def format_benchmark_report(benchmarks: List[FixtureBenchmark], detailed: bool =
             lines.append(f"  Status: {'GOOD' if bench.passes_threshold else 'NEEDS OPTIMIZATION'}")
 
             if not bench.passes_threshold:
-                lines.append(f"  ⚠ Recommendation: Consider optimizing or changing scope")
+                lines.append("  ⚠ Recommendation: Consider optimizing or changing scope")
 
     return "\n".join(lines)
 

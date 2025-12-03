@@ -3,14 +3,13 @@
 This module provides functionality for generating changelogs
 from git commits using conventional commit format.
 """
+
 import os
 import re
 import subprocess
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
-
-import sentry_sdk
 
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
@@ -28,6 +27,7 @@ logger = get_logger(__name__)
 # Git Operations
 # =============================================================================
 
+
 def _run_git_command(project_folder: str, args: List[str]) -> Tuple[bool, str]:
     """Run a git command and return output.
 
@@ -40,7 +40,7 @@ def _run_git_command(project_folder: str, args: List[str]) -> Tuple[bool, str]:
     """
     try:
         result = subprocess.run(
-            ['git'] + args,
+            ["git"] + args,
             cwd=project_folder,
             capture_output=True,
             text=True,
@@ -69,33 +69,33 @@ def _get_commit_range(
         Tuple of (from_ref, to_ref)
     """
     # Get to_ref
-    if to_version.upper() == 'HEAD':
-        to_ref = 'HEAD'
+    if to_version.upper() == "HEAD":
+        to_ref = "HEAD"
     else:
         # Check if it's a tag
-        success, _ = _run_git_command(project_folder, ['rev-parse', f'v{to_version}'])
+        success, _ = _run_git_command(project_folder, ["rev-parse", f"v{to_version}"])
         if success:
-            to_ref = f'v{to_version}'
+            to_ref = f"v{to_version}"
         else:
-            success, _ = _run_git_command(project_folder, ['rev-parse', to_version])
+            success, _ = _run_git_command(project_folder, ["rev-parse", to_version])
             if success:
                 to_ref = to_version
             else:
-                to_ref = 'HEAD'
+                to_ref = "HEAD"
 
     # Get from_ref
     if from_version:
         # Check if it's a tag
-        success, _ = _run_git_command(project_folder, ['rev-parse', f'v{from_version}'])
+        success, _ = _run_git_command(project_folder, ["rev-parse", f"v{from_version}"])
         if success:
-            from_ref = f'v{from_version}'
+            from_ref = f"v{from_version}"
         else:
             from_ref = from_version
     else:
         # Get the first commit or most recent tag
-        success, tags = _run_git_command(project_folder, ['tag', '--sort=-version:refname', '-l', 'v*'])
+        success, tags = _run_git_command(project_folder, ["tag", "--sort=-version:refname", "-l", "v*"])
         if success and tags:
-            tag_list = tags.split('\n')
+            tag_list = tags.split("\n")
             # Skip current version tag if it's to_ref
             for tag in tag_list:
                 if tag and tag != to_ref:
@@ -103,12 +103,12 @@ def _get_commit_range(
                     break
             else:
                 # No previous tag, get first commit
-                success, first_commit = _run_git_command(project_folder, ['rev-list', '--max-parents=0', 'HEAD'])
-                from_ref = first_commit if success else ''
+                success, first_commit = _run_git_command(project_folder, ["rev-list", "--max-parents=0", "HEAD"])
+                from_ref = first_commit if success else ""
         else:
             # No tags, get first commit
-            success, first_commit = _run_git_command(project_folder, ['rev-list', '--max-parents=0', 'HEAD'])
-            from_ref = first_commit if success else ''
+            success, first_commit = _run_git_command(project_folder, ["rev-list", "--max-parents=0", "HEAD"])
+            from_ref = first_commit if success else ""
 
     return from_ref, to_ref
 
@@ -128,21 +128,18 @@ def _get_commits(
     Returns:
         List of CommitInfo objects
     """
-    commits = []
+    commits: list[CommitInfo] = []
 
     # Format: hash|full_hash|author|email|date|subject|body
-    log_format = '%h|%H|%an|%ae|%aI|%s|%b'
-    separator = '---COMMIT---'
+    log_format = "%h|%H|%an|%ae|%aI|%s|%b"
+    separator = "---COMMIT---"
 
     if from_ref:
-        range_arg = f'{from_ref}..{to_ref}'
+        range_arg = f"{from_ref}..{to_ref}"
     else:
         range_arg = to_ref
 
-    success, output = _run_git_command(
-        project_folder,
-        ['log', range_arg, f'--format={log_format}{separator}']
-    )
+    success, output = _run_git_command(project_folder, ["log", range_arg, f"--format={log_format}{separator}"])
 
     if not success:
         logger.warning("git_log_failed", output=output)
@@ -154,12 +151,12 @@ def _get_commits(
         if not commit_str:
             continue
 
-        parts = commit_str.split('|', 6)
+        parts = commit_str.split("|", 6)
         if len(parts) < 6:
             continue
 
         hash_short, hash_full, author, email, date, subject = parts[:6]
-        body = parts[6] if len(parts) > 6 else ''
+        body = parts[6] if len(parts) > 6 else ""
 
         # Parse conventional commit format
         parsed = _parse_conventional_commit(subject, body)
@@ -172,11 +169,11 @@ def _get_commits(
             author=author,
             author_email=email,
             date=date,
-            change_type=parsed.get('type'),
-            scope=parsed.get('scope'),
-            is_breaking=parsed.get('is_breaking', False),
-            issues=parsed.get('issues', []),
-            prs=parsed.get('prs', []),
+            change_type=parsed.get("type"),
+            scope=parsed.get("scope"),
+            is_breaking=parsed.get("is_breaking", False),
+            issues=parsed.get("issues", []),
+            prs=parsed.get("prs", []),
         )
         commits.append(commit)
 
@@ -196,34 +193,34 @@ def _parse_conventional_commit(subject: str, body: str) -> Dict[str, Any]:
         Dict with type, scope, is_breaking, issues, prs
     """
     result: Dict[str, Any] = {
-        'type': None,
-        'scope': None,
-        'is_breaking': False,
-        'issues': [],
-        'prs': [],
+        "type": None,
+        "scope": None,
+        "is_breaking": False,
+        "issues": [],
+        "prs": [],
     }
 
     # Parse type(scope)!: pattern
-    pattern = re.compile(r'^(\w+)(?:\(([^)]+)\))?(!)?:\s*(.+)$')
+    pattern = re.compile(r"^(\w+)(?:\(([^)]+)\))?(!)?:\s*(.+)$")
     match = pattern.match(subject)
 
     if match:
-        result['type'] = match.group(1).lower()
-        result['scope'] = match.group(2)
-        result['is_breaking'] = bool(match.group(3))
+        result["type"] = match.group(1).lower()
+        result["scope"] = match.group(2)
+        result["is_breaking"] = bool(match.group(3))
 
     # Check for BREAKING CHANGE in body
-    if 'BREAKING CHANGE' in body or 'BREAKING-CHANGE' in body:
-        result['is_breaking'] = True
+    if "BREAKING CHANGE" in body or "BREAKING-CHANGE" in body:
+        result["is_breaking"] = True
 
     # Extract issue references
-    issue_pattern = re.compile(r'#(\d+)')
-    all_text = subject + ' ' + body
-    result['issues'] = list(set(issue_pattern.findall(all_text)))
+    issue_pattern = re.compile(r"#(\d+)")
+    all_text = subject + " " + body
+    result["issues"] = list(set(issue_pattern.findall(all_text)))
 
     # Extract PR references (common formats)
-    pr_pattern = re.compile(r'(?:pull request|pr|merge request|mr)\s*#?(\d+)', re.IGNORECASE)
-    result['prs'] = list(set(pr_pattern.findall(all_text)))
+    pr_pattern = re.compile(r"(?:pull request|pr|merge request|mr)\s*#?(\d+)", re.IGNORECASE)
+    result["prs"] = list(set(pr_pattern.findall(all_text)))
 
     return result
 
@@ -231,6 +228,7 @@ def _parse_conventional_commit(subject: str, body: str) -> Dict[str, Any]:
 # =============================================================================
 # Changelog Formatting
 # =============================================================================
+
 
 def _map_commit_type_to_change_type(commit_type: Optional[str]) -> ChangeType:
     """Map conventional commit type to changelog change type.
@@ -242,28 +240,28 @@ def _map_commit_type_to_change_type(commit_type: Optional[str]) -> ChangeType:
         ChangeType enum
     """
     type_map = {
-        'feat': ChangeType.ADDED,
-        'feature': ChangeType.ADDED,
-        'add': ChangeType.ADDED,
-        'fix': ChangeType.FIXED,
-        'bugfix': ChangeType.FIXED,
-        'bug': ChangeType.FIXED,
-        'docs': ChangeType.CHANGED,
-        'doc': ChangeType.CHANGED,
-        'style': ChangeType.CHANGED,
-        'refactor': ChangeType.CHANGED,
-        'perf': ChangeType.CHANGED,
-        'test': ChangeType.CHANGED,
-        'chore': ChangeType.CHANGED,
-        'build': ChangeType.CHANGED,
-        'ci': ChangeType.CHANGED,
-        'deprecate': ChangeType.DEPRECATED,
-        'deprecated': ChangeType.DEPRECATED,
-        'remove': ChangeType.REMOVED,
-        'removed': ChangeType.REMOVED,
-        'delete': ChangeType.REMOVED,
-        'security': ChangeType.SECURITY,
-        'sec': ChangeType.SECURITY,
+        "feat": ChangeType.ADDED,
+        "feature": ChangeType.ADDED,
+        "add": ChangeType.ADDED,
+        "fix": ChangeType.FIXED,
+        "bugfix": ChangeType.FIXED,
+        "bug": ChangeType.FIXED,
+        "docs": ChangeType.CHANGED,
+        "doc": ChangeType.CHANGED,
+        "style": ChangeType.CHANGED,
+        "refactor": ChangeType.CHANGED,
+        "perf": ChangeType.CHANGED,
+        "test": ChangeType.CHANGED,
+        "chore": ChangeType.CHANGED,
+        "build": ChangeType.CHANGED,
+        "ci": ChangeType.CHANGED,
+        "deprecate": ChangeType.DEPRECATED,
+        "deprecated": ChangeType.DEPRECATED,
+        "remove": ChangeType.REMOVED,
+        "removed": ChangeType.REMOVED,
+        "delete": ChangeType.REMOVED,
+        "security": ChangeType.SECURITY,
+        "sec": ChangeType.SECURITY,
     }
 
     if commit_type:
@@ -294,21 +292,18 @@ def _group_commits_by_version(
         return []
 
     # Determine version info
-    if to_version.upper() == 'HEAD':
-        version_str = 'Unreleased'
-        date_str = datetime.now().strftime('%Y-%m-%d')
+    if to_version.upper() == "HEAD":
+        version_str = "Unreleased"
+        date_str = datetime.now().strftime("%Y-%m-%d")
         is_unreleased = True
     else:
         version_str = to_version
         # Try to get tag date
-        success, tag_date = _run_git_command(
-            project_folder,
-            ['log', '-1', '--format=%aI', f'v{to_version}']
-        )
+        success, tag_date = _run_git_command(project_folder, ["log", "-1", "--format=%aI", f"v{to_version}"])
         if success and tag_date:
             date_str = tag_date[:10]  # YYYY-MM-DD
         else:
-            date_str = datetime.now().strftime('%Y-%m-%d')
+            date_str = datetime.now().strftime("%Y-%m-%d")
         is_unreleased = False
 
     # Group entries by change type
@@ -336,12 +331,14 @@ def _group_commits_by_version(
             entries[change_type] = []
         entries[change_type].append(entry)
 
-    return [ChangelogVersion(
-        version=version_str,
-        date=date_str,
-        entries=entries,
-        is_unreleased=is_unreleased,
-    )]
+    return [
+        ChangelogVersion(
+            version=version_str,
+            date=date_str,
+            entries=entries,
+            is_unreleased=is_unreleased,
+        )
+    ]
 
 
 # Keep a Changelog section order
@@ -365,29 +362,29 @@ def _format_changelog_entry(entry: ChangelogEntry) -> str:
         Formatted entry string
     """
     # Remove conventional commit prefix if present
-    msg = re.sub(r'^(\w+)(?:\([^)]+\))?!?:\s*', '', entry.description)
+    msg = re.sub(r"^(\w+)(?:\([^)]+\))?!?:\s*", "", entry.description)
 
     # Add scope if present
     if entry.scope:
-        msg = f'**{entry.scope}:** {msg}'
+        msg = f"**{entry.scope}:** {msg}"
 
     # Mark breaking changes
     if entry.is_breaking:
-        msg = f'**BREAKING:** {msg}'
+        msg = f"**BREAKING:** {msg}"
 
     # Add references
     refs = []
     if entry.issues:
-        refs.extend([f'#{i}' for i in entry.issues])
+        refs.extend([f"#{i}" for i in entry.issues])
     if entry.prs:
-        refs.extend([f'PR #{p}' for p in entry.prs])
+        refs.extend([f"PR #{p}" for p in entry.prs])
     if entry.commit_hash:
-        refs.append(f'({entry.commit_hash})')
+        refs.append(f"({entry.commit_hash})")
 
     if refs:
-        msg = f'{msg} {" ".join(refs)}'
+        msg = f"{msg} {' '.join(refs)}"
 
-    return f'- {msg}'
+    return f"- {msg}"
 
 
 def _format_keepachangelog_version(version: ChangelogVersion) -> List[str]:
@@ -403,10 +400,10 @@ def _format_keepachangelog_version(version: ChangelogVersion) -> List[str]:
 
     # Version header
     if version.is_unreleased:
-        lines.append('## [Unreleased]')
+        lines.append("## [Unreleased]")
     else:
-        lines.append(f'## [{version.version}] - {version.date}')
-    lines.append('')
+        lines.append(f"## [{version.version}] - {version.date}")
+    lines.append("")
 
     # Sections in order
     for change_type in _KEEPACHANGELOG_SECTION_ORDER:
@@ -414,10 +411,10 @@ def _format_keepachangelog_version(version: ChangelogVersion) -> List[str]:
         if not entries:
             continue
 
-        lines.append(f'### {change_type.value}')
-        lines.append('')
+        lines.append(f"### {change_type.value}")
+        lines.append("")
         lines.extend([_format_changelog_entry(e) for e in entries])
-        lines.append('')
+        lines.append("")
 
     return lines
 
@@ -433,28 +430,28 @@ def _format_keepachangelog(versions: List[ChangelogVersion], project_name: str =
         Markdown string
     """
     lines = [
-        '# Changelog',
-        '',
-        'All notable changes to this project will be documented in this file.',
-        '',
-        'The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),',
-        'and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).',
-        '',
+        "# Changelog",
+        "",
+        "All notable changes to this project will be documented in this file.",
+        "",
+        "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),",
+        "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).",
+        "",
     ]
 
     for version in versions:
         lines.extend(_format_keepachangelog_version(version))
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 # Conventional changelog type names
 _CONVENTIONAL_TYPE_NAMES: Dict[ChangeType, str] = {
-    ChangeType.ADDED: 'Features',
-    ChangeType.FIXED: 'Bug Fixes',
-    ChangeType.CHANGED: 'Changes',
-    ChangeType.REMOVED: 'Removed',
-    ChangeType.SECURITY: 'Security',
+    ChangeType.ADDED: "Features",
+    ChangeType.FIXED: "Bug Fixes",
+    ChangeType.CHANGED: "Changes",
+    ChangeType.REMOVED: "Removed",
+    ChangeType.SECURITY: "Security",
 }
 
 # Conventional changelog section order
@@ -476,11 +473,11 @@ def _format_conventional_entry(entry: ChangelogEntry) -> str:
     Returns:
         Formatted entry string (without bullet)
     """
-    msg = re.sub(r'^(\w+)(?:\([^)]+\))?!?:\s*', '', entry.description)
-    commit_ref = f' ({entry.commit_hash})' if entry.commit_hash else ''
+    msg = re.sub(r"^(\w+)(?:\([^)]+\))?!?:\s*", "", entry.description)
+    commit_ref = f" ({entry.commit_hash})" if entry.commit_hash else ""
     if entry.is_breaking:
-        msg = f'**BREAKING:** {msg}'
-    return f'{msg}{commit_ref}'
+        msg = f"**BREAKING:** {msg}"
+    return f"{msg}{commit_ref}"
 
 
 def _format_conventional_section(
@@ -499,25 +496,25 @@ def _format_conventional_section(
     if not entries:
         return []
 
-    type_name = _CONVENTIONAL_TYPE_NAMES.get(change_type, 'Other')
-    lines = [f'### {type_name}', '']
+    type_name = _CONVENTIONAL_TYPE_NAMES.get(change_type, "Other")
+    lines = [f"### {type_name}", ""]
 
     # Group by scope
     by_scope: Dict[str, List[ChangelogEntry]] = {}
     for entry in entries:
-        scope = entry.scope or 'general'
+        scope = entry.scope or "general"
         by_scope.setdefault(scope, []).append(entry)
 
     for scope, scope_entries in sorted(by_scope.items()):
         if len(by_scope) > 1:
-            lines.append(f'* **{scope}**')
+            lines.append(f"* **{scope}**")
             for entry in scope_entries:
-                lines.append(f'  * {_format_conventional_entry(entry)}')
+                lines.append(f"  * {_format_conventional_entry(entry)}")
         else:
             for entry in scope_entries:
-                lines.append(f'* {_format_conventional_entry(entry)}')
+                lines.append(f"* {_format_conventional_entry(entry)}")
 
-    lines.append('')
+    lines.append("")
     return lines
 
 
@@ -531,27 +528,28 @@ def _format_conventional(versions: List[ChangelogVersion], project_name: str = "
     Returns:
         Markdown string
     """
-    lines = [f'# {project_name or "Project"} Changelog', '']
+    lines = [f"# {project_name or 'Project'} Changelog", ""]
 
     for version in versions:
         # Version header
         if version.is_unreleased:
-            lines.append('## Unreleased')
+            lines.append("## Unreleased")
         else:
-            lines.append(f'## {version.version} ({version.date})')
-        lines.append('')
+            lines.append(f"## {version.version} ({version.date})")
+        lines.append("")
 
         # Sections in order
         for change_type in _CONVENTIONAL_SECTION_ORDER:
             entries = version.entries.get(change_type, [])
             lines.extend(_format_conventional_section(change_type, entries))
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 # =============================================================================
 # Main Generator
 # =============================================================================
+
 
 def generate_changelog_impl(
     project_folder: str,
@@ -583,7 +581,7 @@ def generate_changelog_impl(
     )
 
     # Check if git repo
-    success, _ = _run_git_command(project_folder, ['rev-parse', '--git-dir'])
+    success, _ = _run_git_command(project_folder, ["rev-parse", "--git-dir"])
     if not success:
         logger.warning("not_a_git_repository")
         return ChangelogResult(
@@ -610,9 +608,9 @@ def generate_changelog_impl(
     # Format output
     project_name = os.path.basename(project_folder)
 
-    if changelog_format == 'keepachangelog':
+    if changelog_format == "keepachangelog":
         markdown = _format_keepachangelog(versions, project_name)
-    elif changelog_format == 'conventional':
+    elif changelog_format == "conventional":
         markdown = _format_conventional(versions, project_name)
     else:  # json format handled by tool layer
         markdown = _format_keepachangelog(versions, project_name)

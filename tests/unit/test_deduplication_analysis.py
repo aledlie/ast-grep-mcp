@@ -7,30 +7,26 @@ This file consolidates tests from:
 
 Focus: Variation analysis, parameter extraction, complexity scoring
 """
-from ast_grep_mcp.utils.console_logger import console
 
 import os
 import sys
-from unittest.mock import Mock, patch
-
-import pytest
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 # Import from main for backward compatibility
 from main import (
-    VariationSeverity,
-    classify_variations,
-    detect_conditional_variations,
     ParameterType,
+    VariationSeverity,
     _detect_nested_function_call,
     _infer_from_identifier_name,
     _infer_single_value_type,
+    classify_variations,
+    detect_conditional_variations,
     generate_parameter_name,
+    get_complexity_level,
     identify_varying_identifiers,
     infer_parameter_type,
-    get_complexity_level,
 )
 
 

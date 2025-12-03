@@ -3,8 +3,8 @@
 import glob as glob_module
 import os
 import re as regex_module
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List, Set, Optional, Callable, Tuple
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from typing import Callable, Dict, List, Optional, Set, Tuple
 
 from ...core.logging import get_logger
 
@@ -150,12 +150,7 @@ class CoverageDetector:
                 "**/*spec*",
             ]
 
-    def _get_potential_test_paths(
-        self,
-        file_path: str,
-        language: str,
-        project_root: str
-    ) -> List[str]:
+    def _get_potential_test_paths(self, file_path: str, language: str, project_root: str) -> List[str]:
         """Generate potential test file paths for a source file.
 
         Args:
@@ -183,61 +178,76 @@ class CoverageDetector:
 
         if lang == "python":
             # test_<name>.py, <name>_test.py
-            potential_paths.extend([
-                os.path.join(project_root, dir_path, f"test_{name_without_ext}.py"),
-                os.path.join(project_root, dir_path, f"{name_without_ext}_test.py"),
-                os.path.join(project_root, "tests", f"test_{name_without_ext}.py"),
-                os.path.join(project_root, "tests", dir_path, f"test_{name_without_ext}.py"),
-                os.path.join(project_root, "test", f"test_{name_without_ext}.py"),
-                os.path.join(project_root, "tests", "unit", f"test_{name_without_ext}.py"),
-                os.path.join(project_root, "tests", "integration", f"test_{name_without_ext}.py"),
-            ])
+            potential_paths.extend(
+                [
+                    os.path.join(project_root, dir_path, f"test_{name_without_ext}.py"),
+                    os.path.join(project_root, dir_path, f"{name_without_ext}_test.py"),
+                    os.path.join(project_root, "tests", f"test_{name_without_ext}.py"),
+                    os.path.join(project_root, "tests", dir_path, f"test_{name_without_ext}.py"),
+                    os.path.join(project_root, "test", f"test_{name_without_ext}.py"),
+                    os.path.join(project_root, "tests", "unit", f"test_{name_without_ext}.py"),
+                    os.path.join(project_root, "tests", "integration", f"test_{name_without_ext}.py"),
+                ]
+            )
 
         elif lang in ("javascript", "js"):
-            potential_paths.extend([
-                os.path.join(project_root, dir_path, f"{name_without_ext}.test.js"),
-                os.path.join(project_root, dir_path, f"{name_without_ext}.spec.js"),
-                os.path.join(project_root, dir_path, "__tests__", f"{name_without_ext}.js"),
-                os.path.join(project_root, "tests", f"{name_without_ext}.test.js"),
-                os.path.join(project_root, "__tests__", f"{name_without_ext}.js"),
-            ])
+            potential_paths.extend(
+                [
+                    os.path.join(project_root, dir_path, f"{name_without_ext}.test.js"),
+                    os.path.join(project_root, dir_path, f"{name_without_ext}.spec.js"),
+                    os.path.join(project_root, dir_path, "__tests__", f"{name_without_ext}.js"),
+                    os.path.join(project_root, "tests", f"{name_without_ext}.test.js"),
+                    os.path.join(project_root, "__tests__", f"{name_without_ext}.js"),
+                ]
+            )
 
         elif lang in ("typescript", "ts", "tsx"):
             # Handle both .ts and .tsx
             ts_ext = ".tsx" if ext == ".tsx" else ".ts"
-            potential_paths.extend([
-                os.path.join(project_root, dir_path, f"{name_without_ext}.test{ts_ext}"),
-                os.path.join(project_root, dir_path, f"{name_without_ext}.spec{ts_ext}"),
-                os.path.join(project_root, dir_path, "__tests__", f"{name_without_ext}{ts_ext}"),
-                os.path.join(project_root, "tests", f"{name_without_ext}.test{ts_ext}"),
-                os.path.join(project_root, "__tests__", f"{name_without_ext}{ts_ext}"),
-            ])
+            potential_paths.extend(
+                [
+                    os.path.join(project_root, dir_path, f"{name_without_ext}.test{ts_ext}"),
+                    os.path.join(project_root, dir_path, f"{name_without_ext}.spec{ts_ext}"),
+                    os.path.join(project_root, dir_path, "__tests__", f"{name_without_ext}{ts_ext}"),
+                    os.path.join(project_root, "tests", f"{name_without_ext}.test{ts_ext}"),
+                    os.path.join(project_root, "__tests__", f"{name_without_ext}{ts_ext}"),
+                ]
+            )
 
         elif lang == "java":
             # Convert class name: MyClass.java -> MyClassTest.java
-            potential_paths.extend([
-                os.path.join(project_root, dir_path, f"{name_without_ext}Test.java"),
-                os.path.join(project_root, dir_path, f"{name_without_ext}Tests.java"),
-                # Maven/Gradle standard: src/test/java mirrors src/main/java
-                os.path.join(
-                    project_root, "src", "test", "java",
-                    dir_path.replace("src/main/java/", "").replace("src\\main\\java\\", ""),
-                    f"{name_without_ext}Test.java"
-                ),
-            ])
+            potential_paths.extend(
+                [
+                    os.path.join(project_root, dir_path, f"{name_without_ext}Test.java"),
+                    os.path.join(project_root, dir_path, f"{name_without_ext}Tests.java"),
+                    # Maven/Gradle standard: src/test/java mirrors src/main/java
+                    os.path.join(
+                        project_root,
+                        "src",
+                        "test",
+                        "java",
+                        dir_path.replace("src/main/java/", "").replace("src\\main\\java\\", ""),
+                        f"{name_without_ext}Test.java",
+                    ),
+                ]
+            )
 
         elif lang == "go":
-            potential_paths.extend([
-                os.path.join(project_root, dir_path, f"{name_without_ext}_test.go"),
-            ])
+            potential_paths.extend(
+                [
+                    os.path.join(project_root, dir_path, f"{name_without_ext}_test.go"),
+                ]
+            )
 
         elif lang in ("ruby", "rb"):
-            potential_paths.extend([
-                os.path.join(project_root, dir_path, f"{name_without_ext}_test.rb"),
-                os.path.join(project_root, dir_path, f"{name_without_ext}_spec.rb"),
-                os.path.join(project_root, "test", f"{name_without_ext}_test.rb"),
-                os.path.join(project_root, "spec", f"{name_without_ext}_spec.rb"),
-            ])
+            potential_paths.extend(
+                [
+                    os.path.join(project_root, dir_path, f"{name_without_ext}_test.rb"),
+                    os.path.join(project_root, dir_path, f"{name_without_ext}_spec.rb"),
+                    os.path.join(project_root, "test", f"{name_without_ext}_test.rb"),
+                    os.path.join(project_root, "spec", f"{name_without_ext}_spec.rb"),
+                ]
+            )
 
         return [os.path.normpath(p) for p in potential_paths]
 
@@ -254,7 +264,7 @@ class CoverageDetector:
             return None
 
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 return f.read()
         except (IOError, OSError):
             return None
@@ -274,11 +284,7 @@ class CoverageDetector:
                 return True
         return False
 
-    def _check_go_same_directory(
-        self,
-        test_file_path: str,
-        source_file_path: str
-    ) -> bool:
+    def _check_go_same_directory(self, test_file_path: str, source_file_path: str) -> bool:
         """Check if Go files are in the same directory (automatic access).
 
         Args:
@@ -292,12 +298,7 @@ class CoverageDetector:
         test_dir = os.path.dirname(test_file_path)
         return os.path.normpath(source_dir) == os.path.normpath(test_dir)
 
-    def _check_test_file_references_source(
-        self,
-        test_file_path: str,
-        source_file_path: str,
-        language: str
-    ) -> bool:
+    def _check_test_file_references_source(self, test_file_path: str, source_file_path: str, language: str) -> bool:
         """Check if a test file references/imports the source file.
 
         Args:
@@ -337,12 +338,7 @@ class CoverageDetector:
 
         return False
 
-    def has_test_coverage(
-        self,
-        file_path: str,
-        language: str,
-        project_root: str
-    ) -> bool:
+    def has_test_coverage(self, file_path: str, language: str, project_root: str) -> bool:
         """Check if a source file has corresponding test coverage.
 
         Args:
@@ -359,11 +355,7 @@ class CoverageDetector:
         # Check if any potential test file exists
         for test_path in potential_tests:
             if os.path.exists(test_path):
-                self.logger.debug(
-                    "found_test_file",
-                    source_file=file_path,
-                    test_file=test_path
-                )
+                self.logger.debug("found_test_file", source_file=file_path, test_file=test_path)
                 return True
 
         # Also search using glob patterns for more flexible matching
@@ -376,11 +368,7 @@ class CoverageDetector:
                 for match in matches:
                     # Check if this test file references our source
                     if self._check_test_file_references_source(match, file_path, language):
-                        self.logger.debug(
-                            "found_test_by_reference",
-                            source_file=file_path,
-                            test_file=match
-                        )
+                        self.logger.debug("found_test_by_reference", source_file=file_path, test_file=match)
                         return True
             except Exception as e:
                 self.logger.warning("glob_search_failed", pattern=pattern, error=str(e))
@@ -389,11 +377,7 @@ class CoverageDetector:
         self.logger.debug("no_test_coverage", source_file=file_path)
         return False
 
-    def _find_all_test_files(
-        self,
-        language: str,
-        project_root: str
-    ) -> Set[str]:
+    def _find_all_test_files(self, language: str, project_root: str) -> Set[str]:
         """Find all test files in the project (cached for batch operations).
 
         Args:
@@ -413,28 +397,14 @@ class CoverageDetector:
                 # Normalize paths for consistent comparison
                 test_files.update(os.path.normpath(match) for match in matches)
             except Exception as e:
-                self.logger.warning(
-                    "glob_search_failed",
-                    pattern=pattern,
-                    error=str(e)
-                )
+                self.logger.warning("glob_search_failed", pattern=pattern, error=str(e))
                 continue
 
-        self.logger.debug(
-            "test_files_discovered",
-            count=len(test_files),
-            language=language
-        )
+        self.logger.debug("test_files_discovered", count=len(test_files), language=language)
 
         return test_files
 
-    def _has_test_coverage_optimized(
-        self,
-        file_path: str,
-        language: str,
-        project_root: str,
-        test_files: Set[str]
-    ) -> bool:
+    def _has_test_coverage_optimized(self, file_path: str, language: str, project_root: str, test_files: Set[str]) -> bool:
         """Optimized test coverage check using pre-computed test file set.
 
         Args:
@@ -447,42 +417,25 @@ class CoverageDetector:
             True if test coverage exists for the file
         """
         # Get potential test file paths
-        potential_tests = self._get_potential_test_paths(
-            file_path, language, project_root
-        )
+        potential_tests = self._get_potential_test_paths(file_path, language, project_root)
 
         # Check if any potential test file exists in our pre-computed set
         for test_path in potential_tests:
             normalized_test = os.path.normpath(test_path)
             if normalized_test in test_files:
-                self.logger.debug(
-                    "found_test_file",
-                    source_file=file_path,
-                    test_file=normalized_test
-                )
+                self.logger.debug("found_test_file", source_file=file_path, test_file=normalized_test)
                 return True
 
         # Check if any test file references our source
         for test_file in test_files:
-            if self._check_test_file_references_source(
-                test_file, file_path, language
-            ):
-                self.logger.debug(
-                    "found_test_by_reference",
-                    source_file=file_path,
-                    test_file=test_file
-                )
+            if self._check_test_file_references_source(test_file, file_path, language):
+                self.logger.debug("found_test_by_reference", source_file=file_path, test_file=test_file)
                 return True
 
         self.logger.debug("no_test_coverage", source_file=file_path)
         return False
 
-    def get_test_coverage_for_files(
-        self,
-        file_paths: List[str],
-        language: str,
-        project_root: str
-    ) -> Dict[str, bool]:
+    def get_test_coverage_for_files(self, file_paths: List[str], language: str, project_root: str) -> Dict[str, bool]:
         """Get test coverage status for multiple files (sequential).
 
         Args:
@@ -510,18 +463,13 @@ class CoverageDetector:
             "test_coverage_analysis_complete",
             total_files=len(file_paths),
             files_with_coverage=covered_count,
-            files_without_coverage=len(file_paths) - covered_count
+            files_without_coverage=len(file_paths) - covered_count,
         )
 
         return coverage_map
 
     def get_test_coverage_for_files_batch(
-        self,
-        file_paths: List[str],
-        language: str,
-        project_root: str,
-        parallel: bool = True,
-        max_workers: int = 4
+        self, file_paths: List[str], language: str, project_root: str, parallel: bool = True, max_workers: int = 4
     ) -> Dict[str, bool]:
         """Get test coverage status for multiple files with batch optimization.
 
@@ -553,28 +501,16 @@ class CoverageDetector:
 
         # Process files using appropriate strategy
         if parallel and len(file_paths) > 1:
-            coverage_map, covered_count = self._process_parallel_batch(
-                file_paths, language, project_root, test_files, max_workers
-            )
+            coverage_map, covered_count = self._process_parallel_batch(file_paths, language, project_root, test_files, max_workers)
         else:
-            coverage_map, covered_count = self._process_sequential_batch(
-                file_paths, language, project_root, test_files
-            )
+            coverage_map, covered_count = self._process_sequential_batch(file_paths, language, project_root, test_files)
 
         # Log final results
-        self._log_batch_results(
-            len(file_paths), covered_count, parallel, len(test_files)
-        )
+        self._log_batch_results(len(file_paths), covered_count, parallel, len(test_files))
 
         return coverage_map
 
-    def _process_file_coverage(
-        self,
-        file_path: str,
-        language: str,
-        project_root: str,
-        test_files: Set[str]
-    ) -> bool:
+    def _process_file_coverage(self, file_path: str, language: str, project_root: str, test_files: Set[str]) -> bool:
         """Process coverage check for a single file with error handling.
 
         Args:
@@ -587,24 +523,13 @@ class CoverageDetector:
             True if test coverage exists, False otherwise or on error
         """
         try:
-            return self._has_test_coverage_optimized(
-                file_path, language, project_root, test_files
-            )
+            return self._has_test_coverage_optimized(file_path, language, project_root, test_files)
         except Exception as e:
-            self.logger.error(
-                "test_coverage_check_failed",
-                file_path=file_path,
-                error=str(e)
-            )
+            self.logger.error("test_coverage_check_failed", file_path=file_path, error=str(e))
             return False
 
     def _process_parallel_batch(
-        self,
-        file_paths: List[str],
-        language: str,
-        project_root: str,
-        test_files: Set[str],
-        max_workers: int
+        self, file_paths: List[str], language: str, project_root: str, test_files: Set[str], max_workers: int
     ) -> Tuple[Dict[str, bool], int]:
         """Process files in parallel for coverage checking.
 
@@ -618,11 +543,7 @@ class CoverageDetector:
         Returns:
             Tuple of (coverage_map, covered_count)
         """
-        self.logger.debug(
-            "batch_coverage_parallel_start",
-            file_count=len(file_paths),
-            max_workers=max_workers
-        )
+        self.logger.debug("batch_coverage_parallel_start", file_count=len(file_paths), max_workers=max_workers)
 
         coverage_map: Dict[str, bool] = {}
         covered_count = 0
@@ -630,13 +551,7 @@ class CoverageDetector:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all tasks
             futures = {
-                executor.submit(
-                    self._has_test_coverage_optimized,
-                    file_path,
-                    language,
-                    project_root,
-                    test_files
-                ): file_path
+                executor.submit(self._has_test_coverage_optimized, file_path, language, project_root, test_files): file_path
                 for file_path in file_paths
             }
 
@@ -651,11 +566,7 @@ class CoverageDetector:
         return coverage_map, covered_count
 
     def _process_sequential_batch(
-        self,
-        file_paths: List[str],
-        language: str,
-        project_root: str,
-        test_files: Set[str]
+        self, file_paths: List[str], language: str, project_root: str, test_files: Set[str]
     ) -> Tuple[Dict[str, bool], int]:
         """Process files sequentially for coverage checking.
 
@@ -668,25 +579,20 @@ class CoverageDetector:
         Returns:
             Tuple of (coverage_map, covered_count)
         """
-        self.logger.debug(
-            "batch_coverage_sequential_start",
-            file_count=len(file_paths)
-        )
+        self.logger.debug("batch_coverage_sequential_start", file_count=len(file_paths))
 
         coverage_map: Dict[str, bool] = {}
         covered_count = 0
 
         for file_path in file_paths:
-            has_coverage = self._process_file_coverage(
-                file_path, language, project_root, test_files
-            )
+            has_coverage = self._process_file_coverage(file_path, language, project_root, test_files)
             coverage_map[file_path] = has_coverage
             if has_coverage:
                 covered_count += 1
 
         return coverage_map, covered_count
 
-    def _get_future_result(self, future, file_path: str) -> bool:
+    def _get_future_result(self, future: Future[bool], file_path: str) -> bool:
         """Get result from future with error handling.
 
         Args:
@@ -699,20 +605,10 @@ class CoverageDetector:
         try:
             return future.result()
         except Exception as e:
-            self.logger.error(
-                "test_coverage_check_failed",
-                file_path=file_path,
-                error=str(e)
-            )
+            self.logger.error("test_coverage_check_failed", file_path=file_path, error=str(e))
             return False
 
-    def _log_batch_results(
-        self,
-        total_files: int,
-        covered_count: int,
-        parallel: bool,
-        test_files_count: int
-    ) -> None:
+    def _log_batch_results(self, total_files: int, covered_count: int, parallel: bool, test_files_count: int) -> None:
         """Log the final batch processing results.
 
         Args:
@@ -727,25 +623,24 @@ class CoverageDetector:
             files_with_coverage=covered_count,
             files_without_coverage=total_files - covered_count,
             parallel=parallel,
-            test_files_found=test_files_count
+            test_files_found=test_files_count,
         )
 
 
 # Module-level functions for backwards compatibility
 _detector = CoverageDetector()
 
+
 def find_test_file_patterns(language: str) -> List[str]:
     """Get test file patterns for a given programming language."""
     return _detector.find_test_file_patterns(language)
+
 
 def has_test_coverage(file_path: str, language: str, project_root: str) -> bool:
     """Check if a source file has corresponding test coverage."""
     return _detector.has_test_coverage(file_path, language, project_root)
 
-def get_test_coverage_for_files(
-    file_paths: List[str],
-    language: str,
-    project_root: str
-) -> Dict[str, bool]:
+
+def get_test_coverage_for_files(file_paths: List[str], language: str, project_root: str) -> Dict[str, bool]:
     """Get test coverage status for multiple files."""
     return _detector.get_test_coverage_for_files(file_paths, language, project_root)

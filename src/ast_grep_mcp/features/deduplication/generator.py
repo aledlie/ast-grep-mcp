@@ -18,24 +18,15 @@ FUNCTION_GENERATORS: Dict[str, Callable[..., str]] = {}
 # Language-specific configuration for type inference
 TYPE_INFERENCE_CONFIG: Dict[str, Dict[str, Dict[str, Union[str, bool]]]] = {
     "python": {
-        "literal": {
-            "string": "str",
-            "number_int": "int",
-            "number_float": "float",
-            "boolean": "bool"
-        },
+        "literal": {"string": "str", "number_int": "int", "number_float": "float", "boolean": "bool"},
         "identifier": {"default": "Any"},
-        "type": {"use_value": True}
+        "type": {"use_value": True},
     },
     "typescript": {
-        "literal": {
-            "string": "string",
-            "number": "number",
-            "boolean": "boolean"
-        },
+        "literal": {"string": "string", "number": "number", "boolean": "boolean"},
         "identifier": {"default": "any"},
-        "type": {"use_value": False}
-    }
+        "type": {"use_value": False},
+    },
 }
 
 
@@ -52,31 +43,15 @@ class CodeGenerator:
         self.logger = get_logger("deduplication.generator")
 
     def _generate_python_function(
-        self,
-        function_name: str,
-        parameters: List[Dict[str, str]],
-        body: str,
-        return_type: Optional[str],
-        docstring: Optional[str]
+        self, function_name: str, parameters: List[Dict[str, str]], body: str, return_type: Optional[str], docstring: Optional[str]
     ) -> str:
         """Generate Python function using template system."""
         param_tuples = [(p["name"], p.get("type")) for p in parameters]
-        template = FunctionTemplate(
-            name=function_name,
-            parameters=param_tuples,
-            body=body,
-            return_type=return_type,
-            docstring=docstring
-        )
+        template = FunctionTemplate(name=function_name, parameters=param_tuples, body=body, return_type=return_type, docstring=docstring)
         return template.generate()
 
     def _generate_js_ts_function(
-        self,
-        function_name: str,
-        parameters: List[Dict[str, str]],
-        body: str,
-        return_type: Optional[str],
-        docstring: Optional[str]
+        self, function_name: str, parameters: List[Dict[str, str]], body: str, return_type: Optional[str], docstring: Optional[str]
     ) -> str:
         """Generate JavaScript/TypeScript function."""
         param_list = self._format_js_parameters(parameters)
@@ -91,12 +66,7 @@ class CodeGenerator:
         return function_code
 
     def _generate_java_function(
-        self,
-        function_name: str,
-        parameters: List[Dict[str, str]],
-        body: str,
-        return_type: Optional[str],
-        docstring: Optional[str]
+        self, function_name: str, parameters: List[Dict[str, str]], body: str, return_type: Optional[str], docstring: Optional[str]
     ) -> str:
         """Generate Java method."""
         param_list = ", ".join(f"{p.get('type', 'Object')} {p['name']}" for p in parameters)
@@ -110,13 +80,7 @@ class CodeGenerator:
         function_code += indented_body + "\n}"
         return function_code
 
-    def _generate_generic_function(
-        self,
-        function_name: str,
-        parameters: List[Dict[str, str]],
-        body: str,
-        **kwargs: Any
-    ) -> str:
+    def _generate_generic_function(self, function_name: str, parameters: List[Dict[str, str]], body: str, **kwargs: Any) -> str:
         """Generate generic function format."""
         param_list = ", ".join(p["name"] for p in parameters)
         return f"function {function_name}({param_list}) {{\n{body}\n}}"
@@ -127,7 +91,7 @@ class CodeGenerator:
         parameters: List[Dict[str, str]],
         body: str,
         return_type: Optional[str] = None,
-        docstring: Optional[str] = None
+        docstring: Optional[str] = None,
     ) -> str:
         """
         Generate an extracted function from duplicated code.
@@ -142,26 +106,19 @@ class CodeGenerator:
         Returns:
             Generated function code
         """
-        self.logger.info(
-            "generating_extracted_function",
-            function_name=function_name,
-            param_count=len(parameters),
-            language=self.language
-        )
+        self.logger.info("generating_extracted_function", function_name=function_name, param_count=len(parameters), language=self.language)
 
         # Language-specific generators map
         generators = {
             "python": self._generate_python_function,
             "javascript": self._generate_js_ts_function,
             "typescript": self._generate_js_ts_function,
-            "java": self._generate_java_function
+            "java": self._generate_java_function,
         }
 
         # Get the appropriate generator or use generic
         generator = generators.get(self.language, self._generate_generic_function)
-        function_code = generator(
-            function_name, parameters, body, return_type=return_type, docstring=docstring
-        )
+        function_code = generator(function_name, parameters, body, return_type=return_type, docstring=docstring)
 
         # Format the generated code
         return self._format_generated_code(function_code, function_name)
@@ -170,27 +127,13 @@ class CodeGenerator:
         """Format generated code with error handling."""
         try:
             formatted_code = format_generated_code(function_code, self.language)
-            self.logger.info(
-                "formatted_generated_function",
-                function_name=function_name,
-                language=self.language
-            )
+            self.logger.info("formatted_generated_function", function_name=function_name, language=self.language)
             return formatted_code
         except Exception as e:
-            self.logger.warning(
-                "formatting_failed",
-                function_name=function_name,
-                language=self.language,
-                error=str(e)
-            )
+            self.logger.warning("formatting_failed", function_name=function_name, language=self.language, error=str(e))
             return function_code
 
-    def generate_function_call(
-        self,
-        function_name: str,
-        arguments: List[str],
-        assign_to: Optional[str] = None
-    ) -> str:
+    def generate_function_call(self, function_name: str, arguments: List[str], assign_to: Optional[str] = None) -> str:
         """
         Generate a function call to replace duplicated code.
 
@@ -214,12 +157,7 @@ class CodeGenerator:
 
         return call if self.language == "python" else f"{call};"
 
-    def generate_import_statement(
-        self,
-        module_path: str,
-        import_names: List[str],
-        is_relative: bool = False
-    ) -> str:
+    def generate_import_statement(self, module_path: str, import_names: List[str], is_relative: bool = False) -> str:
         """
         Generate an import statement for the extracted function.
 
@@ -253,11 +191,7 @@ class CodeGenerator:
         else:
             return f"// Import {', '.join(import_names)} from {module_path}"
 
-    def infer_function_parameters(
-        self,
-        code_variations: List[Dict[str, Any]],
-        base_code: str
-    ) -> List[Dict[str, str]]:
+    def infer_function_parameters(self, code_variations: List[Dict[str, Any]], base_code: str) -> List[Dict[str, str]]:
         """
         Infer function parameters from code variations.
 
@@ -276,20 +210,19 @@ class CodeGenerator:
             param_name = variation.get("suggested_param_name")
             if param_name and param_name not in seen_names:
                 param_type = self._infer_parameter_type(variation)
-                parameters.append({
-                    "name": param_name,
-                    "type": param_type
-                })
+                parameters.append({"name": param_name, "type": param_type})
                 seen_names.add(param_name)
 
         # Add any identifiers that appear to be external dependencies
         external_deps = self._find_external_dependencies(base_code)
         for dep in external_deps:
             if dep not in seen_names:
-                parameters.append({
-                    "name": dep,
-                    "type": "Any"  # Type will be inferred from usage
-                })
+                parameters.append(
+                    {
+                        "name": dep,
+                        "type": "Any",  # Type will be inferred from usage
+                    }
+                )
                 seen_names.add(dep)
 
         return parameters
@@ -371,21 +304,16 @@ class CodeGenerator:
         if self.language == "python":
             # Look for common patterns like self.x, module.function, etc.
             patterns = [
-                r'\bself\.(\w+)',  # Class attributes
-                r'(?<!\.)(\w+)\(',  # Function calls (not methods)
+                r"\bself\.(\w+)",  # Class attributes
+                r"(?<!\.)(\w+)\(",  # Function calls (not methods)
             ]
             for pattern in patterns:
                 matches = re.findall(pattern, code)
-                dependencies.extend(m for m in matches if m not in ['print', 'len', 'range', 'str', 'int'])
+                dependencies.extend(m for m in matches if m not in ["print", "len", "range", "str", "int"])
 
         return list(set(dependencies))[:5]  # Limit to top 5
 
-    def generate_module_structure(
-        self,
-        module_name: str,
-        functions: List[Dict[str, str]],
-        imports: Optional[List[str]] = None
-    ) -> str:
+    def generate_module_structure(self, module_name: str, functions: List[Dict[str, str]], imports: Optional[List[str]] = None) -> str:
         """
         Generate a complete module with extracted functions.
 
@@ -402,26 +330,26 @@ class CodeGenerator:
         # Add module docstring
         if self.language == "python":
             module_code.append('"""')
-            module_code.append(f'{module_name} - Extracted common functionality')
+            module_code.append(f"{module_name} - Extracted common functionality")
             module_code.append('"""')
-            module_code.append('')
+            module_code.append("")
 
         elif self.language in ["javascript", "typescript"]:
-            module_code.append('/**')
-            module_code.append(f' * {module_name} - Extracted common functionality')
-            module_code.append(' */')
-            module_code.append('')
+            module_code.append("/**")
+            module_code.append(f" * {module_name} - Extracted common functionality")
+            module_code.append(" */")
+            module_code.append("")
 
         # Add imports
         if imports:
             for imp in imports:
                 module_code.append(imp)
-            module_code.append('')
+            module_code.append("")
 
         # Add functions
         for func in functions:
             module_code.append(func.get("code", ""))
-            module_code.append('')
+            module_code.append("")
 
         # Add exports for JS/TS
         if self.language in ["javascript", "typescript"]:
@@ -467,7 +395,7 @@ class CodeGenerator:
         body: str,
         return_type: Optional[str] = None,
         docstring: Optional[str] = None,
-        decorators: Optional[List[str]] = None
+        decorators: Optional[List[str]] = None,
     ) -> str:
         """
         Render a Python function from components.
@@ -556,12 +484,7 @@ class CodeGenerator:
             return ""
         return variables[var_name]
 
-    def substitute_template_variables(
-        self,
-        template: str,
-        variables: Dict[str, str],
-        strict: bool = False
-    ) -> str:
+    def substitute_template_variables(self, template: str, variables: Dict[str, str], strict: bool = False) -> str:
         """
         Substitute template variables in a string template.
 
@@ -585,26 +508,16 @@ class CodeGenerator:
 
         # Process conditionals (if/unless)
         result = re.sub(
-            r'\{\{#(if|unless)\s+(\w+)\}\}(.*?)\{\{/\1\}\}',
-            lambda m: self._process_conditional(m, variables),
-            result,
-            flags=re.DOTALL
+            r"\{\{#(if|unless)\s+(\w+)\}\}(.*?)\{\{/\1\}\}", lambda m: self._process_conditional(m, variables), result, flags=re.DOTALL
         )
 
         # Process loops {{#each items}}{{.}}{{/each}}
         result = re.sub(
-            r'\{\{#each\s+(\w+)\}\}(.*?)\{\{/each\}\}',
-            lambda m: self._process_each_loop(m, variables, strict),
-            result,
-            flags=re.DOTALL
+            r"\{\{#each\s+(\w+)\}\}(.*?)\{\{/each\}\}", lambda m: self._process_each_loop(m, variables, strict), result, flags=re.DOTALL
         )
 
         # Process simple variables {{var}}
-        result = re.sub(
-            r'\{\{(\w+)\}\}',
-            lambda m: self._substitute_simple_variable(m, variables, strict),
-            result
-        )
+        result = re.sub(r"\{\{(\w+)\}\}", lambda m: self._substitute_simple_variable(m, variables, strict), result)
 
         return result
 
@@ -804,9 +717,13 @@ class CodeGenerator:
         last_import = i
         while i < len(lines):
             line = lines[i].strip()
-            if (line.startswith("import ") or
-                line.startswith("const ") and "require(" in line or
-                line.startswith("var ") and "require(" in line):
+            if (
+                line.startswith("import ")
+                or line.startswith("const ")
+                and "require(" in line
+                or line.startswith("var ")
+                and "require(" in line
+            ):
                 last_import = i + 1
             elif line and not line.startswith("//"):
                 break

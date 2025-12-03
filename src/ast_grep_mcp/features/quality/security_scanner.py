@@ -14,7 +14,7 @@ import copy
 import re
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, cast
 
 import sentry_sdk
 
@@ -29,26 +29,11 @@ logger = get_logger(__name__)
 # =============================================================================
 
 SCAN_CONFIG = {
-    "sql_injection": {
-        "patterns_dict": "SQL_INJECTION_PATTERNS",
-        "use_ast_grep": True
-    },
-    "xss": {
-        "patterns_dict": "XSS_PATTERNS",
-        "use_ast_grep": True
-    },
-    "command_injection": {
-        "patterns_dict": "COMMAND_INJECTION_PATTERNS",
-        "use_ast_grep": True
-    },
-    "hardcoded_secrets": {
-        "patterns_dict": None,
-        "use_regex": True
-    },
-    "insecure_crypto": {
-        "patterns_dict": "CRYPTO_PATTERNS",
-        "use_ast_grep": True
-    }
+    "sql_injection": {"patterns_dict": "SQL_INJECTION_PATTERNS", "use_ast_grep": True},
+    "xss": {"patterns_dict": "XSS_PATTERNS", "use_ast_grep": True},
+    "command_injection": {"patterns_dict": "COMMAND_INJECTION_PATTERNS", "use_ast_grep": True},
+    "hardcoded_secrets": {"patterns_dict": None, "use_regex": True},
+    "insecure_crypto": {"patterns_dict": "CRYPTO_PATTERNS", "use_ast_grep": True},
 }
 
 # =============================================================================
@@ -64,7 +49,7 @@ SQL_INJECTION_PATTERNS = {
             "description": "Using f-strings or string formatting in SQL queries allows SQL injection attacks",
             "remediation": "Use parameterized queries with placeholders (?, %s, etc.)",
             "cwe": "CWE-89",
-            "confidence": 0.9
+            "confidence": 0.9,
         },
         {
             "pattern": "cursor.execute($STR.format($$$))",
@@ -73,7 +58,7 @@ SQL_INJECTION_PATTERNS = {
             "description": "Using .format() in SQL queries allows SQL injection attacks",
             "remediation": "Use parameterized queries instead of string formatting",
             "cwe": "CWE-89",
-            "confidence": 0.9
+            "confidence": 0.9,
         },
         {
             "pattern": "cursor.execute($STR + $$$)",
@@ -82,8 +67,8 @@ SQL_INJECTION_PATTERNS = {
             "description": "Concatenating user input into SQL queries allows SQL injection",
             "remediation": "Use parameterized queries with ? or %s placeholders",
             "cwe": "CWE-89",
-            "confidence": 0.85
-        }
+            "confidence": 0.85,
+        },
     ],
     "javascript": [
         {
@@ -93,7 +78,7 @@ SQL_INJECTION_PATTERNS = {
             "description": "Using template literals with variables in SQL queries enables SQL injection",
             "remediation": "Use parameterized queries or prepared statements",
             "cwe": "CWE-89",
-            "confidence": 0.9
+            "confidence": 0.9,
         }
     ],
     "typescript": [
@@ -104,9 +89,9 @@ SQL_INJECTION_PATTERNS = {
             "description": "Using template literals with variables in SQL queries enables SQL injection",
             "remediation": "Use parameterized queries or prepared statements",
             "cwe": "CWE-89",
-            "confidence": 0.9
+            "confidence": 0.9,
         }
-    ]
+    ],
 }
 
 # =============================================================================
@@ -116,13 +101,13 @@ SQL_INJECTION_PATTERNS = {
 XSS_PATTERNS = {
     "python": [
         {
-            "pattern": "f\"<$$$>{$VAR}<$$$>\"",
+            "pattern": 'f"<$$$>{$VAR}<$$$>"',
             "severity": "high",
             "title": "XSS via unescaped HTML in f-string",
             "description": "Inserting user input directly into HTML without escaping enables XSS attacks",
             "remediation": "Use HTML escaping functions like html.escape() or template engine auto-escaping",
             "cwe": "CWE-79",
-            "confidence": 0.7
+            "confidence": 0.7,
         }
     ],
     "javascript": [
@@ -133,7 +118,7 @@ XSS_PATTERNS = {
             "description": "Assigning user input to innerHTML without sanitization enables XSS",
             "remediation": "Use textContent or sanitize HTML with DOMPurify",
             "cwe": "CWE-79",
-            "confidence": 0.8
+            "confidence": 0.8,
         },
         {
             "pattern": "document.write($VAR)",
@@ -142,8 +127,8 @@ XSS_PATTERNS = {
             "description": "Using document.write() with user input can enable XSS attacks",
             "remediation": "Avoid document.write() or sanitize input properly",
             "cwe": "CWE-79",
-            "confidence": 0.85
-        }
+            "confidence": 0.85,
+        },
     ],
     "typescript": [
         {
@@ -153,9 +138,9 @@ XSS_PATTERNS = {
             "description": "Assigning user input to innerHTML without sanitization enables XSS",
             "remediation": "Use textContent or sanitize HTML with DOMPurify",
             "cwe": "CWE-79",
-            "confidence": 0.8
+            "confidence": 0.8,
         }
-    ]
+    ],
 }
 
 # =============================================================================
@@ -171,7 +156,7 @@ COMMAND_INJECTION_PATTERNS = {
             "description": "Using os.system() with formatted strings allows command injection",
             "remediation": "Use subprocess.run() with list of arguments instead",
             "cwe": "CWE-78",
-            "confidence": 0.95
+            "confidence": 0.95,
         },
         {
             "pattern": "os.system($STR + $$$)",
@@ -180,7 +165,7 @@ COMMAND_INJECTION_PATTERNS = {
             "description": "String concatenation in os.system() enables command injection",
             "remediation": "Use subprocess.run(['cmd', arg1, arg2]) with array form",
             "cwe": "CWE-78",
-            "confidence": 0.9
+            "confidence": 0.9,
         },
         {
             "pattern": "subprocess.run($STR, shell=True)",
@@ -189,7 +174,7 @@ COMMAND_INJECTION_PATTERNS = {
             "description": "Using shell=True with user input allows command injection",
             "remediation": "Use subprocess.run() with list form and shell=False",
             "cwe": "CWE-78",
-            "confidence": 0.85
+            "confidence": 0.85,
         },
         {
             "pattern": "eval($VAR)",
@@ -198,7 +183,7 @@ COMMAND_INJECTION_PATTERNS = {
             "description": "eval() with user input allows arbitrary code execution",
             "remediation": "Never use eval() with untrusted input; use safe alternatives like ast.literal_eval()",
             "cwe": "CWE-95",
-            "confidence": 1.0
+            "confidence": 1.0,
         },
         {
             "pattern": "exec($VAR)",
@@ -207,8 +192,8 @@ COMMAND_INJECTION_PATTERNS = {
             "description": "exec() with user input allows arbitrary code execution",
             "remediation": "Never use exec() with untrusted input",
             "cwe": "CWE-95",
-            "confidence": 1.0
-        }
+            "confidence": 1.0,
+        },
     ],
     "javascript": [
         {
@@ -218,9 +203,9 @@ COMMAND_INJECTION_PATTERNS = {
             "description": "eval() with user input allows arbitrary code execution",
             "remediation": "Never use eval(); use JSON.parse() for JSON or safer alternatives",
             "cwe": "CWE-95",
-            "confidence": 1.0
+            "confidence": 1.0,
         }
-    ]
+    ],
 }
 
 # =============================================================================
@@ -234,7 +219,7 @@ SECRET_REGEX_PATTERNS = [
         "title": "Hardcoded API Key (OpenAI format)",
         "description": "Hardcoded API key found in source code",
         "remediation": "Use environment variables or secret management system",
-        "cwe": "CWE-798"
+        "cwe": "CWE-798",
     },
     {
         "regex": r'["\']AIza[a-zA-Z0-9_-]{35}["\']',
@@ -242,7 +227,7 @@ SECRET_REGEX_PATTERNS = [
         "title": "Hardcoded Google API Key",
         "description": "Hardcoded Google API key found in source code",
         "remediation": "Use environment variables or Google Secret Manager",
-        "cwe": "CWE-798"
+        "cwe": "CWE-798",
     },
     {
         "regex": r'["\']ghp_[a-zA-Z0-9]{36}["\']',
@@ -250,7 +235,7 @@ SECRET_REGEX_PATTERNS = [
         "title": "Hardcoded GitHub Personal Access Token",
         "description": "GitHub token found hardcoded in source code",
         "remediation": "Use environment variables or GitHub Secrets",
-        "cwe": "CWE-798"
+        "cwe": "CWE-798",
     },
     {
         "regex": r'password\s*=\s*["\'][^"\']{8,}["\']',
@@ -258,16 +243,16 @@ SECRET_REGEX_PATTERNS = [
         "title": "Hardcoded Password",
         "description": "Password appears to be hardcoded in source code",
         "remediation": "Use environment variables or credential management system",
-        "cwe": "CWE-798"
+        "cwe": "CWE-798",
     },
     {
-        "regex": r'Bearer\s+[a-zA-Z0-9_-]{20,}',
+        "regex": r"Bearer\s+[a-zA-Z0-9_-]{20,}",
         "severity": "high",
         "title": "Hardcoded Bearer Token",
         "description": "Bearer token found in source code",
         "remediation": "Use environment variables for authentication tokens",
-        "cwe": "CWE-798"
-    }
+        "cwe": "CWE-798",
+    },
 ]
 
 # =============================================================================
@@ -283,7 +268,7 @@ CRYPTO_PATTERNS = {
             "description": "MD5 is cryptographically broken and should not be used for security",
             "remediation": "Use bcrypt, argon2, or scrypt for password hashing; SHA-256+ for checksums",
             "cwe": "CWE-327",
-            "confidence": 0.9
+            "confidence": 0.9,
         },
         {
             "pattern": "hashlib.sha1($$$)",
@@ -292,8 +277,8 @@ CRYPTO_PATTERNS = {
             "description": "SHA-1 is weak and deprecated for security purposes",
             "remediation": "Use SHA-256 or stronger; use bcrypt/argon2 for passwords",
             "cwe": "CWE-327",
-            "confidence": 0.9
-        }
+            "confidence": 0.9,
+        },
     ]
 }
 
@@ -301,11 +286,8 @@ CRYPTO_PATTERNS = {
 # Scanner Implementation
 # =============================================================================
 
-def scan_for_vulnerability(
-    project_folder: str,
-    language: str,
-    patterns: List[Dict[str, Any]]
-) -> List[SecurityIssue]:
+
+def scan_for_vulnerability(project_folder: str, language: str, patterns: List[Dict[str, Any]]) -> List[SecurityIssue]:
     """Scan for vulnerabilities using ast-grep patterns.
 
     Args:
@@ -321,18 +303,13 @@ def scan_for_vulnerability(
     for pattern_def in patterns:
         try:
             # Build ast-grep command arguments
-            args = [
-                "-p", pattern_def["pattern"],
-                "-l", language,
-                "--json=stream",
-                project_folder
-            ]
+            args = ["-p", pattern_def["pattern"], "-l", language, "--json=stream", project_folder]
 
             # Execute ast-grep with pattern
             results = stream_ast_grep_results(
                 "run",
                 args,
-                max_results=0  # No limit
+                max_results=0,  # No limit
             )
 
             for match in results:
@@ -349,7 +326,7 @@ def scan_for_vulnerability(
                     code_snippet=match.get("text", ""),
                     remediation=pattern_def["remediation"],
                     cwe_id=pattern_def.get("cwe"),
-                    confidence=pattern_def.get("confidence", 0.8)
+                    confidence=pattern_def.get("confidence", 0.8),
                 )
                 issues.append(issue)
 
@@ -360,10 +337,7 @@ def scan_for_vulnerability(
     return issues
 
 
-def scan_for_secrets_regex(
-    project_folder: str,
-    language: str
-) -> List[SecurityIssue]:
+def scan_for_secrets_regex(project_folder: str, language: str) -> List[SecurityIssue]:
     """Scan for hardcoded secrets using regex patterns.
 
     Args:
@@ -396,12 +370,7 @@ def _get_language_extensions(language: str) -> List[str]:
     Returns:
         List of file extensions
     """
-    extensions = {
-        "python": [".py"],
-        "javascript": [".js"],
-        "typescript": [".ts", ".tsx"],
-        "java": [".java"]
-    }
+    extensions = {"python": [".py"], "javascript": [".js"], "typescript": [".ts", ".tsx"], "java": [".java"]}
     return extensions.get(language, [".py", ".js", ".ts", ".java"])
 
 
@@ -452,17 +421,13 @@ def _scan_single_file_for_secrets(file_path: Path) -> List[SecurityIssue]:
     issues = []
 
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
             lines = content.splitlines()
 
         # Check each pattern against file content
         for pattern_def in SECRET_REGEX_PATTERNS:
-            pattern_issues = _scan_lines_for_pattern(
-                lines,
-                pattern_def,
-                str(file_path)
-            )
+            pattern_issues = _scan_lines_for_pattern(lines, pattern_def, str(file_path))
             issues.extend(pattern_issues)
 
     except Exception as e:
@@ -471,11 +436,7 @@ def _scan_single_file_for_secrets(file_path: Path) -> List[SecurityIssue]:
     return issues
 
 
-def _scan_lines_for_pattern(
-    lines: List[str],
-    pattern_def: Dict[str, Any],
-    file_path: str
-) -> List[SecurityIssue]:
+def _scan_lines_for_pattern(lines: List[str], pattern_def: Dict[str, Any], file_path: str) -> List[SecurityIssue]:
     """Scan lines for a specific secret pattern.
 
     Args:
@@ -492,25 +453,13 @@ def _scan_lines_for_pattern(
         matches = re.finditer(pattern_def["regex"], line, re.IGNORECASE)
 
         for match in matches:
-            issue = _create_secret_issue(
-                file_path=file_path,
-                line_num=line_num,
-                line=line,
-                match=match,
-                pattern_def=pattern_def
-            )
+            issue = _create_secret_issue(file_path=file_path, line_num=line_num, line=line, match=match, pattern_def=pattern_def)
             issues.append(issue)
 
     return issues
 
 
-def _create_secret_issue(
-    file_path: str,
-    line_num: int,
-    line: str,
-    match: re.Match,
-    pattern_def: Dict[str, Any]
-) -> SecurityIssue:
+def _create_secret_issue(file_path: str, line_num: int, line: str, match: re.Match[str], pattern_def: Dict[str, Any]) -> SecurityIssue:
     """Create a SecurityIssue for a found secret.
 
     Args:
@@ -536,7 +485,7 @@ def _create_secret_issue(
         code_snippet=line.strip(),
         remediation=pattern_def["remediation"],
         cwe_id=pattern_def.get("cwe"),
-        confidence=0.85
+        confidence=0.85,
     )
 
 
@@ -544,12 +493,8 @@ def _create_secret_issue(
 # Helper Functions for Complexity Reduction
 # =============================================================================
 
-def _scan_for_issue_type(
-    issue_type: str,
-    config: Dict[str, Any],
-    project_folder: str,
-    language: str
-) -> List[SecurityIssue]:
+
+def _scan_for_issue_type(issue_type: str, config: Dict[str, Any], project_folder: str, language: str) -> List[SecurityIssue]:
     """Scan for a specific vulnerability type.
 
     Args:
@@ -583,11 +528,7 @@ def _scan_for_issue_type(
     return scan_for_vulnerability(project_folder, language, patterns)
 
 
-def _filter_by_severity(
-    issues: List[SecurityIssue],
-    severity_threshold: str,
-    max_issues: int
-) -> List[SecurityIssue]:
+def _filter_by_severity(issues: List[SecurityIssue], severity_threshold: str, max_issues: int) -> List[SecurityIssue]:
     """Filter issues by severity threshold and limit count.
 
     Args:
@@ -601,10 +542,7 @@ def _filter_by_severity(
     severity_order = {"critical": 3, "high": 2, "medium": 1, "low": 0}
     threshold_level = severity_order.get(severity_threshold, 0)
 
-    filtered = [
-        issue for issue in issues
-        if severity_order.get(issue.severity, 0) >= threshold_level
-    ]
+    filtered = [issue for issue in issues if severity_order.get(issue.severity, 0) >= threshold_level]
 
     if max_issues > 0:
         filtered = filtered[:max_issues]
@@ -612,9 +550,7 @@ def _filter_by_severity(
     return filtered
 
 
-def _group_issues(
-    issues: List[SecurityIssue]
-) -> tuple[Dict[str, List[SecurityIssue]], Dict[str, List[SecurityIssue]]]:
+def _group_issues(issues: List[SecurityIssue]) -> tuple[Dict[str, List[SecurityIssue]], Dict[str, List[SecurityIssue]]]:
     """Group issues by severity and type.
 
     Args:
@@ -641,9 +577,7 @@ def _group_issues(
 
 
 def _build_summary(
-    by_severity: Dict[str, List[SecurityIssue]],
-    by_type: Dict[str, List[SecurityIssue]],
-    total_count: int
+    by_severity: Dict[str, List[SecurityIssue]], by_type: Dict[str, List[SecurityIssue]], total_count: int
 ) -> Dict[str, Any]:
     """Build summary statistics for the scan results.
 
@@ -661,16 +595,12 @@ def _build_summary(
         "high_count": len(by_severity.get("high", [])),
         "medium_count": len(by_severity.get("medium", [])),
         "low_count": len(by_severity.get("low", [])),
-        "issue_types_found": list(by_type.keys())
+        "issue_types_found": list(by_type.keys()),
     }
 
 
 def detect_security_issues_impl(
-    project_folder: str,
-    language: str,
-    issue_types: List[str] = ["all"],
-    severity_threshold: str = "low",
-    max_issues: int = 100
+    project_folder: str, language: str, issue_types: List[str] = ["all"], severity_threshold: str = "low", max_issues: int = 100
 ) -> SecurityScanResult:
     """Scan project for security vulnerabilities.
 
@@ -696,28 +626,20 @@ def detect_security_issues_impl(
         if issue_type in SCAN_CONFIG:
             issues = _scan_for_issue_type(
                 issue_type=issue_type,
-                config=SCAN_CONFIG[issue_type],
+                config=cast(Dict[str, Any], SCAN_CONFIG[issue_type]),
                 project_folder=project_folder,
-                language=language
+                language=language,
             )
             all_issues.extend(issues)
 
     # Filter and limit results
-    filtered_issues = _filter_by_severity(
-        issues=all_issues,
-        severity_threshold=severity_threshold,
-        max_issues=max_issues
-    )
+    filtered_issues = _filter_by_severity(issues=all_issues, severity_threshold=severity_threshold, max_issues=max_issues)
 
     # Group issues for reporting
     by_severity, by_type = _group_issues(filtered_issues)
 
     # Build summary statistics
-    summary = _build_summary(
-        by_severity=by_severity,
-        by_type=by_type,
-        total_count=len(filtered_issues)
-    )
+    summary = _build_summary(by_severity=by_severity, by_type=by_type, total_count=len(filtered_issues))
 
     # Calculate execution time
     execution_time = int((time.time() - start_time) * 1000)
@@ -729,5 +651,5 @@ def detect_security_issues_impl(
         issues_by_severity=by_severity,
         issues_by_type=by_type,
         files_scanned=len(set(issue.file for issue in filtered_issues)),
-        execution_time_ms=execution_time
+        execution_time_ms=execution_time,
     )

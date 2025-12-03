@@ -1,8 +1,5 @@
 """Tests for function extraction refactoring."""
 
-import os
-import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -10,7 +7,6 @@ from ast_grep_mcp.features.refactoring.analyzer import CodeSelectionAnalyzer
 from ast_grep_mcp.features.refactoring.extractor import FunctionExtractor
 from ast_grep_mcp.features.refactoring.tools import extract_function_tool
 from ast_grep_mcp.models.refactoring import VariableType
-from ast_grep_mcp.utils.console_logger import console
 
 
 class TestCodeSelectionAnalyzer:
@@ -119,7 +115,7 @@ class TestFunctionExtractor:
 
     def test_generate_signature_python(self):
         """Test Python function signature generation."""
-        from ast_grep_mcp.models.refactoring import CodeSelection, VariableInfo
+        from ast_grep_mcp.models.refactoring import CodeSelection
 
         extractor = FunctionExtractor("python")
 

@@ -6,11 +6,9 @@ Tests for:
 - visualize_complexity
 - create_enhanced_duplication_response
 """
-from ast_grep_mcp.utils.console_logger import console
 
-import pytest
-import sys
 import os
+import sys
 
 # Add the parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))

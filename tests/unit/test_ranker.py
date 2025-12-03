@@ -8,6 +8,7 @@ Tests focus on:
 """
 
 import pytest
+
 from ast_grep_mcp.features.deduplication.ranker import DuplicationRanker
 
 

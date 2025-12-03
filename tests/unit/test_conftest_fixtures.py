@@ -3,10 +3,10 @@
 This module showcases how to use the new fixtures added to conftest.py,
 serving as both tests and documentation.
 """
-from ast_grep_mcp.utils.console_logger import console
+
+from pathlib import Path
 
 import pytest
-from pathlib import Path
 
 
 class TestCacheFixtures:

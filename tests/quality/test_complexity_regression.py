@@ -75,7 +75,6 @@ from ast_grep_mcp.features.complexity.analyzer import (
     calculate_nesting_depth,
 )
 
-
 # Critical functions that were refactored in Phase 1 (2025-11-28)
 CRITICAL_FUNCTIONS = [
     # Deduplication Applicator (refactored from 309 lines, complexity 219)
@@ -314,7 +313,7 @@ class TestComplexityRegression:
                 )
 
         assert not missing_functions, (
-            f"Missing refactored functions:\n"
+            "Missing refactored functions:\n"
             + "\n".join(f"  - {f}" for f in missing_functions)
         )
 
@@ -625,7 +624,7 @@ class TestComplexityTrends:
                 pass
 
         assert not extreme_functions, (
-            f"Found functions with extreme complexity after Phase 1 refactoring:\n"
+            "Found functions with extreme complexity after Phase 1 refactoring:\n"
             + "\n".join(f"  - {f}" for f in extreme_functions)
         )
 

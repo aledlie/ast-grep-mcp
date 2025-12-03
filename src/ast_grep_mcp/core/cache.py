@@ -1,4 +1,5 @@
 """Query caching for ast-grep MCP server."""
+
 import hashlib
 import time
 from collections import OrderedDict
@@ -41,7 +42,7 @@ class QueryCache:
         # Create a stable string representation
         key_parts = [command, project_folder] + sorted(args)
         key_str = "|".join(key_parts)
-        return hashlib.sha256(key_str.encode()).hexdigest()[:CacheDefaults.CACHE_KEY_LENGTH]
+        return hashlib.sha256(key_str.encode()).hexdigest()[: CacheDefaults.CACHE_KEY_LENGTH]
 
     def get(self, command: str, args: List[str], project_folder: str) -> Optional[List[Dict[str, Any]]]:
         """Get cached results if available and not expired.
@@ -114,7 +115,7 @@ class QueryCache:
             "hits": self.hits,
             "misses": self.misses,
             "hit_rate": round(hit_rate, 3),
-            "ttl_seconds": self.ttl_seconds
+            "ttl_seconds": self.ttl_seconds,
         }
 
 
@@ -125,6 +126,7 @@ _query_cache: Optional[QueryCache] = None
 def get_query_cache() -> Optional[QueryCache]:
     """Get the global query cache instance if caching is enabled."""
     from ast_grep_mcp.core.config import CACHE_ENABLED
+
     return _query_cache if CACHE_ENABLED else None
 
 

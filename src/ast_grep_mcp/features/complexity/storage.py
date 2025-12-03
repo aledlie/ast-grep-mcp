@@ -18,7 +18,7 @@ from ast_grep_mcp.models.complexity import FunctionComplexity
 # DATABASE SCHEMA
 # =============================================================================
 
-COMPLEXITY_DB_SCHEMA = '''
+COMPLEXITY_DB_SCHEMA = """
 CREATE TABLE IF NOT EXISTS projects (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     project_path TEXT NOT NULL UNIQUE,
@@ -65,12 +65,13 @@ CREATE INDEX IF NOT EXISTS idx_runs_project_timestamp ON analysis_runs(project_i
 CREATE INDEX IF NOT EXISTS idx_runs_commit ON analysis_runs(commit_hash);
 CREATE INDEX IF NOT EXISTS idx_function_metrics_run ON function_metrics(run_id);
 CREATE INDEX IF NOT EXISTS idx_function_metrics_complexity ON function_metrics(cyclomatic_complexity DESC);
-'''
+"""
 
 
 # =============================================================================
 # STORAGE CLASS
 # =============================================================================
+
 
 class ComplexityStorage:
     """SQLite storage for complexity analysis results."""
@@ -115,18 +116,12 @@ class ComplexityStorage:
     def get_or_create_project(self, project_path: str) -> int:
         """Get or create project entry, return project ID."""
         with self._get_connection() as conn:
-            cursor = conn.execute(
-                "SELECT id FROM projects WHERE project_path = ?",
-                (project_path,)
-            )
+            cursor = conn.execute("SELECT id FROM projects WHERE project_path = ?", (project_path,))
             row = cursor.fetchone()
             if row:
                 return int(row["id"])
 
-            cursor = conn.execute(
-                "INSERT INTO projects (project_path, name) VALUES (?, ?)",
-                (project_path, Path(project_path).name)
-            )
+            cursor = conn.execute("INSERT INTO projects (project_path, name) VALUES (?, ?)", (project_path, Path(project_path).name))
             return cursor.lastrowid or 0
 
     def store_analysis_run(
@@ -135,14 +130,15 @@ class ComplexityStorage:
         results: Dict[str, Any],
         functions: List[FunctionComplexity],
         commit_hash: Optional[str] = None,
-        branch_name: Optional[str] = None
+        branch_name: Optional[str] = None,
     ) -> int:
         """Store complete analysis run with all metrics."""
         project_id = self.get_or_create_project(project_path)
 
         with self._get_connection() as conn:
             # Insert analysis run
-            cursor = conn.execute('''
+            cursor = conn.execute(
+                """
                 INSERT INTO analysis_runs (
                     project_id, commit_hash, branch_name,
                     total_functions, total_files,
@@ -150,35 +146,45 @@ class ComplexityStorage:
                     max_cyclomatic, max_cognitive, max_nesting,
                     threshold_violations, analysis_duration_ms
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                project_id, commit_hash, branch_name,
-                results.get("total_functions", 0),
-                results.get("total_files", 0),
-                results.get("avg_cyclomatic"),
-                results.get("avg_cognitive"),
-                results.get("max_cyclomatic"),
-                results.get("max_cognitive"),
-                results.get("max_nesting"),
-                results.get("violation_count", 0),
-                results.get("duration_ms")
-            ))
+            """,
+                (
+                    project_id,
+                    commit_hash,
+                    branch_name,
+                    results.get("total_functions", 0),
+                    results.get("total_files", 0),
+                    results.get("avg_cyclomatic"),
+                    results.get("avg_cognitive"),
+                    results.get("max_cyclomatic"),
+                    results.get("max_cognitive"),
+                    results.get("max_nesting"),
+                    results.get("violation_count", 0),
+                    results.get("duration_ms"),
+                ),
+            )
             run_id = cursor.lastrowid or 0
 
             # Bulk insert function metrics
             function_data = [
                 (
-                    run_id, f.file_path, f.function_name,
-                    f.start_line, f.end_line,
-                    f.metrics.cyclomatic, f.metrics.cognitive,
-                    f.metrics.nesting_depth, f.metrics.lines,
+                    run_id,
+                    f.file_path,
+                    f.function_name,
+                    f.start_line,
+                    f.end_line,
+                    f.metrics.cyclomatic,
+                    f.metrics.cognitive,
+                    f.metrics.nesting_depth,
+                    f.metrics.lines,
                     f.metrics.parameter_count,
-                    ",".join(f.exceeds) if f.exceeds else None
+                    ",".join(f.exceeds) if f.exceeds else None,
                 )
                 for f in functions
             ]
 
             if function_data:
-                conn.executemany('''
+                conn.executemany(
+                    """
                     INSERT INTO function_metrics (
                         run_id, file_path, function_name,
                         start_line, end_line,
@@ -186,18 +192,17 @@ class ComplexityStorage:
                         nesting_depth, line_count, parameter_count,
                         exceeds_threshold
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', function_data)
+                """,
+                    function_data,
+                )
 
             return run_id
 
-    def get_project_trends(
-        self,
-        project_path: str,
-        days: int = 30
-    ) -> List[Dict[str, Any]]:
+    def get_project_trends(self, project_path: str, days: int = 30) -> List[Dict[str, Any]]:
         """Get complexity trends for a project over time."""
         with self._get_connection() as conn:
-            cursor = conn.execute('''
+            cursor = conn.execute(
+                """
                 SELECT
                     ar.run_timestamp,
                     ar.commit_hash,
@@ -213,5 +218,7 @@ class ComplexityStorage:
                 WHERE p.project_path = ?
                     AND ar.run_timestamp >= datetime('now', ?)
                 ORDER BY ar.run_timestamp ASC
-            ''', (project_path, f'-{days} days'))
+            """,
+                (project_path, f"-{days} days"),
+            )
             return [dict(row) for row in cursor.fetchall()]

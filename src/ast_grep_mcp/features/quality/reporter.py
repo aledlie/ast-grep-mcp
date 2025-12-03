@@ -8,7 +8,6 @@ This module provides functionality to generate comprehensive quality reports:
 """
 
 import json
-import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -21,6 +20,7 @@ logger = get_logger(__name__)
 # =============================================================================
 # Markdown Report Generation - Helper Functions
 # =============================================================================
+
 
 def _generate_report_header(project_name: str, result: EnforcementResult) -> List[str]:
     """Generate report header section.
@@ -37,7 +37,7 @@ def _generate_report_header(project_name: str, result: EnforcementResult) -> Lis
         f"\n**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         f"**Execution Time:** {result.execution_time_ms}ms",
         f"**Files Scanned:** {result.files_scanned}",
-        "\n---\n"
+        "\n---\n",
     ]
 
 
@@ -59,7 +59,7 @@ def _generate_summary_section(result: EnforcementResult) -> List[str]:
         f"- **Info:** {summary['info_count']}",
         f"- **Files with Violations:** {summary['files_with_violations']}",
         f"- **Rules Executed:** {len(result.rules_executed)}",
-        "\n---\n"
+        "\n---\n",
     ]
 
 
@@ -77,10 +77,7 @@ def _format_violation_entry(violation: RuleViolation) -> str:
 
 
 def _generate_rule_violations_section(
-    rule_id: str,
-    rule_violations: List[RuleViolation],
-    include_violations: bool,
-    max_violations_per_rule: int
+    rule_id: str, rule_violations: List[RuleViolation], include_violations: bool, max_violations_per_rule: int
 ) -> List[str]:
     """Generate violations section for a single rule.
 
@@ -115,9 +112,7 @@ def _generate_rule_violations_section(
 
 
 def _generate_violations_by_severity_section(
-    result: EnforcementResult,
-    include_violations: bool,
-    max_violations_per_rule: int
+    result: EnforcementResult, include_violations: bool, max_violations_per_rule: int
 ) -> List[str]:
     """Generate violations grouped by severity section.
 
@@ -147,9 +142,7 @@ def _generate_violations_by_severity_section(
 
         # Add each rule's violations
         for rule_id, rule_violations in sorted(by_rule.items()):
-            rule_lines = _generate_rule_violations_section(
-                rule_id, rule_violations, include_violations, max_violations_per_rule
-            )
+            rule_lines = _generate_rule_violations_section(rule_id, rule_violations, include_violations, max_violations_per_rule)
             lines.extend(rule_lines)
 
     return lines
@@ -177,19 +170,10 @@ def _generate_top_issues_table(result: EnforcementResult) -> List[str]:
     Returns:
         List of table lines
     """
-    lines = [
-        "\n---\n",
-        "## Top Issues by Rule\n",
-        "| Rule | Count | Severity |",
-        "|------|-------|----------|"
-    ]
+    lines = ["\n---\n", "## Top Issues by Rule\n", "| Rule | Count | Severity |", "|------|-------|----------|"]
 
     # Sort rules by violation count
-    rules_sorted = sorted(
-        result.violations_by_rule.items(),
-        key=lambda x: len(x[1]),
-        reverse=True
-    )[:10]  # Top 10
+    rules_sorted = sorted(result.violations_by_rule.items(), key=lambda x: len(x[1]), reverse=True)[:10]  # Top 10
 
     for rule_id, violations in rules_sorted:
         most_common_severity = _get_most_common_severity(violations)
@@ -198,9 +182,7 @@ def _generate_top_issues_table(result: EnforcementResult) -> List[str]:
     return lines
 
 
-def _count_violations_by_severity(
-    violations: List[RuleViolation]
-) -> tuple[int, int, int]:
+def _count_violations_by_severity(violations: List[RuleViolation]) -> tuple[int, int, int]:
     """Count violations by severity level.
 
     Args:
@@ -228,23 +210,17 @@ def _generate_problematic_files_table(result: EnforcementResult) -> List[str]:
         "\n---\n",
         "## Files with Most Violations\n",
         "| File | Violations | Errors | Warnings | Info |",
-        "|------|------------|--------|----------|------|"
+        "|------|------------|--------|----------|------|",
     ]
 
     # Sort files by violation count
-    files_sorted = sorted(
-        result.violations_by_file.items(),
-        key=lambda x: len(x[1]),
-        reverse=True
-    )[:10]  # Top 10
+    files_sorted = sorted(result.violations_by_file.items(), key=lambda x: len(x[1]), reverse=True)[:10]  # Top 10
 
     for file_path, violations in files_sorted:
         file_name = Path(file_path).name
         error_count, warning_count, info_count = _count_violations_by_severity(violations)
 
-        lines.append(
-            f"| `{file_name}` | {len(violations)} | {error_count} | {warning_count} | {info_count} |"
-        )
+        lines.append(f"| `{file_name}` | {len(violations)} | {error_count} | {warning_count} | {info_count} |")
 
     return lines
 
@@ -262,13 +238,13 @@ def _generate_recommendations_section(result: EnforcementResult) -> List[str]:
     summary = result.summary
 
     # Add severity-based recommendations
-    if summary['error_count'] > 0:
+    if summary["error_count"] > 0:
         lines.append(f"- **🔴 {summary['error_count']} errors** require immediate attention")
 
-    if summary['warning_count'] > 0:
+    if summary["warning_count"] > 0:
         lines.append(f"- **🟡 {summary['warning_count']} warnings** should be addressed")
 
-    if summary['info_count'] > 0:
+    if summary["info_count"] > 0:
         lines.append(f"- **ℹ️ {summary['info_count']} info items** are suggestions for improvement")
 
     # Add auto-fix recommendation
@@ -284,11 +260,9 @@ def _generate_recommendations_section(result: EnforcementResult) -> List[str]:
 # Markdown Report Generation - Main Function
 # =============================================================================
 
+
 def generate_markdown_report(
-    result: EnforcementResult,
-    project_name: str = "Project",
-    include_violations: bool = True,
-    max_violations_per_rule: int = 10
+    result: EnforcementResult, project_name: str = "Project", include_violations: bool = True, max_violations_per_rule: int = 10
 ) -> str:
     """Generate a Markdown-formatted quality report.
 
@@ -306,9 +280,7 @@ def generate_markdown_report(
     # Generate each section
     report_lines.extend(_generate_report_header(project_name, result))
     report_lines.extend(_generate_summary_section(result))
-    report_lines.extend(_generate_violations_by_severity_section(
-        result, include_violations, max_violations_per_rule
-    ))
+    report_lines.extend(_generate_violations_by_severity_section(result, include_violations, max_violations_per_rule))
     report_lines.extend(_generate_top_issues_table(result))
     report_lines.extend(_generate_problematic_files_table(result))
     report_lines.extend(_generate_recommendations_section(result))
@@ -320,11 +292,8 @@ def generate_markdown_report(
 # JSON Report Generation
 # =============================================================================
 
-def generate_json_report(
-    result: EnforcementResult,
-    project_name: str = "Project",
-    include_code_snippets: bool = False
-) -> Dict[str, Any]:
+
+def generate_json_report(result: EnforcementResult, project_name: str = "Project", include_code_snippets: bool = False) -> Dict[str, Any]:
     """Generate a JSON-formatted quality report.
 
     Args:
@@ -346,23 +315,17 @@ def generate_json_report(
             "files_scanned": result.files_scanned,
             "files_with_violations": result.summary["files_with_violations"],
             "rules_executed": len(result.rules_executed),
-            "execution_time_ms": result.execution_time_ms
+            "execution_time_ms": result.execution_time_ms,
         },
         "rules_executed": result.rules_executed,
         "violations_by_severity": {
             "error": len(result.violations_by_severity.get("error", [])),
             "warning": len(result.violations_by_severity.get("warning", [])),
-            "info": len(result.violations_by_severity.get("info", []))
+            "info": len(result.violations_by_severity.get("info", [])),
         },
-        "violations_by_rule": {
-            rule_id: len(violations)
-            for rule_id, violations in result.violations_by_rule.items()
-        },
-        "violations_by_file": {
-            file: len(violations)
-            for file, violations in result.violations_by_file.items()
-        },
-        "violations": []
+        "violations_by_rule": {rule_id: len(violations) for rule_id, violations in result.violations_by_rule.items()},
+        "violations_by_file": {file: len(violations) for file, violations in result.violations_by_file.items()},
+        "violations": [],
     }
 
     # Add violations
@@ -376,7 +339,7 @@ def generate_json_report(
             "severity": v.severity,
             "rule_id": v.rule_id,
             "message": v.message,
-            "fix_available": v.fix_suggestion is not None
+            "fix_available": v.fix_suggestion is not None,
         }
 
         if include_code_snippets:
@@ -386,27 +349,15 @@ def generate_json_report(
         report["violations"].append(violation_dict)
 
     # Add top issues
-    top_rules = sorted(
-        result.violations_by_rule.items(),
-        key=lambda x: len(x[1]),
-        reverse=True
-    )[:10]
+    top_rules = sorted(result.violations_by_rule.items(), key=lambda x: len(x[1]), reverse=True)[:10]
 
     report["top_issues"] = [
-        {
-            "rule_id": rule_id,
-            "count": len(violations),
-            "severity": violations[0].severity if violations else "unknown"
-        }
+        {"rule_id": rule_id, "count": len(violations), "severity": violations[0].severity if violations else "unknown"}
         for rule_id, violations in top_rules
     ]
 
     # Add most problematic files
-    top_files = sorted(
-        result.violations_by_file.items(),
-        key=lambda x: len(x[1]),
-        reverse=True
-    )[:10]
+    top_files = sorted(result.violations_by_file.items(), key=lambda x: len(x[1]), reverse=True)[:10]
 
     report["most_violations_files"] = [
         {
@@ -414,7 +365,7 @@ def generate_json_report(
             "violations": len(violations),
             "errors": sum(1 for v in violations if v.severity == "error"),
             "warnings": sum(1 for v in violations if v.severity == "warning"),
-            "info": sum(1 for v in violations if v.severity == "info")
+            "info": sum(1 for v in violations if v.severity == "info"),
         }
         for file, violations in top_files
     ]
@@ -426,13 +377,14 @@ def generate_json_report(
 # Report Generator (Main Entry Point)
 # =============================================================================
 
+
 def generate_quality_report_impl(
     result: EnforcementResult,
     project_name: str = "Project",
     output_format: str = "markdown",
     include_violations: bool = True,
     include_code_snippets: bool = False,
-    save_to_file: Optional[str] = None
+    save_to_file: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Generate a code quality report in various formats.
 
@@ -448,44 +400,27 @@ def generate_quality_report_impl(
         Dictionary with report content and metadata
     """
     if output_format == "markdown":
-        report_content = generate_markdown_report(
-            result=result,
-            project_name=project_name,
-            include_violations=include_violations
-        )
+        report_content = generate_markdown_report(result=result, project_name=project_name, include_violations=include_violations)
 
-        response = {
-            "format": "markdown",
-            "content": report_content,
-            "summary": result.summary
-        }
+        response = {"format": "markdown", "content": report_content, "summary": result.summary}
 
         # Save to file if requested
         if save_to_file:
-            with open(save_to_file, 'w', encoding='utf-8') as f:
+            with open(save_to_file, "w", encoding="utf-8") as f:
                 f.write(report_content)
             response["saved_to"] = save_to_file
 
         return response
 
     elif output_format == "json":
-        json_report = generate_json_report(
-            result=result,
-            project_name=project_name,
-            include_code_snippets=include_code_snippets
-        )
+        json_report = generate_json_report(result=result, project_name=project_name, include_code_snippets=include_code_snippets)
 
         # Save to file if requested
         if save_to_file:
-            with open(save_to_file, 'w', encoding='utf-8') as f:
+            with open(save_to_file, "w", encoding="utf-8") as f:
                 json.dump(json_report, f, indent=2)
 
-        return {
-            "format": "json",
-            "content": json_report,
-            "summary": result.summary,
-            "saved_to": save_to_file if save_to_file else None
-        }
+        return {"format": "json", "content": json_report, "summary": result.summary, "saved_to": save_to_file if save_to_file else None}
 
     else:
         raise ValueError(f"Unsupported output format: {output_format}")

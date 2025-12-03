@@ -25,6 +25,7 @@ from .complexity_statistics import ComplexityStatisticsAggregator
 
 # Helper functions extracted from analyze_complexity_tool
 
+
 def _validate_inputs(language: str) -> None:
     """Validate input parameters for complexity analysis.
 
@@ -40,11 +41,7 @@ def _validate_inputs(language: str) -> None:
 
 
 def _find_files_to_analyze(
-    project_folder: str,
-    language: str,
-    include_patterns: List[str],
-    exclude_patterns: List[str],
-    logger: Any
+    project_folder: str, language: str, include_patterns: List[str], exclude_patterns: List[str], logger: Any
 ) -> tuple[List[str], ComplexityFileFinder]:
     """Find files to analyze based on patterns.
 
@@ -59,28 +56,15 @@ def _find_files_to_analyze(
         Tuple of (files to analyze, file finder instance)
     """
     file_finder = ComplexityFileFinder()
-    files_to_analyze = file_finder.find_files(
-        project_folder,
-        language,
-        include_patterns,
-        exclude_patterns
-    )
+    files_to_analyze = file_finder.find_files(project_folder, language, include_patterns, exclude_patterns)
 
-    logger.info(
-        "files_found",
-        total_files=len(files_to_analyze),
-        include_patterns=include_patterns,
-        exclude_patterns=exclude_patterns
-    )
+    logger.info("files_found", total_files=len(files_to_analyze), include_patterns=include_patterns, exclude_patterns=exclude_patterns)
 
     return files_to_analyze, file_finder
 
 
 def _analyze_files_parallel(
-    files_to_analyze: List[str],
-    language: str,
-    thresholds: ComplexityThresholds,
-    max_threads: int
+    files_to_analyze: List[str], language: str, thresholds: ComplexityThresholds, max_threads: int
 ) -> tuple[List[Any], List[Any], ParallelComplexityAnalyzer]:
     """Analyze files in parallel for complexity metrics.
 
@@ -96,12 +80,7 @@ def _analyze_files_parallel(
     analyzer = ParallelComplexityAnalyzer()
 
     # Analyze files in parallel
-    all_functions = analyzer.analyze_files(
-        files_to_analyze,
-        language,
-        thresholds,
-        max_threads
-    )
+    all_functions = analyzer.analyze_files(files_to_analyze, language, thresholds, max_threads)
 
     # Filter exceeding functions
     exceeding_functions = analyzer.filter_exceeding_functions(all_functions)
@@ -110,10 +89,7 @@ def _analyze_files_parallel(
 
 
 def _calculate_summary_statistics(
-    all_functions: List[Any],
-    exceeding_functions: List[Any],
-    total_files: int,
-    execution_time: float
+    all_functions: List[Any], exceeding_functions: List[Any], total_files: int, execution_time: float
 ) -> tuple[Dict[str, Any], ComplexityStatisticsAggregator]:
     """Calculate summary statistics from analysis results.
 
@@ -127,12 +103,7 @@ def _calculate_summary_statistics(
         Tuple of (summary dictionary, statistics instance)
     """
     statistics = ComplexityStatisticsAggregator()
-    summary = statistics.calculate_summary(
-        all_functions,
-        exceeding_functions,
-        total_files,
-        execution_time
-    )
+    summary = statistics.calculate_summary(all_functions, exceeding_functions, total_files, execution_time)
 
     return summary, statistics
 
@@ -143,7 +114,7 @@ def _store_and_generate_trends(
     project_folder: str,
     summary: Dict[str, Any],
     all_functions: List[Any],
-    statistics: ComplexityStatisticsAggregator
+    statistics: ComplexityStatisticsAggregator,
 ) -> tuple[Any, Any, Any]:
     """Store results and generate trends if requested.
 
@@ -163,11 +134,7 @@ def _store_and_generate_trends(
     trends = None
 
     if store_results:
-        run_id, stored_at = statistics.store_results(
-            project_folder,
-            summary,
-            all_functions
-        )
+        run_id, stored_at = statistics.store_results(project_folder, summary, all_functions)
 
     if include_trends:
         trends = statistics.get_trends(project_folder, days=30)
@@ -182,7 +149,7 @@ def _format_response(
     run_id: Any,
     stored_at: Any,
     trends: Any,
-    statistics: ComplexityStatisticsAggregator
+    statistics: ComplexityStatisticsAggregator,
 ) -> Dict[str, Any]:
     """Format the final response dictionary.
 
@@ -198,14 +165,7 @@ def _format_response(
     Returns:
         Formatted response dictionary
     """
-    return statistics.format_response(
-        summary,
-        thresholds_dict,
-        exceeding_functions,
-        run_id,
-        stored_at,
-        trends
-    )
+    return statistics.format_response(summary, thresholds_dict, exceeding_functions, run_id, stored_at, trends)
 
 
 def _handle_no_files_found(language: str, execution_time: float) -> Dict[str, Any]:
@@ -219,22 +179,14 @@ def _handle_no_files_found(language: str, execution_time: float) -> Dict[str, An
         Response dictionary for no files found case
     """
     return {
-        "summary": {
-            "total_functions": 0,
-            "total_files": 0,
-            "exceeding_threshold": 0,
-            "analysis_time_seconds": round(execution_time, 3)
-        },
+        "summary": {"total_functions": 0, "total_files": 0, "exceeding_threshold": 0, "analysis_time_seconds": round(execution_time, 3)},
         "functions": [],
-        "message": f"No {language} files found in project matching the include patterns"
+        "message": f"No {language} files found in project matching the include patterns",
     }
 
 
 def _create_thresholds_dict(
-    cyclomatic_threshold: int,
-    cognitive_threshold: int,
-    nesting_threshold: int,
-    length_threshold: int
+    cyclomatic_threshold: int, cognitive_threshold: int, nesting_threshold: int, length_threshold: int
 ) -> Dict[str, int]:
     """Create thresholds dictionary for response.
 
@@ -251,7 +203,7 @@ def _create_thresholds_dict(
         "cyclomatic": cyclomatic_threshold,
         "cognitive": cognitive_threshold,
         "nesting_depth": nesting_threshold,
-        "length": length_threshold
+        "length": length_threshold,
     }
 
 
@@ -264,7 +216,7 @@ def _execute_analysis(
     include_trends: bool,
     max_threads: int,
     start_time: float,
-    logger: Any
+    logger: Any,
 ) -> Dict[str, Any]:
     """Execute the main analysis workflow.
 
@@ -283,30 +235,15 @@ def _execute_analysis(
         Analysis response dictionary
     """
     # Analyze files in parallel
-    all_functions, exceeding_functions, analyzer = _analyze_files_parallel(
-        files_to_analyze,
-        language,
-        thresholds,
-        max_threads
-    )
+    all_functions, exceeding_functions, analyzer = _analyze_files_parallel(files_to_analyze, language, thresholds, max_threads)
 
     # Calculate summary statistics
     execution_time = time.time() - start_time
-    summary, statistics = _calculate_summary_statistics(
-        all_functions,
-        exceeding_functions,
-        len(files_to_analyze),
-        execution_time
-    )
+    summary, statistics = _calculate_summary_statistics(all_functions, exceeding_functions, len(files_to_analyze), execution_time)
 
     # Store results and generate trends
     run_id, stored_at, trends = _store_and_generate_trends(
-        store_results,
-        include_trends,
-        project_folder,
-        summary,
-        all_functions,
-        statistics
+        store_results, include_trends, project_folder, summary, all_functions, statistics
     )
 
     logger.info(
@@ -315,7 +252,7 @@ def _execute_analysis(
         execution_time_seconds=round(execution_time, 3),
         total_functions=summary["total_functions"],
         exceeding_threshold=len(exceeding_functions),
-        status="success"
+        status="success",
     )
 
     # Create thresholds dict from the thresholds object
@@ -323,19 +260,11 @@ def _execute_analysis(
         "cyclomatic": thresholds.cyclomatic,
         "cognitive": thresholds.cognitive,
         "nesting_depth": thresholds.nesting_depth,
-        "length": thresholds.lines
+        "length": thresholds.lines,
     }
 
     # Format and return response
-    return _format_response(
-        summary,
-        thresholds_dict,
-        exceeding_functions,
-        run_id,
-        stored_at,
-        trends,
-        statistics
-    )
+    return _format_response(summary, thresholds_dict, exceeding_functions, run_id, stored_at, trends, statistics)
 
 
 def analyze_complexity_tool(
@@ -349,7 +278,7 @@ def analyze_complexity_tool(
     length_threshold: int = 50,
     store_results: bool = True,
     include_trends: bool = False,
-    max_threads: int = 4
+    max_threads: int = 4,
 ) -> Dict[str, Any]:
     """
     Analyze code complexity metrics for functions in a project.
@@ -402,7 +331,7 @@ def analyze_complexity_tool(
         cognitive_threshold=cognitive_threshold,
         nesting_threshold=nesting_threshold,
         length_threshold=length_threshold,
-        max_threads=max_threads
+        max_threads=max_threads,
     )
 
     try:
@@ -411,20 +340,11 @@ def analyze_complexity_tool(
 
         # Set up thresholds
         thresholds = ComplexityThresholds(
-            cyclomatic=cyclomatic_threshold,
-            cognitive=cognitive_threshold,
-            nesting_depth=nesting_threshold,
-            lines=length_threshold
+            cyclomatic=cyclomatic_threshold, cognitive=cognitive_threshold, nesting_depth=nesting_threshold, lines=length_threshold
         )
 
         # Find files to analyze
-        files_to_analyze, file_finder = _find_files_to_analyze(
-            project_folder,
-            language,
-            include_patterns,
-            exclude_patterns,
-            logger
-        )
+        files_to_analyze, file_finder = _find_files_to_analyze(project_folder, language, include_patterns, exclude_patterns, logger)
 
         # Handle no files found case
         if not files_to_analyze:
@@ -433,38 +353,28 @@ def analyze_complexity_tool(
 
         # Execute the main analysis workflow
         return _execute_analysis(
-            project_folder,
-            language,
-            thresholds,
-            files_to_analyze,
-            store_results,
-            include_trends,
-            max_threads,
-            start_time,
-            logger
+            project_folder, language, thresholds, files_to_analyze, store_results, include_trends, max_threads, start_time, logger
         )
 
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed",
-            tool="analyze_complexity",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
-            status="failed"
+            "tool_failed", tool="analyze_complexity", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "analyze_complexity",
-            "project_folder": project_folder,
-            "language": language,
-            "execution_time_seconds": round(execution_time, 3)
-        })
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "tool": "analyze_complexity",
+                "project_folder": project_folder,
+                "language": language,
+                "execution_time_seconds": round(execution_time, 3),
+            },
+        )
         raise
 
 
 def test_sentry_integration_tool(
-    test_type: Literal["error", "warning", "breadcrumb", "span"] = "breadcrumb",
-    message: str = "Test message"
+    test_type: Literal["error", "warning", "breadcrumb", "span"] = "breadcrumb", message: str = "Test message"
 ) -> Dict[str, Any]:
     """
     Test Sentry integration by triggering different event types.
@@ -492,11 +402,7 @@ def test_sentry_integration_tool(
 
     try:
         if not os.getenv("SENTRY_DSN"):
-            return {
-                "status": "skipped",
-                "message": "Sentry not configured (SENTRY_DSN not set)",
-                "test_type": test_type
-            }
+            return {"status": "skipped", "message": "Sentry not configured (SENTRY_DSN not set)", "test_type": test_type}
 
         result: Dict[str, Any] = {"status": "success", "test_type": test_type}
 
@@ -505,40 +411,26 @@ def test_sentry_integration_tool(
             try:
                 raise ValueError(f"Sentry integration test error: {message}")
             except ValueError as e:
-                sentry_sdk.capture_exception(e, extras={
-                    "test": True,
-                    "tool": "test_sentry_integration",
-                    "message": message
-                })
+                sentry_sdk.capture_exception(e, extras={"test": True, "tool": "test_sentry_integration", "message": message})
                 result["message"] = "Test exception captured and sent to Sentry"
                 result["exception_type"] = "ValueError"
 
         elif test_type == "warning":
             sentry_sdk.capture_message(
-                f"Sentry integration test warning: {message}",
-                level="warning",
-                extras={"test": True, "tool": "test_sentry_integration"}
+                f"Sentry integration test warning: {message}", level="warning", extras={"test": True, "tool": "test_sentry_integration"}
             )
             result["message"] = "Test warning message sent to Sentry"
 
         elif test_type == "breadcrumb":
             sentry_sdk.add_breadcrumb(
-                message=f"Test breadcrumb 1: {message}",
-                category="test.breadcrumb",
-                level="info",
-                data={"test": True, "sequence": 1}
+                message=f"Test breadcrumb 1: {message}", category="test.breadcrumb", level="info", data={"test": True, "sequence": 1}
             )
             sentry_sdk.add_breadcrumb(
-                message="Test breadcrumb 2: Sequence item",
-                category="test.breadcrumb",
-                level="info",
-                data={"test": True, "sequence": 2}
+                message="Test breadcrumb 2: Sequence item", category="test.breadcrumb", level="info", data={"test": True, "sequence": 2}
             )
             # Breadcrumbs only show up with events, so also send a message
             sentry_sdk.capture_message(
-                "Test breadcrumb context (check breadcrumb trail)",
-                level="info",
-                extras={"test": True, "tool": "test_sentry_integration"}
+                "Test breadcrumb context (check breadcrumb trail)", level="info", extras={"test": True, "tool": "test_sentry_integration"}
             )
             result["message"] = "Test breadcrumbs added and sent to Sentry (check breadcrumb trail in event)"
             result["breadcrumb_count"] = 2
@@ -552,9 +444,7 @@ def test_sentry_integration_tool(
                 time.sleep(0.1)
             # Spans need a transaction to show up
             sentry_sdk.capture_message(
-                "Test span completed (check performance monitoring)",
-                level="info",
-                extras={"test": True, "tool": "test_sentry_integration"}
+                "Test span completed (check performance monitoring)", level="info", extras={"test": True, "tool": "test_sentry_integration"}
             )
             result["message"] = "Test performance span created and sent to Sentry"
 
@@ -564,7 +454,7 @@ def test_sentry_integration_tool(
             tool="test_sentry_integration",
             test_type=test_type,
             execution_time_seconds=round(execution_time, 3),
-            status="success"
+            status="success",
         )
 
         result["execution_time_seconds"] = round(execution_time, 3)
@@ -578,29 +468,21 @@ def test_sentry_integration_tool(
             tool="test_sentry_integration",
             execution_time_seconds=round(execution_time, 3),
             error=str(e)[:200],
-            status="failed"
+            status="failed",
         )
         # For this test tool, capture the error even if it's not expected
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "test_sentry_integration",
-            "test_type": test_type,
-            "execution_time_seconds": round(execution_time, 3)
-        })
+        sentry_sdk.capture_exception(
+            e, extras={"tool": "test_sentry_integration", "test_type": test_type, "execution_time_seconds": round(execution_time, 3)}
+        )
         raise
 
 
 def _get_default_smell_exclude_patterns() -> List[str]:
     """Get default exclude patterns for code smell detection."""
-    return [
-        "**/node_modules/**", "**/__pycache__/**", "**/venv/**",
-        "**/.venv/**", "**/site-packages/**", "**/test*/**", "**/*test*"
-    ]
+    return ["**/node_modules/**", "**/__pycache__/**", "**/venv/**", "**/.venv/**", "**/site-packages/**", "**/test*/**", "**/*test*"]
 
 
-def _prepare_smell_detection_params(
-    include_patterns: List[str] | None,
-    exclude_patterns: List[str] | None
-) -> tuple[List[str], List[str]]:
+def _prepare_smell_detection_params(include_patterns: List[str] | None, exclude_patterns: List[str] | None) -> tuple[List[str], List[str]]:
     """Prepare and validate parameters for smell detection.
 
     Args:
@@ -617,11 +499,7 @@ def _prepare_smell_detection_params(
     return include_patterns, exclude_patterns
 
 
-def _process_smell_detection_result(
-    result: Dict[str, Any],
-    start_time: float,
-    logger: Any
-) -> Dict[str, Any]:
+def _process_smell_detection_result(result: Dict[str, Any], start_time: float, logger: Any) -> Dict[str, Any]:
     """Add execution time and log completion metrics.
 
     Args:
@@ -640,7 +518,7 @@ def _process_smell_detection_result(
         tool="detect_code_smells",
         files_analyzed=result.get("files_analyzed", 0),
         total_smells=result.get("total_smells", 0),
-        execution_time_seconds=round(execution_time, 3)
+        execution_time_seconds=round(execution_time, 3),
     )
 
     return result
@@ -658,7 +536,7 @@ def detect_code_smells_tool(
     class_methods: int = 20,
     detect_magic_numbers: bool = True,
     severity_filter: str = "all",
-    max_threads: int = 4
+    max_threads: int = 4,
 ) -> Dict[str, Any]:
     """
     Detect common code smells, anti-patterns in a project.
@@ -701,9 +579,7 @@ def detect_code_smells_tool(
     start_time = time.time()
 
     # Prepare parameters with defaults
-    include_patterns, exclude_patterns = _prepare_smell_detection_params(
-        include_patterns, exclude_patterns
-    )
+    include_patterns, exclude_patterns = _prepare_smell_detection_params(include_patterns, exclude_patterns)
 
     logger.info(
         "tool_invoked",
@@ -725,7 +601,7 @@ def detect_code_smells_tool(
             class_methods=class_methods,
             detect_magic_numbers=detect_magic_numbers,
             severity_filter=severity_filter,
-            max_threads=max_threads
+            max_threads=max_threads,
         )
 
         # Process result and add execution time
@@ -733,18 +609,16 @@ def detect_code_smells_tool(
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="detect_code_smells",
-            error=str(e),
-            execution_time_seconds=round(execution_time, 3)
+        logger.error("tool_failed", tool="detect_code_smells", error=str(e), execution_time_seconds=round(execution_time, 3))
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "tool": "detect_code_smells",
+                "project_folder": project_folder,
+                "language": language,
+                "execution_time_seconds": round(execution_time, 3),
+            },
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "detect_code_smells",
-            "project_folder": project_folder,
-            "language": language,
-            "execution_time_seconds": round(execution_time, 3)
-        })
         raise
 
 
@@ -760,12 +634,11 @@ def register_complexity_tools(mcp: Any) -> None:
         project_folder: str = Field(description="The absolute path to the project folder to analyze"),
         language: str = Field(description="The programming language (python, typescript, javascript, java)"),
         include_patterns: List[str] = Field(
-            default_factory=lambda: ["**/*"],
-            description="Glob patterns for files to include (e.g., ['src/**/*.py'])"
+            default_factory=lambda: ["**/*"], description="Glob patterns for files to include (e.g., ['src/**/*.py'])"
         ),
         exclude_patterns: List[str] = Field(
             default_factory=lambda: ["**/node_modules/**", "**/__pycache__/**", "**/venv/**", "**/.venv/**", "**/site-packages/**"],
-            description="Glob patterns for files to exclude"
+            description="Glob patterns for files to exclude",
         ),
         cyclomatic_threshold: int = Field(default=10, description="Cyclomatic complexity threshold (default: 10)"),
         cognitive_threshold: int = Field(default=15, description="Cognitive complexity threshold (default: 15)"),
@@ -773,7 +646,7 @@ def register_complexity_tools(mcp: Any) -> None:
         length_threshold: int = Field(default=50, description="Function length threshold in lines (default: 50)"),
         store_results: bool = Field(default=True, description="Store results in database for trend tracking"),
         include_trends: bool = Field(default=False, description="Include historical trend data in response"),
-        max_threads: int = Field(default=4, description="Number of parallel threads for analysis (default: 4)")
+        max_threads: int = Field(default=4, description="Number of parallel threads for analysis (default: 4)"),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone analyze_complexity_tool function."""
         return analyze_complexity_tool(
@@ -787,16 +660,16 @@ def register_complexity_tools(mcp: Any) -> None:
             length_threshold=length_threshold,
             store_results=store_results,
             include_trends=include_trends,
-            max_threads=max_threads
+            max_threads=max_threads,
         )
 
     @mcp.tool()  # type: ignore[misc]
     def test_sentry_integration(
         test_type: Literal["error", "warning", "breadcrumb", "span"] = Field(
             default="breadcrumb",
-            description="Type of Sentry test: 'error' (exception), 'warning' (capture_message), 'breadcrumb', or 'span' (performance)"
+            description="Type of Sentry test: 'error' (exception), 'warning' (capture_message), 'breadcrumb', or 'span' (performance)",
         ),
-        message: str = Field(default="Test message", description="Custom test message")
+        message: str = Field(default="Test message", description="Custom test message"),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone test_sentry_integration_tool function."""
         return test_sentry_integration_tool(test_type=test_type, message=message)
@@ -806,15 +679,19 @@ def register_complexity_tools(mcp: Any) -> None:
         project_folder: str = Field(description="The absolute path to the project folder to analyze"),
         language: str = Field(description="The programming language (python, typescript, javascript, java)"),
         include_patterns: List[str] = Field(
-            default_factory=lambda: ["**/*"],
-            description="Glob patterns for files to include (e.g., ['src/**/*.py'])"
+            default_factory=lambda: ["**/*"], description="Glob patterns for files to include (e.g., ['src/**/*.py'])"
         ),
         exclude_patterns: List[str] = Field(
             default_factory=lambda: [
-                "**/node_modules/**", "**/__pycache__/**", "**/venv/**",
-                "**/.venv/**", "**/site-packages/**", "**/test*/**", "**/*test*"
+                "**/node_modules/**",
+                "**/__pycache__/**",
+                "**/venv/**",
+                "**/.venv/**",
+                "**/site-packages/**",
+                "**/test*/**",
+                "**/*test*",
             ],
-            description="Glob patterns for files to exclude"
+            description="Glob patterns for files to exclude",
         ),
         long_function_lines: int = Field(default=50, description="Line count threshold for long function smell (default: 50)"),
         parameter_count: int = Field(default=5, description="Parameter count threshold for parameter bloat (default: 5)"),
@@ -823,7 +700,7 @@ def register_complexity_tools(mcp: Any) -> None:
         class_methods: int = Field(default=20, description="Method count threshold for large class smell (default: 20)"),
         detect_magic_numbers: bool = Field(default=True, description="Whether to detect magic number smells"),
         severity_filter: str = Field(default="all", description="Filter by severity: 'all', 'high', 'medium', 'low'"),
-        max_threads: int = Field(default=4, description="Number of parallel threads for analysis (default: 4)")
+        max_threads: int = Field(default=4, description="Number of parallel threads for analysis (default: 4)"),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone detect_code_smells_tool function."""
         return detect_code_smells_tool(
@@ -838,5 +715,5 @@ def register_complexity_tools(mcp: Any) -> None:
             class_methods=class_methods,
             detect_magic_numbers=detect_magic_numbers,
             severity_filter=severity_filter,
-            max_threads=max_threads
+            max_threads=max_threads,
         )

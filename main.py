@@ -13,74 +13,97 @@ Migration Status (2025-11-24):
   * Refactor initialization (main.register_mcp_tools(), main._query_cache access)
 - Files affected: 20+ test files with 1,150+ total tests
 """
-from ast_grep_mcp.utils.console_logger import console
 
 # Entry point
-from ast_grep_mcp.server.runner import run_mcp_server, mcp as _mcp
+from ast_grep_mcp.core.cache import *
 
 # Backward compatibility - Re-export all functions
 # NOTE: Required by test suite - see migration notes above
 from ast_grep_mcp.core.config import *
-from ast_grep_mcp.core.cache import *
+from ast_grep_mcp.core.exceptions import *
+from ast_grep_mcp.core.executor import *
 from ast_grep_mcp.core.logging import *
 from ast_grep_mcp.core.sentry import *
-from ast_grep_mcp.core.executor import *
-from ast_grep_mcp.core.exceptions import *
-from ast_grep_mcp.models.config import *
-from ast_grep_mcp.models.deduplication import *
-from ast_grep_mcp.models.complexity import *
-from ast_grep_mcp.models.standards import *
-from ast_grep_mcp.utils.templates import *
-from ast_grep_mcp.utils.formatters import *
-from ast_grep_mcp.utils.text import *
-from ast_grep_mcp.utils.validation import *
-from ast_grep_mcp.features.search.service import *
-from ast_grep_mcp.features.rewrite.service import *
-from ast_grep_mcp.features.rewrite.backup import *
-# Aliases for backward compatibility
-from ast_grep_mcp.features.rewrite.backup import restore_backup as restore_from_backup
-from ast_grep_mcp.features.schema.client import *
-from ast_grep_mcp.features.deduplication.detector import *
-from ast_grep_mcp.features.deduplication.analyzer import *
-from ast_grep_mcp.features.deduplication.ranker import *
-from ast_grep_mcp.features.deduplication.generator import *
-from ast_grep_mcp.features.deduplication.applicator import *
-from ast_grep_mcp.features.deduplication.coverage import *
-from ast_grep_mcp.features.deduplication.impact import *
-from ast_grep_mcp.features.deduplication.recommendations import *
-from ast_grep_mcp.features.deduplication.reporting import *
-from ast_grep_mcp.features.deduplication.benchmark import *
 from ast_grep_mcp.features.complexity.analyzer import *
 from ast_grep_mcp.features.complexity.metrics import *
 from ast_grep_mcp.features.complexity.storage import *
-from ast_grep_mcp.features.quality.smells import *
-from ast_grep_mcp.features.quality.rules import *
-from ast_grep_mcp.features.quality.validator import *
-from ast_grep_mcp.features.quality.enforcer import *
-from ast_grep_mcp.features.quality.tools import enforce_standards_tool, apply_standards_fixes_tool, generate_quality_report_tool, detect_security_issues_tool
-
-# Backward compatibility: underscore-prefixed aliases for tests
-from ast_grep_mcp.features.quality.enforcer import (
-    execute_rule as _execute_rule,
-    execute_rules_batch as _execute_rules_batch,
-    filter_violations_by_severity as _filter_violations_by_severity,
-    format_violation_report as _format_violation_report,
-    group_violations_by_file as _group_violations_by_file,
-    group_violations_by_rule as _group_violations_by_rule,
-    group_violations_by_severity as _group_violations_by_severity,
-    load_custom_rules as _load_custom_rules,
-    load_rule_set as _load_rule_set,
-    parse_match_to_violation as _parse_match_to_violation,
-    should_exclude_file as _should_exclude_file,
-    template_to_linting_rule as _template_to_linting_rule,
-)
-from ast_grep_mcp.features.quality.rules import (
-    load_rules_from_project as _load_rule_from_file,  # Note: naming mismatch in tests
-)
+from ast_grep_mcp.features.deduplication.analyzer import *
+from ast_grep_mcp.features.deduplication.applicator import *
+from ast_grep_mcp.features.deduplication.benchmark import *
+from ast_grep_mcp.features.deduplication.coverage import *
+from ast_grep_mcp.features.deduplication.detector import *
 
 # Additional backward compatibility exports for test suite
 # These are methods on classes that tests expect as standalone functions
 from ast_grep_mcp.features.deduplication.detector import DuplicationDetector
+from ast_grep_mcp.features.deduplication.generator import *
+from ast_grep_mcp.features.deduplication.impact import *
+from ast_grep_mcp.features.deduplication.ranker import *
+from ast_grep_mcp.features.deduplication.recommendations import *
+from ast_grep_mcp.features.deduplication.reporting import *
+from ast_grep_mcp.features.quality.enforcer import *
+
+# Backward compatibility: underscore-prefixed aliases for tests
+from ast_grep_mcp.features.quality.enforcer import (
+    execute_rule as _execute_rule,
+)
+from ast_grep_mcp.features.quality.enforcer import (
+    execute_rules_batch as _execute_rules_batch,
+)
+from ast_grep_mcp.features.quality.enforcer import (
+    filter_violations_by_severity as _filter_violations_by_severity,
+)
+from ast_grep_mcp.features.quality.enforcer import (
+    format_violation_report as _format_violation_report,
+)
+from ast_grep_mcp.features.quality.enforcer import (
+    group_violations_by_file as _group_violations_by_file,
+)
+from ast_grep_mcp.features.quality.enforcer import (
+    group_violations_by_rule as _group_violations_by_rule,
+)
+from ast_grep_mcp.features.quality.enforcer import (
+    group_violations_by_severity as _group_violations_by_severity,
+)
+from ast_grep_mcp.features.quality.enforcer import (
+    load_custom_rules as _load_custom_rules,
+)
+from ast_grep_mcp.features.quality.enforcer import (
+    load_rule_set as _load_rule_set,
+)
+from ast_grep_mcp.features.quality.enforcer import (
+    parse_match_to_violation as _parse_match_to_violation,
+)
+from ast_grep_mcp.features.quality.enforcer import (
+    should_exclude_file as _should_exclude_file,
+)
+from ast_grep_mcp.features.quality.enforcer import (
+    template_to_linting_rule as _template_to_linting_rule,
+)
+from ast_grep_mcp.features.quality.rules import *
+from ast_grep_mcp.features.quality.rules import (
+    load_rules_from_project as _load_rule_from_file,  # Note: naming mismatch in tests
+)
+from ast_grep_mcp.features.quality.smells import *
+from ast_grep_mcp.features.quality.tools import enforce_standards_tool
+from ast_grep_mcp.features.quality.validator import *
+from ast_grep_mcp.features.rewrite.backup import *
+from ast_grep_mcp.features.rewrite.service import *
+
+# Aliases for backward compatibility
+from ast_grep_mcp.features.schema.client import *
+from ast_grep_mcp.features.search.service import *
+from ast_grep_mcp.models.complexity import *
+from ast_grep_mcp.models.config import *
+from ast_grep_mcp.models.deduplication import *
+from ast_grep_mcp.models.standards import *
+from ast_grep_mcp.server.runner import mcp as _mcp
+from ast_grep_mcp.server.runner import run_mcp_server
+from ast_grep_mcp.utils.formatters import *
+from ast_grep_mcp.utils.templates import *
+from ast_grep_mcp.utils.text import *
+from ast_grep_mcp.utils.validation import *
+
 _detector = DuplicationDetector()
 group_duplicates = _detector.group_duplicates
 
@@ -247,15 +270,6 @@ def infer_parameter_type(identifier: str, context: str, language: str):
     return "Any"
 
 # Re-export formatting functions for backward compatibility with tests
-from ast_grep_mcp.utils.formatters import (
-    format_python_code,
-    format_typescript_code,
-    format_javascript_code,
-    format_java_code,
-    format_generated_code,
-    _basic_python_format,
-    _format_python_line,
-)
 
 # Re-export mcp for backward compatibility
 mcp = _mcp
@@ -684,39 +698,37 @@ def register_mcp_tools() -> None:
     """
     # Import tool implementations - these are the functions that contain the actual logic
     # Deduplication tools (these are exported from tools.py)
-    from ast_grep_mcp.features.deduplication.tools import (
-        find_duplication_tool,
-        analyze_deduplication_candidates_tool,
-        apply_deduplication_tool,
-        benchmark_deduplication_tool,
-    )
-
-    # Search service implementations (these are the _impl functions)
-    from ast_grep_mcp.features.search.service import (
-        dump_syntax_tree_impl,
-        test_match_code_rule_impl,
-        find_code_impl,
-        find_code_by_rule_impl,
-    )
-
-    # Rewrite service implementations
-    from ast_grep_mcp.features.rewrite.service import (
-        rewrite_code_impl,
-        list_backups_impl,
-    )
-    from ast_grep_mcp.features.rewrite.backup import restore_backup
-
     # Complexity/Testing tools (now extractable after refactoring)
     from ast_grep_mcp.features.complexity.tools import (
         analyze_complexity_tool,
         test_sentry_integration_tool,
+    )
+    from ast_grep_mcp.features.deduplication.tools import (
+        analyze_deduplication_candidates_tool,
+        apply_deduplication_tool,
+        benchmark_deduplication_tool,
+        find_duplication_tool,
     )
 
     # Quality/Standards tools (now extractable after Phase 2B completion)
     from ast_grep_mcp.features.quality.tools import (
         create_linting_rule_tool,
         list_rule_templates_tool,
-        enforce_standards_tool,
+    )
+    from ast_grep_mcp.features.rewrite.backup import restore_backup
+
+    # Rewrite service implementations
+    from ast_grep_mcp.features.rewrite.service import (
+        list_backups_impl,
+        rewrite_code_impl,
+    )
+
+    # Search service implementations (these are the _impl functions)
+    from ast_grep_mcp.features.search.service import (
+        dump_syntax_tree_impl,
+        find_code_by_rule_impl,
+        find_code_impl,
+        test_match_code_rule_impl,
     )
 
     # Register all tools in the MockTools dictionary
@@ -748,10 +760,10 @@ def register_mcp_tools() -> None:
 
     # Documentation tools (5)
     from ast_grep_mcp.features.documentation.tools import (
-        generate_docstrings_tool,
-        generate_readme_sections_tool,
         generate_api_docs_tool,
         generate_changelog_tool,
+        generate_docstrings_tool,
+        generate_readme_sections_tool,
         sync_documentation_tool,
     )
     mcp.tools._tools["generate_docstrings"] = generate_docstrings_tool

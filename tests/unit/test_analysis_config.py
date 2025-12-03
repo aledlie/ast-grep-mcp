@@ -5,6 +5,7 @@ for deduplication analysis, ensuring proper validation, defaults, and
 serialization.
 """
 import pytest
+
 from src.ast_grep_mcp.features.deduplication.config import AnalysisConfig
 
 

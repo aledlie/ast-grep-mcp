@@ -31,7 +31,7 @@ from difflib import SequenceMatcher
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Set, Tuple
 
 if TYPE_CHECKING:
-    import torch
+    pass
 
 from datasketch import MinHash, MinHashLSH
 
@@ -167,8 +167,7 @@ class HybridSimilarityConfig:
             total_weight = self.minhash_weight + self.ast_weight + self.semantic_weight
             if abs(total_weight - 1.0) > 0.001:
                 raise ValueError(
-                    f"minhash_weight + ast_weight + semantic_weight must equal 1.0 "
-                    f"when semantic is enabled, got {total_weight}"
+                    f"minhash_weight + ast_weight + semantic_weight must equal 1.0 when semantic is enabled, got {total_weight}"
                 )
         else:
             total_weight = self.minhash_weight + self.ast_weight
@@ -483,10 +482,7 @@ class MinHashSimilarity:
         Returns:
             Number of items below the small code token threshold.
         """
-        small_code_count = sum(
-            1 for _, code in code_items
-            if len(self._tokenize(code)) < self.config.small_code_token_threshold
-        )
+        small_code_count = sum(1 for _, code in code_items if len(self._tokenize(code)) < self.config.small_code_token_threshold)
 
         if small_code_count > 0:
             self.logger.info(
@@ -630,7 +626,7 @@ class MinHashSimilarity:
         keys = [key for key, _ in code_items]
 
         for i, key1 in enumerate(keys):
-            for key2 in keys[i + 1:]:
+            for key2 in keys[i + 1 :]:
                 # Normalize ordering
                 pair = (min(key1, key2), max(key1, key2))
                 pairs.add(pair)
@@ -857,22 +853,14 @@ class HybridSimilarity:
 
         # Check if Stage 3 (semantic) should run
         semantic_calc = self._get_semantic_calculator()
-        should_run_semantic = (
-            semantic_calc is not None
-            and ast_sim >= self.hybrid_config.semantic_stage_threshold
-        )
+        should_run_semantic = semantic_calc is not None and ast_sim >= self.hybrid_config.semantic_stage_threshold
 
         if should_run_semantic and semantic_calc is not None:
             # Stage 3: CodeBERT semantic similarity
-            return self._calculate_with_semantic(
-                code1, code2, minhash_sim, ast_sim, avg_token_count, semantic_calc
-            )
+            return self._calculate_with_semantic(code1, code2, minhash_sim, ast_sim, avg_token_count, semantic_calc)
 
         # Two-stage result (no semantic)
-        combined_similarity = (
-            self.hybrid_config.minhash_weight * minhash_sim
-            + self.hybrid_config.ast_weight * ast_sim
-        )
+        combined_similarity = self.hybrid_config.minhash_weight * minhash_sim + self.hybrid_config.ast_weight * ast_sim
 
         self.logger.debug(
             "hybrid_verification_complete",
@@ -937,11 +925,7 @@ class HybridSimilarity:
                 ast_similarity=round(ast_sim, 4),
                 semantic_similarity=round(semantic_sim, 4),
                 combined_similarity=round(combined_similarity, 4),
-                weights=(
-                    f"{self.hybrid_config.minhash_weight}/"
-                    f"{self.hybrid_config.ast_weight}/"
-                    f"{self.hybrid_config.semantic_weight}"
-                ),
+                weights=(f"{self.hybrid_config.minhash_weight}/{self.hybrid_config.ast_weight}/{self.hybrid_config.semantic_weight}"),
             )
 
             return HybridSimilarityResult(
@@ -967,10 +951,7 @@ class HybridSimilarity:
                 fallback="two_stage",
             )
 
-            combined_similarity = (
-                self.hybrid_config.minhash_weight * minhash_sim
-                + self.hybrid_config.ast_weight * ast_sim
-            )
+            combined_similarity = self.hybrid_config.minhash_weight * minhash_sim + self.hybrid_config.ast_weight * ast_sim
 
             return HybridSimilarityResult(
                 similarity=combined_similarity,
@@ -1126,9 +1107,25 @@ class HybridSimilarity:
 
         # Keywords that define structure
         structural_keywords = {
-            "def", "class", "if", "elif", "else", "for", "while",
-            "try", "except", "finally", "with", "return", "yield",
-            "async", "await", "function", "const", "let", "var",
+            "def",
+            "class",
+            "if",
+            "elif",
+            "else",
+            "for",
+            "while",
+            "try",
+            "except",
+            "finally",
+            "with",
+            "return",
+            "yield",
+            "async",
+            "await",
+            "function",
+            "const",
+            "let",
+            "var",
         }
 
         prev_keyword = None
@@ -1294,7 +1291,7 @@ class EnhancedStructureHash:
         fingerprint_parts.append(f"D{min(max_depth, 9)}")
 
         # 5. Logarithmic size bucket for uniform distribution
-        lines = [l for l in code.split("\n") if l.strip()]
+        lines = [line for line in code.split("\n") if line.strip()]
         size_bucket = self._logarithmic_bucket(len(lines))
         fingerprint_parts.append(f"S{size_bucket:02d}")
 
@@ -1378,18 +1375,58 @@ class EnhancedStructureHash:
         # 4. Common Python patterns that look like calls
         excluded = {
             # Control flow
-            "if", "for", "while", "with", "elif", "match", "case",
+            "if",
+            "for",
+            "while",
+            "with",
+            "elif",
+            "match",
+            "case",
             # Exception handling
-            "except", "try", "catch", "finally",
+            "except",
+            "try",
+            "catch",
+            "finally",
             # Built-ins and statements
-            "print", "return", "assert", "raise", "yield", "pass",
+            "print",
+            "return",
+            "assert",
+            "raise",
+            "yield",
+            "pass",
             # Definitions (these get captured from def/class lines)
-            "def", "class", "lambda", "async",
+            "def",
+            "class",
+            "lambda",
+            "async",
             # Common Python built-ins
-            "len", "str", "int", "float", "bool", "list", "dict", "set", "tuple",
-            "range", "enumerate", "zip", "map", "filter", "sorted", "reversed",
-            "type", "isinstance", "hasattr", "getattr", "setattr",
-            "open", "input", "super", "property", "staticmethod", "classmethod",
+            "len",
+            "str",
+            "int",
+            "float",
+            "bool",
+            "list",
+            "dict",
+            "set",
+            "tuple",
+            "range",
+            "enumerate",
+            "zip",
+            "map",
+            "filter",
+            "sorted",
+            "reversed",
+            "type",
+            "isinstance",
+            "hasattr",
+            "getattr",
+            "setattr",
+            "open",
+            "input",
+            "super",
+            "property",
+            "staticmethod",
+            "classmethod",
         }
 
         # Additionally filter out function names that appear right after 'def ' or 'class '
@@ -1412,10 +1449,7 @@ class EnhancedStructureHash:
                     defined_names.add(match.group(1))
 
         # Apply filters
-        filtered_calls = [
-            c for c in calls
-            if c.lower() not in excluded and c not in defined_names
-        ]
+        filtered_calls = [c for c in calls if c.lower() not in excluded and c not in defined_names]
 
         if not filtered_calls:
             return "0000"
@@ -1690,8 +1724,7 @@ class SemanticSimilarity:
 
         if not _check_transformers_available():
             raise ImportError(
-                "Semantic similarity requires 'transformers' and 'torch' packages. "
-                "Install with: pip install transformers torch"
+                "Semantic similarity requires 'transformers' and 'torch' packages. Install with: pip install transformers torch"
             )
 
         import torch
@@ -1822,13 +1855,13 @@ class SemanticSimilarity:
         if not code1 or not code2:
             return 0.0
 
-        import torch.nn.functional as F
+        import torch.nn.functional as functional
 
         emb1 = self.get_embedding(code1)
         emb2 = self.get_embedding(code2)
 
         # Cosine similarity
-        similarity: float = F.cosine_similarity(
+        similarity: float = functional.cosine_similarity(
             emb1.unsqueeze(0),
             emb2.unsqueeze(0),
             dim=1,
@@ -1837,9 +1870,7 @@ class SemanticSimilarity:
         # Normalize to 0-1 range (cosine similarity is -1 to 1)
         return (similarity + 1.0) / 2.0
 
-    def calculate_similarity_detailed(
-        self, code1: str, code2: str
-    ) -> SemanticSimilarityResult:
+    def calculate_similarity_detailed(self, code1: str, code2: str) -> SemanticSimilarityResult:
         """Calculate semantic similarity with detailed results.
 
         Args:

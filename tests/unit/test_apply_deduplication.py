@@ -9,7 +9,6 @@ Tests cover:
 - Rollback functionality
 - Error handling
 """
-from ast_grep_mcp.utils.console_logger import console
 
 import json
 import os
@@ -47,8 +46,10 @@ def mock_field(*args: Any, **kwargs: Any) -> Any:
 
 
 # Save original pydantic.Field to restore later (prevent test pollution)
-import pydantic
 import importlib
+
+import pydantic
+
 _original_field = pydantic.Field
 
 # Import with mocked decorators
@@ -63,6 +64,7 @@ pydantic.Field = _original_field
 # Reload modules that may have cached the mocked Field
 # This prevents test pollution in subsequent test files
 import ast_grep_mcp.core.usage_tracking
+
 importlib.reload(ast_grep_mcp.core.usage_tracking)
 
 
@@ -259,7 +261,7 @@ class TestBackupIntegration:
             assert f.read() == new_content
 
         # Rollback
-        restored = main.restore_from_backup(backup_id, str(project_folder))
+        restored = main.restore_backup(backup_id, str(project_folder))
 
         # Verify original content restored
         with open(backup_test_files["file1"], "r") as f:
@@ -292,7 +294,7 @@ class TestBackupIntegration:
             assert f.read() == new_content2
 
         # Rollback
-        restored = main.restore_from_backup(result["backup_id"], str(project_folder))
+        restored = main.restore_backup(result["backup_id"], str(project_folder))
 
         # Verify both files restored
         with open(backup_test_files["file1"], "r") as f:

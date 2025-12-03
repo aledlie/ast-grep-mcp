@@ -37,28 +37,17 @@ def get_schema_type_tool(type_name: str) -> Dict[str, Any]:
         result = asyncio.run(client.get_schema_type(type_name))
 
         execution_time = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="get_schema_type",
-            execution_time_seconds=round(execution_time, 3),
-            status="success"
-        )
+        logger.info("tool_completed", tool="get_schema_type", execution_time_seconds=round(execution_time, 3), status="success")
 
         return result
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed",
-            tool="get_schema_type",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
-            status="failed"
+            "tool_failed", tool="get_schema_type", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "get_schema_type",
-            "type_name": type_name,
-            "execution_time_seconds": round(execution_time, 3)
-        })
+        sentry_sdk.capture_exception(
+            e, extras={"tool": "get_schema_type", "type_name": type_name, "execution_time_seconds": round(execution_time, 3)}
+        )
         raise
 
 
@@ -92,25 +81,18 @@ def search_schemas_tool(query: str, limit: int = 10) -> List[Dict[str, Any]]:
             tool="search_schemas",
             execution_time_seconds=round(execution_time, 3),
             result_count=len(results),
-            status="success"
+            status="success",
         )
 
         return results
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed",
-            tool="search_schemas",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
-            status="failed"
+            "tool_failed", tool="search_schemas", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "search_schemas",
-            "query": query,
-            "limit": limit,
-            "execution_time_seconds": round(execution_time, 3)
-        })
+        sentry_sdk.capture_exception(
+            e, extras={"tool": "search_schemas", "query": query, "limit": limit, "execution_time_seconds": round(execution_time, 3)}
+        )
         raise
 
 
@@ -138,35 +120,21 @@ def get_type_hierarchy_tool(type_name: str) -> Dict[str, Any]:
         result = asyncio.run(client.get_type_hierarchy(type_name))
 
         execution_time = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="get_type_hierarchy",
-            execution_time_seconds=round(execution_time, 3),
-            status="success"
-        )
+        logger.info("tool_completed", tool="get_type_hierarchy", execution_time_seconds=round(execution_time, 3), status="success")
 
         return result
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed",
-            tool="get_type_hierarchy",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
-            status="failed"
+            "tool_failed", tool="get_type_hierarchy", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "get_type_hierarchy",
-            "type_name": type_name,
-            "execution_time_seconds": round(execution_time, 3)
-        })
+        sentry_sdk.capture_exception(
+            e, extras={"tool": "get_type_hierarchy", "type_name": type_name, "execution_time_seconds": round(execution_time, 3)}
+        )
         raise
 
 
-def get_type_properties_tool(
-    type_name: str,
-    include_inherited: bool = True
-) -> List[Dict[str, Any]]:
+def get_type_properties_tool(type_name: str, include_inherited: bool = True) -> List[Dict[str, Any]]:
     """
     Get all properties available for a schema.org type.
     Returns property names, descriptions, and expected value types.
@@ -184,12 +152,7 @@ def get_type_properties_tool(
     logger = get_logger("tool.get_type_properties")
     start_time = time.time()
 
-    logger.info(
-        "tool_invoked",
-        tool="get_type_properties",
-        type_name=type_name,
-        include_inherited=include_inherited
-    )
+    logger.info("tool_invoked", tool="get_type_properties", type_name=type_name, include_inherited=include_inherited)
 
     try:
         client = get_schema_org_client()
@@ -201,32 +164,28 @@ def get_type_properties_tool(
             tool="get_type_properties",
             execution_time_seconds=round(execution_time, 3),
             property_count=len(results),
-            status="success"
+            status="success",
         )
 
         return results
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed",
-            tool="get_type_properties",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
-            status="failed"
+            "tool_failed", tool="get_type_properties", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "get_type_properties",
-            "type_name": type_name,
-            "include_inherited": include_inherited,
-            "execution_time_seconds": round(execution_time, 3)
-        })
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "tool": "get_type_properties",
+                "type_name": type_name,
+                "include_inherited": include_inherited,
+                "execution_time_seconds": round(execution_time, 3),
+            },
+        )
         raise
 
 
-def generate_schema_example_tool(
-    type_name: str,
-    custom_properties: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
+def generate_schema_example_tool(type_name: str, custom_properties: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Generate an example JSON-LD structured data for a schema.org type.
     Creates a valid schema.org JSON-LD object with common properties and any custom values provided.
@@ -251,12 +210,7 @@ def generate_schema_example_tool(
         result = asyncio.run(client.generate_example(type_name, custom_properties))
 
         execution_time = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="generate_schema_example",
-            execution_time_seconds=round(execution_time, 3),
-            status="success"
-        )
+        logger.info("tool_completed", tool="generate_schema_example", execution_time_seconds=round(execution_time, 3), status="success")
 
         return result
     except Exception as e:
@@ -266,22 +220,21 @@ def generate_schema_example_tool(
             tool="generate_schema_example",
             execution_time_seconds=round(execution_time, 3),
             error=str(e)[:200],
-            status="failed"
+            status="failed",
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "generate_schema_example",
-            "type_name": type_name,
-            "has_custom_properties": custom_properties is not None,
-            "execution_time_seconds": round(execution_time, 3)
-        })
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "tool": "generate_schema_example",
+                "type_name": type_name,
+                "has_custom_properties": custom_properties is not None,
+                "execution_time_seconds": round(execution_time, 3),
+            },
+        )
         raise
 
 
-def generate_entity_id_tool(
-    base_url: str,
-    entity_type: str,
-    entity_slug: Optional[str] = None
-) -> str:
+def generate_entity_id_tool(base_url: str, entity_type: str, entity_slug: Optional[str] = None) -> str:
     """
     Generate a proper @id value following Schema.org and SEO best practices.
 
@@ -305,12 +258,7 @@ def generate_entity_id_tool(
     logger = get_logger("tool.generate_entity_id")
     start_time = time.time()
 
-    logger.info(
-        "tool_invoked",
-        tool="generate_entity_id",
-        base_url=base_url,
-        entity_type=entity_type
-    )
+    logger.info("tool_invoked", tool="generate_entity_id", base_url=base_url, entity_type=entity_type)
 
     try:
         client = get_schema_org_client()
@@ -322,26 +270,25 @@ def generate_entity_id_tool(
             tool="generate_entity_id",
             execution_time_seconds=round(execution_time, 3),
             generated_id=result,
-            status="success"
+            status="success",
         )
 
         return result
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed",
-            tool="generate_entity_id",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
-            status="failed"
+            "tool_failed", tool="generate_entity_id", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "generate_entity_id",
-            "base_url": base_url,
-            "entity_type": entity_type,
-            "has_slug": entity_slug is not None,
-            "execution_time_seconds": round(execution_time, 3)
-        })
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "tool": "generate_entity_id",
+                "base_url": base_url,
+                "entity_type": entity_type,
+                "has_slug": entity_slug is not None,
+                "execution_time_seconds": round(execution_time, 3),
+            },
+        )
         raise
 
 
@@ -380,33 +327,24 @@ def validate_entity_id_tool(entity_id: str) -> Dict[str, Any]:
             "tool_completed",
             tool="validate_entity_id",
             execution_time_seconds=round(execution_time, 3),
-            is_valid=result['valid'],
-            warning_count=len(result['warnings']),
-            status="success"
+            is_valid=result["valid"],
+            warning_count=len(result["warnings"]),
+            status="success",
         )
 
         return result
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed",
-            tool="validate_entity_id",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
-            status="failed"
+            "tool_failed", tool="validate_entity_id", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "validate_entity_id",
-            "entity_id": entity_id,
-            "execution_time_seconds": round(execution_time, 3)
-        })
+        sentry_sdk.capture_exception(
+            e, extras={"tool": "validate_entity_id", "entity_id": entity_id, "execution_time_seconds": round(execution_time, 3)}
+        )
         raise
 
 
-def build_entity_graph_tool(
-    entities: List[Dict[str, Any]],
-    base_url: str
-) -> Dict[str, Any]:
+def build_entity_graph_tool(entities: List[Dict[str, Any]], base_url: str) -> Dict[str, Any]:
     """
     Build a knowledge graph of related entities with proper @id references.
 
@@ -438,12 +376,7 @@ def build_entity_graph_tool(
     logger = get_logger("tool.build_entity_graph")
     start_time = time.time()
 
-    logger.info(
-        "tool_invoked",
-        tool="build_entity_graph",
-        entity_count=len(entities),
-        base_url=base_url
-    )
+    logger.info("tool_invoked", tool="build_entity_graph", entity_count=len(entities), base_url=base_url)
 
     try:
         client = get_schema_org_client()
@@ -454,34 +387,29 @@ def build_entity_graph_tool(
             "tool_completed",
             tool="build_entity_graph",
             execution_time_seconds=round(execution_time, 3),
-            entity_count=len(result.get('@graph', [])),
-            status="success"
+            entity_count=len(result.get("@graph", [])),
+            status="success",
         )
 
         return result
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed",
-            tool="build_entity_graph",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
-            status="failed"
+            "tool_failed", tool="build_entity_graph", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "build_entity_graph",
-            "entity_count": len(entities),
-            "base_url": base_url,
-            "execution_time_seconds": round(execution_time, 3)
-        })
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "tool": "build_entity_graph",
+                "entity_count": len(entities),
+                "base_url": base_url,
+                "execution_time_seconds": round(execution_time, 3),
+            },
+        )
         raise
 
 
-def enhance_entity_graph_tool(
-    input_source: str,
-    input_type: str = "file",
-    output_mode: str = "analysis"
-) -> Dict[str, Any]:
+def enhance_entity_graph_tool(input_source: str, input_type: str = "file", output_mode: str = "analysis") -> Dict[str, Any]:
     """
     Analyze existing Schema.org JSON-LD graphs and suggest enhancements.
 
@@ -511,29 +439,19 @@ def enhance_entity_graph_tool(
     logger = get_logger("tool.enhance_entity_graph")
     start_time = time.time()
 
-    logger.info(
-        "tool_invoked",
-        tool="enhance_entity_graph",
-        input_source=input_source,
-        input_type=input_type,
-        output_mode=output_mode
-    )
+    logger.info("tool_invoked", tool="enhance_entity_graph", input_source=input_source, input_type=input_type, output_mode=output_mode)
 
     try:
-        result = asyncio.run(analyze_entity_graph(
-            input_source=input_source,
-            input_type=input_type,
-            output_mode=output_mode
-        ))
+        result = asyncio.run(analyze_entity_graph(input_source=input_source, input_type=input_type, output_mode=output_mode))
 
         execution_time = time.time() - start_time
         logger.info(
             "tool_completed",
             tool="enhance_entity_graph",
             execution_time_seconds=round(execution_time, 3),
-            entity_count=len(result.get('entity_enhancements', [])),
-            seo_score=result.get('overall_seo_score', 0),
-            status="success"
+            entity_count=len(result.get("entity_enhancements", [])),
+            seo_score=result.get("overall_seo_score", 0),
+            status="success",
         )
 
         return result
@@ -541,19 +459,18 @@ def enhance_entity_graph_tool(
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed",
-            tool="enhance_entity_graph",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
-            status="failed"
+            "tool_failed", tool="enhance_entity_graph", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "enhance_entity_graph",
-            "input_source": input_source,
-            "input_type": input_type,
-            "output_mode": output_mode,
-            "execution_time_seconds": round(execution_time, 3)
-        })
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "tool": "enhance_entity_graph",
+                "input_source": input_source,
+                "input_type": input_type,
+                "output_mode": output_mode,
+                "execution_time_seconds": round(execution_time, 3),
+            },
+        )
         raise
 
 
@@ -566,40 +483,28 @@ def register_schema_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def get_schema_type(
-        type_name: str = Field(
-            description="The schema.org type name (e.g., 'Person', 'Organization', 'Article')"
-        )
+        type_name: str = Field(description="The schema.org type name (e.g., 'Person', 'Organization', 'Article')"),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone get_schema_type_tool function."""
         return get_schema_type_tool(type_name=type_name)
 
     @mcp.tool()
     def search_schemas(
-        query: str = Field(
-            description="Search query to find schema types (searches in names and descriptions)"
-        ),
-        limit: int = Field(
-            default=10,
-            description="Maximum number of results to return (1-100)"
-        )
+        query: str = Field(description="Search query to find schema types (searches in names and descriptions)"),
+        limit: int = Field(default=10, description="Maximum number of results to return (1-100)"),
     ) -> List[Dict[str, Any]]:
         """Wrapper that calls the standalone search_schemas_tool function."""
         return search_schemas_tool(query=query, limit=limit)
 
     @mcp.tool()
-    def get_type_hierarchy(
-        type_name: str = Field(description="The schema.org type name")
-    ) -> Dict[str, Any]:
+    def get_type_hierarchy(type_name: str = Field(description="The schema.org type name")) -> Dict[str, Any]:
         """Wrapper that calls the standalone get_type_hierarchy_tool function."""
         return get_type_hierarchy_tool(type_name=type_name)
 
     @mcp.tool()
     def get_type_properties(
         type_name: str = Field(description="The schema.org type name"),
-        include_inherited: bool = Field(
-            default=True,
-            description="Include properties inherited from parent types"
-        )
+        include_inherited: bool = Field(default=True, description="Include properties inherited from parent types"),
     ) -> List[Dict[str, Any]]:
         """Wrapper that calls the standalone get_type_properties_tool function."""
         return get_type_properties_tool(type_name=type_name, include_inherited=include_inherited)
@@ -608,67 +513,51 @@ def register_schema_tools(mcp: FastMCP) -> None:
     def generate_schema_example(
         type_name: str = Field(description="The schema.org type name"),
         custom_properties: Optional[Dict[str, Any]] = Field(
-            default=None,
-            description="Custom property values to include in the example (JSON object)"
-        )
+            default=None, description="Custom property values to include in the example (JSON object)"
+        ),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone generate_schema_example_tool function."""
         return generate_schema_example_tool(type_name=type_name, custom_properties=custom_properties)
 
     @mcp.tool()
     def generate_entity_id(
-        base_url: str = Field(
-            description="The canonical URL (e.g., 'https://example.com' or 'https://example.com/page')"
-        ),
-        entity_type: str = Field(
-            description="The Schema.org type (e.g., 'Organization', 'Person', 'Product')"
-        ),
+        base_url: str = Field(description="The canonical URL (e.g., 'https://example.com' or 'https://example.com/page')"),
+        entity_type: str = Field(description="The Schema.org type (e.g., 'Organization', 'Person', 'Product')"),
         entity_slug: Optional[str] = Field(
-            default=None,
-            description="Optional URL slug for specific entity instances (e.g., 'john-doe', 'products/widget-a')"
-        )
+            default=None, description="Optional URL slug for specific entity instances (e.g., 'john-doe', 'products/widget-a')"
+        ),
     ) -> str:
         """Wrapper that calls the standalone generate_entity_id_tool function."""
         return generate_entity_id_tool(base_url=base_url, entity_type=entity_type, entity_slug=entity_slug)
 
     @mcp.tool()
     def validate_entity_id(
-        entity_id: str = Field(
-            description="The @id value to validate (e.g., 'https://example.com/#organization')"
-        )
+        entity_id: str = Field(description="The @id value to validate (e.g., 'https://example.com/#organization')"),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone validate_entity_id_tool function."""
         return validate_entity_id_tool(entity_id=entity_id)
 
     @mcp.tool()
     def build_entity_graph(
-        entities: List[Dict[str, Any]] = Field(
-            description="List of entity definitions with type, properties, and relationships"
-        ),
-        base_url: str = Field(
-            description="Base canonical URL for generating @id values"
-        )
+        entities: List[Dict[str, Any]] = Field(description="List of entity definitions with type, properties, and relationships"),
+        base_url: str = Field(description="Base canonical URL for generating @id values"),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone build_entity_graph_tool function."""
         return build_entity_graph_tool(entities=entities, base_url=base_url)
 
     @mcp.tool()
     def enhance_entity_graph(
-        input_source: str = Field(
-            description="File path or directory path containing JSON-LD Schema.org markup"
-        ),
+        input_source: str = Field(description="File path or directory path containing JSON-LD Schema.org markup"),
         input_type: str = Field(
-            default="file",
-            description="Input source type: 'file' for single file, 'directory' for scanning all .json files"
+            default="file", description="Input source type: 'file' for single file, 'directory' for scanning all .json files"
         ),
         output_mode: str = Field(
             default="analysis",
-            description="Output mode: 'analysis' for enhancement suggestions, 'enhanced' for complete graph with placeholders, 'diff' for additions only"
-        )
+            description=(
+                "Output: 'analysis' for suggestions, 'enhanced' for complete graph, "
+                "'diff' for additions only"
+            ),
+        ),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone enhance_entity_graph_tool function."""
-        return enhance_entity_graph_tool(
-            input_source=input_source,
-            input_type=input_type,
-            output_mode=output_mode
-        )
+        return enhance_entity_graph_tool(input_source=input_source, input_type=input_type, output_mode=output_mode)

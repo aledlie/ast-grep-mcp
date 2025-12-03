@@ -7,11 +7,9 @@ based on refactoring value, complexity, and impact.
 
 import hashlib
 import json
-from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple
 
 from ...core.logging import get_logger
-
 from .priority_classifier import DeduplicationPriorityClassifier
 from .score_calculator import DeduplicationScoreCalculator
 
@@ -49,7 +47,7 @@ class DuplicationRanker:
             "instances": len(candidate.get("instances", [])),
             "complexity": candidate.get("complexity_analysis"),
             "test_coverage": candidate.get("test_coverage"),
-            "impact_analysis": candidate.get("impact_analysis")
+            "impact_analysis": candidate.get("impact_analysis"),
         }
 
         # Create deterministic JSON representation
@@ -69,17 +67,14 @@ class DuplicationRanker:
         Returns:
             Dictionary with cache_size
         """
-        return {
-            "cache_size": len(self._score_cache),
-            "cache_enabled": self.enable_cache
-        }
+        return {"cache_size": len(self._score_cache), "cache_enabled": self.enable_cache}
 
     def calculate_deduplication_score(
         self,
         duplicate_group: Dict[str, Any],
         complexity: Optional[Dict[str, Any]] = None,
         test_coverage: Optional[float] = None,
-        impact_analysis: Optional[Dict[str, Any]] = None
+        impact_analysis: Optional[Dict[str, Any]] = None,
     ) -> float:
         """
         Calculate a score for deduplication priority.
@@ -101,10 +96,7 @@ class DuplicationRanker:
         """
         # Delegate to score calculator
         total_score, score_components = self.score_calculator.calculate_total_score(
-            duplicate_group,
-            complexity,
-            test_coverage,
-            impact_analysis
+            duplicate_group, complexity, test_coverage, impact_analysis
         )
 
         # Log the result
@@ -116,16 +108,13 @@ class DuplicationRanker:
             total_score=total_score,
             breakdown=score_components,
             lines_saved=lines_saved,
-            instance_count=instance_count
+            instance_count=instance_count,
         )
 
         return total_score
 
     def rank_deduplication_candidates(
-        self,
-        candidates: List[Dict[str, Any]],
-        include_analysis: bool = True,
-        max_results: Optional[int] = None
+        self, candidates: List[Dict[str, Any]], include_analysis: bool = True, max_results: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
         Rank deduplication candidates by priority with score caching.
@@ -156,7 +145,7 @@ class DuplicationRanker:
                         candidate,
                         complexity=candidate.get("complexity_analysis"),
                         test_coverage=candidate.get("test_coverage"),
-                        impact_analysis=candidate.get("impact_analysis")
+                        impact_analysis=candidate.get("impact_analysis"),
                     )
                     # Store in cache
                     self._score_cache[cache_key] = (total_score, score_components)
@@ -166,26 +155,18 @@ class DuplicationRanker:
                     candidate,
                     complexity=candidate.get("complexity_analysis"),
                     test_coverage=candidate.get("test_coverage"),
-                    impact_analysis=candidate.get("impact_analysis")
+                    impact_analysis=candidate.get("impact_analysis"),
                 )
 
             # Get priority label
             priority = self.priority_classifier.get_priority_label(total_score)
 
             # Build ranked candidate
-            ranked_candidate = {
-                **candidate,
-                "score": total_score,
-                "priority": priority
-            }
+            ranked_candidate = {**candidate, "score": total_score, "priority": priority}
 
             # Add detailed breakdown if requested
             if include_analysis:
-                ranked_candidate["score_breakdown"] = self.priority_classifier.get_score_breakdown(
-                    candidate,
-                    total_score,
-                    score_components
-                )
+                ranked_candidate["score_breakdown"] = self.priority_classifier.get_score_breakdown(candidate, total_score, score_components)
 
             ranked.append(ranked_candidate)
 
@@ -204,22 +185,23 @@ class DuplicationRanker:
         log_data = {
             "total_candidates": len(ranked),
             "top_score": ranked[0]["score"] if ranked else 0,
-            "average_score": sum(c["score"] for c in ranked) / len(ranked) if ranked else 0
+            "average_score": sum(c["score"] for c in ranked) / len(ranked) if ranked else 0,
         }
 
         # Add cache statistics if caching is enabled
         if self.enable_cache:
-            log_data.update({
-                "cache_hits": cache_hits,
-                "cache_misses": cache_misses,
-                "cache_hit_rate": cache_hits / (cache_hits + cache_misses) if (cache_hits + cache_misses) > 0 else 0,
-                "cache_size": len(self._score_cache)
-            })
+            log_data.update(
+                {
+                    "cache_hits": cache_hits,
+                    "cache_misses": cache_misses,
+                    "cache_hit_rate": cache_hits / (cache_hits + cache_misses) if (cache_hits + cache_misses) > 0 else 0,
+                    "cache_size": len(self._score_cache),
+                }
+            )
 
         self.logger.info("candidates_ranked", **log_data)
 
         return ranked
-
 
 
 # Standalone functions for backward compatibility and convenience
@@ -238,10 +220,7 @@ def get_ranker() -> DuplicationRanker:
 # Use get_ranker().calculate_deduplication_score() or create a DuplicationRanker instance
 
 
-def rank_deduplication_candidates(
-    candidates: List[Dict[str, Any]],
-    max_results: int = 10
-) -> List[Dict[str, Any]]:
+def rank_deduplication_candidates(candidates: List[Dict[str, Any]], max_results: int = 10) -> List[Dict[str, Any]]:
     """Rank deduplication candidates using singleton ranker.
 
     Args:

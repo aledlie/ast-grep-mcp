@@ -14,16 +14,16 @@ Usage:
     python tests/scripts/validate_refactoring.py tests/unit/test_cache.py --baseline baseline.json
     python tests/scripts/validate_refactoring.py tests/unit/test_cache.py --performance
 """
-from ast_grep_mcp.utils.console_logger import console
-
 import argparse
 import json
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Dict, Optional
+
+from ast_grep_mcp.utils.console_logger import console
 
 
 @dataclass

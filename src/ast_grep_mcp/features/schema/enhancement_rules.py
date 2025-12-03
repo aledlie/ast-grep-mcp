@@ -12,7 +12,6 @@ from typing import Any, Dict, List
 
 from ast_grep_mcp.models.schema_enhancement import EnhancementPriority
 
-
 # Property priorities by entity type
 # Maps entity types to dictionaries of property names and their importance levels
 PROPERTY_PRIORITIES: Dict[str, Dict[str, EnhancementPriority]] = {

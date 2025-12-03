@@ -10,17 +10,15 @@ This module handles safe symbol renaming across files:
 
 import os
 import re
-from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Callable, Dict, List, Optional
+
 from ast_grep_mcp.core.logging import get_logger
 
-from ...models.refactoring import (
-    SymbolReference,
-    ScopeInfo,
-    RenameSymbolResult,
-)
 from ...core.executor import run_ast_grep
-from ...features.rewrite.backup import create_backup, restore_backup
+from ...models.refactoring import (
+    ScopeInfo,
+    SymbolReference,
+)
 
 logger = get_logger(__name__)
 
@@ -68,7 +66,8 @@ class SymbolRenamer:
             result = run_ast_grep(
                 command="run",
                 args=[
-                    "--pattern", pattern,
+                    "--pattern",
+                    pattern,
                     "--json",
                     project_folder,
                 ],
@@ -77,6 +76,7 @@ class SymbolRenamer:
             # Parse results
             if result.returncode == 0 and result.stdout:
                 import json
+
                 matches = json.loads(result.stdout)
 
                 for match in matches:
@@ -150,7 +150,6 @@ class SymbolRenamer:
             True if matches
         """
         from fnmatch import fnmatch
-        import os
 
         # Extract basename for simple filters like "utils.py"
         basename = os.path.basename(file_path)
@@ -175,7 +174,9 @@ class SymbolRenamer:
         if classifier:
             classifier(ref, context)
 
-    def _get_language_classifier(self):
+    def _get_language_classifier(
+        self,
+    ) -> Optional[Callable[[SymbolReference, str], None]]:
         """Get the appropriate classifier function for the current language.
 
         Returns:
@@ -238,7 +239,7 @@ class SymbolRenamer:
             return
 
         # Extract module name from "from module import symbol"
-        match = re.search(r'from\s+([\w.]+)', context)
+        match = re.search(r"from\s+([\w.]+)", context)
         if match:
             ref.import_source = match.group(1)
 
@@ -293,7 +294,7 @@ class SymbolRenamer:
         Returns:
             True if this is a definition
         """
-        return bool(re.search(r'\b(function|class|const|let|var)\s+', context))
+        return bool(re.search(r"\b(function|class|const|let|var)\s+", context))
 
     def _extract_javascript_import_source(self, ref: SymbolReference, context: str) -> None:
         """Extract import source from JavaScript/TypeScript import statement.
@@ -321,9 +322,9 @@ class SymbolRenamer:
         scopes: List[ScopeInfo] = []
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
-                lines = content.split('\n')
+                lines = content.split("\n")
 
             if self.language == "python":
                 scopes = self._build_python_scope_tree(lines)
@@ -361,7 +362,7 @@ class SymbolRenamer:
 
             # Function definition
             if stripped.startswith("def "):
-                match = re.match(r'def\s+(\w+)\s*\(', stripped)
+                match = re.match(r"def\s+(\w+)\s*\(", stripped)
                 if match:
                     func_name = match.group(1)
                     # Find end of function (next def/class at same or lower indentation)
@@ -379,7 +380,7 @@ class SymbolRenamer:
 
             # Class definition
             elif stripped.startswith("class "):
-                match = re.match(r'class\s+(\w+)', stripped)
+                match = re.match(r"class\s+(\w+)", stripped)
                 if match:
                     class_name = match.group(1)
                     indent = len(line) - len(line.lstrip())
@@ -421,7 +422,7 @@ class SymbolRenamer:
             stripped = line.strip()
 
             # Function declaration
-            match = re.match(r'(?:export\s+)?(?:async\s+)?function\s+(\w+)', stripped)
+            match = re.match(r"(?:export\s+)?(?:async\s+)?function\s+(\w+)", stripped)
             if match:
                 func_name = match.group(1)
                 end_line = self._find_js_scope_end(lines, i)
@@ -436,7 +437,7 @@ class SymbolRenamer:
                 scopes.append(scope)
 
             # Class declaration
-            match = re.match(r'(?:export\s+)?class\s+(\w+)', stripped)
+            match = re.match(r"(?:export\s+)?class\s+(\w+)", stripped)
             if match:
                 class_name = match.group(1)
                 end_line = self._find_js_scope_end(lines, i)
@@ -491,10 +492,10 @@ class SymbolRenamer:
             line = lines[i]
 
             for char in line:
-                if char == '{':
+                if char == "{":
                     brace_count += 1
                     started = True
-                elif char == '}':
+                elif char == "}":
                     brace_count -= 1
 
                 if started and brace_count == 0:
@@ -536,9 +537,7 @@ class SymbolRenamer:
                 ref_scope = self._find_scope_for_line(file_scopes, ref.line)
 
                 if ref_scope and new_name in ref_scope.defined_symbols:
-                    conflicts.append(
-                        f"{file_path}:{ref.line} - '{new_name}' already defined in scope '{ref_scope.scope_name}'"
-                    )
+                    conflicts.append(f"{file_path}:{ref.line} - '{new_name}' already defined in scope '{ref_scope.scope_name}'")
 
         return conflicts
 
@@ -557,10 +556,7 @@ class SymbolRenamer:
             ScopeInfo or None
         """
         # Find all scopes containing the line
-        containing_scopes = [
-            s for s in scopes
-            if s.start_line <= line <= s.end_line
-        ]
+        containing_scopes = [s for s in scopes if s.start_line <= line <= s.end_line]
 
         if not containing_scopes:
             return None

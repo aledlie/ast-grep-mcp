@@ -1,15 +1,18 @@
 """Data models for code quality standards and linting rules."""
+
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 
 class RuleValidationError(Exception):
     """Raised when a linting rule validation fails."""
+
     pass
 
 
 class RuleStorageError(Exception):
     """Raised when saving/loading rules fails."""
+
     pass
 
 
@@ -27,6 +30,7 @@ class LintingRule:
         fix: Optional replacement pattern or fix suggestion
         constraints: Optional additional ast-grep constraints
     """
+
     id: str
     language: str
     severity: str  # 'error', 'warning', 'info'
@@ -43,28 +47,26 @@ class LintingRule:
             Dictionary ready for YAML serialization in ast-grep format
         """
         yaml_dict: Dict[str, Any] = {
-            'id': self.id,
-            'language': self.language,
-            'severity': self.severity,
-            'message': self.message,
+            "id": self.id,
+            "language": self.language,
+            "severity": self.severity,
+            "message": self.message,
         }
 
         # Add rule configuration
-        rule_config: Dict[str, Any] = {
-            'pattern': self.pattern
-        }
+        rule_config: Dict[str, Any] = {"pattern": self.pattern}
 
         # Add constraints if present
         if self.constraints:
             rule_config.update(self.constraints)
 
-        yaml_dict['rule'] = rule_config
+        yaml_dict["rule"] = rule_config
 
         # Add optional fields
         if self.note:
-            yaml_dict['note'] = self.note
+            yaml_dict["note"] = self.note
         if self.fix:
-            yaml_dict['fix'] = self.fix
+            yaml_dict["fix"] = self.fix
 
         return yaml_dict
 
@@ -86,6 +88,7 @@ class RuleTemplate:
         category: Rule category (general, security, performance, style)
         constraints: Optional additional ast-grep constraints (e.g., kind field)
     """
+
     id: str
     name: str
     description: str
@@ -95,7 +98,7 @@ class RuleTemplate:
     message: str
     note: Optional[str] = None
     fix: Optional[str] = None
-    category: str = 'general'
+    category: str = "general"
     constraints: Optional[Dict[str, Any]] = None
 
 
@@ -108,6 +111,7 @@ class RuleValidationResult:
         errors: List of error messages (blocking issues)
         warnings: List of warning messages (non-blocking issues)
     """
+
     is_valid: bool
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
@@ -130,6 +134,7 @@ class RuleViolation:
         fix_suggestion: Optional fix suggestion from rule definition
         meta_vars: Optional metavariables captured by pattern
     """
+
     file: str
     line: int
     column: int
@@ -153,6 +158,7 @@ class RuleSet:
         rules: List of LintingRule objects in this set
         priority: Execution priority (higher = run first)
     """
+
     name: str
     description: str
     rules: List[LintingRule]
@@ -173,6 +179,7 @@ class EnforcementResult:
         execution_time_ms: Total execution time in milliseconds
         files_scanned: Number of files scanned
     """
+
     summary: Dict[str, Any]
     violations: List[RuleViolation]
     violations_by_file: Dict[str, List[RuleViolation]]
@@ -196,6 +203,7 @@ class RuleExecutionContext:
         max_threads: Number of parallel threads
         logger: Structured logger instance
     """
+
     project_folder: str
     language: str
     include_patterns: List[str]
@@ -208,6 +216,7 @@ class RuleExecutionContext:
 # =============================================================================
 # Auto-Fix Data Models
 # =============================================================================
+
 
 @dataclass
 class FixResult:
@@ -223,6 +232,7 @@ class FixResult:
         error: Error message if fix failed
         fix_type: Type of fix applied ('safe', 'suggested', 'pattern')
     """
+
     violation: RuleViolation
     success: bool
     file_modified: bool
@@ -230,7 +240,7 @@ class FixResult:
     fixed_code: Optional[str] = None
     syntax_valid: bool = True
     error: Optional[str] = None
-    fix_type: str = 'safe'
+    fix_type: str = "safe"
 
 
 @dataclass
@@ -244,6 +254,7 @@ class FixValidation:
         errors: Blocking errors that prevent auto-fix
         requires_review: Whether manual review is recommended
     """
+
     is_safe: bool
     confidence: float  # 0.0 to 1.0
     warnings: List[str] = field(default_factory=list)
@@ -266,6 +277,7 @@ class FixBatchResult:
         results: Individual fix results
         execution_time_ms: Total execution time
     """
+
     total_violations: int
     fixes_attempted: int
     fixes_successful: int
@@ -280,6 +292,7 @@ class FixBatchResult:
 # =============================================================================
 # Security Scanner Data Models
 # =============================================================================
+
 
 @dataclass
 class SecurityIssue:
@@ -301,6 +314,7 @@ class SecurityIssue:
         confidence: Confidence score 0.0-1.0 (1.0 = definitely vulnerable)
         references: Optional list of reference URLs
     """
+
     file: str
     line: int
     column: int
@@ -329,6 +343,7 @@ class SecurityScanResult:
         files_scanned: Number of files scanned
         execution_time_ms: Total execution time
     """
+
     summary: Dict[str, Any]
     issues: List[SecurityIssue]
     issues_by_severity: Dict[str, List[SecurityIssue]]

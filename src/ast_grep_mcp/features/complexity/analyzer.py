@@ -61,7 +61,7 @@ def extract_functions_from_file(file_path: str, language: str) -> List[Dict[str,
                 ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path],
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
             )
             if result.returncode == 0 and result.stdout.strip():
                 matches = json.loads(result.stdout)
@@ -108,16 +108,12 @@ def _get_class_extraction_pattern(language: str) -> str:
         "python": "class $NAME($$$): $$$",
         "typescript": "class $NAME { $$$ }",
         "javascript": "class $NAME { $$$ }",
-        "java": "class $NAME { $$$ }"
+        "java": "class $NAME { $$$ }",
     }
     return class_patterns.get(language.lower(), class_patterns["python"])
 
 
-def _execute_ast_grep_for_classes(
-    file_path: str,
-    language: str,
-    pattern: str
-) -> List[Dict[str, Any]]:
+def _execute_ast_grep_for_classes(file_path: str, language: str, pattern: str) -> List[Dict[str, Any]]:
     """Run ast-grep to find class matches.
 
     Args:
@@ -129,10 +125,7 @@ def _execute_ast_grep_for_classes(
         List of match dictionaries from ast-grep output
     """
     result = subprocess.run(
-        ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path],
-        capture_output=True,
-        text=True,
-        timeout=30
+        ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path], capture_output=True, text=True, timeout=30
     )
 
     # Early return for failed or empty results
@@ -143,10 +136,7 @@ def _execute_ast_grep_for_classes(
     return matches if isinstance(matches, list) else []
 
 
-def _process_class_match_results(
-    matches: List[Dict[str, Any]],
-    language: str
-) -> List[Dict[str, Any]]:
+def _process_class_match_results(matches: List[Dict[str, Any]], language: str) -> List[Dict[str, Any]]:
     """Process ast-grep matches into class information.
 
     Args:
@@ -178,13 +168,7 @@ def _extract_single_class_info(match: Dict[str, Any], language: str) -> Dict[str
     code = match.get("text", "")
     method_count = _count_class_methods(code, language)
 
-    return {
-        "name": cls_name,
-        "start_line": start_line,
-        "end_line": end_line,
-        "method_count": method_count,
-        "code": code
-    }
+    return {"name": cls_name, "start_line": start_line, "end_line": end_line, "method_count": method_count, "code": code}
 
 
 def _extract_class_name_from_match(match: Dict[str, Any]) -> str:
@@ -238,10 +222,10 @@ def _count_class_methods(code: str, language: str) -> int:
         Number of methods found
     """
     if language.lower() == "python":
-        return len(re.findall(r'^\s+def\s+', code, re.MULTILINE))
+        return len(re.findall(r"^\s+def\s+", code, re.MULTILINE))
     else:
         # Count function/method patterns in class body
-        return len(re.findall(r'^\s+\w+\s*\([^)]*\)\s*\{', code, re.MULTILINE))
+        return len(re.findall(r"^\s+\w+\s*\([^)]*\)\s*\{", code, re.MULTILINE))
 
 
 def _count_function_parameters(code: str, language: str) -> int:
@@ -257,10 +241,10 @@ def _count_function_parameters(code: str, language: str) -> int:
     # Find the parameter list
     if language.lower() == "python":
         # Match def name(params): or async def name(params):
-        match = re.search(r'def\s+\w+\s*\(([^)]*)\)', code)
+        match = re.search(r"def\s+\w+\s*\(([^)]*)\)", code)
     else:
         # Match function name(params) { or (params) =>
-        match = re.search(r'(?:function\s+\w+|\w+)\s*\(([^)]*)\)', code)
+        match = re.search(r"(?:function\s+\w+|\w+)\s*\(([^)]*)\)", code)
 
     if not match:
         return 0
@@ -272,8 +256,8 @@ def _count_function_parameters(code: str, language: str) -> int:
     # Handle self/this as non-parameter
     if language.lower() == "python":
         # Remove 'self' and 'cls' from count
-        params = re.sub(r'\bself\b\s*,?\s*', '', params)
-        params = re.sub(r'\bcls\b\s*,?\s*', '', params)
+        params = re.sub(r"\bself\b\s*,?\s*", "", params)
+        params = re.sub(r"\bcls\b\s*,?\s*", "", params)
 
     # Count commas + 1 (unless empty)
     params = params.strip()
@@ -285,11 +269,11 @@ def _count_function_parameters(code: str, language: str) -> int:
     depth = 0
     param_count = 1 if params else 0
     for char in params:
-        if char in '([{<':
+        if char in "([{<":
             depth += 1
-        elif char in ')]}>':
+        elif char in ")]}>":
             depth -= 1
-        elif char == ',' and depth == 0:
+        elif char == "," and depth == 0:
             param_count += 1
 
     return param_count
@@ -312,21 +296,21 @@ def _find_magic_numbers(content: str, lines: List[str], language: str) -> List[D
     magic_numbers: List[Dict[str, Any]] = []
 
     # Common values that aren't magic
-    allowed_values = {'0', '1', '-1', '2', '10', '100', '1000', '0.0', '1.0', '0.5'}
+    allowed_values = {"0", "1", "-1", "2", "10", "100", "1000", "0.0", "1.0", "0.5"}
 
     # Patterns for different contexts to exclude
     exclude_patterns = [
-        r'^\s*#',        # Python comments
-        r'^\s*//',       # JS/Java comments
-        r'^\s*\*',       # Multi-line comment continuation
-        r'^\s*import',   # Import statements
-        r'^\s*from',     # Python from imports
-        r'=\s*\d+\s*$',  # Variable assignment (likely a constant definition)
-        r'range\(',      # Range calls
-        r'sleep\(',      # Sleep calls
-        r'timeout',      # Timeout settings
-        r'port\s*=',     # Port assignments
-        r'version',      # Version numbers
+        r"^\s*#",  # Python comments
+        r"^\s*//",  # JS/Java comments
+        r"^\s*\*",  # Multi-line comment continuation
+        r"^\s*import",  # Import statements
+        r"^\s*from",  # Python from imports
+        r"=\s*\d+\s*$",  # Variable assignment (likely a constant definition)
+        r"range\(",  # Range calls
+        r"sleep\(",  # Sleep calls
+        r"timeout",  # Timeout settings
+        r"port\s*=",  # Port assignments
+        r"version",  # Version numbers
     ]
 
     for line_num, line in enumerate(lines, 1):
@@ -343,19 +327,16 @@ def _find_magic_numbers(content: str, lines: List[str], language: str) -> List[D
         # Find all numeric literals in line
         # Match integers and floats, but not in string literals
         # This is a simplified approach - production would need AST
-        numbers = re.findall(r'\b(\d+\.?\d*)\b', line)
+        numbers = re.findall(r"\b(\d+\.?\d*)\b", line)
 
         for num in numbers:
             if num not in allowed_values:
                 # Check it's not in a string
                 # Simple check: not between quotes
-                before_num = line[:line.find(num)]
+                before_num = line[: line.find(num)]
                 quote_count = before_num.count('"') + before_num.count("'")
                 if quote_count % 2 == 0:  # Even number of quotes = not in string
-                    magic_numbers.append({
-                        "line": line_num,
-                        "value": num
-                    })
+                    magic_numbers.append({"line": line_num, "value": num})
 
     # Limit to avoid overwhelming output
     return magic_numbers[:50]
@@ -411,22 +392,13 @@ def _calculate_all_metrics(code: str, language: str) -> ComplexityMetrics:
     cyclomatic = calculate_cyclomatic_complexity(code, language)
     cognitive = calculate_cognitive_complexity(code, language)
     nesting = calculate_nesting_depth(code, language)
-    lines = len(code.split('\n'))
+    lines = len(code.split("\n"))
     param_count = _count_function_parameters(code, language)
 
-    return ComplexityMetrics(
-        cyclomatic=cyclomatic,
-        cognitive=cognitive,
-        nesting_depth=nesting,
-        lines=lines,
-        parameter_count=param_count
-    )
+    return ComplexityMetrics(cyclomatic=cyclomatic, cognitive=cognitive, nesting_depth=nesting, lines=lines, parameter_count=param_count)
 
 
-def _check_threshold_violations(
-    metrics: ComplexityMetrics,
-    thresholds: ComplexityThresholds
-) -> List[str]:
+def _check_threshold_violations(metrics: ComplexityMetrics, thresholds: ComplexityThresholds) -> List[str]:
     """Check which thresholds are exceeded.
 
     Args:
@@ -450,11 +422,7 @@ def _check_threshold_violations(
     return exceeds
 
 
-def analyze_file_complexity(
-    file_path: str,
-    language: str,
-    thresholds: ComplexityThresholds
-) -> List[FunctionComplexity]:
+def analyze_file_complexity(file_path: str, language: str, thresholds: ComplexityThresholds) -> List[FunctionComplexity]:
     """Analyze complexity of all functions in a file.
 
     Args:
@@ -480,15 +448,17 @@ def analyze_file_complexity(
             metrics = _calculate_all_metrics(code, language)
             exceeds = _check_threshold_violations(metrics, thresholds)
 
-            results.append(FunctionComplexity(
-                file_path=file_path,
-                function_name=func_name,
-                start_line=start_line,
-                end_line=end_line,
-                metrics=metrics,
-                language=language,
-                exceeds=exceeds
-            ))
+            results.append(
+                FunctionComplexity(
+                    file_path=file_path,
+                    function_name=func_name,
+                    start_line=start_line,
+                    end_line=end_line,
+                    metrics=metrics,
+                    language=language,
+                    exceeds=exceeds,
+                )
+            )
 
     except Exception as e:
         logger = get_logger("complexity.analyze")

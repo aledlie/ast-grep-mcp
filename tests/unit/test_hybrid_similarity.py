@@ -15,7 +15,6 @@ from ast_grep_mcp.features.deduplication.similarity import (
     HybridSimilarity,
     HybridSimilarityConfig,
     HybridSimilarityResult,
-    SimilarityConfig,
 )
 
 

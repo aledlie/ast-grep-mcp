@@ -18,13 +18,13 @@ Examples:
     # Fix specific file
     uv run python scripts/fix_test_imports.py --file tests/unit/test_alignment.py
 """
-from ast_grep_mcp.utils.console_logger import console
-
 import argparse
 import re
-from pathlib import Path
-from typing import Dict, List, Tuple, Set
 import sys
+from pathlib import Path
+from typing import Dict, List, Set, Tuple
+
+from ast_grep_mcp.utils.console_logger import console
 
 # Import mapping: old import -> new import
 IMPORT_MAPPINGS = {
@@ -393,15 +393,15 @@ def fix_test_file(file_path: Path, dry_run: bool = False) -> Tuple[bool, str]:
             console.log(f"File: {file_path}")
             console.log(f"{'='*80}")
             console.log(f"Imported from main: {', '.join(sorted(imported_names))}")
-            console.log(f"\nNew imports:")
+            console.log("\nNew imports:")
             for imp in new_imports:
                 console.log(f"  {imp}")
             if class_imports:
-                console.log(f"\nClass imports (need fixtures):")
+                console.log("\nClass imports (need fixtures):")
                 for imp in class_imports:
                     console.log(f"  {imp}")
             if fixture_mappings:
-                console.log(f"\nFixture mappings:")
+                console.log("\nFixture mappings:")
                 for func, fixture in sorted(fixture_mappings.items()):
                     console.log(f"  {func}() -> {fixture}.{func}()")
             if unmapped:
@@ -525,7 +525,7 @@ def main():
         test_files = sorted(Path("tests/unit").glob("test_*.py"))
 
     console.log(f"{'='*80}")
-    console.log(f"Test Import Fixer - Phase 11A")
+    console.log("Test Import Fixer - Phase 11A")
     console.log(f"{'='*80}")
     console.log(f"Mode: {'DRY RUN' if args.dry_run else 'APPLY CHANGES'}")
     console.log(f"Files to process: {len(test_files)}")

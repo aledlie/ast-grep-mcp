@@ -3,23 +3,17 @@
 Migrated to pytest fixtures on 2025-11-26.
 Fixtures used: mcp_main (module-scoped), enforce_standards_tool (module-scoped)
 """
-from ast_grep_mcp.utils.console_logger import console
 
 import tempfile
-import threading
-from pathlib import Path
-from typing import Any
-from unittest.mock import Mock, patch, MagicMock, mock_open
+from unittest.mock import Mock, patch
 
 import pytest
-import yaml
 
-import main
 from ast_grep_mcp.features.quality.rules import RULE_TEMPLATES
 from main import (
+    RULE_SETS,
     EnforcementResult,
     LintingRule,
-    RULE_SETS,
     RuleExecutionContext,
     RuleSet,
     RuleTemplate,
@@ -32,7 +26,6 @@ from main import (
     _group_violations_by_rule,
     _group_violations_by_severity,
     _load_custom_rules,
-    _load_rule_from_file,
     _load_rule_set,
     _parse_match_to_violation,
     _should_exclude_file,

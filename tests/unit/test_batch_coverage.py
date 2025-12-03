@@ -3,12 +3,11 @@
 This file tests the performance-optimized batch test coverage methods added
 to improve deduplication analysis performance by 60-80%.
 """
-from ast_grep_mcp.utils.console_logger import console
 
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -245,9 +244,7 @@ class TestBatchCoverageIntegration:
 
     def test_orchestrator_uses_batch_method(self, mock_detector):
         """Test that orchestrator uses the batch method."""
-        from ast_grep_mcp.features.deduplication.analysis_orchestrator import (
-            DeduplicationAnalysisOrchestrator
-        )
+        from ast_grep_mcp.features.deduplication.analysis_orchestrator import DeduplicationAnalysisOrchestrator
 
         orchestrator = DeduplicationAnalysisOrchestrator()
         orchestrator.coverage_detector = mock_detector
@@ -288,9 +285,7 @@ class TestBatchCoverageIntegration:
 
     def test_orchestrator_deduplicates_files(self, mock_detector):
         """Test that orchestrator deduplicates files before batch check."""
-        from ast_grep_mcp.features.deduplication.analysis_orchestrator import (
-            DeduplicationAnalysisOrchestrator
-        )
+        from ast_grep_mcp.features.deduplication.analysis_orchestrator import DeduplicationAnalysisOrchestrator
 
         orchestrator = DeduplicationAnalysisOrchestrator()
         orchestrator.coverage_detector = mock_detector

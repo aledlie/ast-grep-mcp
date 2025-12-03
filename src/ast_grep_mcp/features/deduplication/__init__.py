@@ -10,20 +10,10 @@ Version History:
 """
 
 # Core detection and analysis
-from .analyzer import PatternAnalyzer
 from ...models.deduplication import VariationCategory, VariationSeverity
+from .analyzer import PatternAnalyzer
 from .applicator import DeduplicationApplicator
 from .benchmark import DeduplicationBenchmark, benchmark_deduplication
-
-# Similarity calculation
-from .similarity import (
-    HybridSimilarity,
-    HybridSimilarityConfig,
-    HybridSimilarityResult,
-    MinHashSimilarity,
-    SimilarityConfig,
-    SimilarityResult,
-)
 
 # Supporting modules
 from .coverage import CoverageDetector, find_test_file_patterns, get_test_coverage_for_files, has_test_coverage
@@ -41,6 +31,16 @@ from .reporting import (
     visualize_complexity,
 )
 
+# Similarity calculation
+from .similarity import (
+    HybridSimilarity,
+    HybridSimilarityConfig,
+    HybridSimilarityResult,
+    MinHashSimilarity,
+    SimilarityConfig,
+    SimilarityResult,
+)
+
 # MCP tool wrappers
 from .tools import analyze_deduplication_candidates_tool, apply_deduplication_tool, benchmark_deduplication_tool, find_duplication_tool
 
@@ -50,7 +50,6 @@ __all__ = [
     "PatternAnalyzer",
     "CodeGenerator",
     "DuplicationRanker",
-
     # Similarity classes (v1.1.0)
     "HybridSimilarity",
     "HybridSimilarityConfig",
@@ -58,7 +57,6 @@ __all__ = [
     "MinHashSimilarity",
     "SimilarityConfig",
     "SimilarityResult",
-
     # Supporting classes
     "CoverageDetector",
     "ImpactAnalyzer",
@@ -67,11 +65,9 @@ __all__ = [
     "DuplicationReporter",
     "DeduplicationBenchmark",
     "EnhancedDuplicationCandidate",
-
     # Constants
     "VariationCategory",
     "VariationSeverity",
-
     # Module-level functions
     "find_test_file_patterns",
     "has_test_coverage",
@@ -83,7 +79,6 @@ __all__ = [
     "visualize_complexity",
     "create_enhanced_duplication_response",
     "benchmark_deduplication",
-
     # MCP tool wrappers
     "find_duplication_tool",
     "analyze_deduplication_candidates_tool",

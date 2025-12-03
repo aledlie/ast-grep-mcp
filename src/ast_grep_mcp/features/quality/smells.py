@@ -11,7 +11,6 @@ Each smell includes severity ratings and actionable suggestions.
 """
 
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 from typing import Any, Dict, List
 
 from ast_grep_mcp.core.logging import get_logger
@@ -21,13 +20,13 @@ from ast_grep_mcp.features.quality.smells_detectors import (
     LongFunctionDetector,
     MagicNumberDetector,
     ParameterBloatDetector,
-    SmellAnalyzer
+    SmellAnalyzer,
 )
 from ast_grep_mcp.features.quality.smells_helpers import (
     aggregate_smell_results,
     find_smell_analysis_files,
     format_smell_detection_response,
-    validate_smell_detection_inputs
+    validate_smell_detection_inputs,
 )
 
 
@@ -43,7 +42,7 @@ def detect_code_smells_impl(
     class_methods: int,
     detect_magic_numbers: bool,
     severity_filter: str,
-    max_threads: int
+    max_threads: int,
 ) -> Dict[str, Any]:
     """Detect common code smells in a project.
 
@@ -66,38 +65,27 @@ def detect_code_smells_impl(
     Returns:
         Dictionary containing smell detection results with summary and details
     """
-    logger = get_logger("detect_code_smells")
+    _logger = get_logger("detect_code_smells")  # noqa: F841
 
     try:
         # Step 1: Validate inputs and get normalized values
-        project_path, file_ext, normalized_language = validate_smell_detection_inputs(
-            project_folder, language, severity_filter
-        )
+        project_path, file_ext, normalized_language = validate_smell_detection_inputs(project_folder, language, severity_filter)
     except ValueError as e:
         return {"error": str(e)}
 
     # Step 2: Find files to analyze
-    files_to_analyze = find_smell_analysis_files(
-        project_path, file_ext, include_patterns, exclude_patterns
-    )
+    files_to_analyze = find_smell_analysis_files(project_path, file_ext, include_patterns, exclude_patterns)
 
     if not files_to_analyze:
         return {
             "error": f"No {language} files found matching patterns",
             "project_folder": project_folder,
             "include_patterns": include_patterns,
-            "exclude_patterns": exclude_patterns
+            "exclude_patterns": exclude_patterns,
         }
 
     # Step 3: Initialize smell detectors with thresholds
-    detectors = _create_detectors(
-        long_function_lines,
-        parameter_count,
-        nesting_depth,
-        class_lines,
-        class_methods,
-        detect_magic_numbers
-    )
+    detectors = _create_detectors(long_function_lines, parameter_count, nesting_depth, class_lines, class_methods, detect_magic_numbers)
 
     # Step 4: Create analyzer and analyze files in parallel
     analyzer = SmellAnalyzer(detectors)
@@ -119,26 +107,14 @@ def detect_code_smells_impl(
         "parameter_count": parameter_count,
         "nesting_depth": nesting_depth,
         "class_lines": class_lines,
-        "class_methods": class_methods
+        "class_methods": class_methods,
     }
 
-    return format_smell_detection_response(
-        project_folder,
-        language,
-        len(files_to_analyze),
-        all_smells,
-        thresholds,
-        severity_filter
-    )
+    return format_smell_detection_response(project_folder, language, len(files_to_analyze), all_smells, thresholds, severity_filter)
 
 
 def _create_detectors(
-    long_function_lines: int,
-    parameter_count: int,
-    nesting_depth: int,
-    class_lines: int,
-    class_methods: int,
-    detect_magic_numbers: bool
+    long_function_lines: int, parameter_count: int, nesting_depth: int, class_lines: int, class_methods: int, detect_magic_numbers: bool
 ) -> List[Any]:
     """Create and configure smell detectors.
 
@@ -157,11 +133,10 @@ def _create_detectors(
         LongFunctionDetector(long_function_lines),
         ParameterBloatDetector(parameter_count),
         DeepNestingDetector(nesting_depth),
-        LargeClassDetector(class_lines, class_methods)
+        LargeClassDetector(class_lines, class_methods),
     ]
 
     if detect_magic_numbers:
         detectors.append(MagicNumberDetector(enabled=True))
 
     return detectors
-

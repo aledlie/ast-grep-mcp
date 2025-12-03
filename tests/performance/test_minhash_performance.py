@@ -7,8 +7,10 @@ identify regressions.
 Created as part of bugfix-ast-grep-mcp-minhash-2025-12-02 Phase 6.
 """
 
-import pytest
 import time
+
+import pytest
+
 from ast_grep_mcp.features.deduplication.similarity import MinHashSimilarity
 
 

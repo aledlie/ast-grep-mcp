@@ -3,7 +3,9 @@
 
 import re
 from pathlib import Path
+
 from ast_grep_mcp.utils.console_logger import console
+
 
 def fix_file(filepath: Path) -> bool:
     """Fix orphaned import statement closing in a file."""

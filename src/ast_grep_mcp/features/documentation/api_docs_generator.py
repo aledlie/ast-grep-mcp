@@ -3,6 +3,7 @@
 This module provides functionality for generating API documentation
 from route definitions across different web frameworks.
 """
+
 import json
 import os
 import re
@@ -27,19 +28,19 @@ logger = get_logger(__name__)
 
 # JS API frameworks: (dep_key, framework_name)
 _JS_API_FRAMEWORKS: List[Tuple[str, str]] = [
-    ('express', 'express'),
-    ('fastify', 'fastify'),
-    ('@nestjs/core', 'nestjs'),
-    ('koa', 'koa'),
-    ('hono', 'hono'),
+    ("express", "express"),
+    ("fastify", "fastify"),
+    ("@nestjs/core", "nestjs"),
+    ("koa", "koa"),
+    ("hono", "hono"),
 ]
 
 # Python API frameworks: (pattern, framework_name) - order matters (first match wins)
 _PYTHON_API_FRAMEWORKS: List[Tuple[str, str]] = [
-    ('fastapi', 'fastapi'),
-    ('flask', 'flask'),
-    ('django', 'django'),
-    ('starlette', 'starlette'),
+    ("fastapi", "fastapi"),
+    ("flask", "flask"),
+    ("django", "django"),
+    ("starlette", "starlette"),
 ]
 
 
@@ -52,14 +53,14 @@ def _detect_js_api_framework(project_folder: str) -> Optional[str]:
     Returns:
         Framework name or None
     """
-    package_json = os.path.join(project_folder, 'package.json')
+    package_json = os.path.join(project_folder, "package.json")
     if not os.path.exists(package_json):
         return None
 
     try:
-        with open(package_json, 'r') as f:
+        with open(package_json, "r") as f:
             data = json.load(f)
-        deps = {**data.get('dependencies', {}), **data.get('devDependencies', {})}
+        deps = {**data.get("dependencies", {}), **data.get("devDependencies", {})}
     except (json.JSONDecodeError, OSError):
         return None
 
@@ -79,11 +80,11 @@ def _detect_python_api_framework(project_folder: str) -> Optional[str]:
         Framework name or None
     """
     deps_content = ""
-    for filename in ['requirements.txt', 'pyproject.toml']:
+    for filename in ["requirements.txt", "pyproject.toml"]:
         filepath = os.path.join(project_folder, filename)
         if os.path.exists(filepath):
             try:
-                with open(filepath, 'r') as f:
+                with open(filepath, "r") as f:
                     deps_content += f.read().lower()
             except OSError:
                 pass
@@ -136,15 +137,13 @@ class ExpressRouteParser:
         """Parse routes from an Express file."""
         routes = []
 
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
-            lines = content.split('\n')
+            lines = content.split("\n")
 
         # Pattern for app.get/post/etc. or router.get/post/etc.
         # Matches: app.get('/path', handler), router.post('/path', ...)
-        route_pattern = re.compile(
-            r'(?:app|router)\.(get|post|put|delete|patch|options|head)\s*\(\s*[\'"`]([^\'"`]+)[\'"`]'
-        )
+        route_pattern = re.compile(r'(?:app|router)\.(get|post|put|delete|patch|options|head)\s*\(\s*[\'"`]([^\'"`]+)[\'"`]')
 
         for i, line in enumerate(lines):
             match = route_pattern.search(line)
@@ -153,8 +152,8 @@ class ExpressRouteParser:
                 path = match.group(2)
 
                 # Try to find handler name
-                handler_match = re.search(r',\s*(\w+)\s*\)', line)
-                handler_name = handler_match.group(1) if handler_match else 'anonymous'
+                handler_match = re.search(r",\s*(\w+)\s*\)", line)
+                handler_name = handler_match.group(1) if handler_match else "anonymous"
 
                 # Extract path parameters
                 params = self._extract_path_params(path)
@@ -175,12 +174,14 @@ class ExpressRouteParser:
         """Extract path parameters from route path."""
         params = []
         # Match :param syntax
-        for match in re.finditer(r':(\w+)', path):
-            params.append(RouteParameter(
-                name=match.group(1),
-                location='path',
-                required=True,
-            ))
+        for match in re.finditer(r":(\w+)", path):
+            params.append(
+                RouteParameter(
+                    name=match.group(1),
+                    location="path",
+                    required=True,
+                )
+            )
         return params
 
 
@@ -191,14 +192,12 @@ class FastAPIRouteParser:
         """Parse routes from a FastAPI file."""
         routes = []
 
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
-            lines = content.split('\n')
+            lines = content.split("\n")
 
         # Pattern for @app.get/post/etc. or @router.get/post/etc.
-        decorator_pattern = re.compile(
-            r'@(?:app|router)\.(get|post|put|delete|patch|options|head)\s*\(\s*[\'"`]([^\'"`]+)[\'"`]'
-        )
+        decorator_pattern = re.compile(r'@(?:app|router)\.(get|post|put|delete|patch|options|head)\s*\(\s*[\'"`]([^\'"`]+)[\'"`]')
 
         i = 0
         while i < len(lines):
@@ -211,16 +210,16 @@ class FastAPIRouteParser:
 
                 # Look for function definition on next line(s)
                 j = i + 1
-                while j < len(lines) and not lines[j].strip().startswith('def ') and not lines[j].strip().startswith('async def '):
+                while j < len(lines) and not lines[j].strip().startswith("def ") and not lines[j].strip().startswith("async def "):
                     j += 1
 
-                handler_name = 'unknown'
+                handler_name = "unknown"
                 params: List[RouteParameter] = []
 
                 if j < len(lines):
                     func_line = lines[j]
                     # Extract function name
-                    name_match = re.search(r'(?:async\s+)?def\s+(\w+)', func_line)
+                    name_match = re.search(r"(?:async\s+)?def\s+(\w+)", func_line)
                     if name_match:
                         handler_name = name_match.group(1)
 
@@ -248,12 +247,14 @@ class FastAPIRouteParser:
         """Extract path parameters from route path."""
         params = []
         # Match {param} syntax
-        for match in re.finditer(r'\{(\w+)\}', path):
-            params.append(RouteParameter(
-                name=match.group(1),
-                location='path',
-                required=True,
-            ))
+        for match in re.finditer(r"\{(\w+)\}", path):
+            params.append(
+                RouteParameter(
+                    name=match.group(1),
+                    location="path",
+                    required=True,
+                )
+            )
         return params
 
     def _extract_params(self, func_line: str) -> List[RouteParameter]:
@@ -261,35 +262,39 @@ class FastAPIRouteParser:
         params: list[RouteParameter] = []
 
         # Find params section
-        param_match = re.search(r'\((.*)\)', func_line)
+        param_match = re.search(r"\((.*)\)", func_line)
         if not param_match:
             return params
 
         params_str = param_match.group(1)
 
         # Parse each parameter
-        for part in params_str.split(','):
+        for part in params_str.split(","):
             part = part.strip()
-            if not part or part in ('self', 'cls'):
+            if not part or part in ("self", "cls"):
                 continue
 
             # Check for Query/Body annotations
-            if 'Query' in part:
-                name_match = re.match(r'(\w+)\s*:', part)
+            if "Query" in part:
+                name_match = re.match(r"(\w+)\s*:", part)
                 if name_match:
-                    params.append(RouteParameter(
-                        name=name_match.group(1),
-                        location='query',
-                        required='...' not in part,
-                    ))
-            elif 'Body' in part:
-                name_match = re.match(r'(\w+)\s*:', part)
+                    params.append(
+                        RouteParameter(
+                            name=name_match.group(1),
+                            location="query",
+                            required="..." not in part,
+                        )
+                    )
+            elif "Body" in part:
+                name_match = re.match(r"(\w+)\s*:", part)
                 if name_match:
-                    params.append(RouteParameter(
-                        name=name_match.group(1),
-                        location='body',
-                        required='...' not in part,
-                    ))
+                    params.append(
+                        RouteParameter(
+                            name=name_match.group(1),
+                            location="body",
+                            required="..." not in part,
+                        )
+                    )
 
         return params
 
@@ -301,14 +306,12 @@ class FlaskRouteParser:
         """Parse routes from a Flask file."""
         routes = []
 
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
-            lines = content.split('\n')
+            lines = content.split("\n")
 
         # Pattern for @app.route or @blueprint.route
-        decorator_pattern = re.compile(
-            r'@(?:\w+)\.route\s*\(\s*[\'"`]([^\'"`]+)[\'"`](?:.*methods\s*=\s*\[([^\]]+)\])?'
-        )
+        decorator_pattern = re.compile(r'@(?:\w+)\.route\s*\(\s*[\'"`]([^\'"`]+)[\'"`](?:.*methods\s*=\s*\[([^\]]+)\])?')
 
         i = 0
         while i < len(lines):
@@ -321,19 +324,19 @@ class FlaskRouteParser:
 
                 # Parse methods
                 if methods_str:
-                    methods = [m.strip().strip('\'"') for m in methods_str.split(',')]
+                    methods = [m.strip().strip("'\"") for m in methods_str.split(",")]
                 else:
-                    methods = ['GET']
+                    methods = ["GET"]
 
                 # Look for function definition
                 j = i + 1
-                while j < len(lines) and not lines[j].strip().startswith('def '):
+                while j < len(lines) and not lines[j].strip().startswith("def "):
                     j += 1
 
-                handler_name = 'unknown'
+                handler_name = "unknown"
                 if j < len(lines):
                     func_line = lines[j]
-                    name_match = re.search(r'def\s+(\w+)', func_line)
+                    name_match = re.search(r"def\s+(\w+)", func_line)
                     if name_match:
                         handler_name = name_match.group(1)
 
@@ -360,21 +363,24 @@ class FlaskRouteParser:
         """Extract path parameters from route path."""
         params = []
         # Match <param> or <type:param> syntax
-        for match in re.finditer(r'<(?:(\w+):)?(\w+)>', path):
+        for match in re.finditer(r"<(?:(\w+):)?(\w+)>", path):
             type_hint = match.group(1)
             name = match.group(2)
-            params.append(RouteParameter(
-                name=name,
-                location='path',
-                type_hint=type_hint,
-                required=True,
-            ))
+            params.append(
+                RouteParameter(
+                    name=name,
+                    location="path",
+                    type_hint=type_hint,
+                    required=True,
+                )
+            )
         return params
 
 
 # =============================================================================
 # Documentation Generators
 # =============================================================================
+
 
 def _generate_markdown_docs(routes: List[ApiRoute], framework: str) -> str:
     """Generate Markdown API documentation.
@@ -386,66 +392,66 @@ def _generate_markdown_docs(routes: List[ApiRoute], framework: str) -> str:
     Returns:
         Markdown string
     """
-    lines = ['# API Documentation', '']
-    lines.append(f'Generated from {framework} routes.')
-    lines.append('')
+    lines = ["# API Documentation", ""]
+    lines.append(f"Generated from {framework} routes.")
+    lines.append("")
 
     # Group routes by path prefix
     route_groups: Dict[str, List[ApiRoute]] = {}
     for route in routes:
         # Get first path segment as group
-        parts = route.path.strip('/').split('/')
-        group = parts[0] if parts else 'root'
+        parts = route.path.strip("/").split("/")
+        group = parts[0] if parts else "root"
         if group not in route_groups:
             route_groups[group] = []
         route_groups[group].append(route)
 
     # Generate documentation for each group
     for group, group_routes in sorted(route_groups.items()):
-        lines.append(f'## {group.title()} Endpoints')
-        lines.append('')
+        lines.append(f"## {group.title()} Endpoints")
+        lines.append("")
 
         for route in sorted(group_routes, key=lambda r: (r.path, r.method)):
-            lines.append(f'### `{route.method}` {route.path}')
-            lines.append('')
+            lines.append(f"### `{route.method}` {route.path}")
+            lines.append("")
 
             if route.description:
                 lines.append(route.description)
-                lines.append('')
+                lines.append("")
 
             # Handler info
-            lines.append(f'**Handler:** `{route.handler_name}` ({route.file_path}:{route.line_number})')
-            lines.append('')
+            lines.append(f"**Handler:** `{route.handler_name}` ({route.file_path}:{route.line_number})")
+            lines.append("")
 
             # Parameters
             if route.parameters:
-                lines.append('**Parameters:**')
-                lines.append('')
-                lines.append('| Name | Location | Type | Required | Description |')
-                lines.append('|------|----------|------|----------|-------------|')
+                lines.append("**Parameters:**")
+                lines.append("")
+                lines.append("| Name | Location | Type | Required | Description |")
+                lines.append("|------|----------|------|----------|-------------|")
                 for param in route.parameters:
-                    required = 'Yes' if param.required else 'No'
-                    type_hint = param.type_hint or 'string'
-                    desc = param.description or '-'
-                    lines.append(f'| `{param.name}` | {param.location} | {type_hint} | {required} | {desc} |')
-                lines.append('')
+                    required = "Yes" if param.required else "No"
+                    type_hint = param.type_hint or "string"
+                    desc = param.description or "-"
+                    lines.append(f"| `{param.name}` | {param.location} | {type_hint} | {required} | {desc} |")
+                lines.append("")
 
             # Responses (default)
             if not route.responses:
-                lines.append('**Responses:**')
-                lines.append('')
-                lines.append('| Status | Description |')
-                lines.append('|--------|-------------|')
-                lines.append('| 200 | Success |')
-                lines.append('| 400 | Bad Request |')
-                lines.append('| 404 | Not Found |')
-                lines.append('| 500 | Internal Server Error |')
-                lines.append('')
+                lines.append("**Responses:**")
+                lines.append("")
+                lines.append("| Status | Description |")
+                lines.append("|--------|-------------|")
+                lines.append("| 200 | Success |")
+                lines.append("| 400 | Bad Request |")
+                lines.append("| 404 | Not Found |")
+                lines.append("| 500 | Internal Server Error |")
+                lines.append("")
 
-            lines.append('---')
-            lines.append('')
+            lines.append("---")
+            lines.append("")
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def _build_openapi_param(param: RouteParameter) -> Dict[str, Any]:
@@ -458,13 +464,13 @@ def _build_openapi_param(param: RouteParameter) -> Dict[str, Any]:
         OpenAPI parameter object
     """
     param_obj: Dict[str, Any] = {
-        'name': param.name,
-        'in': param.location if param.location != 'body' else 'query',
-        'required': param.required,
-        'schema': {'type': param.type_hint or 'string'},
+        "name": param.name,
+        "in": param.location if param.location != "body" else "query",
+        "required": param.required,
+        "schema": {"type": param.type_hint or "string"},
     }
     if param.description:
-        param_obj['description'] = param.description
+        param_obj["description"] = param.description
     return param_obj
 
 
@@ -477,13 +483,13 @@ def _build_openapi_request_body(body_params: List[RouteParameter]) -> Dict[str, 
     Returns:
         OpenAPI requestBody object
     """
-    properties = {p.name: {'type': p.type_hint or 'string'} for p in body_params}
+    properties = {p.name: {"type": p.type_hint or "string"} for p in body_params}
     return {
-        'content': {
-            'application/json': {
-                'schema': {
-                    'type': 'object',
-                    'properties': properties,
+        "content": {
+            "application/json": {
+                "schema": {
+                    "type": "object",
+                    "properties": properties,
                 }
             }
         }
@@ -501,21 +507,21 @@ def _build_openapi_operation(route: ApiRoute) -> Dict[str, Any]:
     """
     method = route.method.lower()
     operation: Dict[str, Any] = {
-        'operationId': route.handler_name,
-        'summary': route.description or f'{route.method} {route.path}',
-        'responses': {'200': {'description': 'Successful response'}},
+        "operationId": route.handler_name,
+        "summary": route.description or f"{route.method} {route.path}",
+        "responses": {"200": {"description": "Successful response"}},
     }
 
     # Add parameters
     parameters = [_build_openapi_param(p) for p in route.parameters]
     if parameters:
-        operation['parameters'] = parameters
+        operation["parameters"] = parameters
 
     # Add request body for POST/PUT/PATCH
-    if method in ('post', 'put', 'patch'):
-        body_params = [p for p in route.parameters if p.location == 'body']
+    if method in ("post", "put", "patch"):
+        body_params = [p for p in route.parameters if p.location == "body"]
         if body_params:
-            operation['requestBody'] = _build_openapi_request_body(body_params)
+            operation["requestBody"] = _build_openapi_request_body(body_params)
 
     return operation
 
@@ -531,15 +537,15 @@ def _generate_openapi_spec(routes: List[ApiRoute], project_name: str = "API") ->
         OpenAPI spec as dictionary
     """
     spec: Dict[str, Any] = {
-        'openapi': '3.0.0',
-        'info': {'title': project_name, 'version': '1.0.0'},
-        'paths': {},
+        "openapi": "3.0.0",
+        "info": {"title": project_name, "version": "1.0.0"},
+        "paths": {},
     }
 
     for route in routes:
-        if route.path not in spec['paths']:
-            spec['paths'][route.path] = {}
-        spec['paths'][route.path][route.method.lower()] = _build_openapi_operation(route)
+        if route.path not in spec["paths"]:
+            spec["paths"][route.path] = {}
+        spec["paths"][route.path][route.method.lower()] = _build_openapi_operation(route)
 
     return spec
 
@@ -547,6 +553,7 @@ def _generate_openapi_spec(routes: List[ApiRoute], project_name: str = "API") ->
 # =============================================================================
 # Main Generator
 # =============================================================================
+
 
 def _find_route_files(project_folder: str, language: str, framework: str) -> List[str]:
     """Find files likely to contain route definitions.
@@ -563,28 +570,28 @@ def _find_route_files(project_folder: str, language: str, framework: str) -> Lis
 
     # Common patterns for route files
     route_patterns = {
-        'express': ['routes', 'router', 'api', 'controllers'],
-        'fastapi': ['routes', 'router', 'api', 'endpoints', 'views'],
-        'flask': ['routes', 'views', 'api', 'blueprints'],
-        'fastify': ['routes', 'router', 'api'],
-        'nestjs': ['controller', 'routes'],
+        "express": ["routes", "router", "api", "controllers"],
+        "fastapi": ["routes", "router", "api", "endpoints", "views"],
+        "flask": ["routes", "views", "api", "blueprints"],
+        "fastify": ["routes", "router", "api"],
+        "nestjs": ["controller", "routes"],
     }
 
-    patterns = route_patterns.get(framework, ['routes', 'api', 'controllers'])
+    patterns = route_patterns.get(framework, ["routes", "api", "controllers"])
 
     # File extensions
     extensions = {
-        'python': ['.py'],
-        'typescript': ['.ts'],
-        'javascript': ['.js'],
+        "python": [".py"],
+        "typescript": [".ts"],
+        "javascript": [".js"],
     }
 
-    exts = extensions.get(language, ['.py', '.js', '.ts'])
+    exts = extensions.get(language, [".py", ".js", ".ts"])
 
     # Walk directory
     for root, dirs, files in os.walk(project_folder):
         # Skip common non-source directories
-        if any(skip in root for skip in ['node_modules', '.git', 'venv', '__pycache__', 'dist', 'build']):
+        if any(skip in root for skip in ["node_modules", ".git", "venv", "__pycache__", "dist", "build"]):
             continue
 
         for file in files:
@@ -648,11 +655,11 @@ def generate_api_docs_impl(
 
     # Select parser based on framework
     parsers: Dict[str, RouteParser] = {
-        'express': ExpressRouteParser(),
-        'fastapi': FastAPIRouteParser(),
-        'flask': FlaskRouteParser(),
-        'fastify': ExpressRouteParser(),  # Similar syntax
-        'starlette': FastAPIRouteParser(),  # Similar syntax
+        "express": ExpressRouteParser(),
+        "fastapi": FastAPIRouteParser(),
+        "flask": FlaskRouteParser(),
+        "fastify": ExpressRouteParser(),  # Similar syntax
+        "starlette": FastAPIRouteParser(),  # Similar syntax
     }
 
     parser = parsers.get(framework)
@@ -682,7 +689,7 @@ def generate_api_docs_impl(
     markdown = _generate_markdown_docs(all_routes, framework)
 
     openapi_spec = None
-    if output_format in ('openapi', 'both'):
+    if output_format in ("openapi", "both"):
         project_name = os.path.basename(project_folder)
         openapi_spec = _generate_openapi_spec(all_routes, project_name)
 

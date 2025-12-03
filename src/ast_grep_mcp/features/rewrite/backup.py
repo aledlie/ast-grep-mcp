@@ -40,7 +40,7 @@ def create_backup(files_to_backup: List[str], project_folder: str) -> str:
         "backup_id": backup_id,
         "timestamp": datetime.now().isoformat(),
         "files": [],
-        "project_folder": project_folder
+        "project_folder": project_folder,
     }
 
     for file_path in files_to_backup:
@@ -54,32 +54,19 @@ def create_backup(files_to_backup: List[str], project_folder: str) -> str:
         os.makedirs(os.path.dirname(backup_file_path), exist_ok=True)
         shutil.copy2(file_path, backup_file_path)
 
-        metadata["files"].append({
-            "original": file_path,
-            "relative": rel_path,
-            "backup": backup_file_path
-        })
+        metadata["files"].append({"original": file_path, "relative": rel_path, "backup": backup_file_path})
 
     metadata_path = os.path.join(backup_dir, "backup-metadata.json")
     with open(metadata_path, "w") as f:
         json.dump(metadata, f, indent=2)
 
-    logger.info(
-        "backup_created",
-        backup_id=backup_id,
-        files_backed_up=len(metadata["files"]),
-        backup_dir=backup_dir
-    )
+    logger.info("backup_created", backup_id=backup_id, files_backed_up=len(metadata["files"]), backup_dir=backup_dir)
 
     return backup_id
 
 
 def create_deduplication_backup(
-    files_to_backup: List[str],
-    project_folder: str,
-    duplicate_group_id: int,
-    strategy: str,
-    original_hashes: Dict[str, str]
+    files_to_backup: List[str], project_folder: str, duplicate_group_id: int, strategy: str, original_hashes: Dict[str, str]
 ) -> str:
     """Create a backup with deduplication-specific metadata.
 
@@ -119,8 +106,8 @@ def create_deduplication_backup(
             "duplicate_group_id": duplicate_group_id,
             "strategy": strategy,
             "original_hashes": original_hashes,
-            "affected_files": files_to_backup
-        }
+            "affected_files": files_to_backup,
+        },
     }
 
     for file_path in files_to_backup:
@@ -134,12 +121,9 @@ def create_deduplication_backup(
         os.makedirs(os.path.dirname(backup_file_path), exist_ok=True)
         shutil.copy2(file_path, backup_file_path)
 
-        metadata["files"].append({
-            "original": file_path,
-            "relative": rel_path,
-            "backup": backup_file_path,
-            "original_hash": original_hashes.get(file_path, "")
-        })
+        metadata["files"].append(
+            {"original": file_path, "relative": rel_path, "backup": backup_file_path, "original_hash": original_hashes.get(file_path, "")}
+        )
 
     metadata_path = os.path.join(backup_dir, "backup-metadata.json")
     with open(metadata_path, "w") as f:
@@ -151,7 +135,7 @@ def create_deduplication_backup(
         files_backed_up=len(metadata["files"]),
         backup_dir=backup_dir,
         duplicate_group_id=duplicate_group_id,
-        strategy=strategy
+        strategy=strategy,
     )
 
     return backup_id
@@ -167,7 +151,7 @@ def get_file_hash(file_path: str) -> str:
         Hex digest of the file's SHA-256 hash
     """
     try:
-        with open(file_path, 'rb') as f:
+        with open(file_path, "rb") as f:
             return hashlib.sha256(f.read()).hexdigest()
     except (OSError, IOError):
         return ""
@@ -192,12 +176,7 @@ def verify_backup_integrity(backup_id: str, project_folder: str) -> Dict[str, An
     backup_dir = os.path.join(project_folder, ".ast-grep-backups", backup_id)
     metadata_path = os.path.join(backup_dir, "backup-metadata.json")
 
-    result: Dict[str, Any] = {
-        "valid": False,
-        "errors": [],
-        "warnings": [],
-        "metadata": None
-    }
+    result: Dict[str, Any] = {"valid": False, "errors": [], "warnings": [], "metadata": None}
 
     # Check backup directory exists
     if not os.path.exists(backup_dir):
@@ -230,9 +209,7 @@ def verify_backup_integrity(backup_id: str, project_folder: str) -> Dict[str, An
         if original_path and os.path.exists(original_path):
             current_hash = get_file_hash(original_path)
             if "original_hash" in file_info and file_info["original_hash"] != current_hash:
-                result["warnings"].append(
-                    f"File has been modified since backup: {original_path}"
-                )
+                result["warnings"].append(f"File has been modified since backup: {original_path}")
 
     result["valid"] = len(result["errors"]) == 0
 
@@ -241,7 +218,7 @@ def verify_backup_integrity(backup_id: str, project_folder: str) -> Dict[str, An
         backup_id=backup_id,
         valid=result["valid"],
         error_count=len(result["errors"]),
-        warning_count=len(result["warnings"])
+        warning_count=len(result["warnings"]),
     )
 
     return result
@@ -265,11 +242,7 @@ def restore_backup(backup_id: str, project_folder: str) -> Dict[str, Any]:
     # First verify backup integrity
     verification = verify_backup_integrity(backup_id, project_folder)
 
-    result: Dict[str, Any] = {
-        "success": False,
-        "restored_files": [],
-        "errors": []
-    }
+    result: Dict[str, Any] = {"success": False, "restored_files": [], "errors": []}
 
     if not verification["valid"]:
         result["errors"].extend(verification["errors"])
@@ -304,7 +277,7 @@ def restore_backup(backup_id: str, project_folder: str) -> Dict[str, Any]:
         backup_id=backup_id,
         success=result["success"],
         restored_count=len(result["restored_files"]),
-        error_count=len(result["errors"])
+        error_count=len(result["errors"]),
     )
 
     return result
@@ -319,11 +292,7 @@ def _calculate_backup_size(backup_dir: str) -> int:
     Returns:
         Total size in bytes
     """
-    return sum(
-        os.path.getsize(os.path.join(backup_dir, root, file))
-        for root, _, files in os.walk(backup_dir)
-        for file in files
-    )
+    return sum(os.path.getsize(os.path.join(backup_dir, root, file)) for root, _, files in os.walk(backup_dir) for file in files)
 
 
 def _build_backup_info(metadata: Dict[str, Any], backup_name: str, backup_size: int) -> Dict[str, Any]:
@@ -351,7 +320,7 @@ def _build_backup_info(metadata: Dict[str, Any], backup_name: str, backup_size: 
         dedup_meta = metadata["deduplication_metadata"]
         backup_info["deduplication_info"] = {
             "duplicate_group_id": dedup_meta.get("duplicate_group_id"),
-            "strategy": dedup_meta.get("strategy")
+            "strategy": dedup_meta.get("strategy"),
         }
 
     return backup_info
@@ -382,11 +351,7 @@ def _load_backup_info(backup_dir: str, backup_name: str, logger: Any) -> Optiona
         return _build_backup_info(metadata, backup_name, backup_size)
 
     except (json.JSONDecodeError, IOError) as e:
-        logger.warning(
-            "failed_to_load_backup_metadata",
-            backup_name=backup_name,
-            error=str(e)
-        )
+        logger.warning("failed_to_load_backup_metadata", backup_name=backup_name, error=str(e))
         return None
 
 
@@ -421,10 +386,6 @@ def list_available_backups(project_folder: str) -> List[Dict[str, Any]]:
     # Sort by timestamp (newest first)
     backups.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
 
-    logger.info(
-        "listed_backups",
-        backup_count=len(backups),
-        project_folder=project_folder
-    )
+    logger.info("listed_backups", backup_count=len(backups), project_folder=project_folder)
 
     return backups

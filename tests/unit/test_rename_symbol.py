@@ -1,15 +1,13 @@
 """Tests for symbol renaming functionality."""
 
-import os
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
+from unittest.mock import Mock, patch
 
-from ast_grep_mcp.features.refactoring.renamer import SymbolRenamer
+import pytest
+
 from ast_grep_mcp.features.refactoring.rename_coordinator import RenameCoordinator
+from ast_grep_mcp.features.refactoring.renamer import SymbolRenamer
 from ast_grep_mcp.features.refactoring.tools import rename_symbol_tool
-from ast_grep_mcp.models.refactoring import SymbolReference, ScopeInfo
-from ast_grep_mcp.utils.console_logger import console
+from ast_grep_mcp.models.refactoring import ScopeInfo, SymbolReference
 
 
 @pytest.fixture

@@ -17,12 +17,12 @@ Usage:
     # Custom output file
     python scripts/run_benchmarks.py --output benchmark_report.md
 """
-from ast_grep_mcp.utils.console_logger import console
-
 import argparse
 import subprocess
 import sys
 from pathlib import Path
+
+from ast_grep_mcp.utils.console_logger import console
 
 
 def run_benchmarks(

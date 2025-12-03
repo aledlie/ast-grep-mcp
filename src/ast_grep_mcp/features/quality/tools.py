@@ -9,7 +9,7 @@ This module registers MCP tools for:
 
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import sentry_sdk
 import yaml
@@ -18,12 +18,19 @@ from pydantic import Field
 
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.quality.enforcer import enforce_standards_impl, format_violation_report
-from ast_grep_mcp.features.quality.fixer import apply_fixes_batch, preview_fix
+from ast_grep_mcp.features.quality.fixer import apply_fixes_batch
 from ast_grep_mcp.features.quality.reporter import generate_quality_report_impl
 from ast_grep_mcp.features.quality.rules import RULE_TEMPLATES, create_rule_from_template, get_available_templates, save_rule_to_project
 from ast_grep_mcp.features.quality.security_scanner import detect_security_issues_impl
 from ast_grep_mcp.features.quality.validator import validate_rule_definition
-from ast_grep_mcp.models.standards import EnforcementResult, LintingRule, RuleStorageError, RuleValidationError, RuleViolation, SecurityIssue
+from ast_grep_mcp.models.standards import (
+    EnforcementResult,
+    LintingRule,
+    RuleStorageError,
+    RuleValidationError,
+    RuleViolation,
+    SecurityIssue,
+)
 
 
 def _create_rule_from_params(
@@ -34,38 +41,29 @@ def _create_rule_from_params(
     language: str,
     suggested_fix: Optional[str],
     note: Optional[str],
-    use_template: Optional[str]
+    use_template: Optional[str],
 ) -> LintingRule:
     """Helper to create a rule from parameters."""
     if use_template:
         overrides = {
-            'language': language,
-            'severity': severity,
-            'message': description,
-            'pattern': pattern,
-            'note': note,
-            'fix': suggested_fix
+            "language": language,
+            "severity": severity,
+            "message": description,
+            "pattern": pattern,
+            "note": note,
+            "fix": suggested_fix,
         }
         # Remove None values
         overrides = {k: v for k, v in overrides.items() if v is not None}
         return create_rule_from_template(use_template, rule_name, overrides)
 
     return LintingRule(
-        id=rule_name,
-        language=language,
-        severity=severity,
-        message=description,
-        pattern=pattern,
-        note=note,
-        fix=suggested_fix
+        id=rule_name, language=language, severity=severity, message=description, pattern=pattern, note=note, fix=suggested_fix
     )
 
 
 def _save_rule_if_requested(
-    rule: LintingRule,
-    save_to_project: bool,
-    project_folder: Optional[str],
-    validation_result: Any
+    rule: LintingRule, save_to_project: bool, project_folder: Optional[str], validation_result: Any
 ) -> Optional[str]:
     """Helper to save rule to project if requested."""
     if not save_to_project:
@@ -75,19 +73,13 @@ def _save_rule_if_requested(
         raise ValueError("project_folder is required when save_to_project=True")
 
     if not validation_result.is_valid:
-        raise RuleValidationError(
-            f"Cannot save invalid rule. Errors: {', '.join(validation_result.errors)}"
-        )
+        raise RuleValidationError(f"Cannot save invalid rule. Errors: {', '.join(validation_result.errors)}")
 
     with sentry_sdk.start_span(op="save_rule", name="Save rule to project"):
         return save_rule_to_project(rule, project_folder)
 
 
-def _format_rule_result(
-    rule: LintingRule,
-    validation_result: Any,
-    saved_path: Optional[str]
-) -> Dict[str, Any]:
+def _format_rule_result(rule: LintingRule, validation_result: Any, saved_path: Optional[str]) -> Dict[str, Any]:
     """Helper to format the rule creation result."""
     rule_dict = rule.to_yaml_dict()
     yaml_str = yaml.dump(rule_dict, default_flow_style=False, sort_keys=False)
@@ -101,15 +93,11 @@ def _format_rule_result(
             "pattern": rule.pattern,
             "note": rule.note,
             "fix": rule.fix,
-            "constraints": rule.constraints
+            "constraints": rule.constraints,
         },
-        "validation": {
-            "is_valid": validation_result.is_valid,
-            "errors": validation_result.errors,
-            "warnings": validation_result.warnings
-        },
+        "validation": {"is_valid": validation_result.is_valid, "errors": validation_result.errors, "warnings": validation_result.warnings},
         "saved_to": saved_path,
-        "yaml": yaml_str
+        "yaml": yaml_str,
     }
 
 
@@ -123,7 +111,7 @@ def create_linting_rule_tool(
     note: Optional[str] = None,
     save_to_project: bool = False,
     project_folder: Optional[str] = None,
-    use_template: Optional[str] = None
+    use_template: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Create a custom linting rule using ast-grep patterns.
@@ -165,16 +153,13 @@ def create_linting_rule_tool(
         language=language,
         severity=severity,
         use_template=use_template,
-        save_to_project=save_to_project
+        save_to_project=save_to_project,
     )
 
     try:
         with sentry_sdk.start_span(op="create_linting_rule", name="Create custom linting rule"):
             # Create rule using helper
-            rule = _create_rule_from_params(
-                rule_name, description, pattern, severity,
-                language, suggested_fix, note, use_template
-            )
+            rule = _create_rule_from_params(rule_name, description, pattern, severity, language, suggested_fix, note, use_template)
 
             if use_template:
                 logger.info("rule_created_from_template", template_id=use_template)
@@ -184,9 +169,7 @@ def create_linting_rule_tool(
                 validation_result = validate_rule_definition(rule)
 
             # Save if requested
-            saved_path = _save_rule_if_requested(
-                rule, save_to_project, project_folder, validation_result
-            )
+            saved_path = _save_rule_if_requested(rule, save_to_project, project_folder, validation_result)
 
             # Format result
             result = _format_rule_result(rule, validation_result, saved_path)
@@ -198,32 +181,27 @@ def create_linting_rule_tool(
                 execution_time_seconds=round(execution_time, 3),
                 rule_id=rule.id,
                 is_valid=validation_result.is_valid,
-                saved=saved_path is not None
+                saved=saved_path is not None,
             )
 
             return result
 
     except (RuleValidationError, RuleStorageError, ValueError) as e:
         execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="create_linting_rule",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200]
+        logger.error("tool_failed", tool="create_linting_rule", execution_time_seconds=round(execution_time, 3), error=str(e)[:200])
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "tool": "create_linting_rule",
+                "rule_name": rule_name,
+                "language": language,
+                "execution_time_seconds": round(execution_time, 3),
+            },
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "create_linting_rule",
-            "rule_name": rule_name,
-            "language": language,
-            "execution_time_seconds": round(execution_time, 3)
-        })
         raise
 
 
-def list_rule_templates_tool(
-    language: Optional[str] = None,
-    category: Optional[str] = None
-) -> Dict[str, Any]:
+def list_rule_templates_tool(language: Optional[str] = None, category: Optional[str] = None) -> Dict[str, Any]:
     """
     List available pre-built rule templates.
 
@@ -247,12 +225,7 @@ def list_rule_templates_tool(
     logger = get_logger("tool.list_rule_templates")
     start_time = time.time()
 
-    logger.info(
-        "tool_invoked",
-        tool="list_rule_templates",
-        language=language,
-        category=category
-    )
+    logger.info("tool_invoked", tool="list_rule_templates", language=language, category=category)
 
     try:
         with sentry_sdk.start_span(op="list_templates", name="Get rule templates"):
@@ -275,7 +248,7 @@ def list_rule_templates_tool(
                     "message": t.message,
                     "note": t.note,
                     "fix": t.fix,
-                    "category": t.category
+                    "category": t.category,
                 }
                 for t in templates
             ]
@@ -286,43 +259,44 @@ def list_rule_templates_tool(
                 tool="list_rule_templates",
                 execution_time_seconds=round(execution_time, 3),
                 total_templates=len(template_dicts),
-                filtered=bool(language or category)
+                filtered=bool(language or category),
             )
 
             return {
                 "total_templates": len(template_dicts),
                 "languages": all_languages,
                 "categories": all_categories,
-                "applied_filters": {
-                    "language": language,
-                    "category": category
-                },
-                "templates": template_dicts
+                "applied_filters": {"language": language, "category": category},
+                "templates": template_dicts,
             }
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="list_rule_templates",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200]
+        logger.error("tool_failed", tool="list_rule_templates", execution_time_seconds=round(execution_time, 3), error=str(e)[:200])
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "tool": "list_rule_templates",
+                "language": language,
+                "category": category,
+                "execution_time_seconds": round(execution_time, 3),
+            },
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "list_rule_templates",
-            "language": language,
-            "category": category,
-            "execution_time_seconds": round(execution_time, 3)
-        })
         raise
 
 
 def _get_default_exclude_patterns() -> List[str]:
     """Get default exclude patterns for file scanning."""
     return [
-        "**/node_modules/**", "**/__pycache__/**", "**/venv/**",
-        "**/.venv/**", "**/site-packages/**", "**/dist/**",
-        "**/build/**", "**/.git/**", "**/coverage/**"
+        "**/node_modules/**",
+        "**/__pycache__/**",
+        "**/venv/**",
+        "**/.venv/**",
+        "**/site-packages/**",
+        "**/dist/**",
+        "**/build/**",
+        "**/.git/**",
+        "**/coverage/**",
     ]
 
 
@@ -337,56 +311,40 @@ def _validate_enforcement_inputs(severity_threshold: str, output_format: str) ->
         ValueError: If parameters are invalid
     """
     if severity_threshold not in ["error", "warning", "info"]:
-        raise ValueError(
-            f"Invalid severity_threshold: {severity_threshold}. "
-            "Must be 'error', 'warning', or 'info'."
-        )
+        raise ValueError(f"Invalid severity_threshold: {severity_threshold}. Must be 'error', 'warning', or 'info'.")
 
     if output_format not in ["json", "text"]:
-        raise ValueError(
-            f"Invalid output_format: {output_format}. "
-            "Must be 'json' or 'text'."
-        )
+        raise ValueError(f"Invalid output_format: {output_format}. Must be 'json' or 'text'.")
 
 
-def _format_enforcement_output(
-    result: EnforcementResult,
-    output_format: str
-) -> Dict[str, Any]:
+def _format_enforcement_output(result: EnforcementResult, output_format: str) -> Dict[str, Any]:
     """Format enforcement result based on output format."""
     if output_format == "text":
-        return {
-            "summary": result.summary,
-            "report": format_violation_report(result)
-        }
+        return {"summary": result.summary, "report": format_violation_report(result)}
 
     # JSON format - return structured data
     violations_data = []
     for v in result.violations:
-        violations_data.append({
-            "file": v.file,
-            "line": v.line,
-            "column": v.column,
-            "end_line": v.end_line,
-            "end_column": v.end_column,
-            "severity": v.severity,
-            "rule_id": v.rule_id,
-            "message": v.message,
-            "code_snippet": v.code_snippet,
-            "fix_suggestion": v.fix_suggestion,
-            "meta_vars": v.meta_vars
-        })
+        violations_data.append(
+            {
+                "file": v.file,
+                "line": v.line,
+                "column": v.column,
+                "end_line": v.end_line,
+                "end_column": v.end_column,
+                "severity": v.severity,
+                "rule_id": v.rule_id,
+                "message": v.message,
+                "code_snippet": v.code_snippet,
+                "fix_suggestion": v.fix_suggestion,
+                "meta_vars": v.meta_vars,
+            }
+        )
 
     violations_by_file_data = {}
     for file, violations in result.violations_by_file.items():
         violations_by_file_data[file] = [
-            {
-                "line": v.line,
-                "severity": v.severity,
-                "rule_id": v.rule_id,
-                "message": v.message
-            }
-            for v in violations
+            {"line": v.line, "severity": v.severity, "rule_id": v.rule_id, "message": v.message} for v in violations
         ]
 
     return {
@@ -394,7 +352,7 @@ def _format_enforcement_output(
         "violations": violations_data,
         "violations_by_file": violations_by_file_data,
         "rules_executed": result.rules_executed,
-        "execution_time_ms": result.execution_time_ms
+        "execution_time_ms": result.execution_time_ms,
     }
 
 
@@ -408,7 +366,7 @@ def enforce_standards_tool(
     severity_threshold: str = "info",
     max_violations: int = 100,
     max_threads: int = 4,
-    output_format: str = "json"
+    output_format: str = "json",
 ) -> Dict[str, Any]:
     """
     Enforce coding standards by executing linting rules against a project.
@@ -462,7 +420,7 @@ def enforce_standards_tool(
         rule_set=rule_set,
         custom_rules_count=len(custom_rules),
         max_violations=max_violations,
-        max_threads=max_threads
+        max_threads=max_threads,
     )
 
     try:
@@ -479,7 +437,7 @@ def enforce_standards_tool(
             exclude_patterns=exclude_patterns,
             severity_threshold=severity_threshold,
             max_violations=max_violations,
-            max_threads=max_threads
+            max_threads=max_threads,
         )
 
         execution_time = time.time() - start_time
@@ -489,7 +447,7 @@ def enforce_standards_tool(
             tool="enforce_standards",
             execution_time_seconds=round(execution_time, 3),
             total_violations=result.summary["total_violations"],
-            files_scanned=result.files_scanned
+            files_scanned=result.files_scanned,
         )
 
         # Format output using helper
@@ -497,19 +455,17 @@ def enforce_standards_tool(
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="enforce_standards",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200]
+        logger.error("tool_failed", tool="enforce_standards", execution_time_seconds=round(execution_time, 3), error=str(e)[:200])
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "tool": "enforce_standards",
+                "project_folder": project_folder,
+                "language": language,
+                "rule_set": rule_set,
+                "execution_time_seconds": round(execution_time, 3),
+            },
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "enforce_standards",
-            "project_folder": project_folder,
-            "language": language,
-            "rule_set": rule_set,
-            "execution_time_seconds": round(execution_time, 3)
-        })
         raise
 
 
@@ -528,7 +484,7 @@ def _convert_violations_to_objects(violations: List[Dict[str, Any]]) -> List[Rul
             message=v_dict["message"],
             code_snippet=v_dict["code_snippet"],
             fix_suggestion=v_dict.get("fix_suggestion"),
-            meta_vars=v_dict.get("meta_vars")
+            meta_vars=v_dict.get("meta_vars"),
         )
         violation_objects.append(violation)
     return violation_objects
@@ -546,8 +502,8 @@ def _infer_project_folder(violations: List[Dict[str, Any]]) -> str:
     common_prefix = os.path.commonprefix(all_files)
     # Get the directory part
     if not os.path.isdir(common_prefix):
-        return os.path.dirname(common_prefix)
-    return common_prefix
+        return cast(str, os.path.dirname(common_prefix))
+    return cast(str, common_prefix)
 
 
 def _format_fix_results(result: Any, dry_run: bool) -> Dict[str, Any]:
@@ -560,7 +516,7 @@ def _format_fix_results(result: Any, dry_run: bool) -> Dict[str, Any]:
             "fixes_failed": result.fixes_failed,
             "files_modified": len(result.files_modified),
             "validation_passed": result.validation_passed,
-            "dry_run": dry_run
+            "dry_run": dry_run,
         },
         "backup_id": result.backup_id,
         "files_modified": result.files_modified,
@@ -575,20 +531,16 @@ def _format_fix_results(result: Any, dry_run: bool) -> Dict[str, Any]:
                 "fixed_code": r.fixed_code,
                 "syntax_valid": r.syntax_valid,
                 "error": r.error,
-                "fix_type": r.fix_type
+                "fix_type": r.fix_type,
             }
             for r in result.results
         ],
-        "execution_time_ms": result.execution_time_ms
+        "execution_time_ms": result.execution_time_ms,
     }
 
 
 def apply_standards_fixes_tool(
-    violations: List[Dict[str, Any]],
-    language: str,
-    fix_types: List[str] | None = None,
-    dry_run: bool = True,
-    create_backup: bool = True
+    violations: List[Dict[str, Any]], language: str, fix_types: List[str] | None = None, dry_run: bool = True, create_backup: bool = True
 ) -> Dict[str, Any]:
     """
     Automatically fix code quality violations detected by enforce_standards.
@@ -652,7 +604,7 @@ def apply_standards_fixes_tool(
         language=language,
         fix_types=fix_types,
         dry_run=dry_run,
-        create_backup=create_backup
+        create_backup=create_backup,
     )
 
     try:
@@ -669,7 +621,7 @@ def apply_standards_fixes_tool(
             project_folder=project_folder_inferred,
             fix_types=fix_types,
             dry_run=dry_run,
-            create_backup_flag=create_backup
+            create_backup_flag=create_backup,
         )
 
         execution_time = time.time() - start_time
@@ -682,7 +634,7 @@ def apply_standards_fixes_tool(
             fixes_attempted=result.fixes_attempted,
             fixes_successful=result.fixes_successful,
             fixes_failed=result.fixes_failed,
-            dry_run=dry_run
+            dry_run=dry_run,
         )
 
         # Format output using helper
@@ -690,19 +642,17 @@ def apply_standards_fixes_tool(
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="apply_standards_fixes",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200]
+        logger.error("tool_failed", tool="apply_standards_fixes", execution_time_seconds=round(execution_time, 3), error=str(e)[:200])
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "tool": "apply_standards_fixes",
+                "violations_count": len(violations),
+                "language": language,
+                "fix_types": fix_types,
+                "execution_time_seconds": round(execution_time, 3),
+            },
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "apply_standards_fixes",
-            "violations_count": len(violations),
-            "language": language,
-            "fix_types": fix_types,
-            "execution_time_seconds": round(execution_time, 3)
-        })
         raise
 
 
@@ -712,7 +662,7 @@ def generate_quality_report_tool(
     output_format: str = "markdown",
     include_violations: bool = True,
     include_code_snippets: bool = False,
-    save_to_file: Optional[str] = None
+    save_to_file: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Generate a comprehensive code quality report from enforcement results.
@@ -760,11 +710,7 @@ def generate_quality_report_tool(
     start_time = time.time()
 
     logger.info(
-        "tool_invoked",
-        tool="generate_quality_report",
-        project_name=project_name,
-        output_format=output_format,
-        save_to_file=save_to_file
+        "tool_invoked", tool="generate_quality_report", project_name=project_name, output_format=output_format, save_to_file=save_to_file
     )
 
     try:
@@ -778,7 +724,7 @@ def generate_quality_report_tool(
             output_format=output_format,
             include_violations=include_violations,
             include_code_snippets=include_code_snippets,
-            save_to_file=save_to_file
+            save_to_file=save_to_file,
         )
 
         execution_time = time.time() - start_time
@@ -788,25 +734,23 @@ def generate_quality_report_tool(
             tool="generate_quality_report",
             execution_time_seconds=round(execution_time, 3),
             output_format=output_format,
-            saved=save_to_file is not None
+            saved=save_to_file is not None,
         )
 
         return report
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="generate_quality_report",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200]
+        logger.error("tool_failed", tool="generate_quality_report", execution_time_seconds=round(execution_time, 3), error=str(e)[:200])
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "tool": "generate_quality_report",
+                "project_name": project_name,
+                "output_format": output_format,
+                "execution_time_seconds": round(execution_time, 3),
+            },
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "generate_quality_report",
-            "project_name": project_name,
-            "output_format": output_format,
-            "execution_time_seconds": round(execution_time, 3)
-        })
         raise
 
 
@@ -833,7 +777,7 @@ def _dict_to_enforcement_result(data: Dict[str, Any]) -> EnforcementResult:
             message=v_dict["message"],
             code_snippet=v_dict.get("code_snippet", ""),
             fix_suggestion=v_dict.get("fix_suggestion"),
-            meta_vars=v_dict.get("meta_vars")
+            meta_vars=v_dict.get("meta_vars"),
         )
         violations.append(violation)
 
@@ -866,7 +810,7 @@ def _dict_to_enforcement_result(data: Dict[str, Any]) -> EnforcementResult:
         violations_by_rule=violations_by_rule,
         rules_executed=data.get("rules_executed", []),
         execution_time_ms=data.get("execution_time_ms", 0),
-        files_scanned=data.get("summary", {}).get("files_scanned", 0)
+        files_scanned=data.get("summary", {}).get("files_scanned", 0),
     )
 
 
@@ -887,7 +831,7 @@ def _format_security_issues(issues: List[SecurityIssue]) -> List[Dict[str, Any]]
             "remediation": issue.remediation,
             "cwe_id": issue.cwe_id,
             "confidence": issue.confidence,
-            "references": issue.references
+            "references": issue.references,
         }
         for issue in issues
     ]
@@ -898,24 +842,14 @@ def _format_issues_by_severity(result: Any) -> Dict[str, List[Dict[str, Any]]]:
     formatted = {}
     for severity, issues in result.issues_by_severity.items():
         formatted[severity] = [
-            {
-                "file": issue.file,
-                "line": issue.line,
-                "title": issue.title,
-                "issue_type": issue.issue_type,
-                "cwe_id": issue.cwe_id
-            }
+            {"file": issue.file, "line": issue.line, "title": issue.title, "issue_type": issue.issue_type, "cwe_id": issue.cwe_id}
             for issue in issues
         ]
     return formatted
 
 
 def detect_security_issues_tool(
-    project_folder: str,
-    language: str,
-    issue_types: List[str] | None = None,
-    severity_threshold: str = "low",
-    max_issues: int = 100
+    project_folder: str, language: str, issue_types: List[str] | None = None, severity_threshold: str = "low", max_issues: int = 100
 ) -> Dict[str, Any]:
     """
     Scan code for security vulnerabilities and common weaknesses.
@@ -987,7 +921,7 @@ def detect_security_issues_tool(
         language=language,
         issue_types=issue_types,
         severity_threshold=severity_threshold,
-        max_issues=max_issues
+        max_issues=max_issues,
     )
 
     try:
@@ -997,7 +931,7 @@ def detect_security_issues_tool(
             language=language,
             issue_types=issue_types,
             severity_threshold=severity_threshold,
-            max_issues=max_issues
+            max_issues=max_issues,
         )
 
         execution_time = time.time() - start_time
@@ -1009,7 +943,7 @@ def detect_security_issues_tool(
             total_issues=result.summary["total_issues"],
             critical_count=result.summary["critical_count"],
             high_count=result.summary["high_count"],
-            files_scanned=result.files_scanned
+            files_scanned=result.files_scanned,
         )
 
         # Convert to JSON-serializable format using helpers
@@ -1017,127 +951,97 @@ def detect_security_issues_tool(
             "summary": result.summary,
             "issues": _format_security_issues(result.issues),
             "issues_by_severity": _format_issues_by_severity(result),
-            "issues_by_type": {
-                issue_type: len(issues)
-                for issue_type, issues in result.issues_by_type.items()
-            },
+            "issues_by_type": {issue_type: len(issues) for issue_type, issues in result.issues_by_type.items()},
             "files_scanned": result.files_scanned,
-            "execution_time_ms": result.execution_time_ms
+            "execution_time_ms": result.execution_time_ms,
         }
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="detect_security_issues",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200]
+        logger.error("tool_failed", tool="detect_security_issues", execution_time_seconds=round(execution_time, 3), error=str(e)[:200])
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "tool": "detect_security_issues",
+                "project_folder": project_folder,
+                "language": language,
+                "issue_types": issue_types,
+                "execution_time_seconds": round(execution_time, 3),
+            },
         )
-        sentry_sdk.capture_exception(e, extras={
-            "tool": "detect_security_issues",
-            "project_folder": project_folder,
-            "language": language,
-            "issue_types": issue_types,
-            "execution_time_seconds": round(execution_time, 3)
-        })
         raise
 
 
-def _create_mcp_field_definitions():
+def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
     """Create field definitions for MCP tool registration."""
     return {
-        'create_linting_rule': {
-            'rule_name': Field(description="Unique rule identifier (e.g., 'no-console-log')"),
-            'description': Field(description="Human-readable description of what the rule checks"),
-            'pattern': Field(description="ast-grep pattern to match (e.g., 'console.log($$$)')"),
-            'severity': Field(description="Severity level: 'error', 'warning', or 'info'"),
-            'language': Field(description="Target language (python, typescript, javascript, java, etc.)"),
-            'suggested_fix': Field(default=None, description="Optional replacement pattern or fix suggestion"),
-            'note': Field(default=None, description="Additional note or explanation"),
-            'save_to_project': Field(default=False, description="If True, save rule to project's .ast-grep-rules/"),
-            'project_folder': Field(default=None, description="Project folder (required if save_to_project=True)"),
-            'use_template': Field(default=None, description="Optional template ID to use as base")
+        "create_linting_rule": {
+            "rule_name": Field(description="Unique rule identifier (e.g., 'no-console-log')"),
+            "description": Field(description="Human-readable description of what the rule checks"),
+            "pattern": Field(description="ast-grep pattern to match (e.g., 'console.log($$$)')"),
+            "severity": Field(description="Severity level: 'error', 'warning', or 'info'"),
+            "language": Field(description="Target language (python, typescript, javascript, java, etc.)"),
+            "suggested_fix": Field(default=None, description="Optional replacement pattern or fix suggestion"),
+            "note": Field(default=None, description="Additional note or explanation"),
+            "save_to_project": Field(default=False, description="If True, save rule to project's .ast-grep-rules/"),
+            "project_folder": Field(default=None, description="Project folder (required if save_to_project=True)"),
+            "use_template": Field(default=None, description="Optional template ID to use as base"),
         },
-        'list_rule_templates': {
-            'language': Field(default=None, description="Filter by language (python, typescript, javascript, java, etc.)"),
-            'category': Field(default=None, description="Filter by category (general, security, performance, style)")
+        "list_rule_templates": {
+            "language": Field(default=None, description="Filter by language (python, typescript, javascript, java, etc.)"),
+            "category": Field(default=None, description="Filter by category (general, security, performance, style)"),
         },
-        'enforce_standards': {
-            'project_folder': Field(description="The absolute path to the project folder to scan"),
-            'language': Field(description="The programming language (python, typescript, javascript, java)"),
-            'rule_set': Field(
-                default="recommended",
-                description="Rule set to use: 'recommended', 'security', 'performance', 'style', 'custom', 'all'"
+        "enforce_standards": {
+            "project_folder": Field(description="The absolute path to the project folder to scan"),
+            "language": Field(description="The programming language (python, typescript, javascript, java)"),
+            "rule_set": Field(
+                default="recommended", description="Rule set to use: 'recommended', 'security', 'performance', 'style', 'custom', 'all'"
             ),
-            'custom_rules': Field(
-                default_factory=list,
-                description="List of custom rule IDs from .ast-grep-rules/ (used with rule_set='custom')"
+            "custom_rules": Field(
+                default_factory=list, description="List of custom rule IDs from .ast-grep-rules/ (used with rule_set='custom')"
             ),
-            'include_patterns': Field(
-                default_factory=lambda: ["**/*"],
-                description="Glob patterns for files to include (e.g., ['src/**/*.py'])"
+            "include_patterns": Field(
+                default_factory=lambda: ["**/*"], description="Glob patterns for files to include (e.g., ['src/**/*.py'])"
             ),
-            'exclude_patterns': Field(
-                default_factory=_get_default_exclude_patterns,
-                description="Glob patterns for files to exclude"
+            "exclude_patterns": Field(default_factory=_get_default_exclude_patterns, description="Glob patterns for files to exclude"),
+            "severity_threshold": Field(default="info", description="Only report violations >= this severity ('error', 'warning', 'info')"),
+            "max_violations": Field(
+                default=100, description="Maximum violations to find (0 = unlimited). Stops execution early when reached."
             ),
-            'severity_threshold': Field(
-                default="info",
-                description="Only report violations >= this severity ('error', 'warning', 'info')"
-            ),
-            'max_violations': Field(
-                default=100,
-                description="Maximum violations to find (0 = unlimited). Stops execution early when reached."
-            ),
-            'max_threads': Field(
-                default=4,
-                description="Number of parallel threads for rule execution (default: 4)"
-            ),
-            'output_format': Field(
-                default="json",
-                description="Output format: 'json' (structured data) or 'text' (human-readable report)"
-            )
+            "max_threads": Field(default=4, description="Number of parallel threads for rule execution (default: 4)"),
+            "output_format": Field(default="json", description="Output format: 'json' (structured data) or 'text' (human-readable report)"),
         },
-        'apply_standards_fixes': {
-            'violations': Field(description="List of violations from enforce_standards to fix"),
-            'language': Field(description="Programming language for syntax validation"),
-            'fix_types': Field(
+        "apply_standards_fixes": {
+            "violations": Field(description="List of violations from enforce_standards to fix"),
+            "language": Field(description="Programming language for syntax validation"),
+            "fix_types": Field(
                 default_factory=lambda: ["safe"],
-                description="Types of fixes to apply: 'safe' (guaranteed-safe), 'suggested' (may need review), 'all'"
+                description="Types of fixes to apply: 'safe' (guaranteed-safe), 'suggested' (may need review), 'all'",
             ),
-            'dry_run': Field(
-                default=True,
-                description="If True, preview fixes without applying them"
-            ),
-            'create_backup': Field(
-                default=True,
-                description="If True, create backup before applying fixes"
-            )
+            "dry_run": Field(default=True, description="If True, preview fixes without applying them"),
+            "create_backup": Field(default=True, description="If True, create backup before applying fixes"),
         },
-        'generate_quality_report': {
-            'enforcement_result': Field(description="Result dictionary from enforce_standards tool"),
-            'project_name': Field(default="Project", description="Name of the project for report header"),
-            'output_format': Field(default="markdown", description="Report format ('markdown' or 'json')"),
-            'include_violations': Field(default=True, description="Whether to include detailed violation listings"),
-            'include_code_snippets': Field(default=False, description="Whether to include code snippets (JSON only)"),
-            'save_to_file': Field(default=None, description="Optional file path to save the report")
+        "generate_quality_report": {
+            "enforcement_result": Field(description="Result dictionary from enforce_standards tool"),
+            "project_name": Field(default="Project", description="Name of the project for report header"),
+            "output_format": Field(default="markdown", description="Report format ('markdown' or 'json')"),
+            "include_violations": Field(default=True, description="Whether to include detailed violation listings"),
+            "include_code_snippets": Field(default=False, description="Whether to include code snippets (JSON only)"),
+            "save_to_file": Field(default=None, description="Optional file path to save the report"),
         },
-        'detect_security_issues': {
-            'project_folder': Field(description="Absolute path to project root directory"),
-            'language': Field(description="Programming language (python, javascript, typescript, java)"),
-            'issue_types': Field(
+        "detect_security_issues": {
+            "project_folder": Field(description="Absolute path to project root directory"),
+            "language": Field(description="Programming language (python, javascript, typescript, java)"),
+            "issue_types": Field(
                 default=None,
-                description="Types to scan for: 'sql_injection', 'xss', 'command_injection', 'hardcoded_secrets', 'insecure_crypto', or None for all"
+                description=(
+                    "Types: 'sql_injection', 'xss', 'command_injection', "
+                    "'hardcoded_secrets', 'insecure_crypto', or None for all"
+                ),
             ),
-            'severity_threshold': Field(
-                default="low",
-                description="Minimum severity to report: 'critical', 'high', 'medium', 'low'"
-            ),
-            'max_issues': Field(
-                default=100,
-                description="Maximum number of issues to return (0 = unlimited)"
-            )
-        }
+            "severity_threshold": Field(default="low", description="Minimum severity to report: 'critical', 'high', 'medium', 'low'"),
+            "max_issues": Field(default=100, description="Maximum number of issues to return (0 = unlimited)"),
+        },
     }
 
 
@@ -1155,16 +1059,16 @@ def register_quality_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def create_linting_rule(
-        rule_name: str = fields['create_linting_rule']['rule_name'],
-        description: str = fields['create_linting_rule']['description'],
-        pattern: str = fields['create_linting_rule']['pattern'],
-        severity: str = fields['create_linting_rule']['severity'],
-        language: str = fields['create_linting_rule']['language'],
-        suggested_fix: Optional[str] = fields['create_linting_rule']['suggested_fix'],
-        note: Optional[str] = fields['create_linting_rule']['note'],
-        save_to_project: bool = fields['create_linting_rule']['save_to_project'],
-        project_folder: Optional[str] = fields['create_linting_rule']['project_folder'],
-        use_template: Optional[str] = fields['create_linting_rule']['use_template']
+        rule_name: str = fields["create_linting_rule"]["rule_name"],
+        description: str = fields["create_linting_rule"]["description"],
+        pattern: str = fields["create_linting_rule"]["pattern"],
+        severity: str = fields["create_linting_rule"]["severity"],
+        language: str = fields["create_linting_rule"]["language"],
+        suggested_fix: Optional[str] = fields["create_linting_rule"]["suggested_fix"],
+        note: Optional[str] = fields["create_linting_rule"]["note"],
+        save_to_project: bool = fields["create_linting_rule"]["save_to_project"],
+        project_folder: Optional[str] = fields["create_linting_rule"]["project_folder"],
+        use_template: Optional[str] = fields["create_linting_rule"]["use_template"],
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone create_linting_rule_tool function."""
         return create_linting_rule_tool(
@@ -1177,29 +1081,29 @@ def register_quality_tools(mcp: FastMCP) -> None:
             note=note,
             save_to_project=save_to_project,
             project_folder=project_folder,
-            use_template=use_template
+            use_template=use_template,
         )
 
     @mcp.tool()
     def list_rule_templates(
-        language: Optional[str] = fields['list_rule_templates']['language'],
-        category: Optional[str] = fields['list_rule_templates']['category']
+        language: Optional[str] = fields["list_rule_templates"]["language"],
+        category: Optional[str] = fields["list_rule_templates"]["category"],
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone list_rule_templates_tool function."""
         return list_rule_templates_tool(language=language, category=category)
 
     @mcp.tool()
     def enforce_standards(
-        project_folder: str = fields['enforce_standards']['project_folder'],
-        language: str = fields['enforce_standards']['language'],
-        rule_set: str = fields['enforce_standards']['rule_set'],
-        custom_rules: List[str] = fields['enforce_standards']['custom_rules'],
-        include_patterns: List[str] = fields['enforce_standards']['include_patterns'],
-        exclude_patterns: List[str] = fields['enforce_standards']['exclude_patterns'],
-        severity_threshold: str = fields['enforce_standards']['severity_threshold'],
-        max_violations: int = fields['enforce_standards']['max_violations'],
-        max_threads: int = fields['enforce_standards']['max_threads'],
-        output_format: str = fields['enforce_standards']['output_format']
+        project_folder: str = fields["enforce_standards"]["project_folder"],
+        language: str = fields["enforce_standards"]["language"],
+        rule_set: str = fields["enforce_standards"]["rule_set"],
+        custom_rules: List[str] = fields["enforce_standards"]["custom_rules"],
+        include_patterns: List[str] = fields["enforce_standards"]["include_patterns"],
+        exclude_patterns: List[str] = fields["enforce_standards"]["exclude_patterns"],
+        severity_threshold: str = fields["enforce_standards"]["severity_threshold"],
+        max_violations: int = fields["enforce_standards"]["max_violations"],
+        max_threads: int = fields["enforce_standards"]["max_threads"],
+        output_format: str = fields["enforce_standards"]["output_format"],
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone enforce_standards_tool function."""
         return enforce_standards_tool(
@@ -1212,34 +1116,30 @@ def register_quality_tools(mcp: FastMCP) -> None:
             severity_threshold=severity_threshold,
             max_violations=max_violations,
             max_threads=max_threads,
-            output_format=output_format
+            output_format=output_format,
         )
 
     @mcp.tool()
     def apply_standards_fixes(
-        violations: List[Dict[str, Any]] = fields['apply_standards_fixes']['violations'],
-        language: str = fields['apply_standards_fixes']['language'],
-        fix_types: List[str] = fields['apply_standards_fixes']['fix_types'],
-        dry_run: bool = fields['apply_standards_fixes']['dry_run'],
-        create_backup: bool = fields['apply_standards_fixes']['create_backup']
+        violations: List[Dict[str, Any]] = fields["apply_standards_fixes"]["violations"],
+        language: str = fields["apply_standards_fixes"]["language"],
+        fix_types: List[str] = fields["apply_standards_fixes"]["fix_types"],
+        dry_run: bool = fields["apply_standards_fixes"]["dry_run"],
+        create_backup: bool = fields["apply_standards_fixes"]["create_backup"],
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone apply_standards_fixes_tool function."""
         return apply_standards_fixes_tool(
-            violations=violations,
-            language=language,
-            fix_types=fix_types,
-            dry_run=dry_run,
-            create_backup=create_backup
+            violations=violations, language=language, fix_types=fix_types, dry_run=dry_run, create_backup=create_backup
         )
 
     @mcp.tool()
     def generate_quality_report(
-        enforcement_result: Dict[str, Any] = fields['generate_quality_report']['enforcement_result'],
-        project_name: str = fields['generate_quality_report']['project_name'],
-        output_format: str = fields['generate_quality_report']['output_format'],
-        include_violations: bool = fields['generate_quality_report']['include_violations'],
-        include_code_snippets: bool = fields['generate_quality_report']['include_code_snippets'],
-        save_to_file: Optional[str] = fields['generate_quality_report']['save_to_file']
+        enforcement_result: Dict[str, Any] = fields["generate_quality_report"]["enforcement_result"],
+        project_name: str = fields["generate_quality_report"]["project_name"],
+        output_format: str = fields["generate_quality_report"]["output_format"],
+        include_violations: bool = fields["generate_quality_report"]["include_violations"],
+        include_code_snippets: bool = fields["generate_quality_report"]["include_code_snippets"],
+        save_to_file: Optional[str] = fields["generate_quality_report"]["save_to_file"],
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone generate_quality_report_tool function."""
         return generate_quality_report_tool(
@@ -1248,16 +1148,16 @@ def register_quality_tools(mcp: FastMCP) -> None:
             output_format=output_format,
             include_violations=include_violations,
             include_code_snippets=include_code_snippets,
-            save_to_file=save_to_file
+            save_to_file=save_to_file,
         )
 
     @mcp.tool()
     def detect_security_issues(
-        project_folder: str = fields['detect_security_issues']['project_folder'],
-        language: str = fields['detect_security_issues']['language'],
-        issue_types: List[str] | None = fields['detect_security_issues']['issue_types'],
-        severity_threshold: str = fields['detect_security_issues']['severity_threshold'],
-        max_issues: int = fields['detect_security_issues']['max_issues']
+        project_folder: str = fields["detect_security_issues"]["project_folder"],
+        language: str = fields["detect_security_issues"]["language"],
+        issue_types: List[str] | None = fields["detect_security_issues"]["issue_types"],
+        severity_threshold: str = fields["detect_security_issues"]["severity_threshold"],
+        max_issues: int = fields["detect_security_issues"]["max_issues"],
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone detect_security_issues_tool function."""
         return detect_security_issues_tool(
@@ -1265,5 +1165,5 @@ def register_quality_tools(mcp: FastMCP) -> None:
             language=language,
             issue_types=issue_types,
             severity_threshold=severity_threshold,
-            max_issues=max_issues
+            max_issues=max_issues,
         )

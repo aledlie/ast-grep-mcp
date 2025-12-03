@@ -1,4 +1,5 @@
 """Command execution and ast-grep interface for ast-grep MCP server."""
+
 import json
 import os
 import subprocess
@@ -21,20 +22,42 @@ from ast_grep_mcp.core.logging import get_logger
 def get_supported_languages() -> List[str]:
     """Get all supported languages as a field description string."""
     languages = [  # https://ast-grep.github.io/reference/languages.html
-        "bash", "c", "cpp", "csharp", "css", "elixir", "go", "haskell",
-        "html", "java", "javascript", "json", "jsx", "kotlin", "lua",
-        "nix", "php", "python", "ruby", "rust", "scala", "solidity",
-        "swift", "tsx", "typescript", "yaml"
+        "bash",
+        "c",
+        "cpp",
+        "csharp",
+        "css",
+        "elixir",
+        "go",
+        "haskell",
+        "html",
+        "java",
+        "javascript",
+        "json",
+        "jsx",
+        "kotlin",
+        "lua",
+        "nix",
+        "php",
+        "python",
+        "ruby",
+        "rust",
+        "scala",
+        "solidity",
+        "swift",
+        "tsx",
+        "typescript",
+        "yaml",
     ]
 
     # Check for custom languages in config file
     # https://ast-grep.github.io/advanced/custom-language.html#register-language-in-sgconfig-yml
     if CONFIG_PATH and os.path.exists(CONFIG_PATH):
         try:
-            with open(CONFIG_PATH, 'r') as f:
+            with open(CONFIG_PATH, "r") as f:
                 config = yaml.safe_load(f)
-                if config and 'customLanguages' in config:
-                    custom_langs = list(config['customLanguages'].keys())
+                if config and "customLanguages" in config:
+                    custom_langs = list(config["customLanguages"].keys())
                     languages += custom_langs
         except Exception:
             pass
@@ -63,17 +86,12 @@ def run_command(args: List[str], input_text: Optional[str] = None) -> subprocess
     sanitized_args = args.copy()
     has_stdin = input_text is not None
 
-    logger.info(
-        "executing_command",
-        command=sanitized_args[0],
-        args=sanitized_args[1:],
-        has_stdin=has_stdin
-    )
+    logger.info("executing_command", command=sanitized_args[0], args=sanitized_args[1:], has_stdin=has_stdin)
 
     try:
         # On Windows, if ast-grep is installed via npm, it's a batch file
         # that requires shell=True to execute properly
-        use_shell = (sys.platform == "win32" and args[0] == "ast-grep")
+        use_shell = sys.platform == "win32" and args[0] == "ast-grep"
 
         with sentry_sdk.start_span(op="subprocess.run", name=f"Running {args[0]}") as span:
             span.set_data("command", sanitized_args[0])
@@ -85,17 +103,14 @@ def run_command(args: List[str], input_text: Optional[str] = None) -> subprocess
                 input=input_text,
                 text=True,
                 check=True,  # Raises CalledProcessError if return code is non-zero
-                shell=use_shell
+                shell=use_shell,
             )
 
             span.set_data("returncode", result.returncode)
 
         execution_time = time.time() - start_time
         logger.info(
-            "command_completed",
-            command=sanitized_args[0],
-            execution_time_seconds=round(execution_time, 3),
-            returncode=result.returncode
+            "command_completed", command=sanitized_args[0], execution_time_seconds=round(execution_time, 3), returncode=result.returncode
         )
 
         return result
@@ -108,30 +123,25 @@ def run_command(args: List[str], input_text: Optional[str] = None) -> subprocess
             command=sanitized_args[0],
             execution_time_seconds=round(execution_time, 3),
             returncode=e.returncode,
-            stderr=stderr_msg[:200]  # Truncate stderr in logs
+            stderr=stderr_msg[:200],  # Truncate stderr in logs
         )
 
-        error = AstGrepExecutionError(
-            command=args,
-            returncode=e.returncode,
-            stderr=stderr_msg
+        error = AstGrepExecutionError(command=args, returncode=e.returncode, stderr=stderr_msg)
+        sentry_sdk.capture_exception(
+            error,
+            extras={
+                "command": " ".join(args),
+                "returncode": e.returncode,
+                "stderr": stderr_msg[:500],
+                "execution_time_seconds": round(execution_time, 3),
+                "has_stdin": has_stdin,
+            },
         )
-        sentry_sdk.capture_exception(error, extras={
-            "command": " ".join(args),
-            "returncode": e.returncode,
-            "stderr": stderr_msg[:500],
-            "execution_time_seconds": round(execution_time, 3),
-            "has_stdin": has_stdin
-        })
         raise error from e
     except FileNotFoundError as e:
         execution_time = time.time() - start_time
 
-        logger.error(
-            "command_not_found",
-            command=args[0],
-            execution_time_seconds=round(execution_time, 3)
-        )
+        logger.error("command_not_found", command=args[0], execution_time_seconds=round(execution_time, 3))
 
         if args[0] == "ast-grep":
             not_found_error = AstGrepNotFoundError()
@@ -152,18 +162,18 @@ def _get_language_extensions(language: str) -> Optional[List[str]]:
         List of extensions or None if language not found
     """
     lang_map = {
-        'python': ['.py', '.pyi'],
-        'javascript': ['.js', '.jsx', '.mjs'],
-        'typescript': ['.ts', '.tsx'],
-        'java': ['.java'],
-        'rust': ['.rs'],
-        'go': ['.go'],
-        'c': ['.c', '.h'],
-        'cpp': ['.cpp', '.hpp', '.cc', '.cxx', '.h'],
-        'ruby': ['.rb'],
-        'php': ['.php'],
-        'swift': ['.swift'],
-        'kotlin': ['.kt', '.kts'],
+        "python": [".py", ".pyi"],
+        "javascript": [".js", ".jsx", ".mjs"],
+        "typescript": [".ts", ".tsx"],
+        "java": [".java"],
+        "rust": [".rs"],
+        "go": [".go"],
+        "c": [".c", ".h"],
+        "cpp": [".cpp", ".hpp", ".cc", ".cxx", ".h"],
+        "ruby": [".rb"],
+        "php": [".php"],
+        "swift": [".swift"],
+        "kotlin": [".kt", ".kts"],
     }
     return lang_map.get(language.lower())
 
@@ -177,17 +187,13 @@ def _should_skip_directory(dirname: str) -> bool:
     Returns:
         True if should skip, False otherwise
     """
-    if dirname.startswith('.'):
+    if dirname.startswith("."):
         return True
-    return dirname in ['node_modules', 'venv', '.venv', 'build', 'dist']
+    return dirname in ["node_modules", "venv", ".venv", "build", "dist"]
 
 
 def _process_file(
-    file: str,
-    root: str,
-    lang_extensions: Optional[List[str]],
-    max_size_bytes: int,
-    logger: Any
+    file: str, root: str, lang_extensions: Optional[List[str]], max_size_bytes: int, logger: Any
 ) -> Tuple[Optional[str], Optional[str]]:
     """Process a single file for size filtering.
 
@@ -202,7 +208,7 @@ def _process_file(
         Tuple of (file_to_search, skipped_file) - only one will be non-None
     """
     # Skip hidden files
-    if file.startswith('.'):
+    if file.startswith("."):
         return (None, None)
 
     # Check language filter
@@ -219,7 +225,7 @@ def _process_file(
                 "file_skipped_size",
                 file=file_path,
                 size_mb=round(file_size / FileConstants.BYTES_PER_MB, 2),
-                max_size_mb=max_size_bytes / FileConstants.BYTES_PER_MB
+                max_size_mb=max_size_bytes / FileConstants.BYTES_PER_MB,
             )
             return (None, file_path)
 
@@ -230,11 +236,7 @@ def _process_file(
         return (None, None)
 
 
-def filter_files_by_size(
-    directory: str,
-    max_size_mb: Optional[int] = None,
-    language: Optional[str] = None
-) -> Tuple[List[str], List[str]]:
+def filter_files_by_size(directory: str, max_size_mb: Optional[int] = None, language: Optional[str] = None) -> Tuple[List[str], List[str]]:
     """Filter files in directory by size.
 
     Args:
@@ -266,9 +268,7 @@ def filter_files_by_size(
         dirs[:] = [d for d in dirs if not _should_skip_directory(d)]
 
         for file in files:
-            file_to_search, skipped_file = _process_file(
-                file, root, lang_extensions, max_size_bytes, logger
-            )
+            file_to_search, skipped_file = _process_file(file, root, lang_extensions, max_size_bytes, logger)
 
             if file_to_search:
                 files_to_search.append(file_to_search)
@@ -281,7 +281,7 @@ def filter_files_by_size(
             total_files=len(files_to_search) + len(skipped_files),
             files_to_search=len(files_to_search),
             skipped_files=len(skipped_files),
-            max_size_mb=max_size_mb
+            max_size_mb=max_size_mb,
         )
 
     return (files_to_search, skipped_files)
@@ -332,13 +332,7 @@ def _create_stream_process(full_command: List[str]) -> subprocess.Popen[str]:
         FileNotFoundError: If command not found
     """
     use_shell = sys.platform == "win32" and full_command[0] == "ast-grep"
-    return subprocess.Popen(
-        full_command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        shell=use_shell
-    )
+    return subprocess.Popen(full_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=use_shell)
 
 
 def _parse_json_line(line: str, logger: Any) -> Optional[Dict[str, Any]]:
@@ -358,26 +352,18 @@ def _parse_json_line(line: str, logger: Any) -> Optional[Dict[str, Any]]:
     try:
         return cast(Dict[str, Any], json.loads(line))
     except json.JSONDecodeError as e:
-        logger.warning(
-            "stream_json_parse_error",
-            line_preview=line[:FileConstants.LINE_PREVIEW_LENGTH],
-            error=str(e)
-        )
+        logger.warning("stream_json_parse_error", line_preview=line[: FileConstants.LINE_PREVIEW_LENGTH], error=str(e))
         sentry_sdk.capture_exception(e)
         sentry_sdk.add_breadcrumb(
             message="JSON parse error in ast-grep stream",
             category="ast-grep.stream",
             level="warning",
-            data={"line_preview": line[:FileConstants.LINE_PREVIEW_LENGTH]}
+            data={"line_preview": line[: FileConstants.LINE_PREVIEW_LENGTH]},
         )
         return None
 
 
-def _should_log_progress(
-    match_count: int,
-    last_progress_log: int,
-    progress_interval: int
-) -> bool:
+def _should_log_progress(match_count: int, last_progress_log: int, progress_interval: int) -> bool:
     """Check if progress should be logged.
 
     Args:
@@ -411,12 +397,7 @@ def _terminate_process(process: subprocess.Popen[str], logger: Any, reason: str)
 
 
 def _handle_stream_error(
-    returncode: int,
-    process: subprocess.Popen[str],
-    full_command: List[str],
-    start_time: float,
-    match_count: int,
-    logger: Any
+    returncode: int, process: subprocess.Popen[str], full_command: List[str], start_time: float, match_count: int, logger: Any
 ) -> None:
     """Handle non-zero return codes from the process.
 
@@ -438,25 +419,19 @@ def _handle_stream_error(
     stderr_output = process.stderr.read() if process.stderr else ""
     execution_time = time.time() - start_time
 
-    logger.error(
-        "stream_failed",
-        returncode=returncode,
-        stderr=stderr_output[:200],
-        execution_time_seconds=round(execution_time, 3)
-    )
+    logger.error("stream_failed", returncode=returncode, stderr=stderr_output[:200], execution_time_seconds=round(execution_time, 3))
 
-    error = AstGrepExecutionError(
-        command=full_command,
-        returncode=returncode,
-        stderr=stderr_output
+    error = AstGrepExecutionError(command=full_command, returncode=returncode, stderr=stderr_output)
+    sentry_sdk.capture_exception(
+        error,
+        extras={
+            "command": " ".join(full_command),
+            "returncode": returncode,
+            "stderr": stderr_output[:500],
+            "execution_time_seconds": round(execution_time, 3),
+            "match_count": match_count,
+        },
     )
-    sentry_sdk.capture_exception(error, extras={
-        "command": " ".join(full_command),
-        "returncode": returncode,
-        "stderr": stderr_output[:500],
-        "execution_time_seconds": round(execution_time, 3),
-        "match_count": match_count
-    })
     raise error
 
 
@@ -478,10 +453,7 @@ def _cleanup_process(process: Optional[subprocess.Popen[str]]) -> None:
 
 
 def stream_ast_grep_results(
-    command: str,
-    args: List[str],
-    max_results: int = 0,
-    progress_interval: int = StreamDefaults.PROGRESS_INTERVAL
+    command: str, args: List[str], max_results: int = 0, progress_interval: int = StreamDefaults.PROGRESS_INTERVAL
 ) -> Generator[Dict[str, Any], None, None]:
     """Stream ast-grep JSON results line-by-line with early termination support.
 
@@ -510,12 +482,7 @@ def stream_ast_grep_results(
     # Prepare command
     full_command = _prepare_stream_command(command, args)
 
-    logger.info(
-        "stream_started",
-        command=command,
-        max_results=max_results,
-        progress_interval=progress_interval
-    )
+    logger.info("stream_started", command=command, max_results=max_results, progress_interval=progress_interval)
 
     process = None
     match_count = 0
@@ -537,22 +504,14 @@ def stream_ast_grep_results(
 
                 # Log progress if needed
                 if _should_log_progress(match_count, last_progress_log, progress_interval):
-                    logger.info(
-                        "stream_progress",
-                        matches_found=match_count,
-                        execution_time_seconds=round(time.time() - start_time, 3)
-                    )
+                    logger.info("stream_progress", matches_found=match_count, execution_time_seconds=round(time.time() - start_time, 3))
                     last_progress_log = match_count
 
                 yield match
 
                 # Check for early termination
                 if max_results > 0 and match_count >= max_results:
-                    logger.info(
-                        "stream_early_termination",
-                        matches_found=match_count,
-                        max_results=max_results
-                    )
+                    logger.info("stream_early_termination", matches_found=match_count, max_results=max_results)
                     _terminate_process(process, logger, "early_termination")
                     break
 
@@ -560,10 +519,7 @@ def stream_ast_grep_results(
         returncode = process.wait()
 
         # Handle any errors
-        _handle_stream_error(
-            returncode, process, full_command,
-            start_time, match_count, logger
-        )
+        _handle_stream_error(returncode, process, full_command, start_time, match_count, logger)
 
         # Log completion
         execution_time = time.time() - start_time
@@ -571,7 +527,7 @@ def stream_ast_grep_results(
             "stream_completed",
             total_matches=match_count,
             execution_time_seconds=round(execution_time, 3),
-            early_terminated=max_results > 0 and match_count >= max_results
+            early_terminated=max_results > 0 and match_count >= max_results,
         )
 
     except FileNotFoundError as e:

@@ -20,11 +20,7 @@ from ast_grep_mcp.models.base import DumpFormat
 from ast_grep_mcp.utils.formatters import format_matches_as_text
 
 
-def dump_syntax_tree_impl(
-    code: str,
-    language: str,
-    format: DumpFormat = "cst"
-) -> str:
+def dump_syntax_tree_impl(code: str, language: str, format: DumpFormat = "cst") -> str:
     """
     Implementation of dump_syntax_tree.
 
@@ -45,12 +41,7 @@ def dump_syntax_tree_impl(
     logger = get_logger("search.dump_syntax_tree")
     start_time = time.time()
 
-    logger.info(
-        "dump_syntax_tree_started",
-        language=language,
-        format=format,
-        code_length=len(code)
-    )
+    logger.info("dump_syntax_tree_started", language=language, format=format, code_length=len(code))
 
     try:
         result = run_ast_grep("run", ["--pattern", code, "--lang", language, f"--debug-query={format}"])
@@ -58,35 +49,27 @@ def dump_syntax_tree_impl(
 
         execution_time = time.time() - start_time
         logger.info(
-            "dump_syntax_tree_completed",
-            execution_time_seconds=round(execution_time, 3),
-            output_length=len(output),
-            status="success"
+            "dump_syntax_tree_completed", execution_time_seconds=round(execution_time, 3), output_length=len(output), status="success"
         )
 
         return output
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error(
-            "dump_syntax_tree_failed",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
-            status="failed"
+        logger.error("dump_syntax_tree_failed", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed")
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "function": "dump_syntax_tree_impl",
+                "language": language,
+                "format": format,
+                "code_length": len(code),
+                "execution_time_seconds": round(execution_time, 3),
+            },
         )
-        sentry_sdk.capture_exception(e, extras={
-            "function": "dump_syntax_tree_impl",
-            "language": language,
-            "format": format,
-            "code_length": len(code),
-            "execution_time_seconds": round(execution_time, 3)
-        })
         raise
 
 
-def test_match_code_rule_impl(
-    code: str,
-    yaml_rule: str
-) -> List[Dict[str, Any]]:
+def test_match_code_rule_impl(code: str, yaml_rule: str) -> List[Dict[str, Any]]:
     """
     Implementation of test_match_code_rule.
 
@@ -113,21 +96,21 @@ def test_match_code_rule_impl(
         parsed_yaml = yaml.safe_load(yaml_rule)
         if not isinstance(parsed_yaml, dict):
             raise InvalidYAMLError("YAML must be a dictionary", yaml_rule)
-        if 'id' not in parsed_yaml:
+        if "id" not in parsed_yaml:
             raise InvalidYAMLError("Missing required field 'id'", yaml_rule)
-        if 'language' not in parsed_yaml:
+        if "language" not in parsed_yaml:
             raise InvalidYAMLError("Missing required field 'language'", yaml_rule)
-        if 'rule' not in parsed_yaml:
+        if "rule" not in parsed_yaml:
             raise InvalidYAMLError("Missing required field 'rule'", yaml_rule)
     except yaml.YAMLError as e:
         raise InvalidYAMLError(f"YAML parsing failed: {e}", yaml_rule) from e
 
     logger.info(
         "test_match_code_rule_started",
-        rule_id=parsed_yaml.get('id'),
-        language=parsed_yaml.get('language'),
+        rule_id=parsed_yaml.get("id"),
+        language=parsed_yaml.get("language"),
         code_length=len(code),
-        yaml_length=len(yaml_rule)
+        yaml_length=len(yaml_rule),
     )
 
     try:
@@ -136,10 +119,7 @@ def test_match_code_rule_impl(
 
         execution_time = time.time() - start_time
         logger.info(
-            "test_match_code_rule_completed",
-            execution_time_seconds=round(execution_time, 3),
-            match_count=len(matches),
-            status="success"
+            "test_match_code_rule_completed", execution_time_seconds=round(execution_time, 3), match_count=len(matches), status="success"
         )
 
         if not matches:
@@ -149,28 +129,21 @@ def test_match_code_rule_impl(
         if isinstance(e, (InvalidYAMLError, NoMatchesError)):
             raise
         execution_time = time.time() - start_time
-        logger.error(
-            "test_match_code_rule_failed",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
-            status="failed"
+        logger.error("test_match_code_rule_failed", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed")
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "function": "test_match_code_rule_impl",
+                "rule_id": parsed_yaml.get("id") if "parsed_yaml" in locals() else None,
+                "language": parsed_yaml.get("language") if "parsed_yaml" in locals() else None,
+                "code_length": len(code),
+                "execution_time_seconds": round(execution_time, 3),
+            },
         )
-        sentry_sdk.capture_exception(e, extras={
-            "function": "test_match_code_rule_impl",
-            "rule_id": parsed_yaml.get('id') if 'parsed_yaml' in locals() else None,
-            "language": parsed_yaml.get('language') if 'parsed_yaml' in locals() else None,
-            "code_length": len(code),
-            "execution_time_seconds": round(execution_time, 3)
-        })
         raise
 
 
-def _prepare_search_targets(
-    project_folder: str,
-    max_file_size_mb: int,
-    language: str,
-    logger: Any
-) -> List[str]:
+def _prepare_search_targets(project_folder: str, max_file_size_mb: int, language: str, logger: Any) -> List[str]:
     """
     Prepare search targets with optional file size filtering.
 
@@ -181,9 +154,7 @@ def _prepare_search_targets(
         return [project_folder]
 
     files_to_search, skipped_files = filter_files_by_size(
-        project_folder,
-        max_size_mb=max_file_size_mb,
-        language=language if language else None
+        project_folder, max_size_mb=max_file_size_mb, language=language if language else None
     )
 
     if files_to_search:
@@ -191,28 +162,19 @@ def _prepare_search_targets(
             "file_size_filtering_applied",
             files_to_search=len(files_to_search),
             files_skipped=len(skipped_files),
-            max_size_mb=max_file_size_mb
+            max_size_mb=max_file_size_mb,
         )
         return files_to_search
 
     if skipped_files:
-        logger.warning(
-            "all_files_skipped_by_size",
-            total_files=len(skipped_files),
-            max_size_mb=max_file_size_mb
-        )
+        logger.warning("all_files_skipped_by_size", total_files=len(skipped_files), max_size_mb=max_file_size_mb)
         return []  # All files exceeded size limit
 
     # No files found at all, continue with directory search
     return [project_folder]
 
 
-def _build_search_args(
-    pattern: str,
-    language: str,
-    workers: int,
-    search_targets: List[str]
-) -> List[str]:
+def _build_search_args(pattern: str, language: str, workers: int, search_targets: List[str]) -> List[str]:
     """Build ast-grep command arguments."""
     args = ["--pattern", pattern]
     if language:
@@ -223,10 +185,7 @@ def _build_search_args(
     return args + ["--json=stream"] + search_targets
 
 
-def _format_cached_results(
-    matches: List[Dict[str, Any]],
-    output_format: str
-) -> Union[str, List[Dict[str, Any]]]:
+def _format_cached_results(matches: List[Dict[str, Any]], output_format: str) -> Union[str, List[Dict[str, Any]]]:
     """
     Format cached search results based on output format.
 
@@ -244,12 +203,7 @@ def _format_cached_results(
 
 
 def _check_cache(
-    cache: Any,
-    stream_args: List[str],
-    project_folder: str,
-    max_results: int,
-    output_format: str,
-    logger: Any
+    cache: Any, stream_args: List[str], project_folder: str, max_results: int, output_format: str, logger: Any
 ) -> Union[str, List[Dict[str, Any]], None]:
     """
     Check cache for existing results.
@@ -267,46 +221,24 @@ def _check_cache(
 
     # Apply max_results limit to cached results
     matches = cached_result[:max_results] if max_results > 0 else cached_result
-    logger.info(
-        "find_code_cache_hit",
-        cache_size=len(cache.cache),
-        cached_results=len(matches)
-    )
+    logger.info("find_code_cache_hit", cache_size=len(cache.cache), cached_results=len(matches))
 
     return _format_cached_results(matches, output_format)
 
 
-def _execute_search(
-    stream_args: List[str],
-    max_results: int,
-    cache: Any,
-    project_folder: str,
-    logger: Any
-) -> List[Dict[str, Any]]:
+def _execute_search(stream_args: List[str], max_results: int, cache: Any, project_folder: str, logger: Any) -> List[Dict[str, Any]]:
     """Execute the search and optionally cache results."""
-    matches = list(stream_ast_grep_results(
-        "run",
-        stream_args,
-        max_results=max_results,
-        progress_interval=100
-    ))
+    matches = list(stream_ast_grep_results("run", stream_args, max_results=max_results, progress_interval=100))
 
     # Store in cache if available
     if cache and max_results == 0:
         cache.put("run", stream_args, project_folder, matches)
-        logger.info(
-            "find_code_cache_stored",
-            stored_results=len(matches),
-            cache_size=len(cache.cache)
-        )
+        logger.info("find_code_cache_stored", stored_results=len(matches), cache_size=len(cache.cache))
 
     return matches
 
 
-def _format_search_results(
-    matches: List[Dict[str, Any]],
-    output_format: str
-) -> Union[str, List[Dict[str, Any]]]:
+def _format_search_results(matches: List[Dict[str, Any]], output_format: str) -> Union[str, List[Dict[str, Any]]]:
     """Format search results based on output format."""
     if output_format == "text":
         if not matches:
@@ -345,10 +277,7 @@ def _validate_output_format(output_format: str) -> None:
         raise ValueError(f"Invalid output_format: {output_format}. Must be 'text' or 'json'.")
 
 
-def _handle_empty_search_targets(
-    search_targets: List[str],
-    output_format: str
-) -> Union[str, List[Any], None]:
+def _handle_empty_search_targets(search_targets: List[str], output_format: str) -> Union[str, List[Any], None]:
     """
     Handle case where all files were skipped by size filtering.
 
@@ -361,12 +290,7 @@ def _handle_empty_search_targets(
 
 
 def _validate_and_prepare_search(
-    project_folder: str,
-    pattern: str,
-    language: str,
-    max_file_size_mb: int,
-    output_format: str,
-    logger: Any
+    project_folder: str, pattern: str, language: str, max_file_size_mb: int, output_format: str, logger: Any
 ) -> Union[List[str], str, List[Any]]:
     """
     Validate inputs and prepare search targets.
@@ -378,9 +302,7 @@ def _validate_and_prepare_search(
     _validate_output_format(output_format)
 
     # Prepare search targets with file size filtering
-    search_targets = _prepare_search_targets(
-        project_folder, max_file_size_mb, language, logger
-    )
+    search_targets = _prepare_search_targets(project_folder, max_file_size_mb, language, logger)
 
     # Handle case where all files were skipped
     empty_result = _handle_empty_search_targets(search_targets, output_format)
@@ -397,7 +319,7 @@ def find_code_impl(
     max_results: int = 0,
     output_format: Literal["text", "json"] = "text",
     max_file_size_mb: int = 0,
-    workers: int = 0
+    workers: int = 0,
 ) -> Union[str, List[Dict[str, Any]]]:
     """
     Implementation of find_code.
@@ -431,14 +353,12 @@ def find_code_impl(
         max_results=max_results,
         output_format=output_format,
         max_file_size_mb=max_file_size_mb if max_file_size_mb > 0 else "unlimited",
-        workers=workers if workers > 0 else "auto"
+        workers=workers if workers > 0 else "auto",
     )
 
     try:
         # Validate and prepare search
-        search_targets = _validate_and_prepare_search(
-            project_folder, pattern, language, max_file_size_mb, output_format, logger
-        )
+        search_targets = _validate_and_prepare_search(project_folder, pattern, language, max_file_size_mb, output_format, logger)
 
         # Handle early return (empty results)
         if _is_early_return_value(search_targets):
@@ -449,45 +369,34 @@ def find_code_impl(
 
         # Check cache first
         cache = get_query_cache()
-        cached_result = _check_cache(
-            cache, stream_args, project_folder, max_results, output_format, logger
-        )
+        cached_result = _check_cache(cache, stream_args, project_folder, max_results, output_format, logger)
         if cached_result is not None:
             return cached_result
 
         # Execute search if not cached
-        matches = _execute_search(
-            stream_args, max_results, cache, project_folder, logger
-        )
+        matches = _execute_search(stream_args, max_results, cache, project_folder, logger)
 
         # Format and return results
         result = _format_search_results(matches, output_format)
 
         execution_time = time.time() - start_time
-        logger.info(
-            "find_code_completed",
-            execution_time_seconds=round(execution_time, 3),
-            match_count=len(matches),
-            status="success"
-        )
+        logger.info("find_code_completed", execution_time_seconds=round(execution_time, 3), match_count=len(matches), status="success")
 
         return result
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error(
-            "find_code_failed",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
-            status="failed"
+        logger.error("find_code_failed", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed")
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "function": "find_code_impl",
+                "project_folder": project_folder,
+                "pattern": pattern[:100],
+                "language": language,
+                "execution_time_seconds": round(execution_time, 3),
+            },
         )
-        sentry_sdk.capture_exception(e, extras={
-            "function": "find_code_impl",
-            "project_folder": project_folder,
-            "pattern": pattern[:100],
-            "language": language,
-            "execution_time_seconds": round(execution_time, 3)
-        })
         raise
 
 
@@ -506,7 +415,7 @@ def _validate_yaml_rule(yaml_rule: str) -> Dict[str, Any]:
         if not isinstance(parsed_yaml, dict):
             raise InvalidYAMLError("YAML must be a dictionary", yaml_rule)
 
-        required_fields = ['id', 'language', 'rule']
+        required_fields = ["id", "language", "rule"]
         for field in required_fields:
             if field not in parsed_yaml:
                 raise InvalidYAMLError(f"Missing required field '{field}'", yaml_rule)
@@ -517,12 +426,7 @@ def _validate_yaml_rule(yaml_rule: str) -> Dict[str, Any]:
 
 
 def _execute_rule_search(
-    project_folder: str,
-    yaml_rule: str,
-    max_results: int,
-    output_format: str,
-    cache: Any,
-    logger: Any
+    project_folder: str, yaml_rule: str, max_results: int, output_format: str, cache: Any, logger: Any
 ) -> Union[str, List[Dict[str, Any]]]:
     """Execute search with YAML rule."""
     json_arg = ["--json"] if output_format == "json" else []
@@ -530,11 +434,7 @@ def _execute_rule_search(
     if max_results > 0:
         # Use streaming for limited results
         matches = []
-        for match in stream_ast_grep_results(
-            "scan",
-            ["--inline-rules", yaml_rule, *json_arg, project_folder],
-            max_results=max_results
-        ):
+        for match in stream_ast_grep_results("scan", ["--inline-rules", yaml_rule, *json_arg, project_folder], max_results=max_results):
             matches.append(match)
 
         if output_format == "text":
@@ -542,10 +442,7 @@ def _execute_rule_search(
         return matches
 
     # Use non-streaming for all results
-    cmd_result = run_ast_grep(
-        "scan",
-        ["--inline-rules", yaml_rule, *json_arg, project_folder]
-    )
+    cmd_result = run_ast_grep("scan", ["--inline-rules", yaml_rule, *json_arg, project_folder])
 
     if output_format == "json":
         return json.loads(cmd_result.stdout.strip()) if cmd_result.stdout.strip() else []
@@ -554,10 +451,7 @@ def _execute_rule_search(
 
 
 def find_code_by_rule_impl(
-    project_folder: str,
-    yaml_rule: str,
-    max_results: int = 0,
-    output_format: Literal["text", "json"] = "text"
+    project_folder: str, yaml_rule: str, max_results: int = 0, output_format: Literal["text", "json"] = "text"
 ) -> Union[str, List[Dict[str, Any]]]:
     """
     Implementation of find_code_by_rule (includes scan_project functionality).
@@ -587,10 +481,10 @@ def find_code_by_rule_impl(
     logger.info(
         "find_code_by_rule_started",
         project_folder=project_folder,
-        rule_id=parsed_yaml.get('id'),
-        language=parsed_yaml.get('language'),
+        rule_id=parsed_yaml.get("id"),
+        language=parsed_yaml.get("language"),
         max_results=max_results,
-        output_format=output_format
+        output_format=output_format,
     )
 
     try:
@@ -601,26 +495,21 @@ def find_code_by_rule_impl(
         if CACHE_ENABLED and cache and max_results == 0:
             cached_result = cache.get("scan", cache_key_parts, project_folder)
             if cached_result is not None:
-                logger.info("find_code_by_rule_cache_hit", rule_id=parsed_yaml.get('id'))
+                logger.info("find_code_by_rule_cache_hit", rule_id=parsed_yaml.get("id"))
                 return cached_result
 
         # Execute the search
-        result = _execute_rule_search(
-            project_folder, yaml_rule, max_results, output_format, cache, logger
-        )
+        result = _execute_rule_search(project_folder, yaml_rule, max_results, output_format, cache, logger)
 
         # Cache the result if applicable
         if CACHE_ENABLED and cache and max_results == 0 and isinstance(result, list):
             cache.put("scan", cache_key_parts, project_folder, result)
 
         execution_time = time.time() - start_time
-        match_count = len(result) if isinstance(result, list) else result.count('\n')
+        match_count = len(result) if isinstance(result, list) else result.count("\n")
 
         logger.info(
-            "find_code_by_rule_completed",
-            execution_time_seconds=round(execution_time, 3),
-            match_count=match_count,
-            status="success"
+            "find_code_by_rule_completed", execution_time_seconds=round(execution_time, 3), match_count=match_count, status="success"
         )
 
         return result
@@ -629,17 +518,15 @@ def find_code_by_rule_impl(
         if isinstance(e, InvalidYAMLError):
             raise
         execution_time = time.time() - start_time
-        logger.error(
-            "find_code_by_rule_failed",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
-            status="failed"
+        logger.error("find_code_by_rule_failed", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed")
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "function": "find_code_by_rule_impl",
+                "project_folder": project_folder,
+                "rule_id": parsed_yaml.get("id"),
+                "language": parsed_yaml.get("language"),
+                "execution_time_seconds": round(execution_time, 3),
+            },
         )
-        sentry_sdk.capture_exception(e, extras={
-            "function": "find_code_by_rule_impl",
-            "project_folder": project_folder,
-            "rule_id": parsed_yaml.get('id'),
-            "language": parsed_yaml.get('language'),
-            "execution_time_seconds": round(execution_time, 3)
-        })
         raise

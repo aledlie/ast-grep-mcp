@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Remove orphaned import lines from migration."""
 
-import re
 import subprocess
 import sys
 from pathlib import Path
+
 from ast_grep_mcp.utils.console_logger import console
 
 
@@ -159,10 +159,10 @@ def main():
             valid_after, error_after = check_syntax(filepath)
 
             if valid_after:
-                console.success(f"    ✓ Fixed!")
+                console.success("    ✓ Fixed!")
                 fixed_count += 1
             else:
-                console.log(f"    ✗ Still has errors:")
+                console.log("    ✗ Still has errors:")
                 console.log(f"      {error_after.strip()}")
                 failed.append(filepath_str)
         else:

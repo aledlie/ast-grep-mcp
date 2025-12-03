@@ -11,11 +11,7 @@ from typing import Any, Dict, List
 from ast_grep_mcp.core.logging import get_logger
 
 
-def validate_smell_detection_inputs(
-    project_folder: str,
-    language: str,
-    severity_filter: str
-) -> tuple[Path, str, str]:
+def validate_smell_detection_inputs(project_folder: str, language: str, severity_filter: str) -> tuple[Path, str, str]:
     """Validate inputs for smell detection.
 
     Args:
@@ -37,12 +33,7 @@ def validate_smell_detection_inputs(
         raise ValueError(f"Path is not a directory: {project_folder}")
 
     # Validate and get file extension for language
-    ext_map = {
-        "python": ".py",
-        "typescript": ".ts",
-        "javascript": ".js",
-        "java": ".java"
-    }
+    ext_map = {"python": ".py", "typescript": ".ts", "javascript": ".js", "java": ".java"}
     normalized_language = language.lower()
     if normalized_language not in ext_map:
         raise ValueError(f"Unsupported language: {language}")
@@ -57,12 +48,7 @@ def validate_smell_detection_inputs(
     return project_path, file_ext, normalized_language
 
 
-def find_smell_analysis_files(
-    project_path: Path,
-    file_ext: str,
-    include_patterns: List[str],
-    exclude_patterns: List[str]
-) -> List[str]:
+def find_smell_analysis_files(project_path: Path, file_ext: str, include_patterns: List[str], exclude_patterns: List[str]) -> List[str]:
     """Find files to analyze for code smells.
 
     Args:
@@ -112,11 +98,7 @@ def find_smell_analysis_files(
     return filtered_files
 
 
-def calculate_smell_severity(
-    metric: float,
-    threshold: float,
-    smell_type: str
-) -> str:
+def calculate_smell_severity(metric: float, threshold: float, smell_type: str) -> str:
     """Calculate severity level based on metric value and threshold.
 
     Args:
@@ -127,7 +109,7 @@ def calculate_smell_severity(
     Returns:
         Severity level: "high", "medium", or "low"
     """
-    ratio = metric / threshold if threshold > 0 else float('inf')
+    ratio = metric / threshold if threshold > 0 else float("inf")
 
     # Different smell types may have different severity mappings
     if smell_type in ["long_function", "large_class"]:
@@ -157,12 +139,7 @@ def calculate_smell_severity(
 
 
 def format_smell_detection_response(
-    project_folder: str,
-    language: str,
-    files_analyzed: int,
-    smells: List[Dict[str, Any]],
-    thresholds: Dict[str, Any],
-    severity_filter: str
+    project_folder: str, language: str, files_analyzed: int, smells: List[Dict[str, Any]], thresholds: Dict[str, Any], severity_filter: str
 ) -> Dict[str, Any]:
     """Format the final smell detection response.
 
@@ -183,10 +160,7 @@ def format_smell_detection_response(
 
     # Sort by severity (high > medium > low) then by type
     severity_order = {"high": 0, "medium": 1, "low": 2}
-    smells.sort(key=lambda s: (
-        severity_order.get(s.get("severity", "low"), 3),
-        s.get("type", "")
-    ))
+    smells.sort(key=lambda s: (severity_order.get(s.get("severity", "low"), 3), s.get("type", "")))
 
     # Generate summary statistics
     smell_counts: Dict[str, int] = {}
@@ -202,18 +176,13 @@ def format_smell_detection_response(
         "language": language,
         "files_analyzed": files_analyzed,
         "total_smells": len(smells),
-        "summary": {
-            "by_type": smell_counts,
-            "by_severity": severity_counts
-        },
+        "summary": {"by_type": smell_counts, "by_severity": severity_counts},
         "smells": smells,
-        "thresholds": thresholds
+        "thresholds": thresholds,
     }
 
 
-def aggregate_smell_results(
-    file_results: List[List[Dict[str, Any]]]
-) -> List[Dict[str, Any]]:
+def aggregate_smell_results(file_results: List[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
     """Aggregate smell detection results from multiple files.
 
     Args:

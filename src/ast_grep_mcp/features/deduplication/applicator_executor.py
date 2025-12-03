@@ -3,8 +3,8 @@
 This module handles the actual code modifications during
 deduplication refactoring operations.
 """
+
 import os
-from pathlib import Path
 from typing import Any, Dict, List
 
 from ...core.logging import get_logger
@@ -18,11 +18,7 @@ class RefactoringExecutor:
         self.logger = get_logger("deduplication.executor")
 
     def apply_changes(
-        self,
-        orchestration_plan: Dict[str, Any],
-        replacements: Dict[str, Dict[str, Any]],
-        language: str,
-        dry_run: bool = False
+        self, orchestration_plan: Dict[str, Any], replacements: Dict[str, Dict[str, Any]], language: str, dry_run: bool = False
     ) -> Dict[str, Any]:
         """Apply refactoring changes to files.
 
@@ -42,7 +38,7 @@ class RefactoringExecutor:
             "apply_changes_start",
             dry_run=dry_run,
             create_count=len(orchestration_plan.get("create_files", [])),
-            update_count=len(orchestration_plan.get("update_files", []))
+            update_count=len(orchestration_plan.get("update_files", [])),
         )
 
         modified_files: List[str] = []
@@ -55,52 +51,31 @@ class RefactoringExecutor:
                 "modified_files": [],
                 "failed_files": [],
                 "dry_run": True,
-                "preview": self._generate_preview(orchestration_plan, replacements)
+                "preview": self._generate_preview(orchestration_plan, replacements),
             }
 
         try:
             # Step 1: Create new files for extracted functions
-            create_result = self._create_files(
-                orchestration_plan.get("create_files", [])
-            )
+            create_result = self._create_files(orchestration_plan.get("create_files", []))
             modified_files.extend(create_result["created"])
             failed_files.extend(create_result["failed"])
 
             # Step 2: Update duplicate location files
             update_result = self._update_files(
-                orchestration_plan.get("update_files", []),
-                replacements,
-                orchestration_plan.get("import_additions", {}),
-                language
+                orchestration_plan.get("update_files", []), replacements, orchestration_plan.get("import_additions", {}), language
             )
             modified_files.extend(update_result["updated"])
             failed_files.extend(update_result["failed"])
 
-            self.logger.info(
-                "apply_changes_complete",
-                modified_count=len(modified_files),
-                failed_count=len(failed_files)
-            )
+            self.logger.info("apply_changes_complete", modified_count=len(modified_files), failed_count=len(failed_files))
 
         except Exception as e:
-            self.logger.error(
-                "apply_changes_failed",
-                error=str(e),
-                modified_count=len(modified_files),
-                failed_count=len(failed_files)
-            )
+            self.logger.error("apply_changes_failed", error=str(e), modified_count=len(modified_files), failed_count=len(failed_files))
             raise
 
-        return {
-            "modified_files": modified_files,
-            "failed_files": failed_files,
-            "dry_run": False
-        }
+        return {"modified_files": modified_files, "failed_files": failed_files, "dry_run": False}
 
-    def _create_files(
-        self,
-        create_file_list: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def _create_files(self, create_file_list: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Create new files for extracted functions.
 
         Args:
@@ -126,8 +101,8 @@ class RefactoringExecutor:
                     os.makedirs(target_dir, exist_ok=True)
 
                 # Determine write mode (append or write)
-                mode = 'a' if os.path.exists(target_path) and create_info.get("append", False) else 'w'
-                prefix = "\n\n" if mode == 'a' else ""
+                mode = "a" if os.path.exists(target_path) and create_info.get("append", False) else "w"
+                prefix = "\n\n" if mode == "a" else ""
 
                 # Write file
                 with open(target_path, mode) as f:
@@ -137,16 +112,8 @@ class RefactoringExecutor:
                 self.logger.info("file_created", file=target_path, mode=mode)
 
             except Exception as e:
-                failed.append({
-                    "file": target_path,
-                    "operation": "create",
-                    "error": str(e)
-                })
-                self.logger.error(
-                    "file_creation_failed",
-                    file=target_path,
-                    error=str(e)
-                )
+                failed.append({"file": target_path, "operation": "create", "error": str(e)})
+                self.logger.error("file_creation_failed", file=target_path, error=str(e))
                 raise  # Fail fast for atomicity
 
         return {"created": created, "failed": failed}
@@ -156,7 +123,7 @@ class RefactoringExecutor:
         update_file_list: List[Dict[str, Any]],
         replacements: Dict[str, Dict[str, Any]],
         import_additions: Dict[str, Dict[str, Any]],
-        language: str
+        language: str,
     ) -> Dict[str, Any]:
         """Update duplicate location files.
 
@@ -180,7 +147,7 @@ class RefactoringExecutor:
 
             try:
                 # Read current content
-                with open(file_path, 'r') as f:
+                with open(file_path, "r") as f:
                     current_content = f.read()
 
                 new_content = current_content
@@ -194,29 +161,19 @@ class RefactoringExecutor:
                 import_info = import_additions.get(file_path)
                 if import_info:
                     new_content = self._add_import_to_content(
-                        content=new_content,
-                        import_statement=import_info.get("import_statement", ""),
-                        language=language
+                        content=new_content, import_statement=import_info.get("import_statement", ""), language=language
                     )
 
                 # Write updated content
-                with open(file_path, 'w') as f:
+                with open(file_path, "w") as f:
                     f.write(new_content)
 
                 updated.append(file_path)
                 self.logger.info("file_updated", file=file_path)
 
             except Exception as e:
-                failed.append({
-                    "file": file_path,
-                    "operation": "update",
-                    "error": str(e)
-                })
-                self.logger.error(
-                    "file_update_failed",
-                    file=file_path,
-                    error=str(e)
-                )
+                failed.append({"file": file_path, "operation": "update", "error": str(e)})
+                self.logger.error("file_update_failed", file=file_path, error=str(e))
                 raise  # Fail fast for atomicity
 
         return {"updated": updated, "failed": failed}
@@ -307,9 +264,7 @@ class RefactoringExecutor:
         lines.insert(insert_idx, import_statement)
 
         # Add blank line if inserting at top without existing imports
-        if insert_idx > 0 and not any(
-            l.strip().startswith(("import ", "from ")) for l in lines[:insert_idx]
-        ):
+        if insert_idx > 0 and not any(line.strip().startswith(("import ", "from ")) for line in lines[:insert_idx]):
             lines.insert(insert_idx, "")
 
         return lines
@@ -355,12 +310,7 @@ class RefactoringExecutor:
 
         return lines
 
-    def _add_import_to_content(
-        self,
-        content: str,
-        import_statement: str,
-        language: str
-    ) -> str:
+    def _add_import_to_content(self, content: str, import_statement: str, language: str) -> str:
         """Add an import statement to file content.
 
         Args:
@@ -378,7 +328,7 @@ class RefactoringExecutor:
         if import_statement.strip() in content:
             return content
 
-        lines = content.split('\n')
+        lines = content.split("\n")
         lang = language.lower()
 
         # Language-specific import insertion
@@ -393,13 +343,9 @@ class RefactoringExecutor:
             lines.insert(0, import_statement)
             lines.insert(1, "")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
-    def _generate_preview(
-        self,
-        orchestration_plan: Dict[str, Any],
-        replacements: Dict[str, Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def _generate_preview(self, orchestration_plan: Dict[str, Any], replacements: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
         """Generate preview of changes for dry run.
 
         Args:
@@ -409,30 +355,31 @@ class RefactoringExecutor:
         Returns:
             Dictionary with preview information
         """
-        preview: Dict[str, Any] = {
-            "files_to_create": [],
-            "files_to_update": []
-        }
+        preview: Dict[str, Any] = {"files_to_create": [], "files_to_update": []}
 
         # Preview file creations
         for create_info in orchestration_plan.get("create_files", []):
             target_path = create_info.get("path", "")
             if target_path:
-                preview["files_to_create"].append({
-                    "path": target_path,
-                    "mode": "append" if create_info.get("append", False) else "write",
-                    "content_lines": len(create_info.get("content", "").split('\n'))
-                })
+                preview["files_to_create"].append(
+                    {
+                        "path": target_path,
+                        "mode": "append" if create_info.get("append", False) else "write",
+                        "content_lines": len(create_info.get("content", "").split("\n")),
+                    }
+                )
 
         # Preview file updates
         for update_info in orchestration_plan.get("update_files", []):
             file_path = update_info.get("path", "")
             if file_path:
                 replacement = replacements.get(file_path, {})
-                preview["files_to_update"].append({
-                    "path": file_path,
-                    "has_replacement": bool(replacement.get("new_content")),
-                    "has_import_addition": file_path in orchestration_plan.get("import_additions", {})
-                })
+                preview["files_to_update"].append(
+                    {
+                        "path": file_path,
+                        "has_replacement": bool(replacement.get("new_content")),
+                        "has_import_addition": file_path in orchestration_plan.get("import_additions", {}),
+                    }
+                )
 
         return preview

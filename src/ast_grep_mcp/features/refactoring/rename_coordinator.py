@@ -7,16 +7,16 @@ Handles:
 - Rollback on failure
 """
 
-import os
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
+
 from ast_grep_mcp.core.logging import get_logger
 
+from ...features.rewrite.backup import create_backup, restore_backup
 from ...models.refactoring import (
-    SymbolReference,
     RenameSymbolResult,
     ScopeInfo,
+    SymbolReference,
 )
-from ...features.rewrite.backup import create_backup, restore_backup
 from .renamer import SymbolRenamer
 
 logger = get_logger(__name__)
@@ -183,7 +183,7 @@ class RenameCoordinator:
                 lines.append(f"+ {new_line}")
                 lines.append("")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def _apply_rename(
         self,
@@ -258,7 +258,7 @@ class RenameCoordinator:
             new_name: New symbol name
         """
         # Read file
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
         # Sort references by line (reverse order to maintain line numbers)
@@ -272,13 +272,14 @@ class RenameCoordinator:
 
                 # Use word boundary replacement to avoid partial matches
                 import re
-                pattern = r'\b' + re.escape(old_name) + r'\b'
+
+                pattern = r"\b" + re.escape(old_name) + r"\b"
                 new_line = re.sub(pattern, new_name, line)
 
                 lines[line_idx] = new_line
 
         # Write file
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.writelines(lines)
 
         logger.debug(

@@ -10,7 +10,6 @@ This script analyzes the ast-grep-mcp codebase for:
 """
 
 import sys
-import json
 from pathlib import Path
 
 # Add src to path
@@ -18,9 +17,9 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from ast_grep_mcp.features.complexity.analyzer import analyze_file_complexity
 from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool, detect_code_smells_tool
+from ast_grep_mcp.features.deduplication.tools import analyze_deduplication_candidates_tool, find_duplication_tool
 from ast_grep_mcp.features.quality.security_scanner import detect_security_issues_impl
 from ast_grep_mcp.features.quality.tools import generate_quality_report_tool
-from ast_grep_mcp.features.deduplication.tools import find_duplication_tool, analyze_deduplication_candidates_tool
 
 
 def print_section(title: str):
@@ -99,7 +98,7 @@ def analyze_project_complexity():
             # Show top 10 most complex functions
             exceeding = result.get('exceeding_functions', [])
             if exceeding:
-                print(f"\nTop 10 most complex functions by cognitive complexity:")
+                print("\nTop 10 most complex functions by cognitive complexity:")
                 for i, func in enumerate(sorted(exceeding,
                                                 key=lambda x: x.get('cognitive', 0),
                                                 reverse=True)[:10], 1):
@@ -134,14 +133,14 @@ def detect_code_smells():
             print(f"Total smells found: {summary.get('total_smells', 0)}")
 
             by_severity = summary.get('by_severity', {})
-            print(f"\nBy severity:")
+            print("\nBy severity:")
             print(f"  High: {by_severity.get('high', 0)}")
             print(f"  Medium: {by_severity.get('medium', 0)}")
             print(f"  Low: {by_severity.get('low', 0)}")
 
             smells = result.get('smells', [])
             if smells:
-                print(f"\nTop 10 code smells:")
+                print("\nTop 10 code smells:")
                 for smell in smells[:10]:
                     print(f"  • [{smell.get('severity', 'unknown').upper()}] {smell.get('type', 'unknown')}")
                     print(f"    File: {smell.get('file', 'unknown')}:{smell.get('line', '?')}")
@@ -173,7 +172,7 @@ def detect_security_issues():
             print(f"Total issues found: {summary.get('total_issues', 0)}")
 
             by_severity = summary.get('by_severity', {})
-            print(f"\nBy severity:")
+            print("\nBy severity:")
             print(f"  Critical: {by_severity.get('critical', 0)}")
             print(f"  High: {by_severity.get('high', 0)}")
             print(f"  Medium: {by_severity.get('medium', 0)}")
@@ -181,13 +180,13 @@ def detect_security_issues():
 
             by_category = summary.get('by_category', {})
             if by_category:
-                print(f"\nBy category:")
+                print("\nBy category:")
                 for category, count in sorted(by_category.items(), key=lambda x: x[1], reverse=True):
                     print(f"  {category}: {count}")
 
             issues = result.get('issues', [])
             if issues:
-                print(f"\nTop 10 security issues:")
+                print("\nTop 10 security issues:")
                 for issue in issues[:10]:
                     print(f"  • [{issue.get('severity', 'unknown').upper()}] {issue.get('category', 'unknown')}")
                     print(f"    File: {issue.get('file', 'unknown')}:{issue.get('line', '?')}")
@@ -245,14 +244,14 @@ def analyze_duplication():
 
             groups = result.get('groups', [])
             if groups:
-                print(f"\nTop 5 duplication groups by potential savings:")
+                print("\nTop 5 duplication groups by potential savings:")
                 for i, group in enumerate(groups[:5], 1):
                     print(f"  {i}. Group with {group.get('instance_count', 0)} instances "
                           f"({group.get('similarity', 0):.1%} similar)")
                     print(f"     Potential LOC savings: {group.get('potential_loc_savings', 0)} lines")
                     instances = group.get('instances', [])
                     if instances:
-                        print(f"     Locations:")
+                        print("     Locations:")
                         for inst in instances[:3]:
                             print(f"       - {inst.get('file', 'unknown')}:{inst.get('start_line', '?')}")
         else:

@@ -7,6 +7,7 @@ This module registers MCP tools for:
 - refactor_polyglot: Refactor across language boundaries
 - generate_language_bindings: Generate API client bindings
 """
+
 import time
 from typing import Any, Dict, List, Optional
 
@@ -20,13 +21,22 @@ from ast_grep_mcp.features.cross_language.language_converter import convert_code
 from ast_grep_mcp.features.cross_language.multi_language_search import search_multi_language_impl
 from ast_grep_mcp.features.cross_language.pattern_equivalence import find_language_equivalents_impl
 from ast_grep_mcp.features.cross_language.polyglot_refactoring import refactor_polyglot_impl
-
+from ast_grep_mcp.models.cross_language import (
+    ConversionResult,
+    ConversionWarning,
+    ConvertedCode,
+    PatternEquivalence,
+    PatternEquivalenceResult,
+    PatternExample,
+    TypeMapping,
+)
 
 # =============================================================================
 # Response Formatting Helpers
 # =============================================================================
 
-def _format_example(ex) -> Dict[str, Any]:
+
+def _format_example(ex: PatternExample) -> Dict[str, Any]:
     """Format a single pattern example."""
     return {
         "language": ex.language,
@@ -36,7 +46,7 @@ def _format_example(ex) -> Dict[str, Any]:
     }
 
 
-def _format_equivalence(e) -> Dict[str, Any]:
+def _format_equivalence(e: PatternEquivalence) -> Dict[str, Any]:
     """Format a single pattern equivalence."""
     return {
         "pattern_id": e.pattern_id,
@@ -49,7 +59,7 @@ def _format_equivalence(e) -> Dict[str, Any]:
     }
 
 
-def _format_equivalents_result(result) -> Dict[str, Any]:
+def _format_equivalents_result(result: PatternEquivalenceResult) -> Dict[str, Any]:
     """Format find_language_equivalents result."""
     return {
         "pattern_description": result.pattern_description,
@@ -61,12 +71,12 @@ def _format_equivalents_result(result) -> Dict[str, Any]:
     }
 
 
-def _format_type_mapping(t) -> Dict[str, str]:
+def _format_type_mapping(t: TypeMapping) -> Dict[str, str]:
     """Format a single type mapping."""
     return {"source": t.source_type, "target": t.target_type}
 
 
-def _format_warning(w) -> Dict[str, Any]:
+def _format_warning(w: ConversionWarning) -> Dict[str, Any]:
     """Format a single conversion warning."""
     return {
         "severity": w.severity,
@@ -76,7 +86,7 @@ def _format_warning(w) -> Dict[str, Any]:
     }
 
 
-def _format_conversion(c) -> Dict[str, Any]:
+def _format_conversion(c: ConvertedCode) -> Dict[str, Any]:
     """Format a single code conversion."""
     return {
         "source_code": c.source_code,
@@ -91,7 +101,7 @@ def _format_conversion(c) -> Dict[str, Any]:
     }
 
 
-def _format_conversion_result(result) -> Dict[str, Any]:
+def _format_conversion_result(result: ConversionResult) -> Dict[str, Any]:
     """Format convert_code_language result."""
     return {
         "conversions": [_format_conversion(c) for c in result.conversions],
@@ -105,6 +115,7 @@ def _format_conversion_result(result) -> Dict[str, Any]:
 # =============================================================================
 # Tool Implementations
 # =============================================================================
+
 
 def search_multi_language_tool(
     project_folder: str,
@@ -327,65 +338,65 @@ def convert_code_language_tool(
     include_comments: bool = True,
 ) -> Dict[str, Any]:
     """
-    Convert code from one programming language to another.
+        Convert code from one programming language to another.
 
-    This tool converts code snippets between supported language pairs,
-    handling syntax transformation, type conversion, and idiomatic patterns.
+        This tool converts code snippets between supported language pairs,
+        handling syntax transformation, type conversion, and idiomatic patterns.
 
-    **Supported Conversions:**
-    - Python <-> TypeScript
-    - Python <-> JavaScript
-    - JavaScript -> TypeScript
-    - Java -> Kotlin
+        **Supported Conversions:**
+        - Python <-> TypeScript
+        - Python <-> JavaScript
+        - JavaScript -> TypeScript
+        - Java -> Kotlin
 
-    **Conversion Styles:**
-    - literal: Direct translation preserving structure
-    - idiomatic: Use target language idioms and best practices
-    - compatible: Maximum cross-platform compatibility
+        **Conversion Styles:**
+        - literal: Direct translation preserving structure
+        - idiomatic: Use target language idioms and best practices
+        - compatible: Maximum cross-platform compatibility
 
-    **Features:**
-    - Syntax transformation (control flow, functions, classes)
-    - Type mapping (Python types -> TypeScript types)
-    - Idiom conversion (list comprehensions -> map/filter)
-    - Warnings for features that don't convert cleanly
+        **Features:**
+        - Syntax transformation (control flow, functions, classes)
+        - Type mapping (Python types -> TypeScript types)
+        - Idiom conversion (list comprehensions -> map/filter)
+        - Warnings for features that don't convert cleanly
 
-    Args:
-        code_snippet: Code to convert
-        from_language: Source language
-        to_language: Target language
-        conversion_style: Conversion style (literal, idiomatic, compatible)
-        include_comments: Whether to include conversion comments
+        Args:
+            code_snippet: Code to convert
+            from_language: Source language
+            to_language: Target language
+            conversion_style: Conversion style (literal, idiomatic, compatible)
+            include_comments: Whether to include conversion comments
 
-    Returns:
-        Dictionary containing:
-        - conversions: List of converted code blocks
-        - successful_conversions: Number of successful conversions
-        - warnings: Any conversion warnings
+        Returns:
+            Dictionary containing:
+            - conversions: List of converted code blocks
+            - successful_conversions: Number of successful conversions
+            - warnings: Any conversion warnings
 
-    Example usage:
-        # Convert Python to TypeScript
-        result = convert_code_language(
-            code_snippet=\"\"\"
-def calculate_total(items: List[float], tax_rate: float = 0.08) -> float:
-    subtotal = sum(items)
-    return subtotal * (1 + tax_rate)
-\"\"\",
-            from_language="python",
-            to_language="typescript",
-            conversion_style="idiomatic"
-        )
+        Example usage:
+            # Convert Python to TypeScript
+            result = convert_code_language(
+                code_snippet=\"\"\"
+    def calculate_total(items: List[float], tax_rate: float = 0.08) -> float:
+        subtotal = sum(items)
+        return subtotal * (1 + tax_rate)
+    \"\"\",
+                from_language="python",
+                to_language="typescript",
+                conversion_style="idiomatic"
+            )
 
-        # Convert JavaScript to Python
-        result = convert_code_language(
-            code_snippet=\"\"\"
-const fetchData = async (url) => {
-    const response = await fetch(url);
-    return response.json();
-};
-\"\"\",
-            from_language="javascript",
-            to_language="python"
-        )
+            # Convert JavaScript to Python
+            result = convert_code_language(
+                code_snippet=\"\"\"
+    const fetchData = async (url) => {
+        const response = await fetch(url);
+        return response.json();
+    };
+    \"\"\",
+                from_language="javascript",
+                to_language="python"
+            )
     """
     logger = get_logger("tool.convert_code_language")
     start_time = time.time()
@@ -695,41 +706,42 @@ def generate_language_bindings_tool(
 # MCP Registration
 # =============================================================================
 
-def _create_mcp_field_definitions():
+
+def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
     """Create field definitions for MCP tool registration."""
     return {
-        'search_multi_language': {
-            'project_folder': Field(description="Root folder of the project (absolute path)"),
-            'semantic_pattern': Field(description="Semantic pattern to search for (e.g., 'async function', 'try catch')"),
-            'languages': Field(default=None, description="Languages to search (['auto'] for auto-detection)"),
-            'group_by': Field(default="semantic", description="Grouping strategy ('semantic', 'language', 'file')"),
-            'max_results_per_language': Field(default=100, description="Maximum results per language"),
+        "search_multi_language": {
+            "project_folder": Field(description="Root folder of the project (absolute path)"),
+            "semantic_pattern": Field(description="Semantic pattern to search for (e.g., 'async function', 'try catch')"),
+            "languages": Field(default=None, description="Languages to search (['auto'] for auto-detection)"),
+            "group_by": Field(default="semantic", description="Grouping strategy ('semantic', 'language', 'file')"),
+            "max_results_per_language": Field(default=100, description="Maximum results per language"),
         },
-        'find_language_equivalents': {
-            'pattern_description': Field(description="Description of the pattern to find (e.g., 'list comprehension')"),
-            'source_language': Field(default=None, description="Optional source language to highlight"),
-            'target_languages': Field(default=None, description="Languages to include in results"),
+        "find_language_equivalents": {
+            "pattern_description": Field(description="Description of the pattern to find (e.g., 'list comprehension')"),
+            "source_language": Field(default=None, description="Optional source language to highlight"),
+            "target_languages": Field(default=None, description="Languages to include in results"),
         },
-        'convert_code_language': {
-            'code_snippet': Field(description="Code to convert"),
-            'from_language': Field(description="Source language (python, typescript, javascript, java)"),
-            'to_language': Field(description="Target language (python, typescript, javascript, kotlin)"),
-            'conversion_style': Field(default="idiomatic", description="Conversion style ('literal', 'idiomatic', 'compatible')"),
-            'include_comments': Field(default=True, description="Whether to include conversion comments"),
+        "convert_code_language": {
+            "code_snippet": Field(description="Code to convert"),
+            "from_language": Field(description="Source language (python, typescript, javascript, java)"),
+            "to_language": Field(description="Target language (python, typescript, javascript, kotlin)"),
+            "conversion_style": Field(default="idiomatic", description="Conversion style ('literal', 'idiomatic', 'compatible')"),
+            "include_comments": Field(default=True, description="Whether to include conversion comments"),
         },
-        'refactor_polyglot': {
-            'project_folder': Field(description="Root folder of the project"),
-            'refactoring_type': Field(description="Type of refactoring ('rename_api', 'extract_constant', 'update_contract')"),
-            'symbol_name': Field(description="Symbol being refactored"),
-            'new_name': Field(default=None, description="New name (required for rename operations)"),
-            'affected_languages': Field(default=None, description="Languages to include (['all'] for all)"),
-            'dry_run': Field(default=True, description="If True, only preview changes"),
+        "refactor_polyglot": {
+            "project_folder": Field(description="Root folder of the project"),
+            "refactoring_type": Field(description="Type of refactoring ('rename_api', 'extract_constant', 'update_contract')"),
+            "symbol_name": Field(description="Symbol being refactored"),
+            "new_name": Field(default=None, description="New name (required for rename operations)"),
+            "affected_languages": Field(default=None, description="Languages to include (['all'] for all)"),
+            "dry_run": Field(default=True, description="If True, only preview changes"),
         },
-        'generate_language_bindings': {
-            'api_definition_file': Field(description="Path to API spec file (OpenAPI/Swagger JSON or YAML)"),
-            'target_languages': Field(default=None, description="Languages to generate bindings for"),
-            'binding_style': Field(default="native", description="Binding style ('native', 'sdk', 'minimal')"),
-            'include_types': Field(default=True, description="Whether to include type definitions"),
+        "generate_language_bindings": {
+            "api_definition_file": Field(description="Path to API spec file (OpenAPI/Swagger JSON or YAML)"),
+            "target_languages": Field(default=None, description="Languages to generate bindings for"),
+            "binding_style": Field(default="native", description="Binding style ('native', 'sdk', 'minimal')"),
+            "include_types": Field(default=True, description="Whether to include type definitions"),
         },
     }
 
@@ -744,11 +756,11 @@ def register_cross_language_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def search_multi_language(
-        project_folder: str = fields['search_multi_language']['project_folder'],
-        semantic_pattern: str = fields['search_multi_language']['semantic_pattern'],
-        languages: Optional[List[str]] = fields['search_multi_language']['languages'],
-        group_by: str = fields['search_multi_language']['group_by'],
-        max_results_per_language: int = fields['search_multi_language']['max_results_per_language'],
+        project_folder: str = fields["search_multi_language"]["project_folder"],
+        semantic_pattern: str = fields["search_multi_language"]["semantic_pattern"],
+        languages: Optional[List[str]] = fields["search_multi_language"]["languages"],
+        group_by: str = fields["search_multi_language"]["group_by"],
+        max_results_per_language: int = fields["search_multi_language"]["max_results_per_language"],
     ) -> Dict[str, Any]:
         """Search across multiple programming languages for semantically equivalent patterns."""
         return search_multi_language_tool(
@@ -761,9 +773,9 @@ def register_cross_language_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def find_language_equivalents(
-        pattern_description: str = fields['find_language_equivalents']['pattern_description'],
-        source_language: Optional[str] = fields['find_language_equivalents']['source_language'],
-        target_languages: Optional[List[str]] = fields['find_language_equivalents']['target_languages'],
+        pattern_description: str = fields["find_language_equivalents"]["pattern_description"],
+        source_language: Optional[str] = fields["find_language_equivalents"]["source_language"],
+        target_languages: Optional[List[str]] = fields["find_language_equivalents"]["target_languages"],
     ) -> Dict[str, Any]:
         """Find equivalent patterns across programming languages."""
         return find_language_equivalents_tool(
@@ -774,11 +786,11 @@ def register_cross_language_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def convert_code_language(
-        code_snippet: str = fields['convert_code_language']['code_snippet'],
-        from_language: str = fields['convert_code_language']['from_language'],
-        to_language: str = fields['convert_code_language']['to_language'],
-        conversion_style: str = fields['convert_code_language']['conversion_style'],
-        include_comments: bool = fields['convert_code_language']['include_comments'],
+        code_snippet: str = fields["convert_code_language"]["code_snippet"],
+        from_language: str = fields["convert_code_language"]["from_language"],
+        to_language: str = fields["convert_code_language"]["to_language"],
+        conversion_style: str = fields["convert_code_language"]["conversion_style"],
+        include_comments: bool = fields["convert_code_language"]["include_comments"],
     ) -> Dict[str, Any]:
         """Convert code from one programming language to another."""
         return convert_code_language_tool(
@@ -791,12 +803,12 @@ def register_cross_language_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def refactor_polyglot(
-        project_folder: str = fields['refactor_polyglot']['project_folder'],
-        refactoring_type: str = fields['refactor_polyglot']['refactoring_type'],
-        symbol_name: str = fields['refactor_polyglot']['symbol_name'],
-        new_name: Optional[str] = fields['refactor_polyglot']['new_name'],
-        affected_languages: Optional[List[str]] = fields['refactor_polyglot']['affected_languages'],
-        dry_run: bool = fields['refactor_polyglot']['dry_run'],
+        project_folder: str = fields["refactor_polyglot"]["project_folder"],
+        refactoring_type: str = fields["refactor_polyglot"]["refactoring_type"],
+        symbol_name: str = fields["refactor_polyglot"]["symbol_name"],
+        new_name: Optional[str] = fields["refactor_polyglot"]["new_name"],
+        affected_languages: Optional[List[str]] = fields["refactor_polyglot"]["affected_languages"],
+        dry_run: bool = fields["refactor_polyglot"]["dry_run"],
     ) -> Dict[str, Any]:
         """Refactor across multiple programming languages atomically."""
         return refactor_polyglot_tool(
@@ -810,10 +822,10 @@ def register_cross_language_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def generate_language_bindings(
-        api_definition_file: str = fields['generate_language_bindings']['api_definition_file'],
-        target_languages: Optional[List[str]] = fields['generate_language_bindings']['target_languages'],
-        binding_style: str = fields['generate_language_bindings']['binding_style'],
-        include_types: bool = fields['generate_language_bindings']['include_types'],
+        api_definition_file: str = fields["generate_language_bindings"]["api_definition_file"],
+        target_languages: Optional[List[str]] = fields["generate_language_bindings"]["target_languages"],
+        binding_style: str = fields["generate_language_bindings"]["binding_style"],
+        include_types: bool = fields["generate_language_bindings"]["include_types"],
     ) -> Dict[str, Any]:
         """Generate API client bindings for multiple languages from specifications."""
         return generate_language_bindings_tool(

@@ -1,12 +1,13 @@
 """Data models for refactoring operations."""
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
 from enum import Enum
+from typing import Any, Dict, List, Optional, Set
 
 
 class VariableType(Enum):
     """Classification of variables in code selection."""
+
     LOCAL = "local"  # Defined and used only within selection
     PARAMETER = "parameter"  # Used but not defined in selection (needs to be parameter)
     MODIFIED = "modified"  # Modified within selection (needs to be returned)
@@ -16,6 +17,7 @@ class VariableType(Enum):
 
 class RefactoringType(Enum):
     """Types of refactoring operations."""
+
     EXTRACT_FUNCTION = "extract_function"
     EXTRACT_METHOD = "extract_method"
     RENAME_SYMBOL = "rename_symbol"
@@ -26,6 +28,7 @@ class RefactoringType(Enum):
 @dataclass
 class VariableInfo:
     """Information about a variable in code selection."""
+
     name: str
     variable_type: VariableType
     first_use_line: int
@@ -38,6 +41,7 @@ class VariableInfo:
 @dataclass
 class CodeSelection:
     """Represents a selection of code for refactoring."""
+
     file_path: str
     start_line: int
     end_line: int
@@ -60,6 +64,7 @@ class CodeSelection:
 @dataclass
 class FunctionSignature:
     """Generated function signature."""
+
     name: str
     parameters: List[Dict[str, str]]  # [{"name": "x", "type": "int"}, ...]
     return_type: Optional[str] = None
@@ -69,10 +74,7 @@ class FunctionSignature:
 
     def to_python_signature(self) -> str:
         """Generate Python function signature."""
-        params = ", ".join(
-            f"{p['name']}: {p['type']}" if p.get('type') else p['name']
-            for p in self.parameters
-        )
+        params = ", ".join(f"{p['name']}: {p['type']}" if p.get("type") else p["name"] for p in self.parameters)
 
         ret = f" -> {self.return_type}" if self.return_type else ""
         async_prefix = "async " if self.is_async else ""
@@ -81,10 +83,7 @@ class FunctionSignature:
 
     def to_typescript_signature(self) -> str:
         """Generate TypeScript function signature."""
-        params = ", ".join(
-            f"{p['name']}: {p['type']}" if p.get('type') else p['name']
-            for p in self.parameters
-        )
+        params = ", ".join(f"{p['name']}: {p['type']}" if p.get("type") else p["name"] for p in self.parameters)
 
         ret = f": {self.return_type}" if self.return_type else ""
         async_prefix = "async " if self.is_async else ""
@@ -95,6 +94,7 @@ class FunctionSignature:
 @dataclass
 class ExtractFunctionResult:
     """Result of extract function operation."""
+
     success: bool
     function_signature: Optional[FunctionSignature] = None
     function_body: Optional[str] = None
@@ -109,6 +109,7 @@ class ExtractFunctionResult:
 @dataclass
 class ScopeInfo:
     """Information about a scope in the code."""
+
     scope_type: str  # 'module', 'class', 'function', 'block'
     scope_name: str
     start_line: int
@@ -120,6 +121,7 @@ class ScopeInfo:
 @dataclass
 class SymbolReference:
     """Reference to a symbol in code."""
+
     file_path: str
     line: int
     column: int
@@ -134,6 +136,7 @@ class SymbolReference:
 @dataclass
 class RenameSymbolResult:
     """Result of rename symbol operation."""
+
     success: bool
     old_name: str
     new_name: str
@@ -149,6 +152,7 @@ class RenameSymbolResult:
 @dataclass
 class StyleConversion:
     """Configuration for style conversion."""
+
     conversion_type: str
     source_language: str
     target_style: Optional[str] = None
@@ -160,6 +164,7 @@ class StyleConversion:
 @dataclass
 class ConversionResult:
     """Result of code style conversion."""
+
     success: bool
     files_converted: int = 0
     files_modified: List[str] = field(default_factory=list)
@@ -173,6 +178,7 @@ class ConversionResult:
 @dataclass
 class SimplificationResult:
     """Result of conditional simplification."""
+
     success: bool
     complexity_before: int = 0
     complexity_after: int = 0
@@ -186,6 +192,7 @@ class SimplificationResult:
 @dataclass
 class RefactoringStep:
     """Single step in batch refactoring."""
+
     step_id: int
     refactoring_type: RefactoringType
     parameters: Dict[str, Any]
@@ -195,6 +202,7 @@ class RefactoringStep:
 @dataclass
 class BatchRefactoringResult:
     """Result of batch refactoring operation."""
+
     success: bool
     steps_completed: int = 0
     steps_total: int = 0

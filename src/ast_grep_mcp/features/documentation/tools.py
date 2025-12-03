@@ -7,7 +7,7 @@ This module registers MCP tools for:
 - generate_changelog: Generate changelog from git commits
 - sync_documentation: Keep docs synchronized with code
 """
-import json
+
 import time
 from typing import Any, Dict, List, Optional
 
@@ -21,12 +21,12 @@ from ast_grep_mcp.features.documentation.changelog_generator import generate_cha
 from ast_grep_mcp.features.documentation.docstring_generator import generate_docstrings_impl
 from ast_grep_mcp.features.documentation.readme_generator import generate_readme_sections_impl
 from ast_grep_mcp.features.documentation.sync_checker import sync_documentation_impl
-from ast_grep_mcp.models.documentation import ChangeType
-
+from ast_grep_mcp.models.documentation import ApiRoute
 
 # =============================================================================
 # Tool Implementations
 # =============================================================================
+
 
 def generate_docstrings_tool(
     project_folder: str,
@@ -278,7 +278,7 @@ def generate_readme_sections_tool(
         raise
 
 
-def _format_route_for_output(route) -> Dict[str, Any]:
+def _format_route_for_output(route: ApiRoute) -> Dict[str, Any]:
     """Format a single route for API output.
 
     Args:
@@ -293,10 +293,7 @@ def _format_route_for_output(route) -> Dict[str, Any]:
         "handler_name": route.handler_name,
         "file_path": route.file_path,
         "line_number": route.line_number,
-        "parameters": [
-            {"name": p.name, "location": p.location, "type": p.type_hint, "required": p.required}
-            for p in route.parameters
-        ],
+        "parameters": [{"name": p.name, "location": p.location, "type": p.type_hint, "required": p.required} for p in route.parameters],
     }
 
 
@@ -529,12 +526,14 @@ def generate_changelog_tool(
                     for e in entries
                 ]
 
-            versions_data.append({
-                "version": v.version,
-                "date": v.date,
-                "entries": entries_data,
-                "is_unreleased": v.is_unreleased,
-            })
+            versions_data.append(
+                {
+                    "version": v.version,
+                    "date": v.date,
+                    "entries": entries_data,
+                    "is_unreleased": v.is_unreleased,
+                }
+            )
 
         return {
             "versions": versions_data,
@@ -653,8 +652,7 @@ def sync_documentation_tool(
                 "undocumented_functions": result.undocumented_functions,
                 "stale_docstrings": result.stale_docstrings,
                 "documentation_coverage": (
-                    round(result.documented_functions / result.total_functions * 100, 1)
-                    if result.total_functions > 0 else 0
+                    round(result.documented_functions / result.total_functions * 100, 1) if result.total_functions > 0 else 0
                 ),
             },
             "issues": [
@@ -691,43 +689,47 @@ def sync_documentation_tool(
 # MCP Registration
 # =============================================================================
 
-def _create_mcp_field_definitions():
+
+def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
     """Create field definitions for MCP tool registration."""
     return {
-        'generate_docstrings': {
-            'project_folder': Field(description="Root folder of the project (absolute path)"),
-            'file_pattern': Field(description="Glob pattern for files to process (e.g., '**/*.py')"),
-            'language': Field(description="Programming language (python, typescript, javascript, java)"),
-            'style': Field(default="auto", description="Docstring style (google, numpy, sphinx, jsdoc, javadoc, auto)"),
-            'overwrite_existing': Field(default=False, description="If True, replace existing docstrings"),
-            'dry_run': Field(default=True, description="If True, only preview changes without applying"),
-            'skip_private': Field(default=True, description="If True, skip private functions (starting with _)"),
+        "generate_docstrings": {
+            "project_folder": Field(description="Root folder of the project (absolute path)"),
+            "file_pattern": Field(description="Glob pattern for files to process (e.g., '**/*.py')"),
+            "language": Field(description="Programming language (python, typescript, javascript, java)"),
+            "style": Field(default="auto", description="Docstring style (google, numpy, sphinx, jsdoc, javadoc, auto)"),
+            "overwrite_existing": Field(default=False, description="If True, replace existing docstrings"),
+            "dry_run": Field(default=True, description="If True, only preview changes without applying"),
+            "skip_private": Field(default=True, description="If True, skip private functions (starting with _)"),
         },
-        'generate_readme_sections': {
-            'project_folder': Field(description="Root folder of the project (absolute path)"),
-            'language': Field(default="auto", description="Programming language (or 'auto' for detection)"),
-            'sections': Field(default_factory=lambda: ["all"], description="Sections to generate (installation, usage, features, api, structure, contributing, license, or 'all')"),
-            'include_examples': Field(default=True, description="Whether to include code examples"),
+        "generate_readme_sections": {
+            "project_folder": Field(description="Root folder of the project (absolute path)"),
+            "language": Field(default="auto", description="Programming language (or 'auto' for detection)"),
+            "sections": Field(
+                default_factory=lambda: ["all"],
+                description="Sections to generate (installation, usage, features, api, structure, contributing, license, or 'all')",
+            ),
+            "include_examples": Field(default=True, description="Whether to include code examples"),
         },
-        'generate_api_docs': {
-            'project_folder': Field(description="Root folder of the project (absolute path)"),
-            'language': Field(description="Programming language (python, typescript, javascript)"),
-            'framework': Field(default=None, description="Framework name (express, fastapi, flask, or None for auto-detect)"),
-            'output_format': Field(default="markdown", description="Output format ('markdown', 'openapi', 'both')"),
-            'include_examples': Field(default=True, description="Whether to include request/response examples"),
+        "generate_api_docs": {
+            "project_folder": Field(description="Root folder of the project (absolute path)"),
+            "language": Field(description="Programming language (python, typescript, javascript)"),
+            "framework": Field(default=None, description="Framework name (express, fastapi, flask, or None for auto-detect)"),
+            "output_format": Field(default="markdown", description="Output format ('markdown', 'openapi', 'both')"),
+            "include_examples": Field(default=True, description="Whether to include request/response examples"),
         },
-        'generate_changelog': {
-            'project_folder': Field(description="Root folder of the project (must be git repository)"),
-            'from_version': Field(default=None, description="Starting version/tag (None = last tag or first commit)"),
-            'to_version': Field(default="HEAD", description="Ending version/tag (default: HEAD)"),
-            'changelog_format': Field(default="keepachangelog", description="Output format ('keepachangelog', 'conventional', 'json')"),
-            'group_by': Field(default="type", description="Grouping strategy ('type', 'scope')"),
+        "generate_changelog": {
+            "project_folder": Field(description="Root folder of the project (must be git repository)"),
+            "from_version": Field(default=None, description="Starting version/tag (None = last tag or first commit)"),
+            "to_version": Field(default="HEAD", description="Ending version/tag (default: HEAD)"),
+            "changelog_format": Field(default="keepachangelog", description="Output format ('keepachangelog', 'conventional', 'json')"),
+            "group_by": Field(default="type", description="Grouping strategy ('type', 'scope')"),
         },
-        'sync_documentation': {
-            'project_folder': Field(description="Root folder of the project (absolute path)"),
-            'language': Field(description="Programming language (python, typescript, javascript, java)"),
-            'doc_types': Field(default_factory=lambda: ["all"], description="Types to check ('docstrings', 'links', 'all')"),
-            'check_only': Field(default=True, description="If True, only report issues (no changes)"),
+        "sync_documentation": {
+            "project_folder": Field(description="Root folder of the project (absolute path)"),
+            "language": Field(description="Programming language (python, typescript, javascript, java)"),
+            "doc_types": Field(default_factory=lambda: ["all"], description="Types to check ('docstrings', 'links', 'all')"),
+            "check_only": Field(default=True, description="If True, only report issues (no changes)"),
         },
     }
 
@@ -742,13 +744,13 @@ def register_documentation_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def generate_docstrings(
-        project_folder: str = fields['generate_docstrings']['project_folder'],
-        file_pattern: str = fields['generate_docstrings']['file_pattern'],
-        language: str = fields['generate_docstrings']['language'],
-        style: str = fields['generate_docstrings']['style'],
-        overwrite_existing: bool = fields['generate_docstrings']['overwrite_existing'],
-        dry_run: bool = fields['generate_docstrings']['dry_run'],
-        skip_private: bool = fields['generate_docstrings']['skip_private'],
+        project_folder: str = fields["generate_docstrings"]["project_folder"],
+        file_pattern: str = fields["generate_docstrings"]["file_pattern"],
+        language: str = fields["generate_docstrings"]["language"],
+        style: str = fields["generate_docstrings"]["style"],
+        overwrite_existing: bool = fields["generate_docstrings"]["overwrite_existing"],
+        dry_run: bool = fields["generate_docstrings"]["dry_run"],
+        skip_private: bool = fields["generate_docstrings"]["skip_private"],
     ) -> Dict[str, Any]:
         """Generate docstrings/JSDoc for undocumented functions."""
         return generate_docstrings_tool(
@@ -763,10 +765,10 @@ def register_documentation_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def generate_readme_sections(
-        project_folder: str = fields['generate_readme_sections']['project_folder'],
-        language: str = fields['generate_readme_sections']['language'],
-        sections: List[str] = fields['generate_readme_sections']['sections'],
-        include_examples: bool = fields['generate_readme_sections']['include_examples'],
+        project_folder: str = fields["generate_readme_sections"]["project_folder"],
+        language: str = fields["generate_readme_sections"]["language"],
+        sections: List[str] = fields["generate_readme_sections"]["sections"],
+        include_examples: bool = fields["generate_readme_sections"]["include_examples"],
     ) -> Dict[str, Any]:
         """Generate README.md sections from code analysis."""
         return generate_readme_sections_tool(
@@ -778,11 +780,11 @@ def register_documentation_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def generate_api_docs(
-        project_folder: str = fields['generate_api_docs']['project_folder'],
-        language: str = fields['generate_api_docs']['language'],
-        framework: Optional[str] = fields['generate_api_docs']['framework'],
-        output_format: str = fields['generate_api_docs']['output_format'],
-        include_examples: bool = fields['generate_api_docs']['include_examples'],
+        project_folder: str = fields["generate_api_docs"]["project_folder"],
+        language: str = fields["generate_api_docs"]["language"],
+        framework: Optional[str] = fields["generate_api_docs"]["framework"],
+        output_format: str = fields["generate_api_docs"]["output_format"],
+        include_examples: bool = fields["generate_api_docs"]["include_examples"],
     ) -> Dict[str, Any]:
         """Generate API documentation from route definitions."""
         return generate_api_docs_tool(
@@ -795,11 +797,11 @@ def register_documentation_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def generate_changelog(
-        project_folder: str = fields['generate_changelog']['project_folder'],
-        from_version: Optional[str] = fields['generate_changelog']['from_version'],
-        to_version: str = fields['generate_changelog']['to_version'],
-        changelog_format: str = fields['generate_changelog']['changelog_format'],
-        group_by: str = fields['generate_changelog']['group_by'],
+        project_folder: str = fields["generate_changelog"]["project_folder"],
+        from_version: Optional[str] = fields["generate_changelog"]["from_version"],
+        to_version: str = fields["generate_changelog"]["to_version"],
+        changelog_format: str = fields["generate_changelog"]["changelog_format"],
+        group_by: str = fields["generate_changelog"]["group_by"],
     ) -> Dict[str, Any]:
         """Generate changelog from git commits."""
         return generate_changelog_tool(
@@ -812,10 +814,10 @@ def register_documentation_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def sync_documentation(
-        project_folder: str = fields['sync_documentation']['project_folder'],
-        language: str = fields['sync_documentation']['language'],
-        doc_types: List[str] = fields['sync_documentation']['doc_types'],
-        check_only: bool = fields['sync_documentation']['check_only'],
+        project_folder: str = fields["sync_documentation"]["project_folder"],
+        language: str = fields["sync_documentation"]["language"],
+        doc_types: List[str] = fields["sync_documentation"]["doc_types"],
+        check_only: bool = fields["sync_documentation"]["check_only"],
     ) -> Dict[str, Any]:
         """Synchronize documentation with code."""
         return sync_documentation_tool(

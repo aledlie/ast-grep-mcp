@@ -24,12 +24,7 @@ class PatternAnalyzer:
         """Initialize the pattern analyzer."""
         self.logger = get_logger("deduplication.analyzer")
 
-    def identify_varying_literals(
-        self,
-        code1: str,
-        code2: str,
-        language: str = "python"
-    ) -> List[Dict[str, Any]]:
+    def identify_varying_literals(self, code1: str, code2: str, language: str = "python") -> List[Dict[str, Any]]:
         """
         Identify varying literal values between two similar code blocks.
 
@@ -61,13 +56,15 @@ class PatternAnalyzer:
                 lit2 = pos_map2.get(pos)
 
                 if lit1 and lit2 and lit1["value"] != lit2["value"]:
-                    varying_literals.append({
-                        "position": pos[0] + 1,  # 1-based line number
-                        "column": pos[1],
-                        "value1": lit1["value"],
-                        "value2": lit2["value"],
-                        "literal_type": literal_type
-                    })
+                    varying_literals.append(
+                        {
+                            "position": pos[0] + 1,  # 1-based line number
+                            "column": pos[1],
+                            "value1": lit1["value"],
+                            "value2": lit2["value"],
+                            "literal_type": literal_type,
+                        }
+                    )
 
         # Sort by position
         varying_literals.sort(key=lambda x: (x["position"], x.get("column", 0)))
@@ -75,20 +72,12 @@ class PatternAnalyzer:
         self.logger.info(
             "varying_literals_found",
             count=len(varying_literals),
-            by_type={
-                t: len([v for v in varying_literals if v["literal_type"] == t])
-                for t in ["string", "number", "boolean"]
-            }
+            by_type={t: len([v for v in varying_literals if v["literal_type"] == t]) for t in ["string", "number", "boolean"]},
         )
 
         return varying_literals
 
-    def _extract_literals_with_ast_grep(
-        self,
-        code: str,
-        literal_type: str,
-        language: str
-    ) -> List[Dict[str, Any]]:
+    def _extract_literals_with_ast_grep(self, code: str, literal_type: str, language: str) -> List[Dict[str, Any]]:
         """Extract literals from code using ast-grep."""
         literals: List[Dict[str, Any]] = []
 
@@ -102,58 +91,30 @@ class PatternAnalyzer:
             "java": ".java",
             "csharp": ".cs",
             "cpp": ".cpp",
-            "c": ".c"
+            "c": ".c",
         }
         ext = ext_map.get(language, ".py")
 
         # Write code to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix=ext, delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=ext, delete=False) as f:
             f.write(code)
             temp_path = f.name
 
         try:
             # Define ast-grep rules for literal types
             if literal_type == "number":
-                rule = {
-                    "rule": {
-                        "any": [
-                            {"kind": "integer"},
-                            {"kind": "float"},
-                            {"kind": "number"}
-                        ]
-                    }
-                }
+                rule = {"rule": {"any": [{"kind": "integer"}, {"kind": "float"}, {"kind": "number"}]}}
             elif literal_type == "string":
-                rule = {
-                    "rule": {
-                        "any": [
-                            {"kind": "string"},
-                            {"kind": "string_literal"}
-                        ]
-                    }
-                }
+                rule = {"rule": {"any": [{"kind": "string"}, {"kind": "string_literal"}]}}
             elif literal_type == "boolean":
-                rule = {
-                    "rule": {
-                        "any": [
-                            {"kind": "true"},
-                            {"kind": "false"},
-                            {"kind": "none"},
-                            {"kind": "null"}
-                        ]
-                    }
-                }
+                rule = {"rule": {"any": [{"kind": "true"}, {"kind": "false"}, {"kind": "none"}, {"kind": "null"}]}}
             else:
                 return literals
 
             rule_yaml = yaml.dump(rule)
 
             result = subprocess.run(
-                ["ast-grep", "scan", "--rule", "-", "--json", temp_path],
-                input=rule_yaml,
-                capture_output=True,
-                text=True,
-                timeout=10
+                ["ast-grep", "scan", "--rule", "-", "--json", temp_path], input=rule_yaml, capture_output=True, text=True, timeout=10
             )
 
             if result.returncode == 0 and result.stdout.strip():
@@ -163,12 +124,7 @@ class PatternAnalyzer:
                         line = match.get("range", {}).get("start", {}).get("line", 0)
                         col = match.get("range", {}).get("start", {}).get("column", 0)
                         text = match.get("text", "")
-                        literals.append({
-                            "line": line,
-                            "column": col,
-                            "value": text,
-                            "type": literal_type
-                        })
+                        literals.append({"line": line, "column": col, "value": text, "type": literal_type})
                 except json.JSONDecodeError:
                     self.logger.warning("literal_parse_error", literal_type=literal_type)
 
@@ -185,11 +141,7 @@ class PatternAnalyzer:
 
         return literals
 
-    def analyze_duplicate_group_literals(
-        self,
-        group: List[Dict[str, Any]],
-        language: str = "python"
-    ) -> Dict[str, Any]:
+    def analyze_duplicate_group_literals(self, group: List[Dict[str, Any]], language: str = "python") -> Dict[str, Any]:
         """
         Analyze a group of duplicates to find all varying literals.
 
@@ -201,11 +153,7 @@ class PatternAnalyzer:
             Analysis results with variations and suggestions
         """
         if len(group) < 2:
-            return {
-                "total_variations": 0,
-                "variations": [],
-                "suggested_parameters": []
-            }
+            return {"total_variations": 0, "variations": [], "suggested_parameters": []}
 
         # Compare first item against all others
         base_code = group[0].get("text", "")
@@ -229,12 +177,7 @@ class PatternAnalyzer:
         suggested_parameters = []
 
         for (line, col, lit_type), values in sorted(all_variations.items()):
-            variation = {
-                "position": {"line": line, "column": col},
-                "type": lit_type,
-                "values": values,
-                "unique_count": len(set(values))
-            }
+            variation = {"position": {"line": line, "column": col}, "type": lit_type, "values": values, "unique_count": len(set(values))}
             formatted_variations.append(variation)
 
             # Suggest parameter name
@@ -245,16 +188,10 @@ class PatternAnalyzer:
         return {
             "total_variations": len(formatted_variations),
             "variations": formatted_variations,
-            "suggested_parameters": suggested_parameters
+            "suggested_parameters": suggested_parameters,
         }
 
-    def classify_variation(
-        self,
-        variation_type: str,
-        old_value: str,
-        new_value: str,
-        context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def classify_variation(self, variation_type: str, old_value: str, new_value: str, context: Optional[str] = None) -> Dict[str, Any]:
         """
         Classify a single variation between duplicate code blocks.
 
@@ -279,13 +216,10 @@ class PatternAnalyzer:
             "context": context,
             "parameterizable": severity in [VariationSeverity.LOW, VariationSeverity.MEDIUM],
             "suggested_param_name": self._suggest_parameter_name(category, old_value),
-            "complexity": complexity
+            "complexity": complexity,
         }
 
-    def classify_variations(
-        self,
-        variations: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def classify_variations(self, variations: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Classify multiple variations and determine overall complexity.
 
@@ -302,7 +236,7 @@ class PatternAnalyzer:
                 "refactoring_difficulty": "trivial",
                 "classifications": [],
                 "parameterizable_count": 0,
-                "parameter_suggestions": []
+                "parameter_suggestions": [],
             }
 
         classifications = []
@@ -312,10 +246,7 @@ class PatternAnalyzer:
 
         for var in variations:
             classification = self.classify_variation(
-                var.get("type", "unknown"),
-                var.get("old_value", ""),
-                var.get("new_value", ""),
-                var.get("context")
+                var.get("type", "unknown"), var.get("old_value", ""), var.get("new_value", ""), var.get("context")
             )
             classifications.append(classification)
 
@@ -348,7 +279,7 @@ class PatternAnalyzer:
             "refactoring_difficulty": difficulty,
             "classifications": classifications,
             "parameterizable_count": parameterizable_count,
-            "parameter_suggestions": param_suggestions[:5]  # Top 5 suggestions
+            "parameter_suggestions": param_suggestions[:5],  # Top 5 suggestions
         }
 
     def _determine_category(self, variation_type: str, old_value: str, new_value: str) -> str:
@@ -402,8 +333,7 @@ class PatternAnalyzer:
         value = value.strip()
 
         # String literals
-        if (value.startswith('"') and value.endswith('"')) or \
-           (value.startswith("'") and value.endswith("'")):
+        if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
             return True
 
         # Numeric literals
@@ -422,9 +352,22 @@ class PatternAnalyzer:
     def _is_type_annotation(self, value: str) -> bool:
         """Check if a value appears to be a type annotation."""
         type_indicators = [
-            "->", ":", "Optional[", "List[", "Dict[", "Tuple[", "Set[",
-            "Union[", "Any", "int", "str", "float", "bool", "None",
-            "<", ">",  # Generics in other languages
+            "->",
+            ":",
+            "Optional[",
+            "List[",
+            "Dict[",
+            "Tuple[",
+            "Set[",
+            "Union[",
+            "Any",
+            "int",
+            "str",
+            "float",
+            "bool",
+            "None",
+            "<",
+            ">",  # Generics in other languages
         ]
         return any(ind in value for ind in type_indicators)
 
@@ -527,13 +470,7 @@ class PatternAnalyzer:
             return "moderate"
         return "complex"
 
-    def _calculate_variation_complexity(
-        self,
-        category: str,
-        severity: str,
-        old_value: str,
-        new_value: str
-    ) -> Dict[str, Any]:
+    def _calculate_variation_complexity(self, category: str, severity: str, old_value: str, new_value: str) -> Dict[str, Any]:
         """
         Calculate complexity score for a variation.
 
@@ -549,7 +486,7 @@ class PatternAnalyzer:
             VariationCategory.IDENTIFIER: lambda: self._score_identifier_variation(severity),
             VariationCategory.EXPRESSION: lambda: self._score_expression_variation(severity),
             VariationCategory.TYPE: lambda: self._score_type_variation(severity),
-            VariationCategory.LOGIC: lambda: self._score_logic_variation(severity, old_value, new_value)
+            VariationCategory.LOGIC: lambda: self._score_logic_variation(severity, old_value, new_value),
         }
 
         # Get score and reasoning for the category
@@ -562,8 +499,4 @@ class PatternAnalyzer:
         # Determine complexity level
         level = self._get_complexity_level(score)
 
-        return {
-            "score": score,
-            "level": level,
-            "reasoning": reasoning
-        }
+        return {"score": score, "level": level, "reasoning": reasoning}

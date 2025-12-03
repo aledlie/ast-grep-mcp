@@ -1,22 +1,20 @@
 """MCP tools for refactoring operations."""
 
 from typing import Any, Dict, Optional
+
 from pydantic import Field
 
 from ast_grep_mcp.core.logging import get_logger
+
+from ...models.refactoring import ExtractFunctionResult
 from .analyzer import CodeSelectionAnalyzer
 from .extractor import FunctionExtractor
 from .rename_coordinator import RenameCoordinator
-from ...models.refactoring import ExtractFunctionResult, RenameSymbolResult
 
 logger = get_logger(__name__)
 
 
-def _format_extract_function_response(
-    result: ExtractFunctionResult,
-    selection: Any,
-    language: str
-) -> Dict[str, Any]:
+def _format_extract_function_response(result: ExtractFunctionResult, selection: Any, language: str) -> Dict[str, Any]:
     """Format extract function result for tool response.
 
     Args:
@@ -134,8 +132,9 @@ def extract_function_tool(
         )
 
         # Build absolute file path
-        if not file_path.startswith('/'):
+        if not file_path.startswith("/"):
             import os
+
             file_path = os.path.join(project_folder, file_path)
 
         # Analyze the code selection

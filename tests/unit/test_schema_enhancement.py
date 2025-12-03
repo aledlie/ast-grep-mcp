@@ -9,8 +9,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from ast_grep_mcp.features.schema.enhancement_rules import (
-    ENTITY_SUGGESTIONS,
-    PROPERTY_PRIORITIES,
     get_all_properties_for_entity,
     get_property_example,
     get_property_priority,
@@ -40,7 +38,6 @@ from ast_grep_mcp.models.schema_enhancement import (
     MissingEntitySuggestion,
     PropertyEnhancement,
 )
-
 
 # =============================================================================
 # Test Fixtures

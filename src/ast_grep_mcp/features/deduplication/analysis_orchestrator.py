@@ -3,6 +3,7 @@
 This module handles the multi-step process of finding duplicates,
 ranking them, checking test coverage, and generating recommendations.
 """
+
 import os
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from typing import Any, Callable, Dict, List, Optional
@@ -31,7 +32,7 @@ class DeduplicationAnalysisOrchestrator:
     @property
     def detector(self) -> DuplicationDetector:
         """Get or create DuplicationDetector instance (lazy initialization)."""
-        if not hasattr(self, '_detector'):
+        if not hasattr(self, "_detector"):
             self._detector = DuplicationDetector()
         return self._detector
 
@@ -43,7 +44,7 @@ class DeduplicationAnalysisOrchestrator:
     @property
     def ranker(self) -> DuplicationRanker:
         """Get or create DuplicationRanker instance (lazy initialization)."""
-        if not hasattr(self, '_ranker'):
+        if not hasattr(self, "_ranker"):
             self._ranker = DuplicationRanker()
         return self._ranker
 
@@ -55,7 +56,7 @@ class DeduplicationAnalysisOrchestrator:
     @property
     def coverage_detector(self) -> CoverageDetector:
         """Get or create CoverageDetector instance (lazy initialization)."""
-        if not hasattr(self, '_coverage_detector'):
+        if not hasattr(self, "_coverage_detector"):
             self._coverage_detector = CoverageDetector()
         return self._coverage_detector
 
@@ -67,7 +68,7 @@ class DeduplicationAnalysisOrchestrator:
     @property
     def recommendation_engine(self) -> RecommendationEngine:
         """Get or create RecommendationEngine instance (lazy initialization)."""
-        if not hasattr(self, '_recommendation_engine'):
+        if not hasattr(self, "_recommendation_engine"):
             self._recommendation_engine = RecommendationEngine()
         return self._recommendation_engine
 
@@ -85,7 +86,7 @@ class DeduplicationAnalysisOrchestrator:
         min_lines: int = 5,
         max_candidates: int = 100,
         exclude_patterns: List[str] | None = None,
-        progress_callback: Optional[ProgressCallback] = None
+        progress_callback: Optional[ProgressCallback] = None,
     ) -> Dict[str, Any]:
         """Analyze a project for deduplication candidates (legacy interface).
 
@@ -125,14 +126,11 @@ class DeduplicationAnalysisOrchestrator:
             min_lines=min_lines,
             max_candidates=max_candidates,
             exclude_patterns=exclude_patterns,
-            progress_callback=progress_callback
+            progress_callback=progress_callback,
         )
         return self.analyze_candidates_with_config(config)
 
-    def analyze_candidates_with_config(
-        self,
-        config: AnalysisConfig
-    ) -> Dict[str, Any]:
+    def analyze_candidates_with_config(self, config: AnalysisConfig) -> Dict[str, Any]:
         """Analyze a project for deduplication candidates (recommended interface).
 
         This is the modern, cleaner API that accepts an AnalysisConfig object
@@ -164,13 +162,7 @@ class DeduplicationAnalysisOrchestrator:
             >>> results = orchestrator.analyze_candidates_with_config(config)
         """
         # Validate inputs early (fail-fast)
-        self._validate_analysis_inputs(
-            config.project_path,
-            config.language,
-            config.min_similarity,
-            config.min_lines,
-            config.max_candidates
-        )
+        self._validate_analysis_inputs(config.project_path, config.language, config.min_similarity, config.min_lines, config.max_candidates)
 
         # Helper function for progress reporting
         def report_progress(stage: str, percent: float) -> None:
@@ -178,10 +170,7 @@ class DeduplicationAnalysisOrchestrator:
             if config.progress_callback:
                 config.progress_callback(stage, percent)
 
-        self.logger.info(
-            "analysis_start",
-            **config.to_dict()
-        )
+        self.logger.info("analysis_start", **config.to_dict())
 
         # Step 1: Find duplicates (0% -> 25%)
         report_progress("Finding duplicate code", 0.0)
@@ -190,36 +179,26 @@ class DeduplicationAnalysisOrchestrator:
             construct_type="function_definition",
             min_similarity=config.min_similarity,
             min_lines=config.min_lines,
-            exclude_patterns=config.exclude_patterns or []
+            exclude_patterns=config.exclude_patterns or [],
         )
 
         # Step 2: Rank candidates by refactoring value (25% -> 40%)
         # Pass max_candidates for early exit optimization (avoids unnecessary rank numbering)
         report_progress("Ranking candidates by value", 0.25)
         ranked_candidates = self.ranker.rank_deduplication_candidates(
-            duplication_results.get("duplication_groups", []),
-            max_results=config.max_candidates
+            duplication_results.get("duplication_groups", []), max_results=config.max_candidates
         )
 
         # Step 3-5: Enrich and summarize top candidates (40% -> 100%)
         report_progress("Enriching candidates", 0.40)
-        result = self._enrich_and_summarize_with_config(
-            ranked_candidates,
-            config,
-            progress_callback=report_progress
-        )
+        result = self._enrich_and_summarize_with_config(ranked_candidates, config, progress_callback=report_progress)
 
         # Complete
         report_progress("Analysis complete", 1.0)
         return result
 
     def _validate_analysis_inputs(
-        self,
-        project_path: str,
-        language: str,
-        min_similarity: float,
-        min_lines: int,
-        max_candidates: int
+        self, project_path: str, language: str, min_similarity: float, min_lines: int, max_candidates: int
     ) -> None:
         """Validate analysis inputs with clear error messages.
 
@@ -242,38 +221,27 @@ class DeduplicationAnalysisOrchestrator:
 
         # Validate min_similarity range
         if not 0.0 <= min_similarity <= 1.0:
-            raise ValueError(
-                f"min_similarity must be between 0.0 and 1.0, got {min_similarity}"
-            )
+            raise ValueError(f"min_similarity must be between 0.0 and 1.0, got {min_similarity}")
 
         # Validate min_lines is positive
         if min_lines < 1:
-            raise ValueError(
-                f"min_lines must be a positive integer, got {min_lines}"
-            )
+            raise ValueError(f"min_lines must be a positive integer, got {min_lines}")
 
         # Validate max_candidates is positive
         if max_candidates < 1:
-            raise ValueError(
-                f"max_candidates must be a positive integer, got {max_candidates}"
-            )
+            raise ValueError(f"max_candidates must be a positive integer, got {max_candidates}")
 
         # Log warning for unsupported languages (but don't fail)
-        supported_languages = ["python", "javascript", "typescript", "java", "go",
-                               "rust", "cpp", "c", "ruby"]
+        supported_languages = ["python", "javascript", "typescript", "java", "go", "rust", "cpp", "c", "ruby"]
         if language.lower() not in supported_languages:
             self.logger.warning(
                 "unsupported_language",
                 language=language,
                 supported=supported_languages,
-                message=f"Language '{language}' may not be fully supported"
+                message=f"Language '{language}' may not be fully supported",
             )
 
-    def _get_top_candidates(
-        self,
-        candidates: List[Dict[str, Any]],
-        max_count: int
-    ) -> List[Dict[str, Any]]:
+    def _get_top_candidates(self, candidates: List[Dict[str, Any]], max_count: int) -> List[Dict[str, Any]]:
         """Get top N candidates from the list.
 
         Args:
@@ -286,12 +254,7 @@ class DeduplicationAnalysisOrchestrator:
         return candidates[:max_count]
 
     def _build_analysis_metadata(
-        self,
-        language: str,
-        min_similarity: float,
-        min_lines: int,
-        include_test_coverage: bool,
-        project_path: str
+        self, language: str, min_similarity: float, min_lines: int, include_test_coverage: bool, project_path: str
     ) -> Dict[str, Any]:
         """Build analysis metadata dictionary (legacy interface).
 
@@ -313,13 +276,10 @@ class DeduplicationAnalysisOrchestrator:
             "min_similarity": min_similarity,
             "min_lines": min_lines,
             "include_test_coverage": include_test_coverage,
-            "project_path": project_path
+            "project_path": project_path,
         }
 
-    def _build_analysis_metadata_from_config(
-        self,
-        config: AnalysisConfig
-    ) -> Dict[str, Any]:
+    def _build_analysis_metadata_from_config(self, config: AnalysisConfig) -> Dict[str, Any]:
         """Build analysis metadata dictionary from config.
 
         Args:
@@ -333,7 +293,7 @@ class DeduplicationAnalysisOrchestrator:
             "min_similarity": config.min_similarity,
             "min_lines": config.min_lines,
             "include_test_coverage": config.include_test_coverage,
-            "project_path": config.project_path
+            "project_path": config.project_path,
         }
 
     def _enrich_and_summarize(
@@ -345,7 +305,7 @@ class DeduplicationAnalysisOrchestrator:
         project_path: str,
         min_similarity: float,
         min_lines: int,
-        progress_callback: Optional[Callable[[str, float], None]] = None
+        progress_callback: Optional[Callable[[str, float], None]] = None,
     ) -> Dict[str, Any]:
         """Enrich top candidates and generate summary (legacy interface).
 
@@ -373,19 +333,15 @@ class DeduplicationAnalysisOrchestrator:
             include_test_coverage=include_test_coverage,
             min_lines=min_lines,
             max_candidates=max_candidates,
-            progress_callback=progress_callback
+            progress_callback=progress_callback,
         )
-        return self._enrich_and_summarize_with_config(
-            ranked_candidates,
-            config,
-            progress_callback=progress_callback
-        )
+        return self._enrich_and_summarize_with_config(ranked_candidates, config, progress_callback=progress_callback)
 
     def _enrich_and_summarize_with_config(
         self,
         ranked_candidates: List[Dict[str, Any]],
         config: AnalysisConfig,
-        progress_callback: Optional[Callable[[str, float], None]] = None
+        progress_callback: Optional[Callable[[str, float], None]] = None,
     ) -> Dict[str, Any]:
         """Enrich top candidates and generate summary using config object.
 
@@ -400,6 +356,7 @@ class DeduplicationAnalysisOrchestrator:
         Returns:
             Analysis results with enriched candidates and metadata
         """
+
         # Helper for progress reporting
         def report(stage: str, percent: float) -> None:
             if progress_callback:
@@ -413,7 +370,7 @@ class DeduplicationAnalysisOrchestrator:
                 "total_groups_analyzed": 0,
                 "top_candidates_count": 0,
                 "top_candidates_savings_potential": 0,
-                "analysis_metadata": self._build_analysis_metadata_from_config(config)
+                "analysis_metadata": self._build_analysis_metadata_from_config(config),
             }
 
         # Get top candidates (40% -> 50%)
@@ -424,21 +381,13 @@ class DeduplicationAnalysisOrchestrator:
         if config.include_test_coverage:
             report("Checking test coverage", 0.60)
             self._add_test_coverage_batch(
-                top_candidates,
-                config.language,
-                config.project_path,
-                parallel=config.parallel,
-                max_workers=config.max_workers
+                top_candidates, config.language, config.project_path, parallel=config.parallel, max_workers=config.max_workers
             )
             report("Test coverage complete", 0.75)
 
         # Step 4: Generate recommendations (75% -> 90%)
         report("Generating recommendations", 0.85)
-        self._add_recommendations(
-            top_candidates,
-            parallel=config.parallel,
-            max_workers=config.max_workers
-        )
+        self._add_recommendations(top_candidates, parallel=config.parallel, max_workers=config.max_workers)
 
         # Step 5: Calculate summary statistics (90% -> 95%)
         report("Calculating statistics", 0.90)
@@ -448,7 +397,7 @@ class DeduplicationAnalysisOrchestrator:
             "analysis_complete",
             total_groups_analyzed=len(ranked_candidates),
             top_candidates_count=len(top_candidates),
-            top_candidates_savings_potential=top_candidates_savings
+            top_candidates_savings_potential=top_candidates_savings,
         )
 
         return {
@@ -456,15 +405,10 @@ class DeduplicationAnalysisOrchestrator:
             "total_groups_analyzed": len(ranked_candidates),
             "top_candidates_count": len(top_candidates),
             "top_candidates_savings_potential": top_candidates_savings,
-            "analysis_metadata": self._build_analysis_metadata_from_config(config)
+            "analysis_metadata": self._build_analysis_metadata_from_config(config),
         }
 
-    def _enrich_with_test_coverage(
-        self,
-        candidate: Dict[str, Any],
-        language: str,
-        project_path: str
-    ) -> None:
+    def _enrich_with_test_coverage(self, candidate: Dict[str, Any], language: str, project_path: str) -> None:
         """Enrich a single candidate with test coverage data.
 
         Args:
@@ -478,16 +422,11 @@ class DeduplicationAnalysisOrchestrator:
         """
         files = candidate.get("files", [])
         if files:
-            coverage_map = self.coverage_detector.get_test_coverage_for_files(
-                files, language, project_path
-            )
+            coverage_map = self.coverage_detector.get_test_coverage_for_files(files, language, project_path)
             candidate["test_coverage"] = coverage_map
             candidate["has_tests"] = any(coverage_map.values())
 
-    def _enrich_with_recommendation(
-        self,
-        candidate: Dict[str, Any]
-    ) -> None:
+    def _enrich_with_recommendation(self, candidate: Dict[str, Any]) -> None:
         """Enrich a single candidate with recommendation.
 
         Args:
@@ -498,7 +437,7 @@ class DeduplicationAnalysisOrchestrator:
             complexity=candidate.get("complexity_score", 5),
             lines_saved=candidate.get("lines_saved", 0),
             has_tests=candidate.get("has_tests", False),
-            affected_files=len(candidate.get("files", []))
+            affected_files=len(candidate.get("files", [])),
         )
         candidate["recommendation"] = recommendation
 
@@ -509,7 +448,7 @@ class DeduplicationAnalysisOrchestrator:
         operation_name: str,
         error_field: str,
         default_error_value: Any,
-        error_message: Optional[str] = None
+        error_message: Optional[str] = None,
     ) -> None:
         """Handle enrichment errors by logging and updating candidate.
 
@@ -526,15 +465,11 @@ class DeduplicationAnalysisOrchestrator:
             self.logger.error(
                 f"{operation_name}_timeout",
                 candidate_id=candidate.get("id", "unknown"),
-                timeout_seconds=error_message  # Pass timeout value via error_message
+                timeout_seconds=error_message,  # Pass timeout value via error_message
             )
             candidate[error_field] = f"Operation timed out after {error_message}s"
         else:
-            self.logger.error(
-                f"{operation_name}_enrichment_failed",
-                candidate_id=candidate.get("id", "unknown"),
-                error=str(error)
-            )
+            self.logger.error(f"{operation_name}_enrichment_failed", candidate_id=candidate.get("id", "unknown"), error=str(error))
             candidate[error_field] = str(error)
 
         # Set default error value
@@ -550,7 +485,7 @@ class DeduplicationAnalysisOrchestrator:
         operation_name: str,
         error_field: str,
         default_error_value: Any,
-        failed_candidates: List[Dict[str, Any]]
+        failed_candidates: List[Dict[str, Any]],
     ) -> None:
         """Process a completed future and handle any errors.
 
@@ -568,27 +503,23 @@ class DeduplicationAnalysisOrchestrator:
             future.result(timeout=timeout_seconds)
         except TimeoutError as e:
             self._handle_enrichment_error(
-                candidate, e, operation_name, error_field,
-                default_error_value, error_message=str(timeout_seconds)
+                candidate, e, operation_name, error_field, default_error_value, error_message=str(timeout_seconds)
             )
             failed_candidates.append(candidate)
         except Exception as e:
-            self._handle_enrichment_error(
-                candidate, e, operation_name, error_field,
-                default_error_value
-            )
+            self._handle_enrichment_error(candidate, e, operation_name, error_field, default_error_value)
             failed_candidates.append(candidate)
 
     def _process_parallel_enrichment(
         self,
         candidates: List[Dict[str, Any]],
-        enrich_func: Callable[[Dict[str, Any], ...], None],
+        enrich_func: Callable[..., None],
         operation_name: str,
         error_field: str,
         default_error_value: Any,
         max_workers: int,
         timeout_seconds: int,
-        kwargs: Dict[str, Any]
+        kwargs: Dict[str, Any],
     ) -> List[Dict[str, Any]]:
         """Process enrichment in parallel using ThreadPoolExecutor.
 
@@ -608,18 +539,13 @@ class DeduplicationAnalysisOrchestrator:
         failed_candidates: List[Dict[str, Any]] = []
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {
-                executor.submit(enrich_func, candidate, **kwargs): candidate
-                for candidate in candidates
-            }
+            futures = {executor.submit(enrich_func, candidate, **kwargs): candidate for candidate in candidates}
 
             # Process futures as they complete
             for future in as_completed(futures):
                 candidate = futures[future]
                 self._process_completed_future(
-                    future, candidate, timeout_seconds,
-                    operation_name, error_field, default_error_value,
-                    failed_candidates
+                    future, candidate, timeout_seconds, operation_name, error_field, default_error_value, failed_candidates
                 )
 
         return failed_candidates
@@ -627,11 +553,11 @@ class DeduplicationAnalysisOrchestrator:
     def _process_sequential_enrichment(
         self,
         candidates: List[Dict[str, Any]],
-        enrich_func: Callable[[Dict[str, Any], ...], None],
+        enrich_func: Callable[..., None],
         operation_name: str,
         error_field: str,
         default_error_value: Any,
-        kwargs: Dict[str, Any]
+        kwargs: Dict[str, Any],
     ) -> List[Dict[str, Any]]:
         """Process enrichment sequentially.
 
@@ -652,10 +578,7 @@ class DeduplicationAnalysisOrchestrator:
             try:
                 enrich_func(candidate, **kwargs)
             except Exception as e:
-                self._handle_enrichment_error(
-                    candidate, e, operation_name, error_field,
-                    default_error_value
-                )
+                self._handle_enrichment_error(candidate, e, operation_name, error_field, default_error_value)
                 failed_candidates.append(candidate)
 
         return failed_candidates
@@ -663,14 +586,14 @@ class DeduplicationAnalysisOrchestrator:
     def _parallel_enrich(
         self,
         candidates: List[Dict[str, Any]],
-        enrich_func: Callable[[Dict[str, Any], ...], None],
+        enrich_func: Callable[..., None],
         operation_name: str,
         error_field: str,
         default_error_value: Any,
         parallel: bool = True,
         max_workers: int = 4,
         timeout_per_candidate: Optional[int] = None,
-        **kwargs
+        **kwargs: Any,
     ) -> List[Dict[str, Any]]:
         """Generic parallel enrichment helper to reduce code duplication.
 
@@ -706,30 +629,21 @@ class DeduplicationAnalysisOrchestrator:
         """
         # Use default timeout if not specified
         timeout_seconds = (
-            timeout_per_candidate
-            if timeout_per_candidate is not None
-            else ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS
+            timeout_per_candidate if timeout_per_candidate is not None else ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS
         )
 
         # Choose processing strategy based on parallel flag and candidate count
         if parallel and len(candidates) > 1:
             failed_candidates = self._process_parallel_enrichment(
-                candidates, enrich_func, operation_name, error_field,
-                default_error_value, max_workers, timeout_seconds, kwargs
+                candidates, enrich_func, operation_name, error_field, default_error_value, max_workers, timeout_seconds, kwargs
             )
         else:
             failed_candidates = self._process_sequential_enrichment(
-                candidates, enrich_func, operation_name, error_field,
-                default_error_value, kwargs
+                candidates, enrich_func, operation_name, error_field, default_error_value, kwargs
             )
 
         # Log summary
-        self.logger.info(
-            f"{operation_name}_added",
-            candidate_count=len(candidates),
-            failed_count=len(failed_candidates),
-            parallel=parallel
-        )
+        self.logger.info(f"{operation_name}_added", candidate_count=len(candidates), failed_count=len(failed_candidates), parallel=parallel)
 
         return failed_candidates
 
@@ -740,7 +654,7 @@ class DeduplicationAnalysisOrchestrator:
         project_path: str,
         parallel: bool = True,
         max_workers: int = 4,
-        timeout_per_candidate: Optional[int] = None
+        timeout_per_candidate: Optional[int] = None,
     ) -> None:
         """Add test coverage information using optimized batch processing.
 
@@ -778,46 +692,29 @@ class DeduplicationAnalysisOrchestrator:
             candidate_count=len(candidates),
             unique_file_count=len(unique_files),
             total_file_refs=len(all_files),
-            parallel=parallel
+            parallel=parallel,
         )
 
         # Run optimized batch test coverage detection
         coverage_map = self.coverage_detector.get_test_coverage_for_files_batch(
-            unique_files,
-            language,
-            project_path,
-            parallel=parallel,
-            max_workers=max_workers
+            unique_files, language, project_path, parallel=parallel, max_workers=max_workers
         )
 
         # Distribute coverage results to candidates
         for candidate in candidates:
             files = candidate.get("files", [])
             if files:
-                candidate_coverage = {
-                    f: coverage_map.get(f, False)
-                    for f in files
-                }
+                candidate_coverage = {f: coverage_map.get(f, False) for f in files}
                 candidate["test_coverage"] = candidate_coverage
                 candidate["has_tests"] = any(candidate_coverage.values())
             else:
                 candidate["test_coverage"] = {}
                 candidate["has_tests"] = False
 
-        self.logger.info(
-            "batch_coverage_added",
-            candidate_count=len(candidates),
-            unique_files_checked=len(unique_files),
-            parallel=parallel
-        )
+        self.logger.info("batch_coverage_added", candidate_count=len(candidates), unique_files_checked=len(unique_files), parallel=parallel)
 
     def _add_test_coverage(
-        self,
-        candidates: List[Dict[str, Any]],
-        language: str,
-        project_path: str,
-        parallel: bool = True,
-        max_workers: int = 4
+        self, candidates: List[Dict[str, Any]], language: str, project_path: str, parallel: bool = True, max_workers: int = 4
     ) -> List[Dict[str, Any]]:
         """Add test coverage information to candidates (legacy method).
 
@@ -841,22 +738,15 @@ class DeduplicationAnalysisOrchestrator:
             enrich_func=self._enrich_with_test_coverage,
             operation_name="test_coverage",
             error_field="test_coverage_error",
-            default_error_value={
-                "test_coverage": {},
-                "has_tests": False
-            },
+            default_error_value={"test_coverage": {}, "has_tests": False},
             parallel=parallel,
             max_workers=max_workers,
             language=language,
-            project_path=project_path
+            project_path=project_path,
         )
 
     def _add_recommendations(
-        self,
-        candidates: List[Dict[str, Any]],
-        parallel: bool = True,
-        max_workers: int = 4,
-        timeout_per_candidate: Optional[int] = None
+        self, candidates: List[Dict[str, Any]], parallel: bool = True, max_workers: int = 4, timeout_per_candidate: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """Add recommendations to candidates.
 
@@ -878,21 +768,14 @@ class DeduplicationAnalysisOrchestrator:
             operation_name="recommendations",
             error_field="recommendation_error",
             default_error_value={
-                "recommendation": {
-                    "action": "error",
-                    "reasoning": "Failed to generate recommendation",
-                    "priority": "low"
-                }
+                "recommendation": {"action": "error", "reasoning": "Failed to generate recommendation", "priority": "low"}
             },
             timeout_per_candidate=timeout_per_candidate,
             parallel=parallel,
-            max_workers=max_workers
+            max_workers=max_workers,
         )
 
-    def _calculate_total_savings(
-        self,
-        candidates: List[Dict[str, Any]]
-    ) -> int:
+    def _calculate_total_savings(self, candidates: List[Dict[str, Any]]) -> int:
         """Calculate total potential line savings.
 
         Args:
@@ -901,8 +784,5 @@ class DeduplicationAnalysisOrchestrator:
         Returns:
             Total potential lines saved
         """
-        total = sum(
-            c.get("lines_saved", 0) * len(c.get("files", []))
-            for c in candidates
-        )
+        total = sum(c.get("lines_saved", 0) * len(c.get("files", [])) for c in candidates)
         return int(total)

@@ -1,14 +1,17 @@
 """Custom exceptions for ast-grep MCP server."""
+
 from typing import List, Optional
 
 
 class AstGrepError(Exception):
     """Base exception for all ast-grep MCP server errors."""
+
     pass
 
 
 class AstGrepNotFoundError(AstGrepError):
     """Raised when ast-grep binary is not found in PATH."""
+
     def __init__(self, message: str = "ast-grep command not found") -> None:
         super().__init__(
             f"{message}\n\n"
@@ -22,6 +25,7 @@ class AstGrepNotFoundError(AstGrepError):
 
 class InvalidYAMLError(AstGrepError):
     """Raised when YAML rule is invalid or malformed."""
+
     def __init__(self, message: str, yaml_content: Optional[str] = None) -> None:
         error_msg = f"Invalid YAML rule: {message}\n\n"
         error_msg += "YAML rules must include:\n"
@@ -40,15 +44,16 @@ class InvalidYAMLError(AstGrepError):
 
 class ConfigurationError(AstGrepError):
     """Raised when configuration file is invalid."""
+
     def __init__(self, config_path: str, message: str) -> None:
         super().__init__(
-            f"Configuration error in '{config_path}': {message}\n\n"
-            "See: https://ast-grep.github.io/guide/project/project-config.html"
+            f"Configuration error in '{config_path}': {message}\n\nSee: https://ast-grep.github.io/guide/project/project-config.html"
         )
 
 
 class AstGrepExecutionError(AstGrepError):
     """Raised when ast-grep command execution fails."""
+
     def __init__(self, command: List[str], returncode: int, stderr: str) -> None:
         error_msg = f"ast-grep command failed with exit code {returncode}\n\n"
         error_msg += f"Command: {' '.join(command)}\n\n"
@@ -64,6 +69,7 @@ class AstGrepExecutionError(AstGrepError):
 
 class NoMatchesError(AstGrepError):
     """Raised when no matches are found (for test_match_code_rule only)."""
+
     def __init__(self, message: str = "No matches found") -> None:
         super().__init__(
             f"{message}\n\n"
@@ -75,9 +81,11 @@ class NoMatchesError(AstGrepError):
 # These exceptions are for the quality/standards feature
 class RuleValidationError(Exception):
     """Raised when a linting rule validation fails."""
+
     pass
 
 
 class RuleStorageError(Exception):
     """Raised when a linting rule cannot be stored."""
+
     pass

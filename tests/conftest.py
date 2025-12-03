@@ -3,16 +3,17 @@
 This module provides common fixtures used across unit and integration tests,
 reducing duplication and standardizing test setup.
 """
-from ast_grep_mcp.utils.console_logger import console
 
-import tempfile
 import shutil
-from pathlib import Path
-from typing import Generator, Any
-import pytest
 
 # Add project root to path for imports
 import sys
+import tempfile
+from pathlib import Path
+from typing import Generator
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
@@ -170,7 +171,6 @@ def mock_mcp_instance():
     Returns:
         MockFastMCP: Mock MCP instance
     """
-    from mcp.server.fastmcp import FastMCP
 
     class MockFastMCP:
         """Mock FastMCP instance for testing."""

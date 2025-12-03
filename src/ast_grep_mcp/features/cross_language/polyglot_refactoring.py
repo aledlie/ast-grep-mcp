@@ -3,19 +3,20 @@
 This module provides functionality to refactor code across
 multiple programming languages atomically.
 """
+
 import os
 import re
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.cross_language import (
+    SUPPORTED_LANGUAGES,
     PolyglotChange,
     PolyglotRefactoringPlan,
     PolyglotRefactoringResult,
     RefactoringType,
-    SUPPORTED_LANGUAGES,
 )
 
 logger = get_logger(__name__)
@@ -81,6 +82,7 @@ DEFAULT_LANGUAGES = ["python", "typescript", "javascript", "java", "go"]
 # File Discovery
 # =============================================================================
 
+
 def _find_files_with_language(
     project_folder: str,
     languages: List[str],
@@ -91,7 +93,7 @@ def _find_files_with_language(
 
     for lang in languages:
         extensions = LANGUAGE_EXTENSIONS.get(lang, [])
-        files = []
+        files: list[str] = []
         for ext in extensions:
             files.extend(str(f) for f in project_path.rglob(f"*{ext}"))
         if files:
@@ -103,6 +105,7 @@ def _find_files_with_language(
 # =============================================================================
 # Symbol Detection
 # =============================================================================
+
 
 def _match_pattern_type(line: str, patterns: Dict[str, str], symbol: str) -> Optional[str]:
     """Check if line matches any pattern type for the symbol."""
@@ -144,6 +147,7 @@ def _find_symbol_occurrences(
 # Change Creation
 # =============================================================================
 
+
 def _create_rename_change(
     file_path: str,
     line_number: int,
@@ -175,9 +179,7 @@ def _collect_changes_for_file(
     changes = []
     occurrences = _find_symbol_occurrences(file_path, symbol_name, language)
     for line_num, line_content, _ in occurrences:
-        change = _create_rename_change(
-            file_path, line_num, line_content, symbol_name, new_name, language
-        )
+        change = _create_rename_change(file_path, line_num, line_content, symbol_name, new_name, language)
         changes.append(change)
     return changes
 
@@ -202,6 +204,7 @@ def _collect_all_changes(
 # =============================================================================
 # Risk Analysis
 # =============================================================================
+
 
 def _analyze_risks(
     changes: List[PolyglotChange],
@@ -259,6 +262,7 @@ def _identify_manual_review(
 # =============================================================================
 # Change Application
 # =============================================================================
+
 
 def _apply_changes_to_file(file_path: str, file_changes: List[PolyglotChange]) -> bool:
     """Apply changes to a single file. Returns True on success."""
@@ -321,6 +325,7 @@ def _validate_changes(
 # Input Validation
 # =============================================================================
 
+
 def _validate_inputs(
     project_folder: str,
     refactoring_type: str,
@@ -333,10 +338,7 @@ def _validate_inputs(
     try:
         refactor_type = RefactoringType(refactoring_type)
     except ValueError:
-        raise ValueError(
-            f"Invalid refactoring type: {refactoring_type}. "
-            f"Valid types: {[t.value for t in RefactoringType]}"
-        )
+        raise ValueError(f"Invalid refactoring type: {refactoring_type}. Valid types: {[t.value for t in RefactoringType]}")
 
     if refactor_type == RefactoringType.RENAME_API and not new_name:
         raise ValueError("new_name is required for rename_api refactoring")
@@ -356,6 +358,7 @@ def _normalize_languages(affected_languages: Optional[List[str]]) -> List[str]:
 # =============================================================================
 # Main Implementation
 # =============================================================================
+
 
 def refactor_polyglot_impl(
     project_folder: str,

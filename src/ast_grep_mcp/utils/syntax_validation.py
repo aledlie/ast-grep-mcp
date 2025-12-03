@@ -3,8 +3,8 @@
 This module provides common syntax validation and error suggestion
 functionality used across the deduplication system.
 """
-from typing import Dict, List, Optional, Tuple
 
+from typing import List, Optional, Tuple
 
 # Configuration-driven error patterns and suggestions
 ERROR_SUGGESTIONS = {
@@ -13,7 +13,6 @@ ERROR_SUGGESTIONS = {
     "unexpected eof": "Check for missing closing brackets, parentheses, or quotes",
     "unexpected indent": "Check for missing closing brackets, parentheses, or quotes",
     "invalid syntax": "Review syntax near the error location - check for typos",
-
     # Bracket/brace errors - check these with additional context
     "mismatched brace": "Balance opening and closing braces {}",
     "unbalanced brace": "Balance opening and closing braces {}",
@@ -40,11 +39,7 @@ def _find_error_suggestion(error_lower: str) -> Optional[str]:
     return None
 
 
-def suggest_syntax_fix(
-    error: Optional[str],
-    language: str,
-    context: str = "file"
-) -> str:
+def suggest_syntax_fix(error: Optional[str], language: str, context: str = "file") -> str:
     """Generate syntax fix suggestion based on error.
 
     This is the shared implementation that replaces duplicate
@@ -83,11 +78,7 @@ def validate_bracket_balance(code: str) -> List[Tuple[str, str]]:
     """
     errors = []
 
-    bracket_pairs = [
-        ('{', '}', 'braces'),
-        ('(', ')', 'parentheses'),
-        ('[', ']', 'brackets')
-    ]
+    bracket_pairs = [("{", "}", "braces"), ("(", ")", "parentheses"), ("[", "]", "brackets")]
 
     for open_char, close_char, name in bracket_pairs:
         open_count = code.count(open_char)
@@ -112,6 +103,7 @@ def validate_python_syntax(code: str) -> Tuple[bool, str]:
 
     try:
         import ast
+
         ast.parse(code)
         return True, ""
     except SyntaxError as e:
@@ -151,16 +143,13 @@ def validate_java_syntax(code: str) -> Tuple[bool, str]:
     if bracket_errors:
         # Only check braces and parentheses for Java
         for name, error_msg in bracket_errors:
-            if name in ('braces', 'parentheses'):
+            if name in ("braces", "parentheses"):
                 return False, error_msg
 
     return True, ""
 
 
-def validate_code_for_language(
-    code: str,
-    language: str
-) -> Tuple[bool, str]:
+def validate_code_for_language(code: str, language: str) -> Tuple[bool, str]:
     """Validate code syntax for specific language.
 
     This is a shared implementation that can replace duplicate

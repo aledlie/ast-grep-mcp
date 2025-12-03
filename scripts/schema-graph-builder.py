@@ -19,8 +19,6 @@ Example:
     python3 schema-graph-builder.py ~/code/PersonalSite https://www.aledlie.com
     python3 schema-graph-builder.py ~/code/IntegrityStudioClients/fisterra https://fisterra-dance.com --output-dir analysis
 """
-from ast_grep_mcp.utils.console_logger import console
-
 import argparse
 import json
 import sys
@@ -28,6 +26,8 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TypedDict
+
+from ast_grep_mcp.utils.console_logger import console
 
 
 class StatsDict(TypedDict):

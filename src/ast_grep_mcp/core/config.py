@@ -1,4 +1,5 @@
 """Configuration management for ast-grep MCP server."""
+
 import argparse
 import os
 import sys
@@ -42,7 +43,7 @@ def validate_config_file(config_path: str) -> AstGrepConfig:
         raise ConfigurationError(config_path, "Path is not a file")
 
     try:
-        with open(config_path, 'r') as f:
+        with open(config_path, "r") as f:
             config_data = yaml.safe_load(f)
     except yaml.YAMLError as e:
         raise ConfigurationError(config_path, f"YAML parsing failed: {e}") from e
@@ -71,62 +72,66 @@ def _create_argument_parser() -> argparse.ArgumentParser:
     """
     # Determine how the script was invoked
     prog = None
-    if sys.argv[0].endswith('main.py'):
+    if sys.argv[0].endswith("main.py"):
         # Direct execution: python main.py
-        prog = 'python main.py'
+        prog = "python main.py"
 
     parser = argparse.ArgumentParser(
         prog=prog,
-        description='ast-grep MCP Server - Provides structural code search capabilities via Model Context Protocol',
-        epilog='''
+        description="ast-grep MCP Server - Provides structural code search capabilities via Model Context Protocol",
+        epilog="""
 environment variables:
   AST_GREP_CONFIG    Path to sgconfig.yaml file (overridden by --config flag)
   LOG_LEVEL          Logging level: DEBUG, INFO, WARNING, ERROR (default: INFO)
   LOG_FILE           Path to log file (logs to stderr by default)
 
 For more information, see: https://github.com/ast-grep/ast-grep-mcp
-        ''',
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        '--config',
+        "--config",
         type=str,
-        metavar='PATH',
-        help='Path to sgconfig.yaml file for customizing ast-grep behavior (language mappings, rule directories, etc.)'
+        metavar="PATH",
+        help="Path to sgconfig.yaml file for customizing ast-grep behavior (language mappings, rule directories, etc.)",
     )
     parser.add_argument(
-        '--log-level',
+        "--log-level",
         type=str,
-        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         default=None,
-        metavar='LEVEL',
-        help='Logging level (DEBUG, INFO, WARNING, ERROR). Can also be set via LOG_LEVEL env var. Default: INFO'
+        metavar="LEVEL",
+        help="Logging level (DEBUG, INFO, WARNING, ERROR). Can also be set via LOG_LEVEL env var. Default: INFO",
     )
     parser.add_argument(
-        '--log-file',
+        "--log-file",
         type=str,
-        metavar='PATH',
+        metavar="PATH",
         default=None,
-        help='Path to log file (logs to stderr by default). Can also be set via LOG_FILE env var.'
+        help="Path to log file (logs to stderr by default). Can also be set via LOG_FILE env var.",
     )
     parser.add_argument(
-        '--no-cache',
-        action='store_true',
-        help='Disable result caching for queries. Can also be set via CACHE_DISABLED=1 env var.'
+        "--no-cache", action="store_true", help="Disable result caching for queries. Can also be set via CACHE_DISABLED=1 env var."
     )
     parser.add_argument(
-        '--cache-size',
+        "--cache-size",
         type=int,
-        metavar='N',
+        metavar="N",
         default=None,
-        help=f'Maximum number of cached query results (default: {CacheDefaults.DEFAULT_CACHE_SIZE}). Can also be set via CACHE_SIZE env var.'
+        help=(
+            f"Maximum cached query results (default: {CacheDefaults.DEFAULT_CACHE_SIZE}). "
+            "Also settable via CACHE_SIZE env var."
+        ),
     )
     parser.add_argument(
-        '--cache-ttl',
+        "--cache-ttl",
         type=int,
-        metavar='SECONDS',
+        metavar="SECONDS",
         default=None,
-        help=f'Time-to-live for cached results in seconds (default: {CacheDefaults.CLEANUP_INTERVAL_SECONDS}). Can also be set via CACHE_TTL env var.'
+        help=(
+            f"Cache TTL in seconds (default: {CacheDefaults.CLEANUP_INTERVAL_SECONDS}). "
+            "Also settable via CACHE_TTL env var."
+        ),
     )
     return parser
 
@@ -155,8 +160,8 @@ def _resolve_and_validate_config_path(args: argparse.Namespace) -> Optional[str]
             logger = get_logger("config")
             logger.error("config_validation_failed", config_path=config_path, error=str(e))
             sys.exit(1)
-    elif os.environ.get('AST_GREP_CONFIG'):
-        env_config = os.environ.get('AST_GREP_CONFIG')
+    elif os.environ.get("AST_GREP_CONFIG"):
+        env_config = os.environ.get("AST_GREP_CONFIG")
         if env_config:
             config_path = env_config
             try:
@@ -178,10 +183,10 @@ def _configure_logging_from_args(args: argparse.Namespace) -> None:
         args: Parsed command-line arguments.
     """
     # Determine log level with precedence: --log-level flag > LOG_LEVEL env > INFO
-    log_level = args.log_level or os.environ.get('LOG_LEVEL', 'INFO')
+    log_level = args.log_level or os.environ.get("LOG_LEVEL", "INFO")
 
     # Determine log file with precedence: --log-file flag > LOG_FILE env > None (stderr)
-    log_file = args.log_file or os.environ.get('LOG_FILE')
+    log_file = args.log_file or os.environ.get("LOG_FILE")
 
     # Configure logging
     configure_logging(log_level=log_level, log_file=log_file)
@@ -204,16 +209,16 @@ def _configure_cache_from_args(args: argparse.Namespace) -> tuple[bool, int, int
     cache_enabled = True
     if args.no_cache:
         cache_enabled = False
-    elif os.environ.get('CACHE_DISABLED'):
+    elif os.environ.get("CACHE_DISABLED"):
         cache_enabled = False
 
     # Set cache size
     cache_size = CacheDefaults.DEFAULT_CACHE_SIZE
     if args.cache_size is not None:
         cache_size = args.cache_size
-    elif os.environ.get('CACHE_SIZE'):
+    elif os.environ.get("CACHE_SIZE"):
         try:
-            cache_size = int(os.environ.get('CACHE_SIZE', str(CacheDefaults.DEFAULT_CACHE_SIZE)))
+            cache_size = int(os.environ.get("CACHE_SIZE", str(CacheDefaults.DEFAULT_CACHE_SIZE)))
         except ValueError:
             cache_logger.warning("invalid_cache_size_env", using_default=CacheDefaults.DEFAULT_CACHE_SIZE)
             cache_size = CacheDefaults.DEFAULT_CACHE_SIZE
@@ -222,18 +227,15 @@ def _configure_cache_from_args(args: argparse.Namespace) -> tuple[bool, int, int
     cache_ttl = CacheDefaults.CLEANUP_INTERVAL_SECONDS
     if args.cache_ttl is not None:
         cache_ttl = args.cache_ttl
-    elif os.environ.get('CACHE_TTL'):
+    elif os.environ.get("CACHE_TTL"):
         try:
-            cache_ttl = int(os.environ.get('CACHE_TTL', str(CacheDefaults.CLEANUP_INTERVAL_SECONDS)))
+            cache_ttl = int(os.environ.get("CACHE_TTL", str(CacheDefaults.CLEANUP_INTERVAL_SECONDS)))
         except ValueError:
             cache_logger.warning("invalid_cache_ttl_env", using_default=CacheDefaults.CLEANUP_INTERVAL_SECONDS)
             cache_ttl = CacheDefaults.CLEANUP_INTERVAL_SECONDS
 
     # Log the configuration
-    cache_logger.info("cache_config",
-                     cache_enabled=cache_enabled,
-                     cache_size=cache_size,
-                     cache_ttl=cache_ttl)
+    cache_logger.info("cache_config", cache_enabled=cache_enabled, cache_size=cache_size, cache_ttl=cache_ttl)
 
     return cache_enabled, cache_size, cache_ttl
 

@@ -8,10 +8,10 @@ This module provides tools for:
 - Keeping documentation synchronized with code
 """
 
-from .docstring_generator import generate_docstrings_impl
-from .readme_generator import generate_readme_sections_impl
 from .api_docs_generator import generate_api_docs_impl
 from .changelog_generator import generate_changelog_impl
+from .docstring_generator import generate_docstrings_impl
+from .readme_generator import generate_readme_sections_impl
 from .sync_checker import sync_documentation_impl
 
 __all__ = [

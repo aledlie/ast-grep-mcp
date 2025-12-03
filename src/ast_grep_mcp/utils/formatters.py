@@ -28,6 +28,7 @@ class FileDiff:
         additions: Number of lines added
         deletions: Number of lines deleted
     """
+
     file_path: str
     original_content: str
     new_content: str
@@ -50,6 +51,7 @@ class DiffPreview:
         combined_diff: Single string with all diffs combined
         summary: Human-readable summary of changes
     """
+
     file_diffs: List[FileDiff]
     total_files: int
     total_additions: int
@@ -75,10 +77,10 @@ def format_matches_as_text(matches: List[Dict[str, Any]]) -> str:
 
     output_blocks: List[str] = []
     for m in matches:
-        file_path = m.get('file', '')
-        start_line = m.get('range', {}).get('start', {}).get('line', 0) + 1
-        end_line = m.get('range', {}).get('end', {}).get('line', 0) + 1
-        match_text = m.get('text', '').rstrip()
+        file_path = m.get("file", "")
+        start_line = m.get("range", {}).get("start", {}).get("line", 0) + 1
+        end_line = m.get("range", {}).get("end", {}).get("line", 0) + 1
+        match_text = m.get("text", "").rstrip()
 
         # Format: filepath:start-end (or just :line for single-line matches)
         if start_line == end_line:
@@ -88,7 +90,7 @@ def format_matches_as_text(matches: List[Dict[str, Any]]) -> str:
 
         output_blocks.append(f"{header}\n{match_text}")
 
-    return '\n\n'.join(output_blocks)
+    return "\n\n".join(output_blocks)
 
 
 def format_diff_with_colors(diff: str) -> str:
@@ -115,26 +117,22 @@ def format_diff_with_colors(diff: str) -> str:
     RESET = "\033[0m"
 
     colored_lines = []
-    for line in diff.split('\n'):
-        if line.startswith('+++') or line.startswith('---'):
+    for line in diff.split("\n"):
+        if line.startswith("+++") or line.startswith("---"):
             colored_lines.append(f"{YELLOW}{line}{RESET}")
-        elif line.startswith('@@'):
+        elif line.startswith("@@"):
             colored_lines.append(f"{CYAN}{line}{RESET}")
-        elif line.startswith('+'):
+        elif line.startswith("+"):
             colored_lines.append(f"{GREEN}{line}{RESET}")
-        elif line.startswith('-'):
+        elif line.startswith("-"):
             colored_lines.append(f"{RED}{line}{RESET}")
         else:
             colored_lines.append(line)
 
-    return '\n'.join(colored_lines)
+    return "\n".join(colored_lines)
 
 
-def generate_before_after_example(
-    original_code: str,
-    replacement_code: str,
-    function_name: str
-) -> Dict[str, Any]:
+def generate_before_after_example(original_code: str, replacement_code: str, function_name: str) -> Dict[str, Any]:
     """Generate before/after code examples for a duplication extraction.
 
     Creates readable code snippets showing the original duplicate code
@@ -153,8 +151,8 @@ def generate_before_after_example(
         - explanation: Human-readable explanation of the change
     """
     # Clean up the code snippets
-    original_lines = original_code.strip().split('\n')
-    replacement_lines = replacement_code.strip().split('\n')
+    original_lines = original_code.strip().split("\n")
+    replacement_lines = replacement_code.strip().split("\n")
 
     # Calculate metrics
     original_line_count = len(original_lines)
@@ -182,14 +180,11 @@ def generate_before_after_example(
             f"This saves {lines_saved} line(s) per occurrence."
         )
     else:
-        explanation = (
-            f"Refactored code into '{function_name}' for better reusability "
-            f"and maintainability."
-        )
+        explanation = f"Refactored code into '{function_name}' for better reusability and maintainability."
 
     return {
-        "before": '\n'.join(before_formatted),
-        "after": '\n'.join(after_formatted),
+        "before": "\n".join(before_formatted),
+        "after": "\n".join(after_formatted),
         "before_raw": original_code.strip(),
         "after_raw": replacement_code.strip(),
         "function_definition": function_definition,
@@ -197,7 +192,7 @@ def generate_before_after_example(
         "original_lines": original_line_count,
         "replacement_lines": replacement_line_count,
         "lines_saved": lines_saved,
-        "explanation": explanation
+        "explanation": explanation,
     }
 
 
@@ -225,7 +220,7 @@ def visualize_complexity(score: int) -> Dict[str, Any]:
         recommendations = [
             "Good candidate for quick refactoring",
             "Consider extracting as a simple helper function",
-            "Low risk of introducing bugs during extraction"
+            "Low risk of introducing bugs during extraction",
         ]
     elif score <= 6:
         description = "Medium"
@@ -234,7 +229,7 @@ def visualize_complexity(score: int) -> Dict[str, Any]:
             "Review the code carefully before extraction",
             "Consider adding unit tests before refactoring",
             "May benefit from breaking into smaller pieces",
-            "Check for hidden dependencies or side effects"
+            "Check for hidden dependencies or side effects",
         ]
     else:
         description = "High"
@@ -244,7 +239,7 @@ def visualize_complexity(score: int) -> Dict[str, Any]:
             "Strongly recommend comprehensive test coverage first",
             "Consider incremental refactoring in smaller steps",
             "Review for cyclomatic complexity and reduce branches",
-            "May need architectural review before extraction"
+            "May need architectural review before extraction",
         ]
 
     reset_code = "\033[0m"
@@ -262,7 +257,7 @@ def visualize_complexity(score: int) -> Dict[str, Any]:
         "description": description,
         "color_code": color_code,
         "recommendations": recommendations,
-        "formatted": f"{description} Complexity ({score}/10): {bar_plain}"
+        "formatted": f"{description} Complexity ({score}/10): {bar_plain}",
     }
 
 
@@ -275,8 +270,8 @@ def _prepare_lines_for_diff(lines: List[str]) -> List[str]:
     Returns:
         Lines with proper newline endings
     """
-    if lines and not lines[-1].endswith('\n'):
-        lines[-1] += '\n'
+    if lines and not lines[-1].endswith("\n"):
+        lines[-1] += "\n"
     return lines
 
 
@@ -289,20 +284,17 @@ def _parse_hunk_header(line: str) -> Dict[str, Any]:
     Returns:
         Dictionary with hunk metadata
     """
-    match = re.match(r'@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@', line)
+    match = re.match(r"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", line)
     if match:
         return {
-            'header': line,
-            'old_start': int(match.group(1)),
-            'old_count': int(match.group(2)) if match.group(2) else 1,
-            'new_start': int(match.group(3)),
-            'new_count': int(match.group(4)) if match.group(4) else 1,
-            'lines': []
+            "header": line,
+            "old_start": int(match.group(1)),
+            "old_count": int(match.group(2)) if match.group(2) else 1,
+            "new_start": int(match.group(3)),
+            "new_count": int(match.group(4)) if match.group(4) else 1,
+            "lines": [],
         }
-    return {
-        'header': line,
-        'lines': []
-    }
+    return {"header": line, "lines": []}
 
 
 def _process_diff_lines(diff_lines: List[str]) -> Tuple[List[Dict[str, Any]], int, int]:
@@ -320,15 +312,15 @@ def _process_diff_lines(diff_lines: List[str]) -> Tuple[List[Dict[str, Any]], in
     current_hunk: Optional[Dict[str, Any]] = None
 
     for line in diff_lines:
-        if line.startswith('@@'):
+        if line.startswith("@@"):
             if current_hunk:
                 hunks.append(current_hunk)
             current_hunk = _parse_hunk_header(line)
         elif current_hunk is not None:
-            current_hunk['lines'].append(line)
-            if line.startswith('+') and not line.startswith('+++'):
+            current_hunk["lines"].append(line)
+            if line.startswith("+") and not line.startswith("+++"):
                 additions += 1
-            elif line.startswith('-') and not line.startswith('---'):
+            elif line.startswith("-") and not line.startswith("---"):
                 deletions += 1
 
     if current_hunk:
@@ -337,12 +329,7 @@ def _process_diff_lines(diff_lines: List[str]) -> Tuple[List[Dict[str, Any]], in
     return hunks, additions, deletions
 
 
-def generate_file_diff(
-    file_path: str,
-    original_content: str,
-    new_content: str,
-    context_lines: int = 3
-) -> FileDiff:
+def generate_file_diff(file_path: str, original_content: str, new_content: str, context_lines: int = 3) -> FileDiff:
     """Generate a unified diff for a single file.
 
     Args:
@@ -363,24 +350,24 @@ def generate_file_diff(
     new_lines = _prepare_lines_for_diff(new_lines)
 
     # Generate unified diff
-    diff_lines = list(difflib.unified_diff(
-        original_lines,
-        new_lines,
-        fromfile=f"a/{os.path.basename(file_path)}",
-        tofile=f"b/{os.path.basename(file_path)}",
-        lineterm='',
-        n=context_lines
-    ))
+    diff_lines = list(
+        difflib.unified_diff(
+            original_lines,
+            new_lines,
+            fromfile=f"a/{os.path.basename(file_path)}",
+            tofile=f"b/{os.path.basename(file_path)}",
+            lineterm="",
+            n=context_lines,
+        )
+    )
 
-    unified_diff = ''.join(diff_lines)
+    unified_diff = "".join(diff_lines)
 
     # Process diff lines to extract hunks and count changes
     hunks, additions, deletions = _process_diff_lines(diff_lines)
 
     # Generate formatted diff with line numbers
-    formatted_diff = _format_diff_with_line_numbers(
-        file_path, diff_lines, original_lines, new_lines
-    )
+    formatted_diff = _format_diff_with_line_numbers(file_path, diff_lines, original_lines, new_lines)
 
     return FileDiff(
         file_path=file_path,
@@ -390,16 +377,11 @@ def generate_file_diff(
         formatted_diff=formatted_diff,
         hunks=hunks,
         additions=additions,
-        deletions=deletions
+        deletions=deletions,
     )
 
 
-def _format_diff_with_line_numbers(
-    file_path: str,
-    diff_lines: List[str],
-    original_lines: List[str],
-    new_lines: List[str]
-) -> str:
+def _format_diff_with_line_numbers(file_path: str, diff_lines: List[str], original_lines: List[str], new_lines: List[str]) -> str:
     """Format diff with line numbers for readability.
 
     Args:
@@ -423,13 +405,13 @@ def _format_diff_with_line_numbers(
     new_line_num = 0
 
     for line in diff_lines:
-        if line.startswith('---'):
+        if line.startswith("---"):
             output.append(f"--- {file_path} (original)")
-        elif line.startswith('+++'):
+        elif line.startswith("+++"):
             output.append(f"+++ {file_path} (modified)")
-        elif line.startswith('@@'):
+        elif line.startswith("@@"):
             # Parse hunk header for line numbers
-            match = re.match(r'@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)', line)
+            match = re.match(r"@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)", line)
             if match:
                 old_line_num = int(match.group(1)) - 1
                 new_line_num = int(match.group(2)) - 1
@@ -439,10 +421,10 @@ def _format_diff_with_line_numbers(
                     output.append(f"  Context: {context}")
             else:
                 output.append(f"\n{line.strip()}")
-        elif line.startswith('-'):
+        elif line.startswith("-"):
             old_line_num += 1
             output.append(f"{old_line_num:4d}      - {line[1:].rstrip()}")
-        elif line.startswith('+'):
+        elif line.startswith("+"):
             new_line_num += 1
             output.append(f"     {new_line_num:4d} + {line[1:].rstrip()}")
         else:
@@ -453,13 +435,10 @@ def _format_diff_with_line_numbers(
 
     output.append(f"\n{'=' * 70}\n")
 
-    return '\n'.join(output)
+    return "\n".join(output)
 
 
-def generate_multi_file_diff(
-    file_changes: List[Dict[str, str]],
-    context_lines: int = 3
-) -> DiffPreview:
+def generate_multi_file_diff(file_changes: List[Dict[str, str]], context_lines: int = 3) -> DiffPreview:
     """Generate combined diff preview for multiple file changes.
 
     Args:
@@ -478,10 +457,10 @@ def generate_multi_file_diff(
 
     for change in file_changes:
         file_diff = generate_file_diff(
-            file_path=change['file_path'],
-            original_content=change['original_content'],
-            new_content=change['new_content'],
-            context_lines=context_lines
+            file_path=change["file_path"],
+            original_content=change["original_content"],
+            new_content=change["new_content"],
+            context_lines=context_lines,
         )
         file_diffs.append(file_diff)
         total_additions += file_diff.additions
@@ -492,7 +471,7 @@ def generate_multi_file_diff(
     for fd in file_diffs:
         combined_parts.append(fd.formatted_diff)
 
-    combined_diff = '\n'.join(combined_parts)
+    combined_diff = "\n".join(combined_parts)
 
     # Generate summary
     files_with_changes = [fd for fd in file_diffs if fd.additions > 0 or fd.deletions > 0]
@@ -506,11 +485,9 @@ def generate_multi_file_diff(
     ]
 
     for fd in files_with_changes:
-        summary_lines.append(
-            f"  {os.path.basename(fd.file_path)}: +{fd.additions}/-{fd.deletions}"
-        )
+        summary_lines.append(f"  {os.path.basename(fd.file_path)}: +{fd.additions}/-{fd.deletions}")
 
-    summary = '\n'.join(summary_lines)
+    summary = "\n".join(summary_lines)
 
     return DiffPreview(
         file_diffs=file_diffs,
@@ -518,7 +495,7 @@ def generate_multi_file_diff(
         total_additions=total_additions,
         total_deletions=total_deletions,
         combined_diff=combined_diff,
-        summary=summary
+        summary=summary,
     )
 
 
@@ -526,9 +503,11 @@ def generate_multi_file_diff(
 # Code Formatting Functions
 # ============================================================================
 
+
 @dataclass
 class ImportSection:
     """Container for organized import statements."""
+
     import_lines: List[str]
     from_import_lines: List[str]
 
@@ -542,11 +521,11 @@ class ImportSection:
         if self.import_lines:
             result.extend(sorted(self.import_lines))
         if self.import_lines and self.from_import_lines:
-            result.append('')  # Blank line between import types
+            result.append("")  # Blank line between import types
         if self.from_import_lines:
             result.extend(sorted(self.from_import_lines))
         if self.has_imports():
-            result.append('')  # Blank line after imports
+            result.append("")  # Blank line after imports
         return result
 
 
@@ -559,10 +538,10 @@ def _parse_import_line(line: str) -> List[str]:
     Returns:
         List of individual import statements
     """
-    if ',' in line:
+    if "," in line:
         # Handle multi-imports like "import os, sys"
-        parts = line.replace('import ', '').split(',')
-        return [f'import {part.strip()}' for part in parts]
+        parts = line.replace("import ", "").split(",")
+        return [f"import {part.strip()}" for part in parts]
     return [line]
 
 
@@ -584,10 +563,10 @@ def _process_python_lines(lines: List[str]) -> List[str]:
 
         # Check if this is an import line
         if in_imports:
-            if stripped.startswith('import '):
+            if stripped.startswith("import "):
                 imports.import_lines.extend(_parse_import_line(stripped))
                 continue
-            elif stripped.startswith('from '):
+            elif stripped.startswith("from "):
                 imports.from_import_lines.append(stripped)
                 continue
             elif stripped:
@@ -605,6 +584,7 @@ def _process_python_lines(lines: List[str]) -> List[str]:
         formatted_lines.extend(imports.format_sorted())
 
     return formatted_lines
+
 
 def format_python_code(code: str, line_length: int = 88) -> str:
     """Format Python code using Black-style formatting.
@@ -661,14 +641,14 @@ def _basic_python_format(code: str, line_length: int = 88) -> str:
     if not code.strip():
         return "\n"
 
-    lines = code.split('\n')
+    lines = code.split("\n")
     formatted_lines = _process_python_lines(lines)
 
-    result = '\n'.join(formatted_lines)
+    result = "\n".join(formatted_lines)
 
     # Ensure trailing newline
-    if not result.endswith('\n'):
-        result += '\n'
+    if not result.endswith("\n"):
+        result += "\n"
 
     return result
 
@@ -683,29 +663,29 @@ def _format_python_line(line: str) -> str:
         Formatted line
     """
     if not line.strip():
-        return ''
+        return ""
 
     # Preserve indentation
     stripped = line.lstrip()
-    indent = line[:len(line) - len(stripped)]
+    indent = line[: len(line) - len(stripped)]
 
     # Add spaces around operators (simple approach)
     # This is a very basic implementation - Black does this much better
     formatted = stripped
 
     # Handle common operators
-    operators = ['=', '+', '-', '*', '/', '<', '>', '==', '!=', '<=', '>=']
+    operators = ["=", "+", "-", "*", "/", "<", ">", "==", "!=", "<=", ">="]
     for op in operators:
         # Skip if operator is in a string
         if f'"{op}"' in formatted or f"'{op}'" in formatted:
             continue
 
         # Add spaces around operator if not already present
-        pattern = rf'(\S){re.escape(op)}(\S)'
-        formatted = re.sub(pattern, rf'\1 {op} \2', formatted)
+        pattern = rf"(\S){re.escape(op)}(\S)"
+        formatted = re.sub(pattern, rf"\1 {op} \2", formatted)
 
     # Normalize multiple spaces to single space (except at start of line)
-    formatted = re.sub(r'  +', ' ', formatted)
+    formatted = re.sub(r"  +", " ", formatted)
 
     return indent + formatted
 
@@ -720,12 +700,12 @@ def format_typescript_code(code: str, line_length: int = 80) -> str:
     Returns:
         Formatted TypeScript code
     """
-    prettier_path = shutil.which('prettier')
+    prettier_path = shutil.which("prettier")
 
     if prettier_path:
         try:
             # Create temporary file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.ts', delete=False) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".ts", delete=False) as f:
                 f.write(code)
                 temp_path = f.name
 
@@ -734,16 +714,20 @@ def format_typescript_code(code: str, line_length: int = 80) -> str:
                 result = subprocess.run(
                     [
                         prettier_path,
-                        '--parser', 'typescript',
-                        '--print-width', str(line_length),
-                        '--single-quote',
-                        '--trailing-comma', 'es5',
-                        '--arrow-parens', 'always',
-                        temp_path
+                        "--parser",
+                        "typescript",
+                        "--print-width",
+                        str(line_length),
+                        "--single-quote",
+                        "--trailing-comma",
+                        "es5",
+                        "--arrow-parens",
+                        "always",
+                        temp_path,
                     ],
                     capture_output=True,
                     text=True,
-                    timeout=10
+                    timeout=10,
                 )
 
                 if result.returncode == 0:
@@ -776,12 +760,12 @@ def format_javascript_code(code: str, line_length: int = 80) -> str:
     Returns:
         Formatted JavaScript code
     """
-    prettier_path = shutil.which('prettier')
+    prettier_path = shutil.which("prettier")
 
     if prettier_path:
         try:
             # Create temporary file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False) as f:
                 f.write(code)
                 temp_path = f.name
 
@@ -790,16 +774,20 @@ def format_javascript_code(code: str, line_length: int = 80) -> str:
                 result = subprocess.run(
                     [
                         prettier_path,
-                        '--parser', 'babel',
-                        '--print-width', str(line_length),
-                        '--single-quote',
-                        '--trailing-comma', 'es5',
-                        '--arrow-parens', 'always',
-                        temp_path
+                        "--parser",
+                        "babel",
+                        "--print-width",
+                        str(line_length),
+                        "--single-quote",
+                        "--trailing-comma",
+                        "es5",
+                        "--arrow-parens",
+                        "always",
+                        temp_path,
                     ],
                     capture_output=True,
                     text=True,
-                    timeout=10
+                    timeout=10,
                 )
 
                 if result.returncode == 0:
@@ -830,28 +818,28 @@ def _basic_typescript_format(code: str) -> str:
     if not code.strip():
         return code
 
-    lines = code.split('\n')
+    lines = code.split("\n")
     formatted_lines = []
 
     for line in lines:
         # Preserve indentation
         stripped = line.lstrip()
-        indent = line[:len(line) - len(stripped)]
+        indent = line[: len(line) - len(stripped)]
 
         # Basic formatting
         formatted = stripped
 
         # Add semicolons if missing (simple heuristic)
-        if formatted and not formatted.endswith((';', '{', '}', ',')):
-            if any(keyword in formatted for keyword in ['const ', 'let ', 'var ', 'return ']):
-                formatted += ';'
+        if formatted and not formatted.endswith((";", "{", "}", ",")):
+            if any(keyword in formatted for keyword in ["const ", "let ", "var ", "return "]):
+                formatted += ";"
 
-        formatted_lines.append(indent + formatted if formatted else '')
+        formatted_lines.append(indent + formatted if formatted else "")
 
-    result = '\n'.join(formatted_lines)
+    result = "\n".join(formatted_lines)
 
-    if not result.endswith('\n'):
-        result += '\n'
+    if not result.endswith("\n"):
+        result += "\n"
 
     return result
 
@@ -879,26 +867,21 @@ def format_java_code(code: str) -> str:
         Formatted Java code
     """
     # Check for google-java-format
-    formatter_path = shutil.which('google-java-format')
+    formatter_path = shutil.which("google-java-format")
 
     if formatter_path:
         try:
             # Create temporary file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.java', delete=False) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".java", delete=False) as f:
                 f.write(code)
                 temp_path = f.name
 
             try:
                 # Run google-java-format
-                _ = subprocess.run(
-                    [formatter_path, '--replace', temp_path],
-                    capture_output=True,
-                    text=True,
-                    timeout=10
-                )
+                _ = subprocess.run([formatter_path, "--replace", temp_path], capture_output=True, text=True, timeout=10)
 
                 # Read formatted code
-                with open(temp_path, 'r') as f:
+                with open(temp_path, "r") as f:
                     formatted = f.read()
 
                 return formatted
@@ -926,27 +909,27 @@ def _basic_java_format(code: str) -> str:
     if not code.strip():
         return code
 
-    lines = code.split('\n')
+    lines = code.split("\n")
     formatted_lines = []
 
     for line in lines:
         # Preserve indentation
         stripped = line.lstrip()
-        indent = line[:len(line) - len(stripped)]
+        indent = line[: len(line) - len(stripped)]
 
         # Basic formatting
         formatted = stripped
 
         # Ensure proper spacing around braces
-        formatted = formatted.replace('){', ') {')
-        formatted = formatted.replace('}{', '} {')
+        formatted = formatted.replace("){", ") {")
+        formatted = formatted.replace("}{", "} {")
 
-        formatted_lines.append(indent + formatted if formatted else '')
+        formatted_lines.append(indent + formatted if formatted else "")
 
-    result = '\n'.join(formatted_lines)
+    result = "\n".join(formatted_lines)
 
-    if not result.endswith('\n'):
-        result += '\n'
+    if not result.endswith("\n"):
+        result += "\n"
 
     return result
 
@@ -969,13 +952,13 @@ def format_generated_code(code: str, language: str, line_length: int = 88) -> st
     """
     language = language.lower()
 
-    if language == 'python':
+    if language == "python":
         return format_python_code(code, line_length)
-    elif language == 'typescript':
+    elif language == "typescript":
         return format_typescript_code(code, line_length)
-    elif language == 'javascript':
+    elif language == "javascript":
         return format_javascript_code(code, line_length)
-    elif language == 'java':
+    elif language == "java":
         return format_java_code(code)
     else:
         # Unknown language, return as-is

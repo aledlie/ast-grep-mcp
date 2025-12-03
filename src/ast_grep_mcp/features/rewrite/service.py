@@ -35,7 +35,7 @@ def _validate_python_syntax(content: str, file_path: str) -> Dict[str, Any]:
         Dict with 'valid' and 'error' keys
     """
     try:
-        compile(content, file_path, 'exec')
+        compile(content, file_path, "exec")
         return {"valid": True, "error": None}
     except SyntaxError as e:
         return {"valid": False, "error": f"Line {e.lineno}: {e.msg}"}
@@ -59,12 +59,7 @@ try {{
     console.log("INVALID: " + e.message);
 }}
 """
-        node_result = subprocess.run(
-            ["node", "-e", node_code],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
+        node_result = subprocess.run(["node", "-e", node_code], capture_output=True, text=True, timeout=5)
         if "INVALID:" in node_result.stdout:
             error_msg = node_result.stdout.replace("INVALID: ", "").strip()
             return {"valid": False, "error": error_msg}
@@ -83,17 +78,12 @@ def _validate_java_syntax(file_path: str) -> Dict[str, Any]:
         Dict with 'valid' and 'error' keys
     """
     try:
-        javac_result = subprocess.run(
-            ["javac", "-Xlint:none", file_path],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
+        javac_result = subprocess.run(["javac", "-Xlint:none", file_path], capture_output=True, text=True, timeout=10)
         if javac_result.returncode != 0:
             return {"valid": False, "error": javac_result.stderr[:500]}
 
         # Clean up .class file if compilation succeeded
-        class_file = file_path.replace('.java', '.class')
+        class_file = file_path.replace(".java", ".class")
         if os.path.exists(class_file):
             os.remove(class_file)
         return {"valid": True, "error": None}
@@ -111,15 +101,10 @@ def validate_syntax(file_path: str, language: str) -> Dict[str, Any]:
     Returns:
         Dict with 'valid' (bool), 'error' (str if invalid), 'language' (str)
     """
-    result: Dict[str, Any] = {
-        "file": file_path,
-        "language": language,
-        "valid": True,
-        "error": None
-    }
+    result: Dict[str, Any] = {"file": file_path, "language": language, "valid": True, "error": None}
 
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Language-specific validators
@@ -129,7 +114,7 @@ def validate_syntax(file_path: str, language: str) -> Dict[str, Any]:
             "typescript": lambda: _validate_javascript_syntax(content),
             "tsx": lambda: _validate_javascript_syntax(content),
             "jsx": lambda: _validate_javascript_syntax(content),
-            "java": lambda: _validate_java_syntax(file_path)
+            "java": lambda: _validate_java_syntax(file_path),
         }
 
         # Get validator for language
@@ -180,7 +165,7 @@ def validate_rewrites(modified_files: List[str], language: str) -> Dict[str, Any
         "passed": len(modified_files) - failed_count - skipped_count,
         "failed": failed_count,
         "skipped": skipped_count,
-        "results": validation_results
+        "results": validation_results,
     }
 
 
@@ -223,17 +208,13 @@ def _create_temp_rule_file(yaml_rule: str) -> str:
     Returns:
         Path to temporary rule file
     """
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
         f.write(yaml_rule)
         return f.name
 
 
 def _build_command_args(
-    rule_file: str,
-    project_folder: str,
-    max_file_size_mb: int,
-    workers: int,
-    language: str
+    rule_file: str, project_folder: str, max_file_size_mb: int, workers: int, language: str
 ) -> Tuple[List[str], List[str]]:
     """Build command arguments for ast-grep.
 
@@ -251,11 +232,7 @@ def _build_command_args(
 
     # Handle file size filtering
     if max_file_size_mb > 0:
-        files_to_search, _ = filter_files_by_size(
-            project_folder,
-            max_size_mb=max_file_size_mb,
-            language=language
-        )
+        files_to_search, _ = filter_files_by_size(project_folder, max_size_mb=max_file_size_mb, language=language)
         if files_to_search:
             search_targets = files_to_search
         else:
@@ -270,12 +247,7 @@ def _build_command_args(
     return args, search_targets
 
 
-def _perform_dry_run(
-    args: List[str],
-    search_targets: List[str],
-    logger: Any,
-    start_time: float
-) -> Dict[str, Any]:
+def _perform_dry_run(args: List[str], search_targets: List[str], logger: Any, start_time: float) -> Dict[str, Any]:
     """Perform dry run to preview changes.
 
     Args:
@@ -288,10 +260,7 @@ def _perform_dry_run(
         Dict with dry run results
     """
     if not search_targets:
-        return {
-            "message": "No files to rewrite (all exceeded size limit)",
-            "changes": []
-        }
+        return {"message": "No files to rewrite (all exceeded size limit)", "changes": []}
 
     full_args = args + ["--json=stream"] + search_targets
     matches = list(stream_ast_grep_results("scan", full_args, max_results=0))
@@ -299,29 +268,23 @@ def _perform_dry_run(
     if not matches:
         execution_time = time.time() - start_time
         logger.info(
-            "rewrite_code_completed",
-            execution_time_seconds=round(execution_time, 3),
-            dry_run=True,
-            changes_found=0,
-            status="success"
+            "rewrite_code_completed", execution_time_seconds=round(execution_time, 3), dry_run=True, changes_found=0, status="success"
         )
-        return {
-            "dry_run": True,
-            "message": "No matches found - no changes would be applied",
-            "changes": []
-        }
+        return {"dry_run": True, "message": "No matches found - no changes would be applied", "changes": []}
 
     # Format changes for preview
     changes = []
     for match in matches:
         if "replacement" in match:
-            changes.append({
-                "file": match.get("file", "unknown"),
-                "line": match.get("range", {}).get("start", {}).get("line", 0),
-                "original": match.get("text", ""),
-                "replacement": match["replacement"],
-                "rule_id": match.get("ruleId", "unknown")
-            })
+            changes.append(
+                {
+                    "file": match.get("file", "unknown"),
+                    "line": match.get("range", {}).get("start", {}).get("line", 0),
+                    "original": match.get("text", ""),
+                    "replacement": match["replacement"],
+                    "rule_id": match.get("ruleId", "unknown"),
+                }
+            )
 
     execution_time = time.time() - start_time
     logger.info(
@@ -329,14 +292,10 @@ def _perform_dry_run(
         execution_time_seconds=round(execution_time, 3),
         dry_run=True,
         changes_found=len(changes),
-        status="success"
+        status="success",
     )
 
-    return {
-        "dry_run": True,
-        "message": f"Found {len(changes)} change(s) - set dry_run=false to apply",
-        "changes": changes
-    }
+    return {"dry_run": True, "message": f"Found {len(changes)} change(s) - set dry_run=false to apply", "changes": changes}
 
 
 def _apply_rewrites(
@@ -348,7 +307,7 @@ def _apply_rewrites(
     workers: int,
     language: str,
     logger: Any,
-    start_time: float
+    start_time: float,
 ) -> Dict[str, Any]:
     """Apply actual code rewrites.
 
@@ -367,12 +326,7 @@ def _apply_rewrites(
         Dict with rewrite results
     """
     if not search_targets:
-        return {
-            "dry_run": False,
-            "message": "No files to rewrite (all exceeded size limit)",
-            "modified_files": [],
-            "backup_id": None
-        }
+        return {"dry_run": False, "message": "No files to rewrite (all exceeded size limit)", "modified_files": [], "backup_id": None}
 
     # Get list of files that will be modified
     preview_args = args + ["--json=stream"] + search_targets
@@ -380,12 +334,7 @@ def _apply_rewrites(
     files_to_modify: List[str] = [f for f in set(m.get("file") for m in preview_matches if m.get("file")) if f is not None]
 
     if not files_to_modify:
-        return {
-            "dry_run": False,
-            "message": "No changes applied - no matches found",
-            "modified_files": [],
-            "backup_id": None
-        }
+        return {"dry_run": False, "message": "No changes applied - no matches found", "modified_files": [], "backup_id": None}
 
     # Create backup if requested
     backup_id: Optional[str] = None
@@ -409,7 +358,7 @@ def _apply_rewrites(
         validated=validation_summary["validated"],
         passed=validation_summary["passed"],
         failed=validation_summary["failed"],
-        skipped=validation_summary["skipped"]
+        skipped=validation_summary["skipped"],
     )
 
     execution_time = time.time() - start_time
@@ -420,7 +369,7 @@ def _apply_rewrites(
         modified_files=len(files_to_modify),
         backup_id=backup_id,
         validation_failed=validation_summary["failed"],
-        status="success"
+        status="success",
     )
 
     response = {
@@ -429,7 +378,7 @@ def _apply_rewrites(
         "modified_files": files_to_modify,
         "backup_id": backup_id,
         "output": result.stdout,
-        "validation": validation_summary
+        "validation": validation_summary,
     }
 
     # Add warning if validation failed
@@ -443,12 +392,7 @@ def _apply_rewrites(
 
 
 def rewrite_code_impl(
-    project_folder: str,
-    yaml_rule: str,
-    dry_run: bool = True,
-    backup: bool = True,
-    max_file_size_mb: int = 0,
-    workers: int = 0
+    project_folder: str, yaml_rule: str, dry_run: bool = True, backup: bool = True, max_file_size_mb: int = 0, workers: int = 0
 ) -> Dict[str, Any]:
     """
     Implementation of rewrite_code.
@@ -474,13 +418,7 @@ def rewrite_code_impl(
     start_time = time.time()
     rule_file: Optional[str] = None
 
-    logger.info(
-        "rewrite_code_started",
-        project_folder=project_folder,
-        dry_run=dry_run,
-        backup=backup,
-        workers=workers
-    )
+    logger.info("rewrite_code_started", project_folder=project_folder, dry_run=dry_run, backup=backup, workers=workers)
 
     try:
         # Step 1: Validate YAML rule
@@ -491,33 +429,26 @@ def rewrite_code_impl(
         rule_file = _create_temp_rule_file(yaml_rule)
 
         # Step 3: Build command arguments
-        args, search_targets = _build_command_args(
-            rule_file, project_folder, max_file_size_mb, workers, language
-        )
+        args, search_targets = _build_command_args(rule_file, project_folder, max_file_size_mb, workers, language)
 
         # Step 4: Execute based on mode
         if dry_run:
             return _perform_dry_run(args, search_targets, logger, start_time)
         else:
-            return _apply_rewrites(
-                args, search_targets, rule_file, project_folder,
-                backup, workers, language, logger, start_time
-            )
+            return _apply_rewrites(args, search_targets, rule_file, project_folder, backup, workers, language, logger, start_time)
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error(
-            "rewrite_code_failed",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
-            status="failed"
+        logger.error("rewrite_code_failed", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed")
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "function": "rewrite_code_impl",
+                "project_folder": project_folder,
+                "dry_run": dry_run,
+                "execution_time_seconds": round(execution_time, 3),
+            },
         )
-        sentry_sdk.capture_exception(e, extras={
-            "function": "rewrite_code_impl",
-            "project_folder": project_folder,
-            "dry_run": dry_run,
-            "execution_time_seconds": round(execution_time, 3)
-        })
         raise
     finally:
         # Clean up temporary rule file
@@ -525,10 +456,7 @@ def rewrite_code_impl(
             os.unlink(rule_file)
 
 
-def rollback_rewrite_impl(
-    backup_id: str,
-    project_folder: str
-) -> Dict[str, Any]:
+def rollback_rewrite_impl(backup_id: str, project_folder: str) -> Dict[str, Any]:
     """
     Implementation of rollback_rewrite.
 
@@ -544,11 +472,7 @@ def rollback_rewrite_impl(
     logger = get_logger("rewrite.rollback")
     start_time = time.time()
 
-    logger.info(
-        "rollback_started",
-        backup_id=backup_id,
-        project_folder=project_folder
-    )
+    logger.info("rollback_started", backup_id=backup_id, project_folder=project_folder)
 
     try:
         result = restore_backup(backup_id, project_folder)
@@ -559,37 +483,35 @@ def rollback_rewrite_impl(
             execution_time_seconds=round(execution_time, 3),
             success=result["success"],
             restored_files=len(result["restored_files"]),
-            status="success" if result["success"] else "partial"
+            status="success" if result["success"] else "partial",
         )
 
         if result["success"]:
             return {
                 "success": True,
                 "message": f"Successfully restored {len(result['restored_files'])} file(s)",
-                "restored_files": result["restored_files"]
+                "restored_files": result["restored_files"],
             }
         else:
             return {
                 "success": False,
                 "message": "Rollback encountered errors",
                 "restored_files": result["restored_files"],
-                "errors": result["errors"]
+                "errors": result["errors"],
             }
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error(
-            "rollback_failed",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
-            status="failed"
+        logger.error("rollback_failed", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed")
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "function": "rollback_rewrite_impl",
+                "backup_id": backup_id,
+                "project_folder": project_folder,
+                "execution_time_seconds": round(execution_time, 3),
+            },
         )
-        sentry_sdk.capture_exception(e, extras={
-            "function": "rollback_rewrite_impl",
-            "backup_id": backup_id,
-            "project_folder": project_folder,
-            "execution_time_seconds": round(execution_time, 3)
-        })
         raise
 
 
@@ -607,28 +529,16 @@ def list_backups_impl(project_folder: str) -> List[Dict[str, Any]]:
     """
     logger = get_logger("rewrite.list_backups")
 
-    logger.info(
-        "list_backups_started",
-        project_folder=project_folder
-    )
+    logger.info("list_backups_started", project_folder=project_folder)
 
     try:
         backups = list_available_backups(project_folder)
 
-        logger.info(
-            "list_backups_completed",
-            backup_count=len(backups)
-        )
+        logger.info("list_backups_completed", backup_count=len(backups))
 
         return backups
 
     except Exception as e:
-        logger.error(
-            "list_backups_failed",
-            error=str(e)[:200]
-        )
-        sentry_sdk.capture_exception(e, extras={
-            "function": "list_backups_impl",
-            "project_folder": project_folder
-        })
+        logger.error("list_backups_failed", error=str(e)[:200])
+        sentry_sdk.capture_exception(e, extras={"function": "list_backups_impl", "project_folder": project_folder})
         raise

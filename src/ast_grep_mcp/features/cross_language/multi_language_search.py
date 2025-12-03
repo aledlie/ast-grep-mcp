@@ -3,23 +3,20 @@
 This module provides functionality to search across multiple programming
 languages simultaneously using semantic patterns.
 """
+
+import json as json_module
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-import json as json_module
 
 from ast_grep_mcp.core.executor import run_ast_grep
 from ast_grep_mcp.core.logging import get_logger
-from ast_grep_mcp.features.cross_language.pattern_database import (
-    SEMANTIC_PATTERNS,
-    search_patterns,
-)
 from ast_grep_mcp.models.cross_language import (
+    SUPPORTED_LANGUAGES,
     MultiLanguageMatch,
     MultiLanguageSearchResult,
-    SUPPORTED_LANGUAGES,
 )
 
 logger = get_logger(__name__)
@@ -156,6 +153,7 @@ def _group_by_semantic(
 # Search Helpers
 # =============================================================================
 
+
 def _detect_languages(project_folder: str) -> List[str]:
     """Detect programming languages present in a project."""
     detected = set()
@@ -269,6 +267,7 @@ def _parse_semantic_query(query: str) -> str:
 # =============================================================================
 # Main Implementation
 # =============================================================================
+
 
 def search_multi_language_impl(
     project_folder: str,

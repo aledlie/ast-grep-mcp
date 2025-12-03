@@ -3,16 +3,14 @@
 These tests verify that the rename_symbol feature works correctly with
 the actual ast-grep binary, not mocked subprocess calls.
 """
-from ast_grep_mcp.utils.console_logger import console
 
 import os
-import pytest
-import shutil
 import subprocess
-from pathlib import Path
 
-from ast_grep_mcp.features.refactoring.renamer import SymbolRenamer
+import pytest
+
 from ast_grep_mcp.features.refactoring.rename_coordinator import RenameCoordinator
+from ast_grep_mcp.features.refactoring.renamer import SymbolRenamer
 
 
 # Skip all tests if ast-grep is not installed

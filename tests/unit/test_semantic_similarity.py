@@ -13,7 +13,6 @@ mocking the imports. Integration tests requiring the actual model
 are marked with @pytest.mark.semantic.
 """
 
-from typing import Any, Dict
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -28,7 +27,6 @@ from ast_grep_mcp.features.deduplication.similarity import (
     SemanticSimilarityResult,
     _check_transformers_available,
 )
-
 
 # =============================================================================
 # SemanticSimilarityConfig Tests

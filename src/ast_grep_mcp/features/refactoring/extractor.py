@@ -7,18 +7,16 @@ This module handles:
 - Inserting extracted functions at proper locations
 """
 
-import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
+
 from ast_grep_mcp.core.logging import get_logger
 
+from ...features.rewrite.backup import create_backup, restore_backup
 from ...models.refactoring import (
     CodeSelection,
-    FunctionSignature,
     ExtractFunctionResult,
-    VariableInfo,
-    VariableType,
+    FunctionSignature,
 )
-from ...features.rewrite.backup import create_backup, restore_backup
 
 logger = get_logger(__name__)
 
@@ -76,9 +74,7 @@ class FunctionExtractor:
             call_replacement = self._generate_call_site(selection, signature)
 
             # Determine insertion line
-            insertion_line = self._determine_insertion_line(
-                selection, extract_location
-            )
+            insertion_line = self._determine_insertion_line(selection, extract_location)
 
             # Generate diff preview
             diff_preview = self._generate_diff_preview(
@@ -129,9 +125,27 @@ class FunctionExtractor:
         content_lower = selection.content.lower()
 
         action_verbs = [
-            'validate', 'process', 'calculate', 'format', 'parse', 'convert',
-            'transform', 'filter', 'map', 'reduce', 'check', 'verify', 'create',
-            'update', 'delete', 'get', 'set', 'fetch', 'load', 'save', 'send',
+            "validate",
+            "process",
+            "calculate",
+            "format",
+            "parse",
+            "convert",
+            "transform",
+            "filter",
+            "map",
+            "reduce",
+            "check",
+            "verify",
+            "create",
+            "update",
+            "delete",
+            "get",
+            "set",
+            "fetch",
+            "load",
+            "save",
+            "send",
         ]
 
         for verb in action_verbs:
@@ -159,10 +173,7 @@ class FunctionExtractor:
         parameters: List[Dict[str, str]] = []
         for param_name in selection.parameters_needed:
             # Find variable info for type inference
-            var_info = next(
-                (v for v in selection.variables if v.name == param_name),
-                None
-            )
+            var_info = next((v for v in selection.variables if v.name == param_name), None)
 
             param_type = var_info.inferred_type if var_info and var_info.inferred_type else ""
             param: Dict[str, str] = {
@@ -177,10 +188,7 @@ class FunctionExtractor:
             return_type = "None" if self.language == "python" else "void"
         elif len(selection.return_values) == 1:
             # Single return value
-            var_info = next(
-                (v for v in selection.variables if v.name == selection.return_values[0]),
-                None
-            )
+            var_info = next((v for v in selection.variables if v.name == selection.return_values[0]), None)
             return_type = var_info.inferred_type if var_info else None
         else:
             # Multiple return values
@@ -229,7 +237,7 @@ class FunctionExtractor:
                 lines.append("")
                 lines.append("Args:")
                 for param in parameters:
-                    param_type = f" ({param.get('type')})" if param.get('type') else ""
+                    param_type = f" ({param.get('type')})" if param.get("type") else ""
                     lines.append(f"    {param['name']}{param_type}: Parameter extracted from code")
 
             if return_type and return_type != "None":
@@ -241,13 +249,13 @@ class FunctionExtractor:
             return "\n".join(lines)
 
         elif self.language in ("typescript", "javascript"):
-            lines = [f"/**"]
+            lines = ["/**"]
             lines.append(f" * Extracted function from {selection.file_path}")
 
             if parameters:
                 lines.append(" *")
                 for param in parameters:
-                    param_type = param.get('type', 'any')
+                    param_type = param.get("type", "any")
                     lines.append(f" * @param {{{param_type}}} {param['name']} - Parameter extracted from code")
 
             if return_type:
@@ -282,12 +290,12 @@ class FunctionExtractor:
 
         # Add docstring
         if signature.docstring:
-            docstring_lines = signature.docstring.split('\n')
+            docstring_lines = signature.docstring.split("\n")
             for line in docstring_lines:
                 lines.append(f"    {line}")
 
         # Add function body (selection content with proper indentation)
-        content_lines = selection.content.split('\n')
+        content_lines = selection.content.split("\n")
         for line in content_lines:
             # Add extra indentation for function body
             if line.strip():
@@ -303,7 +311,7 @@ class FunctionExtractor:
         if self.language in ("typescript", "javascript"):
             lines.append("}")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def _generate_return_statement(self, return_values: List[str]) -> str:
         """Generate return statement for extracted function.
@@ -340,7 +348,7 @@ class FunctionExtractor:
             Call site replacement code
         """
         # Build argument list
-        args = ", ".join(signature.parameters[i]['name'] for i in range(len(signature.parameters)))
+        args = ", ".join(signature.parameters[i]["name"] for i in range(len(signature.parameters)))
 
         # Generate call
         function_call = f"{signature.name}({args})"
@@ -415,7 +423,7 @@ class FunctionExtractor:
         lines.append("-   ...")
         lines.append(f"+ {call_replacement}")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def _apply_extraction(
         self,
@@ -437,29 +445,30 @@ class FunctionExtractor:
         """
         # Create backup
         import os
+
         project_folder = os.path.dirname(selection.file_path)
         backup_id = create_backup([selection.file_path], project_folder)
 
         try:
             # Read file
-            with open(selection.file_path, 'r', encoding='utf-8') as f:
+            with open(selection.file_path, "r", encoding="utf-8") as f:
                 lines = f.readlines()
 
             # Insert function at insertion_line
-            function_lines = [line + '\n' for line in function_body.split('\n')]
-            function_lines.append('\n\n')  # Add spacing
-            lines[insertion_line - 1:insertion_line - 1] = function_lines
+            function_lines = [line + "\n" for line in function_body.split("\n")]
+            function_lines.append("\n\n")  # Add spacing
+            lines[insertion_line - 1 : insertion_line - 1] = function_lines
 
             # Replace selection with call
             # Adjust line numbers after insertion
             adjusted_start = selection.start_line + len(function_lines)
             adjusted_end = selection.end_line + len(function_lines)
 
-            call_line = call_replacement + '\n'
-            lines[adjusted_start - 1:adjusted_end] = [call_line]
+            call_line = call_replacement + "\n"
+            lines[adjusted_start - 1 : adjusted_end] = [call_line]
 
             # Write file
-            with open(selection.file_path, 'w', encoding='utf-8') as f:
+            with open(selection.file_path, "w", encoding="utf-8") as f:
                 f.writelines(lines)
 
             logger.info(

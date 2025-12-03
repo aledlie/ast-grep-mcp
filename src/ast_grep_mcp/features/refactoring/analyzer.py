@@ -8,9 +8,10 @@ This module analyzes selected code regions to determine:
 """
 
 import re
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List
 
 from ast_grep_mcp.core.logging import get_logger
+
 from ...models.refactoring import (
     CodeSelection,
     VariableInfo,
@@ -59,11 +60,11 @@ class CodeSelectionAnalyzer:
         )
 
         # Read the selected code
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
-        selection_lines = lines[start_line - 1:end_line]
-        content = ''.join(selection_lines)
+        selection_lines = lines[start_line - 1 : end_line]
+        content = "".join(selection_lines)
 
         # Detect indentation
         indentation = self._detect_indentation(selection_lines)
@@ -107,7 +108,7 @@ class CodeSelectionAnalyzer:
             Indentation string (spaces or tabs)
         """
         for line in lines:
-            if line.strip() and line[0] in (' ', '\t'):
+            if line.strip() and line[0] in (" ", "\t"):
                 # Extract leading whitespace
                 indent = len(line) - len(line.lstrip())
                 return line[:indent]
@@ -132,7 +133,7 @@ class CodeSelectionAnalyzer:
             all_lines: All lines in the file (for context)
             project_folder: Project root for ast-grep search
         """
-        content = selection.content
+        _content = selection.content  # noqa: F841
         variables: Dict[str, VariableInfo] = {}
 
         # Find all variable references using ast-grep patterns
@@ -147,11 +148,41 @@ class CodeSelectionAnalyzer:
 
     # Python keywords set - shared across multiple methods
     _PYTHON_KEYWORDS = {
-        'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await',
-        'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except',
-        'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is',
-        'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'try',
-        'while', 'with', 'yield'
+        "False",
+        "None",
+        "True",
+        "and",
+        "as",
+        "assert",
+        "async",
+        "await",
+        "break",
+        "class",
+        "continue",
+        "def",
+        "del",
+        "elif",
+        "else",
+        "except",
+        "finally",
+        "for",
+        "from",
+        "global",
+        "if",
+        "import",
+        "in",
+        "is",
+        "lambda",
+        "nonlocal",
+        "not",
+        "or",
+        "pass",
+        "raise",
+        "return",
+        "try",
+        "while",
+        "with",
+        "yield",
     }
 
     def _find_python_assignments(
@@ -167,7 +198,7 @@ class CodeSelectionAnalyzer:
             selection: Code selection metadata
             variables: Dict to populate with variable info
         """
-        assignment_pattern = r'\b(\w+)\s*='
+        assignment_pattern = r"\b(\w+)\s*="
         for match in re.finditer(assignment_pattern, content):
             var_name = match.group(1)
             if var_name not in variables:
@@ -201,19 +232,19 @@ class CodeSelectionAnalyzer:
         base_vars_found = set()
 
         # Array/dict access: var[...]
-        for match in re.finditer(r'\b([a-zA-Z_]\w*)\s*\[', content):
+        for match in re.finditer(r"\b([a-zA-Z_]\w*)\s*\[", content):
             var_name = match.group(1)
             if var_name not in self._PYTHON_KEYWORDS:
                 base_vars_found.add(var_name)
 
         # Attribute access: var.attr
-        for match in re.finditer(r'\b([a-zA-Z_]\w*)\s*\.', content):
+        for match in re.finditer(r"\b([a-zA-Z_]\w*)\s*\.", content):
             var_name = match.group(1)
             if var_name not in self._PYTHON_KEYWORDS:
                 base_vars_found.add(var_name)
 
         # Function call: var(...) but NOT method calls like obj.method()
-        for match in re.finditer(r'(?<!\.)\b([a-zA-Z_]\w*)\s*\(', content):
+        for match in re.finditer(r"(?<!\.)\b([a-zA-Z_]\w*)\s*\(", content):
             var_name = match.group(1)
             if var_name not in self._PYTHON_KEYWORDS:
                 base_vars_found.add(var_name)
@@ -246,9 +277,9 @@ class CodeSelectionAnalyzer:
             return True
 
         # Check if in a comment (appears after # on same line)
-        line_start = content.rfind('\n', 0, match_pos) + 1
+        line_start = content.rfind("\n", 0, match_pos) + 1
         line_to_match = content[line_start:match_pos]
-        if '#' in line_to_match:
+        if "#" in line_to_match:
             return True
 
         return False
@@ -271,7 +302,7 @@ class CodeSelectionAnalyzer:
             selection: Code selection metadata
             variables: Dict to populate with variable info
         """
-        identifier_pattern = r'(?<!\.)(?<!\#)\b([a-zA-Z_]\w*)(?!\s*[\[\.\(])\b'
+        identifier_pattern = r"(?<!\.)(?<!\#)\b([a-zA-Z_]\w*)(?!\s*[\[\.\(])\b"
         for match in re.finditer(identifier_pattern, content):
             var_name = match.group(1)
 
@@ -343,10 +374,7 @@ class CodeSelectionAnalyzer:
         Returns:
             True if variable is assigned before selection
         """
-        return any(
-            re.search(rf'\b{re.escape(var_name)}\s*=', line)
-            for line in before_lines
-        )
+        return any(re.search(rf"\b{re.escape(var_name)}\s*=", line) for line in before_lines)
 
     def _is_variable_used_after(
         self,
@@ -362,10 +390,7 @@ class CodeSelectionAnalyzer:
         Returns:
             True if variable is referenced after selection
         """
-        return any(
-            re.search(rf'\b{re.escape(var_name)}\b', line)
-            for line in after_lines
-        )
+        return any(re.search(rf"\b{re.escape(var_name)}\b", line) for line in after_lines)
 
     def _get_variable_classification(
         self,
@@ -427,7 +452,7 @@ class CodeSelectionAnalyzer:
 
         # Find variable declarations and assignments
         # Matches: const x = ..., let y = ..., var z = ..., x = ...
-        declaration_pattern = r'\b(?:const|let|var)?\s*(\w+)\s*='
+        declaration_pattern = r"\b(?:const|let|var)?\s*(\w+)\s*="
         for match in re.finditer(declaration_pattern, content):
             var_name = match.group(1)
             if var_name not in variables:
@@ -442,15 +467,50 @@ class CodeSelectionAnalyzer:
 
         # Find variable reads
         js_keywords = {
-            'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
-            'debugger', 'default', 'delete', 'do', 'else', 'enum', 'export',
-            'extends', 'false', 'finally', 'for', 'function', 'if', 'import',
-            'in', 'instanceof', 'let', 'new', 'null', 'return', 'super', 'switch',
-            'this', 'throw', 'true', 'try', 'typeof', 'var', 'void', 'while',
-            'with', 'yield', 'async', 'of'
+            "await",
+            "break",
+            "case",
+            "catch",
+            "class",
+            "const",
+            "continue",
+            "debugger",
+            "default",
+            "delete",
+            "do",
+            "else",
+            "enum",
+            "export",
+            "extends",
+            "false",
+            "finally",
+            "for",
+            "function",
+            "if",
+            "import",
+            "in",
+            "instanceof",
+            "let",
+            "new",
+            "null",
+            "return",
+            "super",
+            "switch",
+            "this",
+            "throw",
+            "true",
+            "try",
+            "typeof",
+            "var",
+            "void",
+            "while",
+            "with",
+            "yield",
+            "async",
+            "of",
         }
 
-        identifier_pattern = r'\b([a-zA-Z_$]\w*)\b'
+        identifier_pattern = r"\b([a-zA-Z_$]\w*)\b"
         for match in re.finditer(identifier_pattern, content):
             var_name = match.group(1)
 
@@ -488,7 +548,7 @@ class CodeSelectionAnalyzer:
 
         # Find variable declarations and assignments
         # Matches: Type var = ..., var = ...
-        declaration_pattern = r'\b(?:\w+\s+)?(\w+)\s*='
+        declaration_pattern = r"\b(?:\w+\s+)?(\w+)\s*="
         for match in re.finditer(declaration_pattern, content):
             var_name = match.group(1)
             if var_name not in variables:
@@ -503,17 +563,62 @@ class CodeSelectionAnalyzer:
 
         # Find variable reads
         java_keywords = {
-            'abstract', 'assert', 'boolean', 'break', 'byte', 'case', 'catch',
-            'char', 'class', 'const', 'continue', 'default', 'do', 'double',
-            'else', 'enum', 'extends', 'final', 'finally', 'float', 'for',
-            'goto', 'if', 'implements', 'import', 'instanceof', 'int', 'interface',
-            'long', 'native', 'new', 'package', 'private', 'protected', 'public',
-            'return', 'short', 'static', 'strictfp', 'super', 'switch',
-            'synchronized', 'this', 'throw', 'throws', 'transient', 'try', 'void',
-            'volatile', 'while', 'true', 'false', 'null'
+            "abstract",
+            "assert",
+            "boolean",
+            "break",
+            "byte",
+            "case",
+            "catch",
+            "char",
+            "class",
+            "const",
+            "continue",
+            "default",
+            "do",
+            "double",
+            "else",
+            "enum",
+            "extends",
+            "final",
+            "finally",
+            "float",
+            "for",
+            "goto",
+            "if",
+            "implements",
+            "import",
+            "instanceof",
+            "int",
+            "interface",
+            "long",
+            "native",
+            "new",
+            "package",
+            "private",
+            "protected",
+            "public",
+            "return",
+            "short",
+            "static",
+            "strictfp",
+            "super",
+            "switch",
+            "synchronized",
+            "this",
+            "throw",
+            "throws",
+            "transient",
+            "try",
+            "void",
+            "volatile",
+            "while",
+            "true",
+            "false",
+            "null",
         }
 
-        identifier_pattern = r'\b([a-zA-Z_]\w*)\b'
+        identifier_pattern = r"\b([a-zA-Z_]\w*)\b"
         for match in re.finditer(identifier_pattern, content):
             var_name = match.group(1)
 
@@ -553,8 +658,8 @@ class CodeSelectionAnalyzer:
             all_lines: All file lines for context
         """
         # Get lines before and after selection for context
-        before_lines = all_lines[:selection.start_line - 1]
-        after_lines = all_lines[selection.end_line:]
+        before_lines = all_lines[: selection.start_line - 1]
+        after_lines = all_lines[selection.end_line :]
 
         for var_name, var_info in variables.items():
             # Detect scope context
@@ -591,7 +696,7 @@ class CodeSelectionAnalyzer:
         Returns:
             True if early returns detected
         """
-        return bool(re.search(r'\breturn\b', content))
+        return bool(re.search(r"\breturn\b", content))
 
     def _has_exception_handling(self, content: str) -> bool:
         """Check if selection contains exception handling.
@@ -603,11 +708,11 @@ class CodeSelectionAnalyzer:
             True if try/except/throw detected
         """
         if self.language == "python":
-            return bool(re.search(r'\b(try|except|raise)\b', content))
+            return bool(re.search(r"\b(try|except|raise)\b", content))
         elif self.language in ("typescript", "javascript"):
-            return bool(re.search(r'\b(try|catch|throw)\b', content))
+            return bool(re.search(r"\b(try|catch|throw)\b", content))
         elif self.language == "java":
-            return bool(re.search(r'\b(try|catch|throw)\b', content))
+            return bool(re.search(r"\b(try|catch|throw)\b", content))
 
         return False
 

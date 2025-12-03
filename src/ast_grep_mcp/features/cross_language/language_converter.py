@@ -3,22 +3,22 @@
 This module provides functionality to convert code snippets
 between programming languages.
 """
+
 import re
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.cross_language.pattern_database import (
-    TYPE_MAPPINGS,
     get_type_mapping,
 )
 from ast_grep_mcp.models.cross_language import (
+    SUPPORTED_CONVERSION_PAIRS,
     ConversionResult,
     ConversionStyle,
     ConversionWarning,
     ConvertedCode,
     TypeMapping,
-    SUPPORTED_CONVERSION_PAIRS,
 )
 
 logger = get_logger(__name__)
@@ -61,8 +61,8 @@ PYTHON_TO_TS_PATTERNS: List[Tuple[str, str, str]] = [
     (r"int\((.+)\)", r"parseInt(\1)", "int"),
     (r"float\((.+)\)", r"parseFloat(\1)", "float"),
     # String formatting
-    (r'f"(.+)"', r'`\1`', "f_string"),
-    (r'f\'(.+)\'', r'`\1`', "f_string_single"),
+    (r'f"(.+)"', r"`\1`", "f_string"),
+    (r"f\'(.+)\'", r"`\1`", "f_string_single"),
     (r"\{(\w+)\}", r"${\1}", "f_string_var"),  # Within f-strings
     # Boolean/None
     (r"\bTrue\b", r"true", "true"),
@@ -337,7 +337,7 @@ def _generate_warnings(
         if matches:
             for match in matches:
                 # Find line number
-                line_num = source_code[:match.start()].count("\n") + 1
+                line_num = source_code[: match.start()].count("\n") + 1
                 warnings.append(
                     ConversionWarning(
                         severity="warning",
@@ -374,10 +374,7 @@ def convert_code_language_impl(
     # Validate conversion pair
     pair = (from_language.lower(), to_language.lower())
     if pair not in SUPPORTED_CONVERSION_PAIRS:
-        raise ValueError(
-            f"Unsupported conversion pair: {from_language} -> {to_language}. "
-            f"Supported pairs: {SUPPORTED_CONVERSION_PAIRS}"
-        )
+        raise ValueError(f"Unsupported conversion pair: {from_language} -> {to_language}. Supported pairs: {SUPPORTED_CONVERSION_PAIRS}")
 
     # Parse conversion style
     style = ConversionStyle(conversion_style)

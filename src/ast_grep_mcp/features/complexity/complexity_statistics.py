@@ -3,12 +3,12 @@
 This module handles calculating summary statistics, storing results,
 retrieving trends, and formatting the final response.
 """
+
 import subprocess
 from typing import Any, Dict, List, Optional
 
 from ...core.logging import get_logger
 from ...models.complexity import FunctionComplexity
-
 from .storage import ComplexityStorage
 
 
@@ -24,7 +24,7 @@ class ComplexityStatisticsAggregator:
         all_functions: List[FunctionComplexity],
         exceeding_functions: List[FunctionComplexity],
         total_files: int,
-        execution_time: float
+        execution_time: float,
     ) -> Dict[str, Any]:
         """Calculate summary statistics from analysis results.
 
@@ -58,7 +58,7 @@ class ComplexityStatisticsAggregator:
             "max_cyclomatic": max_cyclomatic,
             "max_cognitive": max_cognitive,
             "max_nesting": max_nesting,
-            "analysis_time_seconds": round(execution_time, 3)
+            "analysis_time_seconds": round(execution_time, 3),
         }
 
     def get_git_info(self, project_folder: str) -> tuple[Optional[str], Optional[str]]:
@@ -75,23 +75,13 @@ class ComplexityStatisticsAggregator:
 
         try:
             # Get commit hash
-            commit_result = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                cwd=project_folder,
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+            commit_result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=project_folder, capture_output=True, text=True, timeout=5)
             if commit_result.returncode == 0:
                 commit_hash = commit_result.stdout.strip() or None
 
             # Get branch name
             branch_result = subprocess.run(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                cwd=project_folder,
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=project_folder, capture_output=True, text=True, timeout=5
             )
             if branch_result.returncode == 0:
                 branch_name = branch_result.stdout.strip() or None
@@ -102,10 +92,7 @@ class ComplexityStatisticsAggregator:
         return commit_hash, branch_name
 
     def store_results(
-        self,
-        project_folder: str,
-        summary: Dict[str, Any],
-        all_functions: List[FunctionComplexity]
+        self, project_folder: str, summary: Dict[str, Any], all_functions: List[FunctionComplexity]
     ) -> tuple[Optional[str], Optional[str]]:
         """Store analysis results in database.
 
@@ -131,16 +118,10 @@ class ComplexityStatisticsAggregator:
                 "max_cognitive": summary["max_cognitive"],
                 "max_nesting": summary["max_nesting"],
                 "violation_count": summary["exceeding_threshold"],
-                "duration_ms": int(summary["analysis_time_seconds"] * 1000)
+                "duration_ms": int(summary["analysis_time_seconds"] * 1000),
             }
 
-            run_id = storage.store_analysis_run(
-                project_folder,
-                results_data,
-                all_functions,
-                commit_hash,
-                branch_name
-            )
+            run_id = storage.store_analysis_run(project_folder, results_data, all_functions, commit_hash, branch_name)
 
             self.logger.info("results_stored", run_id=run_id)
             return str(run_id), str(storage.db_path)
@@ -149,11 +130,7 @@ class ComplexityStatisticsAggregator:
             self.logger.warning("storage_failed", error=str(e))
             return None, None
 
-    def get_trends(
-        self,
-        project_folder: str,
-        days: int = 30
-    ) -> Optional[List[Dict[str, Any]]]:
+    def get_trends(self, project_folder: str, days: int = 30) -> Optional[List[Dict[str, Any]]]:
         """Get historical trend data for project.
 
         Args:
@@ -179,7 +156,7 @@ class ComplexityStatisticsAggregator:
         exceeding_functions: List[FunctionComplexity],
         run_id: Optional[str] = None,
         stored_at: Optional[str] = None,
-        trends: Optional[Dict[str, Any]] = None
+        trends: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Format final analysis response.
 
@@ -206,18 +183,18 @@ class ComplexityStatisticsAggregator:
                     "cognitive": f.metrics.cognitive,
                     "nesting_depth": f.metrics.nesting_depth,
                     "length": f.metrics.lines,
-                    "exceeds": f.exceeds
+                    "exceeds": f.exceeds,
                 }
                 for f in exceeding_functions
             ],
-            "message": f"Found {len(exceeding_functions)} function(s) exceeding complexity thresholds out of {summary['total_functions']} total"
+            "message": (
+                f"Found {len(exceeding_functions)} function(s) exceeding thresholds "
+                f"out of {summary['total_functions']} total"
+            ),
         }
 
         if run_id:
-            response["storage"] = {
-                "run_id": run_id,
-                "stored_at": stored_at
-            }
+            response["storage"] = {"run_id": run_id, "stored_at": stored_at}
 
         if trends:
             response["trends"] = trends

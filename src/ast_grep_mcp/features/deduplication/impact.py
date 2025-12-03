@@ -4,10 +4,17 @@ import json
 import os
 import re
 import subprocess
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, TypedDict, Union, cast
 
 from ...core import run_ast_grep
 from ...core.logging import get_logger
+
+
+class _RiskLevelConfig(TypedDict):
+    """Type definition for risk level configuration."""
+
+    max_score: Union[int, float]
+    recommendations: List[str]
 
 
 class ImpactAnalyzer:
@@ -17,12 +24,7 @@ class ImpactAnalyzer:
         """Initialize the impact analyzer."""
         self.logger = get_logger("deduplication.impact_analysis")
 
-    def analyze_deduplication_impact(
-        self,
-        duplicate_group: Dict[str, Any],
-        project_root: str,
-        language: str
-    ) -> Dict[str, Any]:
+    def analyze_deduplication_impact(self, duplicate_group: Dict[str, Any], project_root: str, language: str) -> Dict[str, Any]:
         """Analyze the impact of applying deduplication to a duplicate group.
 
         Uses ast-grep to find external references to the duplicated code and
@@ -64,23 +66,17 @@ class ImpactAnalyzer:
             "impact_analysis_start",
             duplicate_count=duplicate_count,
             files_in_group=len(files_in_group),
-            function_names=function_names[:5] if function_names else []
+            function_names=function_names[:5] if function_names else [],
         )
 
         # Find external call sites using ast-grep
         external_call_sites = self._find_external_call_sites(
-            function_names=function_names,
-            project_root=project_root,
-            language=language,
-            exclude_files=files_in_group
+            function_names=function_names, project_root=project_root, language=language, exclude_files=files_in_group
         )
 
         # Find imports of the duplicated code
         import_sites = self._find_import_references(
-            function_names=function_names,
-            project_root=project_root,
-            language=language,
-            exclude_files=files_in_group
+            function_names=function_names, project_root=project_root, language=language, exclude_files=files_in_group
         )
 
         # Combine call sites and imports
@@ -88,9 +84,7 @@ class ImpactAnalyzer:
 
         # Estimate lines changed
         lines_changed = self._estimate_lines_changed(
-            duplicate_count=duplicate_count,
-            lines_per_duplicate=lines_per_duplicate,
-            external_call_sites=len(all_external_refs)
+            duplicate_count=duplicate_count, lines_per_duplicate=lines_per_duplicate, external_call_sites=len(all_external_refs)
         )
 
         # Assess breaking change risk
@@ -99,7 +93,7 @@ class ImpactAnalyzer:
             files_in_group=files_in_group,
             external_call_sites=all_external_refs,
             project_root=project_root,
-            language=language
+            language=language,
         )
 
         # Calculate files affected
@@ -114,14 +108,14 @@ class ImpactAnalyzer:
             "files_affected": files_affected,
             "lines_changed": lines_changed,
             "external_call_sites": all_external_refs,
-            "breaking_change_risk": breaking_change_risk
+            "breaking_change_risk": breaking_change_risk,
         }
 
         self.logger.info(
             "impact_analysis_complete",
             files_affected=files_affected,
             external_references=len(all_external_refs),
-            risk_level=breaking_change_risk.get("level", "unknown")
+            risk_level=breaking_change_risk.get("level", "unknown"),
         )
 
         return result
@@ -158,51 +152,51 @@ class ImpactAnalyzer:
         # Configuration-driven pattern mapping
         pattern_config = {
             "python": [
-                r'\bdef\s+(\w+)\s*\(',      # def function_name(
-                r'\bclass\s+(\w+)'           # class ClassName
+                r"\bdef\s+(\w+)\s*\(",  # def function_name(
+                r"\bclass\s+(\w+)",  # class ClassName
             ],
             "javascript": [
-                r'\bfunction\s+(\w+)\s*\(',  # function name(
-                r'\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>',  # arrow functions
-                r'^\s*(\w+)\s*\([^)]*\)\s*\{',  # methods
+                r"\bfunction\s+(\w+)\s*\(",  # function name(
+                r"\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>",  # arrow functions
+                r"^\s*(\w+)\s*\([^)]*\)\s*\{",  # methods
             ],
             "typescript": [
-                r'\bfunction\s+(\w+)\s*\(',
-                r'\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>',
-                r'^\s*(\w+)\s*\([^)]*\)\s*\{',
+                r"\bfunction\s+(\w+)\s*\(",
+                r"\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>",
+                r"^\s*(\w+)\s*\([^)]*\)\s*\{",
             ],
             "jsx": [
-                r'\bfunction\s+(\w+)\s*\(',
-                r'\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>',
-                r'^\s*(\w+)\s*\([^)]*\)\s*\{',
+                r"\bfunction\s+(\w+)\s*\(",
+                r"\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>",
+                r"^\s*(\w+)\s*\([^)]*\)\s*\{",
             ],
             "tsx": [
-                r'\bfunction\s+(\w+)\s*\(',
-                r'\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>',
-                r'^\s*(\w+)\s*\([^)]*\)\s*\{',
+                r"\bfunction\s+(\w+)\s*\(",
+                r"\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>",
+                r"^\s*(\w+)\s*\([^)]*\)\s*\{",
             ],
             "java": [
-                r'\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{',  # methods
-                r'\bclass\s+(\w+)',  # classes
+                r"\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{",  # methods
+                r"\bclass\s+(\w+)",  # classes
             ],
             "csharp": [
-                r'\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{',
-                r'\bclass\s+(\w+)',
+                r"\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{",
+                r"\bclass\s+(\w+)",
             ],
             "cpp": [
-                r'\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{',
-                r'\bclass\s+(\w+)',
+                r"\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{",
+                r"\bclass\s+(\w+)",
             ],
             "c": [
-                r'\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{',
-                r'\bclass\s+(\w+)',
+                r"\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{",
+                r"\bclass\s+(\w+)",
             ],
             "go": [
-                r'\bfunc\s+(?:\([^)]*\)\s+)?(\w+)\s*\(',  # func FunctionName( or func (r *Receiver) MethodName(
+                r"\bfunc\s+(?:\([^)]*\)\s+)?(\w+)\s*\(",  # func FunctionName( or func (r *Receiver) MethodName(
             ],
             "rust": [
-                r'\bfn\s+(\w+)\s*[<(]',      # fn function_name( or fn function_name<
-                r'\bstruct\s+(\w+)',          # struct StructName
+                r"\bfn\s+(\w+)\s*[<(]",  # fn function_name( or fn function_name<
+                r"\bstruct\s+(\w+)",  # struct StructName
             ],
         }
 
@@ -222,7 +216,7 @@ class ImpactAnalyzer:
 
         for pattern in patterns:
             # Use MULTILINE flag for patterns that match line beginnings
-            flags = re.MULTILINE if pattern.startswith('^') else 0
+            flags = re.MULTILINE if pattern.startswith("^") else 0
             matches = re.findall(pattern, code, flags)
             names.extend(matches)
 
@@ -258,11 +252,7 @@ class ImpactAnalyzer:
         return filtered_names
 
     def _find_external_call_sites(
-        self,
-        function_names: List[str],
-        project_root: str,
-        language: str,
-        exclude_files: List[str]
+        self, function_names: List[str], project_root: str, language: str, exclude_files: List[str]
     ) -> List[Dict[str, Any]]:
         """Find call sites for functions outside the duplicate locations.
 
@@ -311,7 +301,7 @@ class ImpactAnalyzer:
                             "column": match.get("range", {}).get("start", {}).get("column", 0),
                             "function_called": func_name,
                             "context": match.get("text", "")[:100],
-                            "type": "function_call"
+                            "type": "function_call",
                         }
                         call_sites.append(call_site)
 
@@ -323,11 +313,7 @@ class ImpactAnalyzer:
         return call_sites
 
     def _find_import_references(
-        self,
-        function_names: List[str],
-        project_root: str,
-        language: str,
-        exclude_files: List[str]
+        self, function_names: List[str], project_root: str, language: str, exclude_files: List[str]
     ) -> List[Dict[str, Any]]:
         """Find import statements that reference the duplicated code.
 
@@ -353,9 +339,7 @@ class ImpactAnalyzer:
             if not patterns:
                 continue
 
-            refs = self._search_import_patterns(
-                patterns, func_name, language, project_root, exclude_files
-            )
+            refs = self._search_import_patterns(patterns, func_name, language, project_root, exclude_files)
             import_refs.extend(refs)
 
         return import_refs
@@ -372,39 +356,19 @@ class ImpactAnalyzer:
         """
         # Configuration-driven pattern mapping
         pattern_map = {
-            "python": [
-                f"from $MODULE import {func_name}",
-                f"from $MODULE import $$$, {func_name}, $$$"
-            ],
-            "javascript": [
-                f"import {{ {func_name} }} from $MODULE",
-                f"import {{ $$$, {func_name}, $$$ }} from $MODULE"
-            ],
-            "typescript": [
-                f"import {{ {func_name} }} from $MODULE",
-                f"import {{ $$$, {func_name}, $$$ }} from $MODULE"
-            ],
-            "jsx": [
-                f"import {{ {func_name} }} from $MODULE",
-                f"import {{ $$$, {func_name}, $$$ }} from $MODULE"
-            ],
-            "tsx": [
-                f"import {{ {func_name} }} from $MODULE",
-                f"import {{ $$$, {func_name}, $$$ }} from $MODULE"
-            ],
+            "python": [f"from $MODULE import {func_name}", f"from $MODULE import $$$, {func_name}, $$$"],
+            "javascript": [f"import {{ {func_name} }} from $MODULE", f"import {{ $$$, {func_name}, $$$ }} from $MODULE"],
+            "typescript": [f"import {{ {func_name} }} from $MODULE", f"import {{ $$$, {func_name}, $$$ }} from $MODULE"],
+            "jsx": [f"import {{ {func_name} }} from $MODULE", f"import {{ $$$, {func_name}, $$$ }} from $MODULE"],
+            "tsx": [f"import {{ {func_name} }} from $MODULE", f"import {{ $$$, {func_name}, $$$ }} from $MODULE"],
             "java": [f"import $$$$.{func_name}"],
-            "go": []  # Go imports are package-level, not function-level
+            "go": [],  # Go imports are package-level, not function-level
         }
 
         return pattern_map.get(language, [])
 
     def _search_import_patterns(
-        self,
-        patterns: List[str],
-        func_name: str,
-        language: str,
-        project_root: str,
-        exclude_files: List[str]
+        self, patterns: List[str], func_name: str, language: str, project_root: str, exclude_files: List[str]
     ) -> List[Dict[str, Any]]:
         """Search for import patterns using ast-grep.
 
@@ -425,16 +389,12 @@ class ImpactAnalyzer:
             if not matches:
                 continue
 
-            refs = self._process_import_matches(
-                matches, func_name, project_root, exclude_files
-            )
+            refs = self._process_import_matches(matches, func_name, project_root, exclude_files)
             import_refs.extend(refs)
 
         return import_refs
 
-    def _execute_import_search(
-        self, pattern: str, language: str, project_root: str
-    ) -> List[Dict[str, Any]]:
+    def _execute_import_search(self, pattern: str, language: str, project_root: str) -> List[Dict[str, Any]]:
         """Execute ast-grep search for a specific pattern.
 
         Args:
@@ -452,17 +412,13 @@ class ImpactAnalyzer:
             if result.returncode != 0 or not result.stdout.strip():
                 return []
 
-            return json.loads(result.stdout)
+            return cast(List[Dict[str, Any]], json.loads(result.stdout))
 
         except (json.JSONDecodeError, subprocess.SubprocessError):
             return []
 
     def _process_import_matches(
-        self,
-        matches: List[Dict[str, Any]],
-        func_name: str,
-        project_root: str,
-        exclude_files: List[str]
+        self, matches: List[Dict[str, Any]], func_name: str, project_root: str, exclude_files: List[str]
     ) -> List[Dict[str, Any]]:
         """Process ast-grep matches into import reference info.
 
@@ -493,9 +449,7 @@ class ImpactAnalyzer:
 
         return import_refs
 
-    def _create_import_ref(
-        self, match: Dict[str, Any], file_path: str, func_name: str
-    ) -> Dict[str, Any]:
+    def _create_import_ref(self, match: Dict[str, Any], file_path: str, func_name: str) -> Dict[str, Any]:
         """Create an import reference info dictionary from a match.
 
         Args:
@@ -515,15 +469,10 @@ class ImpactAnalyzer:
             "column": start_data.get("column", 0),
             "imported_name": func_name,
             "context": match.get("text", "")[:100],
-            "type": "import"
+            "type": "import",
         }
 
-    def _estimate_lines_changed(
-        self,
-        duplicate_count: int,
-        lines_per_duplicate: int,
-        external_call_sites: int
-    ) -> Dict[str, Any]:
+    def _estimate_lines_changed(self, duplicate_count: int, lines_per_duplicate: int, external_call_sites: int) -> Dict[str, Any]:
         """Estimate the number of lines that would change during deduplication.
 
         Args:
@@ -563,8 +512,8 @@ class ImpactAnalyzer:
                 "extracted_function": extracted_function_lines,
                 "new_imports": import_lines,
                 "replacement_calls": replacement_calls,
-                "external_call_updates": external_updates
-            }
+                "external_call_updates": external_updates,
+            },
         }
 
     def _assess_breaking_change_risk(
@@ -573,7 +522,7 @@ class ImpactAnalyzer:
         files_in_group: List[str],
         external_call_sites: List[Dict[str, Any]],
         project_root: str,
-        language: str
+        language: str,
     ) -> Dict[str, Any]:
         """Assess the risk of breaking changes from deduplication.
 
@@ -619,12 +568,10 @@ class ImpactAnalyzer:
             "score": risk_score,
             "factors": risk_factors,
             "recommendations": recommendations,
-            "external_reference_count": len(external_call_sites)
+            "external_reference_count": len(external_call_sites),
         }
 
-    def _calculate_external_reference_risk(
-        self, external_call_sites: List[Dict[str, Any]]
-    ) -> Tuple[int, List[str]]:
+    def _calculate_external_reference_risk(self, external_call_sites: List[Dict[str, Any]]) -> Tuple[int, List[str]]:
         """Calculate risk from external references."""
         if not external_call_sites:
             return 0, []
@@ -645,9 +592,7 @@ class ImpactAnalyzer:
 
         return score, factors
 
-    def _calculate_public_api_risk(
-        self, function_names: List[str], language: str
-    ) -> Tuple[int, List[str]]:
+    def _calculate_public_api_risk(self, function_names: List[str], language: str) -> Tuple[int, List[str]]:
         """Calculate risk from public API exposure."""
         lang_lower = language.lower()
 
@@ -669,9 +614,7 @@ class ImpactAnalyzer:
 
         return False
 
-    def _calculate_cross_module_risk(
-        self, files_in_group: List[str]
-    ) -> Tuple[int, List[str]]:
+    def _calculate_cross_module_risk(self, files_in_group: List[str]) -> Tuple[int, List[str]]:
         """Calculate risk from cross-module dependencies."""
         if len(files_in_group) <= 1:
             return 0, []
@@ -684,9 +627,7 @@ class ImpactAnalyzer:
 
         return 0, []
 
-    def _calculate_test_file_risk(
-        self, files_in_group: List[str]
-    ) -> Tuple[int, List[str]]:
+    def _calculate_test_file_risk(self, files_in_group: List[str]) -> Tuple[int, List[str]]:
         """Calculate risk adjustment for test files."""
         test_files = [f for f in files_in_group if "test" in f.lower() or "spec" in f.lower()]
 
@@ -696,15 +637,10 @@ class ImpactAnalyzer:
 
         return 0, []
 
-    def _calculate_reexport_risk(
-        self, files_in_group: List[str]
-    ) -> Tuple[int, List[str]]:
+    def _calculate_reexport_risk(self, files_in_group: List[str]) -> Tuple[int, List[str]]:
         """Calculate risk from re-export files."""
         reexport_filenames = {"__init__.py", "index.ts", "index.js", "mod.rs"}
-        reexport_files = [
-            f for f in files_in_group
-            if os.path.basename(f) in reexport_filenames
-        ]
+        reexport_files = [f for f in files_in_group if os.path.basename(f) in reexport_filenames]
 
         if reexport_files:
             return 3, ["Code is in module export file - higher breakage risk"]
@@ -714,32 +650,26 @@ class ImpactAnalyzer:
     def _determine_risk_level(self, risk_score: int) -> Tuple[str, List[str]]:
         """Determine risk level and recommendations based on score."""
         # Configuration-driven risk levels
-        risk_levels = {
-            "low": {
-                "max_score": 1,
-                "recommendations": [
-                    "Safe to proceed with standard review",
-                    "Run tests after applying changes"
-                ]
-            },
+        risk_levels: Dict[str, _RiskLevelConfig] = {
+            "low": {"max_score": 1, "recommendations": ["Safe to proceed with standard review", "Run tests after applying changes"]},
             "medium": {
                 "max_score": 4,
                 "recommendations": [
                     "Review external call sites before applying",
                     "Consider updating call sites in the same commit",
-                    "Run comprehensive test suite after changes"
-                ]
+                    "Run comprehensive test suite after changes",
+                ],
             },
             "high": {
-                "max_score": float('inf'),
+                "max_score": float("inf"),
                 "recommendations": [
                     "Carefully review all external references",
                     "Consider deprecating old functions instead of removing",
                     "Update external call sites first",
                     "May require coordinated changes across modules",
-                    "Consider feature flag for gradual rollout"
-                ]
-            }
+                    "Consider feature flag for gradual rollout",
+                ],
+            },
         }
 
         for level_name, config in risk_levels.items():
@@ -751,11 +681,7 @@ class ImpactAnalyzer:
 
 
 # Module-level function for backwards compatibility
-def analyze_deduplication_impact(
-    duplicate_group: Dict[str, Any],
-    project_root: str,
-    language: str
-) -> Dict[str, Any]:
+def analyze_deduplication_impact(duplicate_group: Dict[str, Any], project_root: str, language: str) -> Dict[str, Any]:
     """Analyze the impact of applying deduplication to a duplicate group."""
     analyzer = ImpactAnalyzer()
     return analyzer.analyze_deduplication_impact(duplicate_group, project_root, language)

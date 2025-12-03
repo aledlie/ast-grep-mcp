@@ -1,34 +1,38 @@
 """Data models for code deduplication functionality."""
+
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 
 class VariationCategory:
     """Categories for classifying variations between duplicate code blocks."""
-    LITERAL = "LITERAL"        # string, number, boolean differences
+
+    LITERAL = "LITERAL"  # string, number, boolean differences
     IDENTIFIER = "IDENTIFIER"  # variable/function/class name differences
     EXPRESSION = "EXPRESSION"  # operator, call, compound expression differences
-    LOGIC = "LOGIC"            # control flow differences (if/else, loops)
-    TYPE = "TYPE"              # type annotation differences
+    LOGIC = "LOGIC"  # control flow differences (if/else, loops)
+    TYPE = "TYPE"  # type annotation differences
 
 
 class VariationSeverity:
     """Severity levels for variations."""
-    LOW = "low"       # Minor differences, easy to parameterize
-    MEDIUM = "medium" # Moderate differences, requires some refactoring
-    HIGH = "high"     # Significant differences, complex refactoring needed
+
+    LOW = "low"  # Minor differences, easy to parameterize
+    MEDIUM = "medium"  # Moderate differences, requires some refactoring
+    HIGH = "high"  # Significant differences, complex refactoring needed
 
 
 @dataclass
 class AlignmentSegment:
     """Represents a segment in the alignment between two code blocks."""
+
     segment_type: str  # 'aligned', 'divergent', 'inserted', 'deleted'
     block1_start: int  # Line number in block 1 (0-indexed, -1 if N/A)
-    block1_end: int    # End line in block 1 (exclusive)
+    block1_end: int  # End line in block 1 (exclusive)
     block2_start: int  # Line number in block 2 (0-indexed, -1 if N/A)
-    block2_end: int    # End line in block 2 (exclusive)
-    block1_text: str   # Text from block 1
-    block2_text: str   # Text from block 2
+    block2_end: int  # End line in block 2 (exclusive)
+    block1_text: str  # Text from block 1
+    block2_text: str  # Text from block 2
     metadata: Optional[Dict[str, Any]] = None  # Multi-line info, construct types, etc.
 
     def __post_init__(self) -> None:
@@ -40,6 +44,7 @@ class AlignmentSegment:
 @dataclass
 class AlignmentResult:
     """Result of aligning two code blocks for comparison."""
+
     segments: List[AlignmentSegment]
     similarity_ratio: float
     aligned_lines: int
@@ -55,9 +60,10 @@ class DiffTreeNode:
     Represents code differences hierarchically, allowing nested structures
     to be represented with parent-child relationships.
     """
+
     node_type: str  # 'aligned', 'divergent', 'inserted', 'deleted', 'container'
     content: str  # The code content for this node
-    children: List['DiffTreeNode']  # Child nodes for nested structures
+    children: List["DiffTreeNode"]  # Child nodes for nested structures
     metadata: Dict[str, Any]  # Additional metadata (line numbers, similarity, etc.)
 
     def __post_init__(self) -> None:
@@ -65,18 +71,18 @@ class DiffTreeNode:
         if self.children is None:
             self.children = []
 
-    def add_child(self, child: 'DiffTreeNode') -> None:
+    def add_child(self, child: "DiffTreeNode") -> None:
         """Add a child node."""
         self.children.append(child)
 
-    def get_all_nodes(self) -> List['DiffTreeNode']:
+    def get_all_nodes(self) -> List["DiffTreeNode"]:
         """Get all nodes in the tree (depth-first traversal)."""
         result = [self]
         for child in self.children:
             result.extend(child.get_all_nodes())
         return result
 
-    def find_by_type(self, node_type: str) -> List['DiffTreeNode']:
+    def find_by_type(self, node_type: str) -> List["DiffTreeNode"]:
         """Find all nodes of a specific type."""
         return [node for node in self.get_all_nodes() if node.node_type == node_type]
 
@@ -101,6 +107,7 @@ class DiffTree:
     A tree structure that represents differences between duplicate code blocks
     in a hierarchical manner, preserving nesting and structure.
     """
+
     root: DiffTreeNode
     file1_path: str
     file2_path: str
@@ -111,7 +118,7 @@ class DiffTree:
     def get_statistics(self) -> Dict[str, Any]:
         """Get statistics about the diff tree."""
         type_counts = self.root.count_by_type()
-        divergent_nodes = self.root.find_by_type('divergent')
+        divergent_nodes = self.root.find_by_type("divergent")
 
         return {
             "total_nodes": len(self.root.get_all_nodes()),
@@ -120,7 +127,7 @@ class DiffTree:
             "divergent_count": len(divergent_nodes),
             "similarity_ratio": self.alignment_result.similarity_ratio,
             "aligned_lines": self.alignment_result.aligned_lines,
-            "divergent_lines": self.alignment_result.divergent_lines
+            "divergent_lines": self.alignment_result.divergent_lines,
         }
 
     def serialize_for_display(self, node: Optional[DiffTreeNode] = None, depth: int = 0) -> List[str]:
@@ -132,25 +139,19 @@ class DiffTree:
         indent = "  " * depth
 
         # Add node information
-        symbol = {
-            'aligned': '=',
-            'divergent': '≠',
-            'inserted': '+',
-            'deleted': '-',
-            'container': '◊'
-        }.get(node.node_type, '?')
+        symbol = {"aligned": "=", "divergent": "≠", "inserted": "+", "deleted": "-", "container": "◊"}.get(node.node_type, "?")
 
         lines.append(f"{indent}{symbol} {node.node_type.upper()}")
 
         # Add metadata if significant
-        if 'line_nums' in node.metadata:
+        if "line_nums" in node.metadata:
             lines.append(f"{indent}  Lines: {node.metadata['line_nums']}")
-        if 'similarity' in node.metadata:
+        if "similarity" in node.metadata:
             lines.append(f"{indent}  Similarity: {node.metadata['similarity']:.1%}")
 
         # Add content preview (first line only for brevity)
         if node.content:
-            preview = node.content.strip().split('\n')[0][:50]
+            preview = node.content.strip().split("\n")[0][:50]
             if preview:
                 lines.append(f"{indent}  > {preview}...")
 
@@ -176,6 +177,7 @@ class FunctionTemplate:
         docstring: Optional docstring describing the function
         decorators: Optional list of decorator strings (without @)
     """
+
     name: str
     parameters: List[Tuple[str, Optional[str]]]
     body: str
@@ -273,37 +275,29 @@ class ParameterType:
     """Represents an inferred type for an extracted parameter."""
 
     # Common types for different languages
-    PYTHON_TYPES = {
-        'string': 'str',
-        'number': 'float',
-        'integer': 'int',
-        'boolean': 'bool',
-        'list': 'List',
-        'dict': 'Dict',
-        'any': 'Any'
-    }
+    PYTHON_TYPES = {"string": "str", "number": "float", "integer": "int", "boolean": "bool", "list": "List", "dict": "Dict", "any": "Any"}
 
     TYPESCRIPT_TYPES = {
-        'string': 'string',
-        'number': 'number',
-        'integer': 'number',
-        'boolean': 'boolean',
-        'list': 'Array',
-        'dict': 'object',
-        'any': 'any'
+        "string": "string",
+        "number": "number",
+        "integer": "number",
+        "boolean": "boolean",
+        "list": "Array",
+        "dict": "object",
+        "any": "any",
     }
 
     JAVA_TYPES = {
-        'string': 'String',
-        'number': 'double',
-        'integer': 'int',
-        'boolean': 'boolean',
-        'list': 'List',
-        'dict': 'Map',
-        'any': 'Object'
+        "string": "String",
+        "number": "double",
+        "integer": "int",
+        "boolean": "boolean",
+        "list": "List",
+        "dict": "Map",
+        "any": "Object",
     }
 
-    def __init__(self, base_type: str, language: str = 'python') -> None:
+    def __init__(self, base_type: str, language: str = "python") -> None:
         """Initialize parameter type.
 
         Args:
@@ -316,18 +310,18 @@ class ParameterType:
 
     def _get_type_map(self) -> Dict[str, str]:
         """Get the appropriate type map for the language."""
-        if self.language.lower() == 'python':
+        if self.language.lower() == "python":
             return self.PYTHON_TYPES
-        elif self.language.lower() in ['typescript', 'javascript']:
+        elif self.language.lower() in ["typescript", "javascript"]:
             return self.TYPESCRIPT_TYPES
-        elif self.language.lower() == 'java':
+        elif self.language.lower() == "java":
             return self.JAVA_TYPES
         else:
             return self.PYTHON_TYPES  # Default to Python
 
     def get_type_annotation(self) -> str:
         """Get the type annotation for the current language."""
-        return self._type_map.get(self.base_type, self._type_map['any'])
+        return self._type_map.get(self.base_type, self._type_map["any"])
 
     def __str__(self) -> str:
         """String representation of the type."""
@@ -337,8 +331,7 @@ class ParameterType:
 class ParameterInfo:
     """Represents a parameter for code generation with type information."""
 
-    def __init__(self, name: str, param_type: Optional[ParameterType] = None,
-                 default_value: Optional[str] = None) -> None:
+    def __init__(self, name: str, param_type: Optional[ParameterType] = None, default_value: Optional[str] = None) -> None:
         """Initialize parameter info.
 
         Args:
@@ -350,7 +343,7 @@ class ParameterInfo:
         self.param_type = param_type
         self.default_value = default_value
 
-    def to_signature(self, language: str = 'python') -> str:
+    def to_signature(self, language: str = "python") -> str:
         """Generate parameter signature for function declaration.
 
         Args:
@@ -359,21 +352,21 @@ class ParameterInfo:
         Returns:
             Parameter signature string
         """
-        if language.lower() == 'python':
+        if language.lower() == "python":
             sig = self.name
             if self.param_type:
                 sig += f": {self.param_type.get_type_annotation()}"
             if self.default_value:
                 sig += f" = {self.default_value}"
             return sig
-        elif language.lower() in ['typescript', 'javascript']:
+        elif language.lower() in ["typescript", "javascript"]:
             sig = self.name
-            if self.param_type and language.lower() == 'typescript':
+            if self.param_type and language.lower() == "typescript":
                 sig += f": {self.param_type.get_type_annotation()}"
             if self.default_value:
                 sig += f" = {self.default_value}"
             return sig
-        elif language.lower() == 'java':
+        elif language.lower() == "java":
             if self.param_type:
                 return f"{self.param_type.get_type_annotation()} {self.name}"
             return f"Object {self.name}"
@@ -395,6 +388,7 @@ class FileDiff:
         additions: Number of lines added
         deletions: Number of lines deleted
     """
+
     file_path: str
     original_content: str
     new_content: str
@@ -417,6 +411,7 @@ class DiffPreview:
         summary: Human-readable summary of changes
         colorized_output: Full colorized diff output for display
     """
+
     file_diffs: List[FileDiff]
     total_additions: int
     total_deletions: int
@@ -433,7 +428,7 @@ class DiffPreview:
                     "additions": fd.additions,
                     "deletions": fd.deletions,
                     "unified_diff": fd.unified_diff,
-                    "formatted_diff": fd.formatted_diff
+                    "formatted_diff": fd.formatted_diff,
                 }
                 for fd in self.file_diffs
             ],
@@ -441,7 +436,7 @@ class DiffPreview:
             "total_deletions": self.total_deletions,
             "affected_files": self.affected_files,
             "summary": self.summary,
-            "colorized_output": self.colorized_output
+            "colorized_output": self.colorized_output,
         }
 
     def get_file_diff(self, file_path: str) -> Optional[FileDiff]:
@@ -476,6 +471,7 @@ class EnhancedDuplicationCandidate:
         impact_analysis: Detailed impact analysis
         priority_rank: Priority ranking among all candidates
     """
+
     pattern: str
     language: str
     instances: List[Dict[str, Any]]
@@ -501,5 +497,5 @@ class EnhancedDuplicationCandidate:
             "savings": self.estimated_savings,
             "instances": len(self.instances),
             "test_coverage": self.test_coverage,
-            "recommended_strategy": self.strategies[0]["strategy"] if self.strategies else "unknown"
+            "recommended_strategy": self.strategies[0]["strategy"] if self.strategies else "unknown",
         }

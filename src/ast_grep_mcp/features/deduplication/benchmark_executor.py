@@ -3,6 +3,7 @@
 This module handles running timed benchmarks and collecting
 performance statistics.
 """
+
 import statistics
 import time
 from typing import Any, Callable, Dict, List
@@ -20,14 +21,7 @@ class BenchmarkExecutor:
         """Initialize the benchmark executor."""
         self.logger = get_logger("deduplication.benchmark_executor")
 
-    def run_timed_benchmark(
-        self,
-        name: str,
-        func: Callable[..., Any],
-        iterations: int,
-        *args: Any,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def run_timed_benchmark(self, name: str, func: Callable[..., Any], iterations: int, *args: Any, **kwargs: Any) -> Dict[str, Any]:
         """Run a benchmark and collect statistics.
 
         Args:
@@ -40,11 +34,7 @@ class BenchmarkExecutor:
         Returns:
             Dictionary with benchmark statistics
         """
-        self.logger.debug(
-            "benchmark_start",
-            name=name,
-            iterations=iterations
-        )
+        self.logger.debug("benchmark_start", name=name, iterations=iterations)
 
         times: List[float] = []
 
@@ -60,17 +50,12 @@ class BenchmarkExecutor:
             "mean_seconds": round(statistics.mean(times), 6),
             "std_dev_seconds": round(statistics.stdev(times) if len(times) > 1 else 0.0, 6),
             "min_seconds": round(min(times), 6),
-            "max_seconds": round(max(times), 6)
+            "max_seconds": round(max(times), 6),
         }
 
         mean_seconds = result["mean_seconds"]
         assert isinstance(mean_seconds, (int, float))
-        self.logger.info(
-            "benchmark_complete",
-            name=name,
-            mean_ms=round(mean_seconds * 1000, 3),
-            iterations=iterations
-        )
+        self.logger.info("benchmark_complete", name=name, mean_ms=round(mean_seconds * 1000, 3), iterations=iterations)
 
         return result
 
@@ -87,25 +72,15 @@ class BenchmarkExecutor:
         test_cases = [
             {  # High value candidate
                 "potential_line_savings": 100,
-                "instances": [
-                    {"file": "a.py", "line": 10},
-                    {"file": "b.py", "line": 20},
-                    {"file": "a.py", "line": 50}
-                ]
+                "instances": [{"file": "a.py", "line": 10}, {"file": "b.py", "line": 20}, {"file": "a.py", "line": 50}],
             },
             {  # Low value candidate
                 "potential_line_savings": 10,
-                "instances": [
-                    {"file": f"file{i}.py", "line": i * 10}
-                    for i in range(8)
-                ]
+                "instances": [{"file": f"file{i}.py", "line": i * 10} for i in range(8)],
             },
             {  # Medium value candidate
                 "potential_line_savings": 50,
-                "instances": [
-                    {"file": f"module{i % 5}.py", "line": i * 5}
-                    for i in range(5)
-                ]
+                "instances": [{"file": f"module{i % 5}.py", "line": i * 5} for i in range(5)],
             },
         ]
 
@@ -130,17 +105,12 @@ class BenchmarkExecutor:
                 "complexity_score": (i % 10) + 1,
                 "has_tests": i % 2 == 0,
                 "affected_files": (i % 5) + 1,
-                "external_call_sites": i * 2
+                "external_call_sites": i * 2,
             }
             for i in range(50)
         ]
 
-        return self.run_timed_benchmark(
-            "pattern_analysis",
-            rank_deduplication_candidates,
-            iterations,
-            candidates
-        )
+        return self.run_timed_benchmark("pattern_analysis", rank_deduplication_candidates, iterations, candidates)
 
     def benchmark_code_generation(self, iterations: int) -> Dict[str, Any]:
         """Benchmark recommendation generation.
@@ -161,11 +131,7 @@ class BenchmarkExecutor:
             for score, complexity, lines, has_tests, files in test_recs:
                 generate_deduplication_recommendation(score, complexity, lines, has_tests, files)
 
-        return self.run_timed_benchmark(
-            "code_generation",
-            run_recommendations,
-            iterations
-        )
+        return self.run_timed_benchmark("code_generation", run_recommendations, iterations)
 
     def benchmark_full_workflow(self, iterations: int) -> Dict[str, Any]:
         """Benchmark the full duplication response workflow.
@@ -183,7 +149,7 @@ class BenchmarkExecutor:
                 "replacement": f"result = extracted_helper_{i}(x, y)",
                 "similarity": 85.0 + i,
                 "complexity": (i % 10) + 1,
-                "files": [f"file_{i}.py"]
+                "files": [f"file_{i}.py"],
             }
             for i in range(20)
         ]
@@ -194,7 +160,7 @@ class BenchmarkExecutor:
             iterations,
             response_candidates,
             include_diffs=False,
-            include_colors=False
+            include_colors=False,
         )
 
     def run_all_benchmarks(self, iterations: int) -> List[Dict[str, Any]]:
@@ -220,9 +186,6 @@ class BenchmarkExecutor:
         # Benchmark 4: Full Workflow (fewest iterations - slowest)
         results.append(self.benchmark_full_workflow(iterations))
 
-        self.logger.info(
-            "all_benchmarks_complete",
-            total_benchmarks=len(results)
-        )
+        self.logger.info("all_benchmarks_complete", total_benchmarks=len(results))
 
         return results

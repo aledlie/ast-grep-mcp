@@ -7,6 +7,7 @@ This module defines data models for:
 - Polyglot refactoring
 - API binding generation
 """
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -14,28 +15,32 @@ from typing import Any, Dict, List, Optional
 
 class ConversionStyle(Enum):
     """Code conversion style options."""
-    LITERAL = "literal"      # Direct translation preserving structure
+
+    LITERAL = "literal"  # Direct translation preserving structure
     IDIOMATIC = "idiomatic"  # Use target language idioms
     COMPATIBLE = "compatible"  # Maximum cross-platform compatibility
 
 
 class BindingStyle(Enum):
     """API binding generation style."""
-    NATIVE = "native"      # Native language style (requests, fetch, etc.)
-    SDK = "sdk"            # Full SDK with types and utilities
-    MINIMAL = "minimal"    # Minimal implementation
+
+    NATIVE = "native"  # Native language style (requests, fetch, etc.)
+    SDK = "sdk"  # Full SDK with types and utilities
+    MINIMAL = "minimal"  # Minimal implementation
 
 
 class RefactoringType(Enum):
     """Cross-language refactoring types."""
-    RENAME_API = "rename_api"              # Rename API endpoint across frontend/backend
+
+    RENAME_API = "rename_api"  # Rename API endpoint across frontend/backend
     EXTRACT_CONSTANT = "extract_constant"  # Extract to shared config
-    UPDATE_CONTRACT = "update_contract"    # Update API contract signature
+    UPDATE_CONTRACT = "update_contract"  # Update API contract signature
 
 
 # =============================================================================
 # Multi-Language Search Models
 # =============================================================================
+
 
 @dataclass
 class SemanticPattern:
@@ -46,6 +51,7 @@ class SemanticPattern:
         concept: The abstract concept being matched
         language_patterns: Language-specific ast-grep patterns
     """
+
     description: str
     concept: str
     language_patterns: Dict[str, str] = field(default_factory=dict)
@@ -63,6 +69,7 @@ class MultiLanguageMatch:
         semantic_group: Semantic grouping category
         confidence: Confidence score for semantic matching
     """
+
     language: str
     file_path: str
     line_number: int
@@ -84,6 +91,7 @@ class MultiLanguageSearchResult:
         semantic_groups: Distinct semantic groups found
         execution_time_ms: Execution time in milliseconds
     """
+
     query: str
     languages_searched: List[str]
     matches: List[MultiLanguageMatch]
@@ -97,6 +105,7 @@ class MultiLanguageSearchResult:
 # Pattern Equivalence Models
 # =============================================================================
 
+
 @dataclass
 class PatternExample:
     """An example of a pattern in a specific language.
@@ -107,6 +116,7 @@ class PatternExample:
         description: Explanation of this implementation
         notes: Additional notes or caveats
     """
+
     language: str
     code: str
     description: str = ""
@@ -126,6 +136,7 @@ class PatternEquivalence:
         related_patterns: Related pattern IDs
         complexity_comparison: How complexity compares across languages
     """
+
     pattern_id: str
     concept: str
     category: str
@@ -147,6 +158,7 @@ class PatternEquivalenceResult:
         suggestions: Additional pattern suggestions
         execution_time_ms: Execution time
     """
+
     pattern_description: str
     source_language: Optional[str]
     target_languages: List[str]
@@ -159,6 +171,7 @@ class PatternEquivalenceResult:
 # Language Conversion Models
 # =============================================================================
 
+
 @dataclass
 class TypeMapping:
     """Type mapping between languages.
@@ -169,6 +182,7 @@ class TypeMapping:
         needs_import: Import statement needed (if any)
         notes: Conversion notes
     """
+
     source_type: str
     target_type: str
     needs_import: Optional[str] = None
@@ -185,6 +199,7 @@ class ConversionWarning:
         line_number: Line number in source code
         suggestion: Suggested resolution
     """
+
     severity: str
     message: str
     line_number: Optional[int] = None
@@ -206,6 +221,7 @@ class ConvertedCode:
         imports_needed: Import statements needed
         success: Whether conversion was successful
     """
+
     source_code: str
     converted_code: str
     from_language: str
@@ -228,6 +244,7 @@ class ConversionResult:
         failed_conversions: Number of failed conversions
         execution_time_ms: Execution time
     """
+
     conversions: List[ConvertedCode]
     total_functions: int = 0
     successful_conversions: int = 0
@@ -238,6 +255,7 @@ class ConversionResult:
 # =============================================================================
 # Polyglot Refactoring Models
 # =============================================================================
+
 
 @dataclass
 class PolyglotChange:
@@ -251,6 +269,7 @@ class PolyglotChange:
         new_code: New code after refactoring
         change_type: Type of change made
     """
+
     language: str
     file_path: str
     line_number: int
@@ -272,6 +291,7 @@ class PolyglotRefactoringPlan:
         risks: Identified risks
         requires_manual_review: Files requiring manual review
     """
+
     refactoring_type: RefactoringType
     symbol_name: str
     new_name: Optional[str]
@@ -294,6 +314,7 @@ class PolyglotRefactoringResult:
         validation_errors: Any validation errors
         execution_time_ms: Execution time
     """
+
     plan: PolyglotRefactoringPlan
     dry_run: bool
     changes_made: List[PolyglotChange] = field(default_factory=list)
@@ -306,6 +327,7 @@ class PolyglotRefactoringResult:
 # =============================================================================
 # API Binding Generation Models
 # =============================================================================
+
 
 @dataclass
 class ApiEndpoint:
@@ -322,6 +344,7 @@ class ApiEndpoint:
         responses: Response schemas
         tags: API tags
     """
+
     path: str
     method: str
     operation_id: str
@@ -345,6 +368,7 @@ class GeneratedBinding:
         dependencies: Package dependencies needed
         types_generated: Type definitions generated
     """
+
     language: str
     file_name: str
     code: str
@@ -366,6 +390,7 @@ class BindingGenerationResult:
         warnings: Generation warnings
         execution_time_ms: Execution time
     """
+
     api_name: str
     api_version: str
     base_url: str

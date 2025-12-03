@@ -23,22 +23,10 @@ def register_rewrite_tools(mcp: FastMCP) -> None:
     def rewrite_code(
         project_folder: str = Field(description="The absolute path to the project folder"),
         yaml_rule: str = Field(description="YAML rule with 'fix' field for code transformation"),
-        dry_run: bool = Field(
-            default=True,
-            description="Preview changes without applying (default: true for safety)"
-        ),
-        backup: bool = Field(
-            default=True,
-            description="Create backup before applying changes (default: true)"
-        ),
-        max_file_size_mb: int = Field(
-            default=0,
-            description="Skip files larger than this (0 = unlimited)"
-        ),
-        workers: int = Field(
-            default=0,
-            description="Number of worker threads (0 = auto)"
-        )
+        dry_run: bool = Field(default=True, description="Preview changes without applying (default: true for safety)"),
+        backup: bool = Field(default=True, description="Create backup before applying changes (default: true)"),
+        max_file_size_mb: int = Field(default=0, description="Skip files larger than this (0 = unlimited)"),
+        workers: int = Field(default=0, description="Number of worker threads (0 = auto)"),
     ) -> Dict[str, Any]:
         """
         Rewrite code using ast-grep fix rules. Apply automated code transformations safely.
@@ -61,23 +49,12 @@ def register_rewrite_tools(mcp: FastMCP) -> None:
         - dry_run=True: Preview with diffs showing proposed changes
         - dry_run=False: backup_id and list of modified files
         """
-        return rewrite_code_impl(
-            project_folder,
-            yaml_rule,
-            dry_run,
-            backup,
-            max_file_size_mb,
-            workers
-        )
+        return rewrite_code_impl(project_folder, yaml_rule, dry_run, backup, max_file_size_mb, workers)
 
     @mcp.tool()
     def rollback_rewrite(
-        backup_id: str = Field(
-            description="The backup ID from a previous rewrite operation"
-        ),
-        project_folder: str = Field(
-            description="The absolute path to the project folder"
-        )
+        backup_id: str = Field(description="The backup ID from a previous rewrite operation"),
+        project_folder: str = Field(description="The absolute path to the project folder"),
     ) -> Dict[str, Any]:
         """
         Restore files from a backup created during rewrite operations.
@@ -97,11 +74,7 @@ def register_rewrite_tools(mcp: FastMCP) -> None:
         return rollback_rewrite_impl(backup_id, project_folder)
 
     @mcp.tool()
-    def list_backups(
-        project_folder: str = Field(
-            description="The absolute path to the project folder"
-        )
-    ) -> List[Dict[str, Any]]:
+    def list_backups(project_folder: str = Field(description="The absolute path to the project folder")) -> List[Dict[str, Any]]:
         """
         List all available backups in the project.
 

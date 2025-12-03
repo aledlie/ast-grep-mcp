@@ -3,6 +3,7 @@
 This module handles calculating individual component scores
 (savings, complexity, risk, effort) for duplication candidates.
 """
+
 from typing import Any, Dict, Optional
 
 from ...constants import DeduplicationDefaults
@@ -27,7 +28,7 @@ class DeduplicationScoreCalculator:
         duplicate_group: Dict[str, Any],
         complexity: Optional[Dict[str, Any]] = None,
         test_coverage: Optional[float] = None,
-        impact_analysis: Optional[Dict[str, Any]] = None
+        impact_analysis: Optional[Dict[str, Any]] = None,
     ) -> tuple[float, Dict[str, float]]:
         """
         Calculate total deduplication score with component breakdown.
@@ -58,11 +59,7 @@ class DeduplicationScoreCalculator:
         # Calculate total
         total_score = sum(scores.values())
 
-        self.logger.debug(
-            "total_score_calculated",
-            total_score=round(total_score, 2),
-            breakdown=scores
-        )
+        self.logger.debug("total_score_calculated", total_score=round(total_score, 2), breakdown=scores)
 
         return round(total_score, 2), scores
 
@@ -80,19 +77,11 @@ class DeduplicationScoreCalculator:
         savings_score = min(lines_saved / 5, 100)
         weighted_score = savings_score * self.WEIGHT_SAVINGS
 
-        self.logger.debug(
-            "savings_score_calculated",
-            lines_saved=lines_saved,
-            raw_score=savings_score,
-            weighted_score=weighted_score
-        )
+        self.logger.debug("savings_score_calculated", lines_saved=lines_saved, raw_score=savings_score, weighted_score=weighted_score)
 
         return float(weighted_score)
 
-    def calculate_complexity_score(
-        self,
-        complexity: Optional[Dict[str, Any]] = None
-    ) -> float:
+    def calculate_complexity_score(self, complexity: Optional[Dict[str, Any]] = None) -> float:
         """Calculate complexity score (20% weight).
 
         Lower complexity is better.
@@ -116,16 +105,12 @@ class DeduplicationScoreCalculator:
             "complexity_score_calculated",
             complexity_value=complexity.get("complexity_score") if complexity else None,
             raw_score=complexity_score,
-            weighted_score=weighted_score
+            weighted_score=weighted_score,
         )
 
         return float(weighted_score)
 
-    def calculate_risk_score(
-        self,
-        test_coverage: Optional[float] = None,
-        impact_analysis: Optional[Dict[str, Any]] = None
-    ) -> float:
+    def calculate_risk_score(self, test_coverage: Optional[float] = None, impact_analysis: Optional[Dict[str, Any]] = None) -> float:
         """Calculate risk score (25% weight).
 
         Based on test coverage and breaking change risk.
@@ -158,7 +143,7 @@ class DeduplicationScoreCalculator:
             test_coverage=test_coverage,
             breaking_risk=impact_analysis.get("breaking_change_risk") if impact_analysis else None,
             raw_score=risk_score,
-            weighted_score=weighted_score
+            weighted_score=weighted_score,
         )
 
         return float(weighted_score)
@@ -176,9 +161,7 @@ class DeduplicationScoreCalculator:
             Weighted effort score
         """
         instance_count = len(duplicate_group.get("instances", []))
-        file_count = len(set(
-            inst.get("file", "") for inst in duplicate_group.get("instances", [])
-        ))
+        file_count = len(set(inst.get("file", "") for inst in duplicate_group.get("instances", [])))
 
         # More instances and files = more effort = lower score
         effort_score = max(0, 100 - (instance_count * 5 + file_count * 10))
@@ -189,7 +172,7 @@ class DeduplicationScoreCalculator:
             instance_count=instance_count,
             file_count=file_count,
             raw_score=effort_score,
-            weighted_score=weighted_score
+            weighted_score=weighted_score,
         )
 
         return float(weighted_score)

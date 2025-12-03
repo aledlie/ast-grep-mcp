@@ -84,6 +84,10 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
+ignore = ["N806"]  # Non-lowercase variable in function - intentional for config patterns
+
+[tool.ruff.lint.per-file-ignores]
+"src/ast_grep_mcp/features/cross_language/pattern_database.py" = ["E501"]  # Long template strings
 
 [tool.mypy]
 python_version = "3.13"

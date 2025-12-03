@@ -8,11 +8,11 @@ Intelligently converts console.blank() statements based on context:
 - Empty lines -> console.blank()
 - Regular output -> console.log()
 """
-from ast_grep_mcp.utils.console_logger import console
-
 import re
 from pathlib import Path
 from typing import List, Tuple
+
+from ast_grep_mcp.utils.console_logger import console
 
 
 def smart_replace_print(line: str) -> Tuple[str, bool]:
@@ -57,7 +57,7 @@ def smart_replace_print(line: str) -> Tuple[str, bool]:
             data = match.group(1)
             line = re.sub(
                 r'print\(json\.dumps\((.*?)(,\s*indent=\d+)?\)\)',
-                rf'console.json(\1)',
+                r'console.json(\1)',
                 line
             )
             modified = True

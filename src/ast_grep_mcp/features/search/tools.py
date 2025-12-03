@@ -17,16 +17,12 @@ from ast_grep_mcp.models.base import DumpFormat
 
 def _register_dump_syntax_tree(mcp: FastMCP) -> None:
     """Register dump_syntax_tree tool."""
+
     @mcp.tool()
     def dump_syntax_tree(
         code: str = Field(description="The code you need"),
-        language: str = Field(
-            description=f"The language of the code. Supported: {', '.join(get_supported_languages())}"
-        ),
-        format: DumpFormat = Field(
-            description="Code dump format. Available values: pattern, ast, cst",
-            default="cst"
-        ),
+        language: str = Field(description=f"The language of the code. Supported: {', '.join(get_supported_languages())}"),
+        format: DumpFormat = Field(description="Code dump format. Available values: pattern, ast, cst", default="cst"),
     ) -> str:
         """
         Dump code's syntax structure or dump a query's pattern structure.
@@ -43,12 +39,11 @@ def _register_dump_syntax_tree(mcp: FastMCP) -> None:
 
 def _register_test_match_code_rule(mcp: FastMCP) -> None:
     """Register test_match_code_rule tool."""
+
     @mcp.tool()
     def test_match_code_rule(
         code: str = Field(description="The code to test against the rule"),
-        yaml_rule: str = Field(
-            description="The ast-grep YAML rule to search. It must have id, language, rule fields."
-        ),
+        yaml_rule: str = Field(description="The ast-grep YAML rule to search. It must have id, language, rule fields."),
     ) -> List[Dict[str, Any]]:
         """
         Test a code against an ast-grep YAML rule.
@@ -61,30 +56,27 @@ def _register_test_match_code_rule(mcp: FastMCP) -> None:
 
 def _register_find_code(mcp: FastMCP) -> None:
     """Register find_code tool."""
+
     @mcp.tool()
     def find_code(
-        project_folder: str = Field(
-            description="The absolute path to the project folder. It must be absolute path."
-        ),
-        pattern: str = Field(
-            description="The ast-grep pattern to search for. Note, the pattern must have valid AST structure."
-        ),
+        project_folder: str = Field(description="The absolute path to the project folder. It must be absolute path."),
+        pattern: str = Field(description="The ast-grep pattern to search for. Note, the pattern must have valid AST structure."),
         language: str = Field(
             description=f"The language of the code. Supported: {', '.join(get_supported_languages())}. "
             "If not specified, will be auto-detected based on file extensions.",
-            default=""
+            default="",
         ),
         max_results: int = Field(default=0, description="Maximum results to return"),
         output_format: str = Field(default="text", description="'text' or 'json'"),
         max_file_size_mb: int = Field(
             default=0,
             description="Skip files larger than this size in MB. 0 = unlimited (default). "
-            "Useful for excluding large generated/minified files."
+            "Useful for excluding large generated/minified files.",
         ),
         workers: int = Field(
             default=0,
             description="Number of parallel worker threads. 0 = auto (default, uses ast-grep heuristics). "
-            "Higher values can speed up searches on large codebases with multiple CPU cores."
+            "Higher values can speed up searches on large codebases with multiple CPU cores.",
         ),
     ) -> str | List[Dict[str, Any]]:
         """
@@ -124,20 +116,17 @@ def _register_find_code(mcp: FastMCP) -> None:
             max_results,
             output_format,  # type: ignore[arg-type]
             max_file_size_mb,
-            workers
+            workers,
         )
 
 
 def _register_find_code_by_rule(mcp: FastMCP) -> None:
     """Register find_code_by_rule tool."""
+
     @mcp.tool()
     def find_code_by_rule(
-        project_folder: str = Field(
-            description="The absolute path to the project folder. It must be absolute path."
-        ),
-        yaml_rule: str = Field(
-            description="The ast-grep YAML rule to search. It must have id, language, rule fields."
-        ),
+        project_folder: str = Field(description="The absolute path to the project folder. It must be absolute path."),
+        yaml_rule: str = Field(description="The ast-grep YAML rule to search. It must have id, language, rule fields."),
         max_results: int = Field(default=0, description="Maximum results to return"),
         output_format: str = Field(default="text", description="'text' or 'json'"),
     ) -> str | List[Dict[str, Any]]:
@@ -175,7 +164,7 @@ def _register_find_code_by_rule(mcp: FastMCP) -> None:
             project_folder,
             yaml_rule,
             max_results,
-            output_format  # type: ignore[arg-type]
+            output_format,  # type: ignore[arg-type]
         )
 
 

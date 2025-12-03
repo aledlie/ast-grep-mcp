@@ -14,11 +14,12 @@ Phases completed:
 """
 
 import pytest
-from ast_grep_mcp.features.deduplication.similarity import (
-    MinHashSimilarity,
-    HybridSimilarity,
-)
+
 from ast_grep_mcp.features.deduplication.detector import DuplicationDetector
+from ast_grep_mcp.features.deduplication.similarity import (
+    HybridSimilarity,
+    MinHashSimilarity,
+)
 
 
 @pytest.fixture

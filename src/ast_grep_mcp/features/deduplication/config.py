@@ -3,8 +3,9 @@
 This module provides strongly-typed configuration objects that replace
 excessive parameter passing throughout the deduplication workflow.
 """
-from dataclasses import dataclass, field
-from typing import List, Optional, Callable
+
+from dataclasses import dataclass
+from typing import Any, Callable, List, Optional
 
 
 @dataclass
@@ -86,26 +87,18 @@ class AnalysisConfig:
 
         # Validate ranges (detailed validation happens in orchestrator)
         if not 0.0 <= self.min_similarity <= 1.0:
-            raise ValueError(
-                f"min_similarity must be between 0.0 and 1.0, got {self.min_similarity}"
-            )
+            raise ValueError(f"min_similarity must be between 0.0 and 1.0, got {self.min_similarity}")
 
         if self.min_lines < 1:
-            raise ValueError(
-                f"min_lines must be a positive integer, got {self.min_lines}"
-            )
+            raise ValueError(f"min_lines must be a positive integer, got {self.min_lines}")
 
         if self.max_candidates < 1:
-            raise ValueError(
-                f"max_candidates must be a positive integer, got {self.max_candidates}"
-            )
+            raise ValueError(f"max_candidates must be a positive integer, got {self.max_candidates}")
 
         if self.max_workers < 1:
-            raise ValueError(
-                f"max_workers must be positive, got {self.max_workers}"
-            )
+            raise ValueError(f"max_workers must be positive, got {self.max_workers}")
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert config to dictionary for logging/serialization.
 
         Returns:
@@ -121,5 +114,5 @@ class AnalysisConfig:
             "exclude_patterns": self.exclude_patterns,
             "parallel": self.parallel,
             "max_workers": self.max_workers,
-            "has_progress_callback": self.progress_callback is not None
+            "has_progress_callback": self.progress_callback is not None,
         }

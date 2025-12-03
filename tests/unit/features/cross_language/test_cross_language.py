@@ -16,46 +16,44 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from ast_grep_mcp.features.cross_language.binding_generator import (
-    generate_language_bindings_impl,
     _parse_openapi_spec,
     _to_camel_case,
     _to_pascal_case,
+    generate_language_bindings_impl,
 )
 from ast_grep_mcp.features.cross_language.language_converter import (
-    convert_code_language_impl,
-    _apply_patterns,
     PYTHON_TO_TS_PATTERNS,
-    TS_TO_PYTHON_PATTERNS,
+    _apply_patterns,
+    convert_code_language_impl,
 )
 from ast_grep_mcp.features.cross_language.multi_language_search import (
-    search_multi_language_impl,
     _detect_languages,
     _parse_semantic_query,
+    search_multi_language_impl,
 )
 from ast_grep_mcp.features.cross_language.pattern_database import (
     PATTERN_DATABASE,
-    get_pattern,
-    search_patterns,
     get_equivalents,
+    get_pattern,
     get_type_mapping,
+    search_patterns,
 )
 from ast_grep_mcp.features.cross_language.pattern_equivalence import (
     find_language_equivalents_impl,
-    list_pattern_categories,
     get_pattern_details,
+    list_pattern_categories,
 )
 from ast_grep_mcp.features.cross_language.polyglot_refactoring import (
-    refactor_polyglot_impl,
-    _find_symbol_occurrences,
     _create_rename_change,
+    _find_symbol_occurrences,
+    refactor_polyglot_impl,
 )
 from ast_grep_mcp.models.cross_language import (
+    SUPPORTED_CONVERSION_PAIRS,
+    SUPPORTED_LANGUAGES,
     ConversionStyle,
     RefactoringType,
-    SUPPORTED_LANGUAGES,
-    SUPPORTED_CONVERSION_PAIRS,
 )
-
 
 # =============================================================================
 # Pattern Database Tests

@@ -1,26 +1,18 @@
 """Tests for documentation generation feature."""
 
-import os
-import tempfile
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
-import pytest
 
 from ast_grep_mcp.models.documentation import (
     ApiRoute,
     ChangelogEntry,
     ChangelogVersion,
     ChangeType,
-    CommitInfo,
     DocstringStyle,
-    DocSyncIssue,
     DocSyncResult,
     FunctionSignature,
     GeneratedDocstring,
     ParameterInfo,
     ProjectInfo,
-    ReadmeSection,
     RouteParameter,
 )
 

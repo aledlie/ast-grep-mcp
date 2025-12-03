@@ -1,7 +1,6 @@
 """Recommendation engine for deduplication refactoring."""
 
-from typing import Any, Callable, Dict, List
-
+from typing import Any, Dict, List, cast
 
 # Configuration-driven strategy definitions
 STRATEGY_CONFIG = {
@@ -9,43 +8,43 @@ STRATEGY_CONFIG = {
         "base_score": 70.0,
         "description": "Extract duplicate code into a shared function",
         "scoring_rules": [
-            {"condition": lambda c, l, a, s, h: c <= 5, "adjustment": +20},
-            {"condition": lambda c, l, a, s, h: c > 10, "adjustment": -20},
-            {"condition": lambda c, l, a, s, h: l >= 10, "adjustment": +10},
-            {"condition": lambda c, l, a, s, h: a >= 3, "adjustment": +10},
+            {"condition": lambda c, ln, a, s, h: c <= 5, "adjustment": +20},
+            {"condition": lambda c, ln, a, s, h: c > 10, "adjustment": -20},
+            {"condition": lambda c, ln, a, s, h: ln >= 10, "adjustment": +10},
+            {"condition": lambda c, ln, a, s, h: a >= 3, "adjustment": +10},
         ],
-        "effort_fn": lambda c, l, a, h: "low" if c <= 5 else "medium",
-        "risk_fn": lambda c, l, a, h: "low" if h else "medium",
-        "best_for": "Simple, stateless duplicates with clear inputs/outputs"
+        "effort_fn": lambda c, ln, a, h: "low" if c <= 5 else "medium",
+        "risk_fn": lambda c, ln, a, h: "low" if h else "medium",
+        "best_for": "Simple, stateless duplicates with clear inputs/outputs",
     },
     "extract_class": {
         "base_score": 50.0,
         "description": "Extract duplicate code into a shared class with state",
         "scoring_rules": [
-            {"condition": lambda c, l, a, s, h: c > 10, "adjustment": +30},
-            {"condition": lambda c, l, a, s, h: 5 < c <= 10, "adjustment": +15},
-            {"condition": lambda c, l, a, s, h: l >= 20, "adjustment": +15},
-            {"condition": lambda c, l, a, s, h: a >= 2, "adjustment": +10},
-            {"condition": lambda c, l, a, s, h: c <= 3 and l < 10, "adjustment": -20},
+            {"condition": lambda c, ln, a, s, h: c > 10, "adjustment": +30},
+            {"condition": lambda c, ln, a, s, h: 5 < c <= 10, "adjustment": +15},
+            {"condition": lambda c, ln, a, s, h: ln >= 20, "adjustment": +15},
+            {"condition": lambda c, ln, a, s, h: a >= 2, "adjustment": +10},
+            {"condition": lambda c, ln, a, s, h: c <= 3 and ln < 10, "adjustment": -20},
         ],
-        "effort_fn": lambda c, l, a, h: "medium" if c <= 10 else "high",
-        "risk_fn": lambda c, l, a, h: "medium" if h else "high",
-        "best_for": "Complex duplicates with shared state or multiple related functions"
+        "effort_fn": lambda c, ln, a, h: "medium" if c <= 10 else "high",
+        "risk_fn": lambda c, ln, a, h: "medium" if h else "high",
+        "best_for": "Complex duplicates with shared state or multiple related functions",
     },
     "inline": {
         "base_score": 30.0,
         "description": "Keep code duplicated (intentional duplication)",
         "scoring_rules": [
-            {"condition": lambda c, l, a, s, h: s < 40, "adjustment": +40},
-            {"condition": lambda c, l, a, s, h: 40 <= s < 60, "adjustment": +20},
-            {"condition": lambda c, l, a, s, h: a == 1, "adjustment": +20},
-            {"condition": lambda c, l, a, s, h: l < 5, "adjustment": +20},
-            {"condition": lambda c, l, a, s, h: s > 80, "adjustment": -30},
+            {"condition": lambda c, ln, a, s, h: s < 40, "adjustment": +40},
+            {"condition": lambda c, ln, a, s, h: 40 <= s < 60, "adjustment": +20},
+            {"condition": lambda c, ln, a, s, h: a == 1, "adjustment": +20},
+            {"condition": lambda c, ln, a, s, h: ln < 5, "adjustment": +20},
+            {"condition": lambda c, ln, a, s, h: s > 80, "adjustment": -30},
         ],
-        "effort_fn": lambda c, l, a, h: "none",
-        "risk_fn": lambda c, l, a, h: "none",
-        "best_for": "Intentional duplication, very small code blocks, or domain-specific variations"
-    }
+        "effort_fn": lambda c, ln, a, h: "none",
+        "risk_fn": lambda c, ln, a, h: "none",
+        "best_for": "Intentional duplication, very small code blocks, or domain-specific variations",
+    },
 }
 
 
@@ -53,12 +52,7 @@ class RecommendationEngine:
     """Generates actionable recommendations for deduplication candidates."""
 
     def generate_deduplication_recommendation(
-        self,
-        score: float,
-        complexity: int,
-        lines_saved: int,
-        has_tests: bool,
-        affected_files: int
+        self, score: float, complexity: int, lines_saved: int, has_tests: bool, affected_files: int
     ) -> Dict[str, Any]:
         """Generate actionable recommendations for deduplication candidates.
 
@@ -103,18 +97,14 @@ class RecommendationEngine:
 
         # Generate strategy options ranked by suitability
         strategies = self._generate_dedup_refactoring_strategies(
-            complexity=complexity,
-            lines_saved=lines_saved,
-            has_tests=has_tests,
-            affected_files=affected_files,
-            score=score
+            complexity=complexity, lines_saved=lines_saved, has_tests=has_tests, affected_files=affected_files, score=score
         )
 
         return {
             "recommendation_text": recommendation_text,
             "strategies": strategies,
             "priority": priority,
-            "effort_value_ratio": round(effort_value_ratio, 2)
+            "effort_value_ratio": round(effort_value_ratio, 2),
         }
 
     def _calculate_strategy_score(
@@ -125,7 +115,7 @@ class RecommendationEngine:
         lines_saved: int,
         affected_files: int,
         score: float,
-        has_tests: bool
+        has_tests: bool,
     ) -> float:
         """Calculate strategy score by applying scoring rules.
 
@@ -157,7 +147,7 @@ class RecommendationEngine:
         complexity: int,
         lines_saved: int,
         affected_files: int,
-        has_tests: bool
+        has_tests: bool,
     ) -> Dict[str, Any]:
         """Build a strategy dictionary from configuration.
 
@@ -179,16 +169,11 @@ class RecommendationEngine:
             "suitability_score": suitability_score,
             "effort": config["effort_fn"](complexity, lines_saved, affected_files, has_tests),
             "risk": config["risk_fn"](complexity, lines_saved, affected_files, has_tests),
-            "best_for": config["best_for"]
+            "best_for": config["best_for"],
         }
 
     def _generate_dedup_refactoring_strategies(
-        self,
-        complexity: int,
-        lines_saved: int,
-        has_tests: bool,
-        affected_files: int,
-        score: float
+        self, complexity: int, lines_saved: int, has_tests: bool, affected_files: int, score: float
     ) -> List[Dict[str, Any]]:
         """Generate ranked list of refactoring strategies for a duplication candidate.
 
@@ -211,13 +196,13 @@ class RecommendationEngine:
         for strategy_name, config in STRATEGY_CONFIG.items():
             # Calculate score using rules
             suitability_score = self._calculate_strategy_score(
-                base_score=config["base_score"],
-                rules=config["scoring_rules"],
+                base_score=cast(float, config["base_score"]),
+                rules=cast(List[Dict[str, Any]], config["scoring_rules"]),
                 complexity=complexity,
                 lines_saved=lines_saved,
                 affected_files=affected_files,
                 score=score,
-                has_tests=has_tests
+                has_tests=has_tests,
             )
 
             # Build strategy dictionary
@@ -228,7 +213,7 @@ class RecommendationEngine:
                 complexity=complexity,
                 lines_saved=lines_saved,
                 affected_files=affected_files,
-                has_tests=has_tests
+                has_tests=has_tests,
             )
 
             strategies.append(strategy)
@@ -241,14 +226,8 @@ class RecommendationEngine:
 
 # Module-level function for backwards compatibility
 def generate_deduplication_recommendation(
-    score: float,
-    complexity: int,
-    lines_saved: int,
-    has_tests: bool,
-    affected_files: int
+    score: float, complexity: int, lines_saved: int, has_tests: bool, affected_files: int
 ) -> Dict[str, Any]:
     """Generate actionable recommendations for deduplication candidates."""
     engine = RecommendationEngine()
-    return engine.generate_deduplication_recommendation(
-        score, complexity, lines_saved, has_tests, affected_files
-    )
+    return engine.generate_deduplication_recommendation(score, complexity, lines_saved, has_tests, affected_files)

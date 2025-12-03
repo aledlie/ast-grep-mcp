@@ -5,8 +5,9 @@ Tests the score caching optimization (Phase 2, Optimization 1.4) that provides
 20-30% speedup for repeated analysis runs.
 """
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import MagicMock, patch
 
 from src.ast_grep_mcp.features.deduplication.ranker import DuplicationRanker
 

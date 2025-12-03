@@ -8,15 +8,11 @@ Tests focus on the progress callback optimization (3.3):
 """
 
 import tempfile
-from typing import List, Tuple
 from unittest.mock import Mock
 
 import pytest
 
-from ast_grep_mcp.features.deduplication.analysis_orchestrator import (
-    DeduplicationAnalysisOrchestrator,
-    ProgressCallback
-)
+from ast_grep_mcp.features.deduplication.analysis_orchestrator import DeduplicationAnalysisOrchestrator, ProgressCallback
 
 
 class TestProgressCallbacks:
@@ -237,8 +233,6 @@ class TestProgressCallbacks:
 
     def test_progress_callback_signature(self, temp_project_dir):
         """Test that ProgressCallback type signature is correct."""
-        from ast_grep_mcp.features.deduplication.analysis_orchestrator import ProgressCallback
-        from typing import get_args
 
         # ProgressCallback should be Callable[[str, float], None]
         # This is a type alias, so we just verify it's importable

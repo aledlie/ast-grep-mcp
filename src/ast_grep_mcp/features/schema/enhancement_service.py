@@ -19,7 +19,6 @@ from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.schema.client import SchemaOrgClient, get_schema_org_client
 from ast_grep_mcp.features.schema.enhancement_rules import (
     ENTITY_SUGGESTIONS,
-    get_all_properties_for_entity,
     get_property_example,
     get_property_priority,
     get_rich_results_for_property,
@@ -79,7 +78,7 @@ def _load_entities_from_file(file_path: Path) -> List[Dict[str, Any]]:
         raise ValueError(f"Expected file but got directory: {file_path}")
 
     logger.debug("parsing_file", path=str(file_path))
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     return _extract_entities_from_data(data)
@@ -99,14 +98,24 @@ def _load_entities_from_directory(dir_path: Path) -> List[Dict[str, Any]]:
 
     # Filter out files in excluded directories
     excluded_dirs = {
-        'node_modules', '.git', '.svn', '.hg', '__pycache__', '.tox',
-        '.pytest_cache', '.mypy_cache', 'dist', 'build', '.next',
-        '.nuxt', 'coverage', '.cache', 'vendor', 'bower_components'
+        "node_modules",
+        ".git",
+        ".svn",
+        ".hg",
+        "__pycache__",
+        ".tox",
+        ".pytest_cache",
+        ".mypy_cache",
+        "dist",
+        "build",
+        ".next",
+        ".nuxt",
+        "coverage",
+        ".cache",
+        "vendor",
+        "bower_components",
     }
-    json_files = [
-        f for f in json_files
-        if not any(excluded in f.parts for excluded in excluded_dirs)
-    ]
+    json_files = [f for f in json_files if not any(excluded in f.parts for excluded in excluded_dirs)]
 
     if not json_files:
         logger.warning("no_json_files_found", path=str(dir_path))
@@ -118,7 +127,7 @@ def _load_entities_from_directory(dir_path: Path) -> List[Dict[str, Any]]:
 
     for json_file in json_files:
         try:
-            with open(json_file, 'r', encoding='utf-8') as f:
+            with open(json_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
             # Only process files that look like Schema.org JSON-LD
@@ -138,12 +147,7 @@ def _load_entities_from_directory(dir_path: Path) -> List[Dict[str, Any]]:
             logger.debug("file_read_error", file=str(json_file), error=str(e))
             continue
 
-    logger.info(
-        "directory_scan_complete",
-        total_files=len(json_files),
-        schema_files=schema_files_found,
-        entities_found=len(entities)
-    )
+    logger.info("directory_scan_complete", total_files=len(json_files), schema_files=schema_files_found, entities_found=len(entities))
     return entities
 
 
@@ -163,20 +167,18 @@ def _is_schema_org_data(data: Any) -> bool:
         return any(_is_schema_org_data(item) for item in data[:5])  # Check first 5
 
     # Check for @context with schema.org
-    context = data.get('@context', '')
-    if isinstance(context, str) and 'schema.org' in context.lower():
+    context = data.get("@context", "")
+    if isinstance(context, str) and "schema.org" in context.lower():
         return True
-    if isinstance(context, list) and any(
-        'schema.org' in str(c).lower() for c in context
-    ):
+    if isinstance(context, list) and any("schema.org" in str(c).lower() for c in context):
         return True
 
     # Check for @graph (common in Schema.org)
-    if '@graph' in data:
+    if "@graph" in data:
         return True
 
     # Check for @type (indicates typed entity)
-    if '@type' in data:
+    if "@type" in data:
         return True
 
     return False
@@ -184,7 +186,7 @@ def _is_schema_org_data(data: Any) -> bool:
 
 def _is_valid_entity(item: Any) -> bool:
     """Check if item is a valid Schema.org entity (dict with @type)."""
-    return isinstance(item, dict) and '@type' in item
+    return isinstance(item, dict) and "@type" in item
 
 
 def _extract_entities_from_list(items: List[Any]) -> List[Dict[str, Any]]:
@@ -199,8 +201,8 @@ def _extract_entities_from_data(data: Any) -> List[Dict[str, Any]]:
     Filters out primitives, lists, and dicts without @type.
     """
     # Handle @graph container
-    if isinstance(data, dict) and '@graph' in data:
-        graph = data['@graph']
+    if isinstance(data, dict) and "@graph" in data:
+        graph = data["@graph"]
         if isinstance(graph, list):
             return _extract_entities_from_list(graph)
         if _is_valid_entity(graph):
@@ -233,7 +235,7 @@ async def _analyze_entity(entity: Dict[str, Any], client: SchemaOrgClient) -> En
     Returns:
         EntityEnhancement with suggested properties and scores
     """
-    entity_id = entity.get('@id', 'unknown')
+    entity_id = entity.get("@id", "unknown")
     entity_type = _extract_entity_type(entity)
 
     if not entity_type:
@@ -241,10 +243,8 @@ async def _analyze_entity(entity: Dict[str, Any], client: SchemaOrgClient) -> En
 
     logger.debug("analyzing_entity", entity_id=entity_id, entity_type=entity_type)
 
-    existing_properties = [key for key in entity.keys() if not key.startswith('@')]
-    suggested_properties = await _get_suggested_properties(
-        entity_type, existing_properties, client
-    )
+    existing_properties = [key for key in entity.keys() if not key.startswith("@")]
+    suggested_properties = await _get_suggested_properties(entity_type, existing_properties, client)
 
     return EntityEnhancement(
         entity_id=entity_id,
@@ -252,13 +252,13 @@ async def _analyze_entity(entity: Dict[str, Any], client: SchemaOrgClient) -> En
         existing_properties=existing_properties,
         suggested_properties=suggested_properties,
         validation_issues=[],
-        seo_score=0.0
+        seo_score=0.0,
     )
 
 
 def _extract_entity_type(entity: Dict[str, Any]) -> Optional[str]:
     """Extract the primary entity type from @type field."""
-    entity_type_raw = entity.get('@type')
+    entity_type_raw = entity.get("@type")
     if not entity_type_raw:
         return None
     if isinstance(entity_type_raw, list):
@@ -267,11 +267,7 @@ def _extract_entity_type(entity: Dict[str, Any]) -> Optional[str]:
     return str(entity_type_raw)
 
 
-async def _get_suggested_properties(
-    entity_type: str,
-    existing_properties: List[str],
-    client: SchemaOrgClient
-) -> List[PropertyEnhancement]:
+async def _get_suggested_properties(entity_type: str, existing_properties: List[str], client: SchemaOrgClient) -> List[PropertyEnhancement]:
     """Get suggested properties for an entity type."""
     try:
         all_properties = await client.get_type_properties(entity_type, include_inherited=True)
@@ -280,21 +276,17 @@ async def _get_suggested_properties(
         all_properties = []
 
     existing_prop_names = set(existing_properties)
-    available_prop_names = {prop['name'] for prop in all_properties}
+    available_prop_names = {prop["name"] for prop in all_properties}
     missing_prop_names = available_prop_names - existing_prop_names
 
     suggested: List[PropertyEnhancement] = []
     for prop_name in missing_prop_names:
-        prop_details = next((p for p in all_properties if p['name'] == prop_name), None)
+        prop_details = next((p for p in all_properties if p["name"] == prop_name), None)
         if not prop_details:
             continue
 
         enhancement = _score_property(prop_name, entity_type, prop_details)
-        if enhancement.priority in [
-            EnhancementPriority.CRITICAL,
-            EnhancementPriority.HIGH,
-            EnhancementPriority.MEDIUM
-        ]:
+        if enhancement.priority in [EnhancementPriority.CRITICAL, EnhancementPriority.HIGH, EnhancementPriority.MEDIUM]:
             suggested.append(enhancement)
 
     priority_order = {
@@ -308,11 +300,7 @@ async def _get_suggested_properties(
     return suggested
 
 
-def _score_property(
-    property_name: str,
-    entity_type: str,
-    prop_details: Dict[str, Any]
-) -> PropertyEnhancement:
+def _score_property(property_name: str, entity_type: str, prop_details: Dict[str, Any]) -> PropertyEnhancement:
     """Score a property's importance and create enhancement suggestion."""
     priority = get_property_priority(entity_type, property_name)
     rich_results = get_rich_results_for_property(property_name)
@@ -321,16 +309,16 @@ def _score_property(
     reason = _build_property_reason(priority, google_rich_result)
     example_value = get_property_example(property_name)
     if example_value is None:
-        expected_types = prop_details.get('expectedTypes', [])
+        expected_types = prop_details.get("expectedTypes", [])
         example_value = f"<{expected_types[0]}>" if expected_types else f"<{property_name}>"
 
     return PropertyEnhancement(
         property_name=property_name,
-        expected_types=prop_details.get('expectedTypes', []),
+        expected_types=prop_details.get("expectedTypes", []),
         priority=priority,
         reason=reason,
         example_value=example_value,
-        google_rich_result=google_rich_result
+        google_rich_result=google_rich_result,
     )
 
 
@@ -338,12 +326,10 @@ def _build_property_reason(priority: EnhancementPriority, google_rich_result: Op
     """Build human-readable reason for property suggestion."""
     reasons = {
         EnhancementPriority.CRITICAL: (
-            f"Critical for {google_rich_result}" if google_rich_result
-            else "Critical for Schema.org compliance"
+            f"Critical for {google_rich_result}" if google_rich_result else "Critical for Schema.org compliance"
         ),
         EnhancementPriority.HIGH: (
-            f"Strongly recommended for {google_rich_result}" if google_rich_result
-            else "Strongly recommended for SEO"
+            f"Strongly recommended for {google_rich_result}" if google_rich_result else "Strongly recommended for SEO"
         ),
         EnhancementPriority.MEDIUM: "Improves discoverability and user experience",
         EnhancementPriority.LOW: "Nice to have for completeness",
@@ -359,7 +345,7 @@ def _build_property_reason(priority: EnhancementPriority, google_rich_result: Op
 def _validate_entity_references(entity: Dict[str, Any], all_ids: Set[str]) -> List[str]:
     """Validate that all @id references in an entity exist in the graph."""
     issues: List[str] = []
-    entity_id = entity.get('@id', 'unknown')
+    entity_id = entity.get("@id", "unknown")
     references = _find_id_references(entity)
 
     for ref_id, json_path in references:
@@ -377,11 +363,11 @@ def _find_id_references(obj: Any, path: str = "") -> List[tuple[str, str]]:
     refs: List[tuple[str, str]] = []
 
     if isinstance(obj, dict):
-        if '@id' in obj and len(obj) == 1:
-            refs.append((obj['@id'], path))
+        if "@id" in obj and len(obj) == 1:
+            refs.append((obj["@id"], path))
         else:
             for key, value in obj.items():
-                if key == '@id':
+                if key == "@id":
                     continue
                 new_path = f"{path}.{key}" if path else key
                 refs.extend(_find_id_references(value, new_path))
@@ -398,11 +384,7 @@ def _find_id_references(obj: Any, path: str = "") -> List[tuple[str, str]]:
 # =============================================================================
 
 
-def _parse_suggestion_rule(
-    rule: str,
-    entity_types: Set[str],
-    type_counts: Dict[str, int]
-) -> bool:
+def _parse_suggestion_rule(rule: str, entity_types: Set[str], type_counts: Dict[str, int]) -> bool:
     """Parse and evaluate entity suggestion rules."""
     conditions = [cond.strip() for cond in rule.split(" AND ")]
 
@@ -430,10 +412,7 @@ def _parse_suggestion_rule(
     return True
 
 
-def _suggest_missing_entities(
-    existing_entities: List[Dict[str, Any]],
-    _client: SchemaOrgClient
-) -> List[MissingEntitySuggestion]:
+def _suggest_missing_entities(existing_entities: List[Dict[str, Any]], _client: SchemaOrgClient) -> List[MissingEntitySuggestion]:
     """Suggest missing entity types based on graph composition."""
     entity_types: Set[str] = set()
     type_counts: Dict[str, int] = {}
@@ -455,7 +434,7 @@ def _suggest_missing_entities(
                 priority=config["priority"],
                 reason=config["reason"],
                 example=_generate_example_entity(config["suggest"]),
-                google_rich_result=config.get("google_rich_result")
+                google_rich_result=config.get("google_rich_result"),
             )
             suggestions.append(suggestion)
 
@@ -470,57 +449,46 @@ def _suggest_missing_entities(
     return suggestions
 
 
-def _generate_example_entity(
-    entity_type: str,
-    base_url: str = "https://example.com"
-) -> Dict[str, Any]:
+def _generate_example_entity(entity_type: str, base_url: str = "https://example.com") -> Dict[str, Any]:
     """Generate example JSON-LD structure for an entity type."""
-    base_structure: Dict[str, Any] = {
-        "@type": entity_type,
-        "@id": f"{base_url}#{entity_type.lower()}"
-    }
+    base_structure: Dict[str, Any] = {"@type": entity_type, "@id": f"{base_url}#{entity_type.lower()}"}
 
     examples: Dict[str, Dict[str, Any]] = {
         "FAQPage": {
-            "mainEntity": [{
-                "@type": "Question",
-                "name": "What is your most frequently asked question?",
-                "acceptedAnswer": {
-                    "@type": "Answer",
-                    "text": "This is the answer to the question."
+            "mainEntity": [
+                {
+                    "@type": "Question",
+                    "name": "What is your most frequently asked question?",
+                    "acceptedAnswer": {"@type": "Answer", "text": "This is the answer to the question."},
                 }
-            }]
+            ]
         },
         "WebSite": {
             "name": "Example Website",
             "url": base_url,
             "potentialAction": {
                 "@type": "SearchAction",
-                "target": {
-                    "@type": "EntryPoint",
-                    "urlTemplate": f"{base_url}/search?q={{search_term_string}}"
-                },
-                "query-input": "required name=search_term_string"
-            }
+                "target": {"@type": "EntryPoint", "urlTemplate": f"{base_url}/search?q={{search_term_string}}"},
+                "query-input": "required name=search_term_string",
+            },
         },
         "BreadcrumbList": {
             "itemListElement": [
                 {"@type": "ListItem", "position": 1, "name": "Home", "item": base_url},
-                {"@type": "ListItem", "position": 2, "name": "Category", "item": f"{base_url}/category"}
+                {"@type": "ListItem", "position": 2, "name": "Category", "item": f"{base_url}/category"},
             ]
         },
         "Review": {
             "reviewRating": {"@type": "Rating", "ratingValue": "5", "bestRating": "5"},
             "author": {"@type": "Person", "name": "Reviewer Name"},
             "reviewBody": "This is an example review.",
-            "datePublished": "2025-01-01"
+            "datePublished": "2025-01-01",
         },
     }
 
-    base_structure.update(examples.get(entity_type, {
-        "name": f"Example {entity_type}",
-        "description": f"Placeholder for {entity_type} entity"
-    }))
+    base_structure.update(
+        examples.get(entity_type, {"name": f"Example {entity_type}", "description": f"Placeholder for {entity_type} entity"})
+    )
 
     return base_structure
 
@@ -632,10 +600,7 @@ def _generate_enhanced_graph(
     enhanced_graph_array = copy.deepcopy(original_graph)
 
     for enhancement in entity_enhancements:
-        target_entity = next(
-            (e for e in enhanced_graph_array if e.get("@id") == enhancement.entity_id),
-            None
-        )
+        target_entity = next((e for e in enhanced_graph_array if e.get("@id") == enhancement.entity_id), None)
         if target_entity:
             for prop in enhancement.suggested_properties:
                 if prop.property_name not in target_entity:
@@ -663,10 +628,7 @@ def _generate_diff(
 
     for enhancement in entity_enhancements:
         if enhancement.suggested_properties:
-            entity_props = {
-                prop.property_name: prop.example_value
-                for prop in enhancement.suggested_properties
-            }
+            entity_props = {prop.property_name: prop.example_value for prop in enhancement.suggested_properties}
             property_additions[enhancement.entity_id] = entity_props
             total_properties += len(entity_props)
 
@@ -678,13 +640,11 @@ def _generate_diff(
         "summary": {
             "properties_to_add": total_properties,
             "entities_to_add": len(new_entities),
-        }
+        },
     }
 
 
-def _format_result_for_output(
-    result: GraphEnhancementResult, output_mode: str
-) -> Dict[str, Any]:
+def _format_result_for_output(result: GraphEnhancementResult, output_mode: str) -> Dict[str, Any]:
     """Format GraphEnhancementResult for JSON serialization."""
 
     def _serialize_property(prop: PropertyEnhancement) -> Dict[str, Any]:
@@ -733,11 +693,7 @@ def _format_result_for_output(
 # =============================================================================
 
 
-async def analyze_entity_graph(
-    input_source: str,
-    input_type: str = "file",
-    output_mode: str = "analysis"
-) -> Dict[str, Any]:
+async def analyze_entity_graph(input_source: str, input_type: str = "file", output_mode: str = "analysis") -> Dict[str, Any]:
     """Analyze existing JSON-LD graph and suggest enhancements.
 
     Main entry point for the enhance_entity_graph tool.
@@ -751,12 +707,7 @@ async def analyze_entity_graph(
         GraphEnhancementResult formatted for the requested output_mode
     """
     start_time = time.time()
-    logger.info(
-        "analyze_entity_graph_start",
-        input_source=input_source,
-        input_type=input_type,
-        output_mode=output_mode
-    )
+    logger.info("analyze_entity_graph_start", input_source=input_source, input_type=input_type, output_mode=output_mode)
 
     try:
         # Load entities from source
@@ -771,16 +722,16 @@ async def analyze_entity_graph(
                     global_issues=["No entities found in input source"],
                     overall_seo_score=0.0,
                     priority_summary={"critical": 0, "high": 0, "medium": 0, "low": 0},
-                    execution_time_ms=int((time.time() - start_time) * 1000)
+                    execution_time_ms=int((time.time() - start_time) * 1000),
                 ),
-                output_mode
+                output_mode,
             )
 
         # Initialize Schema.org client
         client = get_schema_org_client()
 
         # Build set of all entity IDs for reference validation
-        all_ids: Set[str] = {str(e.get('@id')) for e in entities if e.get('@id')}
+        all_ids: Set[str] = {str(e.get("@id")) for e in entities if e.get("@id")}
 
         # Analyze each entity
         entity_enhancements: List[EntityEnhancement] = []
@@ -807,9 +758,7 @@ async def analyze_entity_graph(
         base_url = _extract_base_url(entities)
 
         if output_mode == "enhanced":
-            enhanced_graph = _generate_enhanced_graph(
-                entities, entity_enhancements, missing_entities, base_url
-            )
+            enhanced_graph = _generate_enhanced_graph(entities, entity_enhancements, missing_entities, base_url)
         elif output_mode == "diff":
             diff = _generate_diff(entities, entity_enhancements, missing_entities)
 
@@ -824,7 +773,7 @@ async def analyze_entity_graph(
             priority_summary=priority_summary,
             enhanced_graph=enhanced_graph,
             diff=diff,
-            execution_time_ms=execution_time_ms
+            execution_time_ms=execution_time_ms,
         )
 
         logger.info(
@@ -832,28 +781,24 @@ async def analyze_entity_graph(
             entity_count=len(entity_enhancements),
             missing_count=len(missing_entities),
             seo_score=overall_seo_score,
-            execution_time_ms=execution_time_ms
+            execution_time_ms=execution_time_ms,
         )
 
         return _format_result_for_output(result, output_mode)
 
     except Exception as e:
         logger.error("analyze_entity_graph_failed", error=str(e))
-        sentry_sdk.capture_exception(e, extras={
-            "input_source": input_source,
-            "input_type": input_type,
-            "output_mode": output_mode
-        })
+        sentry_sdk.capture_exception(e, extras={"input_source": input_source, "input_type": input_type, "output_mode": output_mode})
         raise
 
 
 def _extract_base_url(entities: List[Dict[str, Any]]) -> str:
     """Extract base URL from entity @id values."""
     for entity in entities:
-        entity_id = entity.get('@id', '')
-        if entity_id.startswith('http'):
+        entity_id = entity.get("@id", "")
+        if entity_id.startswith("http"):
             # Extract base URL (remove fragment and path after domain)
-            parts = entity_id.split('#')[0].split('/')
+            parts = entity_id.split("#")[0].split("/")
             if len(parts) >= 3:
                 return f"{parts[0]}//{parts[2]}"
     return "https://example.com"

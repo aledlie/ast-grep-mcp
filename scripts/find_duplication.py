@@ -9,15 +9,14 @@ Usage:
     python scripts/find_duplication.py /path/to/project --language python --analyze  # Use ranked analysis
     python scripts/find_duplication.py /path/to/project --language python --detailed  # Show diff previews
 """
-from ast_grep_mcp.utils.console_logger import console
-
 import argparse
 import difflib
-import json
 import os
 import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List
+
+from ast_grep_mcp.utils.console_logger import console
 
 # Add parent directory to path to import main
 script_dir = Path(__file__).parent

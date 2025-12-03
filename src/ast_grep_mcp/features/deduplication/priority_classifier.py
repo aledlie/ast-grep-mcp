@@ -3,6 +3,7 @@
 This module handles classifying deduplication candidates by priority level
 and generating recommendations based on scores and metrics.
 """
+
 from typing import Any, Dict
 
 from ...core.logging import get_logger
@@ -48,12 +49,7 @@ class DeduplicationPriorityClassifier:
         else:
             return "minimal"
 
-    def get_score_breakdown(
-        self,
-        candidate: Dict[str, Any],
-        total_score: float,
-        score_components: Dict[str, float]
-    ) -> Dict[str, Any]:
+    def get_score_breakdown(self, candidate: Dict[str, Any], total_score: float, score_components: Dict[str, float]) -> Dict[str, Any]:
         """Get detailed score breakdown with factors and recommendation.
 
         Args:
@@ -75,25 +71,16 @@ class DeduplicationPriorityClassifier:
                 "instance_count": instance_count,
                 "complexity": candidate.get("complexity_analysis", {}).get("complexity_score", "N/A"),
                 "test_coverage": candidate.get("test_coverage", "N/A"),
-                "breaking_risk": candidate.get("impact_analysis", {}).get("breaking_change_risk", "N/A")
+                "breaking_risk": candidate.get("impact_analysis", {}).get("breaking_change_risk", "N/A"),
             },
-            "recommendation": self.get_recommendation(total_score, lines_saved, instance_count)
+            "recommendation": self.get_recommendation(total_score, lines_saved, instance_count),
         }
 
-        self.logger.debug(
-            "score_breakdown_generated",
-            total_score=total_score,
-            priority=self.get_priority_label(total_score)
-        )
+        self.logger.debug("score_breakdown_generated", total_score=total_score, priority=self.get_priority_label(total_score))
 
         return breakdown
 
-    def get_recommendation(
-        self,
-        score: float,
-        lines_saved: int,
-        instance_count: int
-    ) -> str:
+    def get_recommendation(self, score: float, lines_saved: int, instance_count: int) -> str:
         """Generate recommendation based on score and metrics.
 
         Args:
@@ -113,11 +100,7 @@ class DeduplicationPriorityClassifier:
         else:
             return "Low priority. Consider deferring unless part of larger refactoring."
 
-    def classify_batch(
-        self,
-        candidates: list[Dict[str, Any]],
-        scores: list[float]
-    ) -> Dict[str, list[Dict[str, Any]]]:
+    def classify_batch(self, candidates: list[Dict[str, Any]], scores: list[float]) -> Dict[str, list[Dict[str, Any]]]:
         """Classify multiple candidates by priority level.
 
         Args:
@@ -127,21 +110,11 @@ class DeduplicationPriorityClassifier:
         Returns:
             Dictionary mapping priority labels to candidate lists
         """
-        classified: Dict[str, list[Dict[str, Any]]] = {
-            "critical": [],
-            "high": [],
-            "medium": [],
-            "low": [],
-            "minimal": []
-        }
+        classified: Dict[str, list[Dict[str, Any]]] = {"critical": [], "high": [], "medium": [], "low": [], "minimal": []}
 
         for candidate, score in zip(candidates, scores):
             priority = self.get_priority_label(score)
-            classified[priority].append({
-                **candidate,
-                "score": score,
-                "priority": priority
-            })
+            classified[priority].append({**candidate, "score": score, "priority": priority})
 
         self.logger.info(
             "batch_classified",
@@ -150,7 +123,7 @@ class DeduplicationPriorityClassifier:
             high=len(classified["high"]),
             medium=len(classified["medium"]),
             low=len(classified["low"]),
-            minimal=len(classified["minimal"])
+            minimal=len(classified["minimal"]),
         )
 
         return classified

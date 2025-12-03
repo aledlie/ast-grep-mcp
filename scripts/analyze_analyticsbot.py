@@ -4,16 +4,14 @@
 import json
 import sys
 from pathlib import Path
+
 from ast_grep_mcp.utils.console_logger import console
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from ast_grep_mcp.features.complexity.tools import (
-    analyze_complexity_tool,
-    detect_code_smells_tool
-)
+from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool, detect_code_smells_tool
 from ast_grep_mcp.features.quality.tools import detect_security_issues_tool
 
 
@@ -51,7 +49,7 @@ def analyze_project(project_path: str):
         console.log(f"   Max cognitive complexity: {summary.get('max_cognitive', 0)}")
 
         if functions:
-            console.log(f"\n   Top 3 most complex functions:")
+            console.log("\n   Top 3 most complex functions:")
             for i, func in enumerate(functions[:3], 1):
                 console.log(f"   {i}. {func.get('file', 'unknown').split('/')[-1]} (lines {func.get('lines', '?')})")
                 console.log(f"      Cyclomatic: {func.get('cyclomatic', 0)}, Cognitive: {func.get('cognitive', 0)}, Length: {func.get('length', 0)}")

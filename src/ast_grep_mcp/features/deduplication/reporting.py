@@ -25,6 +25,7 @@ class EnhancedDuplicationCandidate:
         diff_preview: Diff preview for all files
         priority: Priority ranking (higher = more important)
     """
+
     id: str
     files: List[str]
     locations: List[Tuple[str, int, int]]
@@ -66,26 +67,21 @@ class DuplicationReporter:
         RESET = "\033[0m"
 
         colored_lines = []
-        for line in diff.split('\n'):
-            if line.startswith('+++') or line.startswith('---'):
+        for line in diff.split("\n"):
+            if line.startswith("+++") or line.startswith("---"):
                 colored_lines.append(f"{YELLOW}{line}{RESET}")
-            elif line.startswith('@@'):
+            elif line.startswith("@@"):
                 colored_lines.append(f"{CYAN}{line}{RESET}")
-            elif line.startswith('+'):
+            elif line.startswith("+"):
                 colored_lines.append(f"{GREEN}{line}{RESET}")
-            elif line.startswith('-'):
+            elif line.startswith("-"):
                 colored_lines.append(f"{RED}{line}{RESET}")
             else:
                 colored_lines.append(line)
 
-        return '\n'.join(colored_lines)
+        return "\n".join(colored_lines)
 
-    def generate_before_after_example(
-        self,
-        original_code: str,
-        replacement_code: str,
-        function_name: str
-    ) -> Dict[str, Any]:
+    def generate_before_after_example(self, original_code: str, replacement_code: str, function_name: str) -> Dict[str, Any]:
         """Generate before/after code examples for a duplication extraction.
 
         Creates readable code snippets showing the original duplicate code
@@ -104,8 +100,8 @@ class DuplicationReporter:
             - explanation: Human-readable explanation of the change
         """
         # Clean up the code snippets
-        original_lines = original_code.strip().split('\n')
-        replacement_lines = replacement_code.strip().split('\n')
+        original_lines = original_code.strip().split("\n")
+        replacement_lines = replacement_code.strip().split("\n")
 
         # Calculate metrics
         original_line_count = len(original_lines)
@@ -133,14 +129,11 @@ class DuplicationReporter:
                 f"This saves {lines_saved} line(s) per occurrence."
             )
         else:
-            explanation = (
-                f"Refactored code into '{function_name}' for better reusability "
-                f"and maintainability."
-            )
+            explanation = f"Refactored code into '{function_name}' for better reusability and maintainability."
 
         return {
-            "before": '\n'.join(before_formatted),
-            "after": '\n'.join(after_formatted),
+            "before": "\n".join(before_formatted),
+            "after": "\n".join(after_formatted),
             "before_raw": original_code.strip(),
             "after_raw": replacement_code.strip(),
             "function_definition": function_definition,
@@ -148,7 +141,7 @@ class DuplicationReporter:
             "original_lines": original_line_count,
             "replacement_lines": replacement_line_count,
             "lines_saved": lines_saved,
-            "explanation": explanation
+            "explanation": explanation,
         }
 
     def visualize_complexity(self, score: int) -> Dict[str, Any]:
@@ -175,7 +168,7 @@ class DuplicationReporter:
             recommendations = [
                 "Good candidate for quick refactoring",
                 "Consider extracting as a simple helper function",
-                "Low risk of introducing bugs during extraction"
+                "Low risk of introducing bugs during extraction",
             ]
         elif score <= 6:
             description = "Medium"
@@ -184,7 +177,7 @@ class DuplicationReporter:
                 "Review the code carefully before extraction",
                 "Consider adding unit tests before refactoring",
                 "May benefit from breaking into smaller pieces",
-                "Check for hidden dependencies or side effects"
+                "Check for hidden dependencies or side effects",
             ]
         else:
             description = "High"
@@ -194,7 +187,7 @@ class DuplicationReporter:
                 "Strongly recommend comprehensive test coverage first",
                 "Consider incremental refactoring in smaller steps",
                 "Review for cyclomatic complexity and reduce branches",
-                "May need architectural review before extraction"
+                "May need architectural review before extraction",
             ]
 
         reset_code = "\033[0m"
@@ -212,14 +205,11 @@ class DuplicationReporter:
             "description": description,
             "color_code": color_code,
             "recommendations": recommendations,
-            "formatted": f"{description} Complexity ({score}/10): {bar_plain}"
+            "formatted": f"{description} Complexity ({score}/10): {bar_plain}",
         }
 
     def create_enhanced_duplication_response(
-        self,
-        candidates: List[Dict[str, Any]],
-        include_diffs: bool = True,
-        include_colors: bool = False
+        self, candidates: List[Dict[str, Any]], include_diffs: bool = True, include_colors: bool = False
     ) -> Dict[str, Any]:
         """Create an enhanced duplication detection response.
 
@@ -258,7 +248,7 @@ class DuplicationReporter:
             before_after = self.generate_before_after_example(
                 original_code=candidate.get("code", ""),
                 replacement_code=candidate.get("replacement", ""),
-                function_name=candidate.get("function_name", f"extracted_function_{idx}")
+                function_name=candidate.get("function_name", f"extracted_function_{idx}"),
             )
 
             # Generate complexity visualization
@@ -283,11 +273,7 @@ class DuplicationReporter:
                 for file_path in candidate.get("files", []):
                     # For demonstration, create a simple diff
                     # In real usage, this would read actual file contents
-                    file_changes.append({
-                        "file_path": file_path,
-                        "original_content": original_code,
-                        "new_content": replacement
-                    })
+                    file_changes.append({"file_path": file_path, "original_content": original_code, "new_content": replacement})
 
                 if file_changes:
                     preview = generate_multi_file_diff(file_changes, context_lines=3)
@@ -319,7 +305,7 @@ class DuplicationReporter:
                 "before_after": before_after,
                 "complexity_viz": complexity_viz,
                 "diff_preview": diff_preview,
-                "priority": priority
+                "priority": priority,
             }
 
             enhanced_candidates.append(enhanced_candidate)
@@ -332,31 +318,26 @@ class DuplicationReporter:
 
         if complexity_distribution["high"] > 0:
             global_recommendations.append(
-                f"Found {complexity_distribution['high']} high-complexity duplicates. "
-                "Consider adding tests before refactoring these."
+                f"Found {complexity_distribution['high']} high-complexity duplicates. Consider adding tests before refactoring these."
             )
 
         if total_lines_saveable > 50:
             global_recommendations.append(
-                f"Potential to save {total_lines_saveable} total lines of code. "
-                "Prioritize candidates by their priority score."
+                f"Potential to save {total_lines_saveable} total lines of code. Prioritize candidates by their priority score."
             )
 
         if len(enhanced_candidates) > 5:
             global_recommendations.append(
-                "Many duplicates found. Consider addressing high-priority items first "
-                "to maximize impact with minimal effort."
+                "Many duplicates found. Consider addressing high-priority items first to maximize impact with minimal effort."
             )
 
         # Build summary
         summary = {
             "total_candidates": len(enhanced_candidates),
-            "total_files_affected": len(set(
-                f for c in candidates for f in c.get("files", [])
-            )),
+            "total_files_affected": len(set(f for c in candidates for f in c.get("files", []))),
             "total_lines_saveable": total_lines_saveable,
             "complexity_distribution": complexity_distribution,
-            "highest_priority_id": enhanced_candidates[0]["id"] if enhanced_candidates else None
+            "highest_priority_id": enhanced_candidates[0]["id"] if enhanced_candidates else None,
         }
 
         return {
@@ -367,34 +348,32 @@ class DuplicationReporter:
                 "version": "5.0",
                 "includes_diffs": include_diffs,
                 "includes_colors": include_colors,
-                "generated_at": datetime.now().isoformat()
-            }
+                "generated_at": datetime.now().isoformat(),
+            },
         }
 
 
 # Module-level functions for backwards compatibility
 _reporter = DuplicationReporter()
 
+
 def format_diff_with_colors(diff: str) -> str:
     """Add ANSI color codes to a unified diff for CLI display."""
     return _reporter.format_diff_with_colors(diff)
 
-def generate_before_after_example(
-    original_code: str,
-    replacement_code: str,
-    function_name: str
-) -> Dict[str, Any]:
+
+def generate_before_after_example(original_code: str, replacement_code: str, function_name: str) -> Dict[str, Any]:
     """Generate before/after code examples for a duplication extraction."""
     return _reporter.generate_before_after_example(original_code, replacement_code, function_name)
+
 
 def visualize_complexity(score: int) -> Dict[str, Any]:
     """Create a visual complexity indicator with recommendations."""
     return _reporter.visualize_complexity(score)
 
+
 def create_enhanced_duplication_response(
-    candidates: List[Dict[str, Any]],
-    include_diffs: bool = True,
-    include_colors: bool = False
+    candidates: List[Dict[str, Any]], include_diffs: bool = True, include_colors: bool = False
 ) -> Dict[str, Any]:
     """Create an enhanced duplication detection response."""
     return _reporter.create_enhanced_duplication_response(candidates, include_diffs, include_colors)

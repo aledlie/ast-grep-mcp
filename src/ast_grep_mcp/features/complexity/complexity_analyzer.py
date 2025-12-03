@@ -3,12 +3,12 @@
 This module handles analyzing files in parallel and collecting
 complexity metrics for all functions.
 """
+
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List
 
 from ...core.logging import get_logger
 from ...models.complexity import ComplexityThresholds, FunctionComplexity
-
 from .analyzer import analyze_file_complexity
 
 
@@ -20,11 +20,7 @@ class ParallelComplexityAnalyzer:
         self.logger = get_logger("complexity.parallel_analyzer")
 
     def analyze_files(
-        self,
-        files: List[str],
-        language: str,
-        thresholds: ComplexityThresholds,
-        max_threads: int = 4
+        self, files: List[str], language: str, thresholds: ComplexityThresholds, max_threads: int = 4
     ) -> List[FunctionComplexity]:
         """Analyze multiple files in parallel.
 
@@ -37,12 +33,7 @@ class ParallelComplexityAnalyzer:
         Returns:
             List of all function complexity results
         """
-        self.logger.info(
-            "analyze_files_start",
-            file_count=len(files),
-            language=language,
-            max_threads=max_threads
-        )
+        self.logger.info("analyze_files_start", file_count=len(files), language=language, max_threads=max_threads)
 
         all_functions: List[FunctionComplexity] = []
 
@@ -60,23 +51,13 @@ class ParallelComplexityAnalyzer:
                     all_functions.extend(result)
                 except Exception as e:
                     file_path = futures[future]
-                    self.logger.warning(
-                        "file_analysis_failed",
-                        file=file_path,
-                        error=str(e)
-                    )
+                    self.logger.warning("file_analysis_failed", file=file_path, error=str(e))
 
-        self.logger.info(
-            "analyze_files_complete",
-            total_functions=len(all_functions)
-        )
+        self.logger.info("analyze_files_complete", total_functions=len(all_functions))
 
         return all_functions
 
-    def filter_exceeding_functions(
-        self,
-        functions: List[FunctionComplexity]
-    ) -> List[FunctionComplexity]:
+    def filter_exceeding_functions(self, functions: List[FunctionComplexity]) -> List[FunctionComplexity]:
         """Filter to only functions exceeding thresholds.
 
         Args:
@@ -88,15 +69,8 @@ class ParallelComplexityAnalyzer:
         exceeding = [f for f in functions if f.exceeds]
 
         # Sort by combined complexity score (highest first)
-        exceeding.sort(
-            key=lambda f: f.metrics.cyclomatic + f.metrics.cognitive,
-            reverse=True
-        )
+        exceeding.sort(key=lambda f: f.metrics.cyclomatic + f.metrics.cognitive, reverse=True)
 
-        self.logger.info(
-            "filter_complete",
-            total_functions=len(functions),
-            exceeding_count=len(exceeding)
-        )
+        self.logger.info("filter_complete", total_functions=len(functions), exceeding_count=len(exceeding))
 
         return exceeding

@@ -3,6 +3,7 @@
 This module handles creating, storing, and restoring backups
 during deduplication refactoring operations.
 """
+
 import hashlib
 import json
 import os
@@ -27,11 +28,7 @@ class DeduplicationBackupManager:
         self.backup_base_dir = Path(project_folder) / ".ast-grep-backups"
         self.logger = get_logger("deduplication.backup")
 
-    def create_backup(
-        self,
-        files: List[str],
-        metadata: Dict[str, Any]
-    ) -> str:
+    def create_backup(self, files: List[str], metadata: Dict[str, Any]) -> str:
         """Create backup of files before modification.
 
         Args:
@@ -74,7 +71,7 @@ class DeduplicationBackupManager:
             "timestamp": datetime.now().isoformat(),
             "project_folder": self.project_folder,
             "files": [],
-            "deduplication_metadata": metadata_with_hashes
+            "deduplication_metadata": metadata_with_hashes,
         }
 
         # Copy files to backup
@@ -92,23 +89,21 @@ class DeduplicationBackupManager:
             # Copy file preserving metadata
             shutil.copy2(file_path, backup_file_path)
 
-            backup_metadata["files"].append({
-                "original": file_path,
-                "relative": rel_path,
-                "backup": str(backup_file_path),
-                "original_hash": original_hashes.get(file_path, "")
-            })
+            backup_metadata["files"].append(
+                {
+                    "original": file_path,
+                    "relative": rel_path,
+                    "backup": str(backup_file_path),
+                    "original_hash": original_hashes.get(file_path, ""),
+                }
+            )
 
         # Save metadata
         metadata_path = backup_dir / "backup-metadata.json"
         with open(metadata_path, "w") as f:
             json.dump(backup_metadata, f, indent=2)
 
-        self.logger.info(
-            "create_backup_complete",
-            backup_id=backup_id,
-            files_backed_up=len(backup_metadata["files"])
-        )
+        self.logger.info("create_backup_complete", backup_id=backup_id, files_backed_up=len(backup_metadata["files"]))
 
         return backup_id
 
@@ -141,11 +136,7 @@ class DeduplicationBackupManager:
             backup_path = file_info["backup"]
 
             if not os.path.exists(backup_path):
-                self.logger.warning(
-                    "backup_file_not_found",
-                    original=original_path,
-                    backup=backup_path
-                )
+                self.logger.warning("backup_file_not_found", original=original_path, backup=backup_path)
                 continue
 
             try:
@@ -155,17 +146,9 @@ class DeduplicationBackupManager:
                 self.logger.debug("file_restored", file=original_path)
 
             except Exception as e:
-                self.logger.error(
-                    "restore_failed",
-                    file=original_path,
-                    error=str(e)
-                )
+                self.logger.error("restore_failed", file=original_path, error=str(e))
 
-        self.logger.info(
-            "rollback_complete",
-            backup_id=backup_id,
-            files_restored=len(restored_files)
-        )
+        self.logger.info("rollback_complete", backup_id=backup_id, files_restored=len(restored_files))
 
         return restored_files
 
@@ -182,6 +165,7 @@ class DeduplicationBackupManager:
             return 0
 
         from datetime import timedelta
+
         cutoff_date = datetime.now() - timedelta(days=days)
         removed_count = 0
 
@@ -206,17 +190,11 @@ class DeduplicationBackupManager:
                     shutil.rmtree(backup_dir)
                     removed_count += 1
                     self.logger.info(
-                        "old_backup_removed",
-                        backup_id=metadata.get("backup_id"),
-                        age_days=(datetime.now() - backup_date).days
+                        "old_backup_removed", backup_id=metadata.get("backup_id"), age_days=(datetime.now() - backup_date).days
                     )
 
             except Exception as e:
-                self.logger.warning(
-                    "cleanup_failed",
-                    backup_dir=str(backup_dir),
-                    error=str(e)
-                )
+                self.logger.warning("cleanup_failed", backup_dir=str(backup_dir), error=str(e))
 
         return removed_count
 
@@ -230,7 +208,7 @@ class DeduplicationBackupManager:
             SHA-256 hash as hexadecimal string
         """
         try:
-            with open(file_path, 'rb') as f:
+            with open(file_path, "rb") as f:
                 return hashlib.sha256(f.read()).hexdigest()
         except (OSError, IOError) as e:
             self.logger.warning("hash_calculation_failed", file=file_path, error=str(e))
@@ -260,16 +238,9 @@ class DeduplicationBackupManager:
                     metadata = json.load(f)
                     backups.append(metadata)
             except Exception as e:
-                self.logger.warning(
-                    "metadata_read_failed",
-                    backup_dir=str(backup_dir),
-                    error=str(e)
-                )
+                self.logger.warning("metadata_read_failed", backup_dir=str(backup_dir), error=str(e))
 
         # Sort by timestamp (newest first)
-        backups.sort(
-            key=lambda b: b.get("timestamp", ""),
-            reverse=True
-        )
+        backups.sort(key=lambda b: b.get("timestamp", ""), reverse=True)
 
         return backups

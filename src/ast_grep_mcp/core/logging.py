@@ -1,4 +1,5 @@
 """Logging configuration for ast-grep MCP server."""
+
 import sys
 from typing import Any, List, Optional
 
@@ -28,7 +29,7 @@ def configure_logging(log_level: str = "INFO", log_file: Optional[str] = None) -
         structlog.processors.TimeStamper(fmt="iso", utc=True),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ]
 
     # Configure structlog
@@ -36,7 +37,7 @@ def configure_logging(log_level: str = "INFO", log_file: Optional[str] = None) -
         processors=processors,
         wrapper_class=structlog.make_filtering_bound_logger(numeric_level),
         context_class=dict,
-        logger_factory=structlog.WriteLoggerFactory(file=sys.stderr if log_file is None else open(log_file, 'a')),
+        logger_factory=structlog.WriteLoggerFactory(file=sys.stderr if log_file is None else open(log_file, "a")),
         cache_logger_on_first_use=True,
     )
 

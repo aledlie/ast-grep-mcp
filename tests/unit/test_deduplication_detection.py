@@ -7,29 +7,26 @@ This file consolidates tests from:
 
 Focus: Detection, grouping, AST diff, alignment
 """
-from ast_grep_mcp.utils.console_logger import console
 
 import os
 import sys
-from unittest.mock import Mock, patch
-
-import pytest
+from unittest.mock import patch
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 # Import from main for backward compatibility
 from main import (
-    calculate_similarity,
-    normalize_code,
-    generate_refactoring_suggestions,
     build_diff_tree,
     build_nested_diff_tree,
-    format_alignment_diff,
+    calculate_similarity,
     diff_preview_to_dict,
+    format_alignment_diff,
     generate_diff_from_file_paths,
     generate_file_diff,
     generate_multi_file_diff,
+    generate_refactoring_suggestions,
+    normalize_code,
 )
 
 

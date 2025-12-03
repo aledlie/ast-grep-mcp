@@ -2,11 +2,12 @@
 
 import os
 import sys
-import pytest
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+
+import pytest
+
 from ast_grep_mcp.utils.console_logger import console
 
 # Add the parent directory to the path
@@ -19,7 +20,6 @@ from ast_grep_mcp.features.complexity.analyzer import (
 )
 from ast_grep_mcp.models.complexity import ComplexityMetrics, ComplexityThresholds, FunctionComplexity
 from main import (
-
     ComplexityStorage,
     calculate_nesting_depth,
     get_complexity_patterns,

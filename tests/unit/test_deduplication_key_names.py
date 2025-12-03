@@ -10,7 +10,7 @@ Fixes tested:
 """
 
 import tempfile
-from typing import Any, Dict, List
+from typing import Any, Dict
 from unittest.mock import Mock, patch
 
 import pytest

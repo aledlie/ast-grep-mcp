@@ -12,21 +12,18 @@ import os
 import tempfile
 import time
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from ast_grep_mcp.core.usage_tracking import (
     AlertThresholds,
     OperationType,
-    UsageAlert,
     UsageDatabase,
     UsageLogEntry,
     UsageStats,
     calculate_operation_cost,
     format_usage_report,
-    get_usage_alerts,
-    get_usage_stats,
     track_operation,
     track_usage,
 )

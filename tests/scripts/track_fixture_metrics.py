@@ -14,17 +14,16 @@ Usage:
     python tests/scripts/track_fixture_metrics.py --history
     python tests/scripts/track_fixture_metrics.py --json
 """
-from ast_grep_mcp.utils.console_logger import console
-
 import argparse
 import ast
 import json
-import re
 from collections import defaultdict
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Set
+
+from ast_grep_mcp.utils.console_logger import console
 
 
 @dataclass

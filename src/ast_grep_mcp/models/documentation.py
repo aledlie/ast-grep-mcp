@@ -1,4 +1,5 @@
 """Data models for documentation generation features."""
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -6,6 +7,7 @@ from typing import Any, Dict, List, Optional
 
 class DocstringStyle(Enum):
     """Supported docstring styles."""
+
     GOOGLE = "google"
     NUMPY = "numpy"
     SPHINX = "sphinx"
@@ -16,6 +18,7 @@ class DocstringStyle(Enum):
 
 class ChangeType(Enum):
     """Type of change in changelog."""
+
     ADDED = "Added"
     CHANGED = "Changed"
     DEPRECATED = "Deprecated"
@@ -34,6 +37,7 @@ class ParameterInfo:
         default_value: Optional default value
         description: Generated description
     """
+
     name: str
     type_hint: Optional[str] = None
     default_value: Optional[str] = None
@@ -56,6 +60,7 @@ class FunctionSignature:
         end_line: Ending line number (1-indexed)
         existing_docstring: Existing docstring if any
     """
+
     name: str
     parameters: List[ParameterInfo]
     return_type: Optional[str] = None
@@ -82,6 +87,7 @@ class GeneratedDocstring:
         inferred_description: Whether description was inferred
         warnings: Any warnings about generation
     """
+
     function_name: str
     file_path: str
     line_number: int
@@ -106,6 +112,7 @@ class DocstringGenerationResult:
         dry_run: Whether this was a preview only
         execution_time_ms: Execution time in milliseconds
     """
+
     total_functions: int
     functions_documented: int
     functions_generated: int
@@ -119,6 +126,7 @@ class DocstringGenerationResult:
 # =============================================================================
 # README Generation Models
 # =============================================================================
+
 
 @dataclass
 class ProjectInfo:
@@ -136,6 +144,7 @@ class ProjectInfo:
         has_docs: Whether docs directory exists
         dependencies: List of main dependencies
     """
+
     name: str
     version: Optional[str] = None
     description: Optional[str] = None
@@ -158,6 +167,7 @@ class ReadmeSection:
         content: Markdown content
         order: Display order (lower = earlier)
     """
+
     section_type: str
     title: str
     content: str
@@ -174,6 +184,7 @@ class ReadmeGenerationResult:
         full_readme: Complete README markdown
         execution_time_ms: Execution time in milliseconds
     """
+
     project_info: ProjectInfo
     sections: List[ReadmeSection]
     full_readme: str
@@ -183,6 +194,7 @@ class ReadmeGenerationResult:
 # =============================================================================
 # API Documentation Models
 # =============================================================================
+
 
 @dataclass
 class RouteParameter:
@@ -196,6 +208,7 @@ class RouteParameter:
         description: Parameter description
         default_value: Default value if any
     """
+
     name: str
     location: str  # path, query, body, header
     type_hint: Optional[str] = None
@@ -215,6 +228,7 @@ class RouteResponse:
         schema: Response schema (as dict)
         example: Example response
     """
+
     status_code: int
     description: str
     content_type: str = "application/json"
@@ -238,6 +252,7 @@ class ApiRoute:
         tags: API tags/categories
         authentication: Authentication requirements
     """
+
     path: str
     method: str
     handler_name: str
@@ -261,6 +276,7 @@ class ApiDocsResult:
         framework: Detected framework
         execution_time_ms: Execution time
     """
+
     routes: List[ApiRoute]
     markdown: str
     openapi_spec: Optional[Dict[str, Any]] = None
@@ -271,6 +287,7 @@ class ApiDocsResult:
 # =============================================================================
 # Changelog Generation Models
 # =============================================================================
+
 
 @dataclass
 class CommitInfo:
@@ -290,6 +307,7 @@ class CommitInfo:
         issues: Referenced issue numbers
         prs: Referenced PR numbers
     """
+
     hash: str
     full_hash: str
     message: str
@@ -317,6 +335,7 @@ class ChangelogEntry:
         issues: Related issues
         prs: Related PRs
     """
+
     change_type: ChangeType
     description: str
     commit_hash: Optional[str] = None
@@ -336,6 +355,7 @@ class ChangelogVersion:
         entries: List of entries grouped by type
         is_unreleased: Whether this is unreleased changes
     """
+
     version: str
     date: str
     entries: Dict[ChangeType, List[ChangelogEntry]]
@@ -353,6 +373,7 @@ class ChangelogResult:
         commits_skipped: Number of commits skipped
         execution_time_ms: Execution time
     """
+
     versions: List[ChangelogVersion]
     markdown: str
     commits_processed: int = 0
@@ -363,6 +384,7 @@ class ChangelogResult:
 # =============================================================================
 # Documentation Sync Models
 # =============================================================================
+
 
 @dataclass
 class DocSyncIssue:
@@ -377,6 +399,7 @@ class DocSyncIssue:
         suggested_fix: Suggested fix
         severity: Issue severity (error, warning, info)
     """
+
     issue_type: str  # undocumented, stale, mismatch, broken_link
     file_path: str
     line_number: int
@@ -401,6 +424,7 @@ class DocSyncResult:
         check_only: Whether this was a check-only run
         execution_time_ms: Execution time
     """
+
     total_functions: int
     documented_functions: int
     undocumented_functions: int

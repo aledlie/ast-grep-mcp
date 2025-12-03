@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Analyze all complexity violations in the codebase."""
 
-from pathlib import Path
 import ast
-import sys
+from pathlib import Path
+
 
 def analyze_function_complexity(file_path: Path, func_name: str) -> dict:
     """Analyze complexity of a specific function."""

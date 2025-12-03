@@ -1,4 +1,5 @@
 """Sentry error tracking integration for ast-grep MCP server."""
+
 import os
 from typing import Any
 
@@ -17,6 +18,7 @@ def init_sentry(service_name: str = "ast-grep-mcp") -> None:
     Args:
         service_name: Unique service identifier (default: 'ast-grep-mcp')
     """
+
     def _tag_event(event: Any, hint: Any) -> Any:
         """Add service tags to every event for unified project."""
         event.setdefault("tags", {})

@@ -4,7 +4,6 @@ Tests the O(n) MinHash similarity implementation that replaces
 the O(n²) SequenceMatcher for scalable code clone detection.
 """
 
-import pytest
 
 from ast_grep_mcp.features.deduplication.similarity import (
     EnhancedStructureHash,

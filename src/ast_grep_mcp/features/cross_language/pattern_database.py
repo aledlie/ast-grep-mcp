@@ -3,7 +3,8 @@
 This module contains a comprehensive database of equivalent patterns
 across programming languages, organized by category.
 """
-from typing import Dict, List, Any
+
+from typing import Any, Dict, List
 
 # =============================================================================
 # Pattern Categories
@@ -210,17 +211,17 @@ PATTERN_DATABASE: Dict[str, Dict[str, Any]] = {
                 "description": "TypeScript default parameter",
             },
             "java": {
-                "code": "// Java uses method overloading\npublic String greet(String name) {\n    return greet(name, \"Hello\");\n}\n\npublic String greet(String name, String greeting) {\n    return greeting + \", \" + name + \"!\";\n}",
+                "code": '// Java uses method overloading\npublic String greet(String name) {\n    return greet(name, "Hello");\n}\n\npublic String greet(String name, String greeting) {\n    return greeting + ", " + name + "!";\n}',
                 "description": "Java simulates defaults via overloading",
                 "notes": ["Java doesn't have native default parameters"],
             },
             "go": {
-                "code": "// Go uses variadic or options pattern\nfunc greet(name string, opts ...string) string {\n    greeting := \"Hello\"\n    if len(opts) > 0 {\n        greeting = opts[0]\n    }\n    return greeting + \", \" + name + \"!\"\n}",
+                "code": '// Go uses variadic or options pattern\nfunc greet(name string, opts ...string) string {\n    greeting := "Hello"\n    if len(opts) > 0 {\n        greeting = opts[0]\n    }\n    return greeting + ", " + name + "!"\n}',
                 "description": "Go uses variadic arguments pattern",
                 "notes": ["Go doesn't have native default parameters"],
             },
             "rust": {
-                "code": "// Rust uses builder pattern or Option\nfn greet(name: &str, greeting: Option<&str>) -> String {\n    let g = greeting.unwrap_or(\"Hello\");\n    format!(\"{}, {}!\", g, name)\n}",
+                "code": '// Rust uses builder pattern or Option\nfn greet(name: &str, greeting: Option<&str>) -> String {\n    let g = greeting.unwrap_or("Hello");\n    format!("{}, {}!", g, name)\n}',
                 "description": "Rust uses Option for optional params",
             },
         },
@@ -280,15 +281,15 @@ PATTERN_DATABASE: Dict[str, Dict[str, Any]] = {
                 "description": "TypeScript object with type annotation",
             },
             "java": {
-                "code": "Map<String, Object> person = Map.of(\"name\", \"Alice\", \"age\", 30);",
+                "code": 'Map<String, Object> person = Map.of("name", "Alice", "age", 30);',
                 "description": "Java immutable map (Java 9+)",
             },
             "go": {
-                "code": "person := map[string]interface{}{\n    \"name\": \"Alice\",\n    \"age\":  30,\n}",
+                "code": 'person := map[string]interface{}{\n    "name": "Alice",\n    "age":  30,\n}',
                 "description": "Go map literal",
             },
             "rust": {
-                "code": "let person: HashMap<&str, &str> = HashMap::from([\n    (\"name\", \"Alice\"),\n    (\"age\", \"30\"),\n]);",
+                "code": 'let person: HashMap<&str, &str> = HashMap::from([\n    ("name", "Alice"),\n    ("age", "30"),\n]);',
                 "description": "Rust HashMap from array",
             },
         },
@@ -312,12 +313,12 @@ PATTERN_DATABASE: Dict[str, Dict[str, Any]] = {
                 "description": "TypeScript destructuring with types",
             },
             "java": {
-                "code": "// Java 16+ record pattern\nrecord Person(String name, int age) {}\nPerson p = new Person(\"Alice\", 30);\nString name = p.name();\nint age = p.age();",
+                "code": '// Java 16+ record pattern\nrecord Person(String name, int age) {}\nPerson p = new Person("Alice", 30);\nString name = p.name();\nint age = p.age();',
                 "description": "Java records (no true destructuring)",
                 "notes": ["Java lacks destructuring syntax"],
             },
             "go": {
-                "code": "// Go has no destructuring\nname := person[\"name\"]\nage := person[\"age\"]",
+                "code": '// Go has no destructuring\nname := person["name"]\nage := person["age"]',
                 "description": "Go manual extraction",
             },
             "rust": {
@@ -437,7 +438,7 @@ PATTERN_DATABASE: Dict[str, Dict[str, Any]] = {
         "description": "Promise-based asynchronous operation",
         "examples": {
             "python": {
-                "code": "import asyncio\n\nasync def operation():\n    return \"result\"\n\n# Create task (like Promise)\ntask = asyncio.create_task(operation())\nresult = await task",
+                "code": 'import asyncio\n\nasync def operation():\n    return "result"\n\n# Create task (like Promise)\ntask = asyncio.create_task(operation())\nresult = await task',
                 "description": "Python asyncio Task",
             },
             "javascript": {
@@ -453,7 +454,7 @@ PATTERN_DATABASE: Dict[str, Dict[str, Any]] = {
                 "description": "Java CompletableFuture",
             },
             "rust": {
-                "code": "// Rust uses Future trait\nasync fn operation() -> String {\n    \"result\".to_string()\n}\n\n// Spawn and await\nlet future = operation();\nlet result = future.await;",
+                "code": '// Rust uses Future trait\nasync fn operation() -> String {\n    "result".to_string()\n}\n\n// Spawn and await\nlet future = operation();\nlet result = future.await;',
                 "description": "Rust Future",
             },
         },
@@ -480,15 +481,15 @@ PATTERN_DATABASE: Dict[str, Dict[str, Any]] = {
                 "description": "TypeScript class with parameter properties",
             },
             "java": {
-                "code": "public class Person {\n    private String name;\n    private int age;\n\n    public Person(String name, int age) {\n        this.name = name;\n        this.age = age;\n    }\n\n    public String greet() {\n        return \"Hello, \" + name;\n    }\n}",
+                "code": 'public class Person {\n    private String name;\n    private int age;\n\n    public Person(String name, int age) {\n        this.name = name;\n        this.age = age;\n    }\n\n    public String greet() {\n        return "Hello, " + name;\n    }\n}',
                 "description": "Java class",
             },
             "go": {
-                "code": "type Person struct {\n    Name string\n    Age  int\n}\n\nfunc NewPerson(name string, age int) *Person {\n    return &Person{Name: name, Age: age}\n}\n\nfunc (p *Person) Greet() string {\n    return \"Hello, \" + p.Name\n}",
+                "code": 'type Person struct {\n    Name string\n    Age  int\n}\n\nfunc NewPerson(name string, age int) *Person {\n    return &Person{Name: name, Age: age}\n}\n\nfunc (p *Person) Greet() string {\n    return "Hello, " + p.Name\n}',
                 "description": "Go struct with constructor function and methods",
             },
             "rust": {
-                "code": "struct Person {\n    name: String,\n    age: u32,\n}\n\nimpl Person {\n    fn new(name: String, age: u32) -> Self {\n        Person { name, age }\n    }\n\n    fn greet(&self) -> String {\n        format!(\"Hello, {}\", self.name)\n    }\n}",
+                "code": 'struct Person {\n    name: String,\n    age: u32,\n}\n\nimpl Person {\n    fn new(name: String, age: u32) -> Self {\n        Person { name, age }\n    }\n\n    fn greet(&self) -> String {\n        format!("Hello, {}", self.name)\n    }\n}',
                 "description": "Rust struct with impl block",
             },
         },
@@ -689,9 +690,7 @@ def get_equivalents(
     examples = pattern.get("examples", {})
 
     if target_languages:
-        examples = {
-            lang: ex for lang, ex in examples.items() if lang in target_languages
-        }
+        examples = {lang: ex for lang, ex in examples.items() if lang in target_languages}
 
     return {
         "pattern_id": pattern_id,

@@ -3,7 +3,9 @@
 
 import time
 from typing import Any, Dict, List
+
 from ast_grep_mcp.utils.console_logger import console
+
 
 # Mock data for benchmarking
 def create_mock_candidates(count: int) -> List[Dict[str, Any]]:
@@ -24,9 +26,7 @@ def create_mock_candidates(count: int) -> List[Dict[str, Any]]:
 
 def benchmark_enrichment():
     """Benchmark parallel vs sequential enrichment."""
-    from ast_grep_mcp.features.deduplication.analysis_orchestrator import (
-        DeduplicationAnalysisOrchestrator
-    )
+    from ast_grep_mcp.features.deduplication.analysis_orchestrator import DeduplicationAnalysisOrchestrator
 
     orchestrator = DeduplicationAnalysisOrchestrator()
 

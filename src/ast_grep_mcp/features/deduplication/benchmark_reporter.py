@@ -3,6 +3,7 @@
 This module handles formatting benchmark results and managing
 baseline files for regression detection.
 """
+
 import json
 import os
 import time
@@ -30,7 +31,7 @@ class BenchmarkReporter:
         regression_errors: List[str],
         thresholds: Dict[str, float],
         baseline_saved: bool,
-        execution_time: float
+        execution_time: float,
     ) -> Dict[str, Any]:
         """Format benchmark results into final report.
 
@@ -53,14 +54,14 @@ class BenchmarkReporter:
             "regression_errors": regression_errors,
             "thresholds": thresholds,
             "baseline_saved": baseline_saved,
-            "execution_time_seconds": round(execution_time, 3)
+            "execution_time_seconds": round(execution_time, 3),
         }
 
         self.logger.info(
             "report_formatted",
             total_benchmarks=len(results),
             regression_detected=regression_detected,
-            execution_time_seconds=round(execution_time, 3)
+            execution_time_seconds=round(execution_time, 3),
         )
 
         return report
@@ -71,10 +72,7 @@ class BenchmarkReporter:
         Args:
             results: Benchmark results to save
         """
-        baseline_data = {
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "benchmarks": results
-        }
+        baseline_data = {"timestamp": time.strftime("%Y-%m-%d %H:%M:%S"), "benchmarks": results}
 
         # Create directory if needed
         baseline_dir = os.path.dirname(self.baseline_file)
@@ -82,14 +80,10 @@ class BenchmarkReporter:
             os.makedirs(baseline_dir, exist_ok=True)
 
         # Write baseline file
-        with open(self.baseline_file, 'w') as f:
+        with open(self.baseline_file, "w") as f:
             json.dump(baseline_data, f, indent=2)
 
-        self.logger.info(
-            "baseline_saved",
-            file=self.baseline_file,
-            benchmark_count=len(results)
-        )
+        self.logger.info("baseline_saved", file=self.baseline_file, benchmark_count=len(results))
 
     def load_baseline(self) -> Dict[str, Dict[str, Any]]:
         """Load baseline benchmark results.
@@ -98,33 +92,19 @@ class BenchmarkReporter:
             Dictionary mapping benchmark names to baseline results
         """
         if not os.path.exists(self.baseline_file):
-            self.logger.warning(
-                "baseline_not_found",
-                file=self.baseline_file
-            )
+            self.logger.warning("baseline_not_found", file=self.baseline_file)
             return {}
 
         try:
-            with open(self.baseline_file, 'r') as f:
+            with open(self.baseline_file, "r") as f:
                 baseline_data = json.load(f)
 
-            baseline_map = {
-                item["name"]: item
-                for item in baseline_data.get("benchmarks", [])
-            }
+            baseline_map = {item["name"]: item for item in baseline_data.get("benchmarks", [])}
 
-            self.logger.info(
-                "baseline_loaded",
-                file=self.baseline_file,
-                benchmark_count=len(baseline_map)
-            )
+            self.logger.info("baseline_loaded", file=self.baseline_file, benchmark_count=len(baseline_map))
 
             return baseline_map
 
         except (json.JSONDecodeError, KeyError) as e:
-            self.logger.error(
-                "baseline_load_failed",
-                file=self.baseline_file,
-                error=str(e)
-            )
+            self.logger.error("baseline_load_failed", file=self.baseline_file, error=str(e))
             return {}

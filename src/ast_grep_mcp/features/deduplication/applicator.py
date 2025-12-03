@@ -1,7 +1,7 @@
 """Apply deduplication refactoring with validation and rollback."""
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from ...core.logging import get_logger
 from .applicator_backup import DeduplicationBackupManager
@@ -10,12 +10,7 @@ from .applicator_post_validator import RefactoringPostValidator
 from .applicator_validator import RefactoringPlanValidator
 from .generator import CodeGenerator
 
-__all__ = [
-    'DeduplicationApplicator',
-    '_plan_file_modification_order',
-    '_add_import_to_content',
-    '_generate_import_for_extracted_function'
-]
+__all__ = ["DeduplicationApplicator", "_plan_file_modification_order", "_add_import_to_content", "_generate_import_for_extracted_function"]
 
 
 class DeduplicationApplicator:
@@ -36,7 +31,7 @@ class DeduplicationApplicator:
         refactoring_plan: Dict[str, Any],
         dry_run: bool = True,
         backup: bool = True,
-        extract_to_file: Optional[str] = None
+        extract_to_file: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Apply automated deduplication refactoring with comprehensive syntax validation.
 
@@ -60,31 +55,24 @@ class DeduplicationApplicator:
             - validation: Pre and post validation results with detailed errors
             - errors: Detailed error info with file, line, message, and suggested fix
         """
-        self.logger.info(
-            "apply_deduplication_start",
-            project_folder=project_folder,
-            group_id=group_id,
-            dry_run=dry_run,
-            backup=backup
-        )
+        self.logger.info("apply_deduplication_start", project_folder=project_folder, group_id=group_id, dry_run=dry_run, backup=backup)
 
         # Initialize validation results
         validation_result: Dict[str, Any] = {
             "pre_validation": {"passed": False, "errors": []},
-            "post_validation": {"passed": False, "errors": []}
+            "post_validation": {"passed": False, "errors": []},
         }
 
         try:
             # Step 1: Validate and prepare plan
             plan_result = self._validate_and_prepare_plan(
-                project_folder, refactoring_plan, validation_result,
-                group_id, extract_to_file, dry_run, backup
+                project_folder, refactoring_plan, validation_result, group_id, extract_to_file, dry_run, backup
             )
             if "early_return" in plan_result:
-                return plan_result["early_return"]
+                return cast(Dict[str, Any], plan_result["early_return"])
 
             # Extract plan components
-            files_to_modify = plan_result["files_to_modify"]
+            _files_to_modify = plan_result["files_to_modify"]  # noqa: F841
             generated_code = plan_result["generated_code"]
             language = plan_result["language"]
             strategy = plan_result["strategy"]
@@ -92,25 +80,19 @@ class DeduplicationApplicator:
             backup_id = plan_result["backup_id"]
 
             # Step 2: Apply changes with validation
-            apply_result = self._apply_changes_with_validation(
-                orchestration_plan, generated_code, language, backup_id, project_folder
-            )
+            apply_result = self._apply_changes_with_validation(orchestration_plan, generated_code, language, backup_id, project_folder)
 
             modified_files = apply_result["modified_files"]
 
             # Step 3: Handle post-validation and potential rollback
             rollback_response = self._validate_and_rollback_if_needed(
-                modified_files, language, validation_result, backup_id,
-                project_folder, group_id
+                modified_files, language, validation_result, backup_id, project_folder, group_id
             )
             if rollback_response:
                 return rollback_response
 
             # Step 4: Build and return success response
-            return self._build_success_response(
-                modified_files, validation_result, backup_id,
-                project_folder, group_id, strategy
-            )
+            return self._build_success_response(modified_files, validation_result, backup_id, project_folder, group_id, strategy)
 
         except Exception as e:
             self.logger.error("apply_deduplication_failed", error=str(e)[:200])
@@ -124,7 +106,7 @@ class DeduplicationApplicator:
         group_id: int,
         extract_to_file: Optional[str],
         dry_run: bool,
-        backup: bool = True
+        backup: bool = True,
     ) -> Dict[str, Any]:
         """Validate inputs, extract plan components, perform pre-validation and handle dry-run.
 
@@ -144,44 +126,24 @@ class DeduplicationApplicator:
             Dict with plan data or early_return response
         """
         # Extract and validate plan components
-        plan_data = self._extract_plan_components(
-            project_folder, refactoring_plan, validation_result, group_id, extract_to_file
-        )
+        plan_data = self._extract_plan_components(project_folder, refactoring_plan, validation_result, group_id, extract_to_file)
         if "early_return" in plan_data:
             return plan_data
 
         # Perform pre-validation
-        pre_validation_response = self._perform_pre_validation(
-            refactoring_plan, group_id, project_folder, validation_result, dry_run
-        )
+        pre_validation_response = self._perform_pre_validation(refactoring_plan, group_id, project_folder, validation_result, dry_run)
         if pre_validation_response:
             return {"early_return": pre_validation_response}
 
         # Handle dry-run mode
         if dry_run:
-            return {
-                "early_return": self._handle_dry_run(
-                    plan_data["files_to_modify"],
-                    validation_result,
-                    group_id,
-                    plan_data["strategy"]
-                )
-            }
+            return {"early_return": self._handle_dry_run(plan_data["files_to_modify"], validation_result, group_id, plan_data["strategy"])}
 
         # Create backup if needed
-        backup_id = self._create_backup_if_needed(
-            backup,
-            project_folder,
-            plan_data["files_to_modify"],
-            group_id,
-            plan_data["strategy"]
-        )
+        backup_id = self._create_backup_if_needed(backup, project_folder, plan_data["files_to_modify"], group_id, plan_data["strategy"])
 
         # Return complete plan with backup_id
-        return {
-            **plan_data,
-            "backup_id": backup_id
-        }
+        return {**plan_data, "backup_id": backup_id}
 
     def _extract_plan_components(
         self,
@@ -189,7 +151,7 @@ class DeduplicationApplicator:
         refactoring_plan: Dict[str, Any],
         validation_result: Dict[str, Any],
         group_id: int,
-        extract_to_file: Optional[str] = None
+        extract_to_file: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Validate inputs and extract plan components.
 
@@ -217,42 +179,29 @@ class DeduplicationApplicator:
 
         if not files_affected:
             return {
-                "early_return": self._build_response(
-                    "no_changes", "No files affected", validation_result,
-                    dry_run=True, group_id=group_id
-                )
+                "early_return": self._build_response("no_changes", "No files affected", validation_result, dry_run=True, group_id=group_id)
             }
 
         # Resolve file paths
         files_to_modify = self._resolve_file_paths(files_affected, project_folder)
         if not files_to_modify:
             return {
-                "early_return": self._build_response(
-                    "no_files", "No valid files found", validation_result,
-                    dry_run=True, group_id=group_id
-                )
+                "early_return": self._build_response("no_files", "No valid files found", validation_result, dry_run=True, group_id=group_id)
             }
 
         # Create orchestration plan
-        orchestration_plan = self._plan_file_modification_order(
-            files_to_modify, generated_code, extract_to_file, project_folder, language
-        )
+        orchestration_plan = self._plan_file_modification_order(files_to_modify, generated_code, extract_to_file, project_folder, language)
 
         return {
             "files_to_modify": files_to_modify,
             "generated_code": generated_code,
             "language": language,
             "strategy": strategy,
-            "orchestration_plan": orchestration_plan
+            "orchestration_plan": orchestration_plan,
         }
 
     def _perform_pre_validation(
-        self,
-        refactoring_plan: Dict[str, Any],
-        group_id: int,
-        project_folder: str,
-        validation_result: Dict[str, Any],
-        dry_run: bool
+        self, refactoring_plan: Dict[str, Any], group_id: int, project_folder: str, validation_result: Dict[str, Any], dry_run: bool
     ) -> Optional[Dict[str, Any]]:
         """Perform pre-validation on the refactoring plan.
 
@@ -266,9 +215,7 @@ class DeduplicationApplicator:
         Returns:
             Error response if validation fails, None if successful
         """
-        pre_validation_result = self.validator.validate_plan(
-            refactoring_plan, group_id, project_folder
-        )
+        pre_validation_result = self.validator.validate_plan(refactoring_plan, group_id, project_folder)
         validation_result["pre_validation"] = pre_validation_result.to_dict()
 
         if not pre_validation_result.is_valid:
@@ -278,16 +225,12 @@ class DeduplicationApplicator:
                 validation_result,
                 errors=pre_validation_result.errors,
                 dry_run=dry_run,
-                group_id=group_id
+                group_id=group_id,
             )
         return None
 
     def _handle_dry_run(
-        self,
-        files_to_modify: List[str],
-        validation_result: Dict[str, Any],
-        group_id: int,
-        strategy: str
+        self, files_to_modify: List[str], validation_result: Dict[str, Any], group_id: int, strategy: str
     ) -> Dict[str, Any]:
         """Handle dry-run mode by building preview response.
 
@@ -300,17 +243,10 @@ class DeduplicationApplicator:
         Returns:
             Dry-run preview response
         """
-        return self._build_dry_run_response(
-            files_to_modify, validation_result, group_id, strategy
-        )
+        return self._build_dry_run_response(files_to_modify, validation_result, group_id, strategy)
 
     def _create_backup_if_needed(
-        self,
-        backup: bool,
-        project_folder: str,
-        files_to_modify: List[str],
-        group_id: int,
-        strategy: str
+        self, backup: bool, project_folder: str, files_to_modify: List[str], group_id: int, strategy: str
     ) -> Optional[str]:
         """Create backup if requested.
 
@@ -330,11 +266,7 @@ class DeduplicationApplicator:
         backup_manager = DeduplicationBackupManager(project_folder)
         backup_id = backup_manager.create_backup(
             files=[fp for fp in files_to_modify if os.path.exists(fp)],
-            metadata={
-                "duplicate_group_id": group_id,
-                "strategy": strategy,
-                "file_count": len(files_to_modify)
-            }
+            metadata={"duplicate_group_id": group_id, "strategy": strategy, "file_count": len(files_to_modify)},
         )
         return backup_id
 
@@ -344,7 +276,7 @@ class DeduplicationApplicator:
         generated_code: Dict[str, Any],
         language: str,
         backup_id: Optional[str],
-        project_folder: str
+        project_folder: str,
     ) -> Dict[str, Any]:
         """Apply changes with error handling and potential rollback.
 
@@ -359,17 +291,10 @@ class DeduplicationApplicator:
             Dict with modified_files
         """
         try:
-            apply_result = self.executor.apply_changes(
-                orchestration_plan,
-                generated_code.get("replacements", {}),
-                language,
-                dry_run=False
-            )
-            return {
-                "modified_files": apply_result["modified_files"]
-            }
+            apply_result = self.executor.apply_changes(orchestration_plan, generated_code.get("replacements", {}), language, dry_run=False)
+            return {"modified_files": apply_result["modified_files"]}
 
-        except Exception as e:
+        except Exception:
             # Rollback on application failure
             if backup_id:
                 backup_manager = DeduplicationBackupManager(project_folder)
@@ -383,7 +308,7 @@ class DeduplicationApplicator:
         validation_result: Dict[str, Any],
         backup_id: Optional[str],
         project_folder: str,
-        group_id: int
+        group_id: int,
     ) -> Optional[Dict[str, Any]]:
         """Perform post-validation and rollback if needed.
 
@@ -398,9 +323,7 @@ class DeduplicationApplicator:
         Returns:
             Rollback response if validation fails, None if successful
         """
-        post_validation_result = self.post_validator.validate_modified_files(
-            modified_files, language
-        )
+        post_validation_result = self.post_validator.validate_modified_files(modified_files, language)
         validation_result["post_validation"] = post_validation_result.to_dict()
 
         # AUTO-ROLLBACK if post-validation fails
@@ -414,7 +337,7 @@ class DeduplicationApplicator:
                 files_restored=restored,
                 backup_id=backup_id,
                 errors=post_validation_result.errors,
-                group_id=group_id
+                group_id=group_id,
             )
         return None
 
@@ -425,7 +348,7 @@ class DeduplicationApplicator:
         backup_id: Optional[str],
         project_folder: str,
         group_id: int,
-        strategy: str
+        strategy: str,
     ) -> Dict[str, Any]:
         """Build success response.
 
@@ -447,22 +370,15 @@ class DeduplicationApplicator:
             files_modified=modified_files,
             backup_id=backup_id,
             group_id=group_id,
-            strategy=strategy
+            strategy=strategy,
         )
 
         if backup_id:
-            response["rollback_command"] = (
-                f"rollback_rewrite(project_folder='{project_folder}', "
-                f"backup_id='{backup_id}')"
-            )
+            response["rollback_command"] = f"rollback_rewrite(project_folder='{project_folder}', backup_id='{backup_id}')"
 
         return response
 
-    def _resolve_file_paths(
-        self,
-        files_affected: List[Any],
-        project_folder: str
-    ) -> List[str]:
+    def _resolve_file_paths(self, files_affected: List[Any], project_folder: str) -> List[str]:
         """Resolve file paths from files_affected list.
 
         Args:
@@ -481,13 +397,7 @@ class DeduplicationApplicator:
                 files_to_modify.append(os.path.join(project_folder, file_path))
         return files_to_modify
 
-    def _build_response(
-        self,
-        status: str,
-        message: str,
-        validation_result: Dict[str, Any],
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def _build_response(self, status: str, message: str, validation_result: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         """Build standardized response dictionary.
 
         Args:
@@ -499,21 +409,12 @@ class DeduplicationApplicator:
         Returns:
             Response dictionary
         """
-        response = {
-            "status": status,
-            "message": message,
-            "validation": validation_result,
-            "dry_run": kwargs.get("dry_run", False)
-        }
+        response = {"status": status, "message": message, "validation": validation_result, "dry_run": kwargs.get("dry_run", False)}
         response.update(kwargs)
         return response
 
     def _build_dry_run_response(
-        self,
-        files_to_modify: List[str],
-        validation_result: Dict[str, Any],
-        group_id: int,
-        strategy: str
+        self, files_to_modify: List[str], validation_result: Dict[str, Any], group_id: int, strategy: str
     ) -> Dict[str, Any]:
         """Build dry run preview response.
 
@@ -528,11 +429,8 @@ class DeduplicationApplicator:
         """
         changes_preview = []
         for fp in files_to_modify:
-            with open(fp, 'r') as f:
-                changes_preview.append({
-                    "file": fp,
-                    "lines": len(f.read().splitlines())
-                })
+            with open(fp, "r") as f:
+                changes_preview.append({"file": fp, "lines": len(f.read().splitlines())})
 
         return {
             "status": "preview",
@@ -541,23 +439,14 @@ class DeduplicationApplicator:
             "changes_preview": changes_preview,
             "validation": validation_result,
             "group_id": group_id,
-            "strategy": strategy
+            "strategy": strategy,
         }
 
     def _plan_file_modification_order(
-        self,
-        files_to_modify: List[str],
-        generated_code: Dict[str, Any],
-        extract_to_file: Optional[str],
-        project_folder: str,
-        language: str
+        self, files_to_modify: List[str], generated_code: Dict[str, Any], extract_to_file: Optional[str], project_folder: str, language: str
     ) -> Dict[str, Any]:
         """Plan the order of file modifications for atomic deduplication."""
-        plan: Dict[str, Any] = {
-            "create_files": [],
-            "update_files": [],
-            "import_additions": {}
-        }
+        plan: Dict[str, Any] = {"create_files": [], "update_files": [], "import_additions": {}}
 
         extracted_function = generated_code.get("extracted_function", "")
         function_name = generated_code.get("function_name", "extracted_function")
@@ -577,19 +466,18 @@ class DeduplicationApplicator:
         # Plan file creation for extracted function
         if extracted_function and target_file:
             append_mode = os.path.exists(target_file)
-            plan["create_files"].append({
-                "path": target_file,
-                "content": extracted_function,
-                "append": append_mode,
-                "operation": "append" if append_mode else "create"
-            })
+            plan["create_files"].append(
+                {
+                    "path": target_file,
+                    "content": extracted_function,
+                    "append": append_mode,
+                    "operation": "append" if append_mode else "create",
+                }
+            )
 
         # Plan updates for duplicate location files
         for file_path in files_to_modify:
-            plan["update_files"].append({
-                "path": file_path,
-                "operation": "replace_duplicate"
-            })
+            plan["update_files"].append({"path": file_path, "operation": "replace_duplicate"})
 
             # Generate import statement if needed
             if extracted_function and target_file and file_path != target_file:
@@ -598,25 +486,20 @@ class DeduplicationApplicator:
                     target_file=target_file,
                     function_name=function_name,
                     project_folder=project_folder,
-                    language=language
+                    language=language,
                 )
 
                 if import_stmt:
                     plan["import_additions"][file_path] = {
                         "import_statement": import_stmt,
                         "from_file": target_file,
-                        "function_name": function_name
+                        "function_name": function_name,
                     }
 
         return plan
 
     def _generate_import_for_extracted_function(
-        self,
-        source_file: str,
-        target_file: str,
-        function_name: str,
-        project_folder: str,
-        language: str
+        self, source_file: str, target_file: str, function_name: str, project_folder: str, language: str
     ) -> str:
         """Generate import statement for an extracted function."""
         # Calculate relative path from source to target
@@ -638,22 +521,15 @@ class DeduplicationApplicator:
 
         # Generate import using code generator
         return self.code_generator.generate_import_statement(
-            module_path=module_path,
-            import_names=[function_name],
-            is_relative=module_path.startswith(".")
+            module_path=module_path, import_names=[function_name], is_relative=module_path.startswith(".")
         )
 
-    def _add_import_to_content(
-        self,
-        content: str,
-        import_statement: str,
-        language: str
-    ) -> str:
+    def _add_import_to_content(self, content: str, import_statement: str, language: str) -> str:
         """Add an import statement to file content."""
         if not import_statement:
             return content
 
-        lines = content.split('\n')
+        lines = content.split("\n")
         lang = language.lower()
 
         # Check if import already exists
@@ -721,7 +597,7 @@ class DeduplicationApplicator:
             lines.insert(0, import_statement)
             lines.insert(1, "")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def _validate_code_for_language(self, code: str, language: str) -> tuple[bool, str]:
         """Basic syntax validation for generated code."""
@@ -730,7 +606,7 @@ class DeduplicationApplicator:
 
         if lang == "python":
             try:
-                compile(code, '<string>', 'exec')
+                compile(code, "<string>", "exec")
                 return True, ""
             except SyntaxError as e:
                 return False, str(e)
@@ -758,6 +634,7 @@ class DeduplicationApplicator:
 # Module-level functions for backward compatibility with tests
 _applicator_instance = None
 
+
 def _get_applicator() -> Any:
     """Get or create the global applicator instance."""
     global _applicator_instance
@@ -765,40 +642,27 @@ def _get_applicator() -> Any:
         _applicator_instance = DeduplicationApplicator()
     return _applicator_instance
 
+
 def _plan_file_modification_order(
-    files_to_modify: List[str],
-    generated_code: Dict[str, Any],
-    extract_to_file: Optional[str],
-    project_folder: str,
-    language: str
+    files_to_modify: List[str], generated_code: Dict[str, Any], extract_to_file: Optional[str], project_folder: str, language: str
 ) -> Dict[str, Any]:
     """Module-level wrapper for _plan_file_modification_order."""
-    result = _get_applicator()._plan_file_modification_order(
-        files_to_modify, generated_code, extract_to_file, project_folder, language
-    )
+    result = _get_applicator()._plan_file_modification_order(files_to_modify, generated_code, extract_to_file, project_folder, language)
     assert isinstance(result, dict)
     return result
 
-def _add_import_to_content(
-    content: str,
-    import_statement: str,
-    language: str
-) -> str:
+
+def _add_import_to_content(content: str, import_statement: str, language: str) -> str:
     """Module-level wrapper for _add_import_to_content."""
     result = _get_applicator()._add_import_to_content(content, import_statement, language)
     assert isinstance(result, str)
     return result
 
+
 def _generate_import_for_extracted_function(
-    source_file: str,
-    target_file: str,
-    function_name: str,
-    language: str,
-    project_folder: str
+    source_file: str, target_file: str, function_name: str, language: str, project_folder: str
 ) -> str:
     """Module-level wrapper for _generate_import_for_extracted_function."""
-    result = _get_applicator()._generate_import_for_extracted_function(
-        source_file, target_file, function_name, language, project_folder
-    )
+    result = _get_applicator()._generate_import_for_extracted_function(source_file, target_file, function_name, language, project_folder)
     assert isinstance(result, str)
     return result

@@ -17,13 +17,13 @@ def normalize_code(code: str) -> str:
         Normalized code string
     """
     lines = []
-    for line in code.split('\n'):
+    for line in code.split("\n"):
         # Remove leading/trailing whitespace
         stripped = line.strip()
         # Skip empty lines and simple comments
-        if stripped and not stripped.startswith('#') and not stripped.startswith('//'):
+        if stripped and not stripped.startswith("#") and not stripped.startswith("//"):
             lines.append(stripped)
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def calculate_similarity(code1: str, code2: str) -> float:

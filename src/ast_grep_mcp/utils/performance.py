@@ -4,6 +4,7 @@ This module provides decorators and utilities for monitoring
 tool execution time, logging performance metrics, and tracking
 slow operations.
 """
+
 import time
 from functools import wraps
 from typing import Any, Callable, TypeVar
@@ -13,7 +14,7 @@ import sentry_sdk
 from ast_grep_mcp.core.logging import get_logger
 
 # Type variable for generic function decorators
-F = TypeVar('F', bound=Callable[..., Any])
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 def monitor_performance(func: F) -> F:
@@ -36,27 +37,20 @@ def monitor_performance(func: F) -> F:
     Returns:
         Wrapped function with performance monitoring
     """
+
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         logger = get_logger(f"performance.{func.__name__}")
         start_time = time.time()
 
         # Create Sentry performance span
-        with sentry_sdk.start_span(
-            op="tool.execution",
-            name=func.__name__
-        ) as span:
+        with sentry_sdk.start_span(op="tool.execution", name=func.__name__) as span:
             try:
                 result = func(*args, **kwargs)
                 duration_ms = int((time.time() - start_time) * 1000)
 
                 # Log success
-                logger.info(
-                    "tool_performance",
-                    tool=func.__name__,
-                    duration_ms=duration_ms,
-                    status="success"
-                )
+                logger.info("tool_performance", tool=func.__name__, duration_ms=duration_ms, status="success")
 
                 # Add span data
                 span.set_data("duration_ms", duration_ms)
@@ -64,11 +58,7 @@ def monitor_performance(func: F) -> F:
 
                 # Warn if slow (>5 seconds)
                 if duration_ms > 5000:
-                    logger.warning(
-                        "slow_tool_execution",
-                        tool=func.__name__,
-                        duration_ms=duration_ms
-                    )
+                    logger.warning("slow_tool_execution", tool=func.__name__, duration_ms=duration_ms)
 
                 return result
 
@@ -76,13 +66,7 @@ def monitor_performance(func: F) -> F:
                 duration_ms = int((time.time() - start_time) * 1000)
 
                 # Log failure
-                logger.error(
-                    "tool_performance",
-                    tool=func.__name__,
-                    duration_ms=duration_ms,
-                    status="failed",
-                    error=str(e)[:200]
-                )
+                logger.error("tool_performance", tool=func.__name__, duration_ms=duration_ms, status="failed", error=str(e)[:200])
 
                 # Add span data
                 span.set_data("duration_ms", duration_ms)
@@ -111,28 +95,20 @@ def monitor_performance_async(func: F) -> F:
     Returns:
         Wrapped async function with performance monitoring
     """
+
     @wraps(func)
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
         logger = get_logger(f"performance.{func.__name__}")
         start_time = time.time()
 
         # Create Sentry performance span
-        with sentry_sdk.start_span(
-            op="tool.execution.async",
-            name=func.__name__
-        ) as span:
+        with sentry_sdk.start_span(op="tool.execution.async", name=func.__name__) as span:
             try:
                 result = await func(*args, **kwargs)
                 duration_ms = int((time.time() - start_time) * 1000)
 
                 # Log success
-                logger.info(
-                    "tool_performance",
-                    tool=func.__name__,
-                    duration_ms=duration_ms,
-                    status="success",
-                    async_execution=True
-                )
+                logger.info("tool_performance", tool=func.__name__, duration_ms=duration_ms, status="success", async_execution=True)
 
                 # Add span data
                 span.set_data("duration_ms", duration_ms)
@@ -141,12 +117,7 @@ def monitor_performance_async(func: F) -> F:
 
                 # Warn if slow (>5 seconds)
                 if duration_ms > 5000:
-                    logger.warning(
-                        "slow_tool_execution",
-                        tool=func.__name__,
-                        duration_ms=duration_ms,
-                        async_execution=True
-                    )
+                    logger.warning("slow_tool_execution", tool=func.__name__, duration_ms=duration_ms, async_execution=True)
 
                 return result
 
@@ -160,7 +131,7 @@ def monitor_performance_async(func: F) -> F:
                     duration_ms=duration_ms,
                     status="failed",
                     error=str(e)[:200],
-                    async_execution=True
+                    async_execution=True,
                 )
 
                 # Add span data
@@ -210,12 +181,7 @@ class PerformanceTimer:
 
         if self.log_on_exit:
             status = "failed" if exc_type else "success"
-            self.logger.info(
-                "operation_timing",
-                operation=self.operation_name,
-                duration_ms=self.elapsed_ms,
-                status=status
-            )
+            self.logger.info("operation_timing", operation=self.operation_name, duration_ms=self.elapsed_ms, status=status)
 
     @property
     def elapsed_ms(self) -> int:
@@ -245,6 +211,7 @@ def track_slow_operations(threshold_ms: int = 1000) -> Callable[[F], F]:
     Returns:
         Decorator function
     """
+
     def decorator(func: F) -> F:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -261,7 +228,7 @@ def track_slow_operations(threshold_ms: int = 1000) -> Callable[[F], F]:
                         operation=func.__name__,
                         duration_ms=duration_ms,
                         threshold_ms=threshold_ms,
-                        slowdown_factor=round(duration_ms / threshold_ms, 2)
+                        slowdown_factor=round(duration_ms / threshold_ms, 2),
                     )
 
                 return result
@@ -275,7 +242,7 @@ def track_slow_operations(threshold_ms: int = 1000) -> Callable[[F], F]:
                         operation=func.__name__,
                         duration_ms=duration_ms,
                         threshold_ms=threshold_ms,
-                        status="failed"
+                        status="failed",
                     )
                 raise
 

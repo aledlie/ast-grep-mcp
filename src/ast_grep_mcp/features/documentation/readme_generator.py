@@ -3,11 +3,12 @@
 This module provides functionality for auto-generating README.md sections
 from code structure analysis.
 """
+
 import json
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, cast
 
 import sentry_sdk
 
@@ -25,56 +26,56 @@ logger = get_logger(__name__)
 # Project Analyzers
 # =============================================================================
 
+
 def _parse_json_metadata(file_path: str) -> Tuple[str, str]:
     """Parse name and version from JSON file."""
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             data = json.load(f)
-        return data.get('name', ''), data.get('version', '')
+        return data.get("name", ""), data.get("version", "")
     except (json.JSONDecodeError, OSError):
-        return '', ''
+        return "", ""
 
 
 def _parse_toml_metadata(file_path: str) -> Tuple[str, str]:
     """Parse name and version from TOML-like file."""
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             content = f.read()
         name_match = re.search(r'name\s*=\s*["\']([^"\']+)["\']', content)
         version_match = re.search(r'version\s*=\s*["\']([^"\']+)["\']', content)
-        return (name_match.group(1) if name_match else '',
-                version_match.group(1) if version_match else '')
+        return (name_match.group(1) if name_match else "", version_match.group(1) if version_match else "")
     except OSError:
-        return '', ''
+        return "", ""
 
 
 def _parse_go_mod(file_path: str) -> Tuple[str, str]:
     """Parse module name from go.mod."""
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             content = f.read()
-        module_match = re.search(r'module\s+(\S+)', content)
-        return module_match.group(1) if module_match else '', ''
+        module_match = re.search(r"module\s+(\S+)", content)
+        return module_match.group(1) if module_match else "", ""
     except OSError:
-        return '', ''
+        return "", ""
 
 
 def _detect_js_package_manager(project_folder: str) -> str:
     """Detect JavaScript package manager from lock files."""
-    if os.path.exists(os.path.join(project_folder, 'yarn.lock')):
-        return 'yarn'
-    if os.path.exists(os.path.join(project_folder, 'pnpm-lock.yaml')):
-        return 'pnpm'
-    return 'npm'
+    if os.path.exists(os.path.join(project_folder, "yarn.lock")):
+        return "yarn"
+    if os.path.exists(os.path.join(project_folder, "pnpm-lock.yaml")):
+        return "pnpm"
+    return "npm"
 
 
 def _detect_python_package_manager(project_folder: str) -> str:
     """Detect Python package manager from lock files."""
-    if os.path.exists(os.path.join(project_folder, 'uv.lock')):
-        return 'uv'
-    if os.path.exists(os.path.join(project_folder, 'poetry.lock')):
-        return 'poetry'
-    return 'pip'
+    if os.path.exists(os.path.join(project_folder, "uv.lock")):
+        return "uv"
+    if os.path.exists(os.path.join(project_folder, "poetry.lock")):
+        return "poetry"
+    return "pip"
 
 
 def _detect_package_manager(project_folder: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
@@ -87,42 +88,42 @@ def _detect_package_manager(project_folder: str) -> Tuple[Optional[str], Optiona
         Tuple of (package_manager, project_name, version)
     """
     # Check for package.json (npm/yarn/pnpm)
-    package_json = os.path.join(project_folder, 'package.json')
+    package_json = os.path.join(project_folder, "package.json")
     if os.path.exists(package_json):
         name, version = _parse_json_metadata(package_json)
         pm = _detect_js_package_manager(project_folder)
         return pm, name, version
 
     # Check for pyproject.toml (Python)
-    pyproject = os.path.join(project_folder, 'pyproject.toml')
+    pyproject = os.path.join(project_folder, "pyproject.toml")
     if os.path.exists(pyproject):
         name, version = _parse_toml_metadata(pyproject)
         pm = _detect_python_package_manager(project_folder)
         return pm, name, version
 
     # Check for setup.py (Python)
-    setup_py = os.path.join(project_folder, 'setup.py')
+    setup_py = os.path.join(project_folder, "setup.py")
     if os.path.exists(setup_py):
         name, version = _parse_toml_metadata(setup_py)
-        return 'pip', name, version
+        return "pip", name, version
 
     # Check for requirements.txt (Python)
-    if os.path.exists(os.path.join(project_folder, 'requirements.txt')):
-        return 'pip', '', ''
+    if os.path.exists(os.path.join(project_folder, "requirements.txt")):
+        return "pip", "", ""
 
     # Check for Cargo.toml (Rust)
-    cargo = os.path.join(project_folder, 'Cargo.toml')
+    cargo = os.path.join(project_folder, "Cargo.toml")
     if os.path.exists(cargo):
         name, version = _parse_toml_metadata(cargo)
-        return 'cargo', name, version
+        return "cargo", name, version
 
     # Check for go.mod (Go)
-    go_mod = os.path.join(project_folder, 'go.mod')
+    go_mod = os.path.join(project_folder, "go.mod")
     if os.path.exists(go_mod):
         name, _ = _parse_go_mod(go_mod)
-        return 'go', name, ''
+        return "go", name, ""
 
-    return None, '', ''
+    return None, "", ""
 
 
 def _detect_language(project_folder: str) -> str:
@@ -134,11 +135,11 @@ def _detect_language(project_folder: str) -> str:
     Returns:
         Primary language string
     """
-    extensions = {}
+    extensions: dict[str, int] = {}
 
     for root, _, files in os.walk(project_folder):
         # Skip common non-source directories
-        if any(skip in root for skip in ['node_modules', '.git', 'venv', '__pycache__', 'dist', 'build']):
+        if any(skip in root for skip in ["node_modules", ".git", "venv", "__pycache__", "dist", "build"]):
             continue
 
         for file in files:
@@ -150,21 +151,21 @@ def _detect_language(project_folder: str) -> str:
 
     # Map extensions to languages
     lang_map = {
-        '.py': 'python',
-        '.ts': 'typescript',
-        '.tsx': 'typescript',
-        '.js': 'javascript',
-        '.jsx': 'javascript',
-        '.java': 'java',
-        '.rs': 'rust',
-        '.go': 'go',
-        '.rb': 'ruby',
-        '.php': 'php',
-        '.cs': 'csharp',
-        '.cpp': 'cpp',
-        '.c': 'c',
-        '.swift': 'swift',
-        '.kt': 'kotlin',
+        ".py": "python",
+        ".ts": "typescript",
+        ".tsx": "typescript",
+        ".js": "javascript",
+        ".jsx": "javascript",
+        ".java": "java",
+        ".rs": "rust",
+        ".go": "go",
+        ".rb": "ruby",
+        ".php": "php",
+        ".cs": "csharp",
+        ".cpp": "cpp",
+        ".c": "c",
+        ".swift": "swift",
+        ".kt": "kotlin",
     }
 
     # Find language with most files
@@ -175,33 +176,33 @@ def _detect_language(project_folder: str) -> str:
             lang_counts[lang] = lang_counts.get(lang, 0) + count
 
     if lang_counts:
-        return max(lang_counts, key=lang_counts.get)
+        return max(lang_counts, key=lambda k: lang_counts[k])
 
-    return 'unknown'
+    return "unknown"
 
 
 # JS framework detection: (dep_key, framework_name)
 _JS_FRAMEWORKS: List[Tuple[str, str]] = [
-    ('react', 'React'),
-    ('next', 'Next.js'),
-    ('vue', 'Vue.js'),
-    ('angular', 'Angular'),
-    ('@angular/core', 'Angular'),
-    ('express', 'Express'),
-    ('fastify', 'Fastify'),
-    ('nestjs', 'NestJS'),
-    ('@nestjs/core', 'NestJS'),
-    ('electron', 'Electron'),
+    ("react", "React"),
+    ("next", "Next.js"),
+    ("vue", "Vue.js"),
+    ("angular", "Angular"),
+    ("@angular/core", "Angular"),
+    ("express", "Express"),
+    ("fastify", "Fastify"),
+    ("nestjs", "NestJS"),
+    ("@nestjs/core", "NestJS"),
+    ("electron", "Electron"),
 ]
 
 # Python framework detection: (pattern, framework_name)
 _PYTHON_FRAMEWORKS: List[Tuple[str, str]] = [
-    ('django', 'Django'),
-    ('flask', 'Flask'),
-    ('fastapi', 'FastAPI'),
-    ('pytest', 'pytest'),
-    ('sqlalchemy', 'SQLAlchemy'),
-    ('pydantic', 'Pydantic'),
+    ("django", "Django"),
+    ("flask", "Flask"),
+    ("fastapi", "FastAPI"),
+    ("pytest", "pytest"),
+    ("sqlalchemy", "SQLAlchemy"),
+    ("pydantic", "Pydantic"),
 ]
 
 
@@ -214,14 +215,14 @@ def _detect_js_frameworks(project_folder: str) -> List[str]:
     Returns:
         List of detected framework names
     """
-    package_json = os.path.join(project_folder, 'package.json')
+    package_json = os.path.join(project_folder, "package.json")
     if not os.path.exists(package_json):
         return []
 
     try:
-        with open(package_json, 'r') as f:
+        with open(package_json, "r") as f:
             data = json.load(f)
-        deps = {**data.get('dependencies', {}), **data.get('devDependencies', {})}
+        deps = {**data.get("dependencies", {}), **data.get("devDependencies", {})}
     except (json.JSONDecodeError, OSError):
         return []
 
@@ -244,13 +245,13 @@ def _get_python_deps_content(project_folder: str) -> str:
         Combined lowercase content of dependency files
     """
     deps_content = ""
-    files = ['requirements.txt', 'pyproject.toml']
+    files = ["requirements.txt", "pyproject.toml"]
 
     for filename in files:
         filepath = os.path.join(project_folder, filename)
         if os.path.exists(filepath):
             try:
-                with open(filepath, 'r') as f:
+                with open(filepath, "r") as f:
                     deps_content += f.read().lower()
             except OSError:
                 pass
@@ -302,12 +303,12 @@ def _find_entry_points(project_folder: str, language: str) -> List[str]:
 
     # Common entry point names
     common_names = {
-        'python': ['main.py', 'app.py', '__main__.py', 'cli.py', 'run.py'],
-        'typescript': ['index.ts', 'main.ts', 'app.ts', 'server.ts'],
-        'javascript': ['index.js', 'main.js', 'app.js', 'server.js'],
-        'java': ['Main.java', 'App.java', 'Application.java'],
-        'rust': ['main.rs', 'lib.rs'],
-        'go': ['main.go', 'cmd/main.go'],
+        "python": ["main.py", "app.py", "__main__.py", "cli.py", "run.py"],
+        "typescript": ["index.ts", "main.ts", "app.ts", "server.ts"],
+        "javascript": ["index.js", "main.js", "app.js", "server.js"],
+        "java": ["Main.java", "App.java", "Application.java"],
+        "rust": ["main.rs", "lib.rs"],
+        "go": ["main.go", "cmd/main.go"],
     }
 
     candidates = common_names.get(language, [])
@@ -317,9 +318,9 @@ def _find_entry_points(project_folder: str, language: str) -> List[str]:
         if os.path.exists(full_path):
             entry_points.append(candidate)
         # Check in src directory
-        src_path = os.path.join(project_folder, 'src', candidate)
+        src_path = os.path.join(project_folder, "src", candidate)
         if os.path.exists(src_path):
-            entry_points.append(os.path.join('src', candidate))
+            entry_points.append(os.path.join("src", candidate))
 
     return entry_points
 
@@ -335,7 +336,7 @@ def _analyze_project(project_folder: str, language: str) -> ProjectInfo:
         ProjectInfo with analyzed data
     """
     # Detect language if auto
-    if language == 'auto' or not language:
+    if language == "auto" or not language:
         language = _detect_language(project_folder)
 
     # Detect package manager and metadata
@@ -352,18 +353,22 @@ def _analyze_project(project_folder: str, language: str) -> ProjectInfo:
     entry_points = _find_entry_points(project_folder, language)
 
     # Check for tests
-    has_tests = any([
-        os.path.exists(os.path.join(project_folder, 'tests')),
-        os.path.exists(os.path.join(project_folder, 'test')),
-        os.path.exists(os.path.join(project_folder, '__tests__')),
-        os.path.exists(os.path.join(project_folder, 'spec')),
-    ])
+    has_tests = any(
+        [
+            os.path.exists(os.path.join(project_folder, "tests")),
+            os.path.exists(os.path.join(project_folder, "test")),
+            os.path.exists(os.path.join(project_folder, "__tests__")),
+            os.path.exists(os.path.join(project_folder, "spec")),
+        ]
+    )
 
     # Check for docs
-    has_docs = any([
-        os.path.exists(os.path.join(project_folder, 'docs')),
-        os.path.exists(os.path.join(project_folder, 'documentation')),
-    ])
+    has_docs = any(
+        [
+            os.path.exists(os.path.join(project_folder, "docs")),
+            os.path.exists(os.path.join(project_folder, "documentation")),
+        ]
+    )
 
     # Get description from package files
     description = _get_project_description(project_folder)
@@ -395,21 +400,21 @@ def _get_project_description(project_folder: str) -> Optional[str]:
         Description string or None
     """
     # Check package.json
-    package_json = os.path.join(project_folder, 'package.json')
+    package_json = os.path.join(project_folder, "package.json")
     if os.path.exists(package_json):
         try:
-            with open(package_json, 'r') as f:
+            with open(package_json, "r") as f:
                 data = json.load(f)
-            if data.get('description'):
-                return data['description']
+            if data.get("description"):
+                return cast(str, data["description"])
         except (json.JSONDecodeError, OSError):
             pass
 
     # Check pyproject.toml
-    pyproject = os.path.join(project_folder, 'pyproject.toml')
+    pyproject = os.path.join(project_folder, "pyproject.toml")
     if os.path.exists(pyproject):
         try:
-            with open(pyproject, 'r') as f:
+            with open(pyproject, "r") as f:
                 content = f.read()
             desc_match = re.search(r'description\s*=\s*["\']([^"\']+)["\']', content)
             if desc_match:
@@ -430,14 +435,14 @@ def _get_js_dependencies(project_folder: str, max_deps: int = 10) -> List[str]:
     Returns:
         List of dependency names
     """
-    package_json = os.path.join(project_folder, 'package.json')
+    package_json = os.path.join(project_folder, "package.json")
     if not os.path.exists(package_json):
         return []
 
     try:
-        with open(package_json, 'r') as f:
+        with open(package_json, "r") as f:
             data = json.load(f)
-        deps = data.get('dependencies', {})
+        deps = data.get("dependencies", {})
         return list(deps.keys())[:max_deps]
     except (json.JSONDecodeError, OSError):
         return []
@@ -453,18 +458,18 @@ def _get_python_dependencies(project_folder: str, max_deps: int = 10) -> List[st
     Returns:
         List of dependency names
     """
-    requirements = os.path.join(project_folder, 'requirements.txt')
+    requirements = os.path.join(project_folder, "requirements.txt")
     if not os.path.exists(requirements):
         return []
 
     dependencies = []
     try:
-        with open(requirements, 'r') as f:
+        with open(requirements, "r") as f:
             for line in f:
                 line = line.strip()
-                if not line or line.startswith('#'):
+                if not line or line.startswith("#"):
                     continue
-                pkg = re.split(r'[<>=!~\[]', line)[0].strip()
+                pkg = re.split(r"[<>=!~\[]", line)[0].strip()
                 if pkg:
                     dependencies.append(pkg)
                 if len(dependencies) >= max_deps:
@@ -494,6 +499,7 @@ def _get_main_dependencies(project_folder: str, language: str) -> List[str]:
 # Section Generators
 # =============================================================================
 
+
 def _generate_installation_section(info: ProjectInfo) -> ReadmeSection:
     """Generate installation instructions section.
 
@@ -507,61 +513,61 @@ def _generate_installation_section(info: ProjectInfo) -> ReadmeSection:
 
     if info.package_manager:
         pm_commands = {
-            'npm': f'npm install {info.name}',
-            'yarn': f'yarn add {info.name}',
-            'pnpm': f'pnpm add {info.name}',
-            'pip': f'pip install {info.name}',
-            'uv': f'uv add {info.name}',
-            'poetry': f'poetry add {info.name}',
-            'cargo': f'cargo add {info.name}',
-            'go': f'go get {info.name}',
+            "npm": f"npm install {info.name}",
+            "yarn": f"yarn add {info.name}",
+            "pnpm": f"pnpm add {info.name}",
+            "pip": f"pip install {info.name}",
+            "uv": f"uv add {info.name}",
+            "poetry": f"poetry add {info.name}",
+            "cargo": f"cargo add {info.name}",
+            "go": f"go get {info.name}",
         }
 
-        cmd = pm_commands.get(info.package_manager, '')
+        cmd = pm_commands.get(info.package_manager, "")
         if cmd:
-            lines.append('```bash')
+            lines.append("```bash")
             lines.append(cmd)
-            lines.append('```')
+            lines.append("```")
         else:
-            lines.append(f'Install using {info.package_manager}.')
+            lines.append(f"Install using {info.package_manager}.")
 
         # Add from source instructions
-        lines.append('')
-        lines.append('### From Source')
-        lines.append('')
-        lines.append('```bash')
-        lines.append(f'git clone https://github.com/your-username/{info.name}.git')
-        lines.append(f'cd {info.name}')
+        lines.append("")
+        lines.append("### From Source")
+        lines.append("")
+        lines.append("```bash")
+        lines.append(f"git clone https://github.com/your-username/{info.name}.git")
+        lines.append(f"cd {info.name}")
 
-        if info.package_manager == 'npm':
-            lines.append('npm install')
-        elif info.package_manager == 'yarn':
-            lines.append('yarn install')
-        elif info.package_manager == 'pnpm':
-            lines.append('pnpm install')
-        elif info.package_manager in ('pip', 'uv'):
-            lines.append('uv sync  # or pip install -e .')
-        elif info.package_manager == 'poetry':
-            lines.append('poetry install')
-        elif info.package_manager == 'cargo':
-            lines.append('cargo build --release')
-        elif info.package_manager == 'go':
-            lines.append('go build')
+        if info.package_manager == "npm":
+            lines.append("npm install")
+        elif info.package_manager == "yarn":
+            lines.append("yarn install")
+        elif info.package_manager == "pnpm":
+            lines.append("pnpm install")
+        elif info.package_manager in ("pip", "uv"):
+            lines.append("uv sync  # or pip install -e .")
+        elif info.package_manager == "poetry":
+            lines.append("poetry install")
+        elif info.package_manager == "cargo":
+            lines.append("cargo build --release")
+        elif info.package_manager == "go":
+            lines.append("go build")
 
-        lines.append('```')
+        lines.append("```")
     else:
-        lines.append('Clone the repository and install dependencies:')
-        lines.append('')
-        lines.append('```bash')
-        lines.append(f'git clone https://github.com/your-username/{info.name}.git')
-        lines.append(f'cd {info.name}')
-        lines.append('# Install dependencies')
-        lines.append('```')
+        lines.append("Clone the repository and install dependencies:")
+        lines.append("")
+        lines.append("```bash")
+        lines.append(f"git clone https://github.com/your-username/{info.name}.git")
+        lines.append(f"cd {info.name}")
+        lines.append("# Install dependencies")
+        lines.append("```")
 
     return ReadmeSection(
-        section_type='installation',
-        title='Installation',
-        content='\n'.join(lines),
+        section_type="installation",
+        title="Installation",
+        content="\n".join(lines),
         order=10,
     )
 
@@ -578,66 +584,66 @@ def _generate_usage_section(info: ProjectInfo) -> ReadmeSection:
     lines = []
 
     # Add basic usage based on language
-    if info.language == 'python':
-        lines.append('```python')
-        lines.append(f'from {info.name.replace("-", "_")} import main')
-        lines.append('')
-        lines.append('# Example usage')
-        lines.append('result = main()')
-        lines.append('```')
-    elif info.language in ('typescript', 'javascript'):
-        lines.append('```javascript')
+    if info.language == "python":
+        lines.append("```python")
+        lines.append(f"from {info.name.replace('-', '_')} import main")
+        lines.append("")
+        lines.append("# Example usage")
+        lines.append("result = main()")
+        lines.append("```")
+    elif info.language in ("typescript", "javascript"):
+        lines.append("```javascript")
         lines.append(f'import {{ main }} from "{info.name}";')
-        lines.append('')
-        lines.append('// Example usage')
-        lines.append('const result = main();')
-        lines.append('```')
-    elif info.language == 'java':
-        lines.append('```java')
-        lines.append(f'import com.example.{info.name.replace("-", "")}.Main;')
-        lines.append('')
-        lines.append('// Example usage')
-        lines.append('Main.run();')
-        lines.append('```')
-    elif info.language == 'rust':
-        lines.append('```rust')
-        lines.append(f'use {info.name.replace("-", "_")}::*;')
-        lines.append('')
-        lines.append('fn main() {')
-        lines.append('    // Example usage')
-        lines.append('}')
-        lines.append('```')
-    elif info.language == 'go':
-        lines.append('```go')
+        lines.append("")
+        lines.append("// Example usage")
+        lines.append("const result = main();")
+        lines.append("```")
+    elif info.language == "java":
+        lines.append("```java")
+        lines.append(f"import com.example.{info.name.replace('-', '')}.Main;")
+        lines.append("")
+        lines.append("// Example usage")
+        lines.append("Main.run();")
+        lines.append("```")
+    elif info.language == "rust":
+        lines.append("```rust")
+        lines.append(f"use {info.name.replace('-', '_')}::*;")
+        lines.append("")
+        lines.append("fn main() {")
+        lines.append("    // Example usage")
+        lines.append("}")
+        lines.append("```")
+    elif info.language == "go":
+        lines.append("```go")
         lines.append(f'import "{info.name}"')
-        lines.append('')
-        lines.append('func main() {')
-        lines.append('    // Example usage')
-        lines.append('}')
-        lines.append('```')
+        lines.append("")
+        lines.append("func main() {")
+        lines.append("    // Example usage")
+        lines.append("}")
+        lines.append("```")
     else:
-        lines.append('See examples below.')
+        lines.append("See examples below.")
 
     # Add CLI usage if entry points suggest CLI
-    if any('cli' in ep.lower() or 'main' in ep.lower() for ep in info.entry_points):
-        lines.append('')
-        lines.append('### Command Line')
-        lines.append('')
-        lines.append('```bash')
+    if any("cli" in ep.lower() or "main" in ep.lower() for ep in info.entry_points):
+        lines.append("")
+        lines.append("### Command Line")
+        lines.append("")
+        lines.append("```bash")
 
-        if info.package_manager in ('npm', 'yarn', 'pnpm'):
-            lines.append(f'npx {info.name} --help')
-        elif info.package_manager in ('pip', 'uv', 'poetry'):
-            lines.append(f'{info.name.replace("-", "_")} --help')
+        if info.package_manager in ("npm", "yarn", "pnpm"):
+            lines.append(f"npx {info.name} --help")
+        elif info.package_manager in ("pip", "uv", "poetry"):
+            lines.append(f"{info.name.replace('-', '_')} --help")
         else:
-            lines.append(f'./{info.name} --help')
+            lines.append(f"./{info.name} --help")
 
-        lines.append('```')
+        lines.append("```")
 
     return ReadmeSection(
-        section_type='usage',
-        title='Usage',
-        content='\n'.join(lines),
+        section_type="usage",
+        title="Usage",
+        content="\n".join(lines),
         order=20,
     )
 
@@ -655,23 +661,23 @@ def _generate_features_section(info: ProjectInfo) -> ReadmeSection:
 
     # Generate generic features based on detected frameworks
     if info.frameworks:
-        lines.append(f'Built with {", ".join(info.frameworks)}.')
-        lines.append('')
+        lines.append(f"Built with {', '.join(info.frameworks)}.")
+        lines.append("")
 
-    lines.append('- Feature 1: Description')
-    lines.append('- Feature 2: Description')
-    lines.append('- Feature 3: Description')
+    lines.append("- Feature 1: Description")
+    lines.append("- Feature 2: Description")
+    lines.append("- Feature 3: Description")
 
     if info.has_tests:
-        lines.append('- Comprehensive test suite')
+        lines.append("- Comprehensive test suite")
 
     if info.has_docs:
-        lines.append('- Full documentation')
+        lines.append("- Full documentation")
 
     return ReadmeSection(
-        section_type='features',
-        title='Features',
-        content='\n'.join(lines),
+        section_type="features",
+        title="Features",
+        content="\n".join(lines),
         order=5,
     )
 
@@ -687,19 +693,19 @@ def _generate_api_section(info: ProjectInfo) -> ReadmeSection:
     """
     lines = []
 
-    lines.append('### Core Functions')
-    lines.append('')
-    lines.append('| Function | Description |')
-    lines.append('|----------|-------------|')
-    lines.append('| `main()` | Main entry point |')
-    lines.append('| `configure()` | Configure settings |')
-    lines.append('')
-    lines.append('See the [full API documentation](docs/api.md) for details.')
+    lines.append("### Core Functions")
+    lines.append("")
+    lines.append("| Function | Description |")
+    lines.append("|----------|-------------|")
+    lines.append("| `main()` | Main entry point |")
+    lines.append("| `configure()` | Configure settings |")
+    lines.append("")
+    lines.append("See the [full API documentation](docs/api.md) for details.")
 
     return ReadmeSection(
-        section_type='api',
-        title='API Reference',
-        content='\n'.join(lines),
+        section_type="api",
+        title="API Reference",
+        content="\n".join(lines),
         order=30,
     )
 
@@ -713,44 +719,44 @@ def _generate_structure_section(info: ProjectInfo) -> ReadmeSection:
     Returns:
         ReadmeSection with structure content
     """
-    lines = ['```']
+    lines = ["```"]
 
     # Generate basic structure
-    lines.append(f'{info.name}/')
+    lines.append(f"{info.name}/")
 
-    if info.language == 'python':
-        lines.append('├── src/')
-        lines.append(f'│   └── {info.name.replace("-", "_")}/')
-        lines.append('│       ├── __init__.py')
-        lines.append('│       └── main.py')
+    if info.language == "python":
+        lines.append("├── src/")
+        lines.append(f"│   └── {info.name.replace('-', '_')}/")
+        lines.append("│       ├── __init__.py")
+        lines.append("│       └── main.py")
         if info.has_tests:
-            lines.append('├── tests/')
-            lines.append('│   └── test_main.py')
-        lines.append('├── pyproject.toml')
-        lines.append('└── README.md')
-    elif info.language in ('typescript', 'javascript'):
-        lines.append('├── src/')
-        lines.append('│   ├── index.ts')
-        lines.append('│   └── lib/')
+            lines.append("├── tests/")
+            lines.append("│   └── test_main.py")
+        lines.append("├── pyproject.toml")
+        lines.append("└── README.md")
+    elif info.language in ("typescript", "javascript"):
+        lines.append("├── src/")
+        lines.append("│   ├── index.ts")
+        lines.append("│   └── lib/")
         if info.has_tests:
-            lines.append('├── tests/')
-            lines.append('│   └── index.test.ts')
-        lines.append('├── package.json')
-        lines.append('├── tsconfig.json')
-        lines.append('└── README.md')
+            lines.append("├── tests/")
+            lines.append("│   └── index.test.ts")
+        lines.append("├── package.json")
+        lines.append("├── tsconfig.json")
+        lines.append("└── README.md")
     else:
-        lines.append('├── src/')
-        lines.append('│   └── main.*')
+        lines.append("├── src/")
+        lines.append("│   └── main.*")
         if info.has_tests:
-            lines.append('├── tests/')
-        lines.append('└── README.md')
+            lines.append("├── tests/")
+        lines.append("└── README.md")
 
-    lines.append('```')
+    lines.append("```")
 
     return ReadmeSection(
-        section_type='structure',
-        title='Project Structure',
-        content='\n'.join(lines),
+        section_type="structure",
+        title="Project Structure",
+        content="\n".join(lines),
         order=40,
     )
 
@@ -766,47 +772,47 @@ def _generate_contributing_section(info: ProjectInfo) -> ReadmeSection:
     """
     lines = []
 
-    lines.append('Contributions are welcome! Please follow these steps:')
-    lines.append('')
-    lines.append('1. Fork the repository')
-    lines.append('2. Create a feature branch (`git checkout -b feature/amazing-feature`)')
+    lines.append("Contributions are welcome! Please follow these steps:")
+    lines.append("")
+    lines.append("1. Fork the repository")
+    lines.append("2. Create a feature branch (`git checkout -b feature/amazing-feature`)")
     lines.append('3. Commit your changes (`git commit -m "Add amazing feature"`)')
-    lines.append('4. Push to the branch (`git push origin feature/amazing-feature`)')
-    lines.append('5. Open a Pull Request')
-    lines.append('')
-    lines.append('### Development Setup')
-    lines.append('')
+    lines.append("4. Push to the branch (`git push origin feature/amazing-feature`)")
+    lines.append("5. Open a Pull Request")
+    lines.append("")
+    lines.append("### Development Setup")
+    lines.append("")
 
-    if info.package_manager == 'npm':
-        lines.append('```bash')
-        lines.append('npm install')
-        lines.append('npm run test')
-        lines.append('```')
-    elif info.package_manager in ('pip', 'uv'):
-        lines.append('```bash')
-        lines.append('uv sync')
-        lines.append('uv run pytest')
-        lines.append('```')
-    elif info.package_manager == 'poetry':
-        lines.append('```bash')
-        lines.append('poetry install')
-        lines.append('poetry run pytest')
-        lines.append('```')
-    elif info.package_manager == 'cargo':
-        lines.append('```bash')
-        lines.append('cargo build')
-        lines.append('cargo test')
-        lines.append('```')
+    if info.package_manager == "npm":
+        lines.append("```bash")
+        lines.append("npm install")
+        lines.append("npm run test")
+        lines.append("```")
+    elif info.package_manager in ("pip", "uv"):
+        lines.append("```bash")
+        lines.append("uv sync")
+        lines.append("uv run pytest")
+        lines.append("```")
+    elif info.package_manager == "poetry":
+        lines.append("```bash")
+        lines.append("poetry install")
+        lines.append("poetry run pytest")
+        lines.append("```")
+    elif info.package_manager == "cargo":
+        lines.append("```bash")
+        lines.append("cargo build")
+        lines.append("cargo test")
+        lines.append("```")
     else:
-        lines.append('```bash')
-        lines.append('# Install dependencies')
-        lines.append('# Run tests')
-        lines.append('```')
+        lines.append("```bash")
+        lines.append("# Install dependencies")
+        lines.append("# Run tests")
+        lines.append("```")
 
     return ReadmeSection(
-        section_type='contributing',
-        title='Contributing',
-        content='\n'.join(lines),
+        section_type="contributing",
+        title="Contributing",
+        content="\n".join(lines),
         order=50,
     )
 
@@ -821,9 +827,9 @@ def _generate_license_section(info: ProjectInfo) -> ReadmeSection:
         ReadmeSection with license content
     """
     return ReadmeSection(
-        section_type='license',
-        title='License',
-        content='This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.',
+        section_type="license",
+        title="License",
+        content="This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.",
         order=60,
     )
 
@@ -840,46 +846,47 @@ def _generate_header(info: ProjectInfo) -> str:
     lines = []
 
     # Title
-    lines.append(f'# {info.name}')
-    lines.append('')
+    lines.append(f"# {info.name}")
+    lines.append("")
 
     # Badges
     badges = []
     if info.version:
-        badges.append(f'![Version](https://img.shields.io/badge/version-{info.version}-blue)')
+        badges.append(f"![Version](https://img.shields.io/badge/version-{info.version}-blue)")
 
     if info.language:
         lang_colors = {
-            'python': '3776AB',
-            'typescript': '3178C6',
-            'javascript': 'F7DF1E',
-            'java': 'ED8B00',
-            'rust': 'DEA584',
-            'go': '00ADD8',
+            "python": "3776AB",
+            "typescript": "3178C6",
+            "javascript": "F7DF1E",
+            "java": "ED8B00",
+            "rust": "DEA584",
+            "go": "00ADD8",
         }
-        color = lang_colors.get(info.language, 'gray')
-        badges.append(f'![Language](https://img.shields.io/badge/{info.language}-{color})')
+        color = lang_colors.get(info.language, "gray")
+        badges.append(f"![Language](https://img.shields.io/badge/{info.language}-{color})")
 
     if badges:
-        lines.append(' '.join(badges))
-        lines.append('')
+        lines.append(" ".join(badges))
+        lines.append("")
 
     # Description
     if info.description:
         lines.append(info.description)
-        lines.append('')
+        lines.append("")
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 # =============================================================================
 # Main Generator
 # =============================================================================
 
+
 def generate_readme_sections_impl(
     project_folder: str,
     language: str = "auto",
-    sections: List[str] = None,
+    sections: Optional[List[str]] = None,
     include_examples: bool = True,
 ) -> ReadmeGenerationResult:
     """Generate README.md sections from code analysis.
@@ -896,7 +903,7 @@ def generate_readme_sections_impl(
     start_time = time.time()
 
     if sections is None:
-        sections = ['all']
+        sections = ["all"]
 
     logger.info(
         "generate_readme_started",
@@ -910,19 +917,19 @@ def generate_readme_sections_impl(
 
     # Section generators
     generators = {
-        'installation': _generate_installation_section,
-        'usage': _generate_usage_section,
-        'features': _generate_features_section,
-        'api': _generate_api_section,
-        'structure': _generate_structure_section,
-        'contributing': _generate_contributing_section,
-        'license': _generate_license_section,
+        "installation": _generate_installation_section,
+        "usage": _generate_usage_section,
+        "features": _generate_features_section,
+        "api": _generate_api_section,
+        "structure": _generate_structure_section,
+        "contributing": _generate_contributing_section,
+        "license": _generate_license_section,
     }
 
     # Generate requested sections
     generated_sections = []
 
-    if 'all' in sections:
+    if "all" in sections:
         sections_to_generate = list(generators.keys())
     else:
         sections_to_generate = [s for s in sections if s in generators]
@@ -943,21 +950,21 @@ def generate_readme_sections_impl(
     full_readme_parts = [_generate_header(info)]
 
     # Table of contents
-    toc_lines = ['## Table of Contents', '']
+    toc_lines = ["## Table of Contents", ""]
     for section in generated_sections:
-        anchor = section.title.lower().replace(' ', '-')
-        toc_lines.append(f'- [{section.title}](#{anchor})')
-    toc_lines.append('')
-    full_readme_parts.append('\n'.join(toc_lines))
+        anchor = section.title.lower().replace(" ", "-")
+        toc_lines.append(f"- [{section.title}](#{anchor})")
+    toc_lines.append("")
+    full_readme_parts.append("\n".join(toc_lines))
 
     # Add sections
     for section in generated_sections:
-        full_readme_parts.append(f'## {section.title}')
-        full_readme_parts.append('')
+        full_readme_parts.append(f"## {section.title}")
+        full_readme_parts.append("")
         full_readme_parts.append(section.content)
-        full_readme_parts.append('')
+        full_readme_parts.append("")
 
-    full_readme = '\n'.join(full_readme_parts)
+    full_readme = "\n".join(full_readme_parts)
 
     execution_time = int((time.time() - start_time) * 1000)
 

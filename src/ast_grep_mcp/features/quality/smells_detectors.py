@@ -20,6 +20,7 @@ from ast_grep_mcp.features.quality.smells_helpers import calculate_smell_severit
 @dataclass
 class SmellInfo:
     """Information about a detected code smell."""
+
     type: str
     file: str
     name: str
@@ -41,7 +42,7 @@ class SmellInfo:
             "metric": self.metric,
             "threshold": self.threshold,
             "message": self.message,
-            "suggestion": self.suggestion
+            "suggestion": self.suggestion,
         }
 
 
@@ -49,13 +50,7 @@ class SmellDetector(ABC):
     """Base class for smell detectors."""
 
     @abstractmethod
-    def detect(
-        self,
-        file_path: str,
-        content: str,
-        language: str,
-        project_path: Path
-    ) -> List[SmellInfo]:
+    def detect(self, file_path: str, content: str, language: str, project_path: Path) -> List[SmellInfo]:
         """Detect smells in the given file.
 
         Args:
@@ -82,13 +77,7 @@ class LongFunctionDetector(SmellDetector):
         self.threshold = threshold
         self.logger = get_logger("smell_detector.long_function")
 
-    def detect(
-        self,
-        file_path: str,
-        content: str,
-        language: str,
-        project_path: Path
-    ) -> List[SmellInfo]:
+    def detect(self, file_path: str, content: str, language: str, project_path: Path) -> List[SmellInfo]:
         """Detect long functions in the file."""
         smells = []
         rel_path = str(Path(file_path).relative_to(project_path))
@@ -103,20 +92,20 @@ class LongFunctionDetector(SmellDetector):
                 func_lines = func_end - func_start + 1
 
                 if func_lines > self.threshold:
-                    severity = calculate_smell_severity(
-                        func_lines, self.threshold, "long_function"
+                    severity = calculate_smell_severity(func_lines, self.threshold, "long_function")
+                    smells.append(
+                        SmellInfo(
+                            type="long_function",
+                            file=rel_path,
+                            name=func_name,
+                            line=func_start,
+                            severity=severity,
+                            metric=func_lines,
+                            threshold=self.threshold,
+                            message=f"Function '{func_name}' has {func_lines} lines (threshold: {self.threshold})",
+                            suggestion="Consider splitting into smaller, focused functions",
+                        )
                     )
-                    smells.append(SmellInfo(
-                        type="long_function",
-                        file=rel_path,
-                        name=func_name,
-                        line=func_start,
-                        severity=severity,
-                        metric=func_lines,
-                        threshold=self.threshold,
-                        message=f"Function '{func_name}' has {func_lines} lines (threshold: {self.threshold})",
-                        suggestion="Consider splitting into smaller, focused functions"
-                    ))
 
         except Exception as e:
             self.logger.warning("detection_failed", file=file_path, error=str(e))
@@ -136,13 +125,7 @@ class ParameterBloatDetector(SmellDetector):
         self.threshold = threshold
         self.logger = get_logger("smell_detector.parameter_bloat")
 
-    def detect(
-        self,
-        file_path: str,
-        content: str,
-        language: str,
-        project_path: Path
-    ) -> List[SmellInfo]:
+    def detect(self, file_path: str, content: str, language: str, project_path: Path) -> List[SmellInfo]:
         """Detect parameter bloat in functions."""
         smells = []
         rel_path = str(Path(file_path).relative_to(project_path))
@@ -158,20 +141,20 @@ class ParameterBloatDetector(SmellDetector):
                 param_count = self._count_parameters(func_code, language)
 
                 if param_count > self.threshold:
-                    severity = calculate_smell_severity(
-                        param_count, self.threshold, "parameter_bloat"
+                    severity = calculate_smell_severity(param_count, self.threshold, "parameter_bloat")
+                    smells.append(
+                        SmellInfo(
+                            type="parameter_bloat",
+                            file=rel_path,
+                            name=func_name,
+                            line=func_start,
+                            severity=severity,
+                            metric=param_count,
+                            threshold=self.threshold,
+                            message=f"Function '{func_name}' has {param_count} parameters (threshold: {self.threshold})",
+                            suggestion="Consider using a parameter object or builder pattern",
+                        )
                     )
-                    smells.append(SmellInfo(
-                        type="parameter_bloat",
-                        file=rel_path,
-                        name=func_name,
-                        line=func_start,
-                        severity=severity,
-                        metric=param_count,
-                        threshold=self.threshold,
-                        message=f"Function '{func_name}' has {param_count} parameters (threshold: {self.threshold})",
-                        suggestion="Consider using a parameter object or builder pattern"
-                    ))
 
         except Exception as e:
             self.logger.warning("detection_failed", file=file_path, error=str(e))
@@ -182,9 +165,9 @@ class ParameterBloatDetector(SmellDetector):
         """Count the number of parameters in a function."""
         # Find the parameter list
         if language.lower() == "python":
-            match = re.search(r'def\s+\w+\s*\(([^)]*)\)', code)
+            match = re.search(r"def\s+\w+\s*\(([^)]*)\)", code)
         else:
-            match = re.search(r'(?:function\s+\w+|\w+)\s*\(([^)]*)\)', code)
+            match = re.search(r"(?:function\s+\w+|\w+)\s*\(([^)]*)\)", code)
 
         if not match:
             return 0
@@ -195,8 +178,8 @@ class ParameterBloatDetector(SmellDetector):
 
         # Handle self/this as non-parameter for Python
         if language.lower() == "python":
-            params = re.sub(r'\bself\b\s*,?\s*', '', params)
-            params = re.sub(r'\bcls\b\s*,?\s*', '', params)
+            params = re.sub(r"\bself\b\s*,?\s*", "", params)
+            params = re.sub(r"\bcls\b\s*,?\s*", "", params)
 
         params = params.strip()
         if not params:
@@ -206,11 +189,11 @@ class ParameterBloatDetector(SmellDetector):
         depth = 0
         param_count = 1 if params else 0
         for char in params:
-            if char in '([{<':
+            if char in "([{<":
                 depth += 1
-            elif char in ')]}>':
+            elif char in ")]}>":
                 depth -= 1
-            elif char == ',' and depth == 0:
+            elif char == "," and depth == 0:
                 param_count += 1
 
         return param_count
@@ -228,13 +211,7 @@ class DeepNestingDetector(SmellDetector):
         self.threshold = threshold
         self.logger = get_logger("smell_detector.deep_nesting")
 
-    def detect(
-        self,
-        file_path: str,
-        content: str,
-        language: str,
-        project_path: Path
-    ) -> List[SmellInfo]:
+    def detect(self, file_path: str, content: str, language: str, project_path: Path) -> List[SmellInfo]:
         """Detect deep nesting in functions."""
         smells = []
         rel_path = str(Path(file_path).relative_to(project_path))
@@ -250,20 +227,20 @@ class DeepNestingDetector(SmellDetector):
                 max_nesting = calculate_nesting_depth(func_code, language)
 
                 if max_nesting > self.threshold:
-                    severity = calculate_smell_severity(
-                        max_nesting, self.threshold, "deep_nesting"
+                    severity = calculate_smell_severity(max_nesting, self.threshold, "deep_nesting")
+                    smells.append(
+                        SmellInfo(
+                            type="deep_nesting",
+                            file=rel_path,
+                            name=func_name,
+                            line=func_start,
+                            severity=severity,
+                            metric=max_nesting,
+                            threshold=self.threshold,
+                            message=f"Function '{func_name}' has nesting depth {max_nesting} (threshold: {self.threshold})",
+                            suggestion="Use early returns, extract nested logic, or apply guard clauses",
+                        )
                     )
-                    smells.append(SmellInfo(
-                        type="deep_nesting",
-                        file=rel_path,
-                        name=func_name,
-                        line=func_start,
-                        severity=severity,
-                        metric=max_nesting,
-                        threshold=self.threshold,
-                        message=f"Function '{func_name}' has nesting depth {max_nesting} (threshold: {self.threshold})",
-                        suggestion="Use early returns, extract nested logic, or apply guard clauses"
-                    ))
 
         except Exception as e:
             self.logger.warning("detection_failed", file=file_path, error=str(e))
@@ -285,13 +262,7 @@ class LargeClassDetector(SmellDetector):
         self.methods_threshold = methods_threshold
         self.logger = get_logger("smell_detector.large_class")
 
-    def detect(
-        self,
-        file_path: str,
-        content: str,
-        language: str,
-        project_path: Path
-    ) -> List[SmellInfo]:
+    def detect(self, file_path: str, content: str, language: str, project_path: Path) -> List[SmellInfo]:
         """Detect large classes in the file."""
         smells = []
         rel_path = str(Path(file_path).relative_to(project_path))
@@ -326,20 +297,20 @@ class LargeClassDetector(SmellDetector):
 
                 if is_large:
                     # Use lines for severity calculation as primary metric
-                    severity = calculate_smell_severity(
-                        cls_lines_count, self.lines_threshold, "large_class"
+                    severity = calculate_smell_severity(cls_lines_count, self.lines_threshold, "large_class")
+                    smells.append(
+                        SmellInfo(
+                            type="large_class",
+                            file=rel_path,
+                            name=cls_name,
+                            line=cls_start,
+                            severity=severity,
+                            metric=metric_value,
+                            threshold={"lines": self.lines_threshold, "methods": self.methods_threshold},
+                            message=f"Class '{cls_name}' is too large: {reason}",
+                            suggestion="Consider splitting into smaller classes following Single Responsibility Principle",
+                        )
                     )
-                    smells.append(SmellInfo(
-                        type="large_class",
-                        file=rel_path,
-                        name=cls_name,
-                        line=cls_start,
-                        severity=severity,
-                        metric=metric_value,
-                        threshold={"lines": self.lines_threshold, "methods": self.methods_threshold},
-                        message=f"Class '{cls_name}' is too large: {reason}",
-                        suggestion="Consider splitting into smaller classes following Single Responsibility Principle"
-                    ))
 
         except Exception as e:
             self.logger.warning("detection_failed", file=file_path, error=str(e))
@@ -370,16 +341,11 @@ class LargeClassDetector(SmellDetector):
             "python": "class $NAME($$$): $$$",
             "typescript": "class $NAME { $$$ }",
             "javascript": "class $NAME { $$$ }",
-            "java": "class $NAME { $$$ }"
+            "java": "class $NAME { $$$ }",
         }
         return class_patterns.get(language.lower(), class_patterns["python"])
 
-    def _run_ast_grep_for_classes(
-        self,
-        file_path: str,
-        language: str,
-        pattern: str
-    ) -> List[Dict[str, Any]]:
+    def _run_ast_grep_for_classes(self, file_path: str, language: str, pattern: str) -> List[Dict[str, Any]]:
         """Run ast-grep to find class matches.
 
         Args:
@@ -391,10 +357,7 @@ class LargeClassDetector(SmellDetector):
             List of match dictionaries from ast-grep output
         """
         result = subprocess.run(
-            ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path],
-            capture_output=True,
-            text=True,
-            timeout=30
+            ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path], capture_output=True, text=True, timeout=30
         )
 
         # Early return for failed or empty results
@@ -404,11 +367,7 @@ class LargeClassDetector(SmellDetector):
         matches = json.loads(result.stdout)
         return matches if isinstance(matches, list) else []
 
-    def _process_class_matches(
-        self,
-        matches: List[Dict[str, Any]],
-        language: str
-    ) -> List[Dict[str, Any]]:
+    def _process_class_matches(self, matches: List[Dict[str, Any]], language: str) -> List[Dict[str, Any]]:
         """Process ast-grep matches into class information.
 
         Args:
@@ -438,12 +397,7 @@ class LargeClassDetector(SmellDetector):
         start_line, end_line = self._extract_line_range(match)
         method_count = self._count_methods_in_class(match.get("text", ""), language)
 
-        return {
-            "name": cls_name,
-            "start_line": start_line,
-            "end_line": end_line,
-            "method_count": method_count
-        }
+        return {"name": cls_name, "start_line": start_line, "end_line": end_line, "method_count": method_count}
 
     def _extract_class_name(self, match: Dict[str, Any]) -> str:
         """Extract class name from ast-grep match metavariables.
@@ -494,9 +448,9 @@ class LargeClassDetector(SmellDetector):
             Number of methods found
         """
         if language.lower() == "python":
-            return len(re.findall(r'^\s+def\s+', code, re.MULTILINE))
+            return len(re.findall(r"^\s+def\s+", code, re.MULTILINE))
         else:
-            return len(re.findall(r'^\s+\w+\s*\([^)]*\)\s*\{', code, re.MULTILINE))
+            return len(re.findall(r"^\s+\w+\s*\([^)]*\)\s*\{", code, re.MULTILINE))
 
 
 class MagicNumberDetector(SmellDetector):
@@ -511,13 +465,7 @@ class MagicNumberDetector(SmellDetector):
         self.enabled = enabled
         self.logger = get_logger("smell_detector.magic_number")
 
-    def detect(
-        self,
-        file_path: str,
-        content: str,
-        language: str,
-        project_path: Path
-    ) -> List[SmellInfo]:
+    def detect(self, file_path: str, content: str, language: str, project_path: Path) -> List[SmellInfo]:
         """Detect magic numbers in the code."""
         if not self.enabled:
             return []
@@ -526,52 +474,49 @@ class MagicNumberDetector(SmellDetector):
         rel_path = str(Path(file_path).relative_to(project_path))
 
         try:
-            lines = content.split('\n')
+            lines = content.split("\n")
             magic_numbers = self._find_magic_numbers(content, lines, language)
 
             for magic in magic_numbers:
-                smells.append(SmellInfo(
-                    type="magic_number",
-                    file=rel_path,
-                    name=str(magic.get("value")),
-                    line=magic.get("line", 0),
-                    severity="low",
-                    metric=magic.get("value"),
-                    threshold="N/A",
-                    message=f"Magic number '{magic.get('value')}' on line {magic.get('line')}",
-                    suggestion="Extract to a named constant with meaningful name"
-                ))
+                smells.append(
+                    SmellInfo(
+                        type="magic_number",
+                        file=rel_path,
+                        name=str(magic.get("value")),
+                        line=magic.get("line", 0),
+                        severity="low",
+                        metric=magic.get("value"),
+                        threshold="N/A",
+                        message=f"Magic number '{magic.get('value')}' on line {magic.get('line')}",
+                        suggestion="Extract to a named constant with meaningful name",
+                    )
+                )
 
         except Exception as e:
             self.logger.warning("detection_failed", file=file_path, error=str(e))
 
         return smells
 
-    def _find_magic_numbers(
-        self,
-        content: str,
-        lines: List[str],
-        language: str
-    ) -> List[Dict[str, Any]]:
+    def _find_magic_numbers(self, content: str, lines: List[str], language: str) -> List[Dict[str, Any]]:
         """Find magic numbers in code."""
         magic_numbers: List[Dict[str, Any]] = []
 
         # Common values that aren't magic
-        allowed_values = {'0', '1', '-1', '2', '10', '100', '1000', '0.0', '1.0', '0.5'}
+        allowed_values = {"0", "1", "-1", "2", "10", "100", "1000", "0.0", "1.0", "0.5"}
 
         # Patterns for different contexts to exclude
         exclude_patterns = [
-            r'^\s*#',        # Python comments
-            r'^\s*//',       # JS/Java comments
-            r'^\s*\*',       # Multi-line comment continuation
-            r'^\s*import',   # Import statements
-            r'^\s*from',     # Python from imports
-            r'=\s*\d+\s*$',  # Variable assignment (likely a constant definition)
-            r'range\(',      # Range calls
-            r'sleep\(',      # Sleep calls
-            r'timeout',      # Timeout settings
-            r'port\s*=',     # Port assignments
-            r'version',      # Version numbers
+            r"^\s*#",  # Python comments
+            r"^\s*//",  # JS/Java comments
+            r"^\s*\*",  # Multi-line comment continuation
+            r"^\s*import",  # Import statements
+            r"^\s*from",  # Python from imports
+            r"=\s*\d+\s*$",  # Variable assignment (likely a constant definition)
+            r"range\(",  # Range calls
+            r"sleep\(",  # Sleep calls
+            r"timeout",  # Timeout settings
+            r"port\s*=",  # Port assignments
+            r"version",  # Version numbers
         ]
 
         for line_num, line in enumerate(lines, 1):
@@ -586,18 +531,15 @@ class MagicNumberDetector(SmellDetector):
                 continue
 
             # Find all numeric literals in line
-            numbers = re.findall(r'\b(\d+\.?\d*)\b', line)
+            numbers = re.findall(r"\b(\d+\.?\d*)\b", line)
 
             for num in numbers:
                 if num not in allowed_values:
                     # Check it's not in a string (simple check)
-                    before_num = line[:line.find(num)]
+                    before_num = line[: line.find(num)]
                     quote_count = before_num.count('"') + before_num.count("'")
                     if quote_count % 2 == 0:  # Even number of quotes = not in string
-                        magic_numbers.append({
-                            "line": line_num,
-                            "value": num
-                        })
+                        magic_numbers.append({"line": line_num, "value": num})
 
         # Limit to avoid overwhelming output
         return magic_numbers[:50]
@@ -615,12 +557,7 @@ class SmellAnalyzer:
         self.detectors = detectors
         self.logger = get_logger("smell_analyzer")
 
-    def analyze_file(
-        self,
-        file_path: str,
-        language: str,
-        project_path: Path
-    ) -> List[Dict[str, Any]]:
+    def analyze_file(self, file_path: str, language: str, project_path: Path) -> List[Dict[str, Any]]:
         """Analyze a single file for all configured smells.
 
         Args:
@@ -634,7 +571,7 @@ class SmellAnalyzer:
         smells = []
 
         try:
-            content = Path(file_path).read_text(encoding='utf-8', errors='ignore')
+            content = Path(file_path).read_text(encoding="utf-8", errors="ignore")
 
             for detector in self.detectors:
                 detected = detector.detect(file_path, content, language, project_path)

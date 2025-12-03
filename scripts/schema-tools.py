@@ -25,13 +25,12 @@ Examples:
     schema-tools.py properties Person
     schema-tools.py properties Article --no-inherited
 """
-from ast_grep_mcp.utils.console_logger import console
-
 import argparse
 import asyncio
-import json
 import sys
 from typing import Any, Dict, List
+
+from ast_grep_mcp.utils.console_logger import console
 
 # Import the SchemaOrgClient from main.py
 try:

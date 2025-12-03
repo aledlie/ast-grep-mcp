@@ -3,6 +3,7 @@
 This module handles finding files to analyze based on include/exclude
 patterns and language-specific file extensions.
 """
+
 import glob
 from pathlib import Path
 from typing import List, Set
@@ -17,13 +18,7 @@ class ComplexityFileFinder:
         """Initialize the file finder."""
         self.logger = get_logger("complexity.file_finder")
 
-    def find_files(
-        self,
-        project_folder: str,
-        language: str,
-        include_patterns: List[str],
-        exclude_patterns: List[str]
-    ) -> List[str]:
+    def find_files(self, project_folder: str, language: str, include_patterns: List[str], exclude_patterns: List[str]) -> List[str]:
         """Find files to analyze based on patterns and language.
 
         Args:
@@ -40,7 +35,7 @@ class ComplexityFileFinder:
             project_folder=project_folder,
             language=language,
             include_count=len(include_patterns),
-            exclude_count=len(exclude_patterns)
+            exclude_count=len(exclude_patterns),
         )
 
         # Validate project folder
@@ -52,23 +47,12 @@ class ComplexityFileFinder:
         extensions = self._get_language_extensions(language)
 
         # Find all matching files
-        all_files = self._find_matching_files(
-            project_path,
-            include_patterns,
-            extensions
-        )
+        all_files = self._find_matching_files(project_path, include_patterns, extensions)
 
         # Filter excluded files
-        files_to_analyze = self._filter_excluded_files(
-            all_files,
-            exclude_patterns
-        )
+        files_to_analyze = self._filter_excluded_files(all_files, exclude_patterns)
 
-        self.logger.info(
-            "find_files_complete",
-            total_found=len(all_files),
-            after_exclusion=len(files_to_analyze)
-        )
+        self.logger.info("find_files_complete", total_found=len(all_files), after_exclusion=len(files_to_analyze))
 
         return files_to_analyze
 
@@ -81,20 +65,10 @@ class ComplexityFileFinder:
         Returns:
             List of file extensions (e.g., ['.py', '.pyi'])
         """
-        lang_extensions = {
-            "python": [".py"],
-            "typescript": [".ts", ".tsx"],
-            "javascript": [".js", ".jsx"],
-            "java": [".java"]
-        }
+        lang_extensions = {"python": [".py"], "typescript": [".ts", ".tsx"], "javascript": [".js", ".jsx"], "java": [".java"]}
         return lang_extensions.get(language.lower(), [".py"])
 
-    def _find_matching_files(
-        self,
-        project_path: Path,
-        include_patterns: List[str],
-        extensions: List[str]
-    ) -> Set[str]:
+    def _find_matching_files(self, project_path: Path, include_patterns: List[str], extensions: List[str]) -> Set[str]:
         """Find all files matching include patterns and extensions.
 
         Args:
@@ -124,11 +98,7 @@ class ComplexityFileFinder:
 
         return all_files
 
-    def _filter_excluded_files(
-        self,
-        all_files: Set[str],
-        exclude_patterns: List[str]
-    ) -> List[str]:
+    def _filter_excluded_files(self, all_files: Set[str], exclude_patterns: List[str]) -> List[str]:
         """Filter out files matching exclusion patterns.
 
         Args:

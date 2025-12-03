@@ -16,8 +16,8 @@ from typing import List, Optional, Tuple
 # Python Templates
 # =============================================================================
 
-PYTHON_CLASS_TEMPLATE: str = '''{decorators}class {name}{bases}:
-{docstring}{class_vars}{methods}'''
+PYTHON_CLASS_TEMPLATE: str = """{decorators}class {name}{bases}:
+{docstring}{class_vars}{methods}"""
 
 
 def format_python_class(
@@ -55,8 +55,7 @@ def format_python_class(
 
     # Ensure methods are properly indented (4 spaces)
     if methods and not methods.startswith("    "):
-        methods = "\n".join(f"    {line}" if line.strip() else line
-                          for line in methods.split("\n"))
+        methods = "\n".join(f"    {line}" if line.strip() else line for line in methods.split("\n"))
 
     return PYTHON_CLASS_TEMPLATE.format(
         decorators=decorator_str,
@@ -90,18 +89,11 @@ def _try_google_java_format(code: str) -> Optional[str]:
         return None
 
     try:
-        with tempfile.NamedTemporaryFile(
-            mode='w', suffix='.java', delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".java", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
-        result = subprocess.run(
-            ["google-java-format", temp_path],
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
+        result = subprocess.run(["google-java-format", temp_path], capture_output=True, text=True, timeout=30)
 
         # Clean up temp file
         try:
@@ -134,24 +126,24 @@ def _process_java_imports(lines: list[str]) -> tuple[list[str], list[str]]:
     # Separate imports from other code
     for line in lines:
         stripped = line.strip()
-        if stripped.startswith('import '):
+        if stripped.startswith("import "):
             import_lines.append(stripped)
             in_imports = True
-        elif stripped.startswith('package '):
+        elif stripped.startswith("package "):
             non_import_lines.append(stripped)
         elif stripped:
             if in_imports and import_lines:
                 in_imports = False
             non_import_lines.append(stripped)
         elif not in_imports:
-            non_import_lines.append('')
+            non_import_lines.append("")
 
     # Sort imports: java.* first, then javax.*, then others
     def import_sort_key(imp: str) -> tuple[int, str]:
-        name = imp.replace('import ', '').replace('static ', '').strip().rstrip(';')
-        if name.startswith('java.'):
+        name = imp.replace("import ", "").replace("static ", "").strip().rstrip(";")
+        if name.startswith("java."):
             return (0, name)
-        elif name.startswith('javax.'):
+        elif name.startswith("javax."):
             return (1, name)
         else:
             return (2, name)
@@ -161,10 +153,7 @@ def _process_java_imports(lines: list[str]) -> tuple[list[str], list[str]]:
     return import_lines, non_import_lines
 
 
-def _merge_package_imports_code(
-    import_lines: list[str],
-    non_import_lines: list[str]
-) -> list[str]:
+def _merge_package_imports_code(import_lines: list[str], non_import_lines: list[str]) -> list[str]:
     """Merge package declaration, imports, and code with proper spacing.
 
     Args:
@@ -178,18 +167,18 @@ def _merge_package_imports_code(
     found_package = False
 
     for line in non_import_lines:
-        if line.startswith('package '):
+        if line.startswith("package "):
             all_lines.append(line)
             found_package = True
             if import_lines:
-                all_lines.append('')  # Blank line after package
+                all_lines.append("")  # Blank line after package
                 all_lines.extend(import_lines)
-                all_lines.append('')  # Blank line after imports
+                all_lines.append("")  # Blank line after imports
         else:
             all_lines.append(line)
 
     if not found_package and import_lines:
-        all_lines = import_lines + [''] + all_lines
+        all_lines = import_lines + [""] + all_lines
 
     return all_lines
 
@@ -209,31 +198,31 @@ def _apply_java_indentation(lines: list[str]) -> str:
     for line in lines:
         stripped = line.strip()
         if not stripped:
-            formatted_lines.append('')
+            formatted_lines.append("")
             continue
 
         # Decrease indent for closing braces
-        if stripped.startswith('}') or stripped.startswith(')'):
+        if stripped.startswith("}") or stripped.startswith(")"):
             indent_level = max(0, indent_level - 1)
 
         # Handle lines that both close and open (e.g., "} else {")
         temp_indent = indent_level
-        if stripped.startswith('}') and '{' in stripped:
+        if stripped.startswith("}") and "{" in stripped:
             temp_indent = max(0, indent_level)
 
         # Apply indentation (4 spaces)
-        formatted_line = '    ' * temp_indent + stripped
+        formatted_line = "    " * temp_indent + stripped
 
         # Ensure space before opening brace
-        formatted_line = re.sub(r'(\S)\{', r'\1 {', formatted_line)
+        formatted_line = re.sub(r"(\S)\{", r"\1 {", formatted_line)
 
         formatted_lines.append(formatted_line)
 
         # Increase indent for opening braces
-        open_braces = stripped.count('{') - stripped.count('}')
+        open_braces = stripped.count("{") - stripped.count("}")
         indent_level = max(0, indent_level + open_braces)
 
-    return '\n'.join(formatted_lines)
+    return "\n".join(formatted_lines)
 
 
 def format_java_code(code: str) -> str:
@@ -258,7 +247,7 @@ def format_java_code(code: str) -> str:
         return formatted
 
     # Fall back to basic formatting
-    lines = code.split('\n')
+    lines = code.split("\n")
     import_lines, non_import_lines = _process_java_imports(lines)
     all_lines = _merge_package_imports_code(import_lines, non_import_lines)
     return _apply_java_indentation(all_lines)
@@ -459,8 +448,7 @@ def _indent_function_body(body: str) -> str:
     Returns:
         Indented body string
     """
-    return "\n".join(f"  {line}" if line.strip() else line
-                     for line in body.split("\n"))
+    return "\n".join(f"  {line}" if line.strip() else line for line in body.split("\n"))
 
 
 def format_typescript_function(
@@ -472,7 +460,7 @@ def format_typescript_function(
     is_async: bool = False,
     type_params: Optional[List[str]] = None,
     jsdoc: Optional[str] = None,
-    use_arrow: bool = False
+    use_arrow: bool = False,
 ) -> str:
     """Generate a TypeScript function from template.
 
@@ -512,7 +500,7 @@ def format_typescript_function(
         "type_params": type_params_str,
         "params": params_str,
         "return_type": return_type_str,
-        "body": indented_body
+        "body": indented_body,
     }
 
     # Arrow functions need the async keyword differently
@@ -575,7 +563,7 @@ def format_javascript_function(
     export: bool = False,
     is_async: bool = False,
     jsdoc: Optional[str] = None,
-    use_arrow: bool = False
+    use_arrow: bool = False,
 ) -> str:
     """Generate a JavaScript function from template.
 
@@ -604,13 +592,7 @@ def format_javascript_function(
     template = _select_javascript_template(use_arrow, is_async)
 
     # Format with appropriate template
-    format_args = {
-        "jsdoc": jsdoc_str,
-        "export": export_str,
-        "name": name,
-        "params": params_str,
-        "body": indented_body
-    }
+    format_args = {"jsdoc": jsdoc_str, "export": export_str, "name": name, "params": params_str, "body": indented_body}
 
     # Arrow functions need the async keyword differently
     if use_arrow:

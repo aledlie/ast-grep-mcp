@@ -1,4 +1,5 @@
 """Data models for Schema.org entity graph enhancement features."""
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -13,6 +14,7 @@ class EnhancementPriority(Enum):
         MEDIUM: Improves discoverability
         LOW: Nice to have
     """
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -28,6 +30,7 @@ class EnhancementCategory(Enum):
         INVALID_ID: Entity has an invalid or missing @id
         BROKEN_REFERENCE: Entity references a non-existent @id
     """
+
     MISSING_PROPERTY = "missing_property"
     MISSING_ENTITY = "missing_entity"
     INVALID_ID = "invalid_id"
@@ -46,6 +49,7 @@ class PropertyEnhancement:
         example_value: Example value showing proper structure
         google_rich_result: Name of Google Rich Result this enables (if any)
     """
+
     property_name: str
     expected_types: List[str]
     priority: EnhancementPriority
@@ -66,6 +70,7 @@ class EntityEnhancement:
         validation_issues: List of validation issues found (e.g., broken references)
         seo_score: SEO completeness score from 0.0 to 100.0
     """
+
     entity_id: str
     entity_type: str
     existing_properties: List[str]
@@ -85,6 +90,7 @@ class MissingEntitySuggestion:
         example: Example structure for the entity with placeholder values
         google_rich_result: Name of Google Rich Result this enables (if any)
     """
+
     entity_type: str
     priority: EnhancementPriority
     reason: str
@@ -107,6 +113,7 @@ class GraphEnhancementResult:
         diff: Additions needed to enhance the graph (if output_mode="diff")
         execution_time_ms: Time taken to perform analysis in milliseconds
     """
+
     original_graph: List[Dict[str, Any]]
     entity_enhancements: List[EntityEnhancement]
     missing_entities: List[MissingEntitySuggestion]

@@ -8,13 +8,12 @@ This module provides reusable fixtures for all unit test modules, including:
 - State management fixtures (reset_cache, reset_schema_client)
 - Mock object factories (mock_popen_factory, mock_httpx_client)
 """
-from ast_grep_mcp.utils.console_logger import console
 
-import os
 from typing import Any, Dict, List
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+
 
 # Mock FastMCP before importing main
 class MockFastMCP:

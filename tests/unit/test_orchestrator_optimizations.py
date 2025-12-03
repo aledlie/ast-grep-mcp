@@ -10,13 +10,11 @@ Tests focus on low-effort optimizations:
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, call
+from unittest.mock import Mock
 
 import pytest
 
-from ast_grep_mcp.features.deduplication.analysis_orchestrator import (
-    DeduplicationAnalysisOrchestrator
-)
+from ast_grep_mcp.features.deduplication.analysis_orchestrator import DeduplicationAnalysisOrchestrator
 
 
 class TestComponentInstanceCaching:
@@ -86,7 +84,6 @@ class TestComponentInstanceCaching:
 
     def test_property_setters_for_dependency_injection(self):
         """Test that properties can be set for testing/mocking."""
-        from unittest.mock import Mock
 
         orchestrator = DeduplicationAnalysisOrchestrator()
 
@@ -223,7 +220,6 @@ class TestInputValidation:
 
     def test_valid_inputs_pass_validation(self, temp_project_dir, monkeypatch):
         """Test that valid inputs pass validation (but fail later due to no files)."""
-        from unittest.mock import Mock
 
         orchestrator = DeduplicationAnalysisOrchestrator()
 
@@ -278,7 +274,6 @@ class TestNamingConsistency:
 
     def test_result_structure_has_clear_naming(self, temp_project_dir):
         """Test that result structure uses clear, unambiguous names."""
-        from unittest.mock import Mock
 
         orchestrator = DeduplicationAnalysisOrchestrator()
 
@@ -309,7 +304,6 @@ class TestNamingConsistency:
 
     def test_top_candidates_count_reflects_actual_count(self, temp_project_dir):
         """Test that top_candidates_count matches the actual returned count."""
-        from unittest.mock import Mock
 
         orchestrator = DeduplicationAnalysisOrchestrator()
 
@@ -337,7 +331,6 @@ class TestNamingConsistency:
 
     def test_savings_calculated_from_top_candidates_only(self, temp_project_dir):
         """Test that savings are calculated from top candidates, not all."""
-        from unittest.mock import Mock
 
         orchestrator = DeduplicationAnalysisOrchestrator()
 
@@ -365,7 +358,6 @@ class TestNamingConsistency:
 
     def test_logging_uses_consistent_naming(self, temp_project_dir, capsys):
         """Test that logging also uses the new consistent naming."""
-        from unittest.mock import Mock
 
         orchestrator = DeduplicationAnalysisOrchestrator()
 
@@ -830,6 +822,7 @@ class TestParallelEnrichUtility:
     def test_parallel_enrich_timeout_uses_default(self):
         """Test that default timeout is used when not specified."""
         import time
+
         from ast_grep_mcp.constants import ParallelProcessing
 
         orchestrator = DeduplicationAnalysisOrchestrator()

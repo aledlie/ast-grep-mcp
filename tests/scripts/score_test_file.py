@@ -13,15 +13,14 @@ Usage:
     python tests/scripts/score_test_file.py --all
     python tests/scripts/score_test_file.py --all --json > scores.json
 """
-from ast_grep_mcp.utils.console_logger import console
-
 import argparse
 import ast
-import json
 import re
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List
+
+from ast_grep_mcp.utils.console_logger import console
 
 
 @dataclass
@@ -522,7 +521,7 @@ def main():
 
             if args.detailed:
                 m = score.metrics
-                console.log(f"\nDetailed Metrics:")
+                console.log("\nDetailed Metrics:")
                 console.log(f"  Total lines: {m.total_lines}")
                 console.log(f"  Test count: {m.test_count}")
                 console.log(f"  Class count: {m.class_count}")

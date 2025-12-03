@@ -3,9 +3,9 @@
 This module handles pre-validation of refactoring plans before
 they are applied to ensure code quality and prevent syntax errors.
 """
-import os
+
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 from ...core.logging import get_logger
 from ...utils.syntax_validation import suggest_syntax_fix, validate_code_for_language
@@ -26,10 +26,7 @@ class ValidationResult:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format."""
-        return {
-            "passed": self.is_valid,
-            "errors": self.errors
-        }
+        return {"passed": self.is_valid, "errors": self.errors}
 
 
 class RefactoringPlanValidator:
@@ -39,12 +36,7 @@ class RefactoringPlanValidator:
         """Initialize the validator."""
         self.logger = get_logger("deduplication.validator")
 
-    def validate_plan(
-        self,
-        refactoring_plan: Dict[str, Any],
-        group_id: int,
-        project_folder: str
-    ) -> ValidationResult:
+    def validate_plan(self, refactoring_plan: Dict[str, Any], group_id: int, project_folder: str) -> ValidationResult:
         """Validate refactoring plan completeness and correctness.
 
         Args:
@@ -65,11 +57,7 @@ class RefactoringPlanValidator:
         errors.extend(self._validate_code_syntax(refactoring_plan))
 
         is_valid = len(errors) == 0
-        self.logger.info(
-            "validate_plan_complete",
-            is_valid=is_valid,
-            error_count=len(errors)
-        )
+        self.logger.info("validate_plan_complete", is_valid=is_valid, error_count=len(errors))
 
         return ValidationResult(is_valid=is_valid, errors=errors)
 
@@ -83,24 +71,22 @@ class RefactoringPlanValidator:
             List of error dictionaries
         """
         errors = []
-        required_fields = ['generated_code', 'files_affected', 'language']
+        required_fields = ["generated_code", "files_affected", "language"]
 
         for field in required_fields:
             if field not in plan:
-                errors.append({
-                    "type": "missing_field",
-                    "field": field,
-                    "error": f"Missing required field: {field}",
-                    "suggestion": f"Add '{field}' to the refactoring plan"
-                })
+                errors.append(
+                    {
+                        "type": "missing_field",
+                        "field": field,
+                        "error": f"Missing required field: {field}",
+                        "suggestion": f"Add '{field}' to the refactoring plan",
+                    }
+                )
 
         return errors
 
-    def _validate_files_exist(
-        self,
-        plan: Dict[str, Any],
-        project_folder: str
-    ) -> List[Dict[str, Any]]:
+    def _validate_files_exist(self, plan: Dict[str, Any], project_folder: str) -> List[Dict[str, Any]]:
         """Verify all affected files exist.
 
         Args:
@@ -111,7 +97,7 @@ class RefactoringPlanValidator:
             List of error dictionaries
         """
         errors = []
-        files_affected = plan.get('files_affected', [])
+        files_affected = plan.get("files_affected", [])
 
         for file_info in files_affected:
             file_path = file_info if isinstance(file_info, str) else file_info.get("file", "")
@@ -126,19 +112,23 @@ class RefactoringPlanValidator:
                 full_path = Path(project_folder) / file_path
 
             if not full_path.exists():
-                errors.append({
-                    "type": "file_not_found",
-                    "file": str(file_path),
-                    "error": f"File not found: {file_path}",
-                    "suggestion": "Verify the file path is correct"
-                })
+                errors.append(
+                    {
+                        "type": "file_not_found",
+                        "file": str(file_path),
+                        "error": f"File not found: {file_path}",
+                        "suggestion": "Verify the file path is correct",
+                    }
+                )
             elif not full_path.is_file():
-                errors.append({
-                    "type": "not_a_file",
-                    "file": str(file_path),
-                    "error": f"Path is not a file: {file_path}",
-                    "suggestion": "Ensure the path points to a file, not a directory"
-                })
+                errors.append(
+                    {
+                        "type": "not_a_file",
+                        "file": str(file_path),
+                        "error": f"Path is not a file: {file_path}",
+                        "suggestion": "Ensure the path points to a file, not a directory",
+                    }
+                )
 
         return errors
 
@@ -152,41 +142,38 @@ class RefactoringPlanValidator:
             List of error dictionaries
         """
         errors = []
-        language = plan.get('language', 'python')
-        generated_code = plan.get('generated_code', {})
+        language = plan.get("language", "python")
+        generated_code = plan.get("generated_code", {})
 
         # Validate extracted function
-        extracted_function = generated_code.get('extracted_function', '')
+        extracted_function = generated_code.get("extracted_function", "")
         if extracted_function:
-            is_valid, error_msg = validate_code_for_language(
-                extracted_function,
-                language
-            )
+            is_valid, error_msg = validate_code_for_language(extracted_function, language)
             if not is_valid:
-                errors.append({
-                    "type": "extracted_function",
-                    "file": "extracted function",
-                    "error": error_msg,
-                    "code_preview": extracted_function[:200],
-                    "suggestion": suggest_syntax_fix(error_msg, language, context="code")
-                })
+                errors.append(
+                    {
+                        "type": "extracted_function",
+                        "file": "extracted function",
+                        "error": error_msg,
+                        "code_preview": extracted_function[:200],
+                        "suggestion": suggest_syntax_fix(error_msg, language, context="code"),
+                    }
+                )
 
         # Validate replacements
-        replacements = generated_code.get('replacements', {})
+        replacements = generated_code.get("replacements", {})
         for file_path, replacement in replacements.items():
-            new_content = replacement.get('new_content', '')
+            new_content = replacement.get("new_content", "")
             if new_content:
-                is_valid, error_msg = validate_code_for_language(
-                    new_content,
-                    language
-                )
+                is_valid, error_msg = validate_code_for_language(new_content, language)
                 if not is_valid:
-                    errors.append({
-                        "type": "replacement_code",
-                        "file": file_path,
-                        "error": error_msg,
-                        "suggestion": suggest_syntax_fix(error_msg, language, context="code")
-                    })
+                    errors.append(
+                        {
+                            "type": "replacement_code",
+                            "file": file_path,
+                            "error": error_msg,
+                            "suggestion": suggest_syntax_fix(error_msg, language, context="code"),
+                        }
+                    )
 
         return errors
-

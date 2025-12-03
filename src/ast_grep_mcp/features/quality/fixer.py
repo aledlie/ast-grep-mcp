@@ -7,15 +7,13 @@ This module provides functionality to automatically fix code quality violations:
 - Multi-fix coordination (batch operations with rollback)
 """
 
-import re
 import time
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import sentry_sdk
 
 from ast_grep_mcp.core.logging import get_logger
-from ast_grep_mcp.features.rewrite.backup import create_backup, restore_backup
+from ast_grep_mcp.features.rewrite.backup import create_backup
 from ast_grep_mcp.features.rewrite.service import validate_syntax
 from ast_grep_mcp.models.standards import (
     FixBatchResult,
@@ -38,12 +36,10 @@ SAFE_FIX_PATTERNS: Dict[str, Dict[str, Any]] = {
     "no-debugger": {"confidence": 1.0, "reason": "debugger removal is always safe"},
     "prefer-const": {"confidence": 1.0, "reason": "let → const is safe when variable not reassigned"},
     "no-double-equals": {"confidence": 0.9, "reason": "== → === is usually safe"},
-
     # Python
     "no-print-production": {"confidence": 0.9, "reason": "print() removal is usually safe"},
     "no-bare-except": {"confidence": 0.85, "reason": "except: → except Exception: is usually safe"},
     "no-mutable-defaults": {"confidence": 0.95, "reason": "Mutable default fix is usually safe"},
-
     # Java
     "no-system-out": {"confidence": 0.9, "reason": "System.out removal is usually safe"},
 }
@@ -70,13 +66,7 @@ def classify_fix_safety(rule_id: str, violation: RuleViolation) -> FixValidation
     # Check if this is a known safe pattern
     if rule_id in SAFE_FIX_PATTERNS:
         pattern_info = SAFE_FIX_PATTERNS[rule_id]
-        return FixValidation(
-            is_safe=True,
-            confidence=float(pattern_info["confidence"]),
-            warnings=[],
-            errors=[],
-            requires_review=False
-        )
+        return FixValidation(is_safe=True, confidence=float(pattern_info["confidence"]), warnings=[], errors=[], requires_review=False)
 
     # Check if this requires review
     if rule_id in REVIEW_REQUIRED_PATTERNS:
@@ -86,16 +76,12 @@ def classify_fix_safety(rule_id: str, violation: RuleViolation) -> FixValidation
             confidence=float(pattern_info["confidence"]),
             warnings=[str(pattern_info["reason"])],
             errors=[],
-            requires_review=True
+            requires_review=True,
         )
 
     # Unknown pattern - conservative approach
     return FixValidation(
-        is_safe=False,
-        confidence=0.5,
-        warnings=["Unknown fix pattern - manual review recommended"],
-        errors=[],
-        requires_review=True
+        is_safe=False, confidence=0.5, warnings=["Unknown fix pattern - manual review recommended"], errors=[], requires_review=True
     )
 
 
@@ -103,12 +89,8 @@ def classify_fix_safety(rule_id: str, violation: RuleViolation) -> FixValidation
 # Fix Application - Apply Fixes to Files
 # =============================================================================
 
-def apply_pattern_fix(
-    file_path: str,
-    violation: RuleViolation,
-    fix_pattern: str,
-    language: str
-) -> FixResult:
+
+def apply_pattern_fix(file_path: str, violation: RuleViolation, fix_pattern: str, language: str) -> FixResult:
     """Apply a pattern-based fix to a single violation.
 
     Args:
@@ -122,7 +104,7 @@ def apply_pattern_fix(
     """
     try:
         # Read the file
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         lines = content.splitlines(keepends=True)
@@ -137,7 +119,7 @@ def apply_pattern_fix(
                 success=False,
                 file_modified=False,
                 original_code=violation.code_snippet,
-                error="Line numbers out of range"
+                error="Line numbers out of range",
             )
 
         original_code = violation.code_snippet
@@ -153,7 +135,7 @@ def apply_pattern_fix(
                 file_modified=False,
                 original_code=original_code,
                 fixed_code=fixed_code,
-                fix_type='pattern'
+                fix_type="pattern",
             )
 
         # Replace in file
@@ -163,20 +145,20 @@ def apply_pattern_fix(
             lines[start_line] = line.replace(original_code, fixed_code)
         else:
             # Multi-line fix
-            lines[start_line:end_line + 1] = [fixed_code + '\n']
+            lines[start_line : end_line + 1] = [fixed_code + "\n"]
 
         # Write back
-        new_content = ''.join(lines)
-        with open(file_path, 'w', encoding='utf-8') as f:
+        new_content = "".join(lines)
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(new_content)
 
         # Validate syntax
         validation = validate_syntax(file_path, language)
-        syntax_valid = validation['valid']
+        syntax_valid = validation["valid"]
 
         if not syntax_valid:
             # Rollback the change
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
             return FixResult(
@@ -187,7 +169,7 @@ def apply_pattern_fix(
                 fixed_code=fixed_code,
                 syntax_valid=False,
                 error=f"Syntax validation failed: {validation['error']}",
-                fix_type='pattern'
+                fix_type="pattern",
             )
 
         return FixResult(
@@ -197,7 +179,7 @@ def apply_pattern_fix(
             original_code=original_code,
             fixed_code=fixed_code,
             syntax_valid=True,
-            fix_type='pattern'
+            fix_type="pattern",
         )
 
     except Exception as e:
@@ -208,15 +190,11 @@ def apply_pattern_fix(
             file_modified=False,
             original_code=violation.code_snippet,
             error=f"Fix application error: {str(e)}",
-            fix_type='pattern'
+            fix_type="pattern",
         )
 
 
-def _apply_fix_pattern(
-    code: str,
-    fix_pattern: str,
-    meta_vars: Dict[str, str]
-) -> str:
+def _apply_fix_pattern(code: str, fix_pattern: str, meta_vars: Dict[str, str]) -> str:
     """Apply a fix pattern with metavariable substitution.
 
     Args:
@@ -236,11 +214,7 @@ def _apply_fix_pattern(
     return fixed
 
 
-def apply_removal_fix(
-    file_path: str,
-    violation: RuleViolation,
-    language: str
-) -> FixResult:
+def apply_removal_fix(file_path: str, violation: RuleViolation, language: str) -> FixResult:
     """Apply a removal fix (delete the violating code).
 
     Args:
@@ -253,7 +227,7 @@ def apply_removal_fix(
     """
     try:
         # Read the file
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         lines = content.splitlines(keepends=True)
@@ -268,26 +242,26 @@ def apply_removal_fix(
                 success=False,
                 file_modified=False,
                 original_code=violation.code_snippet,
-                error="Line numbers out of range"
+                error="Line numbers out of range",
             )
 
         original_code = violation.code_snippet
 
         # Remove the lines
-        del lines[start_line:end_line + 1]
+        del lines[start_line : end_line + 1]
 
         # Write back
-        new_content = ''.join(lines)
-        with open(file_path, 'w', encoding='utf-8') as f:
+        new_content = "".join(lines)
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(new_content)
 
         # Validate syntax
         validation = validate_syntax(file_path, language)
-        syntax_valid = validation['valid']
+        syntax_valid = validation["valid"]
 
         if not syntax_valid:
             # Rollback the change
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
             return FixResult(
@@ -298,7 +272,7 @@ def apply_removal_fix(
                 fixed_code="",
                 syntax_valid=False,
                 error=f"Syntax validation failed: {validation['error']}",
-                fix_type='removal'
+                fix_type="removal",
             )
 
         return FixResult(
@@ -308,7 +282,7 @@ def apply_removal_fix(
             original_code=original_code,
             fixed_code="",
             syntax_valid=True,
-            fix_type='removal'
+            fix_type="removal",
         )
 
     except Exception as e:
@@ -319,7 +293,7 @@ def apply_removal_fix(
             file_modified=False,
             original_code=violation.code_snippet,
             error=f"Removal error: {str(e)}",
-            fix_type='removal'
+            fix_type="removal",
         )
 
 
@@ -327,13 +301,14 @@ def apply_removal_fix(
 # Batch Fix Coordinator - Apply Multiple Fixes
 # =============================================================================
 
+
 def apply_fixes_batch(
     violations: List[RuleViolation],
     language: str,
     project_folder: str,
     fix_types: List[str] = ["safe"],
     dry_run: bool = True,
-    create_backup_flag: bool = True
+    create_backup_flag: bool = True,
 ) -> FixBatchResult:
     """Apply fixes to multiple violations in a coordinated manner.
 
@@ -358,40 +333,24 @@ def apply_fixes_batch(
         return result
 
     # Real run - apply fixes
-    backup_id = _create_backup_if_needed(
-        fixable_violations,
-        project_folder,
-        create_backup_flag
-    )
+    backup_id = _create_backup_if_needed(fixable_violations, project_folder, create_backup_flag)
 
     # Group violations by file
     violations_by_file = _group_violations_by_file(fixable_violations)
 
     # Apply fixes and collect results
-    fix_results, files_modified, fixes_successful, fixes_failed, validation_passed = (
-        _execute_real_run(violations_by_file, language)
-    )
+    fix_results, files_modified, fixes_successful, fixes_failed, validation_passed = _execute_real_run(violations_by_file, language)
 
     # If any fixes failed and we have a backup, offer rollback
     if fixes_failed > 0 and backup_id:
         logger.warning(f"{fixes_failed} fixes failed. Backup {backup_id} available for rollback")
 
     return _build_batch_result(
-        fixable_violations,
-        fix_results,
-        files_modified,
-        fixes_successful,
-        fixes_failed,
-        validation_passed,
-        backup_id,
-        start_time
+        fixable_violations, fix_results, files_modified, fixes_successful, fixes_failed, validation_passed, backup_id, start_time
     )
 
 
-def _execute_dry_run(
-    fixable_violations: List[RuleViolation],
-    start_time: float
-) -> FixBatchResult:
+def _execute_dry_run(fixable_violations: List[RuleViolation], start_time: float) -> FixBatchResult:
     """Execute a dry run preview of fixes without applying them.
 
     Args:
@@ -406,15 +365,17 @@ def _execute_dry_run(
         validation = classify_fix_safety(violation.rule_id, violation)
 
         # Create a preview fix result
-        results.append(FixResult(
-            violation=violation,
-            success=validation.is_safe,
-            file_modified=False,
-            original_code=violation.code_snippet,
-            fixed_code=violation.fix_suggestion or "(fix pattern not specified)",
-            syntax_valid=True,
-            fix_type='safe' if validation.is_safe else 'suggested'
-        ))
+        results.append(
+            FixResult(
+                violation=violation,
+                success=validation.is_safe,
+                file_modified=False,
+                original_code=violation.code_snippet,
+                fixed_code=violation.fix_suggestion or "(fix pattern not specified)",
+                syntax_valid=True,
+                fix_type="safe" if validation.is_safe else "suggested",
+            )
+        )
 
     execution_time = int((time.time() - start_time) * 1000)
 
@@ -426,15 +387,11 @@ def _execute_dry_run(
         files_modified=[],
         validation_passed=True,
         results=results,
-        execution_time_ms=execution_time
+        execution_time_ms=execution_time,
     )
 
 
-def _create_backup_if_needed(
-    fixable_violations: List[RuleViolation],
-    project_folder: str,
-    create_backup_flag: bool
-) -> Optional[str]:
+def _create_backup_if_needed(fixable_violations: List[RuleViolation], project_folder: str, create_backup_flag: bool) -> Optional[str]:
     """Create backup of files if requested.
 
     Args:
@@ -459,9 +416,7 @@ def _create_backup_if_needed(
     return backup_id
 
 
-def _group_violations_by_file(
-    fixable_violations: List[RuleViolation]
-) -> Dict[str, List[RuleViolation]]:
+def _group_violations_by_file(fixable_violations: List[RuleViolation]) -> Dict[str, List[RuleViolation]]:
     """Group violations by file path.
 
     Args:
@@ -479,8 +434,7 @@ def _group_violations_by_file(
 
 
 def _execute_real_run(
-    violations_by_file: Dict[str, List[RuleViolation]],
-    language: str
+    violations_by_file: Dict[str, List[RuleViolation]], language: str
 ) -> Tuple[List[FixResult], Set[str], int, int, bool]:
     """Execute actual fix application.
 
@@ -507,22 +461,13 @@ def _execute_real_run(
 
             # Update counters based on result
             fixes_successful, fixes_failed, validation_passed = _process_fix_result(
-                result,
-                file_path,
-                fixes_successful,
-                fixes_failed,
-                validation_passed,
-                files_modified
+                result, file_path, fixes_successful, fixes_failed, validation_passed, files_modified
             )
 
     return fix_results, files_modified, fixes_successful, fixes_failed, validation_passed
 
 
-def _apply_single_fix(
-    file_path: str,
-    violation: RuleViolation,
-    language: str
-) -> FixResult:
+def _apply_single_fix(file_path: str, violation: RuleViolation, language: str) -> FixResult:
     """Apply a single fix to a violation.
 
     Args:
@@ -543,12 +488,7 @@ def _apply_single_fix(
 
 
 def _process_fix_result(
-    result: FixResult,
-    file_path: str,
-    fixes_successful: int,
-    fixes_failed: int,
-    validation_passed: bool,
-    files_modified: Set[str]
+    result: FixResult, file_path: str, fixes_successful: int, fixes_failed: int, validation_passed: bool, files_modified: Set[str]
 ) -> Tuple[int, int, bool]:
     """Process a single fix result and update counters.
 
@@ -584,7 +524,7 @@ def _build_batch_result(
     fixes_failed: int,
     validation_passed: bool,
     backup_id: Optional[str],
-    start_time: float
+    start_time: float,
 ) -> FixBatchResult:
     """Build the final batch result.
 
@@ -612,14 +552,11 @@ def _build_batch_result(
         backup_id=backup_id,
         validation_passed=validation_passed,
         results=fix_results,
-        execution_time_ms=execution_time
+        execution_time_ms=execution_time,
     )
 
 
-def _filter_violations_by_fix_type(
-    violations: List[RuleViolation],
-    fix_types: List[str]
-) -> List[RuleViolation]:
+def _filter_violations_by_fix_type(violations: List[RuleViolation], fix_types: List[str]) -> List[RuleViolation]:
     """Filter violations based on fix type preference.
 
     Args:
@@ -648,6 +585,7 @@ def _filter_violations_by_fix_type(
 # Fix Preview - Generate Diff Without Applying
 # =============================================================================
 
+
 def preview_fix(violation: RuleViolation) -> Dict[str, Any]:
     """Preview a fix without applying it.
 
@@ -665,7 +603,7 @@ def preview_fix(violation: RuleViolation) -> Dict[str, Any]:
             "line": violation.line,
             "rule_id": violation.rule_id,
             "message": violation.message,
-            "code": violation.code_snippet
+            "code": violation.code_snippet,
         },
         "fix": {
             "original": violation.code_snippet,
@@ -673,6 +611,6 @@ def preview_fix(violation: RuleViolation) -> Dict[str, Any]:
             "is_safe": validation.is_safe,
             "confidence": validation.confidence,
             "requires_review": validation.requires_review,
-            "warnings": validation.warnings
-        }
+            "warnings": validation.warnings,
+        },
     }

@@ -11,8 +11,6 @@ Expected Results:
 - Batch sequential: 40-50% faster than legacy sequential
 - Batch parallel: 60-80% faster than legacy sequential
 """
-from ast_grep_mcp.utils.console_logger import console
-
 import argparse
 import json
 import sys
@@ -20,14 +18,14 @@ import time
 from pathlib import Path
 from typing import Dict, List
 
+from ast_grep_mcp.utils.console_logger import console
+
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+from ast_grep_mcp.features.deduplication.analysis_orchestrator import DeduplicationAnalysisOrchestrator
 from ast_grep_mcp.features.deduplication.coverage import CoverageDetector
-from ast_grep_mcp.features.deduplication.analysis_orchestrator import (
-    DeduplicationAnalysisOrchestrator
-)
 
 
 def create_test_candidates(file_count: int, files_per_candidate: int) -> List[Dict]:
@@ -342,7 +340,7 @@ def main():
         speedup = results["speedups"]["batch_parallel"]["speedup"]
         improvement = results["speedups"]["batch_parallel"]["improvement_percent"]
 
-        console.log(f"Expected: 60-80% improvement")
+        console.log("Expected: 60-80% improvement")
         console.log(f"Actual:   {improvement:.1f}% improvement ({speedup:.2f}x speedup)")
 
         if improvement >= 60:

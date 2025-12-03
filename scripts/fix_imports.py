@@ -2,8 +2,6 @@
 """Fix misplaced console imports."""
 
 from pathlib import Path
-import re
-from ast_grep_mcp.utils.console_logger import console
 
 
 def fix_file(file_path: Path) -> bool:

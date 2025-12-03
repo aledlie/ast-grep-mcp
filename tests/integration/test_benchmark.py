@@ -17,8 +17,6 @@ Usage:
     # Update baseline
     pytest tests/test_benchmark.py -v --benchmark-save=baseline
 """
-from ast_grep_mcp.utils.console_logger import console
-
 import json
 import os
 import statistics
@@ -29,6 +27,8 @@ from typing import Any, Callable, Dict, List, Tuple
 from unittest.mock import patch
 
 import pytest
+
+from ast_grep_mcp.utils.console_logger import console
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -68,8 +68,8 @@ register_mcp_tools()
 
 # Ensure caching is enabled for benchmarks
 # Initialize the modular cache (used by the actual implementation)
-from ast_grep_mcp.core import config as core_config
 from ast_grep_mcp.core import cache as core_cache
+from ast_grep_mcp.core import config as core_config
 
 core_config.CACHE_ENABLED = True
 if core_cache._query_cache is None:
@@ -913,10 +913,9 @@ def run_deduplication_benchmarks(
     """
     from main import (
         calculate_deduplication_score,
-        rank_deduplication_candidates,
-        analyze_duplicate_variations,
+        create_enhanced_duplication_response,
         generate_deduplication_recommendation,
-        create_enhanced_duplication_response
+        rank_deduplication_candidates,
     )
 
     runner = DeduplicationBenchmarkRunner()

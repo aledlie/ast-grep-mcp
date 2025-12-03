@@ -184,9 +184,7 @@ def calculate_operation_cost(
 class UsageLogEntry(BaseModel):
     """A single usage log entry."""
 
-    id: str = Field(default_factory=lambda: hashlib.sha256(
-        f"{time.time()}-{os.getpid()}".encode()
-    ).hexdigest()[:16])
+    id: str = Field(default_factory=lambda: hashlib.sha256(f"{time.time()}-{os.getpid()}".encode()).hexdigest()[:16])
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     tool_name: str
     operation_type: OperationType = OperationType.UNKNOWN
@@ -475,44 +473,55 @@ class UsageDatabase:
         ).fetchone()[0]
 
         if daily_calls >= thresholds.daily_calls_critical:
-            alerts.append(UsageAlert(
-                level="critical",
-                message=f"Daily calls ({daily_calls}) exceeded critical threshold",
-                metric="daily_calls",
-                current_value=daily_calls,
-                threshold=thresholds.daily_calls_critical,
-            ))
+            alerts.append(
+                UsageAlert(
+                    level="critical",
+                    message=f"Daily calls ({daily_calls}) exceeded critical threshold",
+                    metric="daily_calls",
+                    current_value=daily_calls,
+                    threshold=thresholds.daily_calls_critical,
+                )
+            )
         elif daily_calls >= thresholds.daily_calls_warning:
-            alerts.append(UsageAlert(
-                level="warning",
-                message=f"Daily calls ({daily_calls}) exceeded warning threshold",
-                metric="daily_calls",
-                current_value=daily_calls,
-                threshold=thresholds.daily_calls_warning,
-            ))
+            alerts.append(
+                UsageAlert(
+                    level="warning",
+                    message=f"Daily calls ({daily_calls}) exceeded warning threshold",
+                    metric="daily_calls",
+                    current_value=daily_calls,
+                    threshold=thresholds.daily_calls_warning,
+                )
+            )
 
         # Check daily cost
-        daily_cost = conn.execute(
-            "SELECT SUM(estimated_cost) FROM usage_logs WHERE timestamp >= ?",
-            (today_start.isoformat(),),
-        ).fetchone()[0] or 0.0
+        daily_cost = (
+            conn.execute(
+                "SELECT SUM(estimated_cost) FROM usage_logs WHERE timestamp >= ?",
+                (today_start.isoformat(),),
+            ).fetchone()[0]
+            or 0.0
+        )
 
         if daily_cost >= thresholds.daily_cost_critical:
-            alerts.append(UsageAlert(
-                level="critical",
-                message=f"Daily cost ({daily_cost:.4f}) exceeded critical threshold",
-                metric="daily_cost",
-                current_value=daily_cost,
-                threshold=thresholds.daily_cost_critical,
-            ))
+            alerts.append(
+                UsageAlert(
+                    level="critical",
+                    message=f"Daily cost ({daily_cost:.4f}) exceeded critical threshold",
+                    metric="daily_cost",
+                    current_value=daily_cost,
+                    threshold=thresholds.daily_cost_critical,
+                )
+            )
         elif daily_cost >= thresholds.daily_cost_warning:
-            alerts.append(UsageAlert(
-                level="warning",
-                message=f"Daily cost ({daily_cost:.4f}) exceeded warning threshold",
-                metric="daily_cost",
-                current_value=daily_cost,
-                threshold=thresholds.daily_cost_warning,
-            ))
+            alerts.append(
+                UsageAlert(
+                    level="warning",
+                    message=f"Daily cost ({daily_cost:.4f}) exceeded warning threshold",
+                    metric="daily_cost",
+                    current_value=daily_cost,
+                    threshold=thresholds.daily_cost_warning,
+                )
+            )
 
         # Check hourly failures
         hourly_failures = conn.execute(
@@ -521,21 +530,25 @@ class UsageDatabase:
         ).fetchone()[0]
 
         if hourly_failures >= thresholds.hourly_failures_critical:
-            alerts.append(UsageAlert(
-                level="critical",
-                message=f"Hourly failures ({hourly_failures}) exceeded critical threshold",
-                metric="hourly_failures",
-                current_value=hourly_failures,
-                threshold=thresholds.hourly_failures_critical,
-            ))
+            alerts.append(
+                UsageAlert(
+                    level="critical",
+                    message=f"Hourly failures ({hourly_failures}) exceeded critical threshold",
+                    metric="hourly_failures",
+                    current_value=hourly_failures,
+                    threshold=thresholds.hourly_failures_critical,
+                )
+            )
         elif hourly_failures >= thresholds.hourly_failures_warning:
-            alerts.append(UsageAlert(
-                level="warning",
-                message=f"Hourly failures ({hourly_failures}) exceeded warning threshold",
-                metric="hourly_failures",
-                current_value=hourly_failures,
-                threshold=thresholds.hourly_failures_warning,
-            ))
+            alerts.append(
+                UsageAlert(
+                    level="warning",
+                    message=f"Hourly failures ({hourly_failures}) exceeded warning threshold",
+                    metric="hourly_failures",
+                    current_value=hourly_failures,
+                    threshold=thresholds.hourly_failures_warning,
+                )
+            )
 
         # Check failure rate (last hour)
         hourly_total = conn.execute(
@@ -546,21 +559,25 @@ class UsageDatabase:
         if hourly_total > 0:
             failure_rate = hourly_failures / hourly_total
             if failure_rate >= thresholds.failure_rate_critical:
-                alerts.append(UsageAlert(
-                    level="critical",
-                    message=f"Failure rate ({failure_rate:.1%}) exceeded critical threshold",
-                    metric="failure_rate",
-                    current_value=failure_rate,
-                    threshold=thresholds.failure_rate_critical,
-                ))
+                alerts.append(
+                    UsageAlert(
+                        level="critical",
+                        message=f"Failure rate ({failure_rate:.1%}) exceeded critical threshold",
+                        metric="failure_rate",
+                        current_value=failure_rate,
+                        threshold=thresholds.failure_rate_critical,
+                    )
+                )
             elif failure_rate >= thresholds.failure_rate_warning:
-                alerts.append(UsageAlert(
-                    level="warning",
-                    message=f"Failure rate ({failure_rate:.1%}) exceeded warning threshold",
-                    metric="failure_rate",
-                    current_value=failure_rate,
-                    threshold=thresholds.failure_rate_warning,
-                ))
+                alerts.append(
+                    UsageAlert(
+                        level="warning",
+                        message=f"Failure rate ({failure_rate:.1%}) exceeded warning threshold",
+                        metric="failure_rate",
+                        current_value=failure_rate,
+                        threshold=thresholds.failure_rate_warning,
+                    )
+                )
 
         return alerts
 
@@ -598,20 +615,22 @@ class UsageDatabase:
 
         entries = []
         for row in conn.execute(query, params):
-            entries.append(UsageLogEntry(
-                id=row["id"],
-                timestamp=datetime.fromisoformat(row["timestamp"]),
-                tool_name=row["tool_name"],
-                operation_type=OperationType(row["operation_type"]),
-                success=bool(row["success"]),
-                error_message=row["error_message"],
-                response_time_ms=row["response_time_ms"],
-                estimated_cost=row["estimated_cost"],
-                files_processed=row["files_processed"],
-                lines_analyzed=row["lines_analyzed"],
-                matches_found=row["matches_found"],
-                metadata=json.loads(row["metadata"]) if row["metadata"] else {},
-            ))
+            entries.append(
+                UsageLogEntry(
+                    id=row["id"],
+                    timestamp=datetime.fromisoformat(row["timestamp"]),
+                    tool_name=row["tool_name"],
+                    operation_type=OperationType(row["operation_type"]),
+                    success=bool(row["success"]),
+                    error_message=row["error_message"],
+                    response_time_ms=row["response_time_ms"],
+                    estimated_cost=row["estimated_cost"],
+                    files_processed=row["files_processed"],
+                    lines_analyzed=row["lines_analyzed"],
+                    matches_found=row["matches_found"],
+                    metadata=json.loads(row["metadata"]) if row["metadata"] else {},
+                )
+            )
 
         return entries
 
@@ -655,6 +674,7 @@ def track_usage(
     Returns:
         Decorated function with usage tracking
     """
+
     def decorator(func: F) -> F:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -717,6 +737,7 @@ def track_usage(
                     logger.error("usage_tracking_failed", error=str(log_error)[:200])
 
         return cast(F, wrapper)
+
     return decorator
 
 
@@ -880,20 +901,24 @@ def format_usage_report(stats: UsageStats) -> str:
     ]
 
     if stats.calls_by_tool:
-        lines.extend([
-            "CALLS BY TOOL",
-            "-" * 30,
-        ])
+        lines.extend(
+            [
+                "CALLS BY TOOL",
+                "-" * 30,
+            ]
+        )
         for tool, count in sorted(stats.calls_by_tool.items(), key=lambda x: -x[1]):
             cost = stats.cost_by_tool.get(tool, 0.0)
             lines.append(f"  {tool}: {count:,} calls ({cost:.6f} units)")
         lines.append("")
 
     if stats.calls_by_operation:
-        lines.extend([
-            "CALLS BY OPERATION",
-            "-" * 30,
-        ])
+        lines.extend(
+            [
+                "CALLS BY OPERATION",
+                "-" * 30,
+            ]
+        )
         for op, count in sorted(stats.calls_by_operation.items(), key=lambda x: -x[1]):
             lines.append(f"  {op}: {count:,}")
         lines.append("")

@@ -2,18 +2,15 @@
 
 import os
 import sys
-import pytest
 import tempfile
-from pathlib import Path
-from ast_grep_mcp.utils.console_logger import console
 
 # Add the parent directory to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from ast_grep_mcp.features.quality.smells_detectors import (
-    ParameterBloatDetector,
     LargeClassDetector,
     MagicNumberDetector,
+    ParameterBloatDetector,
 )
 
 

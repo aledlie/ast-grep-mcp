@@ -14,16 +14,15 @@ Usage:
     python tests/scripts/detect_fixture_patterns.py --detailed
     python tests/scripts/detect_fixture_patterns.py --json
 """
-from ast_grep_mcp.utils.console_logger import console
-
 import argparse
 import ast
-import json
 import re
 from collections import defaultdict
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, Dict, Set, Tuple
+from typing import List
+
+from ast_grep_mcp.utils.console_logger import console
 
 
 @dataclass
@@ -400,17 +399,17 @@ def format_pattern_report(patterns: List[DetectedPattern], detailed: bool = Fals
             lines.append(f"Fixture Value Score: {pattern.fixture_value_score}/10")
             lines.append(f"Complexity Score: {pattern.complexity_score}/10")
             lines.append(f"\nSuggested Fixture Name: {pattern.suggested_fixture_name}")
-            lines.append(f"\nSuggested Implementation:")
+            lines.append("\nSuggested Implementation:")
             lines.append("-" * 100)
             lines.append(pattern.suggested_implementation)
             lines.append("")
 
             if pattern.occurrences_list:
-                lines.append(f"\nExample Occurrences (showing first 5):")
+                lines.append("\nExample Occurrences (showing first 5):")
                 lines.append("-" * 100)
                 for occ in pattern.occurrences_list[:5]:
                     lines.append(f"\nFile: {occ.file}, Line: {occ.line_number}, Function: {occ.function_name}")
-                    lines.append(f"Code:")
+                    lines.append("Code:")
                     for line in occ.code_snippet.splitlines():
                         lines.append(f"  {line}")
 

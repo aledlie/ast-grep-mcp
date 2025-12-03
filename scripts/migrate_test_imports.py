@@ -4,12 +4,11 @@
 This script updates all test files to import from the proper modular structure
 instead of from main.py, enabling the removal of backward compatibility imports.
 """
-from ast_grep_mcp.utils.console_logger import console
-
-import os
 import re
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
+
+from ast_grep_mcp.utils.console_logger import console
 
 # Module mapping: function/class name -> modular import path
 MODULE_MAPPING: Dict[str, str] = {

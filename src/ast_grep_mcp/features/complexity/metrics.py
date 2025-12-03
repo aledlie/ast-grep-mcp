@@ -13,7 +13,7 @@ All metrics are calculated using ast-grep patterns and text-based analysis.
 import json
 import re
 import subprocess
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 # =============================================================================
 # COMPLEXITY PATTERNS
@@ -105,22 +105,19 @@ COMPLEXITY_PATTERNS: Dict[str, Dict[str, Any]] = {
 
 # Language-specific keyword and operator configurations
 CYCLOMATIC_CONFIG = {
-    "python": {
-        "keywords": ['if ', 'elif ', 'for ', 'while ', 'except ', 'except:', 'with ', 'case '],
-        "operators": [' and ', ' or ']
-    },
+    "python": {"keywords": ["if ", "elif ", "for ", "while ", "except ", "except:", "with ", "case "], "operators": [" and ", " or "]},
     "typescript": {
-        "keywords": ['if ', 'if(', 'for ', 'for(', 'while ', 'while(', 'switch ', 'switch(', 'case ', 'catch ', 'catch(', '? '],
-        "operators": [' && ', ' || ', ' ?? ']
+        "keywords": ["if ", "if(", "for ", "for(", "while ", "while(", "switch ", "switch(", "case ", "catch ", "catch(", "? "],
+        "operators": [" && ", " || ", " ?? "],
     },
     "javascript": {
-        "keywords": ['if ', 'if(', 'for ', 'for(', 'while ', 'while(', 'switch ', 'switch(', 'case ', 'catch ', 'catch(', '? '],
-        "operators": [' && ', ' || ', ' ?? ']
+        "keywords": ["if ", "if(", "for ", "for(", "while ", "while(", "switch ", "switch(", "case ", "catch ", "catch(", "? "],
+        "operators": [" && ", " || ", " ?? "],
     },
     "java": {
-        "keywords": ['if ', 'if(', 'for ', 'for(', 'while ', 'while(', 'switch ', 'switch(', 'case ', 'catch ', 'catch('],
-        "operators": [' && ', ' || ']
-    }
+        "keywords": ["if ", "if(", "for ", "for(", "while ", "while(", "switch ", "switch(", "case ", "catch ", "catch("],
+        "operators": [" && ", " || "],
+    },
 }
 
 
@@ -153,11 +150,7 @@ def count_pattern_matches(code: str, pattern: str, language: str) -> int:
     """
     try:
         result = subprocess.run(
-            ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json"],
-            input=code,
-            capture_output=True,
-            text=True,
-            timeout=10
+            ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json"], input=code, capture_output=True, text=True, timeout=10
         )
         if result.returncode == 0 and result.stdout.strip():
             matches = json.loads(result.stdout)
@@ -245,14 +238,14 @@ def _get_control_flow_keywords(language: str, patterns: Dict[str, Any]) -> List[
         "python": ["if", "elif", "for", "while", "except", "with"],
         "typescript": ["if", "for", "while", "catch", "switch", "do"],
         "javascript": ["if", "for", "while", "catch", "switch", "do"],
-        "java": ["if", "for", "while", "catch", "switch", "do"]
+        "java": ["if", "for", "while", "catch", "switch", "do"],
     }
 
     if lang_lower in control_flow_map:
         return control_flow_map[lang_lower]
 
     # Default to nesting constructs from patterns (may be empty list)
-    return patterns.get("nesting_constructs", [])
+    return cast(List[str], patterns.get("nesting_constructs", []))
 
 
 def _calculate_line_indentation(line: str, base_indent: Optional[int]) -> Tuple[int, Optional[int]]:
@@ -291,7 +284,7 @@ def _is_comment_line(stripped: str) -> bool:
     Returns:
         True if line is a comment
     """
-    return stripped.startswith('#') or stripped.startswith('//') or stripped.startswith('/*')
+    return stripped.startswith("#") or stripped.startswith("//") or stripped.startswith("/*")
 
 
 def _match_control_flow_keyword(stripped: str, control_flow: List[str]) -> Optional[str]:
@@ -307,7 +300,7 @@ def _match_control_flow_keyword(stripped: str, control_flow: List[str]) -> Optio
     for keyword in control_flow:
         # Match keyword at start of line (after stripping)
         # Use word boundary to avoid matching 'format' when looking for 'for'
-        pattern = rf'^{keyword}(?:\s|\(|:)'
+        pattern = rf"^{keyword}(?:\s|\(|:)"
         if re.match(pattern, stripped):
             return keyword
     return None
@@ -342,9 +335,9 @@ def _get_logical_operator_patterns(language: str) -> Tuple[str, str]:
         Tuple of (and_pattern, or_pattern)
     """
     if language.lower() == "python":
-        return r'\band\b', r'\bor\b'
+        return r"\band\b", r"\bor\b"
     # C-style uses && and ||
-    return r'&&', r'\|\|'
+    return r"&&", r"\|\|"
 
 
 def _find_all_operators(stripped: str, and_pattern: str, or_pattern: str) -> List[Tuple[int, str]]:
@@ -365,10 +358,7 @@ def _find_all_operators(stripped: str, and_pattern: str, or_pattern: str) -> Lis
         return []
 
     # Combine and sort by position
-    all_ops: List[Tuple[int, str]] = (
-        [(m.start(), 'and') for m in and_matches] +
-        [(m.start(), 'or') for m in or_matches]
-    )
+    all_ops: List[Tuple[int, str]] = [(m.start(), "and") for m in and_matches] + [(m.start(), "or") for m in or_matches]
     all_ops.sort(key=lambda x: x[0])
     return all_ops
 
@@ -387,7 +377,7 @@ def _count_operator_sequences(all_ops: List[Tuple[int, str]]) -> int:
 
     sequences = 1  # First sequence
     for i in range(1, len(all_ops)):
-        if all_ops[i][1] != all_ops[i-1][1]:
+        if all_ops[i][1] != all_ops[i - 1][1]:
             sequences += 1
     return sequences
 
@@ -416,12 +406,7 @@ def _count_logical_operator_sequences(stripped: str, language: str) -> int:
     return _count_operator_sequences(all_ops)
 
 
-def _process_code_line(
-    line: str,
-    control_flow: List[str],
-    language: str,
-    base_indent: Optional[int]
-) -> Tuple[int, Optional[int]]:
+def _process_code_line(line: str, control_flow: List[str], language: str, base_indent: Optional[int]) -> Tuple[int, Optional[int]]:
     """Process a single line of code for cognitive complexity.
 
     Args:
@@ -482,10 +467,8 @@ def calculate_cognitive_complexity(code: str, language: str) -> int:
     control_flow = _get_control_flow_keywords(language, patterns)
 
     # Process each line
-    for line in code.split('\n'):
-        line_complexity, base_indent = _process_code_line(
-            line, control_flow, language, base_indent
-        )
+    for line in code.split("\n"):
+        line_complexity, base_indent = _process_code_line(line, control_flow, language, base_indent)
         complexity += line_complexity
 
     return complexity
@@ -501,7 +484,7 @@ def calculate_nesting_depth(code: str, language: str) -> int:
     Returns:
         Maximum nesting depth
     """
-    lines = code.split('\n')
+    lines = code.split("\n")
     max_depth = 0
     base_indent = None
 

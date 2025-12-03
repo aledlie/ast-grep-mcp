@@ -3,6 +3,7 @@
 This module centralizes magic numbers and configuration values
 to improve maintainability and reduce code duplication.
 """
+
 import os
 
 
@@ -116,10 +117,10 @@ class DeduplicationDefaults:
 
     # Regression thresholds for performance benchmarks
     REGRESSION_PATTERN_ANALYSIS = 0.15  # 15% slowdown allowed
-    REGRESSION_CODE_GENERATION = 0.10   # 10% slowdown allowed
-    REGRESSION_FULL_WORKFLOW = 0.20     # 20% slowdown allowed
-    REGRESSION_SCORING = 0.05            # 5% slowdown allowed
-    REGRESSION_TEST_COVERAGE = 0.15     # 15% slowdown allowed
+    REGRESSION_CODE_GENERATION = 0.10  # 10% slowdown allowed
+    REGRESSION_FULL_WORKFLOW = 0.20  # 20% slowdown allowed
+    REGRESSION_SCORING = 0.05  # 5% slowdown allowed
+    REGRESSION_TEST_COVERAGE = 0.15  # 15% slowdown allowed
 
 
 class HybridSimilarityDefaults:
