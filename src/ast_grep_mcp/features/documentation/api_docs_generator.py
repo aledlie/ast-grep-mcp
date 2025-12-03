@@ -7,7 +7,7 @@ import json
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 import sentry_sdk
 
@@ -16,7 +16,6 @@ from ast_grep_mcp.models.documentation import (
     ApiDocsResult,
     ApiRoute,
     RouteParameter,
-    RouteResponse,
 )
 
 logger = get_logger(__name__)
@@ -120,6 +119,15 @@ def _detect_framework(project_folder: str, language: str) -> Optional[str]:
 # =============================================================================
 # Route Parsers
 # =============================================================================
+
+
+class RouteParser(Protocol):
+    """Protocol for route parsers."""
+
+    def parse_file(self, file_path: str) -> List[ApiRoute]:
+        """Parse routes from a file."""
+        ...
+
 
 class ExpressRouteParser:
     """Parse Express.js routes."""
@@ -250,7 +258,7 @@ class FastAPIRouteParser:
 
     def _extract_params(self, func_line: str) -> List[RouteParameter]:
         """Extract query/body parameters from function signature."""
-        params = []
+        params: list[RouteParameter] = []
 
         # Find params section
         param_match = re.search(r'\((.*)\)', func_line)
@@ -639,7 +647,7 @@ def generate_api_docs_impl(
         )
 
     # Select parser based on framework
-    parsers = {
+    parsers: Dict[str, RouteParser] = {
         'express': ExpressRouteParser(),
         'fastapi': FastAPIRouteParser(),
         'flask': FlaskRouteParser(),

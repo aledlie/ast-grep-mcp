@@ -6,18 +6,17 @@ including function extraction, parameter inference, and import generation.
 """
 
 import re
-from typing import Any, Dict, List, Optional, Tuple, Callable
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 from ...core.logging import get_logger
 from ...models.deduplication import FunctionTemplate
 from ...utils.formatters import format_generated_code
 
-
 # Language-specific configuration for function generation
-FUNCTION_GENERATORS: Dict[str, Callable] = {}
+FUNCTION_GENERATORS: Dict[str, Callable[..., str]] = {}
 
 # Language-specific configuration for type inference
-TYPE_INFERENCE_CONFIG: Dict[str, Dict[str, Dict[str, str]]] = {
+TYPE_INFERENCE_CONFIG: Dict[str, Dict[str, Dict[str, Union[str, bool]]]] = {
     "python": {
         "literal": {
             "string": "str",
@@ -116,7 +115,7 @@ class CodeGenerator:
         function_name: str,
         parameters: List[Dict[str, str]],
         body: str,
-        **kwargs
+        **kwargs: Any
     ) -> str:
         """Generate generic function format."""
         param_list = ", ".join(p["name"] for p in parameters)
@@ -160,7 +159,9 @@ class CodeGenerator:
 
         # Get the appropriate generator or use generic
         generator = generators.get(self.language, self._generate_generic_function)
-        function_code = generator(function_name, parameters, body, return_type, docstring)
+        function_code = generator(
+            function_name, parameters, body, return_type=return_type, docstring=docstring
+        )
 
         # Format the generated code
         return self._format_generated_code(function_code, function_name)
@@ -316,20 +317,20 @@ class CodeGenerator:
         else:
             return ", ".join(p["name"] for p in parameters)
 
-    def _get_literal_type(self, literal_type: str, value: str, lang_config: Dict) -> Optional[str]:
+    def _get_literal_type(self, literal_type: str, value: str, lang_config: Dict[str, Any]) -> Optional[str]:
         """Get type mapping for literal values."""
         if literal_type == "string":
-            return lang_config.get("string")
+            return cast(Optional[str], lang_config.get("string"))
         elif literal_type == "number":
             # For Python, distinguish int from float
             if self.language == "python" and "." not in value:
-                return lang_config.get("number_int", "int")
+                return cast(Optional[str], lang_config.get("number_int", "int"))
             elif self.language == "python":
-                return lang_config.get("number_float", "float")
+                return cast(Optional[str], lang_config.get("number_float", "float"))
             else:
-                return lang_config.get("number")
+                return cast(Optional[str], lang_config.get("number"))
         elif literal_type == "boolean":
-            return lang_config.get("boolean")
+            return cast(Optional[str], lang_config.get("boolean"))
         return None
 
     def _infer_parameter_type(self, variation: Dict[str, Any]) -> Optional[str]:
@@ -352,7 +353,7 @@ class CodeGenerator:
             literal_type = variation.get("literal_type", "")
             return self._get_literal_type(literal_type, value, category_config)
         elif category == "identifier":
-            return category_config.get("default")
+            return cast(Optional[str], category_config.get("default"))
         elif category == "type":
             # Use value directly for type category if configured
             if category_config.get("use_value"):
