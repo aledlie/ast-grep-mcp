@@ -279,9 +279,14 @@ def process(data):
         hybrid = HybridSimilarity()
         result = hybrid.calculate_hybrid_similarity(code1, code2)
 
-        # Should have very high similarity (comments normalized out)
-        assert result.similarity > 0.9
+        # AST similarity should be very high (comments normalized out)
+        # Combined score is weighted: 0.4 * minhash + 0.6 * ast
+        # MinHash sees different comments as different tokens
+        assert result.ast_similarity is not None
+        assert result.ast_similarity > 0.95  # AST comparison ignores comments
         assert result.verified is True
+        # Combined score still respects the weighting
+        assert result.similarity > 0.8  # Combined with MinHash weight
 
     def test_weighted_combination(self):
         """Final score should combine MinHash and AST with configured weights."""

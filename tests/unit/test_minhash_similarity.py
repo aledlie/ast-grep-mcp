@@ -854,3 +854,189 @@ class TestPerformanceCharacteristics:
         # If O(n), doubling input should roughly double time (with overhead tolerance)
         assert ratio_1_2 < 4.0, f"Expected < 4x, got {ratio_1_2}x"
         assert ratio_2_3 < 4.0, f"Expected < 4x, got {ratio_2_3}x"
+
+
+class TestSmallCodeFallback:
+    """Tests for SequenceMatcher fallback for small code snippets.
+
+    Phase 4: MinHash accuracy depends on shingle count. Small code (< 15 tokens)
+    produces too few shingles, causing inaccurate similarity estimation.
+    SequenceMatcher provides exact results for small code.
+    """
+
+    def test_small_code_fallback_accuracy(self):
+        """Test SequenceMatcher fallback provides accurate results for small code."""
+        # Very small code (< 15 tokens)
+        code1 = "def f(): pass"
+        code2 = "def f(): pass"
+
+        similarity_calc = MinHashSimilarity()
+        similarity = similarity_calc.estimate_similarity(code1, code2)
+
+        # Should use SequenceMatcher and get perfect score for identical code
+        assert similarity > 0.95, f"Small identical code should get > 0.95, got {similarity}"
+
+    def test_large_code_uses_minhash(self):
+        """Test MinHash is used for large code (>= 15 tokens)."""
+        # Large code (100+ tokens) - repeating a function multiple times
+        large_code = """
+def complex_function(param1, param2, param3):
+    result = []
+    for item in param1:
+        if item.matches(param2):
+            processed = item.process(param3)
+            result.append(processed)
+    return result
+""" * 5  # Repeat to ensure > 15 tokens
+
+        similarity_calc = MinHashSimilarity()
+        similarity = similarity_calc.estimate_similarity(large_code, large_code)
+
+        # Should use MinHash and still get high score for identical code
+        assert similarity > 0.95, f"Large identical code should get > 0.95, got {similarity}"
+
+    def test_small_code_different_gets_low_similarity(self):
+        """Test that different small code gets low similarity."""
+        code1 = "def f(): pass"
+        code2 = "class X: pass"
+
+        similarity_calc = MinHashSimilarity()
+        similarity = similarity_calc.estimate_similarity(code1, code2)
+
+        # Different code should have low similarity even with SequenceMatcher
+        assert similarity < 0.5, f"Different code should have < 0.5 similarity, got {similarity}"
+
+    def test_fallback_can_be_disabled(self):
+        """Test that small code fallback can be disabled via config."""
+        config = SimilarityConfig(use_small_code_fallback=False)
+        calculator = MinHashSimilarity(config)
+
+        code1 = "def f(): pass"
+        code2 = "def f(): pass"
+
+        # Should use MinHash even for small code when fallback disabled
+        similarity = calculator.estimate_similarity(code1, code2)
+
+        # MinHash may not be perfectly accurate for small code, but should work
+        assert 0.0 <= similarity <= 1.0, f"Similarity should be in valid range, got {similarity}"
+
+    def test_small_code_threshold_configurable(self):
+        """Test that small_code_threshold can be configured."""
+        # Set very low threshold so even small code uses MinHash
+        config = SimilarityConfig(small_code_threshold=3)
+        calculator = MinHashSimilarity(config)
+
+        code = "def foo(): return 42"  # More than 3 tokens
+        similarity = calculator.estimate_similarity(code, code)
+
+        # Should still work
+        assert similarity > 0.9, f"Identical code should have > 0.9 similarity, got {similarity}"
+
+    def test_small_code_near_threshold_boundary(self):
+        """Test behavior at the threshold boundary (14 vs 15 tokens)."""
+        similarity_calc = MinHashSimilarity()
+
+        # Create code with exactly threshold-1 tokens (should use SequenceMatcher)
+        # "def foo ( ) : return x" = 7 tokens, need to get close to 15
+        small_code = "def foo(a, b, c): return a + b + c"  # ~14 tokens
+
+        # Create code with more tokens (should use MinHash)
+        large_code = "def foo(a, b, c, d, e): return a + b + c + d + e * 2"  # >15 tokens
+
+        # Both should work correctly for identical comparisons
+        small_sim = similarity_calc.estimate_similarity(small_code, small_code)
+        large_sim = similarity_calc.estimate_similarity(large_code, large_code)
+
+        assert small_sim > 0.95, f"Small identical code should get > 0.95, got {small_sim}"
+        assert large_sim > 0.95, f"Large identical code should get > 0.95, got {large_sim}"
+
+    def test_small_code_with_minor_changes(self):
+        """Test that small code with minor changes gets accurate similarity."""
+        code1 = "def add(a, b): return a + b"
+        code2 = "def add(x, y): return x + y"
+
+        similarity_calc = MinHashSimilarity()
+        similarity = similarity_calc.estimate_similarity(code1, code2)
+
+        # SequenceMatcher should handle variable renames well
+        # The codes have same structure, just different variable names
+        assert 0.5 < similarity < 1.0, f"Similar code should have moderate similarity, got {similarity}"
+
+    def test_empty_code_still_returns_zero(self):
+        """Test that empty code returns 0.0 regardless of fallback setting."""
+        similarity_calc = MinHashSimilarity()
+
+        assert similarity_calc.estimate_similarity("", "def foo(): pass") == 0.0
+        assert similarity_calc.estimate_similarity("def foo(): pass", "") == 0.0
+        assert similarity_calc.estimate_similarity("", "") == 0.0
+
+        # Also with fallback disabled
+        config = SimilarityConfig(use_small_code_fallback=False)
+        calculator = MinHashSimilarity(config)
+
+        assert calculator.estimate_similarity("", "def foo(): pass") == 0.0
+
+    def test_fallback_performance(self):
+        """Test performance characteristics of small vs large code comparison.
+
+        Phase 4: Observational test to verify both paths work efficiently.
+        Times 100 iterations of small code (SequenceMatcher) vs large code (MinHash).
+        No strict assertions - results printed for visibility.
+        """
+        import time
+
+        similarity_calc = MinHashSimilarity()
+
+        # Small code (< 15 tokens) - uses SequenceMatcher
+        small_code1 = "def f(): pass"
+        small_code2 = "def g(): pass"
+
+        # Large code (> 50 tokens) - uses MinHash
+        large_code1 = """
+def process_complex_data(param1, param2, param3, param4):
+    result = []
+    for item in param1:
+        if item.matches(param2):
+            processed = item.process(param3)
+            validated = validate(processed, param4)
+            result.append(validated)
+    return result
+"""
+        large_code2 = """
+def process_complex_data(param1, param2, param3, param4):
+    result = []
+    for item in param1:
+        if item.matches(param2):
+            processed = item.process(param3)
+            validated = validate(processed, param4)
+            result.append(validated)
+    return result
+"""
+
+        # Time small code comparisons (SequenceMatcher)
+        iterations = 100
+        start = time.perf_counter()
+        for _ in range(iterations):
+            similarity_calc.estimate_similarity(small_code1, small_code2)
+        small_time = time.perf_counter() - start
+
+        # Time large code comparisons (MinHash)
+        similarity_calc.clear_cache()  # Clear cache to ensure fair comparison
+        start = time.perf_counter()
+        for _ in range(iterations):
+            similarity_calc.estimate_similarity(large_code1, large_code2)
+        large_time = time.perf_counter() - start
+
+        # Print timing results for visibility
+        print(f"\n[Performance] Small code ({iterations} iterations): {small_time*1000:.2f}ms total, {small_time*1000/iterations:.3f}ms/iter")
+        print(f"[Performance] Large code ({iterations} iterations): {large_time*1000:.2f}ms total, {large_time*1000/iterations:.3f}ms/iter")
+
+        # Verify both paths produce valid similarity scores
+        small_sim = similarity_calc.estimate_similarity(small_code1, small_code2)
+        large_sim = similarity_calc.estimate_similarity(large_code1, large_code2)
+
+        assert 0.0 <= small_sim <= 1.0, f"Small code similarity out of range: {small_sim}"
+        assert 0.0 <= large_sim <= 1.0, f"Large code similarity out of range: {large_sim}"
+
+        # Large identical code should have high similarity
+        assert large_sim > 0.95, f"Large identical code should get > 0.95, got {large_sim}"
