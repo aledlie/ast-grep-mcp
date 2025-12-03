@@ -46,11 +46,24 @@ def mock_field(*args: Any, **kwargs: Any) -> Any:
     return kwargs.get("default")
 
 
+# Save original pydantic.Field to restore later (prevent test pollution)
+import pydantic
+import importlib
+_original_field = pydantic.Field
+
 # Import with mocked decorators
 with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
     with patch("pydantic.Field", mock_field):
         import main
         main.register_mcp_tools()
+
+# Restore pydantic.Field immediately after import to prevent test pollution
+pydantic.Field = _original_field
+
+# Reload modules that may have cached the mocked Field
+# This prevents test pollution in subsequent test files
+import ast_grep_mcp.core.usage_tracking
+importlib.reload(ast_grep_mcp.core.usage_tracking)
 
 
 class TestApplyDeduplication:
