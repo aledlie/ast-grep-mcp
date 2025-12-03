@@ -233,7 +233,7 @@ class TestLSHPerformance:
         ]
 
         start = time.perf_counter()
-        minhash_similarity.build_lsh_index(code_items, min_similarity=0.5)
+        minhash_similarity.build_lsh_index(code_items, threshold=0.5)
         elapsed = time.perf_counter() - start
 
         print(f"\nLSH index build (1000 items): {elapsed:.2f}s")
@@ -255,7 +255,7 @@ class TestLSHPerformance:
         ]
 
         # Build the index first (stores internally)
-        minhash_similarity.build_lsh_index(code_items, min_similarity=0.5)
+        minhash_similarity.build_lsh_index(code_items, threshold=0.5)
 
         # Query 100 times using the query_similar public API
         query_code = "def query_func(x): return x * 42"
