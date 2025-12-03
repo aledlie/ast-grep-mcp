@@ -1,6 +1,6 @@
 """Schema.org client for fetching and querying vocabulary."""
 
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set, cast
 
 import httpx
 import sentry_sdk
@@ -62,7 +62,7 @@ class SchemaOrgClient:
         if not data:
             raise RuntimeError("No data received from schema.org")
 
-        return data
+        return cast(Dict[str, Any], data)
 
     def _validate_and_index_data(self, data: Dict[str, Any]) -> None:
         """Validate data format and index all types and properties."""
@@ -166,7 +166,7 @@ class SchemaOrgClient:
         type_name = expected_types[0]
 
         # Use a mapping to reduce nesting
-        type_examples = {
+        type_examples: Dict[str, Callable[[], Any]] = {
             'Text': lambda: f"Example {property_data.get('name', 'text')}",
             'URL': lambda: 'https://example.com',
             'Date': lambda: '2024-01-01',

@@ -9,7 +9,7 @@ import json
 import os
 import subprocess
 import tempfile
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import yaml
 
@@ -544,7 +544,7 @@ class PatternAnalyzer:
         - 6-7: Complex (logic/structure)
         """
         # Use a mapping to handle category scoring
-        scorers = {
+        scorers: Dict[str, Callable[[], Tuple[int, str]]] = {
             VariationCategory.LITERAL: lambda: self._score_literal_variation(),
             VariationCategory.IDENTIFIER: lambda: self._score_identifier_variation(severity),
             VariationCategory.EXPRESSION: lambda: self._score_expression_variation(severity),

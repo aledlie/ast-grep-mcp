@@ -5,7 +5,7 @@ import os
 import subprocess
 import tempfile
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import sentry_sdk
 import yaml
@@ -123,7 +123,7 @@ def validate_syntax(file_path: str, language: str) -> Dict[str, Any]:
             content = f.read()
 
         # Language-specific validators
-        validators = {
+        validators: Dict[str, Callable[[], Dict[str, Any]]] = {
             "python": lambda: _validate_python_syntax(content, file_path),
             "javascript": lambda: _validate_javascript_syntax(content),
             "typescript": lambda: _validate_javascript_syntax(content),
