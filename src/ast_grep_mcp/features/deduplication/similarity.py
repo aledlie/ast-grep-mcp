@@ -64,6 +64,20 @@ class SimilarityConfig:
     max_fallback_items: int = 100
     """Maximum number of items to use all-pairs fallback (O(n²) becomes expensive above this)."""
 
+    small_code_threshold: int = 15
+    """Tokens below this threshold use SequenceMatcher for accurate similarity (Phase 4).
+
+    MinHash accuracy degrades for small code due to insufficient shingles.
+    SequenceMatcher provides exact O(n^2) similarity for small snippets.
+    """
+
+    use_small_code_fallback: bool = True
+    """Enable SequenceMatcher fallback for small code snippets (Phase 4).
+
+    When True, estimate_similarity() uses SequenceMatcher for code with fewer
+    than small_code_threshold tokens, providing accurate results for small functions.
+    """
+
 
 @dataclass
 class SimilarityResult:
@@ -228,19 +242,47 @@ class MinHashSimilarity:
         return m
 
     def estimate_similarity(self, code1: str, code2: str) -> float:
-        """Estimate Jaccard similarity between two code snippets using MinHash.
+        """Estimate similarity between two code snippets using MinHash with fallback.
 
-        This is the fast O(n) estimation method.
+        Strategy:
+        - For code < small_code_threshold tokens: Use SequenceMatcher (exact but O(n^2))
+        - For code >= small_code_threshold tokens: Use MinHash (approximate but O(1))
+
+        The fallback to SequenceMatcher for small code ensures accuracy when MinHash
+        would produce unreliable results due to insufficient shingles.
 
         Args:
             code1: First code snippet.
             code2: Second code snippet.
 
         Returns:
-            Estimated Jaccard similarity (0.0 to 1.0).
+            Estimated similarity (0.0 to 1.0).
         """
         if not code1 or not code2:
             return 0.0
+
+        tokens1 = self._tokenize(code1)
+        tokens2 = self._tokenize(code2)
+
+        min_tokens = min(len(tokens1), len(tokens2))
+
+        if self.config.use_small_code_fallback and min_tokens < self.config.small_code_threshold:
+            # Use SequenceMatcher for accuracy on small code
+            self.logger.debug(
+                "small_code_fallback",
+                token_count=min_tokens,
+                threshold=self.config.small_code_threshold,
+                method="SequenceMatcher",
+            )
+            matcher = SequenceMatcher(None, tokens1, tokens2)
+            return matcher.ratio()
+
+        # Use MinHash for larger code
+        self.logger.debug(
+            "minhash_standard_path",
+            token_count=min_tokens,
+            threshold=self.config.small_code_threshold,
+        )
 
         m1 = self.create_minhash(code1)
         m2 = self.create_minhash(code2)
