@@ -91,7 +91,7 @@ class TestIntegration:
         assert any("hello" in str(match) for match in result)
         assert any("add" in str(match) for match in result)
 
-    @patch("main.run_ast_grep")
+    @patch("ast_grep_mcp.features.search.service.run_ast_grep")
     def test_find_code_by_rule(self, mock_run: Any, fixtures_dir: str) -> None:
         """Test find_code_by_rule with mocked ast-grep"""
         # Mock the response with JSON format (since we always use JSON internally)

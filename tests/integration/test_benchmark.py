@@ -62,6 +62,15 @@ with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
         import main
         from main import register_mcp_tools
 
+# Import deduplication functions from modular structure
+from ast_grep_mcp.features.deduplication.ranker import (
+    DuplicationRanker,
+    rank_deduplication_candidates,
+)
+from ast_grep_mcp.features.deduplication.coverage import get_test_coverage_for_files
+from ast_grep_mcp.features.deduplication.recommendations import generate_deduplication_recommendation
+from ast_grep_mcp.features.deduplication.reporting import create_enhanced_duplication_response
+
 # Register tools once for all tests
 mcp = main.mcp
 register_mcp_tools()
@@ -77,7 +86,7 @@ if core_cache._query_cache is None:
 
 # Also set main.CACHE_ENABLED for backward compatibility
 main.CACHE_ENABLED = True
-main._query_cache = core_cache._query_cache  # Point to the same instance
+# Note: main._query_cache sync removed - use core_cache._query_cache directly
 
 
 class BenchmarkResult:
@@ -157,7 +166,7 @@ class BenchmarkRunner:
         import tracemalloc
 
         # Track cache hits before running
-        cache_hits_before = main._query_cache.hits if main._query_cache else 0
+        cache_hits_before = core_cache._query_cache.hits if core_cache._query_cache else 0
 
         # Start memory tracking
         tracemalloc.start()
@@ -174,7 +183,7 @@ class BenchmarkRunner:
         tracemalloc.stop()
 
         # Check if cache was hit
-        cache_hits_after = main._query_cache.hits if main._query_cache else 0
+        cache_hits_after = core_cache._query_cache.hits if core_cache._query_cache else 0
         cache_hit = cache_hits_after > cache_hits_before
 
         # Count results
@@ -709,7 +718,7 @@ class TestDeduplicationBenchmarks:
         dedup_benchmark_runner: DeduplicationBenchmarkRunner
     ) -> None:
         """Benchmark rank_deduplication_candidates function."""
-        from main import rank_deduplication_candidates
+        # rank_deduplication_candidates imported at module level from modular structure
 
         # Create test candidates
         candidates = [
@@ -744,7 +753,7 @@ class TestDeduplicationBenchmarks:
         tmp_path: Path
     ) -> None:
         """Benchmark get_test_coverage_for_files function."""
-        from main import get_test_coverage_for_files
+        # get_test_coverage_for_files imported at module level from modular structure
 
         # Create test files
         src_dir = tmp_path / "src"
@@ -780,7 +789,7 @@ class TestDeduplicationBenchmarks:
         dedup_benchmark_runner: DeduplicationBenchmarkRunner
     ) -> None:
         """Benchmark generate_deduplication_recommendation function."""
-        from main import generate_deduplication_recommendation
+        # generate_deduplication_recommendation imported at module level from modular structure
 
         # Test various scenarios
         test_cases = [
@@ -807,7 +816,7 @@ class TestDeduplicationBenchmarks:
         dedup_benchmark_runner: DeduplicationBenchmarkRunner
     ) -> None:
         """Benchmark create_enhanced_duplication_response function."""
-        from main import create_enhanced_duplication_response
+        # create_enhanced_duplication_response imported at module level from modular structure
 
         # Create test candidates
         candidates = [
@@ -911,25 +920,25 @@ def run_deduplication_benchmarks(
     Returns:
         Benchmark results as JSON-serializable dict
     """
-    from main import (
-        calculate_deduplication_score,
-        create_enhanced_duplication_response,
-        generate_deduplication_recommendation,
-        rank_deduplication_candidates,
-    )
+    # Functions imported at module level from modular structure:
+    # - rank_deduplication_candidates
+    # - generate_deduplication_recommendation
+    # - create_enhanced_duplication_response
+    # - DuplicationRanker (for calculate_deduplication_score)
 
     runner = DeduplicationBenchmarkRunner()
+    ranker = DuplicationRanker()
 
-    # Benchmark 1: Scoring
+    # Benchmark 1: Scoring (using DuplicationRanker.calculate_deduplication_score)
     test_cases = [
-        (100, 3, True, 2, 5),
-        (10, 8, False, 10, 50),
-        (50, 5, True, 5, 10),
+        {"potential_line_savings": 100, "instances": [{"file": "f1.py", "line": 1}] * 2},
+        {"potential_line_savings": 10, "instances": [{"file": "f1.py", "line": 1}] * 10},
+        {"potential_line_savings": 50, "instances": [{"file": "f1.py", "line": 1}] * 5},
     ]
 
     def run_scoring() -> None:
-        for lines, complexity, has_tests, files, calls in test_cases:
-            calculate_deduplication_score(lines, complexity, has_tests, files, calls)
+        for duplicate_group in test_cases:
+            ranker.calculate_deduplication_score(duplicate_group)
 
     runner.run_benchmark("scoring", run_scoring, iterations * 10)
 
