@@ -107,19 +107,8 @@ from ast_grep_mcp.utils.validation import *
 _detector = DuplicationDetector()
 group_duplicates = _detector.group_duplicates
 
-# Import functions that aren't yet in modular structure
-# These need to be defined in main.py until modular refactoring is complete
-def _validate_code_for_language(language: str, content: str) -> bool:
-    """Validate code syntax for a specific language."""
-    if language == "python":
-        try:
-            compile(content, "<string>", "exec")
-            return True
-        except SyntaxError:
-            return False
-    # For other languages, assume valid for now
-    return True
-
+# Stub functions for backward compatibility with tests
+# These have different signatures than modular versions (e.g., language param)
 def get_complexity_level(score: int) -> str:
     """Get complexity level from score."""
     if score < 5:
@@ -129,41 +118,6 @@ def get_complexity_level(score: int) -> str:
     else:
         return "high"
 
-def _generate_refactoring_strategies(duplicates: list) -> list:
-    """Generate refactoring strategies for duplicates."""
-    return [
-        {
-            "type": "extract_function",
-            "description": "Extract to function",
-            "effort": "low"
-        }
-    ]
-
-def render_python_function(template, **kwargs):
-    """Render a Python function from template."""
-    # Stub implementation for backward compatibility
-    return ""
-
-def _suggest_syntax_fix(error_msg: str, language: str) -> str:
-    """Suggest a fix for syntax error."""
-    return f"Syntax error in {language}: {error_msg}"
-
-def substitute_template_variables(template: str, variables: dict) -> str:
-    """Substitute variables in template."""
-    result = template
-    for key, value in variables.items():
-        result = result.replace(f"{{{key}}}", str(value))
-    return result
-
-def detect_import_insertion_point(content: str, language: str) -> int:
-    """Detect where to insert imports."""
-    lines = content.split('\n')
-    for i, line in enumerate(lines):
-        if not line.strip().startswith(('import', 'from', '#')):
-            return i
-    return len(lines)
-
-# Additional stub functions for backward compatibility
 def calculate_similarity(code1: str, code2: str, language: str) -> float:
     """Calculate similarity between two code snippets."""
     from difflib import SequenceMatcher
