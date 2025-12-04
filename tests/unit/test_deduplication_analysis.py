@@ -14,10 +14,12 @@ import sys
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# Import from main for backward compatibility
+# Import from modular structure where interfaces match
+from ast_grep_mcp.models.deduplication import VariationSeverity
+
+# These have different interfaces in modular code - import stubs from main
 from main import (
     ParameterType,
-    VariationSeverity,
     _detect_nested_function_call,
     _infer_from_identifier_name,
     _infer_single_value_type,

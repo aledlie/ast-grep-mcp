@@ -255,13 +255,13 @@ def mock_popen(monkeypatch):
             suggested_implementation="""@pytest.fixture
 def initialized_cache():
     '''Provide initialized cache with MCP tools registered.'''
-    import main
-    main._query_cache = QueryCache(max_size=10, ttl_seconds=300)
-    main.CACHE_ENABLED = True
-    main.register_mcp_tools()
-    yield main._query_cache
-    main._query_cache = None
-    main.CACHE_ENABLED = False"""
+    from ast_grep_mcp.core import cache as core_cache
+    from ast_grep_mcp.core import config as core_config
+    core_cache.init_query_cache(max_size=10, ttl_seconds=300)
+    core_config.CACHE_ENABLED = True
+    yield core_cache._query_cache
+    core_cache._query_cache = None
+    core_config.CACHE_ENABLED = False"""
         )
 
     def detect_repeated_imports_pattern(self, test_files: List[Path]) -> DetectedPattern:

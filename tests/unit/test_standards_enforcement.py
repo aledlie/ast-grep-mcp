@@ -9,28 +9,45 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from ast_grep_mcp.features.quality.rules import RULE_TEMPLATES
-from main import (
+from ast_grep_mcp.features.quality.enforcer import (
     RULE_SETS,
+    execute_rule,
+    execute_rules_batch,
+    filter_violations_by_severity,
+    format_violation_report,
+    group_violations_by_file,
+    group_violations_by_rule,
+    group_violations_by_severity,
+    load_custom_rules,
+    load_rule_set,
+    parse_match_to_violation,
+    should_exclude_file,
+    template_to_linting_rule,
+)
+from ast_grep_mcp.features.quality.rules import RULE_TEMPLATES
+from ast_grep_mcp.models.standards import (
     EnforcementResult,
     LintingRule,
     RuleExecutionContext,
     RuleSet,
+    RuleStorageError,
     RuleTemplate,
     RuleViolation,
-    _execute_rule,
-    _execute_rules_batch,
-    _filter_violations_by_severity,
-    _format_violation_report,
-    _group_violations_by_file,
-    _group_violations_by_rule,
-    _group_violations_by_severity,
-    _load_custom_rules,
-    _load_rule_set,
-    _parse_match_to_violation,
-    _should_exclude_file,
-    _template_to_linting_rule,
 )
+
+# Aliases for backward compatibility with underscore-prefixed names in tests
+_execute_rule = execute_rule
+_execute_rules_batch = execute_rules_batch
+_filter_violations_by_severity = filter_violations_by_severity
+_format_violation_report = format_violation_report
+_group_violations_by_file = group_violations_by_file
+_group_violations_by_rule = group_violations_by_rule
+_group_violations_by_severity = group_violations_by_severity
+_load_custom_rules = load_custom_rules
+_load_rule_set = load_rule_set
+_parse_match_to_violation = parse_match_to_violation
+_should_exclude_file = should_exclude_file
+_template_to_linting_rule = template_to_linting_rule
 
 
 class TestRuleViolationDataClass:
@@ -405,7 +422,7 @@ class TestLoadCustomRules:
 
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.glob")
-    @patch("main._load_rule_from_file")
+    @patch("ast_grep_mcp.features.quality.rules.load_rule_from_file")
     def test_handle_malformed_yaml(self, mock_load, mock_glob, mock_exists):
         """Test handling malformed YAML files."""
         mock_exists.return_value = True
@@ -414,7 +431,7 @@ class TestLoadCustomRules:
         mock_file.name = "bad-rule.yml"
         mock_glob.return_value = [mock_file]
 
-        mock_load.side_effect = Exception("YAML parse error")
+        mock_load.side_effect = RuleStorageError("YAML parse error")
 
         # Should not raise, just skip bad files
         result = _load_custom_rules("/fake/path", "python")
@@ -434,7 +451,7 @@ class TestLoadCustomRules:
 
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.glob")
-    @patch("main._load_rule_from_file")
+    @patch("ast_grep_mcp.features.quality.rules.load_rule_from_file")
     def test_filter_out_wrong_language(self, mock_load, mock_glob, mock_exists):
         """Test filtering out rules for wrong language."""
         mock_exists.return_value = True
@@ -560,7 +577,7 @@ class TestLoadRuleSet:
         # 'all' should have at least as many rules as recommended
         assert len(all_set.rules) >= len(recommended_set.rules)
 
-    @patch("main._load_custom_rules")
+    @patch("ast_grep_mcp.features.quality.enforcer.load_custom_rules")
     def test_custom_set_empty_when_no_rules(self, mock_load_custom):
         """Test custom set is empty when no custom rules exist."""
         mock_load_custom.return_value = []
@@ -836,7 +853,7 @@ class TestExecuteRule:
         assert violations[0].line == 10
         assert violations[0].column == 5
 
-    @patch("main.stream_ast_grep_results")
+    @patch("ast_grep_mcp.core.executor.stream_ast_grep_results")
     def test_apply_file_exclusion(self, mock_stream):
         """Test file exclusion is applied."""
         logger = Mock()
@@ -874,7 +891,7 @@ class TestExecuteRule:
         # Should be excluded
         assert len(violations) == 0
 
-    @patch("main.stream_ast_grep_results")
+    @patch("ast_grep_mcp.core.executor.stream_ast_grep_results")
     def test_respect_max_violations(self, mock_stream):
         """Test max_violations is respected."""
         logger = Mock()
@@ -914,7 +931,7 @@ class TestExecuteRule:
         # Should stop at max_violations
         assert len(violations) <= 2
 
-    @patch("main.stream_ast_grep_results")
+    @patch("ast_grep_mcp.core.executor.stream_ast_grep_results")
     def test_handle_execution_errors(self, mock_stream):
         """Test handling execution errors gracefully."""
         logger = Mock()
@@ -1054,7 +1071,7 @@ class TestExecuteRulesBatch:
         # Should have 4 total violations
         assert len(violations) == 4
 
-    @patch("main._execute_rule")
+    @patch("ast_grep_mcp.features.quality.enforcer.execute_rule")
     def test_early_termination_at_max_violations(self, mock_execute):
         """Test early termination when max_violations reached."""
         logger = Mock()
@@ -1100,7 +1117,7 @@ class TestExecuteRulesBatch:
         # Should stop early (may execute all due to parallel execution, but should combine violations)
         assert mock_execute.call_count <= 10
 
-    @patch("main._execute_rule")
+    @patch("ast_grep_mcp.features.quality.enforcer.execute_rule")
     def test_handle_individual_failures(self, mock_execute):
         """Test handling individual rule failures."""
         logger = Mock()
@@ -1658,8 +1675,8 @@ class TestFormatViolationReport:
 class TestEnforceStandardsTool:
     """Test enforce_standards MCP tool."""
 
-    @patch("main._load_rule_set")
-    @patch("main._execute_rules_batch")
+    @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
+    @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
     def test_basic_scan_with_recommended_rules(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test basic scan with recommended rules."""
@@ -1693,8 +1710,8 @@ class TestEnforceStandardsTool:
         assert "summary" in result
         assert result["summary"]["total_violations"] == 0
 
-    @patch("main._load_rule_set")
-    @patch("main._execute_rules_batch")
+    @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
+    @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
     def test_security_rule_set(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test scan with security rule set."""
@@ -1804,7 +1821,7 @@ class TestEnforceStandardsTool:
 
         assert "does not exist" in str(exc_info.value)
 
-    @patch("main._load_rule_set")
+    @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("pathlib.Path.exists")
     def test_no_rules_for_language(self, mock_exists, mock_load, mcp_main, enforce_standards_tool):
         """Test handling when no rules found for language."""
@@ -1844,8 +1861,8 @@ class TestEnforceStandardsTool:
 
             assert "No custom rules found" in str(exc_info.value)
 
-    @patch("main._load_rule_set")
-    @patch("main._execute_rules_batch")
+    @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
+    @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
     def test_text_output_format(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test text output format."""
@@ -1879,8 +1896,8 @@ class TestEnforceStandardsTool:
         assert "report" in result
         assert isinstance(result["report"], str)
 
-    @patch("main._load_rule_set")
-    @patch("main._execute_rules_batch")
+    @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
+    @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
     def test_json_output_format(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test JSON output format."""
@@ -1978,8 +1995,8 @@ class TestEnforceStandardsTool:
         # Should respect max_violations in context
         assert mock_execute.called
 
-    @patch("main._load_rule_set")
-    @patch("main._execute_rules_batch")
+    @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
+    @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
     def test_severity_threshold_filtering(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
         """Test severity threshold filtering."""

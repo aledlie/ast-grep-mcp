@@ -18,12 +18,12 @@ from ast_grep_mcp.features.complexity.analyzer import (
     calculate_cognitive_complexity,
     calculate_cyclomatic_complexity,
 )
-from ast_grep_mcp.models.complexity import ComplexityMetrics, ComplexityThresholds, FunctionComplexity
-from main import (
-    ComplexityStorage,
+from ast_grep_mcp.features.complexity.metrics import (
     calculate_nesting_depth,
     get_complexity_patterns,
 )
+from ast_grep_mcp.features.complexity.storage import ComplexityStorage
+from ast_grep_mcp.models.complexity import ComplexityMetrics, ComplexityThresholds, FunctionComplexity
 
 
 class TestCyclomaticComplexity:

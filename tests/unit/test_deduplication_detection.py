@@ -15,7 +15,8 @@ from unittest.mock import patch
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# Import from main for backward compatibility
+# These functions are stubs with language parameter - import from main until signatures align
+# TODO: Update modular functions to accept language param or update tests
 from main import (
     build_diff_tree,
     build_nested_diff_tree,
