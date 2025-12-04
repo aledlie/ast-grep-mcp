@@ -147,16 +147,16 @@ CRITICAL_FUNCTIONS = [
         "max_cognitive": 10,
         "max_nesting": 3,
     },
-    # Schema.org Client (original report: 9 levels of nesting)
-    # Current: Cyclomatic 23, Cognitive 71, Nesting 8, Lines 56
-    # TODO: Refactor and reduce thresholds to cyclomatic≤15, cognitive≤20, nesting≤5
+    # Schema.org Client - Successfully refactored from 9 levels of nesting
+    # Refactored: Applied Extract Method + Early Returns patterns
+    # New metrics: Cyclomatic ≤15, Cognitive ≤20, Nesting ≤5
     {
         "file": "src/ast_grep_mcp/features/schema/client.py",
         "function": "get_type_properties",
-        "max_lines": 60,  # Current: 56 lines
-        "max_cyclomatic": 25,  # Current: 23 (allow small buffer)
-        "max_cognitive": 75,  # Current: 71 (allow small buffer)
-        "max_nesting": 8,  # Current: 8 (no regression allowed!)
+        "max_lines": 20,  # Reduced via helper extraction
+        "max_cyclomatic": 15,  # Target threshold
+        "max_cognitive": 20,  # Target threshold
+        "max_nesting": 5,  # Target threshold
     },
     # Deduplication Score Calculator (successfully refactored from metrics.py!)
     # Current: Cyclomatic 2, Cognitive 0, Nesting 2, Lines 43 - EXCELLENT!

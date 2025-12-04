@@ -265,6 +265,39 @@ class SchemaOrgClient:
             "children": self._find_sub_types(type_id),
         }
 
+    def _is_valid_property_item(self, item: Dict[str, Any]) -> bool:
+        """Check if an item is a valid RDF property."""
+        item_types = item.get("@type")
+        if not item_types:
+            return False
+
+        types_list = self._normalize_to_array(item_types)
+        return "rdf:Property" in types_list
+
+    def _is_property_for_type(self, item: Dict[str, Any], type_id: str) -> bool:
+        """Check if property belongs to the specified type."""
+        domains = self._normalize_to_array(item.get("schema:domainIncludes"))
+        for domain in domains:
+            if isinstance(domain, dict) and domain.get("@id") == type_id:
+                return True
+        return False
+
+    def _try_add_property(
+        self, item: Dict[str, Any], processed_props: Set[str], inherit_from: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Try to add a property to the collection if not already processed."""
+        prop_id = item.get("@id", "")
+        if not prop_id or prop_id in processed_props:
+            return None
+
+        processed_props.add(prop_id)
+        prop = self._format_property(item)
+
+        if inherit_from:
+            prop["inheritedFrom"] = inherit_from
+
+        return prop
+
     def _collect_properties_for_type(
         self, type_id: str, processed_props: Set[str], inherit_from: Optional[str] = None
     ) -> List[Dict[str, Any]]:
@@ -272,36 +305,36 @@ class SchemaOrgClient:
         properties = []
 
         for item in self.schema_data.values():
-            # Skip if not a property
-            item_types = item.get("@type")
-            if not item_types:
+            # Early return: Skip if not a valid property
+            if not self._is_valid_property_item(item):
                 continue
 
-            types_list = self._normalize_to_array(item_types)
-            if "rdf:Property" not in types_list:
+            # Early return: Skip if property doesn't belong to this type
+            if not self._is_property_for_type(item, type_id):
                 continue
 
-            # Check if this property belongs to the type
-            domains = self._normalize_to_array(item.get("schema:domainIncludes"))
-            for domain in domains:
-                if not isinstance(domain, dict):
-                    continue
-
-                if domain.get("@id") != type_id:
-                    continue
-
-                prop_id = item.get("@id", "")
-                if not prop_id or prop_id in processed_props:
-                    break
-
-                processed_props.add(prop_id)
-                prop = self._format_property(item)
-
-                if inherit_from:
-                    prop["inheritedFrom"] = inherit_from
-
+            # Try to add property if not already processed
+            prop = self._try_add_property(item, processed_props, inherit_from)
+            if prop:
                 properties.append(prop)
-                break
+
+        return properties
+
+    def _collect_inherited_properties(
+        self, type_id: str, processed_props: Set[str]
+    ) -> List[Dict[str, Any]]:
+        """Collect properties inherited from parent types."""
+        type_data = self.schema_data.get(type_id)
+        if not type_data:
+            return []
+
+        properties = []
+        super_types = self._extract_super_types(type_data)
+        for super_type in super_types:
+            inherited_props = self._collect_properties_for_type(
+                super_type["id"], processed_props, inherit_from=super_type["name"]
+            )
+            properties.extend(inherited_props)
 
         return properties
 
@@ -311,20 +344,14 @@ class SchemaOrgClient:
 
         type_id = type_name if type_name.startswith("schema:") else f"schema:{type_name}"
         processed_props: Set[str] = set()
-        properties: List[Dict[str, Any]] = []
 
         # Get direct properties
-        direct_props = self._collect_properties_for_type(type_id, processed_props)
-        properties.extend(direct_props)
+        properties = self._collect_properties_for_type(type_id, processed_props)
 
         # Get inherited properties if requested
         if include_inherited:
-            type_data = self.schema_data.get(type_id)
-            if type_data:
-                super_types = self._extract_super_types(type_data)
-                for super_type in super_types:
-                    inherited_props = self._collect_properties_for_type(super_type["id"], processed_props, inherit_from=super_type["name"])
-                    properties.extend(inherited_props)
+            inherited_props = self._collect_inherited_properties(type_id, processed_props)
+            properties.extend(inherited_props)
 
         # Sort by name, handling cases where name might not be a string
         properties.sort(key=lambda x: str(x.get("name", "")) if x.get("name") else "")

@@ -363,6 +363,67 @@ class FunctionExtractor:
             vars_str = ", ".join(selection.return_values)
             return f"{selection.indentation}{vars_str} = {function_call}"
 
+    def _find_import_section_end(self, file_path: str) -> int:
+        """Find the line number after the import section ends.
+
+        Args:
+            file_path: Path to the source file
+
+        Returns:
+            Line number after last import (1-indexed), or 1 if no imports
+        """
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+        except Exception as e:
+            logger.warning("failed_to_read_file_for_imports", error=str(e))
+            return 1
+
+        last_import_line, _ = self._scan_imports(lines)
+        return last_import_line + 1 if last_import_line > 0 else 1
+
+    def _scan_imports(self, lines: list[str]) -> tuple[int, bool]:
+        """Scan lines for import statements.
+
+        Args:
+            lines: Source file lines
+
+        Returns:
+            Tuple of (last_import_line, in_multiline_import)
+        """
+        last_import_line = 0
+        in_multiline = False
+
+        for i, line in enumerate(lines, start=1):
+            stripped = line.strip()
+
+            if self._should_skip_line(stripped):
+                continue
+
+            if self._is_import_start(stripped):
+                last_import_line = i
+                in_multiline = self._check_multiline_import(stripped)
+            elif in_multiline:
+                last_import_line = i
+                if ")" in stripped:
+                    in_multiline = False
+            elif last_import_line > 0:
+                break
+
+        return last_import_line, in_multiline
+
+    def _should_skip_line(self, stripped: str) -> bool:
+        """Check if line should be skipped (empty or comment)."""
+        return not stripped or stripped.startswith("#")
+
+    def _is_import_start(self, stripped: str) -> bool:
+        """Check if line starts an import statement."""
+        return stripped.startswith("import ") or stripped.startswith("from ")
+
+    def _check_multiline_import(self, stripped: str) -> bool:
+        """Check if import starts a multiline block."""
+        return "(" in stripped and ")" not in stripped
+
     def _determine_insertion_line(
         self,
         selection: CodeSelection,
@@ -385,8 +446,7 @@ class FunctionExtractor:
             return selection.end_line + 2
         elif extract_location == "top":
             # Insert at top of file (after imports)
-            # TODO: Detect import section end
-            return 1
+            return self._find_import_section_end(selection.file_path)
         else:
             return selection.start_line - 2
 
