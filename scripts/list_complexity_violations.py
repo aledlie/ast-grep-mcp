@@ -32,7 +32,7 @@ def scan_all_python_files(root: Path) -> list[tuple[Path, str]]:
                 content = f.read()
 
             # Simple function extraction (looking for 'def ' at start of line)
-            for line_num, line in enumerate(content.split("\n"), 1):
+            for _line_num, line in enumerate(content.split("\n"), 1):
                 stripped = line.lstrip()
                 if stripped.startswith("def "):
                     # Extract function name

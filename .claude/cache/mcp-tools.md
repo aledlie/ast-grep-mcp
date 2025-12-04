@@ -1,7 +1,7 @@
-# ast-grep-mcp MCP Tools (38 Total)
+# ast-grep-mcp MCP Tools (39 Total)
 
 > **Auto-generated cache** - Updated when tools are modified via git commits.
-> Last updated: 2025-11-30
+> Last updated: 2025-12-03
 
 ## Search Tools (4)
 | Tool | Description |
@@ -39,7 +39,7 @@
 | `detect_code_smells` | Detect code smells and anti-patterns (long functions, parameter bloat, deep nesting, magic numbers) |
 | `test_sentry_integration` | Test Sentry integration by triggering different event types |
 
-## Quality Tools (6)
+## Quality Tools (7)
 | Tool | Description |
 |------|-------------|
 | `create_linting_rule` | Create custom linting rules using ast-grep patterns |
@@ -48,6 +48,7 @@
 | `apply_standards_fixes` | Automatically fix code quality violations with safety classification |
 | `generate_quality_report` | Generate comprehensive code quality reports (Markdown/JSON) |
 | `detect_security_issues` | Scan for security vulnerabilities (SQL injection, XSS, command injection, secrets, crypto) |
+| `detect_orphans` | Find orphan files and functions not imported or called anywhere in the codebase |
 
 ## Schema.org Tools (9)
 | Tool | Description |
@@ -82,8 +83,8 @@
 | Refactoring | `src/ast_grep_mcp/features/refactoring/tools.py` | 2 |
 | Deduplication | `src/ast_grep_mcp/features/deduplication/tools.py` | 4 |
 | Complexity | `src/ast_grep_mcp/features/complexity/tools.py` | 3 |
-| Quality | `src/ast_grep_mcp/features/quality/tools.py` | 6 |
+| Quality | `src/ast_grep_mcp/features/quality/tools.py` | 7 |
 | Schema | `src/ast_grep_mcp/features/schema/tools.py` | 9 |
 | Documentation | `src/ast_grep_mcp/features/documentation/tools.py` | 5 |
 
-**Total: 38 MCP tools** across 8 categories
+**Total: 39 MCP tools** across 8 categories

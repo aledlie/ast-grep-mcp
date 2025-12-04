@@ -7,16 +7,15 @@ Tests are marked with @pytest.mark.semantic and will be skipped if
 transformers is not available.
 """
 
+# Check if transformers is available
+import importlib.util
+
 import pytest
 
-# Check if transformers is available
-try:
-    import torch
-    from transformers import AutoModel, AutoTokenizer
-
-    TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    TRANSFORMERS_AVAILABLE = False
+TRANSFORMERS_AVAILABLE = (
+    importlib.util.find_spec("torch") is not None
+    and importlib.util.find_spec("transformers") is not None
+)
 
 pytestmark = [
     pytest.mark.semantic,

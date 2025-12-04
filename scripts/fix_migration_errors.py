@@ -53,7 +53,7 @@ def fix_file(filepath: Path) -> bool:
                     console.log(f"  Fixing {filepath.name}: Removing orphaned lines {i+2} to {j+1}")
                     new_lines.append(line)
                     # Skip to after the closing paren
-                    for k in range(i + 1, j + 1):
+                    for _k in range(i + 1, j + 1):
                         skip_next = False  # Will be handled by advancing i
                     i = j
                     fixed = True

@@ -37,7 +37,7 @@ def configure_logging(log_level: str = "INFO", log_file: Optional[str] = None) -
         processors=processors,
         wrapper_class=structlog.make_filtering_bound_logger(numeric_level),
         context_class=dict,
-        logger_factory=structlog.WriteLoggerFactory(file=sys.stderr if log_file is None else open(log_file, "a")),
+        logger_factory=structlog.WriteLoggerFactory(file=sys.stderr if log_file is None else open(log_file, "a")),  # noqa: SIM115 - file must stay open for logging
         cache_logger_on_first_use=True,
     )
 

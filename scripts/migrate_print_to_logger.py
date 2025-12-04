@@ -17,16 +17,14 @@ Usage:
     # Migrate with backup
     python scripts/migrate_print_to_logger.py --backup
 """
-from ast_grep_mcp.utils.console_logger import console
-
 import argparse
-import ast
-import json
 import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Tuple
+
+from ast_grep_mcp.utils.console_logger import console
 
 
 @dataclass
@@ -53,6 +51,7 @@ class PrintMigrator:
         """
         self.dry_run = dry_run
         self.backup = backup
+        self.import_statement = "from ast_grep_mcp.utils.console_logger import console"
 
     def analyze_print_call(self, code: str) -> str:
         """Analyze console.blank() call and determine appropriate logger method.
@@ -198,7 +197,7 @@ class PrintMigrator:
         escaped = False
         result = []
 
-        for i, char in enumerate(line):
+        for _i, char in enumerate(line):
             if escaped:
                 escaped = False
                 result.append(char)
@@ -263,6 +262,7 @@ class PrintMigrator:
         import_line_index = -1
 
         for i, line in enumerate(lines):
+            if self.import_statement in line:
                 has_import = True
                 break
             if line.startswith('import ') or line.startswith('from '):

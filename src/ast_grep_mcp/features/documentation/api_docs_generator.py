@@ -589,7 +589,7 @@ def _find_route_files(project_folder: str, language: str, framework: str) -> Lis
     exts = extensions.get(language, [".py", ".js", ".ts"])
 
     # Walk directory
-    for root, dirs, files in os.walk(project_folder):
+    for root, _dirs, files in os.walk(project_folder):
         # Skip common non-source directories
         if any(skip in root for skip in ["node_modules", ".git", "venv", "__pycache__", "dist", "build"]):
             continue

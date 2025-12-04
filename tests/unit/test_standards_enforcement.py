@@ -252,7 +252,7 @@ class TestRuleSetsConfiguration:
 
     def test_rule_sets_structure(self):
         """Test that each rule set has required fields."""
-        for set_name, set_config in RULE_SETS.items():
+        for _set_name, set_config in RULE_SETS.items():
             assert "description" in set_config
             assert "priority" in set_config
             assert "rules" in set_config
