@@ -109,15 +109,6 @@ group_duplicates = _detector.group_duplicates
 
 # Stub functions for backward compatibility with tests
 # These have different signatures than modular versions (e.g., language param)
-def get_complexity_level(score: int) -> str:
-    """Get complexity level from score."""
-    if score < 5:
-        return "low"
-    elif score < 10:
-        return "medium"
-    else:
-        return "high"
-
 def calculate_similarity(code1: str, code2: str, language: str) -> float:
     """Calculate similarity between two code snippets."""
     from difflib import SequenceMatcher

@@ -38,3 +38,20 @@ class ComplexityThresholds:
     cognitive: int = ComplexityDefaults.COGNITIVE_THRESHOLD
     nesting_depth: int = ComplexityDefaults.NESTING_THRESHOLD
     lines: int = ComplexityDefaults.LENGTH_THRESHOLD
+
+
+def get_complexity_level(score: int) -> str:
+    """Get complexity level from score.
+
+    Args:
+        score: Numeric complexity score
+
+    Returns:
+        Complexity level string: "low", "medium", or "high"
+    """
+    if score < 5:
+        return "low"
+    elif score < 10:
+        return "medium"
+    else:
+        return "high"

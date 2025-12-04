@@ -15,6 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 # Import from modular structure where interfaces match
+from ast_grep_mcp.models.complexity import get_complexity_level
 from ast_grep_mcp.models.deduplication import VariationSeverity
 
 # These have different interfaces in modular code - import stubs from main
@@ -26,7 +27,6 @@ from main import (
     classify_variations,
     detect_conditional_variations,
     generate_parameter_name,
-    get_complexity_level,
     identify_varying_identifiers,
     infer_parameter_type,
 )
