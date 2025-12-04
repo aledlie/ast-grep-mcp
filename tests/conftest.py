@@ -27,13 +27,13 @@ def clean_cache():
 
     This fixture is automatically used by tests that need cache isolation.
     """
-    import main
-    if main._query_cache is not None:
-        main._query_cache.cache.clear()
+    from ast_grep_mcp.core import cache as core_cache
+    if core_cache._query_cache is not None:
+        core_cache._query_cache.cache.clear()
     yield
     # Optionally clear after test too
-    if main._query_cache is not None:
-        main._query_cache.cache.clear()
+    if core_cache._query_cache is not None:
+        core_cache._query_cache.cache.clear()
 
 
 @pytest.fixture
@@ -43,7 +43,7 @@ def query_cache():
     Returns:
         QueryCache instance for testing
     """
-    from main import QueryCache
+    from ast_grep_mcp.core.cache import QueryCache
     cache = QueryCache()
     yield cache
     cache.cache.clear()
@@ -408,21 +408,22 @@ def initialized_cache():
     Yields:
         QueryCache: Initialized cache instance
     """
-    import main
-    from main import QueryCache
+    from ast_grep_mcp.core import cache as core_cache
+    from ast_grep_mcp.core import config as core_config
+    from main import register_mcp_tools
 
     # Setup
-    main._query_cache = QueryCache(max_size=10, ttl_seconds=300)
-    main.CACHE_ENABLED = True
-    main.register_mcp_tools()
+    core_cache.init_query_cache(max_size=10, ttl_seconds=300)
+    core_config.CACHE_ENABLED = True
+    register_mcp_tools()
 
-    yield main._query_cache
+    yield core_cache._query_cache
 
     # Teardown
-    if main._query_cache:
-        main._query_cache.cache.clear()
-    main._query_cache = None
-    main.CACHE_ENABLED = True
+    if core_cache._query_cache:
+        core_cache._query_cache.cache.clear()
+    core_cache._query_cache = None
+    core_config.CACHE_ENABLED = True
 
 
 # ============================================================================
@@ -631,7 +632,7 @@ def sample_complexity_thresholds():
     Returns:
         ComplexityThresholds: Standard threshold configuration
     """
-    from main import ComplexityThresholds
+    from ast_grep_mcp.models.complexity import ComplexityThresholds
     return ComplexityThresholds(
         cyclomatic=10,
         cognitive=15,
@@ -703,7 +704,7 @@ def sample_linting_rule():
     Returns:
         LintingRule: Sample rule instance
     """
-    from main import LintingRule
+    from ast_grep_mcp.models.standards import LintingRule
     return LintingRule(
         id="test-rule",
         language="python",

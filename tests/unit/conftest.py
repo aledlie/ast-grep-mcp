@@ -686,17 +686,19 @@ def reset_cache(mcp_main):
     This fixture automatically resets the query cache and its statistics
     before each test to ensure test isolation.
     """
+    from ast_grep_mcp.core import cache as core_cache
+
     # Reset cache if it exists
-    if hasattr(mcp_main, '_query_cache') and mcp_main._query_cache:
-        mcp_main._query_cache.cache.clear()
-        mcp_main._query_cache.hits = 0
-        mcp_main._query_cache.misses = 0
+    if core_cache._query_cache is not None:
+        core_cache._query_cache.cache.clear()
+        core_cache._query_cache.hits = 0
+        core_cache._query_cache.misses = 0
 
     yield
 
     # Optional cleanup after test
-    if hasattr(mcp_main, '_query_cache') and mcp_main._query_cache:
-        mcp_main._query_cache.cache.clear()
+    if core_cache._query_cache is not None:
+        core_cache._query_cache.cache.clear()
 
 
 @pytest.fixture(autouse=True)
