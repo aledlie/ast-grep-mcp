@@ -468,11 +468,11 @@ uv run python -c "from ast_grep_mcp.core.sentry import init_sentry; init_sentry(
 
 ### Import errors
 
-If you see import errors after recent refactoring:
+If you see import errors:
 
-1. Old imports still work via `main.py` backward compatibility
-2. Update to new modular imports (see [docs/MIGRATION-FROM-MONOLITH.md](docs/MIGRATION-FROM-MONOLITH.md))
-3. Run `uv sync` to update dependencies
+1. Use modular imports from `ast_grep_mcp.*` (see [docs/MODULE-GUIDE.md](docs/MODULE-GUIDE.md))
+2. Run `uv sync` to update dependencies
+3. `main.py` is now only an entry point - all functionality is in the modular architecture
 
 ## Contributing
 
@@ -561,13 +561,12 @@ See [dev/archive/refactoring-assistants/](dev/archive/refactoring-assistants/) f
 
 **Major refactoring** - Migrated from monolithic architecture to modular design.
 
-- ✅ Modular architecture migration complete
-- ✅ 57 modules created
-- ✅ Zero breaking changes (backward compatibility maintained)
-- ✅ All 30 MCP tools working (100% registered)
+- ✅ Modular architecture migration complete (64 modules)
+- ✅ All 38 MCP tools working (100% registered)
 - ✅ 1,600+ tests passing
+- ✅ `main.py` reduced to entry point only (10 lines)
 
-See [docs/MIGRATION-FROM-MONOLITH.md](docs/MIGRATION-FROM-MONOLITH.md) for details.
+See [docs/MODULE-GUIDE.md](docs/MODULE-GUIDE.md) for details.
 
 ### 2025-11-17: Sentry & Doppler Integration
 

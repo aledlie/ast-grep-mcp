@@ -295,15 +295,15 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 - 32 tests passing for both tools
 
 ### 2025-11-25: Tool Registration Complete
-- 100% tool registration (30 tools)
+- 100% tool registration (38 tools)
 - Consistent two-layer pattern (standalone + MCP wrapper)
-- Full backward compatibility maintained
 
 ### 2025-11-24: Modular Architecture & Code Quality
-- Migrated to 57-module architecture
+- Migrated to 64-module architecture
 - Added code complexity analysis tools
 - Added code smell detection
 - Created linting rule system (24+ templates)
+- `main.py` reduced to entry point only (10 lines)
 
 ### 2025-11-23: Enhanced Deduplication
 - Complete rewrite with intelligent analysis

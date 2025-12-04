@@ -877,20 +877,14 @@ from ast_grep_mcp.models.deduplication import (
 )
 ```
 
-### Backward Compatibility
+### Import Locations
 
-Old imports from `main.py` still work but are deprecated:
+All deduplication functionality is available from the modular architecture:
 
 ```python
-# Old (deprecated)
-from main import DuplicationDetector, PatternAnalyzer
-
-# New (recommended)
 from ast_grep_mcp.features.deduplication.detector import DuplicationDetector
 from ast_grep_mcp.features.deduplication.analyzer import PatternAnalyzer
 ```
-
-See [MIGRATION-FROM-MONOLITH.md](MIGRATION-FROM-MONOLITH.md) for migration details.
 
 ---
 
