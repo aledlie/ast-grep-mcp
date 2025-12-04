@@ -5,6 +5,7 @@ This module registers MCP tools for:
 - create_linting_rule: Create custom linting rules
 - list_rule_templates: Browse pre-built rule templates
 - enforce_standards: Standards enforcement engine
+- detect_orphans: Detect orphan files and functions not imported/called anywhere
 """
 
 import os
@@ -19,6 +20,7 @@ from pydantic import Field
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.quality.enforcer import enforce_standards_impl, format_violation_report
 from ast_grep_mcp.features.quality.fixer import apply_fixes_batch
+from ast_grep_mcp.features.quality.orphan_detector import detect_orphans_impl
 from ast_grep_mcp.features.quality.reporter import generate_quality_report_impl
 from ast_grep_mcp.features.quality.rules import RULE_TEMPLATES, create_rule_from_template, get_available_templates, save_rule_to_project
 from ast_grep_mcp.features.quality.security_scanner import detect_security_issues_impl
@@ -972,6 +974,129 @@ def detect_security_issues_tool(
         raise
 
 
+def detect_orphans_tool(
+    project_folder: str,
+    include_patterns: List[str] | None = None,
+    exclude_patterns: List[str] | None = None,
+    analyze_functions: bool = True,
+    verify_with_grep: bool = True,
+) -> Dict[str, Any]:
+    """
+    Detect orphan files and functions in a codebase.
+
+    This function identifies code that is never imported or called, helping to find
+    dead code that can be safely removed. It builds a dependency graph, identifies
+    entry points, and verifies orphan status using multiple methods.
+
+    **What it detects:**
+    - **Orphan Files**: Files that are not imported by any other file
+    - **Orphan Functions**: Functions that are defined but never called
+
+    **How it works:**
+    1. Builds a dependency graph from import statements
+    2. Identifies entry points (main.py, test files, __init__.py, etc.)
+    3. Finds files not reachable from any entry point
+    4. Optionally verifies with grep to reduce false positives
+    5. Analyzes function-level orphans within non-orphan files
+
+    **Supported Languages:**
+    - Python: AST-based import parsing (handles relative imports)
+    - TypeScript/JavaScript: Regex-based import parsing
+
+    **Entry Points (automatically detected):**
+    - main.py, __main__.py, cli.py, app.py, server.py
+    - index.ts, index.js
+    - conftest.py, test_*.py, *_test.py, *.test.ts, *.spec.ts
+
+    Args:
+        project_folder: Absolute path to project root directory
+        include_patterns: Glob patterns for files to include (default: ['**/*.py', '**/*.ts', '**/*.js'])
+        exclude_patterns: Glob patterns to exclude (default: node_modules, __pycache__, .git, etc.)
+        analyze_functions: Whether to analyze function-level orphans (default: True)
+        verify_with_grep: Whether to double-check with grep for string references (default: True)
+
+    Returns:
+        Dictionary containing:
+        - summary: Statistics about orphan detection
+        - orphan_files: List of orphan files with details
+        - orphan_functions: List of orphan functions with details
+
+    Example usage:
+        # Basic orphan detection
+        result = detect_orphans(
+            project_folder="/path/to/project"
+        )
+
+        # Focus on Python files only
+        result = detect_orphans(
+            project_folder="/path/to/project",
+            include_patterns=["**/*.py"],
+            analyze_functions=True
+        )
+
+        # Quick scan without function analysis
+        result = detect_orphans(
+            project_folder="/path/to/project",
+            analyze_functions=False,
+            verify_with_grep=False
+        )
+
+        print(f"Found {result['summary']['orphan_files']} orphan files")
+        print(f"Found {result['summary']['orphan_functions']} orphan functions")
+        for f in result['orphan_files']:
+            print(f"  {f['file_path']} ({f['lines']} lines) - {f['status']}")
+    """
+    logger = get_logger("tool.detect_orphans")
+    start_time = time.time()
+
+    logger.info(
+        "tool_invoked",
+        tool="detect_orphans",
+        project_folder=project_folder,
+        include_patterns=include_patterns,
+        exclude_patterns=exclude_patterns,
+        analyze_functions=analyze_functions,
+        verify_with_grep=verify_with_grep,
+    )
+
+    try:
+        # Run orphan detection
+        result = detect_orphans_impl(
+            project_folder=project_folder,
+            include_patterns=include_patterns,
+            exclude_patterns=exclude_patterns,
+            analyze_functions=analyze_functions,
+            verify_with_grep=verify_with_grep,
+        )
+
+        execution_time = time.time() - start_time
+
+        logger.info(
+            "tool_completed",
+            tool="detect_orphans",
+            execution_time_seconds=round(execution_time, 3),
+            orphan_files=result["summary"]["orphan_files"],
+            orphan_functions=result["summary"]["orphan_functions"],
+            total_files=result["summary"]["total_files_analyzed"],
+        )
+
+        return result
+
+    except Exception as e:
+        execution_time = time.time() - start_time
+        logger.error("tool_failed", tool="detect_orphans", execution_time_seconds=round(execution_time, 3), error=str(e)[:200])
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "tool": "detect_orphans",
+                "project_folder": project_folder,
+                "analyze_functions": analyze_functions,
+                "execution_time_seconds": round(execution_time, 3),
+            },
+        )
+        raise
+
+
 def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
     """Create field definitions for MCP tool registration."""
     return {
@@ -1041,6 +1166,19 @@ def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
             ),
             "severity_threshold": Field(default="low", description="Minimum severity to report: 'critical', 'high', 'medium', 'low'"),
             "max_issues": Field(default=100, description="Maximum number of issues to return (0 = unlimited)"),
+        },
+        "detect_orphans": {
+            "project_folder": Field(description="Absolute path to project root directory"),
+            "include_patterns": Field(
+                default=None,
+                description="Glob patterns for files to include (e.g., ['**/*.py', '**/*.ts']). Defaults to Python and TypeScript files.",
+            ),
+            "exclude_patterns": Field(
+                default=None,
+                description="Glob patterns for files to exclude (e.g., ['**/node_modules/**']). Has sensible defaults.",
+            ),
+            "analyze_functions": Field(default=True, description="Whether to analyze function-level orphans in addition to files"),
+            "verify_with_grep": Field(default=True, description="Whether to double-check orphans with grep to reduce false positives"),
         },
     }
 
@@ -1166,4 +1304,21 @@ def register_quality_tools(mcp: FastMCP) -> None:
             issue_types=issue_types,
             severity_threshold=severity_threshold,
             max_issues=max_issues,
+        )
+
+    @mcp.tool()
+    def detect_orphans(
+        project_folder: str = fields["detect_orphans"]["project_folder"],
+        include_patterns: List[str] | None = fields["detect_orphans"]["include_patterns"],
+        exclude_patterns: List[str] | None = fields["detect_orphans"]["exclude_patterns"],
+        analyze_functions: bool = fields["detect_orphans"]["analyze_functions"],
+        verify_with_grep: bool = fields["detect_orphans"]["verify_with_grep"],
+    ) -> Dict[str, Any]:
+        """Wrapper that calls the standalone detect_orphans_tool function."""
+        return detect_orphans_tool(
+            project_folder=project_folder,
+            include_patterns=include_patterns,
+            exclude_patterns=exclude_patterns,
+            analyze_functions=analyze_functions,
+            verify_with_grep=verify_with_grep,
         )
