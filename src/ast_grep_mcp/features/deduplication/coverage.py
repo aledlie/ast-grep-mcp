@@ -8,6 +8,17 @@ from typing import Callable, Dict, List, Optional, Set, Tuple
 
 from ...core.logging import get_logger
 
+__all__ = [
+    "CoverageDetector",
+    "find_test_file_patterns",
+    "has_test_coverage",
+    "get_test_coverage_for_files",
+    "check_test_file_references_source",
+    "_check_test_file_references_source",
+    "get_potential_test_paths",
+    "_get_potential_test_paths",
+]
+
 
 # Helper function for JavaScript-like languages
 def _get_javascript_patterns(source_name: str) -> List[str]:
@@ -644,3 +655,45 @@ def has_test_coverage(file_path: str, language: str, project_root: str) -> bool:
 def get_test_coverage_for_files(file_paths: List[str], language: str, project_root: str) -> Dict[str, bool]:
     """Get test coverage status for multiple files."""
     return _detector.get_test_coverage_for_files(file_paths, language, project_root)
+
+
+def check_test_file_references_source(test_file_path: str, source_file_path: str, language: str) -> bool:
+    """Check if a test file references/imports the source file.
+
+    Standalone function that checks if a test file appears to test a given source file
+    by analyzing imports and references.
+
+    Args:
+        test_file_path: Path to the test file
+        source_file_path: Path to the source file being tested
+        language: Programming language
+
+    Returns:
+        True if the test file appears to test the source file
+    """
+    return _detector._check_test_file_references_source(test_file_path, source_file_path, language)
+
+
+# Alias for backward compatibility with underscore prefix
+_check_test_file_references_source = check_test_file_references_source
+
+
+def get_potential_test_paths(file_path: str, language: str, project_root: str) -> List[str]:
+    """Generate potential test file paths for a source file.
+
+    Standalone function that generates a list of potential test file paths
+    that could contain tests for a given source file.
+
+    Args:
+        file_path: Path to the source file
+        language: Programming language
+        project_root: Root directory of the project
+
+    Returns:
+        List of potential test file paths that could contain tests for this file
+    """
+    return _detector._get_potential_test_paths(file_path, language, project_root)
+
+
+# Alias for backward compatibility with underscore prefix
+_get_potential_test_paths = get_potential_test_paths

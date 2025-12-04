@@ -44,7 +44,9 @@ from .templates import (
 
 # Text utilities
 from .text import (
+    _clean_template_whitespace,
     calculate_similarity,
+    clean_template_whitespace,
     normalize_code,
 )
 
@@ -83,6 +85,8 @@ __all__ = [
     # Text utilities
     "normalize_code",
     "calculate_similarity",
+    "clean_template_whitespace",
+    "_clean_template_whitespace",
     # Validation
     "validate_config_file",
 ]

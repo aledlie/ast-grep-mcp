@@ -15,20 +15,20 @@ from unittest.mock import patch
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# These functions are stubs with language parameter - import from main until signatures align
-# TODO: Update modular functions to accept language param or update tests
-from main import (
+# Import modular functions - signatures now support optional language parameter
+from ast_grep_mcp.utils.text import calculate_similarity, normalize_code
+from ast_grep_mcp.features.deduplication.diff import (
     build_diff_tree,
     build_nested_diff_tree,
-    calculate_similarity,
     diff_preview_to_dict,
     format_alignment_diff,
     generate_diff_from_file_paths,
     generate_file_diff,
     generate_multi_file_diff,
-    generate_refactoring_suggestions,
-    normalize_code,
 )
+
+# generate_refactoring_suggestions migrated to modular architecture
+from ast_grep_mcp.features.deduplication.recommendations import generate_refactoring_suggestions
 
 
 class TestDuplicationDetection:

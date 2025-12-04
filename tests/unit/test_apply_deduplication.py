@@ -8,6 +8,8 @@ Tests cover:
 - Backup integration (Phase 3.2)
 - Rollback functionality
 - Error handling
+
+Note: This test uses fixtures from conftest.py for MCP tool access.
 """
 
 import json
@@ -21,51 +23,13 @@ import pytest
 # Add the parent directory to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-
-# Mock FastMCP before importing main
-class MockFastMCP:
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.tools: Dict[str, Any] = {}
-
-    def tool(self, **kwargs: Any) -> Any:
-        def decorator(func: Any) -> Any:
-            self.tools[func.__name__] = func
-            return func
-        return decorator
-
-    def run(self, **kwargs: Any) -> None:
-        pass
-
-
-def mock_field(*args: Any, **kwargs: Any) -> Any:
-    """Mock pydantic.Field that accepts positional and keyword arguments."""
-    if args:
-        return args[0]
-    return kwargs.get("default")
-
-
-# Save original pydantic.Field to restore later (prevent test pollution)
-import importlib
-
-import pydantic
-
-_original_field = pydantic.Field
-
-# Import with mocked decorators
-with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
-    with patch("pydantic.Field", mock_field):
-        import main
-        main.register_mcp_tools()
-
-# Restore pydantic.Field immediately after import to prevent test pollution
-pydantic.Field = _original_field
-
-# Reload modules that may have cached the mocked Field
-# This prevents test pollution in subsequent test files
-import ast_grep_mcp.core.usage_tracking
-
-importlib.reload(ast_grep_mcp.core.usage_tracking)
+# Import functions from modular architecture
+from ast_grep_mcp.features.rewrite.backup import restore_backup
+from ast_grep_mcp.features.deduplication.applicator import (
+    _plan_file_modification_order,
+    _add_import_to_content,
+    _generate_import_for_extracted_function,
+)
 
 
 class TestApplyDeduplication:
@@ -261,7 +225,7 @@ class TestBackupIntegration:
             assert f.read() == new_content
 
         # Rollback
-        restored = main.restore_backup(backup_id, str(project_folder))
+        restored = restore_backup(backup_id, str(project_folder))
 
         # Verify original content restored
         with open(backup_test_files["file1"], "r") as f:
@@ -294,7 +258,7 @@ class TestBackupIntegration:
             assert f.read() == new_content2
 
         # Rollback
-        restored = main.restore_backup(result["backup_id"], str(project_folder))
+        restored = restore_backup(result["backup_id"], str(project_folder))
 
         # Verify both files restored
         with open(backup_test_files["file1"], "r") as f:
@@ -527,7 +491,7 @@ class TestOrchestrationHelperFunctions:
             "replacements": {}
         }
 
-        plan = main._plan_file_modification_order(
+        plan = _plan_file_modification_order(
             files_to_modify=files,
             generated_code=generated_code,
             extract_to_file=None,
@@ -546,7 +510,7 @@ class TestOrchestrationHelperFunctions:
         content = "import os\n\ndef main():\n    pass\n"
         import_stmt = "from utils import helper"
 
-        result = main._add_import_to_content(content, import_stmt, "python")
+        result = _add_import_to_content(content, import_stmt, "python")
 
         assert "from utils import helper" in result
         # Should be after existing imports
@@ -557,7 +521,7 @@ class TestOrchestrationHelperFunctions:
         content = "def main():\n    pass\n"
         import_stmt = "from utils import helper"
 
-        result = main._add_import_to_content(content, import_stmt, "python")
+        result = _add_import_to_content(content, import_stmt, "python")
 
         assert result.startswith("from utils import helper")
 
@@ -566,7 +530,7 @@ class TestOrchestrationHelperFunctions:
         content = "import { useState } from 'react';\n\nfunction App() {}\n"
         import_stmt = "import { helper } from './utils'"
 
-        result = main._add_import_to_content(content, import_stmt, "typescript")
+        result = _add_import_to_content(content, import_stmt, "typescript")
 
         assert "import { helper } from './utils'" in result
 
@@ -575,7 +539,7 @@ class TestOrchestrationHelperFunctions:
         content = "import os\nfrom utils import helper\n\ndef main():\n    pass\n"
         import_stmt = "from utils import helper"
 
-        result = main._add_import_to_content(content, import_stmt, "python")
+        result = _add_import_to_content(content, import_stmt, "python")
 
         # Should appear only once
         assert result.count("from utils import helper") == 1
@@ -585,7 +549,7 @@ class TestOrchestrationHelperFunctions:
         source = os.path.join(str(project_folder), "src", "file.py")
         target = os.path.join(str(project_folder), "src", "utils.py")
 
-        result = main._generate_import_for_extracted_function(
+        result = _generate_import_for_extracted_function(
             source_file=source,
             target_file=target,
             function_name="helper",

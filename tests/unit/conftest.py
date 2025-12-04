@@ -50,16 +50,77 @@ def mock_field(*args: Any, **kwargs: Any) -> Any:
 
 @pytest.fixture(scope="module")
 def mcp_main():
-    """Import main module with mocked decorators.
+    """Initialize MCP tools using the modular architecture.
 
-    This fixture must be module-scoped to ensure main is imported once
-    and tools are registered once for all tests in the module.
+    This fixture sets up a mock MCP instance with tools registered
+    from the modular architecture.
     """
-    with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
-        with patch("pydantic.Field", mock_field):
-            import main
-            main.register_mcp_tools()
-            return main
+    # Create a mock MCP instance
+    mock_mcp = MockFastMCP("ast-grep")
+
+    # Import tool implementations from modular architecture
+    from ast_grep_mcp.features.complexity.tools import (
+        analyze_complexity_tool,
+        test_sentry_integration_tool,
+    )
+    from ast_grep_mcp.features.deduplication.tools import (
+        analyze_deduplication_candidates_tool,
+        apply_deduplication_tool,
+        benchmark_deduplication_tool,
+        find_duplication_tool,
+    )
+    from ast_grep_mcp.features.quality.tools import (
+        create_linting_rule_tool,
+        enforce_standards_tool,
+        list_rule_templates_tool,
+    )
+    from ast_grep_mcp.features.rewrite.backup import restore_backup
+    from ast_grep_mcp.features.rewrite.service import (
+        list_backups_impl,
+        rewrite_code_impl,
+    )
+    from ast_grep_mcp.features.search.service import (
+        dump_syntax_tree_impl,
+        find_code_by_rule_impl,
+        find_code_impl,
+        test_match_code_rule_impl,
+    )
+    from ast_grep_mcp.features.documentation.tools import (
+        generate_api_docs_tool,
+        generate_changelog_tool,
+        generate_docstrings_tool,
+        generate_readme_sections_tool,
+        sync_documentation_tool,
+    )
+
+    # Register tools
+    mock_mcp.tools["find_duplication"] = find_duplication_tool
+    mock_mcp.tools["analyze_deduplication_candidates"] = analyze_deduplication_candidates_tool
+    mock_mcp.tools["apply_deduplication"] = apply_deduplication_tool
+    mock_mcp.tools["benchmark_deduplication"] = benchmark_deduplication_tool
+    mock_mcp.tools["dump_syntax_tree"] = dump_syntax_tree_impl
+    mock_mcp.tools["test_match_code_rule"] = test_match_code_rule_impl
+    mock_mcp.tools["find_code"] = find_code_impl
+    mock_mcp.tools["find_code_by_rule"] = find_code_by_rule_impl
+    mock_mcp.tools["rewrite_code"] = rewrite_code_impl
+    mock_mcp.tools["list_backups"] = list_backups_impl
+    mock_mcp.tools["rollback_rewrite"] = restore_backup
+    mock_mcp.tools["analyze_complexity"] = analyze_complexity_tool
+    mock_mcp.tools["test_sentry_integration"] = test_sentry_integration_tool
+    mock_mcp.tools["create_linting_rule"] = create_linting_rule_tool
+    mock_mcp.tools["list_rule_templates"] = list_rule_templates_tool
+    mock_mcp.tools["enforce_standards"] = enforce_standards_tool
+    mock_mcp.tools["generate_docstrings"] = generate_docstrings_tool
+    mock_mcp.tools["generate_readme_sections"] = generate_readme_sections_tool
+    mock_mcp.tools["generate_api_docs"] = generate_api_docs_tool
+    mock_mcp.tools["generate_changelog"] = generate_changelog_tool
+    mock_mcp.tools["sync_documentation"] = sync_documentation_tool
+
+    # Create a namespace object to hold mcp
+    class MCPNamespace:
+        mcp = mock_mcp
+
+    return MCPNamespace()
 
 
 @pytest.fixture(scope="module")

@@ -18,18 +18,28 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from ast_grep_mcp.models.complexity import get_complexity_level
 from ast_grep_mcp.models.deduplication import VariationSeverity
 
-# These have different interfaces in modular code - import stubs from main
-from main import (
-    ParameterType,
+# Import from modular code
+from ast_grep_mcp.features.deduplication import (
     _detect_nested_function_call,
+    detect_conditional_variations,
+)
+
+# Type inference and parameter functions migrated to modular architecture
+from ast_grep_mcp.features.deduplication.generator import (
     _infer_from_identifier_name,
     _infer_single_value_type,
-    classify_variations,
-    detect_conditional_variations,
     generate_parameter_name,
-    identify_varying_identifiers,
     infer_parameter_type,
 )
+
+# Variation analysis functions migrated to modular architecture
+from ast_grep_mcp.features.deduplication.analyzer import (
+    classify_variations,
+    identify_varying_identifiers,
+)
+
+# ParameterType class migrated to modular architecture
+from ast_grep_mcp.models.deduplication import ParameterType
 
 
 class TestVariationClassification:

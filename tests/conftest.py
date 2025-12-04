@@ -394,14 +394,14 @@ def recommendation_engine():
 
 @pytest.fixture
 def initialized_cache():
-    """Provide initialized cache with MCP tools registered.
+    """Provide initialized cache for testing.
 
     Automatically resets cache state before and after test. This is useful
-    for tests that need both cache and tools available without manual setup.
+    for tests that need cache available without manual setup.
 
     Usage:
         def test_cached_search(initialized_cache):
-            # Cache is ready, tools are registered
+            # Cache is ready
             cache = initialized_cache
             assert cache is not None
 
@@ -410,12 +410,10 @@ def initialized_cache():
     """
     from ast_grep_mcp.core import cache as core_cache
     from ast_grep_mcp.core import config as core_config
-    from main import register_mcp_tools
 
     # Setup
     core_cache.init_query_cache(max_size=10, ttl_seconds=300)
     core_config.CACHE_ENABLED = True
-    register_mcp_tools()
 
     yield core_cache._query_cache
 
@@ -508,10 +506,10 @@ def temp_project_with_files(temp_dir):
 
 @pytest.fixture
 def mcp_tools():
-    """Provide easy access to registered MCP tools.
+    """Provide easy access to MCP tools from modular architecture.
 
-    Registers all tools and returns accessor function that validates
-    tool existence with helpful error messages.
+    Returns accessor function that validates tool existence with helpful
+    error messages.
 
     Usage:
         def test_tool(mcp_tools):
@@ -524,11 +522,65 @@ def mcp_tools():
     Raises:
         ValueError: If tool not found, with list of available tools
     """
-    import main
+    # Import tool implementations from modular architecture
+    from ast_grep_mcp.features.complexity.tools import (
+        analyze_complexity_tool,
+        test_sentry_integration_tool,
+    )
+    from ast_grep_mcp.features.deduplication.tools import (
+        analyze_deduplication_candidates_tool,
+        apply_deduplication_tool,
+        benchmark_deduplication_tool,
+        find_duplication_tool,
+    )
+    from ast_grep_mcp.features.quality.tools import (
+        create_linting_rule_tool,
+        enforce_standards_tool,
+        list_rule_templates_tool,
+    )
+    from ast_grep_mcp.features.rewrite.backup import restore_backup
+    from ast_grep_mcp.features.rewrite.service import (
+        list_backups_impl,
+        rewrite_code_impl,
+    )
+    from ast_grep_mcp.features.search.service import (
+        dump_syntax_tree_impl,
+        find_code_by_rule_impl,
+        find_code_impl,
+        test_match_code_rule_impl,
+    )
+    from ast_grep_mcp.features.documentation.tools import (
+        generate_api_docs_tool,
+        generate_changelog_tool,
+        generate_docstrings_tool,
+        generate_readme_sections_tool,
+        sync_documentation_tool,
+    )
 
-    # Ensure tools are registered
-    if not hasattr(main, "mcp") or not main.mcp:
-        main.register_mcp_tools()
+    # Build tools registry
+    tools = {
+        "find_duplication": find_duplication_tool,
+        "analyze_deduplication_candidates": analyze_deduplication_candidates_tool,
+        "apply_deduplication": apply_deduplication_tool,
+        "benchmark_deduplication": benchmark_deduplication_tool,
+        "dump_syntax_tree": dump_syntax_tree_impl,
+        "test_match_code_rule": test_match_code_rule_impl,
+        "find_code": find_code_impl,
+        "find_code_by_rule": find_code_by_rule_impl,
+        "rewrite_code": rewrite_code_impl,
+        "list_backups": list_backups_impl,
+        "rollback_rewrite": restore_backup,
+        "analyze_complexity": analyze_complexity_tool,
+        "test_sentry_integration": test_sentry_integration_tool,
+        "create_linting_rule": create_linting_rule_tool,
+        "list_rule_templates": list_rule_templates_tool,
+        "enforce_standards": enforce_standards_tool,
+        "generate_docstrings": generate_docstrings_tool,
+        "generate_readme_sections": generate_readme_sections_tool,
+        "generate_api_docs": generate_api_docs_tool,
+        "generate_changelog": generate_changelog_tool,
+        "sync_documentation": sync_documentation_tool,
+    }
 
     def get_tool(tool_name: str):
         """Get tool by name, with helpful error if not found.
@@ -542,9 +594,9 @@ def mcp_tools():
         Raises:
             ValueError: If tool not found
         """
-        tool = main.mcp.tools.get(tool_name)
+        tool = tools.get(tool_name)
         if tool is None:
-            available = list(main.mcp.tools.keys())
+            available = list(tools.keys())
             raise ValueError(
                 f"Tool '{tool_name}' not found. Available: {available}"
             )
