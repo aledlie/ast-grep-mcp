@@ -11,17 +11,52 @@ Version History:
 
 # Core detection and analysis
 from ...models.deduplication import VariationCategory, VariationSeverity
-from .analyzer import PatternAnalyzer
+from .analyzer import (
+    PatternAnalyzer,
+    _detect_nested_function_call,
+    classify_variations,
+    detect_conditional_variations,
+    identify_varying_identifiers,
+)
 from .applicator import DeduplicationApplicator
 from .benchmark import DeduplicationBenchmark, benchmark_deduplication
 
 # Supporting modules
-from .coverage import CoverageDetector, find_test_file_patterns, get_test_coverage_for_files, has_test_coverage
+from .coverage import (
+    CoverageDetector,
+    _check_test_file_references_source,
+    _get_potential_test_paths,
+    check_test_file_references_source,
+    find_test_file_patterns,
+    get_potential_test_paths,
+    get_test_coverage_for_files,
+    has_test_coverage,
+)
 from .detector import DuplicationDetector
-from .generator import CodeGenerator
-from .impact import ImpactAnalyzer, analyze_deduplication_impact
+from .diff import (
+    build_diff_tree,
+    build_nested_diff_tree,
+    diff_preview_to_dict,
+    format_alignment_diff,
+    generate_diff_from_file_paths,
+    generate_file_diff,
+    generate_multi_file_diff,
+)
+from .generator import (
+    CodeGenerator,
+    _infer_from_identifier_name,
+    _infer_single_value_type,
+    generate_parameter_name,
+    infer_parameter_type,
+)
+from .impact import (
+    ImpactAnalyzer,
+    _estimate_lines_changed,
+    analyze_deduplication_impact,
+    estimate_lines_changed,
+)
 from .ranker import DuplicationRanker
-from .recommendations import RecommendationEngine, generate_deduplication_recommendation
+from .recommendations import RecommendationEngine, generate_deduplication_recommendation, generate_refactoring_suggestions
 from .reporting import (
     DuplicationReporter,
     EnhancedDuplicationCandidate,
@@ -68,12 +103,39 @@ __all__ = [
     # Constants
     "VariationCategory",
     "VariationSeverity",
-    # Module-level functions
+    # Module-level functions - diff utilities
+    "build_diff_tree",
+    "build_nested_diff_tree",
+    "diff_preview_to_dict",
+    "format_alignment_diff",
+    "generate_diff_from_file_paths",
+    "generate_file_diff",
+    "generate_multi_file_diff",
+    # Module-level functions - variation analysis
+    "detect_conditional_variations",
+    "_detect_nested_function_call",
+    "classify_variations",
+    "identify_varying_identifiers",
+    # Module-level functions - type inference
+    "_infer_from_identifier_name",
+    "_infer_single_value_type",
+    # Module-level functions - parameter generation
+    "generate_parameter_name",
+    "infer_parameter_type",
+    # Module-level functions - impact analysis
+    "analyze_deduplication_impact",
+    "estimate_lines_changed",
+    "_estimate_lines_changed",
+    # Module-level functions - coverage
     "find_test_file_patterns",
     "has_test_coverage",
     "get_test_coverage_for_files",
-    "analyze_deduplication_impact",
+    "check_test_file_references_source",
+    "_check_test_file_references_source",
+    "get_potential_test_paths",
+    "_get_potential_test_paths",
     "generate_deduplication_recommendation",
+    "generate_refactoring_suggestions",
     "format_diff_with_colors",
     "generate_before_after_example",
     "visualize_complexity",

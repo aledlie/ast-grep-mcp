@@ -274,6 +274,15 @@ class FunctionTemplate:
 class ParameterType:
     """Represents an inferred type for an extracted parameter."""
 
+    # Simple type constants for backward compatibility
+    STRING = "string"
+    NUMBER = "number"
+    BOOLEAN = "boolean"
+    INTEGER = "integer"
+    LIST = "list"
+    DICT = "dict"
+    ANY = "any"
+
     # Common types for different languages
     PYTHON_TYPES = {"string": "str", "number": "float", "integer": "int", "boolean": "bool", "list": "List", "dict": "Dict", "any": "Any"}
 

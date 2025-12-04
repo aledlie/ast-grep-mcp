@@ -500,3 +500,594 @@ class PatternAnalyzer:
         level = self._get_complexity_level(score)
 
         return {"score": score, "level": level, "reasoning": reasoning}
+
+    def detect_conditional_variations(self, code1: str, code2: str, language: str = "python") -> List[Dict[str, Any]]:
+        """
+        Detect variations in conditional statements between two code blocks.
+
+        Analyzes if/else conditions, comparison operators, and conditional values
+        to identify differences that could be parameterized.
+
+        Args:
+            code1: First code snippet
+            code2: Second code snippet
+            language: Programming language (default: python)
+
+        Returns:
+            List of conditional variations with details about the differences
+        """
+        self.logger.info("detecting_conditional_variations", language=language)
+
+        variations: List[Dict[str, Any]] = []
+
+        # Extract conditionals from both code blocks using ast-grep
+        conditionals1 = self._extract_conditionals(code1, language)
+        conditionals2 = self._extract_conditionals(code2, language)
+
+        # Compare conditionals by position
+        max_len = max(len(conditionals1), len(conditionals2))
+
+        for i in range(max_len):
+            cond1 = conditionals1[i] if i < len(conditionals1) else None
+            cond2 = conditionals2[i] if i < len(conditionals2) else None
+
+            if cond1 and cond2:
+                # Both exist - check for differences
+                if cond1["text"] != cond2["text"]:
+                    variation = {
+                        "position": i + 1,
+                        "type": "modified",
+                        "condition1": cond1["text"],
+                        "condition2": cond2["text"],
+                        "line1": cond1.get("line", 0),
+                        "line2": cond2.get("line", 0),
+                    }
+                    # Analyze the specific variation
+                    variation["details"] = self._analyze_conditional_difference(
+                        cond1["text"], cond2["text"], language
+                    )
+                    variations.append(variation)
+            elif cond1:
+                # Only in first code block
+                variations.append({
+                    "position": i + 1,
+                    "type": "removed",
+                    "condition1": cond1["text"],
+                    "condition2": None,
+                    "line1": cond1.get("line", 0),
+                })
+            elif cond2:
+                # Only in second code block
+                variations.append({
+                    "position": i + 1,
+                    "type": "added",
+                    "condition1": None,
+                    "condition2": cond2["text"],
+                    "line2": cond2.get("line", 0),
+                })
+
+        self.logger.info(
+            "conditional_variations_found",
+            count=len(variations),
+            by_type={
+                "modified": len([v for v in variations if v["type"] == "modified"]),
+                "added": len([v for v in variations if v["type"] == "added"]),
+                "removed": len([v for v in variations if v["type"] == "removed"]),
+            },
+        )
+
+        return variations
+
+    def _extract_conditionals(self, code: str, language: str) -> List[Dict[str, Any]]:
+        """Extract conditional statements from code using ast-grep."""
+        conditionals: List[Dict[str, Any]] = []
+
+        # Language file extensions
+        ext_map = {
+            "python": ".py",
+            "javascript": ".js",
+            "typescript": ".ts",
+            "java": ".java",
+        }
+        ext = ext_map.get(language, ".py")
+
+        # Write code to temp file
+        with tempfile.NamedTemporaryFile(mode="w", suffix=ext, delete=False) as f:
+            f.write(code)
+            temp_path = f.name
+
+        try:
+            # Define ast-grep rule for conditionals based on language
+            if language == "python":
+                rule = {"rule": {"any": [
+                    {"kind": "if_statement"},
+                    {"kind": "elif_clause"},
+                    {"kind": "comparison_operator"},
+                ]}}
+            else:
+                # JavaScript/TypeScript/Java
+                rule = {"rule": {"any": [
+                    {"kind": "if_statement"},
+                    {"kind": "binary_expression"},
+                    {"kind": "ternary_expression"},
+                ]}}
+
+            rule_yaml = yaml.dump(rule)
+
+            result = subprocess.run(
+                ["ast-grep", "scan", "--rule", "-", "--json", temp_path],
+                input=rule_yaml,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            if result.returncode == 0 and result.stdout.strip():
+                try:
+                    matches = json.loads(result.stdout)
+                    for match in matches:
+                        line = match.get("range", {}).get("start", {}).get("line", 0)
+                        text = match.get("text", "")
+                        kind = match.get("kind", "unknown")
+                        conditionals.append({
+                            "line": line,
+                            "text": text.strip(),
+                            "kind": kind,
+                        })
+                except json.JSONDecodeError:
+                    self.logger.warning("conditional_parse_error", language=language)
+
+        except subprocess.TimeoutExpired:
+            self.logger.warning("conditional_extraction_timeout", language=language)
+        except FileNotFoundError:
+            # ast-grep not installed - fall back to regex
+            conditionals = self._extract_conditionals_regex(code, language)
+        except Exception as e:
+            self.logger.error("conditional_extraction_error", error=str(e))
+            # Fall back to regex extraction
+            conditionals = self._extract_conditionals_regex(code, language)
+        finally:
+            try:
+                os.unlink(temp_path)
+            except Exception:
+                pass
+
+        return conditionals
+
+    def _extract_conditionals_regex(self, code: str, language: str) -> List[Dict[str, Any]]:
+        """Fallback regex-based extraction for conditionals."""
+        import re
+        conditionals: List[Dict[str, Any]] = []
+
+        # Pattern for if/elif conditions
+        if language == "python":
+            pattern = r'(?:if|elif)\s+(.+?):'
+        else:
+            pattern = r'(?:if|else\s+if)\s*\((.+?)\)'
+
+        for i, line in enumerate(code.split('\n'), 1):
+            match = re.search(pattern, line)
+            if match:
+                conditionals.append({
+                    "line": i,
+                    "text": match.group(0).strip(),
+                    "kind": "if_statement",
+                })
+
+        return conditionals
+
+    def detect_nested_function_call(
+        self, code: str, identifier: str, language: str = "python"
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Detect if an identifier is used within nested function calls.
+
+        Args:
+            code: Source code to analyze
+            identifier: The identifier to look for
+            language: Programming language
+
+        Returns:
+            Dict with nesting info if found, None otherwise
+        """
+        self.logger.info("detecting_nested_function_call", identifier=identifier, language=language)
+
+        # Language file extensions
+        ext_map = {
+            "python": ".py",
+            "javascript": ".js",
+            "typescript": ".ts",
+            "java": ".java",
+        }
+        ext = ext_map.get(language, ".py")
+
+        # Write code to temp file
+        with tempfile.NamedTemporaryFile(mode="w", suffix=ext, delete=False) as f:
+            f.write(code)
+            temp_path = f.name
+
+        try:
+            # Define ast-grep rule for call expressions
+            if language == "python":
+                rule = {"rule": {"kind": "call"}}
+            else:
+                rule = {"rule": {"kind": "call_expression"}}
+
+            rule_yaml = yaml.dump(rule)
+
+            result = subprocess.run(
+                ["ast-grep", "scan", "--rule", "-", "--json", temp_path],
+                input=rule_yaml,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            if result.returncode == 0 and result.stdout.strip():
+                try:
+                    matches = json.loads(result.stdout)
+                    # Look for nested calls containing the identifier
+                    for match in matches:
+                        text = match.get("text", "")
+                        if identifier in text:
+                            # Check for nesting pattern: func(func(...identifier...))
+                            nesting_depth = self._calculate_call_nesting_depth(text, identifier)
+                            if nesting_depth > 1:
+                                return {
+                                    "identifier": identifier,
+                                    "nesting_depth": nesting_depth,
+                                    "call_expression": text,
+                                    "line": match.get("range", {}).get("start", {}).get("line", 0) + 1,
+                                }
+                except json.JSONDecodeError:
+                    self.logger.warning("nested_call_parse_error", language=language)
+
+        except subprocess.TimeoutExpired:
+            self.logger.warning("nested_call_detection_timeout", language=language)
+        except FileNotFoundError:
+            # ast-grep not installed - fall back to simple regex detection
+            return self._detect_nested_call_regex(code, identifier)
+        except Exception as e:
+            self.logger.error("nested_call_detection_error", error=str(e))
+        finally:
+            try:
+                os.unlink(temp_path)
+            except Exception:
+                pass
+
+        return None
+
+    def _calculate_call_nesting_depth(self, expression: str, identifier: str) -> int:
+        """Calculate the nesting depth of function calls around an identifier."""
+        # Count opening parentheses before the identifier
+        idx = expression.find(identifier)
+        if idx == -1:
+            return 0
+
+        depth = 0
+        max_depth = 0
+        for i, char in enumerate(expression[:idx]):
+            if char == '(':
+                depth += 1
+                max_depth = max(max_depth, depth)
+            elif char == ')':
+                depth -= 1
+
+        return max_depth
+
+    def _detect_nested_call_regex(self, code: str, identifier: str) -> Optional[Dict[str, Any]]:
+        """Fallback regex-based detection for nested function calls."""
+        import re
+
+        # Pattern for nested function calls: func(func(...identifier...))
+        # Look for identifier within parentheses that are inside other parentheses
+        pattern = r'(\w+)\s*\(\s*(\w+)\s*\([^)]*' + re.escape(identifier) + r'[^)]*\)'
+
+        for i, line in enumerate(code.split('\n'), 1):
+            match = re.search(pattern, line)
+            if match:
+                return {
+                    "identifier": identifier,
+                    "nesting_depth": 2,
+                    "call_expression": match.group(0),
+                    "line": i,
+                    "outer_function": match.group(1),
+                    "inner_function": match.group(2),
+                }
+
+        return None
+
+    def _analyze_conditional_difference(
+        self, cond1: str, cond2: str, language: str
+    ) -> Dict[str, Any]:
+        """Analyze the specific differences between two conditional expressions."""
+        import re
+
+        details: Dict[str, Any] = {
+            "operator_changed": False,
+            "value_changed": False,
+            "variable_changed": False,
+            "comparison_values": {},
+        }
+
+        # Extract comparison operators
+        operators = [">=", "<=", "!=", "==", ">", "<", "in", "not in", "is not", "is"]
+        op1 = op2 = None
+
+        for op in operators:
+            if op in cond1:
+                op1 = op
+                break
+        for op in operators:
+            if op in cond2:
+                op2 = op
+                break
+
+        if op1 and op2 and op1 != op2:
+            details["operator_changed"] = True
+            details["operators"] = {"from": op1, "to": op2}
+
+        # Extract numeric values
+        nums1 = re.findall(r'\b\d+(?:\.\d+)?\b', cond1)
+        nums2 = re.findall(r'\b\d+(?:\.\d+)?\b', cond2)
+
+        if nums1 != nums2:
+            details["value_changed"] = True
+            details["comparison_values"] = {
+                "from": nums1,
+                "to": nums2,
+            }
+
+        # Extract identifiers (simple check)
+        # Remove operators and numbers to find variable names
+        for op in operators:
+            cond1 = cond1.replace(op, " ")
+            cond2 = cond2.replace(op, " ")
+
+        vars1 = set(re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', cond1)) - {"if", "elif", "else"}
+        vars2 = set(re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', cond2)) - {"if", "elif", "else"}
+
+        if vars1 != vars2:
+            details["variable_changed"] = True
+            details["variables"] = {
+                "from": list(vars1),
+                "to": list(vars2),
+            }
+
+        return details
+
+
+# Standalone function for backward compatibility
+def detect_conditional_variations(code1: str, code2: str, language: str = "python") -> List[Dict[str, Any]]:
+    """
+    Detect variations in conditional statements between two code blocks.
+
+    This is a convenience function that creates a PatternAnalyzer instance
+    and calls its detect_conditional_variations method.
+
+    Args:
+        code1: First code snippet
+        code2: Second code snippet
+        language: Programming language (default: python)
+
+    Returns:
+        List of conditional variations with details about the differences
+    """
+    analyzer = PatternAnalyzer()
+    return analyzer.detect_conditional_variations(code1, code2, language)
+
+
+def _detect_nested_function_call(
+    code: str, identifier: str, language: str = "python"
+) -> Optional[Dict[str, Any]]:
+    """
+    Detect if an identifier is used within nested function calls.
+
+    This is a convenience function that creates a PatternAnalyzer instance
+    and calls its detect_nested_function_call method.
+
+    Args:
+        code: Source code to analyze
+        identifier: The identifier to look for
+        language: Programming language (default: python)
+
+    Returns:
+        Dict with nesting info if found, None otherwise
+    """
+    analyzer = PatternAnalyzer()
+    return analyzer.detect_nested_function_call(code, identifier, language)
+
+
+def classify_variations(code1: str, code2: str, language: str = "python") -> Dict[str, Any]:
+    """
+    Classify variations between two code snippets.
+
+    Compares two code blocks and identifies the types and severity of
+    differences between them.
+
+    Args:
+        code1: First code snippet
+        code2: Second code snippet
+        language: Programming language (default: python)
+
+    Returns:
+        Dictionary containing:
+        - severity: Overall severity level (low, medium, high)
+        - variations: List of specific variations found
+        - parameterizable: Whether differences can be parameterized
+        - suggested_refactoring: Recommended refactoring approach
+    """
+    analyzer = PatternAnalyzer()
+
+    # Find variations between the code snippets
+    variations = []
+
+    # Identify varying literals
+    literal_variations = analyzer.identify_varying_literals(code1, code2, language)
+    for lit_var in literal_variations:
+        variations.append({
+            "type": "literal",
+            "old_value": lit_var.get("value1", ""),
+            "new_value": lit_var.get("value2", ""),
+            "context": lit_var.get("context", ""),
+        })
+
+    # Identify conditional variations
+    cond_variations = analyzer.detect_conditional_variations(code1, code2, language)
+    for cond_var in cond_variations:
+        variations.append({
+            "type": "conditional",
+            "old_value": cond_var.get("condition1", ""),
+            "new_value": cond_var.get("condition2", ""),
+            "context": f"line {cond_var.get('line1', 0)}",
+        })
+
+    # Identify varying identifiers
+    identifier_variations = identify_varying_identifiers(code1, code2, language)
+    for ident_var in identifier_variations:
+        variations.append({
+            "type": "identifier",
+            "old_value": ident_var.get("identifier1", ""),
+            "new_value": ident_var.get("identifier2", ""),
+            "context": ident_var.get("context", ""),
+        })
+
+    # Classify all variations
+    if variations:
+        classification = analyzer.classify_variations(variations)
+        # Determine overall severity based on variation types
+        high_count = sum(1 for v in classification.get("classifications", [])
+                        if v.get("severity") == VariationSeverity.HIGH)
+        medium_count = sum(1 for v in classification.get("classifications", [])
+                          if v.get("severity") == VariationSeverity.MEDIUM)
+
+        if high_count > 0:
+            overall_severity = VariationSeverity.HIGH
+        elif medium_count > len(variations) // 2:
+            overall_severity = VariationSeverity.MEDIUM
+        else:
+            overall_severity = VariationSeverity.LOW
+
+        return {
+            "severity": overall_severity,
+            "variations": variations,
+            "parameterizable": classification.get("parameterizable_count", 0) > 0,
+            "suggested_refactoring": "extract_function" if overall_severity != VariationSeverity.HIGH else "manual_review",
+            "complexity_score": classification.get("complexity_score", 0),
+            "parameter_suggestions": classification.get("parameter_suggestions", []),
+        }
+
+    # No variations found - code is identical or nearly identical
+    return {
+        "severity": VariationSeverity.LOW,
+        "variations": [],
+        "parameterizable": True,
+        "suggested_refactoring": "extract_function",
+        "complexity_score": 0,
+        "parameter_suggestions": [],
+    }
+
+
+def identify_varying_identifiers(code1: str, code2: str, language: str = "python") -> List[Dict[str, Any]]:
+    """
+    Identify identifiers that vary between two code snippets.
+
+    Compares identifier usage in two code blocks to find names that
+    differ but serve similar purposes (e.g., 'user_id' vs 'order_id').
+
+    Args:
+        code1: First code snippet
+        code2: Second code snippet
+        language: Programming language (default: python)
+
+    Returns:
+        List of varying identifier pairs with context
+    """
+    varying_identifiers: List[Dict[str, Any]] = []
+
+    # Extract identifiers from both code blocks
+    identifiers1 = _extract_identifiers_from_code(code1, language)
+    identifiers2 = _extract_identifiers_from_code(code2, language)
+
+    # Compare identifiers by position/context
+    # Find identifiers that appear in similar positions but with different names
+    for pos, ident1 in identifiers1.items():
+        if pos in identifiers2:
+            ident2 = identifiers2[pos]
+            if ident1["name"] != ident2["name"]:
+                varying_identifiers.append({
+                    "identifier1": ident1["name"],
+                    "identifier2": ident2["name"],
+                    "position": pos,
+                    "context": ident1.get("context", ""),
+                    "usage_type": ident1.get("usage_type", "unknown"),
+                })
+
+    return varying_identifiers
+
+
+def _extract_identifiers_from_code(code: str, language: str) -> Dict[int, Dict[str, Any]]:
+    """
+    Extract identifiers from code with position information.
+
+    Args:
+        code: Source code to analyze
+        language: Programming language
+
+    Returns:
+        Dictionary mapping position to identifier info
+    """
+    identifiers: Dict[int, Dict[str, Any]] = {}
+
+    # Simple regex-based extraction for common patterns
+    # This handles most common identifier patterns across languages
+    import re
+
+    # Pattern for identifiers (variable names, function names, etc.)
+    identifier_pattern = r'\b([a-zA-Z_][a-zA-Z0-9_]*)\b'
+
+    # Keywords to exclude (common across languages)
+    keywords = {
+        "python": {"def", "class", "if", "else", "elif", "for", "while", "return",
+                   "import", "from", "as", "try", "except", "finally", "with",
+                   "lambda", "yield", "raise", "pass", "break", "continue",
+                   "and", "or", "not", "in", "is", "None", "True", "False",
+                   "async", "await", "global", "nonlocal", "assert"},
+        "javascript": {"function", "const", "let", "var", "if", "else", "for",
+                       "while", "return", "import", "export", "from", "class",
+                       "new", "this", "try", "catch", "finally", "throw",
+                       "async", "await", "true", "false", "null", "undefined"},
+        "typescript": {"function", "const", "let", "var", "if", "else", "for",
+                       "while", "return", "import", "export", "from", "class",
+                       "new", "this", "try", "catch", "finally", "throw",
+                       "async", "await", "true", "false", "null", "undefined",
+                       "interface", "type", "enum", "implements", "extends"},
+    }
+
+    excluded = keywords.get(language, keywords["python"])
+
+    for idx, match in enumerate(re.finditer(identifier_pattern, code)):
+        name = match.group(1)
+        if name not in excluded and not name.isupper():  # Exclude constants
+            # Get surrounding context
+            start = max(0, match.start() - 20)
+            end = min(len(code), match.end() + 20)
+            context = code[start:end].strip()
+
+            # Determine usage type based on context
+            usage_type = "variable"
+            if "def " in context or "function " in context:
+                usage_type = "function"
+            elif "class " in context:
+                usage_type = "class"
+            elif "(" in context[context.find(name):context.find(name)+len(name)+2]:
+                usage_type = "function_call"
+
+            identifiers[idx] = {
+                "name": name,
+                "position": match.start(),
+                "context": context,
+                "usage_type": usage_type,
+            }
+
+    return identifiers

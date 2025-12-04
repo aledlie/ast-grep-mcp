@@ -231,3 +231,72 @@ def generate_deduplication_recommendation(
     """Generate actionable recommendations for deduplication candidates."""
     engine = RecommendationEngine()
     return engine.generate_deduplication_recommendation(score, complexity, lines_saved, has_tests, affected_files)
+
+
+def generate_refactoring_suggestions(duplicates: List[Dict[str, Any]], language: str) -> List[Dict[str, Any]]:
+    """Generate refactoring suggestions for duplicate code instances.
+
+    Analyzes duplicate code snippets and generates appropriate refactoring
+    suggestions based on the code characteristics and language.
+
+    Args:
+        duplicates: List of duplicate code instances, each containing:
+            - code: The duplicate code snippet
+            - file: Source file path
+            - similarity: Similarity score (0-1)
+        language: Programming language of the code
+
+    Returns:
+        List of refactoring suggestions with type and description
+    """
+    if not duplicates:
+        return []
+
+    suggestions: List[Dict[str, Any]] = []
+
+    # Analyze the duplicates to determine best refactoring strategy
+    num_duplicates = len(duplicates)
+    avg_similarity = sum(d.get("similarity", 0.9) for d in duplicates) / max(num_duplicates, 1)
+
+    # Get code characteristics from first duplicate
+    first_code = duplicates[0].get("code", "") if duplicates else ""
+    line_count = len(first_code.split("\n"))
+
+    # Primary suggestion: extract to shared function
+    suggestions.append({
+        "type": "extract_function",
+        "description": "Extract duplicate code into a shared utility function",
+        "priority": "high" if avg_similarity > 0.85 else "medium",
+        "estimated_savings": f"{line_count * (num_duplicates - 1)} lines",
+    })
+
+    # Additional suggestions based on characteristics
+    if num_duplicates > 3:
+        suggestions.append({
+            "type": "extract_module",
+            "description": "Consider extracting to a dedicated module for reuse across files",
+            "priority": "medium",
+        })
+
+    if line_count > 20:
+        suggestions.append({
+            "type": "extract_class",
+            "description": "Extract to a class if the code has shared state or multiple related operations",
+            "priority": "low",
+        })
+
+    # Language-specific suggestions
+    if language in ("python", "ruby"):
+        suggestions.append({
+            "type": "decorator_pattern",
+            "description": f"Consider using a decorator pattern in {language} for cross-cutting concerns",
+            "priority": "low",
+        })
+    elif language in ("javascript", "typescript"):
+        suggestions.append({
+            "type": "higher_order_function",
+            "description": "Consider using higher-order functions for functional composition",
+            "priority": "low",
+        })
+
+    return suggestions

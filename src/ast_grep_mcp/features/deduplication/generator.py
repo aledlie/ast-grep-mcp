@@ -27,7 +27,185 @@ TYPE_INFERENCE_CONFIG: Dict[str, Dict[str, Dict[str, Union[str, bool]]]] = {
         "identifier": {"default": "any"},
         "type": {"use_value": False},
     },
+    "javascript": {
+        "literal": {"string": "string", "number": "number", "boolean": "boolean"},
+        "identifier": {"default": "any"},
+        "type": {"use_value": False},
+    },
+    "java": {
+        "literal": {"string": "String", "number_int": "int", "number_float": "double", "boolean": "boolean"},
+        "identifier": {"default": "Object"},
+        "type": {"use_value": True},
+    },
 }
+
+# Identifier naming patterns for type inference
+IDENTIFIER_TYPE_PATTERNS: Dict[str, List[Tuple[str, str]]] = {
+    "python": [
+        ("id", "int"),
+        ("_id", "int"),
+        ("count", "int"),
+        ("num", "int"),
+        ("index", "int"),
+        ("idx", "int"),
+        ("size", "int"),
+        ("length", "int"),
+        ("len", "int"),
+        ("name", "str"),
+        ("title", "str"),
+        ("label", "str"),
+        ("text", "str"),
+        ("message", "str"),
+        ("msg", "str"),
+        ("path", "str"),
+        ("url", "str"),
+        ("uri", "str"),
+        ("email", "str"),
+        ("is_", "bool"),
+        ("has_", "bool"),
+        ("can_", "bool"),
+        ("should_", "bool"),
+        ("enabled", "bool"),
+        ("disabled", "bool"),
+        ("active", "bool"),
+        ("valid", "bool"),
+        ("flag", "bool"),
+        ("items", "List"),
+        ("list", "List"),
+        ("data", "Dict"),
+        ("dict", "Dict"),
+        ("map", "Dict"),
+        ("config", "Dict"),
+    ],
+    "typescript": [
+        ("id", "number"),
+        ("Id", "number"),
+        ("count", "number"),
+        ("num", "number"),
+        ("index", "number"),
+        ("idx", "number"),
+        ("size", "number"),
+        ("length", "number"),
+        ("name", "string"),
+        ("title", "string"),
+        ("label", "string"),
+        ("text", "string"),
+        ("message", "string"),
+        ("path", "string"),
+        ("url", "string"),
+        ("email", "string"),
+        ("is", "boolean"),
+        ("has", "boolean"),
+        ("can", "boolean"),
+        ("should", "boolean"),
+        ("enabled", "boolean"),
+        ("disabled", "boolean"),
+        ("active", "boolean"),
+        ("valid", "boolean"),
+        ("items", "Array"),
+        ("list", "Array"),
+        ("data", "object"),
+        ("config", "object"),
+    ],
+}
+
+
+def _infer_from_identifier_name(identifier: str, language: str) -> str:
+    """Infer type from identifier naming conventions.
+
+    Analyzes the identifier name to guess its type based on common
+    naming patterns (e.g., 'user_id' suggests int, 'is_valid' suggests bool).
+
+    Args:
+        identifier: The identifier name to analyze
+        language: Programming language for type syntax
+
+    Returns:
+        Inferred type string for the language
+    """
+    identifier_lower = identifier.lower()
+
+    # Get language-specific patterns, fall back to python
+    patterns = IDENTIFIER_TYPE_PATTERNS.get(language, IDENTIFIER_TYPE_PATTERNS.get("python", []))
+
+    # Check each pattern
+    for pattern, inferred_type in patterns:
+        if pattern in identifier_lower or identifier_lower.startswith(pattern) or identifier_lower.endswith(pattern):
+            return inferred_type
+
+    # Fall back to default type for the language
+    config = TYPE_INFERENCE_CONFIG.get(language, TYPE_INFERENCE_CONFIG.get("python", {}))
+    return str(config.get("identifier", {}).get("default", "Any"))
+
+
+def _infer_single_value_type(value: str, language: str) -> str:
+    """Infer type from a single literal value.
+
+    Analyzes the value to determine its type based on its format
+    (e.g., '123' is int, '"hello"' is string, 'True' is bool).
+
+    Args:
+        value: The literal value as a string
+        language: Programming language for type syntax
+
+    Returns:
+        Inferred type string for the language
+    """
+    value_stripped = value.strip()
+
+    # Get language config
+    config = TYPE_INFERENCE_CONFIG.get(language, TYPE_INFERENCE_CONFIG.get("python", {}))
+    literal_types = config.get("literal", {})
+
+    # Check for boolean
+    if value_stripped in ("True", "False", "true", "false"):
+        return str(literal_types.get("boolean", "bool"))
+
+    # Check for None/null/nil
+    if value_stripped in ("None", "null", "nil", "undefined"):
+        if language == "python":
+            return "None"
+        elif language in ("typescript", "javascript"):
+            return "null" if value_stripped == "null" else "undefined"
+        return "null"
+
+    # Check for string (quoted)
+    if (value_stripped.startswith('"') and value_stripped.endswith('"')) or (
+        value_stripped.startswith("'") and value_stripped.endswith("'")
+    ):
+        return str(literal_types.get("string", "str"))
+
+    # Check for integer
+    if value_stripped.lstrip("-").isdigit():
+        return str(literal_types.get("number_int", literal_types.get("number", "int")))
+
+    # Check for float
+    try:
+        float(value_stripped)
+        if "." in value_stripped or "e" in value_stripped.lower():
+            return str(literal_types.get("number_float", literal_types.get("number", "float")))
+        return str(literal_types.get("number_int", literal_types.get("number", "int")))
+    except ValueError:
+        pass
+
+    # Check for list/array literal
+    if value_stripped.startswith("[") and value_stripped.endswith("]"):
+        if language == "python":
+            return "List"
+        elif language in ("typescript", "javascript"):
+            return "Array"
+        return "List"
+
+    # Check for dict/object literal
+    if value_stripped.startswith("{") and value_stripped.endswith("}"):
+        if language == "python":
+            return "Dict"
+        elif language in ("typescript", "javascript"):
+            return "object"
+        return "Dict"
+
+    # Default to string type for unknown values
+    return str(literal_types.get("string", "str"))
 
 
 class CodeGenerator:
@@ -759,3 +937,132 @@ class CodeGenerator:
             i += 1
 
         return last_import + 1
+
+
+def generate_parameter_name(identifier: str, all_identifiers: List[str]) -> str:
+    """
+    Generate a unique parameter name based on an identifier.
+
+    Creates a meaningful parameter name from an identifier, ensuring
+    it doesn't conflict with existing identifiers.
+
+    Args:
+        identifier: The original identifier to base the parameter name on
+        all_identifiers: List of existing identifiers to avoid conflicts
+
+    Returns:
+        A unique parameter name
+    """
+    # Clean up the identifier
+    base_name = identifier.lower().strip()
+
+    # Remove common prefixes/suffixes
+    prefixes_to_remove = ["get_", "set_", "is_", "has_", "_"]
+    for prefix in prefixes_to_remove:
+        if base_name.startswith(prefix) and len(base_name) > len(prefix):
+            base_name = base_name[len(prefix):]
+            break
+
+    # Convert to parameter style (snake_case for Python-like, camelCase detected)
+    if not base_name:
+        base_name = "param"
+
+    # Generate candidate names
+    candidates = [
+        base_name,
+        f"{base_name}_value",
+        f"{base_name}_param",
+        f"new_{base_name}",
+    ]
+
+    # Add numbered variants if needed
+    for i in range(1, 10):
+        candidates.append(f"{base_name}_{i}")
+
+    # Find first non-conflicting name
+    existing_lower = {ident.lower() for ident in all_identifiers}
+    for candidate in candidates:
+        if candidate not in existing_lower:
+            return candidate
+
+    # Fallback with timestamp-like suffix
+    import time
+    return f"{base_name}_{int(time.time()) % 1000}"
+
+
+def infer_parameter_type(identifier: str, context: str, language: str = "python") -> str:
+    """
+    Infer the type of a parameter from its identifier and usage context.
+
+    Combines identifier name analysis with contextual clues to determine
+    the most likely type for a parameter.
+
+    Args:
+        identifier: The identifier/parameter name
+        context: Surrounding code context where the identifier is used
+        language: Programming language (default: python)
+
+    Returns:
+        Inferred type string appropriate for the language
+    """
+    # First try to infer from identifier name
+    type_from_name = _infer_from_identifier_name(identifier, language)
+
+    # If we got a specific type (not the default), use it
+    config = TYPE_INFERENCE_CONFIG.get(language, TYPE_INFERENCE_CONFIG.get("python", {}))
+    default_type = str(config.get("identifier", {}).get("default", "Any"))
+
+    if type_from_name != default_type:
+        return type_from_name
+
+    # Try to infer from context
+    # Check for type hints in context (Python)
+    if language == "python":
+        import re
+        # Look for type annotations like "identifier: type"
+        type_hint_pattern = rf'{re.escape(identifier)}\s*:\s*([A-Za-z_][A-Za-z0-9_\[\],\s]*)'
+        match = re.search(type_hint_pattern, context)
+        if match:
+            return match.group(1).strip()
+
+    # Check for TypeScript/JavaScript type annotations
+    if language in ("typescript", "javascript"):
+        import re
+        # Look for type annotations like "identifier: type"
+        type_hint_pattern = rf'{re.escape(identifier)}\s*:\s*([A-Za-z_][A-Za-z0-9_<>\[\],\s]*)'
+        match = re.search(type_hint_pattern, context)
+        if match:
+            return match.group(1).strip()
+
+    # Check for common usage patterns in context
+    import re
+    usage_patterns = [
+        (r'len\s*\(\s*' + re.escape(identifier), "Sequence", "Iterable"),
+        (r'int\s*\(\s*' + re.escape(identifier), "str", "string"),
+        (r'str\s*\(\s*' + re.escape(identifier), "Any", "any"),
+        (r'float\s*\(\s*' + re.escape(identifier), "str", "string"),
+        (r'\.append\s*\(', "List", "Array"),
+        (r'\.items\s*\(\s*\)', "Dict", "object"),
+        (r'\.keys\s*\(\s*\)', "Dict", "object"),
+        (r'\.values\s*\(\s*\)', "Dict", "object"),
+        (r'for\s+\w+\s+in\s+' + re.escape(identifier), "Iterable", "Iterable"),
+        (r'if\s+' + re.escape(identifier) + r'\s*:', "bool", "boolean"),
+        (r'while\s+' + re.escape(identifier) + r'\s*:', "bool", "boolean"),
+    ]
+
+    for pattern, py_type, js_type in usage_patterns:
+        if re.search(pattern, context):
+            return py_type if language == "python" else js_type
+
+    # Check for comparison operations suggesting numeric type
+    if re.search(rf'{re.escape(identifier)}\s*[<>=]+\s*\d', context) or \
+       re.search(rf'\d\s*[<>=]+\s*{re.escape(identifier)}', context):
+        return "int" if language == "python" else "number"
+
+    # Check for string operations
+    if re.search(rf'{re.escape(identifier)}\s*\+\s*["\']', context) or \
+       re.search(rf'["\'\s]\s*\+\s*{re.escape(identifier)}', context):
+        return "str" if language == "python" else "string"
+
+    # Default to Any/any
+    return default_type
