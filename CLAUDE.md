@@ -18,7 +18,7 @@ Modular MCP server with 64 modules combining ast-grep structural code search wit
 
 **Architecture:** Clean modular design with entry point (`main.py`) and organized features under `src/ast_grep_mcp/` (core, models, utils, features, server).
 
-**38 MCP Tools:** Code search (4), Code rewrite (3), Refactoring (2), Deduplication (4), Schema.org (9), Complexity (2), Code Quality (4), Documentation (5)
+**43 MCP Tools:** Code search (5), Code rewrite (3), Refactoring (2), Deduplication (4), Schema.org (9), Complexity (3), Code Quality (7), Documentation (5), Cross-Language (5)
 
 **Dependencies:** ast-grep CLI (required), Doppler CLI (optional), Python 3.13+, uv package manager
 
@@ -250,6 +250,17 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 
 ## Recent Updates
 
+### 2026-01-09: Pattern Debugging Tool
+- Added `debug_pattern` tool for diagnosing why patterns don't match code
+- Validates metavariable syntax (detects $name vs $NAME, $123, $KEBAB-CASE errors)
+- Compares pattern AST with code AST to find structural mismatches
+- Attempts actual matching and reports results
+- Provides prioritized suggestions for fixing pattern issues
+- Warns about common mistakes like using $ARG instead of $$$ARGS for function arguments
+- New models: `pattern_debug.py` with 8 dataclasses/enums
+- 31 new tests for pattern debugging
+- Total MCP tools: 43 (added 1 search tool)
+
 ### 2025-11-29: Entity Graph Enhancement Tool
 - Added `enhance_entity_graph` tool for analyzing existing Schema.org JSON-LD graphs
 - Suggests missing properties based on Schema.org vocabulary and Google Rich Results guidelines
@@ -325,7 +336,7 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 
 ---
 
-**Last Updated:** 2025-11-29
+**Last Updated:** 2026-01-09
 **Code Quality:** ✅ ZERO violations (15/15 tests passing)
 **Refactoring Patterns:** See [PATTERNS.md](PATTERNS.md)
 **Documentation Generation:** 5 new tools, 32 tests passing

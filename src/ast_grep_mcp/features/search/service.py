@@ -1,8 +1,9 @@
 """Search feature service - implements the core search functionality."""
 
 import json
+import re
 import time
-from typing import Any, Dict, List, Literal, Union, cast
+from typing import Any, Dict, List, Literal, Optional, Union, cast
 
 import sentry_sdk
 import yaml
@@ -17,6 +18,15 @@ from ast_grep_mcp.core.executor import (
 )
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.base import DumpFormat
+from ast_grep_mcp.models.pattern_debug import (
+    AstComparison,
+    IssueCategory,
+    IssueSeverity,
+    MatchAttempt,
+    MetavariableInfo,
+    PatternDebugResult,
+    PatternIssue,
+)
 from ast_grep_mcp.utils.formatters import format_matches_as_text
 
 
@@ -526,6 +536,625 @@ def find_code_by_rule_impl(
                 "project_folder": project_folder,
                 "rule_id": parsed_yaml.get("id"),
                 "language": parsed_yaml.get("language"),
+                "execution_time_seconds": round(execution_time, 3),
+            },
+        )
+        raise
+
+
+# =============================================================================
+# Pattern Debugging Implementation
+# =============================================================================
+
+# Regex patterns for metavariable detection
+METAVAR_SINGLE = re.compile(r"\$([A-Z][A-Z0-9_]*)")  # $NAME, $VAR1
+METAVAR_MULTI = re.compile(r"\$\$\$([A-Z][A-Z0-9_]*)?")  # $$$, $$$ARGS
+METAVAR_NON_CAPTURING = re.compile(r"\$_([A-Z][A-Z0-9_]*)?")  # $_, $_NAME
+METAVAR_UNNAMED = re.compile(r"\$\$([A-Z][A-Z0-9_]*)")  # $$VAR
+
+# Invalid metavariable patterns with their error messages
+INVALID_METAVAR_PATTERNS = [
+    (re.compile(r"\$([a-z][a-zA-Z0-9_]*)"), "lowercase", "Metavariable must use UPPERCASE"),
+    (re.compile(r"\$(\d[A-Z0-9_]*)"), "digit_start", "Metavariable cannot start with digit"),
+    (re.compile(r"\$([A-Z][A-Z0-9]*-[A-Z0-9_-]*)"), "hyphen", "Metavariable cannot contain hyphens"),
+]
+
+
+def _extract_invalid_metavariables(pattern: str) -> List[MetavariableInfo]:
+    """Extract invalid metavariables from pattern.
+
+    Args:
+        pattern: The ast-grep pattern
+
+    Returns:
+        List of invalid MetavariableInfo objects
+    """
+    metavars: List[MetavariableInfo] = []
+
+    for regex, error_type, base_message in INVALID_METAVAR_PATTERNS:
+        for match in regex.finditer(pattern):
+            name = f"${match.group(1)}"
+            if error_type == "lowercase":
+                issue = f"{base_message}: '{name}' should be '${match.group(1).upper()}'"
+            else:
+                issue = f"{base_message}: '{name}'"
+            metavars.append(
+                MetavariableInfo(
+                    name=name,
+                    type="invalid",
+                    valid=False,
+                    occurrences=1,
+                    issue=issue,
+                )
+            )
+
+    return metavars
+
+
+def _add_metavar_if_new(
+    display_name: str,
+    mv_type: str,
+    seen: Dict[str, int],
+    metavars: List[MetavariableInfo],
+) -> None:
+    """Add metavariable if not already seen, otherwise increment count.
+
+    Args:
+        display_name: The metavariable name
+        mv_type: Type of metavariable
+        seen: Dictionary tracking seen metavariables
+        metavars: List to append new metavariables to
+    """
+    if display_name in seen:
+        seen[display_name] += 1
+    else:
+        seen[display_name] = 1
+        metavars.append(
+            MetavariableInfo(
+                name=display_name,
+                type=mv_type,
+                valid=True,
+                occurrences=1,
+            )
+        )
+
+
+def _extract_multi_metavariables(
+    pattern: str, seen: Dict[str, int], metavars: List[MetavariableInfo]
+) -> None:
+    """Extract $$$ multi-node metavariables."""
+    for match in METAVAR_MULTI.finditer(pattern):
+        name = match.group(1) or ""
+        display_name = f"$$${name}" if name else "$$$"
+        _add_metavar_if_new(display_name, "multi", seen, metavars)
+
+
+def _extract_unnamed_metavariables(
+    pattern: str, seen: Dict[str, int], metavars: List[MetavariableInfo]
+) -> None:
+    """Extract $$ unnamed node metavariables."""
+    for match in METAVAR_UNNAMED.finditer(pattern):
+        start = match.start()
+        if start > 0 and pattern[start - 1] == "$":
+            continue  # Skip $$$ patterns
+        name = f"$${match.group(1)}"
+        _add_metavar_if_new(name, "unnamed", seen, metavars)
+
+
+def _extract_non_capturing_metavariables(
+    pattern: str, seen: Dict[str, int], metavars: List[MetavariableInfo]
+) -> None:
+    """Extract $_ non-capturing metavariables."""
+    for match in METAVAR_NON_CAPTURING.finditer(pattern):
+        name_part = match.group(1) or ""
+        display_name = f"$_{name_part}" if name_part else "$_"
+        _add_metavar_if_new(display_name, "non_capturing", seen, metavars)
+
+
+def _extract_single_metavariables(
+    pattern: str, seen: Dict[str, int], metavars: List[MetavariableInfo]
+) -> None:
+    """Extract $NAME single-node metavariables."""
+    for match in METAVAR_SINGLE.finditer(pattern):
+        start = match.start()
+        # Skip if part of $$$ or $$ or $_
+        if start > 0 and pattern[start - 1] == "$":
+            continue
+        if start + 1 < len(pattern) and pattern[start + 1] == "_":
+            continue
+        name = f"${match.group(1)}"
+        _add_metavar_if_new(name, "single", seen, metavars)
+
+
+def _extract_metavariables(pattern: str) -> List[MetavariableInfo]:
+    """Extract and validate all metavariables from a pattern.
+
+    Args:
+        pattern: The ast-grep pattern
+
+    Returns:
+        List of MetavariableInfo objects
+    """
+    metavars: List[MetavariableInfo] = []
+    seen: Dict[str, int] = {}
+
+    # Check for invalid metavariables first
+    metavars.extend(_extract_invalid_metavariables(pattern))
+
+    # Extract valid metavariables by type
+    _extract_multi_metavariables(pattern, seen, metavars)
+    _extract_unnamed_metavariables(pattern, seen, metavars)
+    _extract_non_capturing_metavariables(pattern, seen, metavars)
+    _extract_single_metavariables(pattern, seen, metavars)
+
+    # Update occurrence counts
+    for mv in metavars:
+        if mv.name in seen:
+            mv.occurrences = seen[mv.name]
+
+    return metavars
+
+
+# Fragment patterns that indicate incomplete code
+FRAGMENT_INDICATORS = [
+    (r"^\s*\.\w+", "Pattern starts with a method call - ensure full expression context"),
+    (r"^\s*:\s*\w+", "Pattern starts with a type annotation - ensure full expression context"),
+    (r"^\s*=\s*", "Pattern starts with assignment operator - include left-hand side"),
+]
+
+
+def _check_invalid_metavar_issues(metavars: List[MetavariableInfo]) -> List[PatternIssue]:
+    """Check for invalid metavariable issues.
+
+    Args:
+        metavars: Extracted metavariables
+
+    Returns:
+        List of PatternIssue objects for invalid metavariables
+    """
+    issues: List[PatternIssue] = []
+
+    for mv in metavars:
+        if not mv.valid and mv.issue:
+            if "lowercase" in (mv.issue or "").lower():
+                suggestion = f"Use uppercase letters: ${mv.name[1:].upper()}"
+            else:
+                suggestion = "Fix the metavariable syntax"
+            issues.append(
+                PatternIssue(
+                    severity=IssueSeverity.ERROR,
+                    category=IssueCategory.METAVARIABLE,
+                    message=mv.issue,
+                    suggestion=suggestion,
+                    location=mv.name,
+                )
+            )
+
+    return issues
+
+
+def _check_single_arg_metavar_issues(pattern: str) -> List[PatternIssue]:
+    """Check for single metavar in function arguments that may need $$$.
+
+    Args:
+        pattern: The ast-grep pattern
+
+    Returns:
+        List of PatternIssue objects
+    """
+    issues: List[PatternIssue] = []
+
+    if "(" not in pattern or ")" not in pattern:
+        return issues
+
+    paren_content = re.findall(r"\(([^)]+)\)", pattern)
+    for content in paren_content:
+        content = content.strip()
+        if re.match(r"^\$[A-Z][A-Z0-9_]*$", content):
+            issues.append(
+                PatternIssue(
+                    severity=IssueSeverity.INFO,
+                    category=IssueCategory.BEST_PRACTICE,
+                    message=f"Single metavariable '{content}' in function arguments may not match multiple arguments",
+                    suggestion=f"Use '$$$ARGS' or '$$${content[1:]}' to match zero or more arguments",
+                    location=content,
+                )
+            )
+
+    return issues
+
+
+def _check_fragment_issues(pattern: str) -> List[PatternIssue]:
+    """Check for incomplete code fragment patterns.
+
+    Args:
+        pattern: The ast-grep pattern
+
+    Returns:
+        List of PatternIssue objects
+    """
+    issues: List[PatternIssue] = []
+
+    for indicator_pattern, message in FRAGMENT_INDICATORS:
+        if re.match(indicator_pattern, pattern):
+            issues.append(
+                PatternIssue(
+                    severity=IssueSeverity.WARNING,
+                    category=IssueCategory.SYNTAX,
+                    message=message,
+                    suggestion=(
+                        "Patterns must be valid, parseable code. "
+                        "Wrap in full expression or use YAML rule with 'context' and 'selector'"
+                    ),
+                )
+            )
+
+    return issues
+
+
+def _check_pattern_issues(pattern: str, metavars: List[MetavariableInfo]) -> List[PatternIssue]:
+    """Check for common pattern issues.
+
+    Args:
+        pattern: The ast-grep pattern
+        metavars: Extracted metavariables
+
+    Returns:
+        List of PatternIssue objects
+    """
+    issues: List[PatternIssue] = []
+
+    issues.extend(_check_invalid_metavar_issues(metavars))
+    issues.extend(_check_single_arg_metavar_issues(pattern))
+    issues.extend(_check_fragment_issues(pattern))
+
+    return issues
+
+
+def _extract_root_kind(ast_output: str) -> Optional[str]:
+    """Extract the root node kind from AST output.
+
+    Args:
+        ast_output: The AST dump output from ast-grep
+
+    Returns:
+        Root node kind or None if not found
+    """
+    # AST output format varies, try to extract first node kind
+    # Pattern output: kind: identifier, text: ...
+    # CST output: (identifier) or identifier [...]
+
+    # Try pattern format first
+    kind_match = re.search(r"kind:\s*(\w+)", ast_output)
+    if kind_match:
+        return kind_match.group(1)
+
+    # Try CST format - look for first node type in parentheses or brackets
+    cst_match = re.search(r"\((\w+)\)|\[(\w+)\]|^(\w+)\s", ast_output)
+    if cst_match:
+        return cst_match.group(1) or cst_match.group(2) or cst_match.group(3)
+
+    # Try to find first word that looks like a node kind
+    first_line = ast_output.split("\n")[0] if ast_output else ""
+    word_match = re.search(r"^(\w+)", first_line.strip())
+    if word_match:
+        return word_match.group(1)
+
+    return None
+
+
+def _compare_asts(pattern_ast: str, code_ast: str) -> AstComparison:
+    """Compare pattern and code ASTs to find structural differences.
+
+    Args:
+        pattern_ast: The pattern's AST structure
+        code_ast: The code's AST structure
+
+    Returns:
+        AstComparison with comparison results
+    """
+    pattern_root = _extract_root_kind(pattern_ast)
+    code_root = _extract_root_kind(code_ast)
+
+    kinds_match = pattern_root == code_root if pattern_root and code_root else False
+
+    differences: List[str] = []
+
+    if pattern_root and code_root and not kinds_match:
+        differences.append(f"Root node mismatch: pattern has '{pattern_root}', code has '{code_root}'")
+
+    # Look for structural hints in the ASTs
+    if "ERROR" in pattern_ast.upper():
+        differences.append("Pattern contains parse errors - pattern may not be valid code")
+
+    if "ERROR" in code_ast.upper():
+        differences.append("Code contains parse errors - code may have syntax issues")
+
+    return AstComparison(
+        pattern_root_kind=pattern_root,
+        code_root_kind=code_root,
+        kinds_match=kinds_match,
+        pattern_structure=pattern_ast[:500] if len(pattern_ast) > 500 else pattern_ast,
+        code_structure=code_ast[:500] if len(code_ast) > 500 else code_ast,
+        structural_differences=differences,
+    )
+
+
+def _attempt_match(pattern: str, code: str, language: str) -> MatchAttempt:
+    """Attempt to match the pattern against the code.
+
+    Args:
+        pattern: The ast-grep pattern
+        code: The code to match against
+        language: The programming language
+
+    Returns:
+        MatchAttempt with match results
+    """
+    logger = get_logger("search.debug_pattern")
+
+    try:
+        # Create a minimal YAML rule to test matching
+        yaml_rule = f"""
+id: debug-pattern-test
+language: {language}
+rule:
+  pattern: |
+    {pattern}
+"""
+        result = run_ast_grep("scan", ["--inline-rules", yaml_rule, "--json", "--stdin"], input_text=code)
+        matches = json.loads(result.stdout.strip()) if result.stdout.strip() else []
+
+        return MatchAttempt(
+            matched=len(matches) > 0,
+            match_count=len(matches),
+            matches=matches[:5],  # Limit to first 5 matches for debugging
+        )
+    except Exception as e:
+        logger.debug("match_attempt_failed", error=str(e))
+        return MatchAttempt(
+            matched=False,
+            match_count=0,
+            partial_matches=[f"Match attempt failed: {str(e)[:100]}"],
+        )
+
+
+def _add_error_suggestions(issues: List[PatternIssue], suggestions: List[str]) -> None:
+    """Add error-level suggestions (Priority 1)."""
+    for issue in issues:
+        if issue.severity == IssueSeverity.ERROR:
+            suggestions.append(f"[ERROR] {issue.suggestion}")
+
+
+def _add_structural_suggestions(ast_comparison: AstComparison, suggestions: List[str]) -> None:
+    """Add structural mismatch suggestions (Priority 2)."""
+    has_root_mismatch = (
+        not ast_comparison.kinds_match
+        and ast_comparison.pattern_root_kind
+        and ast_comparison.code_root_kind
+    )
+    if has_root_mismatch:
+        suggestions.append(
+            f"[STRUCTURE] Pattern root is '{ast_comparison.pattern_root_kind}' but code root is "
+            f"'{ast_comparison.code_root_kind}'. Adjust pattern to match code structure."
+        )
+
+    for diff in ast_comparison.structural_differences:
+        if "ERROR" in diff:
+            suggestions.append(f"[PARSE ERROR] {diff}")
+
+
+def _add_debug_suggestions(
+    issues: List[PatternIssue],
+    ast_comparison: AstComparison,
+    match_attempt: MatchAttempt,
+    suggestions: List[str],
+) -> None:
+    """Add debugging suggestions when pattern doesn't match (Priority 3)."""
+    has_errors = any(i.severity == IssueSeverity.ERROR for i in issues)
+
+    if match_attempt.matched or has_errors:
+        return
+
+    suggestions.append(
+        "[DEBUG] Pattern is valid but doesn't match. Use 'dump_syntax_tree' with format='cst' "
+        "on both pattern and code to compare their AST structures."
+    )
+
+    if ast_comparison.pattern_root_kind != ast_comparison.code_root_kind:
+        suggestions.append(
+            f"[TIP] Try using 'kind: {ast_comparison.code_root_kind}' in a YAML rule instead of pattern matching."
+        )
+
+
+def _add_warning_suggestions(issues: List[PatternIssue], suggestions: List[str]) -> None:
+    """Add warning-level suggestions (Priority 4)."""
+    for issue in issues:
+        if issue.severity == IssueSeverity.WARNING:
+            suggestions.append(f"[WARNING] {issue.suggestion}")
+
+
+def _add_info_suggestions(issues: List[PatternIssue], suggestions: List[str]) -> None:
+    """Add info-level suggestions (Priority 5)."""
+    for issue in issues:
+        if issue.severity == IssueSeverity.INFO:
+            suggestions.append(f"[TIP] {issue.suggestion}")
+
+
+def _add_default_suggestions(match_attempt: MatchAttempt, suggestions: List[str]) -> None:
+    """Add default guidance if no specific suggestions were generated."""
+    if suggestions:
+        return
+
+    if match_attempt.matched:
+        suggestions.append("[SUCCESS] Pattern matches the code. No issues found.")
+    else:
+        suggestions.append(
+            "[HELP] No obvious issues found. Consider:\n"
+            "  1. Check if pattern is valid syntax for the language\n"
+            "  2. Use dump_syntax_tree to compare AST structures\n"
+            "  3. Try a simpler pattern and gradually add complexity\n"
+            "  4. Use YAML rule with 'context' and 'selector' for sub-expressions"
+        )
+
+
+def _generate_suggestions(
+    pattern: str,
+    code: str,
+    language: str,
+    issues: List[PatternIssue],
+    ast_comparison: AstComparison,
+    match_attempt: MatchAttempt,
+) -> List[str]:
+    """Generate prioritized suggestions for fixing pattern issues.
+
+    Args:
+        pattern: The ast-grep pattern (unused but kept for API consistency)
+        code: The code to match against (unused but kept for API consistency)
+        language: The programming language (unused but kept for API consistency)
+        issues: List of issues found
+        ast_comparison: AST comparison results
+        match_attempt: Match attempt results
+
+    Returns:
+        Prioritized list of suggestions
+    """
+    suggestions: List[str] = []
+
+    _add_error_suggestions(issues, suggestions)
+    _add_structural_suggestions(ast_comparison, suggestions)
+    _add_debug_suggestions(issues, ast_comparison, match_attempt, suggestions)
+    _add_warning_suggestions(issues, suggestions)
+    _add_info_suggestions(issues, suggestions)
+    _add_default_suggestions(match_attempt, suggestions)
+
+    return suggestions
+
+
+def debug_pattern_impl(
+    pattern: str,
+    code: str,
+    language: str,
+) -> PatternDebugResult:
+    """Debug why a pattern doesn't match code.
+
+    This tool provides comprehensive analysis of pattern matching issues:
+    - Validates metavariable syntax
+    - Compares pattern and code AST structures
+    - Identifies common mistakes and provides suggestions
+    - Attempts to match and reports results
+
+    Args:
+        pattern: The ast-grep pattern to debug
+        code: The code to match against
+        language: The programming language
+
+    Returns:
+        PatternDebugResult with detailed debugging information
+    """
+    logger = get_logger("search.debug_pattern")
+    start_time = time.time()
+
+    logger.info(
+        "debug_pattern_started",
+        language=language,
+        pattern_length=len(pattern),
+        code_length=len(code),
+    )
+
+    try:
+        # Extract and validate metavariables
+        metavars = _extract_metavariables(pattern)
+
+        # Check for pattern issues
+        issues = _check_pattern_issues(pattern, metavars)
+
+        # Get AST dumps for comparison
+        pattern_valid = True
+        pattern_ast = ""
+        code_ast = ""
+
+        try:
+            pattern_ast = dump_syntax_tree_impl(pattern, language, "pattern")
+        except Exception as e:
+            pattern_valid = False
+            pattern_ast = f"Error parsing pattern: {str(e)[:200]}"
+            issues.append(
+                PatternIssue(
+                    severity=IssueSeverity.ERROR,
+                    category=IssueCategory.SYNTAX,
+                    message=f"Pattern failed to parse: {str(e)[:100]}",
+                    suggestion="Ensure pattern is valid, parseable code for the target language",
+                )
+            )
+
+        try:
+            code_ast = dump_syntax_tree_impl(code, language, "cst")
+        except Exception as e:
+            code_ast = f"Error parsing code: {str(e)[:200]}"
+            issues.append(
+                PatternIssue(
+                    severity=IssueSeverity.WARNING,
+                    category=IssueCategory.SYNTAX,
+                    message=f"Code failed to parse: {str(e)[:100]}",
+                    suggestion="Check that the code is valid syntax",
+                )
+            )
+
+        # Compare ASTs
+        ast_comparison = _compare_asts(pattern_ast, code_ast)
+
+        # Attempt to match
+        match_attempt = _attempt_match(pattern, code, language)
+
+        # Generate prioritized suggestions
+        suggestions = _generate_suggestions(
+            pattern, code, language, issues, ast_comparison, match_attempt
+        )
+
+        execution_time = time.time() - start_time
+
+        result = PatternDebugResult(
+            pattern=pattern,
+            code=code,
+            language=language,
+            pattern_valid=pattern_valid,
+            pattern_ast=pattern_ast,
+            code_ast=code_ast,
+            ast_comparison=ast_comparison,
+            metavariables=metavars,
+            issues=issues,
+            suggestions=suggestions,
+            match_attempt=match_attempt,
+            execution_time_ms=int(execution_time * 1000),
+        )
+
+        logger.info(
+            "debug_pattern_completed",
+            execution_time_seconds=round(execution_time, 3),
+            pattern_valid=pattern_valid,
+            issues_found=len(issues),
+            matched=match_attempt.matched,
+            status="success",
+        )
+
+        return result
+
+    except Exception as e:
+        execution_time = time.time() - start_time
+        logger.error(
+            "debug_pattern_failed",
+            execution_time_seconds=round(execution_time, 3),
+            error=str(e)[:200],
+            status="failed",
+        )
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "function": "debug_pattern_impl",
+                "language": language,
+                "pattern_length": len(pattern),
+                "code_length": len(code),
                 "execution_time_seconds": round(execution_time, 3),
             },
         )

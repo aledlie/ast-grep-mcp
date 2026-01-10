@@ -7,6 +7,7 @@ from pydantic import Field
 
 from ast_grep_mcp.core.executor import get_supported_languages
 from ast_grep_mcp.features.search.service import (
+    debug_pattern_impl,
     dump_syntax_tree_impl,
     find_code_by_rule_impl,
     find_code_impl,
@@ -168,6 +169,75 @@ def _register_find_code_by_rule(mcp: FastMCP) -> None:
         )
 
 
+def _register_debug_pattern(mcp: FastMCP) -> None:
+    """Register debug_pattern tool."""
+
+    @mcp.tool()
+    def debug_pattern(
+        pattern: str = Field(description="The ast-grep pattern to debug"),
+        code: str = Field(description="The code to match against"),
+        language: str = Field(description=f"The programming language. Supported: {', '.join(get_supported_languages())}"),
+    ) -> Dict[str, Any]:
+        """
+        Debug why a pattern doesn't match code.
+
+        This tool provides comprehensive analysis when a pattern fails to match:
+
+        **What it checks:**
+        1. **Metavariable validation**: Detects invalid syntax like $name (must be $NAME),
+           $123 (can't start with digit), $KEBAB-CASE (no hyphens allowed)
+        2. **AST comparison**: Compares the pattern's AST with the code's AST to find
+           structural mismatches
+        3. **Match attempt**: Actually tries to match and reports results
+        4. **Best practices**: Warns about common issues like using $ARG instead of $$$ARGS
+           for multiple function arguments
+
+        **Metavariable Quick Reference:**
+        - `$NAME`: Match single AST node (UPPERCASE only!)
+        - `$$$ARGS`: Match zero or more nodes (for function arguments, etc.)
+        - `$_NAME`: Non-capturing match (performance optimization)
+        - `$$VAR`: Match unnamed tree-sitter nodes (advanced)
+
+        **Common Mistakes Detected:**
+        - `$name` → Should be `$NAME` (uppercase required)
+        - `$123` → Can't start with digit
+        - `$KEBAB-CASE` → No hyphens allowed
+        - `console.log($GREETING)` → May need `$$$ARGS` for multiple arguments
+        - Incomplete code fragments that aren't valid syntax
+
+        **Output includes:**
+        - `pattern_valid`: Whether pattern parses correctly
+        - `pattern_ast`: How ast-grep interpreted the pattern
+        - `code_ast`: How ast-grep parsed the code
+        - `ast_comparison`: Side-by-side comparison with differences
+        - `metavariables`: All metavars found with validation status
+        - `issues`: List of problems found (errors, warnings, tips)
+        - `suggestions`: Prioritized list of fixes
+        - `match_attempt`: Whether matching succeeded
+
+        **Example usage:**
+        ```python
+        # Debug why a pattern doesn't match
+        result = debug_pattern(
+            pattern="console.log($message)",  # Invalid! $message should be $MESSAGE
+            code="console.log('hello')",
+            language="javascript"
+        )
+        # Result will show:
+        # - issues: [{"severity": "error", "message": "Metavariable must use UPPERCASE..."}]
+        # - suggestions: ["[ERROR] Use uppercase letters: $MESSAGE"]
+        ```
+
+        **When to use:**
+        - Pattern returns no matches when you expect matches
+        - You're unsure if your metavariable syntax is correct
+        - You want to understand how ast-grep parses your pattern vs code
+        - You're learning ast-grep pattern syntax
+        """
+        result = debug_pattern_impl(pattern, code, language)
+        return result.to_dict()
+
+
 def register_search_tools(mcp: FastMCP) -> None:
     """Register search-related MCP tools.
 
@@ -178,3 +248,4 @@ def register_search_tools(mcp: FastMCP) -> None:
     _register_test_match_code_rule(mcp)
     _register_find_code(mcp)
     _register_find_code_by_rule(mcp)
+    _register_debug_pattern(mcp)
