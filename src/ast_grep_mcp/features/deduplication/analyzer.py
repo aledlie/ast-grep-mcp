@@ -676,6 +676,65 @@ class PatternAnalyzer:
 
         return conditionals
 
+    def _get_language_extension(self, language: str) -> str:
+        """Get file extension for a programming language."""
+        ext_map = {
+            "python": ".py",
+            "javascript": ".js",
+            "typescript": ".ts",
+            "java": ".java",
+        }
+        return ext_map.get(language, ".py")
+
+    def _get_call_rule(self, language: str) -> Dict[str, Any]:
+        """Get ast-grep rule for call expressions based on language."""
+        if language == "python":
+            return {"rule": {"kind": "call"}}
+        return {"rule": {"kind": "call_expression"}}
+
+    def _find_nested_call_in_matches(
+        self, matches: List[Dict[str, Any]], identifier: str
+    ) -> Optional[Dict[str, Any]]:
+        """Find nested function call containing identifier in ast-grep matches."""
+        for match in matches:
+            text = match.get("text", "")
+            if identifier not in text:
+                continue
+            nesting_depth = self._calculate_call_nesting_depth(text, identifier)
+            if nesting_depth > 1:
+                return {
+                    "identifier": identifier,
+                    "nesting_depth": nesting_depth,
+                    "call_expression": text,
+                    "line": match.get("range", {}).get("start", {}).get("line", 0) + 1,
+                }
+        return None
+
+    def _run_ast_grep_for_calls(
+        self, temp_path: str, language: str, identifier: str
+    ) -> Optional[Dict[str, Any]]:
+        """Run ast-grep to find nested function calls."""
+        rule = self._get_call_rule(language)
+        rule_yaml = yaml.dump(rule)
+
+        result = subprocess.run(
+            ["ast-grep", "scan", "--rule", "-", "--json", temp_path],
+            input=rule_yaml,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        if result.returncode != 0 or not result.stdout.strip():
+            return None
+
+        try:
+            matches = json.loads(result.stdout)
+            return self._find_nested_call_in_matches(matches, identifier)
+        except json.JSONDecodeError:
+            self.logger.warning("nested_call_parse_error", language=language)
+            return None
+
     def detect_nested_function_call(
         self, code: str, identifier: str, language: str = "python"
     ) -> Optional[Dict[str, Any]]:
@@ -692,60 +751,17 @@ class PatternAnalyzer:
         """
         self.logger.info("detecting_nested_function_call", identifier=identifier, language=language)
 
-        # Language file extensions
-        ext_map = {
-            "python": ".py",
-            "javascript": ".js",
-            "typescript": ".ts",
-            "java": ".java",
-        }
-        ext = ext_map.get(language, ".py")
+        ext = self._get_language_extension(language)
 
-        # Write code to temp file
         with tempfile.NamedTemporaryFile(mode="w", suffix=ext, delete=False) as f:
             f.write(code)
             temp_path = f.name
 
         try:
-            # Define ast-grep rule for call expressions
-            if language == "python":
-                rule = {"rule": {"kind": "call"}}
-            else:
-                rule = {"rule": {"kind": "call_expression"}}
-
-            rule_yaml = yaml.dump(rule)
-
-            result = subprocess.run(
-                ["ast-grep", "scan", "--rule", "-", "--json", temp_path],
-                input=rule_yaml,
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-
-            if result.returncode == 0 and result.stdout.strip():
-                try:
-                    matches = json.loads(result.stdout)
-                    # Look for nested calls containing the identifier
-                    for match in matches:
-                        text = match.get("text", "")
-                        if identifier in text:
-                            # Check for nesting pattern: func(func(...identifier...))
-                            nesting_depth = self._calculate_call_nesting_depth(text, identifier)
-                            if nesting_depth > 1:
-                                return {
-                                    "identifier": identifier,
-                                    "nesting_depth": nesting_depth,
-                                    "call_expression": text,
-                                    "line": match.get("range", {}).get("start", {}).get("line", 0) + 1,
-                                }
-                except json.JSONDecodeError:
-                    self.logger.warning("nested_call_parse_error", language=language)
-
+            return self._run_ast_grep_for_calls(temp_path, language, identifier)
         except subprocess.TimeoutExpired:
             self.logger.warning("nested_call_detection_timeout", language=language)
         except FileNotFoundError:
-            # ast-grep not installed - fall back to simple regex detection
             return self._detect_nested_call_regex(code, identifier)
         except Exception as e:
             self.logger.error("nested_call_detection_error", error=str(e))

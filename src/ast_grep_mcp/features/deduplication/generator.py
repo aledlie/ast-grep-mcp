@@ -138,6 +138,64 @@ def _infer_from_identifier_name(identifier: str, language: str) -> str:
     return str(config.get("identifier", {}).get("default", "Any"))
 
 
+# Null/undefined type mappings by language
+NULL_TYPE_MAP: Dict[str, Dict[str, str]] = {
+    "python": {"None": "None", "null": "None", "nil": "None", "undefined": "None"},
+    "typescript": {"None": "null", "null": "null", "nil": "null", "undefined": "undefined"},
+    "javascript": {"None": "null", "null": "null", "nil": "null", "undefined": "undefined"},
+}
+
+# Collection type mappings by language
+COLLECTION_TYPE_MAP: Dict[str, Dict[str, str]] = {
+    "python": {"list": "List", "dict": "Dict"},
+    "typescript": {"list": "Array", "dict": "object"},
+    "javascript": {"list": "Array", "dict": "object"},
+}
+
+
+def _is_boolean_literal(value: str) -> bool:
+    """Check if value is a boolean literal."""
+    return value in ("True", "False", "true", "false")
+
+
+def _is_null_literal(value: str) -> bool:
+    """Check if value is a null/None/undefined literal."""
+    return value in ("None", "null", "nil", "undefined")
+
+
+def _is_quoted_string(value: str) -> bool:
+    """Check if value is a quoted string literal."""
+    return (value.startswith('"') and value.endswith('"')) or (
+        value.startswith("'") and value.endswith("'")
+    )
+
+
+def _is_integer_literal(value: str) -> bool:
+    """Check if value is an integer literal."""
+    return value.lstrip("-").isdigit()
+
+
+def _try_get_float_type(value: str, literal_types: Dict[str, Any]) -> Optional[str]:
+    """Try to parse value as float and return appropriate type."""
+    try:
+        float(value)
+        if "." in value or "e" in value.lower():
+            return str(literal_types.get("number_float", literal_types.get("number", "float")))
+        return str(literal_types.get("number_int", literal_types.get("number", "int")))
+    except ValueError:
+        return None
+
+
+def _get_collection_type(value: str, language: str) -> Optional[str]:
+    """Get collection type for list/dict literals."""
+    lang_types = COLLECTION_TYPE_MAP.get(language, COLLECTION_TYPE_MAP["python"])
+    if value.startswith("[") and value.endswith("]"):
+        return lang_types["list"]
+    if value.startswith("{") and value.endswith("}"):
+        return lang_types["dict"]
+    return None
+
+
 def _infer_single_value_type(value: str, language: str) -> str:
     """Infer type from a single literal value.
 
@@ -153,58 +211,30 @@ def _infer_single_value_type(value: str, language: str) -> str:
     """
     value_stripped = value.strip()
 
-    # Get language config
     config = TYPE_INFERENCE_CONFIG.get(language, TYPE_INFERENCE_CONFIG.get("python", {}))
     literal_types = config.get("literal", {})
 
-    # Check for boolean
-    if value_stripped in ("True", "False", "true", "false"):
+    if _is_boolean_literal(value_stripped):
         return str(literal_types.get("boolean", "bool"))
 
-    # Check for None/null/nil
-    if value_stripped in ("None", "null", "nil", "undefined"):
-        if language == "python":
-            return "None"
-        elif language in ("typescript", "javascript"):
-            return "null" if value_stripped == "null" else "undefined"
-        return "null"
+    if _is_null_literal(value_stripped):
+        null_map = NULL_TYPE_MAP.get(language, NULL_TYPE_MAP.get("python", {}))
+        return null_map.get(value_stripped, "null")
 
-    # Check for string (quoted)
-    if (value_stripped.startswith('"') and value_stripped.endswith('"')) or (
-        value_stripped.startswith("'") and value_stripped.endswith("'")
-    ):
+    if _is_quoted_string(value_stripped):
         return str(literal_types.get("string", "str"))
 
-    # Check for integer
-    if value_stripped.lstrip("-").isdigit():
+    if _is_integer_literal(value_stripped):
         return str(literal_types.get("number_int", literal_types.get("number", "int")))
 
-    # Check for float
-    try:
-        float(value_stripped)
-        if "." in value_stripped or "e" in value_stripped.lower():
-            return str(literal_types.get("number_float", literal_types.get("number", "float")))
-        return str(literal_types.get("number_int", literal_types.get("number", "int")))
-    except ValueError:
-        pass
+    float_type = _try_get_float_type(value_stripped, literal_types)
+    if float_type:
+        return float_type
 
-    # Check for list/array literal
-    if value_stripped.startswith("[") and value_stripped.endswith("]"):
-        if language == "python":
-            return "List"
-        elif language in ("typescript", "javascript"):
-            return "Array"
-        return "List"
+    collection_type = _get_collection_type(value_stripped, language)
+    if collection_type:
+        return collection_type
 
-    # Check for dict/object literal
-    if value_stripped.startswith("{") and value_stripped.endswith("}"):
-        if language == "python":
-            return "Dict"
-        elif language in ("typescript", "javascript"):
-            return "object"
-        return "Dict"
-
-    # Default to string type for unknown values
     return str(literal_types.get("string", "str"))
 
 
@@ -990,6 +1020,64 @@ def generate_parameter_name(identifier: str, all_identifiers: List[str]) -> str:
     return f"{base_name}_{int(time.time()) % 1000}"
 
 
+def _find_type_annotation(identifier: str, context: str, language: str) -> Optional[str]:
+    """Find explicit type annotation for identifier in context."""
+    if language == "python":
+        pattern = rf'{re.escape(identifier)}\s*:\s*([A-Za-z_][A-Za-z0-9_\[\],\s]*)'
+    elif language in ("typescript", "javascript"):
+        pattern = rf'{re.escape(identifier)}\s*:\s*([A-Za-z_][A-Za-z0-9_<>\[\],\s]*)'
+    else:
+        return None
+
+    match = re.search(pattern, context)
+    return match.group(1).strip() if match else None
+
+
+def _get_usage_patterns(identifier: str) -> List[Tuple[str, str, str]]:
+    """Get usage patterns for type inference."""
+    esc_id = re.escape(identifier)
+    return [
+        (r'len\s*\(\s*' + esc_id, "Sequence", "Iterable"),
+        (r'int\s*\(\s*' + esc_id, "str", "string"),
+        (r'str\s*\(\s*' + esc_id, "Any", "any"),
+        (r'float\s*\(\s*' + esc_id, "str", "string"),
+        (r'\.append\s*\(', "List", "Array"),
+        (r'\.items\s*\(\s*\)', "Dict", "object"),
+        (r'\.keys\s*\(\s*\)', "Dict", "object"),
+        (r'\.values\s*\(\s*\)', "Dict", "object"),
+        (r'for\s+\w+\s+in\s+' + esc_id, "Iterable", "Iterable"),
+        (r'if\s+' + esc_id + r'\s*:', "bool", "boolean"),
+        (r'while\s+' + esc_id + r'\s*:', "bool", "boolean"),
+    ]
+
+
+def _infer_from_usage_patterns(
+    identifier: str, context: str, language: str
+) -> Optional[str]:
+    """Infer type from common usage patterns in context."""
+    for pattern, py_type, js_type in _get_usage_patterns(identifier):
+        if re.search(pattern, context):
+            return py_type if language == "python" else js_type
+    return None
+
+
+def _infer_from_operations(identifier: str, context: str, language: str) -> Optional[str]:
+    """Infer type from arithmetic/string operations."""
+    esc_id = re.escape(identifier)
+
+    # Check for numeric comparisons
+    if re.search(rf'{esc_id}\s*[<>=]+\s*\d', context) or \
+       re.search(rf'\d\s*[<>=]+\s*{esc_id}', context):
+        return "int" if language == "python" else "number"
+
+    # Check for string concatenation
+    if re.search(rf'{esc_id}\s*\+\s*["\']', context) or \
+       re.search(rf'["\'\s]\s*\+\s*{esc_id}', context):
+        return "str" if language == "python" else "string"
+
+    return None
+
+
 def infer_parameter_type(identifier: str, context: str, language: str = "python") -> str:
     """
     Infer the type of a parameter from its identifier and usage context.
@@ -1005,64 +1093,27 @@ def infer_parameter_type(identifier: str, context: str, language: str = "python"
     Returns:
         Inferred type string appropriate for the language
     """
-    # First try to infer from identifier name
-    type_from_name = _infer_from_identifier_name(identifier, language)
-
-    # If we got a specific type (not the default), use it
     config = TYPE_INFERENCE_CONFIG.get(language, TYPE_INFERENCE_CONFIG.get("python", {}))
     default_type = str(config.get("identifier", {}).get("default", "Any"))
 
+    # Try to infer from identifier name first
+    type_from_name = _infer_from_identifier_name(identifier, language)
     if type_from_name != default_type:
         return type_from_name
 
-    # Try to infer from context
-    # Check for type hints in context (Python)
-    if language == "python":
-        import re
-        # Look for type annotations like "identifier: type"
-        type_hint_pattern = rf'{re.escape(identifier)}\s*:\s*([A-Za-z_][A-Za-z0-9_\[\],\s]*)'
-        match = re.search(type_hint_pattern, context)
-        if match:
-            return match.group(1).strip()
+    # Try explicit type annotation
+    annotation = _find_type_annotation(identifier, context, language)
+    if annotation:
+        return annotation
 
-    # Check for TypeScript/JavaScript type annotations
-    if language in ("typescript", "javascript"):
-        import re
-        # Look for type annotations like "identifier: type"
-        type_hint_pattern = rf'{re.escape(identifier)}\s*:\s*([A-Za-z_][A-Za-z0-9_<>\[\],\s]*)'
-        match = re.search(type_hint_pattern, context)
-        if match:
-            return match.group(1).strip()
+    # Try usage patterns
+    usage_type = _infer_from_usage_patterns(identifier, context, language)
+    if usage_type:
+        return usage_type
 
-    # Check for common usage patterns in context
-    import re
-    usage_patterns = [
-        (r'len\s*\(\s*' + re.escape(identifier), "Sequence", "Iterable"),
-        (r'int\s*\(\s*' + re.escape(identifier), "str", "string"),
-        (r'str\s*\(\s*' + re.escape(identifier), "Any", "any"),
-        (r'float\s*\(\s*' + re.escape(identifier), "str", "string"),
-        (r'\.append\s*\(', "List", "Array"),
-        (r'\.items\s*\(\s*\)', "Dict", "object"),
-        (r'\.keys\s*\(\s*\)', "Dict", "object"),
-        (r'\.values\s*\(\s*\)', "Dict", "object"),
-        (r'for\s+\w+\s+in\s+' + re.escape(identifier), "Iterable", "Iterable"),
-        (r'if\s+' + re.escape(identifier) + r'\s*:', "bool", "boolean"),
-        (r'while\s+' + re.escape(identifier) + r'\s*:', "bool", "boolean"),
-    ]
+    # Try operations
+    op_type = _infer_from_operations(identifier, context, language)
+    if op_type:
+        return op_type
 
-    for pattern, py_type, js_type in usage_patterns:
-        if re.search(pattern, context):
-            return py_type if language == "python" else js_type
-
-    # Check for comparison operations suggesting numeric type
-    if re.search(rf'{re.escape(identifier)}\s*[<>=]+\s*\d', context) or \
-       re.search(rf'\d\s*[<>=]+\s*{re.escape(identifier)}', context):
-        return "int" if language == "python" else "number"
-
-    # Check for string operations
-    if re.search(rf'{re.escape(identifier)}\s*\+\s*["\']', context) or \
-       re.search(rf'["\'\s]\s*\+\s*{re.escape(identifier)}', context):
-        return "str" if language == "python" else "string"
-
-    # Default to Any/any
     return default_type

@@ -105,6 +105,39 @@ def build_nested_diff_tree(code1: str, code2: str, language: str | None = None) 
     }
 
 
+def _append_lines_as_ops(
+    diff_ops: list[dict[str, Any]], lines: list[str], op_type: str
+) -> None:
+    """Append lines to diff_ops with the specified operation type."""
+    for line in lines:
+        diff_ops.append({"type": op_type, "content": line})
+
+
+def _process_opcode(
+    diff_ops: list[dict[str, Any]],
+    tag: str,
+    lines1: list[str],
+    lines2: list[str],
+    i1: int,
+    i2: int,
+    j1: int,
+    j2: int,
+) -> None:
+    """Process a single diff opcode and append operations to diff_ops."""
+    opcode_handlers = {
+        "equal": lambda: _append_lines_as_ops(diff_ops, lines1[i1:i2], "equal"),
+        "delete": lambda: _append_lines_as_ops(diff_ops, lines1[i1:i2], "delete"),
+        "insert": lambda: _append_lines_as_ops(diff_ops, lines2[j1:j2], "insert"),
+    }
+
+    handler = opcode_handlers.get(tag)
+    if handler:
+        handler()
+    elif tag == "replace":
+        _append_lines_as_ops(diff_ops, lines1[i1:i2], "delete")
+        _append_lines_as_ops(diff_ops, lines2[j1:j2], "insert")
+
+
 def build_diff_tree(code1: str, code2: str, language: str | None = None) -> dict[str, Any]:
     """Build a diff tree from two code snippets.
 
@@ -131,20 +164,7 @@ def build_diff_tree(code1: str, code2: str, language: str | None = None) -> dict
     diff_ops: list[dict[str, Any]] = []
 
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-        if tag == "equal":
-            for line in lines1[i1:i2]:
-                diff_ops.append({"type": "equal", "content": line})
-        elif tag == "delete":
-            for line in lines1[i1:i2]:
-                diff_ops.append({"type": "delete", "content": line})
-        elif tag == "insert":
-            for line in lines2[j1:j2]:
-                diff_ops.append({"type": "insert", "content": line})
-        elif tag == "replace":
-            for line in lines1[i1:i2]:
-                diff_ops.append({"type": "delete", "content": line})
-            for line in lines2[j1:j2]:
-                diff_ops.append({"type": "insert", "content": line})
+        _process_opcode(diff_ops, tag, lines1, lines2, i1, i2, j1, j2)
 
     change_count = sum(1 for op in diff_ops if op["type"] != "equal")
 
@@ -153,6 +173,66 @@ def build_diff_tree(code1: str, code2: str, language: str | None = None) -> dict
         "language": language,
         "summary": {"changes": change_count},
     }
+
+
+def _format_alignment_entry(alignment: dict[str, Any], lines: list[str]) -> None:
+    """Format a single alignment entry and append to lines."""
+    align_type = alignment.get("type", "unknown")
+    if align_type == "match":
+        lines.append(f"  {alignment.get('value', '')}")
+    elif align_type == "diff":
+        old_val = alignment.get("old", "")
+        new_val = alignment.get("new", "")
+        if old_val:
+            lines.append(f"- {old_val}")
+        if new_val:
+            lines.append(f"+ {new_val}")
+    elif align_type == "delete":
+        lines.append(f"- {alignment.get('value', alignment.get('content', ''))}")
+    elif align_type == "insert":
+        lines.append(f"+ {alignment.get('value', alignment.get('content', ''))}")
+
+
+def _format_alignments(alignments: list[dict[str, Any]]) -> str:
+    """Format alignments list into diff string."""
+    lines: list[str] = []
+    for alignment in alignments:
+        _format_alignment_entry(alignment, lines)
+    return "\n".join(lines)
+
+
+def _format_diff_op(op: dict[str, Any]) -> str:
+    """Format a single diff operation."""
+    op_type = op.get("type", "equal")
+    content = op.get("content", "")
+    prefix_map = {"equal": "  ", "delete": "- ", "insert": "+ "}
+    prefix = prefix_map.get(op_type, "  ")
+    return f"{prefix}{content}"
+
+
+def _format_diff_ops(diff_ops: list[dict[str, Any]]) -> str:
+    """Format diff operations list into string."""
+    return "\n".join(_format_diff_op(op) for op in diff_ops)
+
+
+def _format_change_entry(change: dict[str, Any], lines: list[str]) -> None:
+    """Format a single change entry and append to lines."""
+    change_type = change.get("type", "")
+    if change_type == "modification":
+        lines.append(f"- {change.get('old', '')}")
+        lines.append(f"+ {change.get('new', '')}")
+    elif change_type == "deletion":
+        lines.append(f"- {change.get('content', '')}")
+    elif change_type == "addition":
+        lines.append(f"+ {change.get('content', '')}")
+
+
+def _format_changes(changes: list[dict[str, Any]]) -> str:
+    """Format changes list into diff string."""
+    lines: list[str] = []
+    for change in changes:
+        _format_change_entry(change, lines)
+    return "\n".join(lines)
 
 
 def format_alignment_diff(diff_data: dict[str, Any]) -> str | dict[str, Any]:
@@ -173,56 +253,54 @@ def format_alignment_diff(diff_data: dict[str, Any]) -> str | dict[str, Any]:
     if not diff_data:
         return ""
 
-    # Handle alignments format
     if "alignments" in diff_data:
-        lines: list[str] = []
-        for alignment in diff_data["alignments"]:
-            align_type = alignment.get("type", "unknown")
-            if align_type == "match":
-                lines.append(f"  {alignment.get('value', '')}")
-            elif align_type == "diff":
-                old_val = alignment.get("old", "")
-                new_val = alignment.get("new", "")
-                if old_val:
-                    lines.append(f"- {old_val}")
-                if new_val:
-                    lines.append(f"+ {new_val}")
-            elif align_type == "delete":
-                lines.append(f"- {alignment.get('value', alignment.get('content', ''))}")
-            elif align_type == "insert":
-                lines.append(f"+ {alignment.get('value', alignment.get('content', ''))}")
-        return "\n".join(lines)
+        return _format_alignments(diff_data["alignments"])
 
-    # Handle diff operations format
     if "diff" in diff_data and isinstance(diff_data["diff"], list):
-        lines = []
-        for op in diff_data["diff"]:
-            op_type = op.get("type", "equal")
-            content = op.get("content", "")
-            if op_type == "equal":
-                lines.append(f"  {content}")
-            elif op_type == "delete":
-                lines.append(f"- {content}")
-            elif op_type == "insert":
-                lines.append(f"+ {content}")
-        return "\n".join(lines)
+        return _format_diff_ops(diff_data["diff"])
 
-    # Handle changes format
     if "changes" in diff_data and isinstance(diff_data["changes"], list):
-        lines = []
-        for change in diff_data["changes"]:
-            change_type = change.get("type", "")
-            if change_type == "modification":
-                lines.append(f"- {change.get('old', '')}")
-                lines.append(f"+ {change.get('new', '')}")
-            elif change_type == "deletion":
-                lines.append(f"- {change.get('content', '')}")
-            elif change_type == "addition":
-                lines.append(f"+ {change.get('content', '')}")
-        return "\n".join(lines)
+        return _format_changes(diff_data["changes"])
 
-    # Return original if no recognized format
     return diff_data
+
+
+_HUNK_HEADER_PATTERN = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$")
+
+
+def _parse_file_header(line: str, prefix: str) -> str | None:
+    """Parse a file header line and extract the filename."""
+    if not line.startswith(prefix):
+        return None
+    filename = line[len(prefix):].split("\t")[0]
+    # Remove git prefixes
+    if filename.startswith("a/") or filename.startswith("b/"):
+        filename = filename[2:]
+    return filename
+
+
+def _parse_hunk_header(line: str) -> dict[str, Any] | None:
+    """Parse a hunk header line and return hunk dict."""
+    match = _HUNK_HEADER_PATTERN.match(line)
+    if not match:
+        return None
+    return {
+        "old_start": int(match.group(1)),
+        "old_count": int(match.group(2)) if match.group(2) else 1,
+        "new_start": int(match.group(3)),
+        "new_count": int(match.group(4)) if match.group(4) else 1,
+        "context": match.group(5).strip(),
+        "changes": [],
+    }
+
+
+def _parse_diff_line(line: str) -> dict[str, str]:
+    """Parse a diff content line and return change dict."""
+    line_type_map = {"-": "deletion", "+": "addition", " ": "context"}
+    first_char = line[0] if line else ""
+    line_type = line_type_map.get(first_char, "other")
+    content = line[1:] if first_char in line_type_map else line
+    return {"type": line_type, "content": content}
 
 
 def diff_preview_to_dict(diff_text: str) -> dict[str, Any]:
@@ -245,48 +323,31 @@ def diff_preview_to_dict(diff_text: str) -> dict[str, Any]:
     lines = diff_text.strip().split("\n")
     hunks: list[dict[str, Any]] = []
     current_hunk: dict[str, Any] | None = None
-    old_file = None
-    new_file = None
-
-    hunk_header_pattern = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$")
+    old_file: str | None = None
+    new_file: str | None = None
 
     for line in lines:
-        # Parse file headers
+        # Try parsing as file header
         if line.startswith("--- "):
-            old_file = line[4:].split("\t")[0]  # Remove timestamp if present
-            if old_file.startswith("a/"):
-                old_file = old_file[2:]
-        elif line.startswith("+++ "):
-            new_file = line[4:].split("\t")[0]
-            if new_file.startswith("b/"):
-                new_file = new_file[2:]
-        # Parse hunk header
-        elif line.startswith("@@"):
-            match = hunk_header_pattern.match(line)
-            if match:
+            old_file = _parse_file_header(line, "--- ")
+            continue
+        if line.startswith("+++ "):
+            new_file = _parse_file_header(line, "+++ ")
+            continue
+
+        # Try parsing as hunk header
+        if line.startswith("@@"):
+            new_hunk = _parse_hunk_header(line)
+            if new_hunk:
                 if current_hunk:
                     hunks.append(current_hunk)
-                current_hunk = {
-                    "old_start": int(match.group(1)),
-                    "old_count": int(match.group(2)) if match.group(2) else 1,
-                    "new_start": int(match.group(3)),
-                    "new_count": int(match.group(4)) if match.group(4) else 1,
-                    "context": match.group(5).strip(),
-                    "changes": [],
-                }
-        # Parse diff lines
-        elif current_hunk is not None:
-            if line.startswith("-"):
-                current_hunk["changes"].append({"type": "deletion", "content": line[1:]})
-            elif line.startswith("+"):
-                current_hunk["changes"].append({"type": "addition", "content": line[1:]})
-            elif line.startswith(" "):
-                current_hunk["changes"].append({"type": "context", "content": line[1:]})
-            else:
-                # No-newline marker or other
-                current_hunk["changes"].append({"type": "other", "content": line})
+                current_hunk = new_hunk
+            continue
 
-    # Add final hunk
+        # Parse as diff content line
+        if current_hunk is not None:
+            current_hunk["changes"].append(_parse_diff_line(line))
+
     if current_hunk:
         hunks.append(current_hunk)
 
