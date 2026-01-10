@@ -66,6 +66,83 @@ $_FUNC($_ARG)            # Matches any function call, doesn't capture
 3. Same metavariable name enforces structural equality: `$A == $A` matches `x == x` but not `x == y`
 4. Nested patterns match nested code
 
+## Pattern Objects (context + selector)
+
+⚠️ **This solves the #1 "my pattern doesn't match" issue!**
+
+When your pattern is a code fragment that isn't valid standalone code, use a pattern object
+with `context` and `selector` to provide parsing context.
+
+### The Problem
+```yaml
+# ❌ FAILS: "key": "$VAL" isn't valid standalone JavaScript
+rule:
+  pattern: '"key": "$VAL"'
+```
+
+### The Solution
+```yaml
+# ✅ WORKS: Provide full context, select the part you want
+rule:
+  pattern:
+    context: '{"key": "$VAL"}'
+    selector: pair
+```
+
+### How It Works
+1. `context`: Valid, parseable code containing your target pattern
+2. `selector`: The AST node kind to actually match (use `dump_syntax_tree` to find it)
+
+### Common Use Cases
+
+**JSON key-value pairs:**
+```yaml
+pattern:
+  context: '{"key": "$VAL"}'
+  selector: pair
+```
+
+**Object properties in JavaScript:**
+```yaml
+pattern:
+  context: '({foo: $VAL})'
+  selector: pair
+```
+
+**Function parameters (not full function):**
+```yaml
+pattern:
+  context: 'function f($PARAM: $TYPE) {}'
+  selector: required_parameter
+```
+
+**Go function calls (need context for parsing):**
+```yaml
+pattern:
+  context: 'package main; func f() { io.Copy($DST, $SRC) }'
+  selector: call_expression
+```
+
+**C struct fields:**
+```yaml
+pattern:
+  context: 'struct S { $TYPE $NAME; };'
+  selector: field_declaration
+```
+
+### When to Use Pattern Objects
+- Pattern doesn't match and you've verified metavariable syntax
+- Your pattern is a sub-expression (not a complete statement)
+- tree-sitter can't parse your pattern as standalone code
+- You're matching language constructs that need surrounding context
+
+### Finding the Right Selector
+Use `dump_syntax_tree` to see the AST structure:
+```
+dump_syntax_tree(code='{"key": "value"}', language="json", format="named")
+```
+Look for the node kind that wraps exactly what you want to match.
+
 ## Common Patterns by Language
 
 ### JavaScript/TypeScript
@@ -96,7 +173,16 @@ go $FUNC($$$ARGS)                       # Goroutines
 2. Use `dump_syntax_tree` to understand code structure
 3. Test patterns with `test_match_code_rule` before deployment
 4. Use `debug_pattern` when patterns don't match as expected
-5. Verify patterns in the ast-grep playground
+5. Verify patterns in the ast-grep playground: https://ast-grep.github.io/playground.html
+
+## Online Playground
+Test patterns interactively at: **https://ast-grep.github.io/playground.html**
+
+The playground lets you:
+- Write and test patterns in real-time
+- See the AST structure of your code
+- Debug why patterns don't match
+- Share patterns via URL
 """,
     "rules": """# ast-grep YAML Rule Configuration
 
@@ -556,6 +642,52 @@ foo(a, b, c)       // $$$ARGS = a, b, c
 // Matches any block with any statements
 ```
 
+### ⚠️ Multi-Metavariable Laziness (Important!)
+
+**Multi-metavariables (`$$$`) are LAZY** - they stop matching as soon as the
+next part of the pattern can match. This is subtle but critical behavior!
+
+**How It Works:**
+```javascript
+// Pattern: foo($$$A, b, $$$C)
+// Code:    foo(a, c, b, b, c)
+
+// Result:
+// $$$A = a, c     (stops at first 'b')
+// $$$C = b, c     (captures the rest)
+```
+
+**Key Insight:** `$$$A` stops before the first `b` because `b` is the next
+literal in the pattern. It doesn't greedily consume all nodes.
+
+**Another Example:**
+```javascript
+// Pattern: [$$$FIRST, 0, $$$REST]
+// Code:    [1, 2, 0, 3, 0, 4]
+
+// Result:
+// $$$FIRST = 1, 2    (stops at first 0)
+// $$$REST = 3, 0, 4  (captures everything after first 0)
+```
+
+**Implications:**
+1. Order matters in patterns with multiple `$$$` variables
+2. Literal values between `$$$` act as "stop points"
+3. The first `$$$` is NOT greedy - it yields to the next pattern element
+
+**Common Pitfall:**
+```javascript
+// Pattern: foo($$$ARGS, callback)
+// Code:    foo(a, b, callback, callback)
+
+// You might expect $$$ARGS = a, b, callback
+// But actually: $$$ARGS = a, b (stops at first 'callback')
+```
+
+**Workaround for Greedy Matching:**
+If you need greedy behavior, restructure your pattern or use multiple rules
+with `any` to handle different cases.
+
 ## Non-Capturing: `$_`
 
 Use when you need to match but don't care about the value.
@@ -666,6 +798,7 @@ debug_pattern(
 | Debug pattern matching issues | `debug_pattern` |
 | Build rule from components | `build_rule` |
 | Get documentation help | `get_ast_grep_docs` |
+| Interactive testing | [ast-grep Playground](https://ast-grep.github.io/playground.html) |
 
 ## Common Development Patterns
 
