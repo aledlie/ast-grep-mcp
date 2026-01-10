@@ -198,7 +198,7 @@ class TestSemanticSimilarityMocked:
 
     def test_empty_input_returns_zero(self):
         """Empty inputs should return 0.0 similarity."""
-        semantic = SemanticSimilarity()
+        SemanticSimilarity()
         # Test with empty code without loading model
         result = SemanticSimilarityResult(
             similarity=0.0,

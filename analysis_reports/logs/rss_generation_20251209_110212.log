@@ -1,0 +1,11 @@
+Command: RSS Feed Generation
+Return Code: 0
+================================================================================
+STDERR:
+<frozen runpy>:128: RuntimeWarning: 'src.generators.rss' found in sys.modules after import of package 'src.generators', but prior to execution of 'src.generators.rss'; this may result in unpredictable behaviour
+INFO: ✅ RSS feed saved to /Users/alyshialedlie/code/ast-grep-mcp/analysis_reports/rss/code_updates_20251209_110212.xml
+INFO:    10 commits included
+
+================================================================================
+STDOUT:
+

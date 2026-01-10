@@ -1,0 +1,5422 @@
+{
+  "summary": {
+    "source_directory": "/Users/alyshialedlie/code/ast-grep-mcp",
+    "test_directory": "/Users/alyshialedlie/code/ast-grep-mcp/tests",
+    "total_functions": 493,
+    "tested_functions": 138,
+    "untested_functions": 355,
+    "coverage_percentage": 27.99
+  },
+  "functions": [
+    {
+      "name": "print_section",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/analyze_codebase.py",
+      "line_number": 25,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_individual_files",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/analyze_codebase.py",
+      "line_number": 32,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_project_complexity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/analyze_codebase.py",
+      "line_number": 69,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "detect_code_smells",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/analyze_codebase.py",
+      "line_number": 116,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "detect_security_issues",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/analyze_codebase.py",
+      "line_number": 156,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_duplication",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/analyze_codebase.py",
+      "line_number": 202,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_summary_report",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/analyze_codebase.py",
+      "line_number": 265,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "main",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/analyze_codebase.py",
+      "line_number": 307,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "smart_replace_print",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/migrate_prints_smart.py",
+      "line_number": 18,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "add_console_import",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/migrate_prints_smart.py",
+      "line_number": 100,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "migrate_file",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/migrate_prints_smart.py",
+      "line_number": 150,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "migrate_directory",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/migrate_prints_smart.py",
+      "line_number": 190,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "main",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/migrate_prints_smart.py",
+      "line_number": 221,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "find_orphaned_imports",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/fix_import_orphans.py",
+      "line_number": 11,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "remove_orphaned_lines",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/fix_import_orphans.py",
+      "line_number": 68,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "check_syntax",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/fix_import_orphans.py",
+      "line_number": 104,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "main",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/fix_import_orphans.py",
+      "line_number": 114,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_function_complexity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/analyze_violations.py",
+      "line_number": 8,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_cyclomatic_complexity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/analyze_violations.py",
+      "line_number": 34,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_cognitive_complexity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/analyze_violations.py",
+      "line_number": 50,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_max_nesting",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/analyze_violations.py",
+      "line_number": 73,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "scan_all_functions",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/analyze_violations.py",
+      "line_number": 90,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "main",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/analyze_violations.py",
+      "line_number": 111,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "fix_file",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/fix_migration_errors.py",
+      "line_number": 10,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "main",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/fix_migration_errors.py",
+      "line_number": 70,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_print_call",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/migrate_print_to_logger.py",
+      "line_number": 56,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "migrate_print_statement",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/migrate_print_to_logger.py",
+      "line_number": 84,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "find_print_statements",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/migrate_print_to_logger.py",
+      "line_number": 135,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "migrate_file",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/migrate_print_to_logger.py",
+      "line_number": 234,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "migrate_directory",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/migrate_print_to_logger.py",
+      "line_number": 322,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "main",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/migrate_print_to_logger.py",
+      "line_number": 356,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "scan_all_python_files",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/list_complexity_violations.py",
+      "line_number": 21,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "main",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/list_complexity_violations.py",
+      "line_number": 49,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "discover_json_schemas",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/schema-graph-builder.py",
+      "line_number": 65,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_entity_id",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/schema-graph-builder.py",
+      "line_number": 107,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "validate_entity_id",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/schema-graph-builder.py",
+      "line_number": 125,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "extract_entities_from_schema",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/schema-graph-builder.py",
+      "line_number": 165,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "merge_duplicate_entities",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/schema-graph-builder.py",
+      "line_number": 238,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "build_entity_graph",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/schema-graph-builder.py",
+      "line_number": 270,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "analyze_relationships",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/schema-graph-builder.py",
+      "line_number": 321,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_documentation",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/schema-graph-builder.py",
+      "line_number": 386,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_all_entity_ids",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/schema-graph-builder.py",
+      "line_number": 555,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "main",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/schema-graph-builder.py",
+      "line_number": 577,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "fix_file",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/fix_imports.py",
+      "line_number": 7,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "main",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/fix_imports.py",
+      "line_number": 76,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "create_test_candidates",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/benchmark_batch_coverage.py",
+      "line_number": 31,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "benchmark_legacy_sequential",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/benchmark_batch_coverage.py",
+      "line_number": 66,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "benchmark_legacy_parallel",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/benchmark_batch_coverage.py",
+      "line_number": 93,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "benchmark_batch_sequential",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/benchmark_batch_coverage.py",
+      "line_number": 119,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "benchmark_batch_parallel",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/benchmark_batch_coverage.py",
+      "line_number": 144,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "run_benchmark_suite",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/benchmark_batch_coverage.py",
+      "line_number": 170,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "main",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/benchmark_batch_coverage.py",
+      "line_number": 251,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_project",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/analyze_analyticsbot.py",
+      "line_number": 18,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "run_benchmarks",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/run_benchmarks.py",
+      "line_number": 28,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "main",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/run_benchmarks.py",
+      "line_number": 106,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "create_mock_candidates",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/benchmark_parallel_enrichment.py",
+      "line_number": 11,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "benchmark_enrichment",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/scripts/benchmark_parallel_enrichment.py",
+      "line_number": 27,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_optimal_workers",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/constants.py",
+      "line_number": 30,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "configure_logging",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/logging.py",
+      "line_number": 9,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_logger",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/logging.py",
+      "line_number": 45,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_config_file",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/config.py",
+      "line_number": 27,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "parse_args_and_get_config",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/config.py",
+      "line_number": 243,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_operation_cost",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py",
+      "line_number": 152,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "log_usage",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py",
+      "line_number": 309,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_stats",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py",
+      "line_number": 351,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_alerts",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py",
+      "line_number": 447,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_recent_logs",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py",
+      "line_number": 584,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_usage_database",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py",
+      "line_number": 647,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "track_usage",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py",
+      "line_number": 664,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "decorator",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py",
+      "line_number": 678,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "wrapper",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py",
+      "line_number": 680,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "track_operation",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py",
+      "line_number": 745,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_usage_stats",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py",
+      "line_number": 829,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_usage_alerts",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py",
+      "line_number": 842,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_recent_usage",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py",
+      "line_number": 854,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_usage_report",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py",
+      "line_number": 876,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/cache.py",
+      "line_number": 47,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "put",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/cache.py",
+      "line_number": 78,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "clear",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/cache.py",
+      "line_number": 98,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_stats",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/cache.py",
+      "line_number": 104,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_query_cache",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/cache.py",
+      "line_number": 126,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "init_query_cache",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/cache.py",
+      "line_number": 133,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "init_sentry",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/sentry.py",
+      "line_number": 15,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_supported_languages",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/executor.py",
+      "line_number": 22,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "run_command",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/executor.py",
+      "line_number": 68,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "filter_files_by_size",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/executor.py",
+      "line_number": 239,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "run_ast_grep",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/executor.py",
+      "line_number": 290,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "stream_ast_grep_results",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/executor.py",
+      "line_number": 455,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "parse_file",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/docstring_generator.py",
+      "line_number": 485,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_docstrings_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/docstring_generator.py",
+      "line_number": 1224,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "generate_docstrings_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/tools.py",
+      "line_number": 31,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_readme_sections_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/tools.py",
+      "line_number": 165,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_api_docs_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/tools.py",
+      "line_number": 300,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_changelog_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/tools.py",
+      "line_number": 416,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "sync_documentation_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/tools.py",
+      "line_number": 558,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "register_documentation_tools",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/tools.py",
+      "line_number": 737,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_docstrings",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/tools.py",
+      "line_number": 746,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "generate_readme_sections",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/tools.py",
+      "line_number": 767,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "generate_api_docs",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/tools.py",
+      "line_number": 782,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_changelog",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/tools.py",
+      "line_number": 799,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "sync_documentation",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/tools.py",
+      "line_number": 816,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "is_excluded",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/sync_checker.py",
+      "line_number": 348,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "sync_documentation_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/sync_checker.py",
+      "line_number": 489,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "generate_readme_sections_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/readme_generator.py",
+      "line_number": 886,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "generate_changelog_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/changelog_generator.py",
+      "line_number": 554,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "create_backup",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/backup.py",
+      "line_number": 13,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "create_deduplication_backup",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/backup.py",
+      "line_number": 68,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_file_hash",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/backup.py",
+      "line_number": 144,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "verify_backup_integrity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/backup.py",
+      "line_number": 160,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "restore_backup",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/backup.py",
+      "line_number": 227,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "list_available_backups",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/backup.py",
+      "line_number": 358,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "register_rewrite_tools",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/tools.py",
+      "line_number": 15,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "rewrite_code",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/tools.py",
+      "line_number": 23,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "rollback_rewrite",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/tools.py",
+      "line_number": 55,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "list_backups",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/tools.py",
+      "line_number": 77,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "parse_file",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/api_docs_generator.py",
+      "line_number": 128,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_api_docs_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/api_docs_generator.py",
+      "line_number": 614,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_rule_pattern",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/validator.py",
+      "line_number": 20,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_rule_definition",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/validator.py",
+      "line_number": 71,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_linting_rules_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/validator.py",
+      "line_number": 127,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "classify_fix_safety",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/fixer.py",
+      "line_number": 56,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "apply_pattern_fix",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/fixer.py",
+      "line_number": 93,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "apply_removal_fix",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/fixer.py",
+      "line_number": 217,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "apply_fixes_batch",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/fixer.py",
+      "line_number": 305,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "preview_fix",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/fixer.py",
+      "line_number": 589,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_smell_detection_inputs",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/smells_helpers.py",
+      "line_number": 14,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "find_smell_analysis_files",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/smells_helpers.py",
+      "line_number": 51,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_smell_severity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/smells_helpers.py",
+      "line_number": 101,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_smell_detection_response",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/smells_helpers.py",
+      "line_number": 141,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "aggregate_smell_results",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/smells_helpers.py",
+      "line_number": 185,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "create_linting_rule_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py",
+      "line_number": 106,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "list_rule_templates_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py",
+      "line_number": 206,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "enforce_standards_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py",
+      "line_number": 361,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "apply_standards_fixes_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py",
+      "line_number": 544,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_quality_report_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py",
+      "line_number": 661,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "detect_security_issues_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py",
+      "line_number": 853,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "detect_orphans_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py",
+      "line_number": 977,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "register_quality_tools",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py",
+      "line_number": 1186,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "create_linting_rule",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py",
+      "line_number": 1199,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "list_rule_templates",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py",
+      "line_number": 1226,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "enforce_standards",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py",
+      "line_number": 1234,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "apply_standards_fixes",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py",
+      "line_number": 1261,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_quality_report",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py",
+      "line_number": 1274,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "detect_security_issues",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py",
+      "line_number": 1293,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "detect_orphans",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py",
+      "line_number": 1310,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_syntax",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/service.py",
+      "line_number": 94,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_rewrites",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/service.py",
+      "line_number": 137,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "rewrite_code_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/service.py",
+      "line_number": 394,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "rollback_rewrite_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/service.py",
+      "line_number": 459,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "list_backups_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/service.py",
+      "line_number": 518,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_markdown_report",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/reporter.py",
+      "line_number": 264,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_json_report",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/reporter.py",
+      "line_number": 296,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_quality_report_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/reporter.py",
+      "line_number": 381,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "template_to_linting_rule",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/enforcer.py",
+      "line_number": 91,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "load_custom_rules",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/enforcer.py",
+      "line_number": 112,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "load_rule_set",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/enforcer.py",
+      "line_number": 216,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "parse_match_to_violation",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/enforcer.py",
+      "line_number": 247,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "should_exclude_file",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/enforcer.py",
+      "line_number": 294,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "execute_rule",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/enforcer.py",
+      "line_number": 317,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "execute_rules_batch",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/enforcer.py",
+      "line_number": 445,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "group_violations_by_file",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/enforcer.py",
+      "line_number": 478,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "group_violations_by_severity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/enforcer.py",
+      "line_number": 501,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "group_violations_by_rule",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/enforcer.py",
+      "line_number": 519,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "filter_violations_by_severity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/enforcer.py",
+      "line_number": 538,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_violation_report",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/enforcer.py",
+      "line_number": 559,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "enforce_standards_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/enforcer.py",
+      "line_number": 620,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_available_templates",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/rules.py",
+      "line_number": 309,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "create_rule_from_template",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/rules.py",
+      "line_number": 330,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "save_rule_to_project",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/rules.py",
+      "line_number": 363,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "load_rule_from_file",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/rules.py",
+      "line_number": 407,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "load_rules_from_project",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/rules.py",
+      "line_number": 449,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "delete_rule_from_project",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/rules.py",
+      "line_number": 478,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/orphan_detector.py",
+      "line_number": 35,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "detect_orphans_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/orphan_detector.py",
+      "line_number": 567,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "detect_code_smells_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/smells.py",
+      "line_number": 33,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_file_wrapper",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/smells.py",
+      "line_number": 93,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "scan_for_vulnerability",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/security_scanner.py",
+      "line_number": 290,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "scan_for_secrets_regex",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/security_scanner.py",
+      "line_number": 340,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "detect_security_issues_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/security_scanner.py",
+      "line_number": 602,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "to_dict",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/smells_detectors.py",
+      "line_number": 34,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "detect",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/smells_detectors.py",
+      "line_number": 53,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "analyze_file",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/smells_detectors.py",
+      "line_number": 560,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_complexity_patterns",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/metrics.py",
+      "line_number": 124,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "count_pattern_matches",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/metrics.py",
+      "line_number": 140,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_cyclomatic_complexity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/metrics.py",
+      "line_number": 195,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_cognitive_complexity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/metrics.py",
+      "line_number": 446,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_nesting_depth",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/metrics.py",
+      "line_number": 477,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_files",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/complexity_analyzer.py",
+      "line_number": 22,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_single_file",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/complexity_analyzer.py",
+      "line_number": 40,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "filter_exceeding_functions",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/complexity_analyzer.py",
+      "line_number": 60,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_complexity_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/tools.py",
+      "line_number": 270,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "test_sentry_integration_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/tools.py",
+      "line_number": 376,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "detect_code_smells_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/tools.py",
+      "line_number": 527,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "register_complexity_tools",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/tools.py",
+      "line_number": 625,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_complexity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/tools.py",
+      "line_number": 633,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "test_sentry_integration",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/tools.py",
+      "line_number": 667,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "detect_code_smells",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/tools.py",
+      "line_number": 678,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "extract_functions_from_file",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/analyzer.py",
+      "line_number": 34,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_file_complexity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/analyzer.py",
+      "line_number": 425,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "find_files",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/complexity_file_finder.py",
+      "line_number": 21,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_summary",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/complexity_statistics.py",
+      "line_number": 22,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_git_info",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/complexity_statistics.py",
+      "line_number": 64,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "store_results",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/complexity_statistics.py",
+      "line_number": 94,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_trends",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/complexity_statistics.py",
+      "line_number": 133,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_response",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/complexity_statistics.py",
+      "line_number": 152,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_or_create_project",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/storage.py",
+      "line_number": 116,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "store_analysis_run",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/storage.py",
+      "line_number": 127,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_project_trends",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/storage.py",
+      "line_number": 201,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "find_duplication",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/detector.py",
+      "line_number": 82,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_similarity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/detector.py",
+      "line_number": 253,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "calculate_similarity_detailed",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/detector.py",
+      "line_number": 284,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_similarity_precise",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/detector.py",
+      "line_number": 303,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "group_duplicates",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/detector.py",
+      "line_number": 337,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_refactoring_suggestions",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/detector.py",
+      "line_number": 500,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "to_dict",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_validator.py",
+      "line_number": 27,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "validate_plan",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_validator.py",
+      "line_number": 39,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "to_dict",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/config.py",
+      "line_number": 101,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "benchmark_deduplication",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark.py",
+      "line_number": 28,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_priority_label",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/priority_classifier.py",
+      "line_number": 25,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_score_breakdown",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/priority_classifier.py",
+      "line_number": 52,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_recommendation",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/priority_classifier.py",
+      "line_number": 83,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "classify_batch",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/priority_classifier.py",
+      "line_number": 103,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "to_dict",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py",
+      "line_number": 227,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "create_minhash",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py",
+      "line_number": 269,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "estimate_similarity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py",
+      "line_number": 301,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "calculate_similarity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py",
+      "line_number": 349,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "build_lsh_index",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py",
+      "line_number": 371,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "query_similar",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py",
+      "line_number": 407,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "find_all_similar_pairs",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py",
+      "line_number": 423,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "clear_cache",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py",
+      "line_number": 636,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "calculate_hybrid_similarity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py",
+      "line_number": 778,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py",
+      "line_number": 1255,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "create_buckets",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py",
+      "line_number": 1523,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "is_available",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py",
+      "line_number": 1704,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_embedding",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py",
+      "line_number": 1788,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_similarity_detailed",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py",
+      "line_number": 1873,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_cache_stats",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py",
+      "line_number": 1917,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "to_dict",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_post_validator.py",
+      "line_number": 27,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "validate_modified_files",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_post_validator.py",
+      "line_number": 43,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "run_timed_benchmark",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark_executor.py",
+      "line_number": 24,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "benchmark_scoring",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark_executor.py",
+      "line_number": 62,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "run_scoring",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark_executor.py",
+      "line_number": 87,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "benchmark_pattern_analysis",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark_executor.py",
+      "line_number": 93,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "benchmark_code_generation",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark_executor.py",
+      "line_number": 115,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "run_recommendations",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark_executor.py",
+      "line_number": 130,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "benchmark_full_workflow",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark_executor.py",
+      "line_number": 136,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "run_all_benchmarks",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark_executor.py",
+      "line_number": 166,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "find_duplication_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/tools.py",
+      "line_number": 17,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_deduplication_candidates_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/tools.py",
+      "line_number": 58,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "apply_deduplication_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/tools.py",
+      "line_number": 119,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "benchmark_deduplication_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/tools.py",
+      "line_number": 172,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "register_deduplication_tools",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/tools.py",
+      "line_number": 208,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "find_duplication",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/tools.py",
+      "line_number": 221,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_deduplication_candidates",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/tools.py",
+      "line_number": 238,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "apply_deduplication",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/tools.py",
+      "line_number": 259,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "benchmark_deduplication",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/tools.py",
+      "line_number": 280,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_deduplication_recommendation",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/recommendations.py",
+      "line_number": 54,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "generate_refactoring_suggestions",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/recommendations.py",
+      "line_number": 236,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "identify_varying_literals",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analyzer.py",
+      "line_number": 27,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_duplicate_group_literals",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analyzer.py",
+      "line_number": 144,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "classify_variation",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analyzer.py",
+      "line_number": 194,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "classify_variations",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analyzer.py",
+      "line_number": 222,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "detect_conditional_variations",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analyzer.py",
+      "line_number": 504,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "detect_nested_function_call",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analyzer.py",
+      "line_number": 679,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "identify_varying_identifiers",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analyzer.py",
+      "line_number": 991,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "calculate_total_score",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/score_calculator.py",
+      "line_number": 26,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_savings_score",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/score_calculator.py",
+      "line_number": 66,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_complexity_score",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/score_calculator.py",
+      "line_number": 84,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_risk_score",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/score_calculator.py",
+      "line_number": 113,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_effort_score",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/score_calculator.py",
+      "line_number": 151,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "find_test_file_patterns",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/coverage.py",
+      "line_number": 68,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "has_test_coverage",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/coverage.py",
+      "line_number": 352,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_test_coverage_for_files",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/coverage.py",
+      "line_number": 449,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_test_coverage_for_files_batch",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/coverage.py",
+      "line_number": 482,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "check_test_file_references_source",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/coverage.py",
+      "line_number": 660,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_potential_test_paths",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/coverage.py",
+      "line_number": 681,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_extracted_function",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/generator.py",
+      "line_number": 266,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_function_call",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/generator.py",
+      "line_number": 314,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_import_statement",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/generator.py",
+      "line_number": 338,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "infer_function_parameters",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/generator.py",
+      "line_number": 372,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_module_structure",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/generator.py",
+      "line_number": 494,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_generated_code",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/generator.py",
+      "line_number": 540,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "render_python_function",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/generator.py",
+      "line_number": 569,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "substitute_template_variables",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/generator.py",
+      "line_number": 665,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "preserve_call_site_indentation",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/generator.py",
+      "line_number": 702,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "detect_import_insertion_point",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/generator.py",
+      "line_number": 732,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_parameter_name",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/generator.py",
+      "line_number": 942,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "infer_parameter_type",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/generator.py",
+      "line_number": 993,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "format_benchmark_report",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark_reporter.py",
+      "line_number": 27,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "save_baseline",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark_reporter.py",
+      "line_number": 69,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "load_baseline",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark_reporter.py",
+      "line_number": 88,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "detector",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analysis_orchestrator.py",
+      "line_number": 33,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "ranker",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analysis_orchestrator.py",
+      "line_number": 45,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "coverage_detector",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analysis_orchestrator.py",
+      "line_number": 57,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "recommendation_engine",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analysis_orchestrator.py",
+      "line_number": 69,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "analyze_candidates",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analysis_orchestrator.py",
+      "line_number": 80,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_candidates_with_config",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analysis_orchestrator.py",
+      "line_number": 133,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "report_progress",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analysis_orchestrator.py",
+      "line_number": 168,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "report",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analysis_orchestrator.py",
+      "line_number": 361,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "apply_changes",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_executor.py",
+      "line_number": 20,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "create_backup",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_backup.py",
+      "line_number": 31,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "rollback",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_backup.py",
+      "line_number": 110,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "cleanup_old_backups",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_backup.py",
+      "line_number": 155,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_file_hash",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_backup.py",
+      "line_number": 201,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "list_backups",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_backup.py",
+      "line_number": 217,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "clear_cache",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/ranker.py",
+      "line_number": 59,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_cache_stats",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/ranker.py",
+      "line_number": 64,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "calculate_deduplication_score",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/ranker.py",
+      "line_number": 72,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "rank_deduplication_candidates",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/ranker.py",
+      "line_number": 116,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_ranker",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/ranker.py",
+      "line_number": 211,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "build_nested_diff_tree",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/diff.py",
+      "line_number": 13,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "build_diff_tree",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/diff.py",
+      "line_number": 108,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "format_alignment_diff",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/diff.py",
+      "line_number": 158,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "diff_preview_to_dict",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/diff.py",
+      "line_number": 228,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "generate_file_diff",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/diff.py",
+      "line_number": 300,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "generate_multi_file_diff",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/diff.py",
+      "line_number": 329,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "generate_diff_from_file_paths",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/diff.py",
+      "line_number": 352,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "check_regressions",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/regression_detector.py",
+      "line_number": 34,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "set_threshold",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/regression_detector.py",
+      "line_number": 104,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_thresholds",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/regression_detector.py",
+      "line_number": 114,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "apply_deduplication",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator.py",
+      "line_number": 27,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "analyze_deduplication_impact",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/impact.py",
+      "line_number": 34,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "estimate_lines_changed",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/impact.py",
+      "line_number": 697,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_diff_with_colors",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/reporting.py",
+      "line_number": 46,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_before_after_example",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/reporting.py",
+      "line_number": 84,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "visualize_complexity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/reporting.py",
+      "line_number": 147,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "create_enhanced_duplication_response",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/reporting.py",
+      "line_number": 211,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "dump_syntax_tree",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/search/tools.py",
+      "line_number": 22,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "test_match_code_rule",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/search/tools.py",
+      "line_number": 44,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "find_code",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/search/tools.py",
+      "line_number": 61,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "example_function",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/search/tools.py",
+      "line_number": 95,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "another_function",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/search/tools.py",
+      "line_number": 100,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "find_code_by_rule",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/search/tools.py",
+      "line_number": 127,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "register_search_tools",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/search/tools.py",
+      "line_number": 171,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "dump_syntax_tree_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/search/service.py",
+      "line_number": 23,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "test_match_code_rule_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/search/service.py",
+      "line_number": 72,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "find_code_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/search/service.py",
+      "line_number": 315,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "find_code_by_rule_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/search/service.py",
+      "line_number": 453,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_property_priority",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/enhancement_rules.py",
+      "line_number": 204,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_rich_results_for_property",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/enhancement_rules.py",
+      "line_number": 221,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_rich_results_for_entity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/enhancement_rules.py",
+      "line_number": 233,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_all_properties_for_entity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/enhancement_rules.py",
+      "line_number": 245,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_property_example",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/enhancement_rules.py",
+      "line_number": 257,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_entity_suggestions",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/enhancement_rules.py",
+      "line_number": 269,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_schema_type_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 16,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "search_schemas_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 54,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_type_hierarchy_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 99,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_type_properties_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 137,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "generate_schema_example_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 188,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "generate_entity_id_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 237,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "validate_entity_id_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 295,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "build_entity_graph_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 347,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "enhance_entity_graph_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 412,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "register_schema_tools",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 477,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_schema_type",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 485,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "search_schemas",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 492,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_type_hierarchy",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 500,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_type_properties",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 505,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "generate_schema_example",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 513,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "generate_entity_id",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 523,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "validate_entity_id",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 534,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "build_entity_graph",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 541,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "enhance_entity_graph",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py",
+      "line_number": 549,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_schema_org_client",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/client.py",
+      "line_number": 14,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "initialize",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/client.py",
+      "line_number": 31,
+      "is_async": true,
+      "is_tested": true
+    },
+    {
+      "name": "get_schema_type",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/client.py",
+      "line_number": 176,
+      "is_async": true,
+      "is_tested": true
+    },
+    {
+      "name": "search_schemas",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/client.py",
+      "line_number": 201,
+      "is_async": true,
+      "is_tested": true
+    },
+    {
+      "name": "get_type_hierarchy",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/client.py",
+      "line_number": 250,
+      "is_async": true,
+      "is_tested": true
+    },
+    {
+      "name": "get_type_properties",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/client.py",
+      "line_number": 341,
+      "is_async": true,
+      "is_tested": true
+    },
+    {
+      "name": "generate_example",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/client.py",
+      "line_number": 360,
+      "is_async": true,
+      "is_tested": true
+    },
+    {
+      "name": "generate_entity_id",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/client.py",
+      "line_number": 382,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "validate_entity_id",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/client.py",
+      "line_number": 457,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "build_entity_graph",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/client.py",
+      "line_number": 587,
+      "is_async": true,
+      "is_tested": true
+    },
+    {
+      "name": "analyze_entity_graph",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/enhancement_service.py",
+      "line_number": 696,
+      "is_async": true,
+      "is_tested": true
+    },
+    {
+      "name": "convert_code_language_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/language_converter.py",
+      "line_number": 353,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "search_multi_language_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/tools.py",
+      "line_number": 120,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "find_language_equivalents_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/tools.py",
+      "line_number": 241,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "convert_code_language_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/tools.py",
+      "line_number": 333,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "calculate_total",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/tools.py",
+      "line_number": 380,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "refactor_polyglot_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/tools.py",
+      "line_number": 444,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_language_bindings_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/tools.py",
+      "line_number": 581,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "register_cross_language_tools",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/tools.py",
+      "line_number": 749,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "search_multi_language",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/tools.py",
+      "line_number": 758,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "find_language_equivalents",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/tools.py",
+      "line_number": 775,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "convert_code_language",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/tools.py",
+      "line_number": 788,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "refactor_polyglot",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/tools.py",
+      "line_number": 805,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "generate_language_bindings",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/tools.py",
+      "line_number": 824,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "search_multi_language_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/multi_language_search.py",
+      "line_number": 272,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "find_language_equivalents_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/pattern_equivalence.py",
+      "line_number": 165,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "list_pattern_categories",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/pattern_equivalence.py",
+      "line_number": 237,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_pattern_details",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/pattern_equivalence.py",
+      "line_number": 265,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "refactor_polyglot_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/polyglot_refactoring.py",
+      "line_number": 363,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "type_converter",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/binding_generator.py",
+      "line_number": 304,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_language_bindings_impl",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/binding_generator.py",
+      "line_number": 568,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_pattern",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/pattern_database.py",
+      "line_number": 631,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "search_patterns",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/pattern_database.py",
+      "line_number": 643,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_equivalents",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/pattern_database.py",
+      "line_number": 671,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_type_mapping",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/pattern_database.py",
+      "line_number": 706,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "extract_function_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/tools.py",
+      "line_number": 56,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "extract_function",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/tools.py",
+      "line_number": 170,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "rename_symbol_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/tools.py",
+      "line_number": 196,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "rename_symbol",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/tools.py",
+      "line_number": 312,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "find_symbol_references",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/renamer.py",
+      "line_number": 37,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "build_scope_tree",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/renamer.py",
+      "line_number": 310,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "check_naming_conflicts",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/renamer.py",
+      "line_number": 506,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "analyze_selection",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/analyzer.py",
+      "line_number": 36,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "rename_symbol",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/rename_coordinator.py",
+      "line_number": 37,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "extract_function",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/extractor.py",
+      "line_number": 35,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "run_mcp_server",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/server/runner.py",
+      "line_number": 13,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "register_all_tools",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/server/registry.py",
+      "line_number": 16,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "suggest_syntax_fix",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/syntax_validation.py",
+      "line_number": 42,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_bracket_balance",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/syntax_validation.py",
+      "line_number": 70,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_python_syntax",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/syntax_validation.py",
+      "line_number": 92,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_javascript_syntax",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/syntax_validation.py",
+      "line_number": 115,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_java_syntax",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/syntax_validation.py",
+      "line_number": 133,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_code_for_language",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/syntax_validation.py",
+      "line_number": 152,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_matches_as_text",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/formatters.py",
+      "line_number": 63,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_diff_with_colors",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/formatters.py",
+      "line_number": 96,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_before_after_example",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/formatters.py",
+      "line_number": 135,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "visualize_complexity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/formatters.py",
+      "line_number": 199,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate_file_diff",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/formatters.py",
+      "line_number": 332,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "generate_multi_file_diff",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/formatters.py",
+      "line_number": 441,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "has_imports",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/formatters.py",
+      "line_number": 514,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_sorted",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/formatters.py",
+      "line_number": 518,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_python_code",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/formatters.py",
+      "line_number": 589,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_typescript_code",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/formatters.py",
+      "line_number": 693,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_javascript_code",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/formatters.py",
+      "line_number": 753,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_java_code",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/formatters.py",
+      "line_number": 860,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_generated_code",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/formatters.py",
+      "line_number": 937,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_python_class",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/templates.py",
+      "line_number": 23,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "import_sort_key",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/templates.py",
+      "line_number": 142,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_java_code",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/templates.py",
+      "line_number": 228,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_java_method",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/templates.py",
+      "line_number": 256,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_typescript_class",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/templates.py",
+      "line_number": 350,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_typescript_function",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/templates.py",
+      "line_number": 454,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_javascript_function",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/templates.py",
+      "line_number": 559,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "normalize_code",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/text.py",
+      "line_number": 17,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "calculate_similarity",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/text.py",
+      "line_number": 37,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "clean_template_whitespace",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/text.py",
+      "line_number": 62,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "monitor_performance",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/performance.py",
+      "line_number": 20,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "my_tool_function",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/performance.py",
+      "line_number": 31,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "wrapper",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/performance.py",
+      "line_number": 42,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "monitor_performance_async",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/performance.py",
+      "line_number": 82,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "my_async_tool",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/performance.py",
+      "line_number": 89,
+      "is_async": true,
+      "is_tested": false
+    },
+    {
+      "name": "elapsed_ms",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/performance.py",
+      "line_number": 187,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "elapsed_seconds",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/performance.py",
+      "line_number": 195,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "track_slow_operations",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/performance.py",
+      "line_number": 200,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "my_function",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/performance.py",
+      "line_number": 205,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "decorator",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/performance.py",
+      "line_number": 215,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "set_quiet",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/console_logger.py",
+      "line_number": 57,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "set_verbose",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/console_logger.py",
+      "line_number": 65,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "log",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/console_logger.py",
+      "line_number": 73,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "info",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/console_logger.py",
+      "line_number": 85,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "debug",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/console_logger.py",
+      "line_number": 96,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "success",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/console_logger.py",
+      "line_number": 108,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "error",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/console_logger.py",
+      "line_number": 118,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "warning",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/console_logger.py",
+      "line_number": 129,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "json",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/console_logger.py",
+      "line_number": 140,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "separator",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/console_logger.py",
+      "line_number": 153,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "header",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/console_logger.py",
+      "line_number": 164,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "blank",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/console_logger.py",
+      "line_number": 176,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_extensions",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/config.py",
+      "line_number": 19,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_dirs",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/config.py",
+      "line_number": 41,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "validate_custom_languages",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/config.py",
+      "line_number": 49,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_complexity_level",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/complexity.py",
+      "line_number": 43,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_variables_by_type",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/refactoring.py",
+      "line_number": 59,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "to_python_signature",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/refactoring.py",
+      "line_number": 75,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "to_typescript_signature",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/refactoring.py",
+      "line_number": 84,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "add_child",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py",
+      "line_number": 74,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_all_nodes",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py",
+      "line_number": 78,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "find_by_type",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py",
+      "line_number": 85,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_depth",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py",
+      "line_number": 89,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "count_by_type",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py",
+      "line_number": 95,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_statistics",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py",
+      "line_number": 118,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "serialize_for_display",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py",
+      "line_number": 133,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_params",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py",
+      "line_number": 203,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_decorators",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py",
+      "line_number": 217,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "format_return_type",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py",
+      "line_number": 227,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "generate",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py",
+      "line_number": 237,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_type_annotation",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py",
+      "line_number": 331,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "to_signature",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py",
+      "line_number": 355,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "to_dict",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py",
+      "line_number": 431,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_file_diff",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py",
+      "line_number": 451,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "to_summary",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py",
+      "line_number": 500,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "to_yaml_dict",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/standards.py",
+      "line_number": 43,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "to_dict",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/orphan.py",
+      "line_number": 54,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "lines",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/orphan.py",
+      "line_number": 94,
+      "is_async": false,
+      "is_tested": true
+    },
+    {
+      "name": "get_importers",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/orphan.py",
+      "line_number": 147,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "get_imports",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/orphan.py",
+      "line_number": 151,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "is_reachable_from_entry",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/orphan.py",
+      "line_number": 155,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "total_orphan_lines",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/orphan.py",
+      "line_number": 245,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "orphan_file_count",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/orphan.py",
+      "line_number": 252,
+      "is_async": false,
+      "is_tested": false
+    },
+    {
+      "name": "orphan_function_count",
+      "file_path": "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/orphan.py",
+      "line_number": 257,
+      "is_async": false,
+      "is_tested": false
+    }
+  ],
+  "untested_by_file": {
+    "/Users/alyshialedlie/code/ast-grep-mcp/analyze_codebase.py": [
+      {
+        "name": "print_section",
+        "line_number": 25,
+        "is_async": false
+      },
+      {
+        "name": "analyze_individual_files",
+        "line_number": 32,
+        "is_async": false
+      },
+      {
+        "name": "analyze_project_complexity",
+        "line_number": 69,
+        "is_async": false
+      },
+      {
+        "name": "detect_code_smells",
+        "line_number": 116,
+        "is_async": false
+      },
+      {
+        "name": "detect_security_issues",
+        "line_number": 156,
+        "is_async": false
+      },
+      {
+        "name": "analyze_duplication",
+        "line_number": 202,
+        "is_async": false
+      },
+      {
+        "name": "generate_summary_report",
+        "line_number": 265,
+        "is_async": false
+      },
+      {
+        "name": "main",
+        "line_number": 307,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/migrate_prints_smart.py": [
+      {
+        "name": "smart_replace_print",
+        "line_number": 18,
+        "is_async": false
+      },
+      {
+        "name": "add_console_import",
+        "line_number": 100,
+        "is_async": false
+      },
+      {
+        "name": "migrate_file",
+        "line_number": 150,
+        "is_async": false
+      },
+      {
+        "name": "migrate_directory",
+        "line_number": 190,
+        "is_async": false
+      },
+      {
+        "name": "main",
+        "line_number": 221,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/fix_import_orphans.py": [
+      {
+        "name": "find_orphaned_imports",
+        "line_number": 11,
+        "is_async": false
+      },
+      {
+        "name": "remove_orphaned_lines",
+        "line_number": 68,
+        "is_async": false
+      },
+      {
+        "name": "check_syntax",
+        "line_number": 104,
+        "is_async": false
+      },
+      {
+        "name": "main",
+        "line_number": 114,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/analyze_violations.py": [
+      {
+        "name": "analyze_function_complexity",
+        "line_number": 8,
+        "is_async": false
+      },
+      {
+        "name": "calculate_cyclomatic_complexity",
+        "line_number": 34,
+        "is_async": false
+      },
+      {
+        "name": "calculate_cognitive_complexity",
+        "line_number": 50,
+        "is_async": false
+      },
+      {
+        "name": "calculate_max_nesting",
+        "line_number": 73,
+        "is_async": false
+      },
+      {
+        "name": "scan_all_functions",
+        "line_number": 90,
+        "is_async": false
+      },
+      {
+        "name": "main",
+        "line_number": 111,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/fix_migration_errors.py": [
+      {
+        "name": "fix_file",
+        "line_number": 10,
+        "is_async": false
+      },
+      {
+        "name": "main",
+        "line_number": 70,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/migrate_print_to_logger.py": [
+      {
+        "name": "analyze_print_call",
+        "line_number": 56,
+        "is_async": false
+      },
+      {
+        "name": "migrate_print_statement",
+        "line_number": 84,
+        "is_async": false
+      },
+      {
+        "name": "find_print_statements",
+        "line_number": 135,
+        "is_async": false
+      },
+      {
+        "name": "migrate_file",
+        "line_number": 234,
+        "is_async": false
+      },
+      {
+        "name": "migrate_directory",
+        "line_number": 322,
+        "is_async": false
+      },
+      {
+        "name": "main",
+        "line_number": 356,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/list_complexity_violations.py": [
+      {
+        "name": "scan_all_python_files",
+        "line_number": 21,
+        "is_async": false
+      },
+      {
+        "name": "main",
+        "line_number": 49,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/schema-graph-builder.py": [
+      {
+        "name": "discover_json_schemas",
+        "line_number": 65,
+        "is_async": false
+      },
+      {
+        "name": "extract_entities_from_schema",
+        "line_number": 165,
+        "is_async": false
+      },
+      {
+        "name": "merge_duplicate_entities",
+        "line_number": 238,
+        "is_async": false
+      },
+      {
+        "name": "analyze_relationships",
+        "line_number": 321,
+        "is_async": false
+      },
+      {
+        "name": "generate_documentation",
+        "line_number": 386,
+        "is_async": false
+      },
+      {
+        "name": "validate_all_entity_ids",
+        "line_number": 555,
+        "is_async": false
+      },
+      {
+        "name": "main",
+        "line_number": 577,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/fix_imports.py": [
+      {
+        "name": "fix_file",
+        "line_number": 7,
+        "is_async": false
+      },
+      {
+        "name": "main",
+        "line_number": 76,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/benchmark_batch_coverage.py": [
+      {
+        "name": "create_test_candidates",
+        "line_number": 31,
+        "is_async": false
+      },
+      {
+        "name": "benchmark_legacy_sequential",
+        "line_number": 66,
+        "is_async": false
+      },
+      {
+        "name": "benchmark_legacy_parallel",
+        "line_number": 93,
+        "is_async": false
+      },
+      {
+        "name": "benchmark_batch_sequential",
+        "line_number": 119,
+        "is_async": false
+      },
+      {
+        "name": "benchmark_batch_parallel",
+        "line_number": 144,
+        "is_async": false
+      },
+      {
+        "name": "run_benchmark_suite",
+        "line_number": 170,
+        "is_async": false
+      },
+      {
+        "name": "main",
+        "line_number": 251,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/analyze_analyticsbot.py": [
+      {
+        "name": "analyze_project",
+        "line_number": 18,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/run_benchmarks.py": [
+      {
+        "name": "run_benchmarks",
+        "line_number": 28,
+        "is_async": false
+      },
+      {
+        "name": "main",
+        "line_number": 106,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/benchmark_parallel_enrichment.py": [
+      {
+        "name": "create_mock_candidates",
+        "line_number": 11,
+        "is_async": false
+      },
+      {
+        "name": "benchmark_enrichment",
+        "line_number": 27,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/constants.py": [
+      {
+        "name": "get_optimal_workers",
+        "line_number": 30,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/logging.py": [
+      {
+        "name": "configure_logging",
+        "line_number": 9,
+        "is_async": false
+      },
+      {
+        "name": "get_logger",
+        "line_number": 45,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/config.py": [
+      {
+        "name": "validate_config_file",
+        "line_number": 27,
+        "is_async": false
+      },
+      {
+        "name": "parse_args_and_get_config",
+        "line_number": 243,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py": [
+      {
+        "name": "calculate_operation_cost",
+        "line_number": 152,
+        "is_async": false
+      },
+      {
+        "name": "get_alerts",
+        "line_number": 447,
+        "is_async": false
+      },
+      {
+        "name": "get_recent_logs",
+        "line_number": 584,
+        "is_async": false
+      },
+      {
+        "name": "get_usage_database",
+        "line_number": 647,
+        "is_async": false
+      },
+      {
+        "name": "track_usage",
+        "line_number": 664,
+        "is_async": false
+      },
+      {
+        "name": "wrapper",
+        "line_number": 680,
+        "is_async": false
+      },
+      {
+        "name": "track_operation",
+        "line_number": 745,
+        "is_async": false
+      },
+      {
+        "name": "get_usage_stats",
+        "line_number": 829,
+        "is_async": false
+      },
+      {
+        "name": "get_usage_alerts",
+        "line_number": 842,
+        "is_async": false
+      },
+      {
+        "name": "get_recent_usage",
+        "line_number": 854,
+        "is_async": false
+      },
+      {
+        "name": "format_usage_report",
+        "line_number": 876,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/cache.py": [
+      {
+        "name": "get_query_cache",
+        "line_number": 126,
+        "is_async": false
+      },
+      {
+        "name": "init_query_cache",
+        "line_number": 133,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/sentry.py": [
+      {
+        "name": "init_sentry",
+        "line_number": 15,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/executor.py": [
+      {
+        "name": "get_supported_languages",
+        "line_number": 22,
+        "is_async": false
+      },
+      {
+        "name": "run_command",
+        "line_number": 68,
+        "is_async": false
+      },
+      {
+        "name": "filter_files_by_size",
+        "line_number": 239,
+        "is_async": false
+      },
+      {
+        "name": "run_ast_grep",
+        "line_number": 290,
+        "is_async": false
+      },
+      {
+        "name": "stream_ast_grep_results",
+        "line_number": 455,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/docstring_generator.py": [
+      {
+        "name": "parse_file",
+        "line_number": 485,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/tools.py": [
+      {
+        "name": "generate_docstrings_tool",
+        "line_number": 31,
+        "is_async": false
+      },
+      {
+        "name": "generate_readme_sections_tool",
+        "line_number": 165,
+        "is_async": false
+      },
+      {
+        "name": "generate_api_docs_tool",
+        "line_number": 300,
+        "is_async": false
+      },
+      {
+        "name": "generate_changelog_tool",
+        "line_number": 416,
+        "is_async": false
+      },
+      {
+        "name": "sync_documentation_tool",
+        "line_number": 558,
+        "is_async": false
+      },
+      {
+        "name": "register_documentation_tools",
+        "line_number": 737,
+        "is_async": false
+      },
+      {
+        "name": "generate_api_docs",
+        "line_number": 782,
+        "is_async": false
+      },
+      {
+        "name": "generate_changelog",
+        "line_number": 799,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/sync_checker.py": [
+      {
+        "name": "is_excluded",
+        "line_number": 348,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/changelog_generator.py": [
+      {
+        "name": "generate_changelog_impl",
+        "line_number": 554,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/backup.py": [
+      {
+        "name": "create_backup",
+        "line_number": 13,
+        "is_async": false
+      },
+      {
+        "name": "create_deduplication_backup",
+        "line_number": 68,
+        "is_async": false
+      },
+      {
+        "name": "get_file_hash",
+        "line_number": 144,
+        "is_async": false
+      },
+      {
+        "name": "verify_backup_integrity",
+        "line_number": 160,
+        "is_async": false
+      },
+      {
+        "name": "restore_backup",
+        "line_number": 227,
+        "is_async": false
+      },
+      {
+        "name": "list_available_backups",
+        "line_number": 358,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/tools.py": [
+      {
+        "name": "register_rewrite_tools",
+        "line_number": 15,
+        "is_async": false
+      },
+      {
+        "name": "rewrite_code",
+        "line_number": 23,
+        "is_async": false
+      },
+      {
+        "name": "rollback_rewrite",
+        "line_number": 55,
+        "is_async": false
+      },
+      {
+        "name": "list_backups",
+        "line_number": 77,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/api_docs_generator.py": [
+      {
+        "name": "parse_file",
+        "line_number": 128,
+        "is_async": false
+      },
+      {
+        "name": "generate_api_docs_impl",
+        "line_number": 614,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/validator.py": [
+      {
+        "name": "validate_rule_pattern",
+        "line_number": 20,
+        "is_async": false
+      },
+      {
+        "name": "validate_rule_definition",
+        "line_number": 71,
+        "is_async": false
+      },
+      {
+        "name": "validate_linting_rules_impl",
+        "line_number": 127,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/fixer.py": [
+      {
+        "name": "classify_fix_safety",
+        "line_number": 56,
+        "is_async": false
+      },
+      {
+        "name": "apply_pattern_fix",
+        "line_number": 93,
+        "is_async": false
+      },
+      {
+        "name": "apply_removal_fix",
+        "line_number": 217,
+        "is_async": false
+      },
+      {
+        "name": "apply_fixes_batch",
+        "line_number": 305,
+        "is_async": false
+      },
+      {
+        "name": "preview_fix",
+        "line_number": 589,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/smells_helpers.py": [
+      {
+        "name": "validate_smell_detection_inputs",
+        "line_number": 14,
+        "is_async": false
+      },
+      {
+        "name": "find_smell_analysis_files",
+        "line_number": 51,
+        "is_async": false
+      },
+      {
+        "name": "calculate_smell_severity",
+        "line_number": 101,
+        "is_async": false
+      },
+      {
+        "name": "format_smell_detection_response",
+        "line_number": 141,
+        "is_async": false
+      },
+      {
+        "name": "aggregate_smell_results",
+        "line_number": 185,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py": [
+      {
+        "name": "create_linting_rule_tool",
+        "line_number": 106,
+        "is_async": false
+      },
+      {
+        "name": "list_rule_templates_tool",
+        "line_number": 206,
+        "is_async": false
+      },
+      {
+        "name": "enforce_standards_tool",
+        "line_number": 361,
+        "is_async": false
+      },
+      {
+        "name": "apply_standards_fixes_tool",
+        "line_number": 544,
+        "is_async": false
+      },
+      {
+        "name": "generate_quality_report_tool",
+        "line_number": 661,
+        "is_async": false
+      },
+      {
+        "name": "detect_security_issues_tool",
+        "line_number": 853,
+        "is_async": false
+      },
+      {
+        "name": "detect_orphans_tool",
+        "line_number": 977,
+        "is_async": false
+      },
+      {
+        "name": "register_quality_tools",
+        "line_number": 1186,
+        "is_async": false
+      },
+      {
+        "name": "create_linting_rule",
+        "line_number": 1199,
+        "is_async": false
+      },
+      {
+        "name": "list_rule_templates",
+        "line_number": 1226,
+        "is_async": false
+      },
+      {
+        "name": "enforce_standards",
+        "line_number": 1234,
+        "is_async": false
+      },
+      {
+        "name": "apply_standards_fixes",
+        "line_number": 1261,
+        "is_async": false
+      },
+      {
+        "name": "generate_quality_report",
+        "line_number": 1274,
+        "is_async": false
+      },
+      {
+        "name": "detect_security_issues",
+        "line_number": 1293,
+        "is_async": false
+      },
+      {
+        "name": "detect_orphans",
+        "line_number": 1310,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/service.py": [
+      {
+        "name": "validate_syntax",
+        "line_number": 94,
+        "is_async": false
+      },
+      {
+        "name": "validate_rewrites",
+        "line_number": 137,
+        "is_async": false
+      },
+      {
+        "name": "rewrite_code_impl",
+        "line_number": 394,
+        "is_async": false
+      },
+      {
+        "name": "rollback_rewrite_impl",
+        "line_number": 459,
+        "is_async": false
+      },
+      {
+        "name": "list_backups_impl",
+        "line_number": 518,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/reporter.py": [
+      {
+        "name": "generate_markdown_report",
+        "line_number": 264,
+        "is_async": false
+      },
+      {
+        "name": "generate_json_report",
+        "line_number": 296,
+        "is_async": false
+      },
+      {
+        "name": "generate_quality_report_impl",
+        "line_number": 381,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/enforcer.py": [
+      {
+        "name": "template_to_linting_rule",
+        "line_number": 91,
+        "is_async": false
+      },
+      {
+        "name": "load_custom_rules",
+        "line_number": 112,
+        "is_async": false
+      },
+      {
+        "name": "load_rule_set",
+        "line_number": 216,
+        "is_async": false
+      },
+      {
+        "name": "parse_match_to_violation",
+        "line_number": 247,
+        "is_async": false
+      },
+      {
+        "name": "should_exclude_file",
+        "line_number": 294,
+        "is_async": false
+      },
+      {
+        "name": "execute_rule",
+        "line_number": 317,
+        "is_async": false
+      },
+      {
+        "name": "execute_rules_batch",
+        "line_number": 445,
+        "is_async": false
+      },
+      {
+        "name": "group_violations_by_file",
+        "line_number": 478,
+        "is_async": false
+      },
+      {
+        "name": "group_violations_by_severity",
+        "line_number": 501,
+        "is_async": false
+      },
+      {
+        "name": "group_violations_by_rule",
+        "line_number": 519,
+        "is_async": false
+      },
+      {
+        "name": "filter_violations_by_severity",
+        "line_number": 538,
+        "is_async": false
+      },
+      {
+        "name": "format_violation_report",
+        "line_number": 559,
+        "is_async": false
+      },
+      {
+        "name": "enforce_standards_impl",
+        "line_number": 620,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/rules.py": [
+      {
+        "name": "get_available_templates",
+        "line_number": 309,
+        "is_async": false
+      },
+      {
+        "name": "create_rule_from_template",
+        "line_number": 330,
+        "is_async": false
+      },
+      {
+        "name": "save_rule_to_project",
+        "line_number": 363,
+        "is_async": false
+      },
+      {
+        "name": "load_rule_from_file",
+        "line_number": 407,
+        "is_async": false
+      },
+      {
+        "name": "load_rules_from_project",
+        "line_number": 449,
+        "is_async": false
+      },
+      {
+        "name": "delete_rule_from_project",
+        "line_number": 478,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/orphan_detector.py": [
+      {
+        "name": "detect_orphans_impl",
+        "line_number": 567,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/smells.py": [
+      {
+        "name": "detect_code_smells_impl",
+        "line_number": 33,
+        "is_async": false
+      },
+      {
+        "name": "analyze_file_wrapper",
+        "line_number": 93,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/security_scanner.py": [
+      {
+        "name": "scan_for_vulnerability",
+        "line_number": 290,
+        "is_async": false
+      },
+      {
+        "name": "scan_for_secrets_regex",
+        "line_number": 340,
+        "is_async": false
+      },
+      {
+        "name": "detect_security_issues_impl",
+        "line_number": 602,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/smells_detectors.py": [
+      {
+        "name": "analyze_file",
+        "line_number": 560,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/metrics.py": [
+      {
+        "name": "get_complexity_patterns",
+        "line_number": 124,
+        "is_async": false
+      },
+      {
+        "name": "count_pattern_matches",
+        "line_number": 140,
+        "is_async": false
+      },
+      {
+        "name": "calculate_cyclomatic_complexity",
+        "line_number": 195,
+        "is_async": false
+      },
+      {
+        "name": "calculate_cognitive_complexity",
+        "line_number": 446,
+        "is_async": false
+      },
+      {
+        "name": "calculate_nesting_depth",
+        "line_number": 477,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/complexity_analyzer.py": [
+      {
+        "name": "analyze_files",
+        "line_number": 22,
+        "is_async": false
+      },
+      {
+        "name": "analyze_single_file",
+        "line_number": 40,
+        "is_async": false
+      },
+      {
+        "name": "filter_exceeding_functions",
+        "line_number": 60,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/tools.py": [
+      {
+        "name": "analyze_complexity_tool",
+        "line_number": 270,
+        "is_async": false
+      },
+      {
+        "name": "detect_code_smells_tool",
+        "line_number": 527,
+        "is_async": false
+      },
+      {
+        "name": "register_complexity_tools",
+        "line_number": 625,
+        "is_async": false
+      },
+      {
+        "name": "analyze_complexity",
+        "line_number": 633,
+        "is_async": false
+      },
+      {
+        "name": "detect_code_smells",
+        "line_number": 678,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/analyzer.py": [
+      {
+        "name": "extract_functions_from_file",
+        "line_number": 34,
+        "is_async": false
+      },
+      {
+        "name": "analyze_file_complexity",
+        "line_number": 425,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/complexity_file_finder.py": [
+      {
+        "name": "find_files",
+        "line_number": 21,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/complexity_statistics.py": [
+      {
+        "name": "calculate_summary",
+        "line_number": 22,
+        "is_async": false
+      },
+      {
+        "name": "get_git_info",
+        "line_number": 64,
+        "is_async": false
+      },
+      {
+        "name": "store_results",
+        "line_number": 94,
+        "is_async": false
+      },
+      {
+        "name": "get_trends",
+        "line_number": 133,
+        "is_async": false
+      },
+      {
+        "name": "format_response",
+        "line_number": 152,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/detector.py": [
+      {
+        "name": "find_duplication",
+        "line_number": 82,
+        "is_async": false
+      },
+      {
+        "name": "calculate_similarity_detailed",
+        "line_number": 284,
+        "is_async": false
+      },
+      {
+        "name": "calculate_similarity_precise",
+        "line_number": 303,
+        "is_async": false
+      },
+      {
+        "name": "group_duplicates",
+        "line_number": 337,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_validator.py": [
+      {
+        "name": "validate_plan",
+        "line_number": 39,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark.py": [
+      {
+        "name": "benchmark_deduplication",
+        "line_number": 28,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/priority_classifier.py": [
+      {
+        "name": "get_priority_label",
+        "line_number": 25,
+        "is_async": false
+      },
+      {
+        "name": "get_score_breakdown",
+        "line_number": 52,
+        "is_async": false
+      },
+      {
+        "name": "get_recommendation",
+        "line_number": 83,
+        "is_async": false
+      },
+      {
+        "name": "classify_batch",
+        "line_number": 103,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py": [
+      {
+        "name": "create_minhash",
+        "line_number": 269,
+        "is_async": false
+      },
+      {
+        "name": "calculate_hybrid_similarity",
+        "line_number": 778,
+        "is_async": false
+      },
+      {
+        "name": "get_embedding",
+        "line_number": 1788,
+        "is_async": false
+      },
+      {
+        "name": "calculate_similarity_detailed",
+        "line_number": 1873,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_post_validator.py": [
+      {
+        "name": "validate_modified_files",
+        "line_number": 43,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark_executor.py": [
+      {
+        "name": "run_timed_benchmark",
+        "line_number": 24,
+        "is_async": false
+      },
+      {
+        "name": "benchmark_scoring",
+        "line_number": 62,
+        "is_async": false
+      },
+      {
+        "name": "run_scoring",
+        "line_number": 87,
+        "is_async": false
+      },
+      {
+        "name": "benchmark_pattern_analysis",
+        "line_number": 93,
+        "is_async": false
+      },
+      {
+        "name": "benchmark_code_generation",
+        "line_number": 115,
+        "is_async": false
+      },
+      {
+        "name": "run_recommendations",
+        "line_number": 130,
+        "is_async": false
+      },
+      {
+        "name": "benchmark_full_workflow",
+        "line_number": 136,
+        "is_async": false
+      },
+      {
+        "name": "run_all_benchmarks",
+        "line_number": 166,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/tools.py": [
+      {
+        "name": "find_duplication_tool",
+        "line_number": 17,
+        "is_async": false
+      },
+      {
+        "name": "analyze_deduplication_candidates_tool",
+        "line_number": 58,
+        "is_async": false
+      },
+      {
+        "name": "apply_deduplication_tool",
+        "line_number": 119,
+        "is_async": false
+      },
+      {
+        "name": "benchmark_deduplication_tool",
+        "line_number": 172,
+        "is_async": false
+      },
+      {
+        "name": "register_deduplication_tools",
+        "line_number": 208,
+        "is_async": false
+      },
+      {
+        "name": "find_duplication",
+        "line_number": 221,
+        "is_async": false
+      },
+      {
+        "name": "analyze_deduplication_candidates",
+        "line_number": 238,
+        "is_async": false
+      },
+      {
+        "name": "apply_deduplication",
+        "line_number": 259,
+        "is_async": false
+      },
+      {
+        "name": "benchmark_deduplication",
+        "line_number": 280,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analyzer.py": [
+      {
+        "name": "identify_varying_literals",
+        "line_number": 27,
+        "is_async": false
+      },
+      {
+        "name": "analyze_duplicate_group_literals",
+        "line_number": 144,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/score_calculator.py": [
+      {
+        "name": "calculate_total_score",
+        "line_number": 26,
+        "is_async": false
+      },
+      {
+        "name": "calculate_savings_score",
+        "line_number": 66,
+        "is_async": false
+      },
+      {
+        "name": "calculate_complexity_score",
+        "line_number": 84,
+        "is_async": false
+      },
+      {
+        "name": "calculate_risk_score",
+        "line_number": 113,
+        "is_async": false
+      },
+      {
+        "name": "calculate_effort_score",
+        "line_number": 151,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/coverage.py": [
+      {
+        "name": "find_test_file_patterns",
+        "line_number": 68,
+        "is_async": false
+      },
+      {
+        "name": "get_test_coverage_for_files_batch",
+        "line_number": 482,
+        "is_async": false
+      },
+      {
+        "name": "check_test_file_references_source",
+        "line_number": 660,
+        "is_async": false
+      },
+      {
+        "name": "get_potential_test_paths",
+        "line_number": 681,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/generator.py": [
+      {
+        "name": "generate_extracted_function",
+        "line_number": 266,
+        "is_async": false
+      },
+      {
+        "name": "generate_function_call",
+        "line_number": 314,
+        "is_async": false
+      },
+      {
+        "name": "generate_import_statement",
+        "line_number": 338,
+        "is_async": false
+      },
+      {
+        "name": "infer_function_parameters",
+        "line_number": 372,
+        "is_async": false
+      },
+      {
+        "name": "generate_module_structure",
+        "line_number": 494,
+        "is_async": false
+      },
+      {
+        "name": "validate_generated_code",
+        "line_number": 540,
+        "is_async": false
+      },
+      {
+        "name": "render_python_function",
+        "line_number": 569,
+        "is_async": false
+      },
+      {
+        "name": "substitute_template_variables",
+        "line_number": 665,
+        "is_async": false
+      },
+      {
+        "name": "preserve_call_site_indentation",
+        "line_number": 702,
+        "is_async": false
+      },
+      {
+        "name": "detect_import_insertion_point",
+        "line_number": 732,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark_reporter.py": [
+      {
+        "name": "format_benchmark_report",
+        "line_number": 27,
+        "is_async": false
+      },
+      {
+        "name": "save_baseline",
+        "line_number": 69,
+        "is_async": false
+      },
+      {
+        "name": "load_baseline",
+        "line_number": 88,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analysis_orchestrator.py": [
+      {
+        "name": "analyze_candidates",
+        "line_number": 80,
+        "is_async": false
+      },
+      {
+        "name": "analyze_candidates_with_config",
+        "line_number": 133,
+        "is_async": false
+      },
+      {
+        "name": "report_progress",
+        "line_number": 168,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_executor.py": [
+      {
+        "name": "apply_changes",
+        "line_number": 20,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_backup.py": [
+      {
+        "name": "create_backup",
+        "line_number": 31,
+        "is_async": false
+      },
+      {
+        "name": "cleanup_old_backups",
+        "line_number": 155,
+        "is_async": false
+      },
+      {
+        "name": "get_file_hash",
+        "line_number": 201,
+        "is_async": false
+      },
+      {
+        "name": "list_backups",
+        "line_number": 217,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/ranker.py": [
+      {
+        "name": "get_ranker",
+        "line_number": 211,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/regression_detector.py": [
+      {
+        "name": "check_regressions",
+        "line_number": 34,
+        "is_async": false
+      },
+      {
+        "name": "set_threshold",
+        "line_number": 104,
+        "is_async": false
+      },
+      {
+        "name": "get_thresholds",
+        "line_number": 114,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator.py": [
+      {
+        "name": "apply_deduplication",
+        "line_number": 27,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/impact.py": [
+      {
+        "name": "analyze_deduplication_impact",
+        "line_number": 34,
+        "is_async": false
+      },
+      {
+        "name": "estimate_lines_changed",
+        "line_number": 697,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/reporting.py": [
+      {
+        "name": "format_diff_with_colors",
+        "line_number": 46,
+        "is_async": false
+      },
+      {
+        "name": "generate_before_after_example",
+        "line_number": 84,
+        "is_async": false
+      },
+      {
+        "name": "visualize_complexity",
+        "line_number": 147,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/search/tools.py": [
+      {
+        "name": "dump_syntax_tree",
+        "line_number": 22,
+        "is_async": false
+      },
+      {
+        "name": "test_match_code_rule",
+        "line_number": 44,
+        "is_async": false
+      },
+      {
+        "name": "example_function",
+        "line_number": 95,
+        "is_async": false
+      },
+      {
+        "name": "another_function",
+        "line_number": 100,
+        "is_async": false
+      },
+      {
+        "name": "register_search_tools",
+        "line_number": 171,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/search/service.py": [
+      {
+        "name": "dump_syntax_tree_impl",
+        "line_number": 23,
+        "is_async": false
+      },
+      {
+        "name": "test_match_code_rule_impl",
+        "line_number": 72,
+        "is_async": false
+      },
+      {
+        "name": "find_code_impl",
+        "line_number": 315,
+        "is_async": false
+      },
+      {
+        "name": "find_code_by_rule_impl",
+        "line_number": 453,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/enhancement_rules.py": [
+      {
+        "name": "get_entity_suggestions",
+        "line_number": 269,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py": [
+      {
+        "name": "enhance_entity_graph_tool",
+        "line_number": 412,
+        "is_async": false
+      },
+      {
+        "name": "register_schema_tools",
+        "line_number": 477,
+        "is_async": false
+      },
+      {
+        "name": "enhance_entity_graph",
+        "line_number": 549,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/language_converter.py": [
+      {
+        "name": "convert_code_language_impl",
+        "line_number": 353,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/tools.py": [
+      {
+        "name": "search_multi_language_tool",
+        "line_number": 120,
+        "is_async": false
+      },
+      {
+        "name": "find_language_equivalents_tool",
+        "line_number": 241,
+        "is_async": false
+      },
+      {
+        "name": "convert_code_language_tool",
+        "line_number": 333,
+        "is_async": false
+      },
+      {
+        "name": "calculate_total",
+        "line_number": 380,
+        "is_async": false
+      },
+      {
+        "name": "refactor_polyglot_tool",
+        "line_number": 444,
+        "is_async": false
+      },
+      {
+        "name": "generate_language_bindings_tool",
+        "line_number": 581,
+        "is_async": false
+      },
+      {
+        "name": "register_cross_language_tools",
+        "line_number": 749,
+        "is_async": false
+      },
+      {
+        "name": "convert_code_language",
+        "line_number": 788,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/multi_language_search.py": [
+      {
+        "name": "search_multi_language_impl",
+        "line_number": 272,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/pattern_equivalence.py": [
+      {
+        "name": "find_language_equivalents_impl",
+        "line_number": 165,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/polyglot_refactoring.py": [
+      {
+        "name": "refactor_polyglot_impl",
+        "line_number": 363,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/binding_generator.py": [
+      {
+        "name": "type_converter",
+        "line_number": 304,
+        "is_async": false
+      },
+      {
+        "name": "generate_language_bindings_impl",
+        "line_number": 568,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/tools.py": [
+      {
+        "name": "extract_function_tool",
+        "line_number": 56,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/analyzer.py": [
+      {
+        "name": "analyze_selection",
+        "line_number": 36,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/server/runner.py": [
+      {
+        "name": "run_mcp_server",
+        "line_number": 13,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/server/registry.py": [
+      {
+        "name": "register_all_tools",
+        "line_number": 16,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/syntax_validation.py": [
+      {
+        "name": "suggest_syntax_fix",
+        "line_number": 42,
+        "is_async": false
+      },
+      {
+        "name": "validate_bracket_balance",
+        "line_number": 70,
+        "is_async": false
+      },
+      {
+        "name": "validate_python_syntax",
+        "line_number": 92,
+        "is_async": false
+      },
+      {
+        "name": "validate_javascript_syntax",
+        "line_number": 115,
+        "is_async": false
+      },
+      {
+        "name": "validate_java_syntax",
+        "line_number": 133,
+        "is_async": false
+      },
+      {
+        "name": "validate_code_for_language",
+        "line_number": 152,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/formatters.py": [
+      {
+        "name": "format_matches_as_text",
+        "line_number": 63,
+        "is_async": false
+      },
+      {
+        "name": "format_diff_with_colors",
+        "line_number": 96,
+        "is_async": false
+      },
+      {
+        "name": "generate_before_after_example",
+        "line_number": 135,
+        "is_async": false
+      },
+      {
+        "name": "visualize_complexity",
+        "line_number": 199,
+        "is_async": false
+      },
+      {
+        "name": "has_imports",
+        "line_number": 514,
+        "is_async": false
+      },
+      {
+        "name": "format_sorted",
+        "line_number": 518,
+        "is_async": false
+      },
+      {
+        "name": "format_python_code",
+        "line_number": 589,
+        "is_async": false
+      },
+      {
+        "name": "format_typescript_code",
+        "line_number": 693,
+        "is_async": false
+      },
+      {
+        "name": "format_javascript_code",
+        "line_number": 753,
+        "is_async": false
+      },
+      {
+        "name": "format_java_code",
+        "line_number": 860,
+        "is_async": false
+      },
+      {
+        "name": "format_generated_code",
+        "line_number": 937,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/templates.py": [
+      {
+        "name": "format_python_class",
+        "line_number": 23,
+        "is_async": false
+      },
+      {
+        "name": "import_sort_key",
+        "line_number": 142,
+        "is_async": false
+      },
+      {
+        "name": "format_java_code",
+        "line_number": 228,
+        "is_async": false
+      },
+      {
+        "name": "format_java_method",
+        "line_number": 256,
+        "is_async": false
+      },
+      {
+        "name": "format_typescript_class",
+        "line_number": 350,
+        "is_async": false
+      },
+      {
+        "name": "format_typescript_function",
+        "line_number": 454,
+        "is_async": false
+      },
+      {
+        "name": "format_javascript_function",
+        "line_number": 559,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/text.py": [
+      {
+        "name": "clean_template_whitespace",
+        "line_number": 62,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/performance.py": [
+      {
+        "name": "monitor_performance",
+        "line_number": 20,
+        "is_async": false
+      },
+      {
+        "name": "my_tool_function",
+        "line_number": 31,
+        "is_async": false
+      },
+      {
+        "name": "wrapper",
+        "line_number": 42,
+        "is_async": false
+      },
+      {
+        "name": "monitor_performance_async",
+        "line_number": 82,
+        "is_async": false
+      },
+      {
+        "name": "my_async_tool",
+        "line_number": 89,
+        "is_async": true
+      },
+      {
+        "name": "elapsed_ms",
+        "line_number": 187,
+        "is_async": false
+      },
+      {
+        "name": "elapsed_seconds",
+        "line_number": 195,
+        "is_async": false
+      },
+      {
+        "name": "track_slow_operations",
+        "line_number": 200,
+        "is_async": false
+      },
+      {
+        "name": "my_function",
+        "line_number": 205,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/console_logger.py": [
+      {
+        "name": "set_quiet",
+        "line_number": 57,
+        "is_async": false
+      },
+      {
+        "name": "set_verbose",
+        "line_number": 65,
+        "is_async": false
+      },
+      {
+        "name": "debug",
+        "line_number": 96,
+        "is_async": false
+      },
+      {
+        "name": "separator",
+        "line_number": 153,
+        "is_async": false
+      },
+      {
+        "name": "blank",
+        "line_number": 176,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/config.py": [
+      {
+        "name": "validate_extensions",
+        "line_number": 19,
+        "is_async": false
+      },
+      {
+        "name": "validate_dirs",
+        "line_number": 41,
+        "is_async": false
+      },
+      {
+        "name": "validate_custom_languages",
+        "line_number": 49,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/refactoring.py": [
+      {
+        "name": "get_variables_by_type",
+        "line_number": 59,
+        "is_async": false
+      },
+      {
+        "name": "to_python_signature",
+        "line_number": 75,
+        "is_async": false
+      },
+      {
+        "name": "to_typescript_signature",
+        "line_number": 84,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py": [
+      {
+        "name": "add_child",
+        "line_number": 74,
+        "is_async": false
+      },
+      {
+        "name": "get_all_nodes",
+        "line_number": 78,
+        "is_async": false
+      },
+      {
+        "name": "find_by_type",
+        "line_number": 85,
+        "is_async": false
+      },
+      {
+        "name": "get_depth",
+        "line_number": 89,
+        "is_async": false
+      },
+      {
+        "name": "count_by_type",
+        "line_number": 95,
+        "is_async": false
+      },
+      {
+        "name": "get_statistics",
+        "line_number": 118,
+        "is_async": false
+      },
+      {
+        "name": "serialize_for_display",
+        "line_number": 133,
+        "is_async": false
+      },
+      {
+        "name": "format_params",
+        "line_number": 203,
+        "is_async": false
+      },
+      {
+        "name": "format_decorators",
+        "line_number": 217,
+        "is_async": false
+      },
+      {
+        "name": "format_return_type",
+        "line_number": 227,
+        "is_async": false
+      },
+      {
+        "name": "get_type_annotation",
+        "line_number": 331,
+        "is_async": false
+      },
+      {
+        "name": "to_signature",
+        "line_number": 355,
+        "is_async": false
+      },
+      {
+        "name": "get_file_diff",
+        "line_number": 451,
+        "is_async": false
+      },
+      {
+        "name": "to_summary",
+        "line_number": 500,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/standards.py": [
+      {
+        "name": "to_yaml_dict",
+        "line_number": 43,
+        "is_async": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/orphan.py": [
+      {
+        "name": "get_importers",
+        "line_number": 147,
+        "is_async": false
+      },
+      {
+        "name": "get_imports",
+        "line_number": 151,
+        "is_async": false
+      },
+      {
+        "name": "is_reachable_from_entry",
+        "line_number": 155,
+        "is_async": false
+      },
+      {
+        "name": "total_orphan_lines",
+        "line_number": 245,
+        "is_async": false
+      },
+      {
+        "name": "orphan_file_count",
+        "line_number": 252,
+        "is_async": false
+      },
+      {
+        "name": "orphan_function_count",
+        "line_number": 257,
+        "is_async": false
+      }
+    ]
+  }
+}

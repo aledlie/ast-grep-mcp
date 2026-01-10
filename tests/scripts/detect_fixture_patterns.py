@@ -324,7 +324,7 @@ def mcp_tools():
         """Find the function containing a given line number."""
         try:
             tree = ast.parse(content)
-            lines = content.splitlines()
+            content.splitlines()
 
             for node in ast.walk(tree):
                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):

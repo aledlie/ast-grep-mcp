@@ -190,7 +190,6 @@ class TestFileAnalyzer:
     def _count_self_attributes(self) -> int:
         """Count unique self.attribute assignments in setup_method."""
         attributes = set()
-        in_setup = False
 
         for node in ast.walk(self.tree):
             if isinstance(node, ast.FunctionDef) and node.name == 'setup_method':

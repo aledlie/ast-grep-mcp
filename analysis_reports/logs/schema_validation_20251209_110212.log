@@ -1,0 +1,21 @@
+Command: Schema.org Validation
+Return Code: 0
+================================================================================
+STDERR:
+<frozen runpy>:128: RuntimeWarning: 'src.validators.schema' found in sys.modules after import of package 'src.validators', but prior to execution of 'src.validators.schema'; this may result in unpredictable behaviour
+INFO: ================================================================================
+INFO: Schema.org Markup Validator
+INFO: ================================================================================
+INFO: 
+Validating JSON file: /Users/alyshialedlie/code/ast-grep-mcp/analysis_reports/schemas/schemas_enhanced.json
+INFO: 
+================================================================================
+SCHEMA.ORG VALIDATION REPORT
+================================================================================
+
+✅ All schemas are valid!
+================================================================================
+
+================================================================================
+STDOUT:
+

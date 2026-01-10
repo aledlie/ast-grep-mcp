@@ -1,0 +1,58 @@
+================================================================================
+DEPENDENCY ANALYSIS REPORT
+================================================================================
+
+Root Directory: /Users/alyshialedlie/code/ast-grep-mcp
+
+================================================================================
+SUMMARY
+================================================================================
+
+Total Dependencies: 1065
+External Dependencies: 0
+Internal Dependencies: 1065
+Files Analyzed: 165
+
+================================================================================
+DEPENDENCIES BY IMPORT TYPE
+================================================================================
+
+  static: 1065
+
+================================================================================
+TOP FILES BY DEPENDENCY COUNT
+================================================================================
+
+  📄 /Users/alyshialedlie/code/ast-grep-mcp/tests/conftest.py
+     27 dependencies
+
+  📄 /Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_documentation.py
+     27 dependencies
+
+  📄 /Users/alyshialedlie/code/ast-grep-mcp/tests/integration/test_benchmark.py
+     20 dependencies
+
+  📄 /Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py
+     16 dependencies
+
+  📄 /Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_orchestrator_optimizations.py
+     15 dependencies
+
+  📄 /Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py
+     15 dependencies
+
+  📄 /Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_minhash_similarity.py
+     14 dependencies
+
+  📄 /Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py
+     14 dependencies
+
+  📄 /Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/__init__.py
+     14 dependencies
+
+  📄 /Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_schema_enhancement.py
+     13 dependencies
+
+================================================================================
+END OF REPORT
+================================================================================

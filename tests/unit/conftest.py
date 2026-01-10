@@ -10,7 +10,7 @@ This module provides reusable fixtures for all unit test modules, including:
 """
 
 from typing import Any, Dict, List
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -69,6 +69,13 @@ def mcp_main():
         benchmark_deduplication_tool,
         find_duplication_tool,
     )
+    from ast_grep_mcp.features.documentation.tools import (
+        generate_api_docs_tool,
+        generate_changelog_tool,
+        generate_docstrings_tool,
+        generate_readme_sections_tool,
+        sync_documentation_tool,
+    )
     from ast_grep_mcp.features.quality.tools import (
         create_linting_rule_tool,
         enforce_standards_tool,
@@ -84,13 +91,6 @@ def mcp_main():
         find_code_by_rule_impl,
         find_code_impl,
         test_match_code_rule_impl,
-    )
-    from ast_grep_mcp.features.documentation.tools import (
-        generate_api_docs_tool,
-        generate_changelog_tool,
-        generate_docstrings_tool,
-        generate_readme_sections_tool,
-        sync_documentation_tool,
     )
 
     # Register tools

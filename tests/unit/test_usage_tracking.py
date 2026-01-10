@@ -482,7 +482,7 @@ class TestIntegrationWithDetector:
         # Create a mock project folder that doesn't require real files
         with patch.object(DuplicationDetector, "_find_constructs", return_value=[]):
             detector = DuplicationDetector()
-            result = detector.find_duplication("/fake/path")
+            detector.find_duplication("/fake/path")
 
         # Verify usage was logged
         logs = temp_db.get_recent_logs(tool_name="find_duplication")

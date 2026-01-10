@@ -1,0 +1,403 @@
+Command: Enhanced Schema Generation (parallel + cache)
+Return Code: 0
+================================================================================
+STDERR:
+<frozen runpy>:128: RuntimeWarning: 'src.generators.schema' found in sys.modules after import of package 'src.generators', but prior to execution of 'src.generators.schema'; this may result in unpredictable behaviour
+
+Processing files (7 workers):   0%|          | 0/169 [00:00<?, ?files/s]<frozen runpy>:128: RuntimeWarning: 'src.generators.schema' found in sys.modules after import of package 'src.generators', but prior to execution of 'src.generators.schema'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'src.generators.schema' found in sys.modules after import of package 'src.generators', but prior to execution of 'src.generators.schema'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'src.generators.schema' found in sys.modules after import of package 'src.generators', but prior to execution of 'src.generators.schema'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'src.generators.schema' found in sys.modules after import of package 'src.generators', but prior to execution of 'src.generators.schema'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'src.generators.schema' found in sys.modules after import of package 'src.generators', but prior to execution of 'src.generators.schema'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'src.generators.schema' found in sys.modules after import of package 'src.generators', but prior to execution of 'src.generators.schema'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'src.generators.schema' found in sys.modules after import of package 'src.generators', but prior to execution of 'src.generators.schema'; this may result in unpredictable behaviour
+
+Processing files (7 workers):   1%|          | 1/169 [00:01<04:37,  1.65s/files]
+Processing files (7 workers) - test_semantic_similarity.py:   1%|          | 1/169 [00:01<04:37,  1.65s/files]
+Processing files (7 workers) - test_deduplication_analysis.py:   1%|          | 2/169 [00:01<04:35,  1.65s/files]
+Processing files (7 workers) - test_documentation.py:   2%|▏         | 3/169 [00:01<04:33,  1.65s/files]         
+Processing files (7 workers) - test_schema_enhancement.py:   2%|▏         | 4/169 [00:01<04:32,  1.65s/files]
+Processing files (7 workers) - test_ranker.py:   3%|▎         | 5/169 [00:01<04:30,  1.65s/files]            
+Processing files (7 workers) - test_hybrid_similarity.py:   4%|▎         | 6/169 [00:01<04:28,  1.65s/files]
+Processing files (7 workers) - test_standards_enforcement.py:   4%|▍         | 7/169 [00:01<04:27,  1.65s/files]
+Processing files (7 workers) - test_orchestrator_optimizations.py:   5%|▍         | 8/169 [00:01<04:25,  1.65s/files]
+Processing files (7 workers) - conftest.py:   5%|▌         | 9/169 [00:01<04:24,  1.65s/files]                       
+Processing files (7 workers) - test_analysis_config.py:   6%|▌         | 10/169 [00:01<04:22,  1.65s/files]
+Processing files (7 workers) - __init__.py:   7%|▋         | 11/169 [00:01<04:20,  1.65s/files]            
+Processing files (7 workers) - test_batch_coverage.py:   7%|▋         | 12/169 [00:01<04:19,  1.65s/files]
+Processing files (7 workers) - test_conftest_fixtures.py:   8%|▊         | 13/169 [00:01<04:17,  1.65s/files]
+Processing files (7 workers) - test_complexity.py:   8%|▊         | 14/169 [00:01<04:15,  1.65s/files]       
+Processing files (7 workers) - test_schema.py:   9%|▉         | 15/169 [00:01<04:14,  1.65s/files]    
+Processing files (7 workers) - test_deduplication_detection.py:   9%|▉         | 16/169 [00:01<04:12,  1.65s/files]
+Processing files (7 workers) - test_code_smells.py:  10%|█         | 17/169 [00:01<04:10,  1.65s/files]            
+Processing files (7 workers) - test_usage_tracking.py:  11%|█         | 18/169 [00:01<04:09,  1.65s/files]
+Processing files (7 workers) - test_ranker_caching.py:  11%|█         | 19/169 [00:01<04:07,  1.65s/files]
+Processing files (7 workers) - test_enhanced_reporting.py:  12%|█▏        | 20/169 [00:01<04:05,  1.65s/files]
+Processing files (7 workers) - test_progress_callbacks.py:  12%|█▏        | 21/169 [00:01<04:04,  1.65s/files]
+Processing files (7 workers) - test_deduplication_key_names.py:  13%|█▎        | 22/169 [00:01<04:02,  1.65s/files]
+Processing files (7 workers) - test_rename_symbol.py:  14%|█▎        | 23/169 [00:01<04:00,  1.65s/files]          
+Processing files (7 workers) - test_cross_language.py:  14%|█▍        | 24/169 [00:01<03:59,  1.65s/files]
+Processing files (7 workers) - __init__.py:  15%|█▍        | 25/169 [00:01<03:57,  1.65s/files]           
+Processing files (7 workers) - test_minhash_similarity.py:  15%|█▌        | 26/169 [00:01<03:55,  1.65s/files]
+Processing files (7 workers) - test_minhash_regression.py:  16%|█▌        | 27/169 [00:01<03:54,  1.65s/files]
+Processing files (7 workers) - __init__.py:  17%|█▋        | 28/169 [00:01<03:52,  1.65s/files]               
+Processing files (7 workers) - test_complexity_regression.py:  17%|█▋        | 29/169 [00:01<03:51,  1.65s/files]
+Processing files (7 workers) - test_rename_symbol_integration.py:  18%|█▊        | 30/169 [00:01<03:49,  1.65s/files]
+Processing files (7 workers) - test_semantic_integration.py:  18%|█▊        | 31/169 [00:01<03:47,  1.65s/files]     
+Processing files (7 workers) - test_integration.py:  19%|█▉        | 32/169 [00:01<03:46,  1.65s/files]         
+Processing files (7 workers) - validate_refactoring.py:  20%|█▉        | 33/169 [00:01<03:44,  1.65s/files]
+Processing files (7 workers) - test_benchmark.py:  20%|██        | 34/169 [00:01<03:42,  1.65s/files]      
+Processing files (7 workers) - track_fixture_metrics.py:  21%|██        | 35/169 [00:01<03:41,  1.65s/files]
+Processing files (7 workers) - detect_fixture_patterns.py:  21%|██▏       | 36/169 [00:01<03:39,  1.65s/files]
+Processing files (7 workers) - benchmark_fixtures.py:  22%|██▏       | 37/169 [00:01<03:37,  1.65s/files]     
+Processing files (7 workers) - score_test_file.py:  22%|██▏       | 38/169 [00:01<03:36,  1.65s/files]   
+Processing files (7 workers) - example.py:  23%|██▎       | 39/169 [00:01<03:34,  1.65s/files]        
+Processing files (7 workers) - test_minhash_performance.py:  24%|██▎       | 40/169 [00:01<03:32,  1.65s/files]
+Processing files (7 workers) - migrate_prints_smart.py:  24%|██▍       | 41/169 [00:01<03:31,  1.65s/files]    
+Processing files (7 workers) - fix_import_orphans.py:  25%|██▍       | 42/169 [00:01<03:29,  1.65s/files]  
+Processing files (7 workers) - fix_migration_errors.py:  25%|██▌       | 43/169 [00:01<03:27,  1.65s/files]
+Processing files (7 workers) - analyze_violations.py:  26%|██▌       | 44/169 [00:01<03:26,  1.65s/files]  
+Processing files (7 workers) - list_complexity_violations.py:  27%|██▋       | 45/169 [00:01<03:24,  1.65s/files]
+Processing files (7 workers) - migrate_print_to_logger.py:  27%|██▋       | 46/169 [00:01<03:22,  1.65s/files]   
+Processing files (7 workers) - fix_imports.py:  28%|██▊       | 47/169 [00:01<03:21,  1.65s/files]            
+Processing files (7 workers) - test_apply_deduplication.py:  28%|██▊       | 48/169 [00:01<03:19,  1.65s/files]
+Processing files (7 workers) - benchmark_batch_coverage.py:  29%|██▉       | 49/169 [00:01<03:18,  1.65s/files]
+Processing files (7 workers) - schema-graph-builder.py:  30%|██▉       | 50/169 [00:01<03:16,  1.65s/files]    
+Processing files (7 workers) - analyze_analyticsbot.py:  30%|███       | 51/169 [00:01<03:14,  1.65s/files]
+Processing files (7 workers) - run_benchmarks.py:  31%|███       | 52/169 [00:01<03:13,  1.65s/files]      
+Processing files (7 workers) - benchmark_parallel_enrichment.py:  31%|███▏      | 53/169 [00:01<03:11,  1.65s/files]
+Processing files (7 workers) - __init__.py:  32%|███▏      | 54/169 [00:01<03:09,  1.65s/files]                     
+Processing files (7 workers) - constants.py:  33%|███▎      | 55/169 [00:01<03:08,  1.65s/files]
+Processing files (7 workers) - logging.py:  33%|███▎      | 56/169 [00:01<03:06,  1.65s/files]  
+Processing files (7 workers) - config.py:  34%|███▎      | 57/169 [00:01<03:04,  1.65s/files] 
+Processing files (7 workers) - cache.py:  34%|███▍      | 58/169 [00:01<03:03,  1.65s/files] 
+Processing files (7 workers) - __init__.py:  35%|███▍      | 59/169 [00:01<03:01,  1.65s/files]
+Processing files (7 workers) - exceptions.py:  36%|███▌      | 60/169 [00:01<02:59,  1.65s/files]
+Processing files (7 workers) - sentry.py:  36%|███▌      | 61/169 [00:01<02:58,  1.65s/files]    
+Processing files (7 workers) - usage_tracking.py:  37%|███▋      | 62/169 [00:01<02:56,  1.65s/files]
+Processing files (7 workers) - __init__.py:  37%|███▋      | 63/169 [00:01<02:54,  1.65s/files]      
+Processing files (7 workers) - executor.py:  38%|███▊      | 64/169 [00:01<02:53,  1.65s/files]
+Processing files (7 workers) - tools.py:  38%|███▊      | 65/169 [00:01<02:51,  1.65s/files]   
+Processing files (7 workers) - docstring_generator.py:  39%|███▉      | 66/169 [00:01<02:49,  1.65s/files]
+Processing files (7 workers) - __init__.py:  40%|███▉      | 67/169 [00:01<02:48,  1.65s/files]           
+Processing files (7 workers) - __init__.py:  40%|████      | 68/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - sync_checker.py:  40%|████      | 68/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - readme_generator.py:  41%|████      | 69/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - changelog_generator.py:  41%|████▏     | 70/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - service.py:  42%|████▏     | 71/169 [00:01<00:01, 53.86files/s]            
+Processing files (7 workers) - api_docs_generator.py:  43%|████▎     | 72/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - tools.py:  43%|████▎     | 73/169 [00:01<00:01, 53.86files/s]             
+Processing files (7 workers) - __init__.py:  44%|████▍     | 74/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - validator.py:  44%|████▍     | 75/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - backup.py:  45%|████▍     | 76/169 [00:01<00:01, 53.86files/s]   
+Processing files (7 workers) - smells_helpers.py:  46%|████▌     | 77/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - fixer.py:  46%|████▌     | 78/169 [00:01<00:01, 53.86files/s]         
+Processing files (7 workers) - reporter.py:  47%|████▋     | 79/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - tools.py:  47%|████▋     | 80/169 [00:01<00:01, 53.86files/s]   
+Processing files (7 workers) - enforcer.py:  48%|████▊     | 81/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - __init__.py:  49%|████▊     | 82/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - rules.py:  49%|████▉     | 83/169 [00:01<00:01, 53.86files/s]   
+Processing files (7 workers) - smells.py:  50%|████▉     | 84/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - orphan_detector.py:  50%|█████     | 85/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - security_scanner.py:  51%|█████     | 86/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - smells_detectors.py:  51%|█████▏    | 87/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - complexity_analyzer.py:  52%|█████▏    | 88/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - metrics.py:  53%|█████▎    | 89/169 [00:01<00:01, 53.86files/s]            
+Processing files (7 workers) - analyzer.py:  53%|█████▎    | 90/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - __init__.py:  54%|█████▍    | 91/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - tools.py:  54%|█████▍    | 92/169 [00:01<00:01, 53.86files/s]   
+Processing files (7 workers) - complexity_file_finder.py:  55%|█████▌    | 93/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - storage.py:  56%|█████▌    | 94/169 [00:01<00:01, 53.86files/s]               
+Processing files (7 workers) - complexity_statistics.py:  56%|█████▌    | 95/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - applicator_validator.py:  57%|█████▋    | 96/169 [00:01<00:01, 53.86files/s] 
+Processing files (7 workers) - config.py:  57%|█████▋    | 97/169 [00:01<00:01, 53.86files/s]              
+Processing files (7 workers) - benchmark.py:  58%|█████▊    | 98/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - detector.py:  59%|█████▊    | 99/169 [00:01<00:01, 53.86files/s] 
+Processing files (7 workers) - priority_classifier.py:  59%|█████▉    | 100/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - applicator_post_validator.py:  60%|█████▉    | 101/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - benchmark_executor.py:  60%|██████    | 102/169 [00:01<00:01, 53.86files/s]       
+Processing files (7 workers) - tools.py:  61%|██████    | 103/169 [00:01<00:01, 53.86files/s]             
+Processing files (7 workers) - coverage_html_cb_6fb7b396.js:  62%|██████▏   | 104/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - similarity.py:  62%|██████▏   | 105/169 [00:01<00:01, 53.86files/s]               
+Processing files (7 workers) - __init__.py:  63%|██████▎   | 106/169 [00:01<00:01, 53.86files/s]  
+Processing files (7 workers) - recommendations.py:  63%|██████▎   | 107/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - score_calculator.py:  64%|██████▍   | 108/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - analyzer.py:  64%|██████▍   | 109/169 [00:01<00:01, 53.86files/s]        
+Processing files (7 workers) - benchmark_reporter.py:  65%|██████▌   | 110/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - coverage.py:  66%|██████▌   | 111/169 [00:01<00:01, 53.86files/s]          
+Processing files (7 workers) - analysis_orchestrator.py:  66%|██████▋   | 112/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - generator.py:  67%|██████▋   | 113/169 [00:01<00:01, 53.86files/s]            
+Processing files (7 workers) - applicator_backup.py:  67%|██████▋   | 114/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - applicator_executor.py:  68%|██████▊   | 115/169 [00:01<00:01, 53.86files/s]
+Processing files (7 workers) - ranker.py:  69%|██████▊   | 116/169 [00:01<00:00, 53.86files/s]             
+Processing files (7 workers) - regression_detector.py:  69%|██████▉   | 117/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - diff.py:  70%|██████▉   | 118/169 [00:01<00:00, 53.86files/s]               
+Processing files (7 workers) - applicator.py:  70%|███████   | 119/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - impact.py:  71%|███████   | 120/169 [00:01<00:00, 53.86files/s]    
+Processing files (7 workers) - reporting.py:  72%|███████▏  | 121/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - __init__.py:  72%|███████▏  | 122/169 [00:01<00:00, 53.86files/s] 
+Processing files (7 workers) - tools.py:  73%|███████▎  | 123/169 [00:01<00:00, 53.86files/s]   
+Processing files (7 workers) - enhancement_rules.py:  73%|███████▎  | 124/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - service.py:  74%|███████▍  | 125/169 [00:01<00:00, 53.86files/s]          
+Processing files (7 workers) - __init__.py:  75%|███████▍  | 126/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - tools.py:  75%|███████▌  | 127/169 [00:01<00:00, 53.86files/s]   
+Processing files (7 workers) - client.py:  76%|███████▌  | 128/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - language_converter.py:  76%|███████▋  | 129/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - __init__.py:  77%|███████▋  | 130/169 [00:01<00:00, 53.86files/s]          
+Processing files (7 workers) - tools.py:  78%|███████▊  | 131/169 [00:01<00:00, 53.86files/s]   
+Processing files (7 workers) - enhancement_service.py:  78%|███████▊  | 132/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - pattern_equivalence.py:  79%|███████▊  | 133/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - multi_language_search.py:  79%|███████▉  | 134/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - polyglot_refactoring.py:  80%|███████▉  | 135/169 [00:01<00:00, 53.86files/s] 
+Processing files (7 workers) - tools.py:  80%|████████  | 136/169 [00:01<00:00, 53.86files/s]               
+Processing files (7 workers) - pattern_database.py:  81%|████████  | 137/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - binding_generator.py:  82%|████████▏ | 138/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - renamer.py:  82%|████████▏ | 139/169 [00:01<00:00, 53.86files/s]          
+Processing files (7 workers) - __init__.py:  83%|████████▎ | 140/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - rename_coordinator.py:  83%|████████▎ | 141/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - analyzer.py:  84%|████████▍ | 142/169 [00:01<00:00, 53.86files/s]          
+Processing files (7 workers) - runner.py:  85%|████████▍ | 143/169 [00:01<00:00, 53.86files/s]  
+Processing files (7 workers) - __init__.py:  85%|████████▌ | 144/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - registry.py:  86%|████████▌ | 145/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - syntax_validation.py:  86%|████████▋ | 146/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - __init__.py:  87%|████████▋ | 147/169 [00:01<00:00, 53.86files/s]         
+Processing files (7 workers) - extractor.py:  88%|████████▊ | 148/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - text.py:  88%|████████▊ | 149/169 [00:01<00:00, 53.86files/s]     
+Processing files (7 workers) - templates.py:  89%|████████▉ | 150/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - performance.py:  89%|████████▉ | 151/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - console_logger.py:  90%|████████▉ | 152/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - validation.py:  91%|█████████ | 153/169 [00:01<00:00, 53.86files/s]    
+Processing files (7 workers) - formatters.py:  91%|█████████ | 154/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - config.py:  92%|█████████▏| 155/169 [00:01<00:00, 53.86files/s]    
+Processing files (7 workers) - complexity.py:  92%|█████████▏| 156/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - documentation.py:  93%|█████████▎| 157/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - __init__.py:  93%|█████████▎| 158/169 [00:01<00:00, 53.86files/s]     
+Processing files (7 workers) - refactoring.py:  94%|█████████▍| 159/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - standards.py:  95%|█████████▍| 160/169 [00:01<00:00, 53.86files/s]  
+Processing files (7 workers) - deduplication.py:  95%|█████████▌| 161/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - base.py:  96%|█████████▌| 162/169 [00:01<00:00, 53.86files/s]         
+Processing files (7 workers) - cross_language.py:  96%|█████████▋| 163/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - schema_enhancement.py:  97%|█████████▋| 164/169 [00:01<00:00, 53.86files/s]
+Processing files (7 workers) - orphan.py:  98%|█████████▊| 165/169 [00:01<00:00, 53.86files/s]            
+Processing files (7 workers) - orphan.py:  98%|█████████▊| 166/169 [00:01<00:00, 138.09files/s]
+Processing files (7 workers) - test_extract_function.py:  98%|█████████▊| 166/169 [00:01<00:00, 138.09files/s]
+Processing files (7 workers) - analyze_codebase.py:  99%|█████████▉| 167/169 [00:02<00:00, 138.09files/s]     
+Processing files (7 workers) - conftest.py:  99%|█████████▉| 168/169 [00:03<00:00, 138.09files/s]        
+Processing files (7 workers) - main.py: 100%|██████████| 169/169 [00:04<00:00, 138.09files/s]    
+Processing files (7 workers) - main.py: 100%|██████████| 169/169 [00:04<00:00, 35.60files/s] 
+
+================================================================================
+STDOUT:
+2025-12-09 11:02:16 - src.generators.schema_optimizer - INFO - No existing cache found, starting fresh
+2025-12-09 11:02:16 - src.generators.schema_optimizer - INFO - 🚀 Parallel processor initialized
+2025-12-09 11:02:16 - src.generators.schema_optimizer - INFO -    Workers: 7
+2025-12-09 11:02:16 - src.generators.schema_optimizer - INFO -    Cache enabled: True
+2025-12-09 11:02:16 - __main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:16 - __main__ - INFO - ✅ Parallel processing enabled
+2025-12-09 11:02:16 - __main__ - INFO - ✅ Caching enabled
+2025-12-09 11:02:16 - __main__ - INFO - 
+============================================================
+2025-12-09 11:02:16 - __main__ - INFO - Enhanced Schema Generator
+2025-12-09 11:02:16 - __main__ - INFO - ============================================================
+
+2025-12-09 11:02:16 - __main__ - INFO - Root path: /Users/alyshialedlie/code/ast-grep-mcp
+2025-12-09 11:02:16 - __main__ - INFO - AST-grep: Enabled
+2025-12-09 11:02:16 - __main__ - INFO - Schema.org: Enabled
+2025-12-09 11:02:16 - __main__ - INFO - Parallel processing: Enabled (7 workers)
+2025-12-09 11:02:16 - __main__ - INFO - Caching: Enabled
+2025-12-09 11:02:16 - __main__ - INFO - 
+2025-12-09 11:02:16 - __main__ - INFO - 📊 Using optimized parallel scanner...
+2025-12-09 11:02:16 - __main__ - INFO - 🚀 Using optimized parallel scanning with caching...
+2025-12-09 11:02:16 - __main__ - INFO - 📁 Found 169 code files to process
+2025-12-09 11:02:16 - src.generators.schema_optimizer - INFO - 📊 Cache stats:
+2025-12-09 11:02:16 - src.generators.schema_optimizer - INFO -    Total files: 169
+2025-12-09 11:02:16 - src.generators.schema_optimizer - INFO -    Cached: 0
+2025-12-09 11:02:16 - src.generators.schema_optimizer - INFO -    To process: 169
+2025-12-09 11:02:16 - src.generators.schema_optimizer - INFO - ⚙️  Processing 169 files with 7 workers...
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:17 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:18 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:19 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:20 - __mp_main__ - INFO - ✅ ast-grep available - using AST-based parsing
+2025-12-09 11:02:20 - src.generators.schema_optimizer - INFO - ✅ Cache saved with 148 entries
+2025-12-09 11:02:20 - src.generators.schema_optimizer - INFO - Performance: process_files_parallel completed in 4852.41ms | Metadata: {'total_files': 169, 'cached_files': 0, 'processed_files': 169, 'workers': 7, 'cache_enabled': True}
+2025-12-09 11:02:20 - __main__ - INFO - Performance: scan_all_directories_optimized completed in 4865.93ms | Metadata: {'total_files': 169, 'total_directories': 25, 'parallel_enabled': True, 'cache_enabled': True, 'root_path': '/Users/alyshialedlie/code/ast-grep-mcp'}
+2025-12-09 11:02:20 - __main__ - INFO - ✅ Schemas saved to /Users/alyshialedlie/code/ast-grep-mcp/analysis_reports/schemas/schemas_enhanced.json
+2025-12-09 11:02:20 - __main__ - INFO -    Total directories: 25
+2025-12-09 11:02:20 - __main__ - INFO -    Schema.org markup: Included
+2025-12-09 11:02:20 - __main__ - INFO - 
+2025-12-09 11:02:20 - __main__ - INFO - ✅ Generated/updated 24 README_ENHANCED.md files
+
+2025-12-09 11:02:20 - __main__ - INFO - Directories with git remotes:
+2025-12-09 11:02:20 - __main__ - INFO -   • .: https://github.com/aledlie/ast-grep-mcp
+2025-12-09 11:02:20 - __main__ - INFO - 
+2025-12-09 11:02:20 - __main__ - INFO - 
+============================================================
+2025-12-09 11:02:20 - __main__ - INFO - ✅ Schema generation complete!
+2025-12-09 11:02:20 - __main__ - INFO - ============================================================
+
+

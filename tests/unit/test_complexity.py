@@ -615,11 +615,6 @@ def func():
     if True:
         return 1
 """
-        code_tabs = """
-def func():
-\tif True:
-\t\treturn 1
-"""
         # Both should work (though tabs may give different depth)
         result_spaces = calculate_nesting_depth(code_spaces, "python")
         assert result_spaces >= 1

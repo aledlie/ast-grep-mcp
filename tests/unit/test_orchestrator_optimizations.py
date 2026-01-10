@@ -112,7 +112,7 @@ class TestComponentInstanceCaching:
         # Measure initialization time (should be very fast)
         start = time.time()
         for _ in range(100):
-            orchestrator = DeduplicationAnalysisOrchestrator()
+            DeduplicationAnalysisOrchestrator()
         elapsed = time.time() - start
 
         # Should complete 100 instantiations in < 0.1 seconds
@@ -229,7 +229,7 @@ class TestInputValidation:
         orchestrator.detector = mock_detector
 
         # This should pass validation but return empty results
-        result = orchestrator.analyze_candidates(
+        orchestrator.analyze_candidates(
             project_path=temp_project_dir,
             language="python",
             min_similarity=0.8,
@@ -771,7 +771,7 @@ class TestParallelEnrichUtility:
     def test_parallel_enrich_max_workers_parameter(self):
         """Test that max_workers parameter is accepted and used."""
         orchestrator = DeduplicationAnalysisOrchestrator()
-        candidates = [{"id": f"c{i}"} for i in range(10)]
+        [{"id": f"c{i}"} for i in range(10)]
 
         def enrich_func(candidate):
             candidate["done"] = True
@@ -865,7 +865,6 @@ class TestParallelEnrichUtility:
         behavior, since Python threads cannot be forcibly interrupted.
         """
         orchestrator = DeduplicationAnalysisOrchestrator()
-        candidates = [{"id": "c1"}]
 
         def enrich_func(candidate):
             candidate["done"] = True

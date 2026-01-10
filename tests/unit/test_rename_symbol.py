@@ -176,7 +176,7 @@ def foo():
     return x + y
 """)
 
-        scopes = python_renamer.build_scope_tree(str(test_file))
+        python_renamer.build_scope_tree(str(test_file))
 
         # Create scope with defined symbols
         foo_scope = ScopeInfo(
@@ -578,9 +578,14 @@ def main():
             # ast-grep returns absolute paths
             mock_run.return_value = Mock(
                 returncode=0,
-                stdout=f'[{{"file": "{str(file1)}", "range": {{"start": {{"line": 1, "column": 4}}}}, "lines": "def process_data(data):"}},'
-                       f'{{"file": "{str(file2)}", "range": {{"start": {{"line": 1, "column": 19}}}}, "lines": "from module1 import process_data"}},'
-                       f'{{"file": "{str(file2)}", "range": {{"start": {{"line": 4, "column": 13}}}}, "lines": "result = process_data(10)"}}]'
+                stdout=(
+                    f'[{{"file": "{str(file1)}", "range": {{"start": {{"line": 1, "column": 4}}}},'
+                    f' "lines": "def process_data(data):"}},'
+                    f'{{"file": "{str(file2)}", "range": {{"start": {{"line": 1, "column": 19}}}},'
+                    f' "lines": "from module1 import process_data"}},'
+                    f'{{"file": "{str(file2)}", "range": {{"start": {{"line": 4, "column": 13}}}},'
+                    f' "lines": "result = process_data(10)"}}]'
+                )
             )
 
             with patch('ast_grep_mcp.features.refactoring.rename_coordinator.create_backup') as mock_backup:

@@ -205,7 +205,7 @@ class TestScoreCaching:
 
         with patch.object(ranker_without_cache.score_calculator, 'calculate_total_score',
                           wraps=ranker_without_cache.score_calculator.calculate_total_score) as mock_calc:
-            result = ranker_without_cache.rank_deduplication_candidates(candidates)
+            ranker_without_cache.rank_deduplication_candidates(candidates)
 
             # Should calculate score twice even for identical candidates
             assert mock_calc.call_count == 2

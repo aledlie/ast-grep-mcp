@@ -103,7 +103,7 @@ def scan_all_functions(project_root: Path):
             for node in ast.walk(tree):
                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     all_functions.append((py_file, node.name))
-        except:
+        except Exception:
             pass
 
     return all_functions

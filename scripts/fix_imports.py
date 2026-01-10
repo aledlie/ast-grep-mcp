@@ -3,6 +3,8 @@
 
 from pathlib import Path
 
+CONSOLE_IMPORT = "from ast_grep_mcp.utils.console_logger import console"
+
 
 def fix_file(file_path: Path) -> bool:
     """Fix misplaced imports in a file.
@@ -22,7 +24,7 @@ def fix_file(file_path: Path) -> bool:
     lines = content.split('\n')
 
     # Remove all console imports first
-    filtered_lines = [l for l in lines if console_import not in l]
+    filtered_lines = [line for line in lines if CONSOLE_IMPORT not in line]
 
     # Find correct insertion point (after module docstring and other imports)
     insert_idx = 0
@@ -58,9 +60,9 @@ def fix_file(file_path: Path) -> bool:
     # Insert import at correct location
     if insert_idx < len(filtered_lines) and not filtered_lines[insert_idx].strip():
         # Already has blank line
-        filtered_lines.insert(insert_idx, console_import)
+        filtered_lines.insert(insert_idx, CONSOLE_IMPORT)
     else:
-        filtered_lines.insert(insert_idx, console_import)
+        filtered_lines.insert(insert_idx, CONSOLE_IMPORT)
         filtered_lines.insert(insert_idx + 1, '')
 
     new_content = '\n'.join(filtered_lines)

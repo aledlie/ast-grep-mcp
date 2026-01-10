@@ -11,8 +11,8 @@ from ast_grep_mcp.utils.console_logger import console
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool, detect_code_smells_tool
-from ast_grep_mcp.features.quality.tools import detect_security_issues_tool
+from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool, detect_code_smells_tool  # noqa: E402
+from ast_grep_mcp.features.quality.tools import detect_security_issues_tool  # noqa: E402
 
 
 def analyze_project(project_path: str):
@@ -52,7 +52,10 @@ def analyze_project(project_path: str):
             console.log("\n   Top 3 most complex functions:")
             for i, func in enumerate(functions[:3], 1):
                 console.log(f"   {i}. {func.get('file', 'unknown').split('/')[-1]} (lines {func.get('lines', '?')})")
-                console.log(f"      Cyclomatic: {func.get('cyclomatic', 0)}, Cognitive: {func.get('cognitive', 0)}, Length: {func.get('length', 0)}")
+                console.log(
+                    f"      Cyclomatic: {func.get('cyclomatic', 0)}, "
+                    f"Cognitive: {func.get('cognitive', 0)}, Length: {func.get('length', 0)}"
+                )
 
     except Exception as e:
         console.error(f"   Error: {e}")

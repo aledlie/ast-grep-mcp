@@ -14,6 +14,8 @@ from typing import List, Tuple
 
 from ast_grep_mcp.utils.console_logger import console
 
+IMPORT_STMT = "from ast_grep_mcp.utils.console_logger import console"
+
 
 def smart_replace_print(line: str) -> Tuple[str, bool]:
     """Smart replacement of console.blank() with appropriate console method.
@@ -24,7 +26,6 @@ def smart_replace_print(line: str) -> Tuple[str, bool]:
     Returns:
         Tuple of (replaced_line, was_modified)
     """
-    original = line
     modified = False
 
     # Skip if already using console
@@ -54,7 +55,7 @@ def smart_replace_print(line: str) -> Tuple[str, bool]:
         # Extract json.dumps content
         match = re.search(r'print\(json\.dumps\((.*?)(,\s*indent=\d+)?\)\)', line)
         if match:
-            data = match.group(1)
+            match.group(1)
             line = re.sub(
                 r'print\(json\.dumps\((.*?)(,\s*indent=\d+)?\)\)',
                 r'console.json(\1)',
@@ -109,7 +110,7 @@ def add_console_import(lines: List[str]) -> List[str]:
 
     # Check if already imported
     for line in lines:
-        if import_stmt in line:
+        if IMPORT_STMT in line:
             return lines
 
     # Find where to insert import
@@ -140,7 +141,7 @@ def add_console_import(lines: List[str]) -> List[str]:
             insert_idx = i + 1
 
     # Insert import and blank line
-    lines.insert(insert_idx, import_stmt)
+    lines.insert(insert_idx, IMPORT_STMT)
     if insert_idx < len(lines) and lines[insert_idx + 1].strip():
         lines.insert(insert_idx + 1, '')
 
@@ -174,7 +175,7 @@ def migrate_file(file_path: Path, dry_run: bool = True) -> Tuple[int, List[str]]
 
     if migrations > 0:
         # Add import
-        modified_lines_stripped = [l.rstrip('\n') for l in modified_lines]
+        modified_lines_stripped = [line.rstrip('\n') for line in modified_lines]
         modified_lines_stripped = add_console_import(modified_lines_stripped)
 
         if not dry_run:

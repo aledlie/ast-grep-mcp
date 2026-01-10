@@ -220,7 +220,7 @@ class TestRenameCoordinatorIntegration:
         """Test actually applying a rename to a single file."""
         coordinator = RenameCoordinator("python")
         utils_file = temp_project / "utils.py"
-        original_content = utils_file.read_text()
+        utils_file.read_text()
 
         # Rename 'calculate' to 'compute' only in utils.py
         result = coordinator.rename_symbol(
@@ -282,7 +282,7 @@ def process():
 
         coordinator = RenameCoordinator("python")
 
-        result = coordinator.rename_symbol(
+        coordinator.rename_symbol(
             project_folder=str(temp_project),
             old_name="result",
             new_name="output",

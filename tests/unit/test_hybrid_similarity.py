@@ -245,7 +245,7 @@ class TestHybridSimilarityStages:
             ast_weight=0.6,
         )
         hybrid_low = HybridSimilarity(hybrid_config=config_low)
-        result_low = hybrid_low.calculate_hybrid_similarity(code1, code2)
+        hybrid_low.calculate_hybrid_similarity(code1, code2)
 
         # High threshold - should fail Stage 1
         config_high = HybridSimilarityConfig(
@@ -364,7 +364,7 @@ def func():
         normalized = hybrid._normalize_for_ast(code)
 
         # All lines should have consistent indentation
-        lines = [l for l in normalized.split("\n") if l.strip()]
+        lines = [line for line in normalized.split("\n") if line.strip()]
         assert len(lines) >= 3
 
     def test_normalize_skips_empty_lines(self):
@@ -573,7 +573,7 @@ class DataProcessor:
 
         start = time.perf_counter()
         for _ in range(100):
-            result2 = hybrid.calculate_hybrid_similarity(code2, code3)
+            hybrid.calculate_hybrid_similarity(code2, code3)
         full_pipeline_time = time.perf_counter() - start
 
         # Early exit should be faster (or at least not significantly slower)

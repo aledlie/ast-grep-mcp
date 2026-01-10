@@ -1,0 +1,6733 @@
+{
+  "summary": {
+    "root_directory": "/Users/alyshialedlie/code/ast-grep-mcp",
+    "total_dependencies": 1065,
+    "external_dependencies": 0,
+    "internal_dependencies": 1065,
+    "files_analyzed": 165,
+    "circular_dependencies_count": 0
+  },
+  "dependencies_by_file": {
+    "/Users/alyshialedlie/code/ast-grep-mcp/main.py": [
+      {
+        "package": "ast_grep_mcp.server.runner",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/analyze_codebase.py": [
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "traceback",
+        "import_type": "static",
+        "line_number": 111,
+        "is_external": false
+      },
+      {
+        "package": "traceback",
+        "import_type": "static",
+        "line_number": 151,
+        "is_external": false
+      },
+      {
+        "package": "traceback",
+        "import_type": "static",
+        "line_number": 197,
+        "is_external": false
+      },
+      {
+        "package": "traceback",
+        "import_type": "static",
+        "line_number": 260,
+        "is_external": false
+      },
+      {
+        "package": "traceback",
+        "import_type": "static",
+        "line_number": 302,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.complexity.analyzer",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.complexity.tools",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.tools",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.security_scanner",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.tools",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/conftest.py": [
+      {
+        "package": "shutil",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "tempfile",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 1059,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 1109,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core",
+        "import_type": "static",
+        "line_number": 29,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.cache",
+        "import_type": "static",
+        "line_number": 45,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 358,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.analyzer",
+        "import_type": "static",
+        "line_number": 365,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.generator",
+        "import_type": "static",
+        "line_number": 372,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.ranker",
+        "import_type": "static",
+        "line_number": 379,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.recommendations",
+        "import_type": "static",
+        "line_number": 386,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core",
+        "import_type": "static",
+        "line_number": 410,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core",
+        "import_type": "static",
+        "line_number": 411,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.complexity.tools",
+        "import_type": "static",
+        "line_number": 525,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.tools",
+        "import_type": "static",
+        "line_number": 529,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.tools",
+        "import_type": "static",
+        "line_number": 535,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.rewrite.backup",
+        "import_type": "static",
+        "line_number": 540,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.rewrite.service",
+        "import_type": "static",
+        "line_number": 541,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.search.service",
+        "import_type": "static",
+        "line_number": 545,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.tools",
+        "import_type": "static",
+        "line_number": 551,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 627,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.complexity",
+        "import_type": "static",
+        "line_number": 686,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.standards",
+        "import_type": "static",
+        "line_number": 758,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_apply_deduplication.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.rewrite.backup",
+        "import_type": "static",
+        "line_number": 26,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.applicator",
+        "import_type": "static",
+        "line_number": 27,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_semantic_similarity.py": [
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.similarity as sim_module",
+        "import_type": "static",
+        "line_number": 117,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.similarity as sim_module",
+        "import_type": "static",
+        "line_number": 131,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.similarity as sim_module",
+        "import_type": "static",
+        "line_number": 386,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.constants",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.similarity",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.similarity",
+        "import_type": "static",
+        "line_number": 117,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.similarity",
+        "import_type": "static",
+        "line_number": 131,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.similarity",
+        "import_type": "static",
+        "line_number": 386,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/conftest.py": [
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.complexity.tools",
+        "import_type": "static",
+        "line_number": 61,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.tools",
+        "import_type": "static",
+        "line_number": 65,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.tools",
+        "import_type": "static",
+        "line_number": 71,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.rewrite.backup",
+        "import_type": "static",
+        "line_number": 76,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.rewrite.service",
+        "import_type": "static",
+        "line_number": 77,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.search.service",
+        "import_type": "static",
+        "line_number": 81,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.tools",
+        "import_type": "static",
+        "line_number": 87,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.schema.client",
+        "import_type": "static",
+        "line_number": 168,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core",
+        "import_type": "static",
+        "line_number": 749,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_extract_function.py": [
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.refactoring.analyzer",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.refactoring.extractor",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.refactoring.tools",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.refactoring",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.refactoring",
+        "import_type": "static",
+        "line_number": 95,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.refactoring",
+        "import_type": "static",
+        "line_number": 117,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.refactoring",
+        "import_type": "static",
+        "line_number": 156,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_deduplication_analysis.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.complexity",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.deduplication",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.generator",
+        "import_type": "static",
+        "line_number": 27,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.analyzer",
+        "import_type": "static",
+        "line_number": 35,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.deduplication",
+        "import_type": "static",
+        "line_number": 41,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_documentation.py": [
+      {
+        "package": "ast_grep_mcp.models.documentation",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.docstring_generator",
+        "import_type": "static",
+        "line_number": 123,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.docstring_generator",
+        "import_type": "static",
+        "line_number": 139,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.docstring_generator",
+        "import_type": "static",
+        "line_number": 157,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.docstring_generator",
+        "import_type": "static",
+        "line_number": 186,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.docstring_generator",
+        "import_type": "static",
+        "line_number": 214,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.docstring_generator",
+        "import_type": "static",
+        "line_number": 242,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.docstring_generator",
+        "import_type": "static",
+        "line_number": 270,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.readme_generator",
+        "import_type": "static",
+        "line_number": 317,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.readme_generator",
+        "import_type": "static",
+        "line_number": 336,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.readme_generator",
+        "import_type": "static",
+        "line_number": 354,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.readme_generator",
+        "import_type": "static",
+        "line_number": 374,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.api_docs_generator",
+        "import_type": "static",
+        "line_number": 398,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.api_docs_generator",
+        "import_type": "static",
+        "line_number": 428,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.api_docs_generator",
+        "import_type": "static",
+        "line_number": 465,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.api_docs_generator",
+        "import_type": "static",
+        "line_number": 501,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.changelog_generator",
+        "import_type": "static",
+        "line_number": 531,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.sync_checker",
+        "import_type": "static",
+        "line_number": 567,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.sync_checker",
+        "import_type": "static",
+        "line_number": 589,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.sync_checker",
+        "import_type": "static",
+        "line_number": 606,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.sync_checker",
+        "import_type": "static",
+        "line_number": 623,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.sync_checker",
+        "import_type": "static",
+        "line_number": 641,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.sync_checker",
+        "import_type": "static",
+        "line_number": 664,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.sync_checker",
+        "import_type": "static",
+        "line_number": 696,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.docstring_generator",
+        "import_type": "static",
+        "line_number": 724,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.readme_generator",
+        "import_type": "static",
+        "line_number": 751,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.sync_checker",
+        "import_type": "static",
+        "line_number": 769,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_schema_enhancement.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 1,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "tempfile",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.schema.enhancement_rules",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.schema.enhancement_service",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.schema_enhancement",
+        "import_type": "static",
+        "line_number": 34,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.schema.enhancement_service",
+        "import_type": "static",
+        "line_number": 677,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.schema.enhancement_service",
+        "import_type": "static",
+        "line_number": 727,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.schema.enhancement_service",
+        "import_type": "static",
+        "line_number": 773,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_ranker.py": [
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.ranker",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_hybrid_similarity.py": [
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 520,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.similarity",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 449,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 456,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 469,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 482,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 495,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 508,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_standards_enforcement.py": [
+      {
+        "package": "tempfile",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.enforcer",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.rules",
+        "import_type": "static",
+        "line_number": 26,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.standards",
+        "import_type": "static",
+        "line_number": 27,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_orchestrator_optimizations.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "tempfile",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 109,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 798,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 823,
+        "is_external": false
+      },
+      {
+        "package": "inspect",
+        "import_type": "static",
+        "line_number": 892,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.analysis_orchestrator",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 726,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 751,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.constants",
+        "import_type": "static",
+        "line_number": 825,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.constants",
+        "import_type": "static",
+        "line_number": 852,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 922,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_analysis_config.py": [
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "src.ast_grep_mcp.features.deduplication.config",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/__init__.py": [
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 0,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_conftest_fixtures.py": [
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_batch_coverage.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "tempfile",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.coverage",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.analysis_orchestrator",
+        "import_type": "static",
+        "line_number": 246,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.analysis_orchestrator",
+        "import_type": "static",
+        "line_number": 287,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_schema.py": [
+      {
+        "package": "httpx",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.schema.client",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_complexity.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "tempfile",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.complexity.analyzer",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.complexity.metrics",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.complexity.storage",
+        "import_type": "static",
+        "line_number": 24,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.complexity",
+        "import_type": "static",
+        "line_number": 25,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_code_smells.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "tempfile",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.smells_detectors",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_deduplication_detection.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.text",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.diff",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.recommendations",
+        "import_type": "static",
+        "line_number": 30,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_usage_tracking.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "tempfile",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": "datetime",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.usage_tracking",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 479,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_ranker_caching.py": [
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "src.ast_grep_mcp.features.deduplication.ranker",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_enhanced_reporting.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.reporting",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.formatters",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_progress_callbacks.py": [
+      {
+        "package": "tempfile",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.analysis_orchestrator",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_rename_symbol.py": [
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.refactoring.rename_coordinator",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.refactoring.renamer",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.refactoring.tools",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.refactoring",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_deduplication_key_names.py": [
+      {
+        "package": "tempfile",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.analysis_orchestrator",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.tools",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 136,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/test_minhash_similarity.py": [
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 831,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 984,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.similarity",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 654,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 661,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 668,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 682,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 696,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 727,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 746,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 760,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 779,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 802,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 814,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/unit/features/cross_language/test_cross_language.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "tempfile",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.cross_language.binding_generator",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.cross_language.language_converter",
+        "import_type": "static",
+        "line_number": 23,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.cross_language.multi_language_search",
+        "import_type": "static",
+        "line_number": 28,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.cross_language.pattern_database",
+        "import_type": "static",
+        "line_number": 33,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.cross_language.pattern_equivalence",
+        "import_type": "static",
+        "line_number": 40,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.cross_language.polyglot_refactoring",
+        "import_type": "static",
+        "line_number": 45,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.cross_language",
+        "import_type": "static",
+        "line_number": 50,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/quality/test_complexity_regression.py": [
+      {
+        "package": "ast",
+        "import_type": "static",
+        "line_number": 65,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 69,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 66,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 67,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.complexity.analyzer",
+        "import_type": "static",
+        "line_number": 71,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/quality/test_minhash_regression.py": [
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.detector",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.similarity",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/integration/__init__.py": [
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 0,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/integration/test_rename_symbol_integration.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.refactoring.rename_coordinator",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.refactoring.renamer",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/integration/test_semantic_integration.py": [
+      {
+        "package": "importlib.util",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.similarity",
+        "import_type": "static",
+        "line_number": 34,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.similarity",
+        "import_type": "static",
+        "line_number": 54,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/integration/test_benchmark.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "statistics",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 22,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 23,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 28,
+        "is_external": false
+      },
+      {
+        "package": "main",
+        "import_type": "static",
+        "line_number": 61,
+        "is_external": false
+      },
+      {
+        "package": "tracemalloc",
+        "import_type": "static",
+        "line_number": 165,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 24,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 25,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 26,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 30,
+        "is_external": false
+      },
+      {
+        "package": "main",
+        "import_type": "static",
+        "line_number": 62,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.ranker",
+        "import_type": "static",
+        "line_number": 65,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.coverage",
+        "import_type": "static",
+        "line_number": 69,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.recommendations",
+        "import_type": "static",
+        "line_number": 70,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.reporting",
+        "import_type": "static",
+        "line_number": 71,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core",
+        "import_type": "static",
+        "line_number": 79,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core",
+        "import_type": "static",
+        "line_number": 80,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.ranker",
+        "import_type": "static",
+        "line_number": 672,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/integration/test_integration.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "main",
+        "import_type": "static",
+        "line_number": 48,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "unittest.mock",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/scripts/validate_refactoring.py": [
+      {
+        "package": "argparse",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 22,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 23,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 25,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/scripts/track_fixture_metrics.py": [
+      {
+        "package": "argparse",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": "ast",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "collections",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "datetime",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 22,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 23,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 25,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/scripts/detect_fixture_patterns.py": [
+      {
+        "package": "argparse",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": "ast",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "collections",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 22,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 24,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/scripts/benchmark_fixtures.py": [
+      {
+        "package": "argparse",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 23,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/scripts/score_test_file.py": [
+      {
+        "package": "argparse",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "ast",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 22,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/fixtures/example.py": [
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 0,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/tests/performance/test_minhash_performance.py": [
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "pytest",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.similarity",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "difflib",
+        "import_type": "static",
+        "line_number": 147,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/migrate_prints_smart.py": [
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "argparse",
+        "import_type": "static",
+        "line_number": 221,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/fix_import_orphans.py": [
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/analyze_violations.py": [
+      {
+        "package": "ast",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/fix_migration_errors.py": [
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/migrate_print_to_logger.py": [
+      {
+        "package": "argparse",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "shutil",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 22,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 23,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 24,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 26,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/list_complexity_violations.py": [
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.complexity.analyzer",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/schema-graph-builder.py": [
+      {
+        "package": "argparse",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 22,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 23,
+        "is_external": false
+      },
+      {
+        "package": "collections",
+        "import_type": "static",
+        "line_number": 24,
+        "is_external": false
+      },
+      {
+        "package": "datetime",
+        "import_type": "static",
+        "line_number": 25,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 26,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 27,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 29,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/fix_imports.py": [
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/benchmark_batch_coverage.py": [
+      {
+        "package": "argparse",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.analysis_orchestrator",
+        "import_type": "static",
+        "line_number": 26,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.coverage",
+        "import_type": "static",
+        "line_number": 27,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/analyze_analyticsbot.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.complexity.tools",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.tools",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/run_benchmarks.py": [
+      {
+        "package": "argparse",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 22,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 24,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/scripts/benchmark_parallel_enrichment.py": [
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.console_logger",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.analysis_orchestrator",
+        "import_type": "static",
+        "line_number": 28,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/constants.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/logging.py": [
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "structlog",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/config.py": [
+      {
+        "package": "argparse",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "yaml",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.constants",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.exceptions",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.config",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/usage_tracking.py": [
+      {
+        "package": "hashlib",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "sqlite3",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": "threading",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "contextlib",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "datetime",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": "enum",
+        "import_type": "static",
+        "line_number": 22,
+        "is_external": false
+      },
+      {
+        "package": "functools",
+        "import_type": "static",
+        "line_number": 23,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 24,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 25,
+        "is_external": false
+      },
+      {
+        "package": "pydantic",
+        "import_type": "static",
+        "line_number": 27,
+        "is_external": false
+      },
+      {
+        "package": ".logging",
+        "import_type": "static",
+        "line_number": 29,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/cache.py": [
+      {
+        "package": "hashlib",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "collections",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.constants",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.config",
+        "import_type": "static",
+        "line_number": 127,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/__init__.py": [
+      {
+        "package": "ast_grep_mcp.core.cache",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.config",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.exceptions",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.executor",
+        "import_type": "static",
+        "line_number": 25,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 32,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.sentry",
+        "import_type": "static",
+        "line_number": 36,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.config",
+        "import_type": "static",
+        "line_number": 41,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/exceptions.py": [
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/sentry.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk.integrations.anthropic",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.constants",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/core/executor.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "yaml",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.constants",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.config",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.exceptions",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/docstring_generator.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "glob",
+        "import_type": "static",
+        "line_number": 1246,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.documentation",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/tools.py": [
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "mcp.server.fastmcp",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "pydantic",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.api_docs_generator",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.changelog_generator",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.docstring_generator",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.readme_generator",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.sync_checker",
+        "import_type": "static",
+        "line_number": 22,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.documentation",
+        "import_type": "static",
+        "line_number": 23,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/__init__.py": [
+      {
+        "package": ".api_docs_generator",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": ".changelog_generator",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": ".docstring_generator",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": ".readme_generator",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": ".sync_checker",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/sync_checker.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "glob",
+        "import_type": "static",
+        "line_number": 311,
+        "is_external": false
+      },
+      {
+        "package": "glob",
+        "import_type": "static",
+        "line_number": 370,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.documentation",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": ".docstring_generator",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/readme_generator.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.documentation",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/changelog_generator.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "datetime",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.documentation",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/documentation/api_docs_generator.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.documentation",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/service.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "tempfile",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "yaml",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.exceptions",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.executor",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.rewrite.backup",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/backup.py": [
+      {
+        "package": "hashlib",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "shutil",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "datetime",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/tools.py": [
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "mcp.server.fastmcp",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "pydantic",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.rewrite.service",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/rewrite/__init__.py": [
+      {
+        "package": "ast_grep_mcp.features.rewrite.backup",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.rewrite.service",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.rewrite.tools",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/validator.py": [
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.executor",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.standards",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/fixer.py": [
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.rewrite.backup",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.rewrite.service",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.standards",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/smells_helpers.py": [
+      {
+        "package": "fnmatch",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/tools.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "yaml",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "mcp.server.fastmcp",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": "pydantic",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.enforcer",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.fixer",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.orphan_detector",
+        "import_type": "static",
+        "line_number": 22,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.reporter",
+        "import_type": "static",
+        "line_number": 23,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.rules",
+        "import_type": "static",
+        "line_number": 24,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.security_scanner",
+        "import_type": "static",
+        "line_number": 25,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.validator",
+        "import_type": "static",
+        "line_number": 26,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.standards",
+        "import_type": "static",
+        "line_number": 27,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/reporter.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "datetime",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.standards",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/enforcer.py": [
+      {
+        "package": "threading",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": "yaml",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 646,
+        "is_external": false
+      },
+      {
+        "package": "concurrent.futures",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "fnmatch",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.executor",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.rules",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.standards",
+        "import_type": "static",
+        "line_number": 22,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/__init__.py": [
+      {
+        "package": "ast_grep_mcp.features.quality.enforcer",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.rules",
+        "import_type": "static",
+        "line_number": 31,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.smells",
+        "import_type": "static",
+        "line_number": 40,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.tools",
+        "import_type": "static",
+        "line_number": 41,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.validator",
+        "import_type": "static",
+        "line_number": 42,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/rules.py": [
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "yaml",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.standards",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/orphan_detector.py": [
+      {
+        "package": "ast",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "fnmatch",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.orphan",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/smells.py": [
+      {
+        "package": "concurrent.futures",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.smells_detectors",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.smells_helpers",
+        "import_type": "static",
+        "line_number": 24,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/security_scanner.py": [
+      {
+        "package": "copy",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.executor",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.standards",
+        "import_type": "static",
+        "line_number": 22,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/quality/smells_detectors.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "abc",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.complexity.analyzer",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.smells_helpers",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/metrics.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/complexity_analyzer.py": [
+      {
+        "package": "concurrent.futures",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "...models.complexity",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": ".analyzer",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/tools.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "pydantic",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.complexity",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": ".complexity_analyzer",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": ".complexity_file_finder",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": ".complexity_statistics",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.smells",
+        "import_type": "static",
+        "line_number": 575,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/analyzer.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.complexity",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": ".metrics",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/__init__.py": [
+      {
+        "package": ".analyzer",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": ".metrics",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": ".storage",
+        "import_type": "static",
+        "line_number": 24,
+        "is_external": false
+      },
+      {
+        "package": ".tools",
+        "import_type": "static",
+        "line_number": 25,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/complexity_file_finder.py": [
+      {
+        "package": "glob",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/complexity_statistics.py": [
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "...models.complexity",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": ".storage",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/complexity/storage.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "platform",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "sqlite3",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "contextlib",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.complexity",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/detector.py": [
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "difflib",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "...core.executor",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 22,
+        "is_external": false
+      },
+      {
+        "package": "...core.usage_tracking",
+        "import_type": "static",
+        "line_number": 23,
+        "is_external": false
+      },
+      {
+        "package": ".similarity",
+        "import_type": "static",
+        "line_number": 24,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_validator.py": [
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "...utils.syntax_validation",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/config.py": [
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark.py": [
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": ".benchmark_executor",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": ".benchmark_reporter",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": ".regression_detector",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/priority_classifier.py": [
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/similarity.py": [
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 27,
+        "is_external": false
+      },
+      {
+        "package": "torch",
+        "import_type": "static",
+        "line_number": 1573,
+        "is_external": false
+      },
+      {
+        "package": "transformers",
+        "import_type": "static",
+        "line_number": 1574,
+        "is_external": false
+      },
+      {
+        "package": "torch",
+        "import_type": "static",
+        "line_number": 1729,
+        "is_external": false
+      },
+      {
+        "package": "torch",
+        "import_type": "static",
+        "line_number": 1802,
+        "is_external": false
+      },
+      {
+        "package": "torch.nn.functional as functional",
+        "import_type": "static",
+        "line_number": 1857,
+        "is_external": false
+      },
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 28,
+        "is_external": false
+      },
+      {
+        "package": "difflib",
+        "import_type": "static",
+        "line_number": 29,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 30,
+        "is_external": false
+      },
+      {
+        "package": "datasketch",
+        "import_type": "static",
+        "line_number": 35,
+        "is_external": false
+      },
+      {
+        "package": "...constants",
+        "import_type": "static",
+        "line_number": 37,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 38,
+        "is_external": false
+      },
+      {
+        "package": "transformers",
+        "import_type": "static",
+        "line_number": 1730,
+        "is_external": false
+      },
+      {
+        "package": "torch.nn.functional",
+        "import_type": "static",
+        "line_number": 1857,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_post_validator.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "...utils.syntax_validation",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "..rewrite.service",
+        "import_type": "static",
+        "line_number": 92,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark_executor.py": [
+      {
+        "package": "statistics",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": ".ranker",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": ".recommendations",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": ".reporting",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/tools.py": [
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": ".analysis_orchestrator",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": ".applicator",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": ".benchmark",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": ".detector",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "pydantic",
+        "import_type": "static",
+        "line_number": 217,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analyzer.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "tempfile",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "yaml",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 658,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 779,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 803,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 1043,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "...models.deduplication",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/recommendations.py": [
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/__init__.py": [
+      {
+        "package": "...models.deduplication",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": ".analyzer",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": ".applicator",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": ".benchmark",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": ".coverage",
+        "import_type": "static",
+        "line_number": 24,
+        "is_external": false
+      },
+      {
+        "package": ".detector",
+        "import_type": "static",
+        "line_number": 34,
+        "is_external": false
+      },
+      {
+        "package": ".diff",
+        "import_type": "static",
+        "line_number": 35,
+        "is_external": false
+      },
+      {
+        "package": ".generator",
+        "import_type": "static",
+        "line_number": 44,
+        "is_external": false
+      },
+      {
+        "package": ".impact",
+        "import_type": "static",
+        "line_number": 51,
+        "is_external": false
+      },
+      {
+        "package": ".ranker",
+        "import_type": "static",
+        "line_number": 57,
+        "is_external": false
+      },
+      {
+        "package": ".recommendations",
+        "import_type": "static",
+        "line_number": 58,
+        "is_external": false
+      },
+      {
+        "package": ".reporting",
+        "import_type": "static",
+        "line_number": 59,
+        "is_external": false
+      },
+      {
+        "package": ".similarity",
+        "import_type": "static",
+        "line_number": 69,
+        "is_external": false
+      },
+      {
+        "package": ".tools",
+        "import_type": "static",
+        "line_number": 79,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/score_calculator.py": [
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "...constants",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/coverage.py": [
+      {
+        "package": "glob as glob_module",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "re as regex_module",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "concurrent.futures",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "glob",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/generator.py": [
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 988,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 1020,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 1029,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 1037,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "...models.deduplication",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "...utils.formatters",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/benchmark_reporter.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/analysis_orchestrator.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "concurrent.futures",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "...constants",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": ".config",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": ".coverage",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": ".detector",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": ".ranker",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": ".recommendations",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_executor.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator_backup.py": [
+      {
+        "package": "hashlib",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "shutil",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "datetime",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "datetime",
+        "import_type": "static",
+        "line_number": 166,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/ranker.py": [
+      {
+        "package": "hashlib",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": ".priority_classifier",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": ".score_calculator",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/diff.py": [
+      {
+        "package": "difflib",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/regression_detector.py": [
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "...constants",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/applicator.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": ".applicator_backup",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": ".applicator_executor",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": ".applicator_post_validator",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": ".applicator_validator",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": ".generator",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/impact.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "...core",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "...core.logging",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/deduplication/reporting.py": [
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "datetime",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "...utils.formatters",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/search/service.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "yaml",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.cache",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.config",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.exceptions",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.executor",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.base",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.utils.formatters",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/search/tools.py": [
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "mcp.server.fastmcp",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "pydantic",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.executor",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.search.service",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.base",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/search/__init__.py": [
+      {
+        "package": "ast_grep_mcp.features.search.service",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.search.tools",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/enhancement_rules.py": [
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.schema_enhancement",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/client.py": [
+      {
+        "package": "httpx",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/tools.py": [
+      {
+        "package": "asyncio",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "mcp.server.fastmcp",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "pydantic",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.schema.client",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.schema.enhancement_service",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/__init__.py": [
+      {
+        "package": "ast_grep_mcp.features.schema.client",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.schema.tools",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/schema/enhancement_service.py": [
+      {
+        "package": "copy",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.schema.client",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.schema.enhancement_rules",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.schema_enhancement",
+        "import_type": "static",
+        "line_number": 25,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/language_converter.py": [
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.cross_language.pattern_database",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.cross_language",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/tools.py": [
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "mcp.server.fastmcp",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "pydantic",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.cross_language.binding_generator",
+        "import_type": "static",
+        "line_number": 18,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.cross_language.language_converter",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.cross_language.multi_language_search",
+        "import_type": "static",
+        "line_number": 20,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.cross_language.pattern_equivalence",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.cross_language.polyglot_refactoring",
+        "import_type": "static",
+        "line_number": 22,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.cross_language",
+        "import_type": "static",
+        "line_number": 23,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/__init__.py": [
+      {
+        "package": ".binding_generator",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": ".language_converter",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": ".multi_language_search",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": ".pattern_equivalence",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": ".polyglot_refactoring",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/multi_language_search.py": [
+      {
+        "package": "json as json_module",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "concurrent.futures",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.executor",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.cross_language",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/pattern_equivalence.py": [
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.cross_language.pattern_database",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.cross_language",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/polyglot_refactoring.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.cross_language",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/binding_generator.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "yaml",
+        "import_type": "static",
+        "line_number": 169,
+        "is_external": false
+      },
+      {
+        "package": "pathlib",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.cross_language",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/cross_language/pattern_database.py": [
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/tools.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 135,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "pydantic",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "...models.refactoring",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": ".analyzer",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": ".extractor",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": ".rename_coordinator",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/renamer.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 77,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": "...core.executor",
+        "import_type": "static",
+        "line_number": 16,
+        "is_external": false
+      },
+      {
+        "package": "...models.refactoring",
+        "import_type": "static",
+        "line_number": 17,
+        "is_external": false
+      },
+      {
+        "package": "fnmatch",
+        "import_type": "static",
+        "line_number": 151,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/analyzer.py": [
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "...models.refactoring",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/rename_coordinator.py": [
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 273,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "...features.rewrite.backup",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "...models.refactoring",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      },
+      {
+        "package": ".renamer",
+        "import_type": "static",
+        "line_number": 19,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/__init__.py": [
+      {
+        "package": ".analyzer",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": ".extractor",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": ".rename_coordinator",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": ".renamer",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/features/refactoring/extractor.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 506,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "...features.rewrite.backup",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      },
+      {
+        "package": "...models.refactoring",
+        "import_type": "static",
+        "line_number": 14,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/server/runner.py": [
+      {
+        "package": "mcp.server.fastmcp",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.config",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.sentry",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.server.registry",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/server/registry.py": [
+      {
+        "package": "mcp.server.fastmcp",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.complexity.tools",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.cross_language.tools",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.deduplication.tools",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.documentation.tools",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.quality.tools",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.refactoring.tools",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.rewrite.tools",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.schema.tools",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.features.search.tools",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/server/__init__.py": [
+      {
+        "package": ".registry",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": ".runner",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/syntax_validation.py": [
+      {
+        "package": "ast",
+        "import_type": "static",
+        "line_number": 104,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/formatters.py": [
+      {
+        "package": "difflib",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "shutil",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "tempfile",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "black",
+        "import_type": "static",
+        "line_number": 602,
+        "is_external": false
+      },
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/__init__.py": [
+      {
+        "package": ".formatters",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": ".templates",
+        "import_type": "static",
+        "line_number": 21,
+        "is_external": false
+      },
+      {
+        "package": ".text",
+        "import_type": "static",
+        "line_number": 45,
+        "is_external": false
+      },
+      {
+        "package": ".validation",
+        "import_type": "static",
+        "line_number": 53,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/templates.py": [
+      {
+        "package": "os",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "re",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "shutil",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "subprocess",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "tempfile",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/text.py": [
+      {
+        "package": "difflib",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/performance.py": [
+      {
+        "package": "time",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "sentry_sdk",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "functools",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.core.logging",
+        "import_type": "static",
+        "line_number": 13,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/console_logger.py": [
+      {
+        "package": "json",
+        "import_type": "static",
+        "line_number": 34,
+        "is_external": false
+      },
+      {
+        "package": "sys",
+        "import_type": "static",
+        "line_number": 35,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 36,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/utils/validation.py": [
+      {
+        "package": "ast_grep_mcp.core.config",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/documentation.py": [
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "enum",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/config.py": [
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "pydantic",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/deduplication.py": [
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/complexity.py": [
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.constants",
+        "import_type": "static",
+        "line_number": 5,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/refactoring.py": [
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "enum",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/__init__.py": [
+      {
+        "package": "ast_grep_mcp.models.complexity",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.config",
+        "import_type": "static",
+        "line_number": 9,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.deduplication",
+        "import_type": "static",
+        "line_number": 15,
+        "is_external": false
+      },
+      {
+        "package": "ast_grep_mcp.models.standards",
+        "import_type": "static",
+        "line_number": 31,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/standards.py": [
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/cross_language.py": [
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 10,
+        "is_external": false
+      },
+      {
+        "package": "enum",
+        "import_type": "static",
+        "line_number": 11,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 12,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/orphan.py": [
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 6,
+        "is_external": false
+      },
+      {
+        "package": "enum",
+        "import_type": "static",
+        "line_number": 7,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 8,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/base.py": [
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      }
+    ],
+    "/Users/alyshialedlie/code/ast-grep-mcp/src/ast_grep_mcp/models/schema_enhancement.py": [
+      {
+        "package": "dataclasses",
+        "import_type": "static",
+        "line_number": 2,
+        "is_external": false
+      },
+      {
+        "package": "enum",
+        "import_type": "static",
+        "line_number": 3,
+        "is_external": false
+      },
+      {
+        "package": "typing",
+        "import_type": "static",
+        "line_number": 4,
+        "is_external": false
+      }
+    ]
+  },
+  "circular_dependencies": []
+}

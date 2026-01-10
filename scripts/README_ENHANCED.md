@@ -5,7 +5,7 @@
   "@context": "https://schema.org",
   "@type": "SoftwareSourceCode",
   "name": "scripts",
-  "description": "Directory containing 4 code files with 4 classes and 11 functions",
+  "description": "Directory containing 12 code files with 4 classes and 35 functions",
   "programmingLanguage": [
     {
       "@type": "ComputerLanguage",
@@ -14,67 +14,137 @@
   ],
   "featureList": [
     "4 class definitions",
-    "11 function definitions"
+    "35 function definitions"
   ]
 }
 </script>
 
 ## Overview
 
-This directory contains 4 code file(s) with extracted schemas.
+This directory contains 12 code file(s) with extracted schemas.
 
 ## Files and Schemas
 
-### `find_duplication.py` (python)
-
-**Classes:**
-- `MockFastMCP` - Line 24
-  - Methods: __init__, tool, run
+### `analyze_analyticsbot.py` (python)
 
 **Functions:**
-- `mock_field() -> Any` - Line 39
-- `format_summary(summary) -> Constant(value=None, kind=None)` - Line 63
-- `format_duplication_groups(groups) -> Constant(value=None, kind=None)` - Line 76
-- `format_refactoring_suggestions(suggestions) -> Constant(value=None, kind=None)` - Line 95
-- `main_cli() -> Constant(value=None, kind=None)` - Line 117
+- `analyze_project(project_path)` - Line 18
 
-**Key Imports:** `argparse`, `json`, `main`, `os`, `pathlib` (+3 more)
+**Key Imports:** `ast_grep_mcp.features.complexity.tools`, `ast_grep_mcp.features.quality.tools`, `ast_grep_mcp.utils.console_logger`, `json`, `pathlib` (+1 more)
+
+### `analyze_violations.py` (python)
+
+**Functions:**
+- `analyze_function_complexity(file_path, func_name) -> dict` - Line 8
+- `calculate_cyclomatic_complexity(node) -> int` - Line 34
+- `calculate_cognitive_complexity(node, depth) -> int` - Line 50
+- `calculate_max_nesting(node, current_depth) -> int` - Line 73
+- `scan_all_functions(project_root)` - Line 90
+- `main()` - Line 111
+
+**Key Imports:** `ast`, `pathlib`
+
+### `benchmark_batch_coverage.py` (python)
+
+**Functions:**
+- `create_test_candidates(file_count, files_per_candidate) -> List[...]` - Line 31
+- `benchmark_legacy_sequential(detector, candidates, project_path) -> Dict` - Line 66
+- `benchmark_legacy_parallel(orchestrator, candidates, project_path) -> Dict` - Line 93
+- `benchmark_batch_sequential(orchestrator, candidates, project_path) -> Dict` - Line 119
+- `benchmark_batch_parallel(orchestrator, candidates, project_path) -> Dict` - Line 144
+- `run_benchmark_suite(file_count, files_per_candidate, project_path) -> Dict` - Line 170
+- `main()` - Line 251
+
+**Key Imports:** `argparse`, `ast_grep_mcp.features.deduplication.analysis_orchestrator`, `ast_grep_mcp.features.deduplication.coverage`, `ast_grep_mcp.utils.console_logger`, `json` (+4 more)
+
+### `benchmark_parallel_enrichment.py` (python)
+
+**Functions:**
+- `create_mock_candidates(count) -> List[...]` - Line 11
+- `benchmark_enrichment()` - Line 27
+
+**Key Imports:** `ast_grep_mcp.features.deduplication.analysis_orchestrator`, `ast_grep_mcp.utils.console_logger`, `time`, `typing`
+
+### `fix_import_orphans.py` (python)
+
+**Functions:**
+- `find_orphaned_imports(lines)` - Line 11
+- `remove_orphaned_lines(filepath)` - Line 68
+- `check_syntax(filepath)` - Line 104
+- `main()` - Line 114
+
+**Key Imports:** `ast_grep_mcp.utils.console_logger`, `pathlib`, `subprocess`, `sys`
+
+### `fix_imports.py` (python)
+
+**Functions:**
+- `fix_file(file_path) -> bool` - Line 7
+- `main()` - Line 76
+
+**Key Imports:** `pathlib`
+
+### `fix_migration_errors.py` (python)
+
+**Functions:**
+- `fix_file(filepath) -> bool` - Line 10
+- `main()` - Line 70
+
+**Key Imports:** `ast_grep_mcp.utils.console_logger`, `pathlib`, `re`
+
+### `list_complexity_violations.py` (python)
+
+**Functions:**
+- `scan_all_python_files(root) -> list[...]` - Line 21
+- `main()` - Line 49
+
+**Key Imports:** `ast_grep_mcp.features.complexity.analyzer`, `pathlib`, `sys`
+
+### `migrate_print_to_logger.py` (python)
+
+**Classes:**
+- `PrintStatement` - Line 31
+  - Represents a console.blank() statement to migrate.
+- `PrintMigrator` - Line 42
+  - Migrates console.blank() statements to console logger calls.
+  - Methods: __init__, analyze_print_call, migrate_print_statement, find_print_statements, _extract_print_call (+2 more)
+
+**Functions:**
+- `main()` - Line 356
+
+**Key Imports:** `argparse`, `ast_grep_mcp.utils.console_logger`, `dataclasses`, `pathlib`, `re` (+2 more)
+
+### `migrate_prints_smart.py` (python)
+
+**Functions:**
+- `smart_replace_print(line) -> Tuple[...]` - Line 18
+- `add_console_import(lines) -> List[...]` - Line 100
+- `migrate_file(file_path, dry_run) -> Tuple[...]` - Line 150
+- `migrate_directory(dir_path, pattern, dry_run)` - Line 190
+- `main()` - Line 221
+
+**Key Imports:** `argparse`, `ast_grep_mcp.utils.console_logger`, `pathlib`, `re`, `typing`
 
 ### `run_benchmarks.py` (python)
 
 **Functions:**
-- `run_benchmarks(save_baseline, check_regression, output_file) -> int` - Line 27
-- `main() -> int` - Line 105
+- `run_benchmarks(save_baseline, check_regression, output_file) -> int` - Line 28
+- `main() -> int` - Line 106
 
-**Key Imports:** `argparse`, `pathlib`, `subprocess`, `sys`
+**Key Imports:** `argparse`, `ast_grep_mcp.utils.console_logger`, `pathlib`, `subprocess`, `sys`
 
 ### `schema-graph-builder.py` (python)
 
 **Classes:**
-- `StatsDict` (extends: TypedDict) - Line 32
+- `StatsDict` (extends: TypedDict) - Line 33
   - Type definition for stats dictionary.
-- `SchemaGraphBuilder` - Line 43
+- `SchemaGraphBuilder` - Line 44
   - Main class for building and analyzing Schema.org entity graphs.
   - Methods: __init__, _extract_project_name, discover_json_schemas, generate_entity_id, validate_entity_id (+6 more)
 
 **Functions:**
-- `main() -> Constant(value=None, kind=None)` - Line 576
+- `main() -> Constant(value=None, kind=None)` - Line 577
 
-**Key Imports:** `argparse`, `collections`, `datetime`, `json`, `pathlib` (+2 more)
-
-### `schema-tools.py` (python)
-
-**Classes:**
-- `SchemaToolsCLI` - Line 43
-  - Command-line interface for Schema.org tools.
-  - Methods: __init__
-
-**Functions:**
-- `format_search_results(results) -> str` - Line 121
-- `format_type_info(type_info) -> str` - Line 143
-- `format_properties(properties, type_name) -> str` - Line 165
-
-**Key Imports:** `argparse`, `asyncio`, `json`, `main`, `sys` (+2 more)
+**Key Imports:** `argparse`, `ast_grep_mcp.utils.console_logger`, `collections`, `datetime`, `json` (+3 more)
 
 ---
 *Generated by Enhanced Schema Generator with schema.org markup*

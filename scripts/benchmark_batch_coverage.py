@@ -24,8 +24,8 @@ from ast_grep_mcp.utils.console_logger import console
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from ast_grep_mcp.features.deduplication.analysis_orchestrator import DeduplicationAnalysisOrchestrator
-from ast_grep_mcp.features.deduplication.coverage import CoverageDetector
+from ast_grep_mcp.features.deduplication.analysis_orchestrator import DeduplicationAnalysisOrchestrator  # noqa: E402
+from ast_grep_mcp.features.deduplication.coverage import CoverageDetector  # noqa: E402
 
 
 def create_test_candidates(file_count: int, files_per_candidate: int) -> List[Dict]:

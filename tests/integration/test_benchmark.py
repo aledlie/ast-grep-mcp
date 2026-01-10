@@ -63,13 +63,13 @@ with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
         from main import register_mcp_tools
 
 # Import deduplication functions from modular structure
-from ast_grep_mcp.features.deduplication.ranker import (
+from ast_grep_mcp.features.deduplication.coverage import get_test_coverage_for_files  # noqa: E402
+from ast_grep_mcp.features.deduplication.ranker import (  # noqa: E402
     DuplicationRanker,
     rank_deduplication_candidates,
 )
-from ast_grep_mcp.features.deduplication.coverage import get_test_coverage_for_files
-from ast_grep_mcp.features.deduplication.recommendations import generate_deduplication_recommendation
-from ast_grep_mcp.features.deduplication.reporting import create_enhanced_duplication_response
+from ast_grep_mcp.features.deduplication.recommendations import generate_deduplication_recommendation  # noqa: E402
+from ast_grep_mcp.features.deduplication.reporting import create_enhanced_duplication_response  # noqa: E402
 
 # Register tools once for all tests
 mcp = main.mcp
@@ -77,8 +77,8 @@ register_mcp_tools()
 
 # Ensure caching is enabled for benchmarks
 # Initialize the modular cache (used by the actual implementation)
-from ast_grep_mcp.core import cache as core_cache
-from ast_grep_mcp.core import config as core_config
+from ast_grep_mcp.core import cache as core_cache  # noqa: E402
+from ast_grep_mcp.core import config as core_config  # noqa: E402
 
 core_config.CACHE_ENABLED = True
 if core_cache._query_cache is None:

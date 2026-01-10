@@ -1027,8 +1027,14 @@ def process_complex_data(param1, param2, param3, param4):
         large_time = time.perf_counter() - start
 
         # Print timing results for visibility
-        print(f"\n[Performance] Small code ({iterations} iterations): {small_time*1000:.2f}ms total, {small_time*1000/iterations:.3f}ms/iter")
-        print(f"[Performance] Large code ({iterations} iterations): {large_time*1000:.2f}ms total, {large_time*1000/iterations:.3f}ms/iter")
+        print(
+            f"\n[Performance] Small code ({iterations} iterations): "
+            f"{small_time*1000:.2f}ms total, {small_time*1000/iterations:.3f}ms/iter"
+        )
+        print(
+            f"[Performance] Large code ({iterations} iterations): "
+            f"{large_time*1000:.2f}ms total, {large_time*1000/iterations:.3f}ms/iter"
+        )
 
         # Verify both paths produce valid similarity scores
         small_sim = similarity_calc.estimate_similarity(small_code1, small_code2)

@@ -286,7 +286,7 @@ class TestProgressCallbacks:
         mock_detector.find_duplication.return_value = {"duplication_groups": []}
         orchestrator.detector = mock_detector
 
-        result = orchestrator.analyze_candidates(
+        orchestrator.analyze_candidates(
             project_path=temp_project_dir,
             language="python",
             include_test_coverage=False,

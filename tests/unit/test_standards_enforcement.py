@@ -1020,7 +1020,7 @@ class TestExecuteRulesBatch:
 
         mock_execute.return_value = []
 
-        violations = _execute_rules_batch(rules, context)
+        _execute_rules_batch(rules, context)
 
         # Should call execute_rule for each rule
         assert mock_execute.call_count == 3
@@ -1112,7 +1112,7 @@ class TestExecuteRulesBatch:
             for _ in range(3)
         ]
 
-        violations = _execute_rules_batch(rules, context)
+        _execute_rules_batch(rules, context)
 
         # Should stop early (may execute all due to parallel execution, but should combine violations)
         assert mock_execute.call_count <= 10
@@ -1986,7 +1986,7 @@ class TestEnforceStandardsTool:
         mock_execute.return_value = violations
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(
+            enforce_standards_tool(
                 project_folder=tmpdir,
                 language="typescript",
                 max_violations=3
@@ -2069,7 +2069,7 @@ class TestEnforceStandardsTool:
         mock_execute.return_value = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(
+            enforce_standards_tool(
                 project_folder=tmpdir,
                 language="typescript",
                 include_patterns=["src/**/*.ts"],
@@ -2108,7 +2108,7 @@ class TestEnforceStandardsTool:
         mock_execute.return_value = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(
+            enforce_standards_tool(
                 project_folder=tmpdir,
                 language="typescript",
                 max_threads=8

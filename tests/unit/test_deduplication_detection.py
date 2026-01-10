@@ -16,7 +16,6 @@ from unittest.mock import patch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 # Import modular functions - signatures now support optional language parameter
-from ast_grep_mcp.utils.text import calculate_similarity, normalize_code
 from ast_grep_mcp.features.deduplication.diff import (
     build_diff_tree,
     build_nested_diff_tree,
@@ -29,6 +28,7 @@ from ast_grep_mcp.features.deduplication.diff import (
 
 # generate_refactoring_suggestions migrated to modular architecture
 from ast_grep_mcp.features.deduplication.recommendations import generate_refactoring_suggestions
+from ast_grep_mcp.utils.text import calculate_similarity, normalize_code
 
 
 class TestDuplicationDetection:
