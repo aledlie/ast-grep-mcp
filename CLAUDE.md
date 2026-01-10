@@ -18,7 +18,7 @@ Modular MCP server with 64 modules combining ast-grep structural code search wit
 
 **Architecture:** Clean modular design with entry point (`main.py`) and organized features under `src/ast_grep_mcp/` (core, models, utils, features, server).
 
-**43 MCP Tools:** Code search (5), Code rewrite (3), Refactoring (2), Deduplication (4), Schema.org (9), Complexity (3), Code Quality (7), Documentation (5), Cross-Language (5)
+**46 MCP Tools:** Code search (8), Code rewrite (3), Refactoring (2), Deduplication (4), Schema.org (9), Complexity (3), Code Quality (7), Documentation (5), Cross-Language (5)
 
 **Dependencies:** ast-grep CLI (required), Doppler CLI (optional), Python 3.13+, uv package manager
 
@@ -250,6 +250,27 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 
 ## Recent Updates
 
+### 2026-01-10: Documentation, Rule Builder & Pattern Examples + Warning System
+- Added `get_ast_grep_docs` tool for on-demand documentation retrieval
+  - Topics: pattern, rules, relational, metavariables, workflow, all
+  - Reduces LLM hallucinations by providing accurate reference content
+- Added `build_rule` tool for constructing YAML rules from components
+  - Automatically adds `stopBy: end` to relational rules (prevents #1 mistake!)
+  - Supports inside/has/follows/precedes with patterns or node kinds
+  - Generates valid YAML ready for `find_code_by_rule`
+- Added `get_pattern_examples` tool for common patterns by language
+  - Categories: function, class, import, variable, control_flow, error_handling, async
+  - Languages: JavaScript, TypeScript, Python, Go, Rust, Java, Ruby, C, C++
+  - Ready-to-use patterns with descriptions and notes
+- Enhanced `find_code_by_rule` with automatic warning detection
+  - Detects missing `stopBy` in relational rules
+  - Detects lowercase metavariables in patterns
+  - Warnings prepended to text output, included in JSON as `warnings` key
+- Enhanced tool descriptions with stopBy warnings, rule templates, quick reference tables
+- New documentation module: `docs.py` with comprehensive ast-grep reference
+- 54 new tests for documentation, rule builder, and pattern examples
+- Total MCP tools: 46 (added 3 search tools)
+
 ### 2026-01-09: Pattern Debugging Tool
 - Added `debug_pattern` tool for diagnosing why patterns don't match code
 - Validates metavariable syntax (detects $name vs $NAME, $123, $KEBAB-CASE errors)
@@ -336,7 +357,7 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 
 ---
 
-**Last Updated:** 2026-01-09
+**Last Updated:** 2026-01-10
 **Code Quality:** ✅ ZERO violations (15/15 tests passing)
 **Refactoring Patterns:** See [PATTERNS.md](PATTERNS.md)
 **Documentation Generation:** 5 new tools, 32 tests passing
