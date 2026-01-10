@@ -435,6 +435,78 @@ def _validate_yaml_rule(yaml_rule: str) -> Dict[str, Any]:
         raise InvalidYAMLError(f"YAML parsing failed: {e}", yaml_rule) from e
 
 
+# Relational rules that require stopBy for deep tree traversal
+RELATIONAL_RULES = ["inside", "has", "follows", "precedes"]
+
+
+def _check_relational_rule_for_stopby(rule_obj: Any, path: str = "rule") -> List[str]:
+    """
+    Recursively check a rule object for relational rules missing stopBy.
+
+    Args:
+        rule_obj: The rule object to check
+        path: Current path in the rule tree for error messages
+
+    Returns:
+        List of warning messages
+    """
+    warnings: List[str] = []
+
+    if not isinstance(rule_obj, dict):
+        return warnings
+
+    for rel_rule in RELATIONAL_RULES:
+        if rel_rule in rule_obj:
+            rel_content = rule_obj[rel_rule]
+            if isinstance(rel_content, dict):
+                if "stopBy" not in rel_content:
+                    warnings.append(
+                        f"⚠️  Missing 'stopBy' in '{rel_rule}' at {path}.{rel_rule}. "
+                        f"Default is 'neighbor' (immediate parent only). "
+                        f"Add 'stopBy: end' to search the entire tree."
+                    )
+                # Recursively check nested rules
+                warnings.extend(_check_relational_rule_for_stopby(rel_content, f"{path}.{rel_rule}"))
+
+    # Check composite rules (all, any, not)
+    for composite in ["all", "any"]:
+        if composite in rule_obj and isinstance(rule_obj[composite], list):
+            for i, sub_rule in enumerate(rule_obj[composite]):
+                warnings.extend(_check_relational_rule_for_stopby(sub_rule, f"{path}.{composite}[{i}]"))
+
+    if "not" in rule_obj and isinstance(rule_obj["not"], dict):
+        warnings.extend(_check_relational_rule_for_stopby(rule_obj["not"], f"{path}.not"))
+
+    return warnings
+
+
+def _check_yaml_rule_for_common_mistakes(parsed_yaml: Dict[str, Any]) -> List[str]:
+    """
+    Check a parsed YAML rule for common mistakes.
+
+    Args:
+        parsed_yaml: The parsed YAML rule dictionary
+
+    Returns:
+        List of warning messages
+    """
+    warnings: List[str] = []
+
+    rule = parsed_yaml.get("rule", {})
+    if isinstance(rule, dict):
+        warnings.extend(_check_relational_rule_for_stopby(rule))
+
+    # Check for lowercase metavariables in pattern
+    pattern = rule.get("pattern", "") if isinstance(rule, dict) else ""
+    if isinstance(pattern, str) and re.search(r"\$[a-z]", pattern):
+        warnings.append(
+            "⚠️  Pattern may contain lowercase metavariable (e.g., $name). "
+            "Use UPPERCASE: $NAME, $ARGS, etc."
+        )
+
+    return warnings
+
+
 def _execute_rule_search(
     project_folder: str, yaml_rule: str, max_results: int, output_format: str, cache: Any, logger: Any
 ) -> Union[str, List[Dict[str, Any]]]:
@@ -460,9 +532,71 @@ def _execute_rule_search(
     return cmd_result.stdout.strip()
 
 
+def _prepend_warnings_to_result(
+    result: Union[str, List[Dict[str, Any]]], warnings: List[str], output_format: str
+) -> Union[str, List[Dict[str, Any]], Dict[str, Any]]:
+    """
+    Prepend warnings to the search result.
+
+    Args:
+        result: The search result
+        warnings: List of warning messages
+        output_format: Output format ('text' or 'json')
+
+    Returns:
+        Result with warnings included
+    """
+    if not warnings:
+        return result
+
+    if output_format == "text":
+        warning_block = "\n".join(warnings) + "\n\n"
+        return warning_block + (result if isinstance(result, str) else "")
+
+    # For JSON, add warnings as metadata
+    if isinstance(result, list):
+        return {
+            "warnings": warnings,
+            "matches": result,
+        }
+    return result
+
+
+def _check_rule_cache(
+    cache: Any, cache_key_parts: List[str], project_folder: str, max_results: int, logger: Any, rule_id: Optional[str]
+) -> Optional[Any]:
+    """Check cache for existing rule search results."""
+    if not CACHE_ENABLED or not cache or max_results != 0:
+        return None
+
+    cached_result = cache.get("scan", cache_key_parts, project_folder)
+    if cached_result is not None:
+        logger.info("find_code_by_rule_cache_hit", rule_id=rule_id)
+    return cached_result
+
+
+def _store_rule_result_in_cache(
+    cache: Any, cache_key_parts: List[str], project_folder: str, result: Any, max_results: int
+) -> None:
+    """Store rule search result in cache if applicable."""
+    if CACHE_ENABLED and cache and max_results == 0 and isinstance(result, list):
+        cache.put("scan", cache_key_parts, project_folder, result)
+
+
+def _log_rule_warnings(warnings: List[str], parsed_yaml: Dict[str, Any], logger: Any) -> None:
+    """Log warnings about common mistakes in the YAML rule."""
+    if warnings:
+        logger.warning(
+            "yaml_rule_warnings",
+            rule_id=parsed_yaml.get("id"),
+            warning_count=len(warnings),
+            warnings=warnings,
+        )
+
+
 def find_code_by_rule_impl(
     project_folder: str, yaml_rule: str, max_results: int = 0, output_format: Literal["text", "json"] = "text"
-) -> Union[str, List[Dict[str, Any]]]:
+) -> Union[str, List[Dict[str, Any]], Dict[str, Any]]:
     """
     Implementation of find_code_by_rule (includes scan_project functionality).
 
@@ -477,6 +611,7 @@ def find_code_by_rule_impl(
 
     Returns:
         String (text format) or list of matches (json format)
+        If warnings are present in JSON format, returns dict with 'warnings' and 'matches' keys
 
     Raises:
         InvalidYAMLError: If YAML is invalid
@@ -485,8 +620,10 @@ def find_code_by_rule_impl(
     logger = get_logger("search.find_code_by_rule")
     start_time = time.time()
 
-    # Validate YAML before passing to ast-grep
+    # Validate YAML and check for common mistakes
     parsed_yaml = _validate_yaml_rule(yaml_rule)
+    warnings = _check_yaml_rule_for_common_mistakes(parsed_yaml)
+    _log_rule_warnings(warnings, parsed_yaml, logger)
 
     logger.info(
         "find_code_by_rule_started",
@@ -498,22 +635,19 @@ def find_code_by_rule_impl(
     )
 
     try:
-        # Check cache first (only for non-streaming cases)
         cache = get_query_cache()
         cache_key_parts = ["scan", yaml_rule, output_format, project_folder]
 
-        if CACHE_ENABLED and cache and max_results == 0:
-            cached_result = cache.get("scan", cache_key_parts, project_folder)
-            if cached_result is not None:
-                logger.info("find_code_by_rule_cache_hit", rule_id=parsed_yaml.get("id"))
-                return cached_result
+        # Check cache first
+        cached_result = _check_rule_cache(cache, cache_key_parts, project_folder, max_results, logger, parsed_yaml.get("id"))
+        if cached_result is not None:
+            return _prepend_warnings_to_result(cached_result, warnings, output_format)
 
         # Execute the search
         result = _execute_rule_search(project_folder, yaml_rule, max_results, output_format, cache, logger)
 
-        # Cache the result if applicable
-        if CACHE_ENABLED and cache and max_results == 0 and isinstance(result, list):
-            cache.put("scan", cache_key_parts, project_folder, result)
+        # Cache the result
+        _store_rule_result_in_cache(cache, cache_key_parts, project_folder, result, max_results)
 
         execution_time = time.time() - start_time
         match_count = len(result) if isinstance(result, list) else result.count("\n")
@@ -522,7 +656,7 @@ def find_code_by_rule_impl(
             "find_code_by_rule_completed", execution_time_seconds=round(execution_time, 3), match_count=match_count, status="success"
         )
 
-        return result
+        return _prepend_warnings_to_result(result, warnings, output_format)
 
     except Exception as e:
         if isinstance(e, InvalidYAMLError):
@@ -540,6 +674,132 @@ def find_code_by_rule_impl(
             },
         )
         raise
+
+
+# =============================================================================
+# Rule Builder Implementation
+# =============================================================================
+
+
+def _build_relational_rule(pattern_or_kind: str, stop_by: str, is_kind: bool = False) -> Dict[str, Any]:
+    """
+    Build a relational rule object with proper stopBy configuration.
+
+    Args:
+        pattern_or_kind: The pattern string or kind identifier
+        stop_by: The stopBy value ('neighbor', 'end', or custom)
+        is_kind: If True, use 'kind' instead of 'pattern'
+
+    Returns:
+        Properly structured relational rule dict
+    """
+    rule: Dict[str, Any] = {"stopBy": stop_by}
+    if is_kind:
+        rule["kind"] = pattern_or_kind
+    else:
+        rule["pattern"] = pattern_or_kind
+    return rule
+
+
+def _add_relational_to_rule(
+    rule_obj: Dict[str, Any],
+    relational_type: str,
+    value: Optional[str],
+    stop_by: str,
+) -> None:
+    """
+    Add a relational rule if the value is provided.
+
+    Args:
+        rule_obj: The rule object to modify
+        relational_type: 'inside', 'has', 'follows', or 'precedes'
+        value: The pattern for the relational rule (None to skip)
+        stop_by: The stopBy configuration
+    """
+    if value:
+        rule_obj[relational_type] = _build_relational_rule(value, stop_by)
+
+
+def build_rule_impl(
+    pattern: str,
+    language: str,
+    rule_id: Optional[str] = None,
+    inside: Optional[str] = None,
+    has: Optional[str] = None,
+    follows: Optional[str] = None,
+    precedes: Optional[str] = None,
+    inside_kind: Optional[str] = None,
+    has_kind: Optional[str] = None,
+    stop_by: str = "end",
+    message: Optional[str] = None,
+    severity: Optional[str] = None,
+    fix: Optional[str] = None,
+) -> str:
+    """
+    Build a properly structured YAML rule from components.
+
+    This helper ensures:
+    - All required fields are present (id, language, rule)
+    - stopBy is correctly set on all relational rules
+    - YAML is properly formatted
+
+    Args:
+        pattern: The main pattern to match
+        language: Target language (python, javascript, etc.)
+        rule_id: Unique rule identifier (auto-generated if not provided)
+        inside: Pattern that must contain the match
+        has: Pattern that must be inside the match
+        follows: Pattern that must precede the match
+        precedes: Pattern that must follow the match
+        inside_kind: Node kind that must contain the match (alternative to inside pattern)
+        has_kind: Node kind that must be inside the match (alternative to has pattern)
+        stop_by: stopBy value for relational rules ('neighbor', 'end', or custom)
+        message: Human-readable description of what the rule finds
+        severity: Rule severity (error, warning, info, hint)
+        fix: Auto-fix replacement template
+
+    Returns:
+        YAML rule string ready for use with find_code_by_rule
+    """
+    import hashlib
+
+    # Generate rule ID if not provided
+    if not rule_id:
+        hash_input = f"{pattern}{language}{inside}{has}"
+        rule_id = f"rule-{hashlib.md5(hash_input.encode()).hexdigest()[:8]}"
+
+    # Build the rule object
+    rule_obj: Dict[str, Any] = {"pattern": pattern}
+
+    # Add relational rules with patterns
+    _add_relational_to_rule(rule_obj, "inside", inside, stop_by)
+    _add_relational_to_rule(rule_obj, "has", has, stop_by)
+    _add_relational_to_rule(rule_obj, "follows", follows, stop_by)
+    _add_relational_to_rule(rule_obj, "precedes", precedes, stop_by)
+
+    # Add kind-based relational rules (override pattern if both provided)
+    if inside_kind:
+        rule_obj["inside"] = _build_relational_rule(inside_kind, stop_by, is_kind=True)
+    if has_kind:
+        rule_obj["has"] = _build_relational_rule(has_kind, stop_by, is_kind=True)
+
+    # Build the full YAML structure
+    yaml_obj: Dict[str, Any] = {
+        "id": rule_id,
+        "language": language,
+        "rule": rule_obj,
+    }
+
+    # Add optional fields
+    if message:
+        yaml_obj["message"] = message
+    if severity:
+        yaml_obj["severity"] = severity
+    if fix is not None:  # Allow empty string for deletion fix
+        yaml_obj["fix"] = fix
+
+    # Convert to YAML string
+    return yaml.dump(yaml_obj, default_flow_style=False, sort_keys=False, allow_unicode=True)
 
 
 # =============================================================================
