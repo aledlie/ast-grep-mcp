@@ -250,6 +250,20 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 
 ## Recent Updates
 
+### 2026-01-10: Enhanced Documentation from Official ast-grep Guide
+- Added **Pattern Objects** section to `pattern` topic in `get_ast_grep_docs`
+  - Explains `context` + `selector` for matching code fragments
+  - Solves the #1 "my pattern doesn't match" issue
+  - Examples for JSON, JavaScript, TypeScript, Go, C
+- Added **Multi-Metavariable Laziness** section to `metavariables` topic
+  - Documents `$$$` lazy matching behavior (stops at next literal)
+  - Common pitfalls and workarounds
+- Added **ast-grep Playground** links throughout documentation
+  - URL: https://ast-grep.github.io/playground.html
+  - New "Online Playground" section in pattern topic
+  - Added to Tool Selection Guide in workflow topic
+- Content sourced from official ast-grep documentation comparison
+
 ### 2026-01-10: Interactive Pattern Development & Strictness Documentation
 - Added `develop_pattern` tool for interactive pattern development workflow
   - Analyzes sample code's AST structure
