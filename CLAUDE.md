@@ -258,6 +258,10 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 - Added **Multi-Metavariable Laziness** section to `metavariables` topic
   - Documents `$$$` lazy matching behavior (stops at next literal)
   - Common pitfalls and workarounds
+- Added **`matches` Rule** section to `rules` topic
+  - Utility rules in `utils` section for reusable patterns
+  - Recursive matching for nested structures
+  - Security pattern examples (SQL injection detection)
 - Added **ast-grep Playground** links throughout documentation
   - URL: https://ast-grep.github.io/playground.html
   - New "Online Playground" section in pattern topic
