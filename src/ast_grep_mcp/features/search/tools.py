@@ -10,6 +10,7 @@ from ast_grep_mcp.features.search.docs import PATTERN_CATEGORIES, PATTERN_LANGUA
 from ast_grep_mcp.features.search.service import (
     build_rule_impl,
     debug_pattern_impl,
+    develop_pattern_impl,
     dump_syntax_tree_impl,
     find_code_by_rule_impl,
     find_code_impl,
@@ -296,7 +297,7 @@ def _register_get_ast_grep_docs(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def get_ast_grep_docs(
-        topic: Literal["pattern", "rules", "relational", "metavariables", "workflow", "all"] = Field(
+        topic: Literal["pattern", "rules", "relational", "metavariables", "workflow", "strictness", "all"] = Field(
             description="Documentation topic to retrieve"
         ),
     ) -> str:
@@ -307,6 +308,7 @@ def _register_get_ast_grep_docs(mcp: FastMCP) -> None:
         - Pattern syntax and metavariables
         - YAML rule configuration
         - Relational rules (inside, has, follows, precedes)
+        - Strictness modes for matching
         - Best practices and workflows
 
         This provides accurate, up-to-date documentation to help you write
@@ -325,6 +327,9 @@ def _register_get_ast_grep_docs(mcp: FastMCP) -> None:
 
         - `metavariables`: Complete reference for $NAME, $$$, $_NAME, $$VAR,
           valid/invalid naming, common mistakes
+
+        - `strictness`: Pattern matching modes (cst, smart, ast, relaxed, signature),
+          when to use each, behavior differences, best practices
 
         - `workflow`: Recommended development workflow, tool selection guide,
           troubleshooting checklist
@@ -529,6 +534,102 @@ def _register_get_pattern_examples(mcp: FastMCP) -> None:
         return get_pattern_examples(language, category)
 
 
+def _register_develop_pattern(mcp: FastMCP) -> None:
+    """Register develop_pattern tool."""
+
+    @mcp.tool()
+    def develop_pattern(
+        code: str = Field(description="Sample code you want to match"),
+        language: str = Field(description=f"The programming language. Supported: {', '.join(get_supported_languages())}"),
+        goal: Optional[str] = Field(
+            default=None,
+            description="Optional: Describe what you're trying to find (e.g., 'console.log calls', 'functions with no return')",
+        ),
+    ) -> Dict[str, Any]:
+        """
+        Interactive pattern development assistant.
+
+        This tool helps you develop ast-grep patterns by analyzing your sample code
+        and suggesting patterns that will match it. It's the recommended starting
+        point when you're not sure how to write a pattern.
+
+        **How It Works:**
+
+        1. **Analyzes your code**: Examines the AST structure, identifies node kinds,
+           extracts identifiers and literals
+
+        2. **Suggests patterns**: Generates multiple pattern options:
+           - Exact match: The code itself as a pattern
+           - Generalized: With metavariables ($NAME) for flexibility
+           - Structural: Using node kinds for YAML rules
+
+        3. **Tests patterns**: Verifies if suggested patterns actually match
+
+        4. **Provides guidance**: Gives you next steps and refinement suggestions
+
+        **When to Use:**
+
+        - You have sample code and want to find similar patterns
+        - You're new to ast-grep and don't know the pattern syntax
+        - You want to quickly bootstrap a pattern without trial-and-error
+        - You need to understand the AST structure of your code
+
+        **Example:**
+
+        ```python
+        # You want to find all console.log calls
+        result = develop_pattern(
+            code="console.log('hello')",
+            language="javascript",
+            goal="Find all console.log calls"
+        )
+
+        # Result includes:
+        # - code_analysis: root_kind, identifiers, complexity
+        # - suggested_patterns: exact, generalized ($ARG), structural
+        # - best_pattern: The recommended pattern to use
+        # - pattern_matches: True/False - does it work?
+        # - yaml_rule_template: Ready-to-use YAML rule
+        # - next_steps: What to do next
+        ```
+
+        **Output Fields:**
+
+        - `code_analysis`: AST structure analysis
+          - `root_kind`: The AST node type (e.g., "call_expression")
+          - `identifiers`: Variables and function names found
+          - `literals`: String and number literals found
+          - `complexity`: "simple", "medium", or "complex"
+          - `ast_preview`: First lines of the AST
+
+        - `suggested_patterns`: List of patterns with:
+          - `pattern`: The pattern string
+          - `description`: What it matches
+          - `type`: "exact", "generalized", or "structural"
+          - `confidence`: How likely to work (0-1)
+
+        - `best_pattern`: The recommended pattern to start with
+
+        - `pattern_matches`: Whether best_pattern matches the code
+
+        - `yaml_rule_template`: Complete YAML rule ready for find_code_by_rule
+
+        - `next_steps`: Guidance on what to do next
+
+        - `refinement_steps`: If pattern doesn't match, how to fix it
+
+        **Workflow Integration:**
+
+        1. Start here with develop_pattern() to get a working pattern
+        2. Use find_code() to search your project
+        3. Use build_rule() to add constraints (inside, has)
+        4. Use debug_pattern() if matches aren't working
+        5. Use test_match_code_rule() to verify edge cases
+        """
+        result = develop_pattern_impl(code, language, goal)
+        return result.to_dict()
+
+
 def register_search_tools(mcp: FastMCP) -> None:
     """Register search-related MCP tools.
 
@@ -540,6 +641,7 @@ def register_search_tools(mcp: FastMCP) -> None:
     _register_find_code(mcp)
     _register_find_code_by_rule(mcp)
     _register_debug_pattern(mcp)
+    _register_develop_pattern(mcp)
     _register_get_ast_grep_docs(mcp)
     _register_build_rule(mcp)
     _register_get_pattern_examples(mcp)

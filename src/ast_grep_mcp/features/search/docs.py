@@ -209,6 +209,129 @@ rule:
     strictness: relaxed
 ```
 """,
+    "strictness": """# ast-grep Strictness Modes
+
+Strictness controls which AST nodes are skipped during pattern matching.
+The principle: **the less a pattern specifies, the more code it can match**.
+
+## Quick Reference
+
+| Mode | Skips in Pattern | Skips in Code | Use Case |
+|------|------------------|---------------|----------|
+| `cst` | Nothing | Nothing | Exact syntax matching |
+| `smart` | Nothing | Unnamed nodes | **Default** - balanced matching |
+| `ast` | Unnamed nodes | Unnamed nodes | Ignore syntax variations |
+| `relaxed` | Unnamed + comments | Unnamed + comments | Ignore comments |
+| `signature` | Text content | Text content | Structure-only matching |
+
+## The Five Modes
+
+### `cst` (Concrete Syntax Tree) - Strictest
+- **Behavior:** All nodes must match exactly. No nodes are skipped.
+- **When to use:** Need absolute precision, exact syntax match required
+- **Note:** Rarely needed; may fail on trivial whitespace/formatting differences
+
+### `smart` (Default) ⭐
+- **Behavior:** All pattern nodes must match. Unnamed nodes in target code are skipped.
+- **When to use:** Most use cases - balances specificity with flexibility
+- **Example:**
+  ```javascript
+  // Pattern: function $NAME() { }
+  // Matches: function foo() { }
+  // Matches: async function bar() { }  (skips 'async' keyword in target)
+  ```
+
+### `ast` (Abstract Syntax Tree)
+- **Behavior:** Only named nodes are matched. Unnamed nodes skipped on both sides.
+- **When to use:** Ignore syntactic variations like quote styles
+- **Example:**
+  ```javascript
+  // Pattern: import $NAME from 'lib'
+  // Matches: import foo from 'lib'    (single quotes)
+  // Matches: import bar from "lib"    (double quotes)
+  ```
+
+### `relaxed`
+- **Behavior:** Named nodes matched. Comments and unnamed nodes skipped.
+- **When to use:** Comments in code shouldn't affect matching
+- **Example:**
+  ```javascript
+  // Pattern: foo($ARG)
+  // Matches: foo(bar)
+  // Matches: foo(/* comment */ bar)   (comment is ignored)
+  ```
+
+### `signature` - Most Relaxed
+- **Behavior:** Only node kinds are matched. Text content is ignored.
+- **When to use:** Match structural patterns regardless of identifiers/literals
+- **Example:**
+  ```javascript
+  // Pattern: foo(bar)
+  // Matches: foo(bar)
+  // Matches: baz(qux)  (same structure: call with one argument)
+  ```
+- **Warning:** Very permissive - may match more than expected!
+
+## How to Set Strictness
+
+### In YAML Rules
+```yaml
+rule:
+  pattern:
+    context: $FUNC($$$ARGS)
+    strictness: relaxed
+```
+
+### Using build_rule Tool
+The `build_rule` tool doesn't yet support strictness, but you can manually add it
+to the generated YAML.
+
+## When to Change from Default (`smart`)
+
+| Situation | Try This |
+|-----------|----------|
+| Pattern matches too little | `ast` or `relaxed` |
+| Pattern matches too much | `cst` |
+| Quote styles vary (' vs ") | `ast` |
+| Inline comments interfere | `relaxed` |
+| Need structure-only matching | `signature` |
+| Default isn't working | Check metavariables first! |
+
+## Common Mistakes
+
+### 1. Using `signature` When You Want Exact Text
+```yaml
+# Wrong: Will match ANY function call with one arg
+rule:
+  pattern:
+    context: dangerousFunction($ARG)
+    strictness: signature
+```
+
+### 2. Using `cst` Unnecessarily
+```yaml
+# Usually overkill - smart handles most cases
+rule:
+  pattern:
+    context: console.log($MSG)
+    strictness: cst  # Rarely needed
+```
+
+### 3. Forgetting That Strictness Affects Both Directions (for some modes)
+```yaml
+# With 'ast', unnamed nodes in YOUR pattern are also skipped!
+# Be explicit about what you want to match.
+```
+
+## Best Practices
+
+1. **Start with `smart`** (the default) - it's designed for most use cases
+2. **Use `ast`** when quote styles or minor syntax differences cause false negatives
+3. **Use `relaxed`** when matching code with inline comments
+4. **Use `signature`** only for structural refactoring tools
+5. **Avoid `cst`** unless you have a specific need for exact matching
+6. **Test your rules** with `test_match_code_rule` to verify behavior
+""",
     "relational": """# ast-grep Relational Rules
 
 Relational rules match nodes based on their position relative to other nodes.

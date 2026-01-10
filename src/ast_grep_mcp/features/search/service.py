@@ -27,6 +27,13 @@ from ast_grep_mcp.models.pattern_debug import (
     PatternDebugResult,
     PatternIssue,
 )
+from ast_grep_mcp.models.pattern_develop import (
+    CodeAnalysis,
+    PatternDevelopResult,
+    PatternSuggestion,
+    RefinementStep,
+    SuggestionType,
+)
 from ast_grep_mcp.utils.formatters import format_matches_as_text
 
 
@@ -1414,6 +1421,518 @@ def debug_pattern_impl(
                 "function": "debug_pattern_impl",
                 "language": language,
                 "pattern_length": len(pattern),
+                "code_length": len(code),
+                "execution_time_seconds": round(execution_time, 3),
+            },
+        )
+        raise
+
+
+# =============================================================================
+# Pattern Development Implementation
+# =============================================================================
+
+# Common identifier patterns by language
+IDENTIFIER_PATTERNS: Dict[str, re.Pattern[str]] = {
+    "javascript": re.compile(r"\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b"),
+    "typescript": re.compile(r"\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b"),
+    "python": re.compile(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\b"),
+    "go": re.compile(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\b"),
+    "rust": re.compile(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\b"),
+    "java": re.compile(r"\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b"),
+    "ruby": re.compile(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\b"),
+    "c": re.compile(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\b"),
+    "cpp": re.compile(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\b"),
+}
+
+# Keywords by language (subset of most common)
+LANGUAGE_KEYWORDS: Dict[str, set[str]] = {
+    "javascript": {
+        "function", "const", "let", "var", "return", "if", "else", "for", "while",
+        "class", "async", "await", "import", "export", "from", "new", "this",
+        "true", "false", "null", "undefined",
+    },
+    "typescript": {
+        "function", "const", "let", "var", "return", "if", "else", "for", "while",
+        "class", "async", "await", "import", "export", "from", "new", "this",
+        "true", "false", "null", "undefined", "interface", "type", "enum",
+    },
+    "python": {
+        "def", "class", "return", "if", "elif", "else", "for", "while", "import",
+        "from", "as", "try", "except", "finally", "with", "async", "await",
+        "True", "False", "None", "and", "or", "not", "in", "is", "lambda",
+    },
+    "go": {
+        "func", "package", "import", "return", "if", "else", "for", "range",
+        "switch", "case", "type", "struct", "interface", "var", "const",
+        "go", "defer", "chan", "select", "true", "false", "nil",
+    },
+    "rust": {
+        "fn", "let", "mut", "const", "return", "if", "else", "for", "while",
+        "loop", "match", "struct", "enum", "impl", "trait", "use", "mod",
+        "pub", "async", "await", "true", "false", "self", "Self",
+    },
+    "java": {
+        "public", "private", "protected", "class", "interface", "void", "int",
+        "boolean", "return", "if", "else", "for", "while", "new", "this",
+        "static", "final", "import", "package", "try", "catch", "throw",
+        "true", "false", "null",
+    },
+    "ruby": {
+        "def", "end", "class", "module", "return", "if", "elsif", "else",
+        "unless", "while", "for", "do", "begin", "rescue", "require",
+        "include", "true", "false", "nil", "self",
+    },
+    "c": {
+        "void", "int", "char", "float", "double", "return", "if", "else",
+        "for", "while", "switch", "case", "struct", "typedef", "const",
+        "static", "sizeof", "NULL",
+    },
+    "cpp": {
+        "void", "int", "char", "float", "double", "return", "if", "else",
+        "for", "while", "switch", "case", "class", "struct", "public",
+        "private", "protected", "const", "static", "virtual", "override",
+        "nullptr", "new", "delete", "template", "auto",
+    },
+}
+
+# Literal patterns for string and number extraction
+STRING_LITERAL_PATTERN = re.compile(r'(?:"[^"]*"|\'[^\']*\'|`[^`]*`)')
+NUMBER_LITERAL_PATTERN = re.compile(r"\b\d+(?:\.\d+)?\b")
+
+
+def _get_identifier_pattern(language: str) -> re.Pattern[str]:
+    """Get identifier pattern for language, with fallback."""
+    return IDENTIFIER_PATTERNS.get(language, IDENTIFIER_PATTERNS["javascript"])
+
+
+def _get_keywords(language: str) -> set[str]:
+    """Get keywords for language, with fallback."""
+    return LANGUAGE_KEYWORDS.get(language, set())
+
+
+def _extract_identifiers(code: str, language: str) -> List[str]:
+    """Extract unique identifiers from code, excluding keywords."""
+    pattern = _get_identifier_pattern(language)
+    keywords = _get_keywords(language)
+    matches = pattern.findall(code)
+    # Filter out keywords and deduplicate while preserving order
+    seen: set[str] = set()
+    result: List[str] = []
+    for m in matches:
+        if m not in keywords and m not in seen:
+            seen.add(m)
+            result.append(m)
+    return result
+
+
+def _extract_literals(code: str) -> List[str]:
+    """Extract string and number literals from code."""
+    strings = STRING_LITERAL_PATTERN.findall(code)
+    numbers = NUMBER_LITERAL_PATTERN.findall(code)
+    return strings + numbers
+
+
+def _count_ast_depth(ast_output: str) -> int:
+    """Estimate AST depth from output indentation."""
+    max_indent = 0
+    for line in ast_output.split("\n"):
+        stripped = line.lstrip()
+        if stripped:
+            indent = len(line) - len(stripped)
+            max_indent = max(max_indent, indent)
+    return max_indent // 2  # Rough estimate
+
+
+def _determine_complexity(ast_output: str, code: str) -> str:
+    """Determine code complexity from AST structure."""
+    depth = _count_ast_depth(ast_output)
+    lines = len(code.strip().split("\n"))
+
+    if depth <= 3 and lines <= 3:
+        return "simple"
+    elif depth <= 6 and lines <= 10:
+        return "medium"
+    else:
+        return "complex"
+
+
+def _extract_child_kinds(ast_output: str) -> List[str]:
+    """Extract child node kinds from AST output."""
+    # Look for kind: patterns in the AST output
+    kinds = re.findall(r"kind:\s*(\w+)", ast_output)
+    # Deduplicate while preserving order
+    seen: set[str] = set()
+    result: List[str] = []
+    for k in kinds:
+        if k not in seen:
+            seen.add(k)
+            result.append(k)
+    return result[:10]  # Limit to first 10
+
+
+def _analyze_code(code: str, language: str, ast_output: str) -> CodeAnalysis:
+    """Analyze code structure for pattern development."""
+    root_kind = _extract_root_kind(ast_output) or "unknown"
+    child_kinds = _extract_child_kinds(ast_output)
+    identifiers = _extract_identifiers(code, language)
+    literals = _extract_literals(code)
+    keywords_found = [k for k in _get_keywords(language) if k in code.split()]
+    complexity = _determine_complexity(ast_output, code)
+
+    # Create simplified AST preview
+    ast_lines = ast_output.split("\n")[:15]  # First 15 lines
+    ast_preview = "\n".join(ast_lines)
+    if len(ast_output.split("\n")) > 15:
+        ast_preview += "\n... (truncated)"
+
+    return CodeAnalysis(
+        root_kind=root_kind,
+        child_kinds=child_kinds,
+        identifiers=identifiers[:10],  # Limit to first 10
+        literals=literals[:5],  # Limit to first 5
+        keywords=keywords_found[:10],
+        complexity=complexity,
+        ast_preview=ast_preview,
+    )
+
+
+def _generate_generalized_pattern(
+    code: str, identifiers: List[str], literals: List[str]
+) -> str:
+    """Generate pattern by replacing identifiers and literals with metavariables."""
+    pattern = code
+
+    # Replace literals first (before identifiers to avoid conflicts)
+    for i, lit in enumerate(literals[:3]):  # Limit replacements
+        # Escape special regex characters in literal
+        escaped = re.escape(lit)
+        metavar = f"$LITERAL{i + 1}" if i > 0 else "$LITERAL"
+        pattern = re.sub(escaped, metavar, pattern, count=1)
+
+    # Replace identifiers with metavariables
+    used_names: set[str] = set()
+    for ident in identifiers[:5]:  # Limit to first 5
+        if ident in used_names:
+            continue
+        # Choose a meaningful metavariable name
+        if ident.lower() in ["name", "id", "value", "result", "data", "item", "obj"]:
+            metavar = f"${ident.upper()}"
+        elif len(ident) <= 4:
+            metavar = f"${ident.upper()}"
+        else:
+            # Create abbreviation
+            metavar = f"${ident[:3].upper()}"
+
+        # Make unique if needed
+        while metavar in used_names:
+            metavar += "1"
+        used_names.add(metavar)
+
+        # Replace whole word only
+        pattern = re.sub(rf"\b{re.escape(ident)}\b", metavar, pattern)
+
+    return pattern
+
+
+def _generate_structural_pattern(root_kind: str, language: str) -> str:
+    """Generate a pattern based on node kind (for YAML rules)."""
+    # This is guidance for using kind-based matching
+    return f"kind: {root_kind}  # Use in YAML rule"
+
+
+def _generate_pattern_suggestions(
+    code: str,
+    language: str,
+    analysis: CodeAnalysis,
+) -> List[PatternSuggestion]:
+    """Generate pattern suggestions with varying generalization levels."""
+    suggestions: List[PatternSuggestion] = []
+
+    # 1. Exact pattern (the code itself)
+    suggestions.append(
+        PatternSuggestion(
+            pattern=code.strip(),
+            description="Exact match - matches this specific code only",
+            type=SuggestionType.EXACT,
+            confidence=0.9 if analysis.complexity == "simple" else 0.7,
+            notes="Good for finding exact duplicates",
+        )
+    )
+
+    # 2. Generalized pattern with metavariables
+    if analysis.identifiers or analysis.literals:
+        generalized = _generate_generalized_pattern(
+            code.strip(), analysis.identifiers, analysis.literals
+        )
+        if generalized != code.strip():
+            suggestions.append(
+                PatternSuggestion(
+                    pattern=generalized,
+                    description="Generalized - matches similar code with different names/values",
+                    type=SuggestionType.GENERALIZED,
+                    confidence=0.8,
+                    notes="Metavariables ($NAME) match any identifier. Use $$$ARGS for multiple items.",
+                )
+            )
+
+    # 3. Structural pattern (kind-based)
+    if analysis.root_kind and analysis.root_kind != "unknown":
+        suggestions.append(
+            PatternSuggestion(
+                pattern=f"# For YAML rule: kind: {analysis.root_kind}",
+                description=f"Structural - matches any '{analysis.root_kind}' node",
+                type=SuggestionType.STRUCTURAL,
+                confidence=0.6,
+                notes="Use with find_code_by_rule. Combine with 'has' or 'inside' for precision.",
+            )
+        )
+
+    return suggestions
+
+
+def _generate_refinement_steps(
+    code: str,
+    language: str,
+    analysis: CodeAnalysis,
+    pattern_matches: bool,
+) -> List[RefinementStep]:
+    """Generate steps to refine the pattern."""
+    steps: List[RefinementStep] = []
+    priority = 1
+
+    if pattern_matches:
+        # Pattern works, suggest ways to make it more specific or general
+        if analysis.complexity != "simple":
+            steps.append(
+                RefinementStep(
+                    action="Simplify pattern",
+                    pattern="Focus on the key structural element you want to match",
+                    explanation="Complex patterns may miss variations. Start simple, add constraints.",
+                    priority=priority,
+                )
+            )
+            priority += 1
+
+        steps.append(
+            RefinementStep(
+                action="Add constraints with YAML rule",
+                pattern="Use 'inside' with stopBy: end to limit scope",
+                explanation="Wrap in YAML rule to add context (e.g., only inside functions)",
+                priority=priority,
+            )
+        )
+        priority += 1
+
+    else:
+        # Pattern doesn't match, suggest fixes
+        steps.append(
+            RefinementStep(
+                action="Check metavariable syntax",
+                pattern="Ensure $NAME uses UPPERCASE, use $$$ARGS for multiple items",
+                explanation="Common mistake: lowercase metavariables don't work",
+                priority=priority,
+            )
+        )
+        priority += 1
+
+        steps.append(
+            RefinementStep(
+                action="Use dump_syntax_tree",
+                pattern=f'dump_syntax_tree(code="{code[:50]}...", language="{language}", format="cst")',
+                explanation="Compare pattern AST with code AST to find structural mismatches",
+                priority=priority,
+            )
+        )
+        priority += 1
+
+        steps.append(
+            RefinementStep(
+                action="Try kind-based matching",
+                pattern=f'rule:\n  kind: {analysis.root_kind}',
+                explanation="Match by node type instead of exact syntax",
+                priority=priority,
+            )
+        )
+        priority += 1
+
+    return steps
+
+
+def _generate_yaml_template(
+    pattern: str, language: str, analysis: CodeAnalysis
+) -> str:
+    """Generate a YAML rule template with the pattern."""
+    # Escape the pattern for YAML
+    if "\n" in pattern:
+        pattern_yaml = f"|\n    {pattern.replace(chr(10), chr(10) + '    ')}"
+    else:
+        pattern_yaml = pattern
+
+    template = f"""id: custom-pattern-rule
+language: {language}
+message: "Found matching code"
+rule:
+  pattern: {pattern_yaml}"""
+
+    # Add inside constraint suggestion for complex patterns
+    if analysis.complexity != "simple":
+        template += f"""
+  # Optional: Add context constraint
+  # inside:
+  #   stopBy: end
+  #   kind: {analysis.child_kinds[0] if analysis.child_kinds else 'function_declaration'}"""
+
+    return template
+
+
+def _generate_next_steps(
+    pattern_matches: bool, analysis: CodeAnalysis
+) -> List[str]:
+    """Generate guidance for next steps."""
+    steps: List[str] = []
+
+    if pattern_matches:
+        steps.append("1. Pattern matches! Use find_code() with this pattern to search your project")
+        steps.append("2. Consider using build_rule() to add constraints (inside, has, follows)")
+        steps.append("3. Test with test_match_code_rule() on edge cases before deploying")
+    else:
+        steps.append("1. Use debug_pattern() to diagnose why the pattern doesn't match")
+        steps.append("2. Check if pattern is valid parseable code for the target language")
+        steps.append("3. Use dump_syntax_tree() to compare pattern and code AST structures")
+        steps.append("4. Try the generalized pattern suggestion with metavariables")
+
+    steps.append("5. For complex matching, use find_code_by_rule() with the YAML template provided")
+    steps.append("6. See get_ast_grep_docs(topic='workflow') for the full development workflow")
+
+    return steps
+
+
+def _test_pattern_match(pattern: str, code: str, language: str) -> tuple[bool, int]:
+    """Test if pattern matches the code."""
+    try:
+        yaml_rule = f"""
+id: develop-pattern-test
+language: {language}
+rule:
+  pattern: |
+    {pattern}
+"""
+        result = run_ast_grep("scan", ["--inline-rules", yaml_rule, "--json", "--stdin"], input_text=code)
+        matches = json.loads(result.stdout.strip()) if result.stdout.strip() else []
+        return len(matches) > 0, len(matches)
+    except Exception:
+        return False, 0
+
+
+def develop_pattern_impl(
+    code: str,
+    language: str,
+    goal: Optional[str] = None,
+) -> PatternDevelopResult:
+    """Help develop a pattern to match the given code.
+
+    This is a higher-level workflow tool that guides users through the
+    pattern development process:
+    1. Analyzes the code's AST structure
+    2. Suggests starting patterns with metavariables
+    3. Tests if patterns match
+    4. Provides refinement guidance
+
+    Args:
+        code: Sample code you want to match
+        language: The programming language
+        goal: Optional description of what you're trying to find (for context)
+
+    Returns:
+        PatternDevelopResult with analysis, suggestions, and next steps
+    """
+    logger = get_logger("search.develop_pattern")
+    start_time = time.time()
+
+    logger.info(
+        "develop_pattern_started",
+        language=language,
+        code_length=len(code),
+        has_goal=goal is not None,
+    )
+
+    try:
+        # 1. Get the code's AST structure
+        code_ast = dump_syntax_tree_impl(code, language, "cst")
+
+        # 2. Analyze the code
+        analysis = _analyze_code(code, language, code_ast)
+
+        # 3. Generate pattern suggestions
+        suggestions = _generate_pattern_suggestions(code, language, analysis)
+
+        # 4. Pick the best pattern (prefer generalized if available)
+        if len(suggestions) >= 2 and suggestions[1].type == SuggestionType.GENERALIZED:
+            best_pattern = suggestions[1].pattern
+        else:
+            best_pattern = suggestions[0].pattern
+
+        # 5. Test if the best pattern matches
+        pattern_matches, match_count = _test_pattern_match(best_pattern, code, language)
+
+        # If generalized doesn't work, try exact
+        if not pattern_matches and len(suggestions) > 0:
+            exact_pattern = suggestions[0].pattern
+            pattern_matches, match_count = _test_pattern_match(exact_pattern, code, language)
+            if pattern_matches:
+                best_pattern = exact_pattern
+
+        # 6. Generate refinement steps
+        refinement_steps = _generate_refinement_steps(
+            code, language, analysis, pattern_matches
+        )
+
+        # 7. Generate YAML template
+        yaml_template = _generate_yaml_template(best_pattern, language, analysis)
+
+        # 8. Generate next steps
+        next_steps = _generate_next_steps(pattern_matches, analysis)
+
+        execution_time = time.time() - start_time
+
+        result = PatternDevelopResult(
+            code=code,
+            language=language,
+            code_analysis=analysis,
+            suggested_patterns=suggestions,
+            best_pattern=best_pattern,
+            pattern_matches=pattern_matches,
+            match_count=match_count,
+            refinement_steps=refinement_steps,
+            yaml_rule_template=yaml_template,
+            next_steps=next_steps,
+            execution_time_ms=int(execution_time * 1000),
+        )
+
+        logger.info(
+            "develop_pattern_completed",
+            execution_time_seconds=round(execution_time, 3),
+            pattern_matches=pattern_matches,
+            suggestion_count=len(suggestions),
+            status="success",
+        )
+
+        return result
+
+    except Exception as e:
+        execution_time = time.time() - start_time
+        logger.error(
+            "develop_pattern_failed",
+            execution_time_seconds=round(execution_time, 3),
+            error=str(e)[:200],
+            status="failed",
+        )
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "function": "develop_pattern_impl",
+                "language": language,
                 "code_length": len(code),
                 "execution_time_seconds": round(execution_time, 3),
             },

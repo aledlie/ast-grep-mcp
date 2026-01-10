@@ -59,6 +59,19 @@ class TestGetDocs:
         assert "dump_syntax_tree" in result
         assert "debug_pattern" in result
 
+    def test_get_strictness_docs(self):
+        """Should return strictness documentation."""
+        result = get_docs("strictness")
+        assert "Strictness Modes" in result
+        assert "cst" in result
+        assert "smart" in result
+        assert "ast" in result
+        assert "relaxed" in result
+        assert "signature" in result
+        # Check for key concepts
+        assert "Default" in result  # smart is default
+        assert "unnamed node" in result.lower()
+
     def test_get_all_docs(self):
         """Should return all documentation combined."""
         result = get_docs("all")
@@ -67,6 +80,7 @@ class TestGetDocs:
         assert "YAML Rule Configuration" in result
         assert "Relational Rules" in result
         assert "Metavariable" in result
+        assert "Strictness Modes" in result
 
     def test_get_invalid_topic(self):
         """Should return helpful message for invalid topic."""
@@ -75,10 +89,11 @@ class TestGetDocs:
         assert "Available topics" in result
         assert "pattern" in result
         assert "rules" in result
+        assert "strictness" in result
 
     def test_all_documented_topics_exist(self):
         """All documented topics should have content."""
-        expected_topics = ["pattern", "rules", "relational", "metavariables", "workflow"]
+        expected_topics = ["pattern", "rules", "relational", "metavariables", "workflow", "strictness"]
         for topic in expected_topics:
             assert topic in AST_GREP_DOCS, f"Missing topic: {topic}"
             assert len(AST_GREP_DOCS[topic]) > 100, f"Topic {topic} has too little content"
