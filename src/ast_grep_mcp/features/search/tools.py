@@ -1,12 +1,14 @@
 """Search feature MCP tool definitions."""
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Literal, Optional
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from ast_grep_mcp.core.executor import get_supported_languages
+from ast_grep_mcp.features.search.docs import PATTERN_CATEGORIES, PATTERN_LANGUAGES, get_docs, get_pattern_examples
 from ast_grep_mcp.features.search.service import (
+    build_rule_impl,
     debug_pattern_impl,
     dump_syntax_tree_impl,
     find_code_by_rule_impl,
@@ -130,7 +132,7 @@ def _register_find_code_by_rule(mcp: FastMCP) -> None:
         yaml_rule: str = Field(description="The ast-grep YAML rule to search. It must have id, language, rule fields."),
         max_results: int = Field(default=0, description="Maximum results to return"),
         output_format: str = Field(default="text", description="'text' or 'json'"),
-    ) -> str | List[Dict[str, Any]]:
+    ) -> str | List[Dict[str, Any]] | Dict[str, Any]:
         """
         Find code in a project folder using a custom YAML rule.
         This is more powerful than find_code as it supports complex rules like:
@@ -141,22 +143,68 @@ def _register_find_code_by_rule(mcp: FastMCP) -> None:
 
         Internally calls: ast-grep scan --inline-rules <yaml> [--json] <project_folder>
 
+        ⚠️  CRITICAL: The stopBy Parameter  ⚠️
+
+        Relational rules (inside, has, follows, precedes) have a `stopBy` parameter:
+        - `neighbor` (DEFAULT): Only checks immediate parent/sibling - often NOT what you want!
+        - `end`: Searches to tree boundaries - usually what you need
+        - Custom rule: Stops when surrounding nodes match
+
+        COMMON MISTAKE - This often fails because it only checks immediate parent:
+        ```yaml
+        rule:
+          pattern: $CALL
+          inside:
+            kind: function_declaration  # Missing stopBy: end!
+        ```
+
+        CORRECT - Add stopBy: end to search the entire tree:
+        ```yaml
+        rule:
+          pattern: $CALL
+          inside:
+            stopBy: end  # Searches up the entire tree
+            kind: function_declaration
+        ```
+
+        Minimal Rule Template:
+        ```yaml
+        id: my-rule
+        language: python
+        rule:
+          pattern: |
+            def $NAME($$$PARAMS):
+              $$$BODY
+        ```
+
+        With Relational Rules:
+        ```yaml
+        id: my-rule
+        language: python
+        rule:
+          pattern: $CALL
+          inside:
+            stopBy: end  # Don't forget this!
+            kind: function_definition
+        ```
+
+        Composite Rules (all/any):
+        - `all`: Matches a SINGLE node satisfying ALL sub-rules (not multiple nodes!)
+        - `any`: Matches nodes satisfying ANY sub-rule
+
+        ```yaml
+        rule:
+          any:
+            - pattern: console.log($$$)
+            - pattern: console.warn($$$)
+            - pattern: console.error($$$)
+        ```
+
         Output formats:
         - text (default): Compact text format with file:line-range headers and complete match text
         - json: Full match objects with metadata including ranges, rule ID, matched text etc.
 
         The max_results parameter limits the number of complete matches returned.
-
-        Example YAML rule:
-          id: find-functions
-          language: python
-          rule:
-            pattern: |
-              def $NAME($$$):
-                $$$BODY
-            inside:
-              stopBy: end
-              kind: module
 
         Example usage:
           find_code_by_rule(project_folder="/path/to/project", yaml_rule=rule_str)
@@ -193,10 +241,15 @@ def _register_debug_pattern(mcp: FastMCP) -> None:
            for multiple function arguments
 
         **Metavariable Quick Reference:**
-        - `$NAME`: Match single AST node (UPPERCASE only!)
-        - `$$$ARGS`: Match zero or more nodes (for function arguments, etc.)
-        - `$_NAME`: Non-capturing match (performance optimization)
-        - `$$VAR`: Match unnamed tree-sitter nodes (advanced)
+        | Syntax     | Meaning                          | Example                    |
+        |------------|----------------------------------|----------------------------|
+        | `$NAME`    | Match single AST node (UPPERCASE)| `function $NAME()`         |
+        | `$$$ARGS`  | Match zero or more nodes         | `foo($$$ARGS)`             |
+        | `$_NAME`   | Non-capturing (performance)      | `$_FUNC($_ARG)`            |
+        | `$$VAR`    | Match unnamed nodes (advanced)   | For tree-sitter internals  |
+
+        **Valid metavariable names:** `$META`, `$META_VAR`, `$META_VAR1`, `$_`, `$_123`
+        **Invalid:** `$name` (lowercase), `$123` (digit start), `$KEBAB-CASE` (hyphens)
 
         **Common Mistakes Detected:**
         - `$name` → Should be `$NAME` (uppercase required)
@@ -238,6 +291,244 @@ def _register_debug_pattern(mcp: FastMCP) -> None:
         return result.to_dict()
 
 
+def _register_get_ast_grep_docs(mcp: FastMCP) -> None:
+    """Register get_ast_grep_docs tool."""
+
+    @mcp.tool()
+    def get_ast_grep_docs(
+        topic: Literal["pattern", "rules", "relational", "metavariables", "workflow", "all"] = Field(
+            description="Documentation topic to retrieve"
+        ),
+    ) -> str:
+        """
+        Get ast-grep documentation for the specified topic.
+
+        Use this tool when you need guidance on:
+        - Pattern syntax and metavariables
+        - YAML rule configuration
+        - Relational rules (inside, has, follows, precedes)
+        - Best practices and workflows
+
+        This provides accurate, up-to-date documentation to help you write
+        correct patterns and rules, reducing trial-and-error.
+
+        **Available Topics:**
+
+        - `pattern`: Pattern syntax, metavariables ($NAME, $$$ARGS), matching rules,
+          common patterns by language
+
+        - `rules`: YAML rule structure, required fields (id, language, rule),
+          optional fields (message, severity, fix), stopBy configuration
+
+        - `relational`: inside/has/follows/precedes rules, the critical stopBy
+          parameter, combining relational rules, common patterns
+
+        - `metavariables`: Complete reference for $NAME, $$$, $_NAME, $$VAR,
+          valid/invalid naming, common mistakes
+
+        - `workflow`: Recommended development workflow, tool selection guide,
+          troubleshooting checklist
+
+        - `all`: Complete documentation (all topics combined)
+
+        **Example Usage:**
+        ```
+        # Get help with pattern syntax
+        get_ast_grep_docs(topic="pattern")
+
+        # Understand relational rules and stopBy
+        get_ast_grep_docs(topic="relational")
+
+        # Get the complete reference
+        get_ast_grep_docs(topic="all")
+        ```
+
+        **When to Use:**
+        - Before writing a complex pattern or rule
+        - When a pattern doesn't match as expected
+        - To understand metavariable syntax
+        - To learn about relational rules and stopBy
+        - As a reference while iterating on rules
+        """
+        return get_docs(topic)
+
+
+def _register_build_rule(mcp: FastMCP) -> None:
+    """Register build_rule tool."""
+
+    @mcp.tool()
+    def build_rule(
+        pattern: str = Field(description="The main pattern to match"),
+        language: str = Field(description=f"Target language. Supported: {', '.join(get_supported_languages())}"),
+        rule_id: Optional[str] = Field(default=None, description="Unique rule ID (auto-generated if not provided)"),
+        inside: Optional[str] = Field(default=None, description="Pattern that must CONTAIN the match (parent)"),
+        has: Optional[str] = Field(default=None, description="Pattern that must be INSIDE the match (child)"),
+        follows: Optional[str] = Field(default=None, description="Pattern that must PRECEDE the match"),
+        precedes: Optional[str] = Field(default=None, description="Pattern that must FOLLOW the match"),
+        inside_kind: Optional[str] = Field(
+            default=None, description="Node kind that must contain the match (e.g., 'function_declaration')"
+        ),
+        has_kind: Optional[str] = Field(default=None, description="Node kind that must be inside the match"),
+        stop_by: str = Field(
+            default="end",
+            description="stopBy for relational rules: 'end' (search entire tree, DEFAULT), "
+            "'neighbor' (immediate only), or custom pattern",
+        ),
+        message: Optional[str] = Field(default=None, description="Human-readable message for matches"),
+        severity: Optional[str] = Field(default=None, description="Severity: error, warning, info, hint"),
+        fix: Optional[str] = Field(default=None, description="Auto-fix template using captured metavariables"),
+    ) -> str:
+        """
+        Build a properly structured YAML rule from components.
+
+        This tool helps you construct valid ast-grep YAML rules without worrying
+        about syntax details. It automatically:
+        - Adds all required fields (id, language, rule)
+        - Sets `stopBy: end` on relational rules (preventing the #1 mistake!)
+        - Formats YAML correctly
+
+        **Why Use This Tool?**
+        Building YAML rules by hand is error-prone. Common mistakes include:
+        - Forgetting `stopBy: end` (causes rules to not match)
+        - Missing required fields
+        - YAML formatting issues
+
+        This tool eliminates these issues by construction.
+
+        **Relational Rules:**
+        - `inside`: Match must be INSIDE this pattern (e.g., inside a function)
+        - `has`: Match must CONTAIN this pattern (e.g., has a return statement)
+        - `follows`: Match must come AFTER this pattern
+        - `precedes`: Match must come BEFORE this pattern
+
+        Use `inside_kind` or `has_kind` for node-type matching instead of patterns.
+
+        **Examples:**
+
+        1. Find console.log inside functions:
+        ```
+        build_rule(
+            pattern="console.log($$$ARGS)",
+            language="javascript",
+            inside_kind="function_declaration"
+        )
+        ```
+
+        2. Find functions that have return statements:
+        ```
+        build_rule(
+            pattern="function $NAME($$$) { $$$BODY }",
+            language="javascript",
+            has="return $VALUE"
+        )
+        ```
+
+        3. Find variable usage after declaration:
+        ```
+        build_rule(
+            pattern="$VAR",
+            language="javascript",
+            follows="const $VAR = $VALUE"
+        )
+        ```
+
+        4. Find and fix console.log calls:
+        ```
+        build_rule(
+            pattern="console.log($$$ARGS)",
+            language="javascript",
+            message="Remove console.log before production",
+            severity="warning",
+            fix=""  # Empty string = delete the match
+        )
+        ```
+
+        **Output:**
+        Returns a YAML string ready to use with `find_code_by_rule` or
+        `test_match_code_rule`.
+        """
+        return build_rule_impl(
+            pattern=pattern,
+            language=language,
+            rule_id=rule_id,
+            inside=inside,
+            has=has,
+            follows=follows,
+            precedes=precedes,
+            inside_kind=inside_kind,
+            has_kind=has_kind,
+            stop_by=stop_by,
+            message=message,
+            severity=severity,
+            fix=fix,
+        )
+
+
+def _register_get_pattern_examples(mcp: FastMCP) -> None:
+    """Register get_pattern_examples tool."""
+
+    @mcp.tool()
+    def get_pattern_examples_tool(
+        language: str = Field(
+            description=f"Target language. Available: {', '.join(PATTERN_LANGUAGES)}"
+        ),
+        category: Optional[str] = Field(
+            default=None,
+            description=f"Optional category filter. Available: {', '.join(PATTERN_CATEGORIES)}, all. "
+            "If not specified, shows all categories.",
+        ),
+    ) -> str:
+        """
+        Get common ast-grep pattern examples for a language.
+
+        Returns ready-to-use patterns organized by category with descriptions.
+        Use these as starting points for your searches - patterns are verified
+        to work with ast-grep and follow best practices.
+
+        **Categories:**
+
+        - `function`: Function declarations, arrow functions, methods, lambdas
+        - `class`: Class definitions, inheritance, constructors, interfaces
+        - `import`: Import/require statements, module imports
+        - `variable`: Variable declarations, destructuring, type annotations
+        - `control_flow`: If/else, loops, switch, ternary expressions
+        - `error_handling`: Try/catch, throw, error patterns
+        - `async`: Async/await, promises, goroutines, threads
+
+        **Supported Languages:**
+
+        JavaScript, TypeScript, Python, Go, Rust, Java, Ruby, C, C++
+
+        **Example Usage:**
+
+        ```
+        # Get all JavaScript patterns
+        get_pattern_examples(language="javascript")
+
+        # Get only function patterns for Python
+        get_pattern_examples(language="python", category="function")
+
+        # Get error handling patterns for Go
+        get_pattern_examples(language="go", category="error_handling")
+        ```
+
+        **Output Format:**
+
+        Each pattern includes:
+        - Description of what it matches
+        - The pattern itself (ready to use with find_code)
+        - Optional notes about usage
+
+        **Tips:**
+
+        1. Start with these patterns and customize for your needs
+        2. Use $$$PARAMS for function parameters (matches 0+ args)
+        3. Use $NAME for single captures, $$$ARGS for multiple
+        4. Combine with YAML rules for more complex matching
+        """
+        return get_pattern_examples(language, category)
+
+
 def register_search_tools(mcp: FastMCP) -> None:
     """Register search-related MCP tools.
 
@@ -249,3 +540,6 @@ def register_search_tools(mcp: FastMCP) -> None:
     _register_find_code(mcp)
     _register_find_code_by_rule(mcp)
     _register_debug_pattern(mcp)
+    _register_get_ast_grep_docs(mcp)
+    _register_build_rule(mcp)
+    _register_get_pattern_examples(mcp)
