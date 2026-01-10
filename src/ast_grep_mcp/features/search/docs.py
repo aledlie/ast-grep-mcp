@@ -221,6 +221,86 @@ The `rule` field can contain:
 - `all`: ALL sub-rules must match (AND)
 - `any`: ANY sub-rule must match (OR)
 - `not`: Rule must NOT match (negation)
+- `matches`: Reference a utility rule by ID (for reuse and recursion)
+
+## The `matches` Rule (Reusable & Recursive Patterns)
+
+The `matches` rule references another rule by its ID, enabling:
+- **Rule reuse**: Define once, use in multiple places
+- **Recursive patterns**: Match nested structures (e.g., nested function calls)
+- **Modular rules**: Break complex rules into smaller, testable pieces
+
+### Basic Usage
+
+Define utility rules in `utils` section, reference with `matches`:
+
+```yaml
+id: find-dangerous-calls
+language: javascript
+utils:
+  is-user-input:
+    any:
+      - pattern: req.body.$PROP
+      - pattern: req.query.$PROP
+      - pattern: req.params.$PROP
+rule:
+  pattern: eval($ARG)
+  has:
+    stopBy: end
+    matches: is-user-input    # References the utility rule
+```
+
+### Recursive Matching
+
+Match deeply nested structures by having a rule reference itself:
+
+```yaml
+id: find-nested-callbacks
+language: javascript
+utils:
+  callback-pattern:
+    any:
+      - pattern: $FN($$$, function($$$) { $$$BODY })
+      - pattern: $FN($$$, ($$$) => { $$$BODY })
+      # Recursive: callback containing another callback
+      - all:
+          - pattern: $FN($$$, function($$$) { $$$BODY })
+          - has:
+              stopBy: end
+              matches: callback-pattern
+rule:
+  matches: callback-pattern
+```
+
+### Multiple Utility Rules
+
+Combine multiple utilities for complex matching:
+
+```yaml
+id: security-audit
+language: javascript
+utils:
+  sql-sink:
+    any:
+      - pattern: $DB.query($$$)
+      - pattern: $DB.execute($$$)
+  user-input:
+    any:
+      - pattern: req.body
+      - pattern: req.query
+rule:
+  matches: sql-sink
+  has:
+    stopBy: end
+    matches: user-input
+message: "Potential SQL injection: user input flows to SQL query"
+```
+
+### Key Points
+- Utility rules are defined in the `utils` section at the top level
+- `matches` takes a string: the ID of the utility rule
+- Utility rules can reference other utility rules
+- Be careful with infinite recursion in self-referencing rules
 
 ## The `stopBy` Parameter (CRITICAL!)
 
