@@ -46,14 +46,15 @@ def mock_field(*args: Any, **kwargs: Any) -> Any:
 # Import with mocked decorators
 with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
     with patch("pydantic.Field", mock_field):
-        import main
+        from ast_grep_mcp.server.registry import register_all_tools
 
-        # Call register_mcp_tools to define the tool functions
-        main.register_mcp_tools()
+        # Create a mock MCP instance and register tools
+        _mock_mcp = MockFastMCP("ast-grep")
+        register_all_tools(_mock_mcp)
 
         # Extract the tool functions from the mocked mcp instance
-        find_code = main.mcp.tools.get("find_code")  # type: ignore
-        find_code_by_rule = main.mcp.tools.get("find_code_by_rule")  # type: ignore
+        find_code = _mock_mcp.tools.get("find_code")  # type: ignore
+        find_code_by_rule = _mock_mcp.tools.get("find_code_by_rule")  # type: ignore
 
 
 @pytest.fixture
