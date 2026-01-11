@@ -8,53 +8,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# Import implementation functions directly (bypasses MCP decorator)
+from ast_grep_mcp.features.search.service import find_code_impl, find_code_by_rule_impl
 
-
-# Mock FastMCP to disable decoration
-class MockFastMCP:
-    """Mock FastMCP that returns functions unchanged"""
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.tools: Dict[str, Any] = {}  # Store registered tools
-
-    def tool(self, **kwargs: Any) -> Any:
-        """Decorator that returns the function unchanged"""
-
-        def decorator(func: Any) -> Any:
-            # Store the function for later retrieval
-            self.tools[func.__name__] = func
-            return func  # Return original function without modification
-
-        return decorator
-
-    def run(self, **kwargs: Any) -> None:
-        """Mock run method"""
-        pass
-
-
-# Mock the Field function to return the default value
-def mock_field(*args: Any, **kwargs: Any) -> Any:
-    """Mock pydantic.Field that accepts positional and keyword arguments."""
-    if args:
-        return args[0]
-    return kwargs.get("default")
-
-
-# Import with mocked decorators
-with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
-    with patch("pydantic.Field", mock_field):
-        from ast_grep_mcp.server.registry import register_all_tools
-
-        # Create a mock MCP instance and register tools
-        _mock_mcp = MockFastMCP("ast-grep")
-        register_all_tools(_mock_mcp)
-
-        # Extract the tool functions from the mocked mcp instance
-        find_code = _mock_mcp.tools.get("find_code")  # type: ignore
-        find_code_by_rule = _mock_mcp.tools.get("find_code_by_rule")  # type: ignore
+# Alias to match original test names
+find_code = find_code_impl
+find_code_by_rule = find_code_by_rule_impl
 
 
 @pytest.fixture

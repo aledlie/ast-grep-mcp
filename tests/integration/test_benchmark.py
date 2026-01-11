@@ -24,46 +24,25 @@ import sys
 import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Tuple
-from unittest.mock import patch
 
 import pytest
 
 from ast_grep_mcp.utils.console_logger import console
 
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-# Mock FastMCP before importing main
-class MockFastMCP:
-    def __init__(self, name: str):
-        self.name = name
-        self.tools: Dict[str, Any] = {}
-
-    def tool(self, **kwargs: Any) -> Any:
-        def decorator(func: Any) -> Any:
-            self.tools[func.__name__] = func
-            return func
-        return decorator
-
-    def run(self, **kwargs: Any) -> None:
-        pass
+# Import implementation functions directly (bypasses MCP decorator)
+from ast_grep_mcp.features.search.service import find_code_impl, find_code_by_rule_impl
 
 
-def mock_field(*args: Any, **kwargs: Any) -> Any:
-    """Mock pydantic.Field that accepts positional and keyword arguments."""
-    if args:
-        return args[0]
-    return kwargs.get("default")
+# Create a mock mcp object with tools dictionary for backward compatibility
+class _MockMCP:
+    """Mock MCP for backward compatibility with existing benchmark tests."""
+    tools: Dict[str, Any] = {
+        "find_code": find_code_impl,
+        "find_code_by_rule": find_code_by_rule_impl,
+    }
 
 
-# Import with mocked decorators
-with patch("mcp.server.fastmcp.FastMCP", MockFastMCP):
-    with patch("pydantic.Field", mock_field):
-        from ast_grep_mcp.server.registry import register_all_tools
-
-        # Create a mock MCP instance and register tools
-        mcp = MockFastMCP("ast-grep")
-        register_all_tools(mcp)
+mcp = _MockMCP()
 
 # Import deduplication functions from modular structure
 from ast_grep_mcp.features.deduplication.coverage import get_test_coverage_for_files  # noqa: E402
