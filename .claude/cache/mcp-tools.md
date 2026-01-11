@@ -1,15 +1,20 @@
-# ast-grep-mcp MCP Tools (39 Total)
+# ast-grep-mcp MCP Tools (47 Total)
 
 > **Auto-generated cache** - Updated when tools are modified via git commits.
-> Last updated: 2025-12-03
+> Last updated: 2026-01-10
 
-## Search Tools (4)
+## Search Tools (9)
 | Tool | Description |
 |------|-------------|
 | `dump_syntax_tree` | Dump code's syntax structure or pattern structure for debugging rules |
 | `test_match_code_rule` | Test code against an ast-grep YAML rule before using it in a project |
 | `find_code` | Find code matching an ast-grep pattern in a project folder |
 | `find_code_by_rule` | Find code using custom YAML rules with complex conditions (any/all, regex, inside, precedes/follows) |
+| `debug_pattern` | Debug why a pattern doesn't match code with metavariable validation and AST comparison |
+| `develop_pattern` | Interactive pattern development assistant - analyzes code and suggests patterns |
+| `get_ast_grep_docs` | Get ast-grep documentation for patterns, rules, relational rules, metavariables, strictness, workflow |
+| `build_rule` | Build a properly structured YAML rule from components with automatic stopBy configuration |
+| `get_pattern_examples` | Get common ast-grep pattern examples for a language organized by category |
 
 ## Rewrite Tools (3)
 | Tool | Description |
@@ -72,13 +77,22 @@
 | `generate_changelog` | Generate changelogs from git commits (Keep a Changelog, Conventional formats) |
 | `sync_documentation` | Keep documentation synchronized with code, detect stale docs and broken links |
 
+## Cross-Language Tools (5)
+| Tool | Description |
+|------|-------------|
+| `search_multi_language` | Search across multiple programming languages for semantically equivalent patterns |
+| `find_language_equivalents` | Find equivalent patterns across programming languages |
+| `convert_code_language` | Convert code from one programming language to another |
+| `refactor_polyglot` | Refactor across multiple programming languages atomically |
+| `generate_language_bindings` | Generate API client bindings for multiple languages from OpenAPI/Swagger specs |
+
 ---
 
 ## Tool Source Files
 
 | Category | File | Count |
 |----------|------|-------|
-| Search | `src/ast_grep_mcp/features/search/tools.py` | 4 |
+| Search | `src/ast_grep_mcp/features/search/tools.py` | 9 |
 | Rewrite | `src/ast_grep_mcp/features/rewrite/tools.py` | 3 |
 | Refactoring | `src/ast_grep_mcp/features/refactoring/tools.py` | 2 |
 | Deduplication | `src/ast_grep_mcp/features/deduplication/tools.py` | 4 |
@@ -86,5 +100,6 @@
 | Quality | `src/ast_grep_mcp/features/quality/tools.py` | 7 |
 | Schema | `src/ast_grep_mcp/features/schema/tools.py` | 9 |
 | Documentation | `src/ast_grep_mcp/features/documentation/tools.py` | 5 |
+| Cross-Language | `src/ast_grep_mcp/features/cross_language/tools.py` | 5 |
 
-**Total: 39 MCP tools** across 8 categories
+**Total: 47 MCP tools** across 9 categories
