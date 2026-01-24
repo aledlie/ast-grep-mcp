@@ -7,7 +7,7 @@ and generating various diff representations for duplicate code analysis.
 import difflib
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 def build_nested_diff_tree(code1: str, code2: str, language: str | None = None) -> dict[str, Any]:
@@ -77,11 +77,12 @@ def build_nested_diff_tree(code1: str, code2: str, language: str | None = None) 
         i += 1
 
     # Build nested structure
-    nested_diff = {
+    children: list[dict[str, Any]] = []
+    nested_diff: dict[str, Any] = {
         "root": {
             "type": "diff_root",
             "language": language,
-            "children": [],
+            "children": children,
         }
     }
 
@@ -91,7 +92,7 @@ def build_nested_diff_tree(code1: str, code2: str, language: str | None = None) 
             "type": change["type"],
             "data": change,
         }
-        nested_diff["root"]["children"].append(change_node)
+        children.append(change_node)
 
     return {
         "nested_diff": nested_diff,
@@ -124,7 +125,7 @@ def _process_opcode(
     j2: int,
 ) -> None:
     """Process a single diff opcode and append operations to diff_ops."""
-    opcode_handlers = {
+    opcode_handlers: dict[str, Callable[[], None]] = {
         "equal": lambda: _append_lines_as_ops(diff_ops, lines1[i1:i2], "equal"),
         "delete": lambda: _append_lines_as_ops(diff_ops, lines1[i1:i2], "delete"),
         "insert": lambda: _append_lines_as_ops(diff_ops, lines2[j1:j2], "insert"),

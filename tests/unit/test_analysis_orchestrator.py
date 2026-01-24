@@ -10,10 +10,9 @@ Tests cover:
 - Edge cases
 """
 
-import os
 import tempfile
 from typing import Any, Dict, List
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -803,7 +802,8 @@ class TestParallelErrorHandling:
 
     def test_process_completed_future_handles_timeout(self):
         """Test _process_completed_future handles TimeoutError."""
-        from concurrent.futures import Future, TimeoutError as FuturesTimeoutError
+        from concurrent.futures import Future
+        from concurrent.futures import TimeoutError as FuturesTimeoutError
 
         orchestrator = DeduplicationAnalysisOrchestrator()
         candidate: Dict[str, Any] = {"id": "timeout_test"}

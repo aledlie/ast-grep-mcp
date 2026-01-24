@@ -20,17 +20,15 @@ Usage:
 import json
 import os
 import statistics
-import sys
 import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Tuple
 
 import pytest
 
-from ast_grep_mcp.utils.console_logger import console
-
 # Import implementation functions directly (bypasses MCP decorator)
-from ast_grep_mcp.features.search.service import find_code_impl, find_code_by_rule_impl
+from ast_grep_mcp.features.search.service import find_code_by_rule_impl, find_code_impl
+from ast_grep_mcp.utils.console_logger import console
 
 
 # Create a mock mcp object with tools dictionary for backward compatibility
@@ -45,6 +43,10 @@ class _MockMCP:
 mcp = _MockMCP()
 
 # Import deduplication functions from modular structure
+# Ensure caching is enabled for benchmarks
+# Initialize the modular cache (used by the actual implementation)
+from ast_grep_mcp.core import cache as core_cache  # noqa: E402
+from ast_grep_mcp.core import config as core_config  # noqa: E402
 from ast_grep_mcp.features.deduplication.coverage import get_test_coverage_for_files  # noqa: E402
 from ast_grep_mcp.features.deduplication.ranker import (  # noqa: E402
     DuplicationRanker,
@@ -52,11 +54,6 @@ from ast_grep_mcp.features.deduplication.ranker import (  # noqa: E402
 )
 from ast_grep_mcp.features.deduplication.recommendations import generate_deduplication_recommendation  # noqa: E402
 from ast_grep_mcp.features.deduplication.reporting import create_enhanced_duplication_response  # noqa: E402
-
-# Ensure caching is enabled for benchmarks
-# Initialize the modular cache (used by the actual implementation)
-from ast_grep_mcp.core import cache as core_cache  # noqa: E402
-from ast_grep_mcp.core import config as core_config  # noqa: E402
 
 core_config.CACHE_ENABLED = True
 if core_cache._query_cache is None:

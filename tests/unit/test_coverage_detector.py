@@ -14,10 +14,7 @@ Tests cover:
 import os
 import tempfile
 from concurrent.futures import Future
-from typing import Dict, List, Set
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from ast_grep_mcp.features.deduplication.coverage import (
     CoverageDetector,

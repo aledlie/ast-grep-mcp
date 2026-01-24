@@ -1,15 +1,14 @@
 """Tests for the documentation and rule builder tools."""
 
-import pytest
 import yaml
 
 from ast_grep_mcp.features.search.docs import (
-    get_docs,
-    get_pattern_examples,
     AST_GREP_DOCS,
+    PATTERN_CATEGORIES,
     PATTERN_EXAMPLES,
     PATTERN_LANGUAGES,
-    PATTERN_CATEGORIES,
+    get_docs,
+    get_pattern_examples,
 )
 from ast_grep_mcp.features.search.service import build_rule_impl
 

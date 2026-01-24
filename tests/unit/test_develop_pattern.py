@@ -1,9 +1,7 @@
 """Tests for the develop_pattern functionality."""
 
-import pytest
 
 from ast_grep_mcp.features.search.service import (
-    _analyze_code,
     _extract_identifiers,
     _extract_literals,
     _generate_generalized_pattern,

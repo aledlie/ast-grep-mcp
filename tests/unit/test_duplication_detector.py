@@ -15,7 +15,7 @@ Tests cover:
 
 import tempfile
 from typing import Any, Dict, List
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -756,7 +756,11 @@ class TestFormatResult:
             {"file": "/path/f2.py", "range": {"start": {"line": 19}, "end": {"line": 20}}, "text": code},
         ]]
 
-        result = detector._format_result([], groups, [], {"total_constructs": 0, "duplicate_groups": 1, "total_duplicated_lines": 0, "potential_line_savings": 0}, 0.1)
+        stats = {
+            "total_constructs": 0, "duplicate_groups": 1,
+            "total_duplicated_lines": 0, "potential_line_savings": 0
+        }
+        result = detector._format_result([], groups, [], stats, 0.1)
 
         assert len(result["duplication_groups"]) == 1
         assert len(result["duplication_groups"][0]["instances"]) == 2
@@ -784,9 +788,10 @@ class TestFindDuplication:
         """Test that excluded patterns are filtered."""
         detector = DuplicationDetector()
 
+        code = "def f():\n    pass\n    pass\n    pass\n    pass"
         matches = [
-            {"file": "/project/src/main.py", "text": "def f():\n    pass\n    pass\n    pass\n    pass", "range": {"start": {"line": 1}}},
-            {"file": "/project/node_modules/lib.py", "text": "def f():\n    pass\n    pass\n    pass\n    pass", "range": {"start": {"line": 1}}},
+            {"file": "/project/src/main.py", "text": code, "range": {"start": {"line": 1}}},
+            {"file": "/project/node_modules/lib.py", "text": code, "range": {"start": {"line": 1}}},
         ]
 
         with patch("ast_grep_mcp.features.deduplication.detector.stream_ast_grep_results") as mock_stream:

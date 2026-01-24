@@ -2,14 +2,13 @@
 
 import json
 import os
-import sys
-from typing import Any, Dict, List
+from typing import Any, List
 from unittest.mock import Mock, patch
 
 import pytest
 
 # Import implementation functions directly (bypasses MCP decorator)
-from ast_grep_mcp.features.search.service import find_code_impl, find_code_by_rule_impl
+from ast_grep_mcp.features.search.service import find_code_by_rule_impl, find_code_impl
 
 # Alias to match original test names
 find_code = find_code_impl

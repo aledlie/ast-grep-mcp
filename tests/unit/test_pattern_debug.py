@@ -3,7 +3,6 @@
 Tests the debug_pattern tool which helps diagnose why patterns don't match code.
 """
 
-import pytest
 
 from ast_grep_mcp.features.search.service import (
     _check_pattern_issues,

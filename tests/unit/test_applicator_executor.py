@@ -12,8 +12,7 @@ Tests cover:
 
 import os
 import tempfile
-from typing import Any, Dict
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -227,7 +226,7 @@ class TestCreateFiles:
 
             create_list = [{"path": file_path, "content": "new content", "append": False}]
 
-            result = executor._create_files(create_list)
+            executor._create_files(create_list)
 
             with open(file_path) as f:
                 content = f.read()

@@ -65,19 +65,22 @@ def get_supported_languages() -> List[str]:
     return sorted(set(languages))
 
 
-def run_command(args: List[str], input_text: Optional[str] = None) -> subprocess.CompletedProcess[str]:
+def run_command(
+    args: List[str], input_text: Optional[str] = None, *, allow_nonzero: bool = False
+) -> subprocess.CompletedProcess[str]:
     """Execute a command with proper error handling.
 
     Args:
         args: Command arguments list
         input_text: Optional stdin input
+        allow_nonzero: If True, don't raise on non-zero exit codes
 
     Returns:
         CompletedProcess instance
 
     Raises:
         AstGrepNotFoundError: If command binary not found
-        AstGrepExecutionError: If command execution fails
+        AstGrepExecutionError: If command execution fails (unless allow_nonzero)
     """
     logger = get_logger("subprocess")
     start_time = time.time()
@@ -102,7 +105,7 @@ def run_command(args: List[str], input_text: Optional[str] = None) -> subprocess
                 capture_output=True,
                 input=input_text,
                 text=True,
-                check=True,  # Raises CalledProcessError if return code is non-zero
+                check=not allow_nonzero,
                 shell=use_shell,
             )
 
@@ -300,7 +303,9 @@ def run_ast_grep(command: str, args: List[str], input_text: Optional[str] = None
     """
     if CONFIG_PATH:
         args = ["--config", CONFIG_PATH] + args
-    return run_command(["ast-grep", command] + args, input_text)
+    # --debug-query outputs to stderr and returns exit code 1 even on success
+    allow_nonzero = any(arg.startswith("--debug-query") for arg in args)
+    return run_command(["ast-grep", command] + args, input_text, allow_nonzero=allow_nonzero)
 
 
 def _prepare_stream_command(command: str, args: List[str]) -> List[str]:
@@ -417,6 +422,11 @@ def _handle_stream_error(
         return
 
     stderr_output = process.stderr.read() if process.stderr else ""
+
+    # Exit code 1 with no stderr typically means "no matches found" - not an error
+    if returncode == 1 and not stderr_output.strip():
+        return
+
     execution_time = time.time() - start_time
 
     logger.error("stream_failed", returncode=returncode, stderr=stderr_output[:200], execution_time_seconds=round(execution_time, 3))
