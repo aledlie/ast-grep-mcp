@@ -11,9 +11,6 @@ from ...core.logging import get_logger
 
 __all__ = [
     "ImpactAnalyzer",
-    "analyze_deduplication_impact",
-    "estimate_lines_changed",
-    "_estimate_lines_changed",
 ]
 
 

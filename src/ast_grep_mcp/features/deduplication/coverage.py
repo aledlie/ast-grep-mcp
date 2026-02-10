@@ -10,13 +10,6 @@ from ...core.logging import get_logger
 
 __all__ = [
     "CoverageDetector",
-    "find_test_file_patterns",
-    "has_test_coverage",
-    "get_test_coverage_for_files",
-    "check_test_file_references_source",
-    "_check_test_file_references_source",
-    "get_potential_test_paths",
-    "_get_potential_test_paths",
 ]
 
 
