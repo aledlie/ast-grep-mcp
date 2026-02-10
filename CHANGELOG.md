@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### 2026-02-10: Test Stability & Documentation Improvements
+
+- Added `develop_pattern` tool for iterative pattern development with strictness levels (63613b0)
+- Added `matches` rule documentation to `get_ast_grep_docs` (9641374)
+- Added pattern objects, lazy metavariables, and playground link to search docs (691e344)
+- Added comprehensive deduplication tests for all submodules: analysis orchestrator, coverage detector, applicator executor, backup manager, duplication detector (9b08989..a08936e)
+- Fixed integration tests to use modular API (4a7992a)
+- Fixed pydantic.Field mock pollution in test state (2e81ccf)
+- Relaxed benchmark performance thresholds for CI stability (ee11e9e)
+- Added missing dev dependencies and fixed ast-grep exit code handling (4e47157)
+- Updated MCP tools cache to 47 tools (039ca7e)
+- Total MCP tools: 47
+
+---
+
 #### 2026-01-10: Documentation & Rule Builder Tools + Warning System
 
 Based on the [ast-grep Prompting Guide](https://ast-grep.github.io/advanced/prompting.html), implemented comprehensive improvements to reduce LLM hallucinations and improve pattern/rule accuracy.
@@ -163,6 +178,7 @@ Based on the [ast-grep Prompting Guide](https://ast-grep.github.io/advanced/prom
 
 | Date | Feature | Tools Added |
 |------|---------|-------------|
+| 2026-02-10 | Test Stability & Docs | +1 (develop_pattern) |
 | 2026-01-10 | Documentation & Rule Builder | +3 (get_ast_grep_docs, build_rule, get_pattern_examples) |
 | 2026-01-09 | Pattern Debugging | +1 (debug_pattern) |
 | 2025-11-29 | Entity Graph Enhancement | +1 (enhance_entity_graph) |
@@ -174,4 +190,4 @@ Based on the [ast-grep Prompting Guide](https://ast-grep.github.io/advanced/prom
 | 2025-11-24 | Modular Architecture | Multiple tools |
 | 2025-11-23 | Enhanced Deduplication | Multiple tools |
 
-**Current Total:** 46 MCP tools
+**Current Total:** 47 MCP tools

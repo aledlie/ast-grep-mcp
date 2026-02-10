@@ -41,41 +41,60 @@ A powerful Model Context Protocol (MCP) server providing structural code search,
 - **Pattern validation** - Test rules against code examples
 - **Standards enforcement** - Consistent code quality across teams
 
+### Documentation Generation
+- **Docstring generation** - Google, NumPy, Sphinx, JSDoc, Javadoc styles
+- **README sections** - Automated project analysis and section generation
+- **API docs** - OpenAPI 3.0 spec generation
+- **Changelog generation** - Keep a Changelog and Conventional formats
+- **Doc sync** - Detect stale documentation and broken links
+
+### Cross-Language Operations
+- **Multi-language search** - Search across multiple languages simultaneously
+- **Language equivalents** - Find equivalent patterns across languages
+- **Code conversion** - Convert code patterns between languages
+- **Polyglot refactoring** - Refactor across language boundaries
+- **Language bindings** - Generate bindings between languages
+
 ### Schema.org Integration
 - **Type search** - Find Schema.org types by name
 - **Property listing** - Get all properties for a type
 - **Validation** - Validate JSON-LD structured data
 - **Template generation** - Generate Schema.org templates
 - **Type comparison** - Compare multiple types
+- **Entity graph enhancement** - Analyze and improve JSON-LD graphs
 
 ## Architecture
 
-**Modular design** with 57 modules organized for clarity and maintainability:
+**Modular design** with 64 modules organized for clarity and maintainability:
 
 ```
 src/ast_grep_mcp/
-├── core/           # Core infrastructure (config, cache, executor, logging)
+├── core/           # Core infrastructure (config, cache, executor, logging, sentry)
 ├── models/         # Data models (refactoring, deduplication, complexity, standards)
-├── utils/          # Utilities (templates, formatters, text processing)
-├── features/       # Feature modules (38 modules)
-│   ├── search/         # Code search
-│   ├── rewrite/        # Code transformation
-│   ├── refactoring/    # Refactoring assistants (extract_function, rename_symbol)
-│   ├── schema/         # Schema.org integration
-│   ├── deduplication/  # Duplicate detection & refactoring
-│   ├── complexity/     # Complexity analysis
-│   └── quality/        # Code quality & linting
+├── utils/          # Utilities (templates, formatters, text processing, validation)
+├── features/       # Feature modules
+│   ├── search/         # Code search (9 tools)
+│   ├── rewrite/        # Code transformation (3 tools)
+│   ├── refactoring/    # Refactoring assistants (2 tools)
+│   ├── schema/         # Schema.org integration (9 tools)
+│   ├── deduplication/  # Duplicate detection & refactoring (4 tools)
+│   ├── complexity/     # Complexity analysis (3 tools)
+│   ├── quality/        # Code quality & linting (7 tools)
+│   ├── documentation/  # Documentation generation (5 tools)
+│   └── cross_language/ # Cross-language operations (5 tools)
 └── server/         # MCP server (registry, runner)
 ```
 
-**30 MCP Tools (100% Registered):**
-- Code search: 4 tools
-- Code rewrite: 3 tools
-- Refactoring assistants: 2 tools (extract_function, rename_symbol)
-- Schema.org: 8 tools
+**47 MCP Tools (100% Registered):**
+- Search: 9 tools (find_code, find_code_by_rule, dump_ast, debug_pattern, get_ast_grep_docs, build_rule, get_pattern_examples, develop_pattern, find_code_by_rule_yaml)
+- Rewrite: 3 tools
+- Refactoring: 2 tools (extract_function, rename_symbol)
+- Schema.org: 9 tools (includes entity graph enhancement)
 - Deduplication: 4 tools
 - Complexity: 3 tools (includes code smells)
-- Code quality: 6 tools (linting, security scanner, auto-fix, quality reports)
+- Quality: 7 tools (linting, security scanner, auto-fix, quality reports)
+- Documentation: 5 tools (docstrings, readme, api_docs, changelog, sync)
+- Cross-Language: 5 tools (multi-language search, equivalents, conversion, polyglot refactoring, bindings)
 
 ## Quick Start
 
@@ -367,12 +386,15 @@ See [docs/MODULE-GUIDE.md](docs/MODULE-GUIDE.md) for comprehensive module docume
 - `core/sentry.py` - Error tracking (optional)
 
 **Feature modules:**
-- `features/search/` - Code search tools
-- `features/rewrite/` - Code transformation tools
-- `features/schema/` - Schema.org integration
-- `features/deduplication/` - Duplicate detection & refactoring
-- `features/complexity/` - Complexity analysis
-- `features/quality/` - Code quality & linting
+- `features/search/` - Code search tools (9)
+- `features/rewrite/` - Code transformation tools (3)
+- `features/refactoring/` - Extract function, rename symbol (2)
+- `features/schema/` - Schema.org integration (9)
+- `features/deduplication/` - Duplicate detection & refactoring (4)
+- `features/complexity/` - Complexity analysis (3)
+- `features/quality/` - Code quality & linting (7)
+- `features/documentation/` - Documentation generation (5)
+- `features/cross_language/` - Cross-language operations (5)
 
 ### Adding New Features
 
@@ -516,69 +538,37 @@ MIT License - See [LICENSE](LICENSE) file for details.
 
 ## Changelog
 
-### 2025-11-29: Phase 2 Complexity Refactoring COMPLETE
+See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
-**ZERO complexity violations achieved** - All 48 functions refactored to meet quality standards.
+### 2026-02-10: Test Stability & Documentation Improvements
 
-- ✅ **100% complete** - All cyclomatic, cognitive, nesting, and length violations resolved
-- ✅ Quality gate now **PASSING** (15/15 regression tests)
-- ✅ 518/533 tests passing (15 pre-existing schema failures)
-- ✅ Created [PATTERNS.md](PATTERNS.md) documenting proven refactoring techniques
-- ✅ Shared utilities created (e.g., `utils/syntax_validation.py`)
-- ✅ Historical documentation archived to `docs/archive/`
+- Added `develop_pattern` tool for iterative pattern development
+- Added `matches` rule, pattern objects, lazy metavariables to search docs
+- Comprehensive deduplication test coverage across all submodules
+- Fixed integration tests, benchmark thresholds, and dev dependencies
+- **47 MCP tools total**
 
-**Key Achievements:**
-- 100% cognitive reduction in `_assess_breaking_change_risk` (44→0)
-- 97% cognitive reduction in `_parallel_enrich` (74→2, highest violation)
-- 94% reduction in both `_extract_classes` functions (35→2 each)
-- Eliminated 118 lines of duplicate code via DRY principle
+### 2026-01-10: Documentation & Rule Builder Tools
 
-See [PATTERNS.md](PATTERNS.md) for refactoring techniques and [PHASE1_COMPLETE.md](PHASE1_COMPLETE.md) for details.
+- Added `get_ast_grep_docs`, `build_rule`, `get_pattern_examples` tools
+- Automatic warning detection for YAML rules (missing stopBy, lowercase metavariables)
 
-### 2025-11-27: Security Scanner & Auto-Fix (Code Quality Phase 3+)
+### 2026-01-09: Pattern Debugging Tool
 
-**New security and quality tools** for vulnerability detection and automated fixes.
+- Added `debug_pattern` tool for diagnosing pattern matching issues
+- Validates metavariable syntax and compares AST structures
 
-- ✅ `detect_security_issues` - SQL injection, XSS, command injection, secrets, crypto
-- ✅ `apply_standards_fixes` - Auto-fix with safety classification
-- ✅ `generate_quality_report` - Markdown/JSON quality dashboards
-- ✅ 30 MCP tools total (up from 27)
+### 2025-11-29: Documentation Generation & Entity Graph Enhancement
 
-### 2025-11-26: Refactoring Assistants - Phases 1 & 2 Complete
-
-**New intelligent refactoring tools** for automated code transformations.
-
-- ✅ **extract_function** - Extract code with automatic parameter/return detection
-- ✅ **rename_symbol** - Scope-aware renaming across multiple files
-- ✅ Multi-language support (Python full, TypeScript/JavaScript/Java basic)
-- ✅ 42/42 tests passing (100% pass rate)
-- ✅ Dry-run mode, backups, conflict detection
-- ✅ Production-ready with comprehensive error handling
-
-See [dev/archive/refactoring-assistants/](dev/archive/refactoring-assistants/) for details.
+- 5 documentation generation tools (docstrings, readme, api_docs, changelog, sync)
+- `enhance_entity_graph` tool for Schema.org JSON-LD analysis
+- 5 cross-language operation tools
 
 ### 2025-11-24: Modular Architecture (v2.0)
 
-**Major refactoring** - Migrated from monolithic architecture to modular design.
-
-- ✅ Modular architecture migration complete (64 modules)
-- ✅ All 38 MCP tools working (100% registered)
-- ✅ 1,600+ tests passing
-- ✅ `main.py` reduced to entry point only (10 lines)
-
-See [docs/MODULE-GUIDE.md](docs/MODULE-GUIDE.md) for details.
-
-### 2025-11-17: Sentry & Doppler Integration
-
-- Added optional error tracking with Sentry
-- Integrated Doppler for secret management
-- Zero overhead when not configured
-
-### 2025-11-16: Enhanced Deduplication System
-
-- Complete 6-phase deduplication implementation
-- Intelligent ranking and recommendations
-- Automated refactoring with validation
+- Migrated to 64-module architecture
+- 1,600+ tests passing
+- Zero complexity violations
 
 ---
 
