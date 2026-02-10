@@ -16,14 +16,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 # Import from modular structure where interfaces match
 # Import from modular code
-from ast_grep_mcp.features.deduplication.analyzer import (
-    _detect_nested_function_call,
-    detect_conditional_variations,
-)
-
 # Variation analysis functions migrated to modular architecture
 from ast_grep_mcp.features.deduplication.analyzer import (
+    _detect_nested_function_call,
     classify_variations,
+    detect_conditional_variations,
     identify_varying_identifiers,
 )
 
