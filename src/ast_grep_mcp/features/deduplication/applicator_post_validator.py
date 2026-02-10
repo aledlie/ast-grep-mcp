@@ -9,28 +9,7 @@ from typing import Any, Dict, List
 
 from ...core.logging import get_logger
 from ...utils.syntax_validation import suggest_syntax_fix
-
-
-class PostValidationResult:
-    """Result of post-validation operation."""
-
-    def __init__(self, is_valid: bool, errors: List[Dict[str, Any]]) -> None:
-        """Initialize post-validation result.
-
-        Args:
-            is_valid: Whether post-validation passed
-            errors: List of validation errors found
-        """
-        self.is_valid = is_valid
-        self.errors = errors
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary format.
-
-        Returns:
-            Dictionary representation of validation result
-        """
-        return {"passed": self.is_valid, "errors": self.errors}
+from .applicator_validator import ValidationResult
 
 
 class RefactoringPostValidator:
@@ -40,7 +19,7 @@ class RefactoringPostValidator:
         """Initialize the post-validator."""
         self.logger = get_logger("deduplication.post_validator")
 
-    def validate_modified_files(self, modified_files: List[str], language: str) -> PostValidationResult:
+    def validate_modified_files(self, modified_files: List[str], language: str) -> ValidationResult:
         """Validate files after modifications.
 
         Args:
@@ -48,7 +27,7 @@ class RefactoringPostValidator:
             language: Programming language
 
         Returns:
-            PostValidationResult with validation status and errors
+            ValidationResult with validation status and errors
         """
         self.logger.info("post_validation_start", file_count=len(modified_files), language=language)
 
@@ -74,7 +53,7 @@ class RefactoringPostValidator:
         is_valid = len(errors) == 0
         self.logger.info("post_validation_complete", is_valid=is_valid, error_count=len(errors))
 
-        return PostValidationResult(is_valid=is_valid, errors=errors)
+        return ValidationResult(is_valid=is_valid, errors=errors)
 
     def _validate_file_syntax(self, file_path: str, language: str) -> List[Dict[str, Any]]:
         """Validate file syntax after modifications.
