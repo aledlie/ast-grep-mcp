@@ -9,9 +9,9 @@ import time
 from typing import Any, Callable, Dict, List
 
 from ...core.logging import get_logger
-from .ranker import get_ranker, rank_deduplication_candidates
-from .recommendations import generate_deduplication_recommendation
-from .reporting import create_enhanced_duplication_response
+from .ranker import DuplicationRanker
+from .recommendations import RecommendationEngine
+from .reporting import DuplicationReporter
 
 
 class BenchmarkExecutor:
@@ -68,7 +68,7 @@ class BenchmarkExecutor:
         Returns:
             Benchmark result dictionary
         """
-        ranker = get_ranker()
+        ranker = DuplicationRanker()
         test_cases = [
             {  # High value candidate
                 "potential_line_savings": 100,
@@ -110,7 +110,8 @@ class BenchmarkExecutor:
             for i in range(50)
         ]
 
-        return self.run_timed_benchmark("pattern_analysis", rank_deduplication_candidates, iterations, candidates)
+        ranker = DuplicationRanker()
+        return self.run_timed_benchmark("pattern_analysis", ranker.rank_deduplication_candidates, iterations, candidates)
 
     def benchmark_code_generation(self, iterations: int) -> Dict[str, Any]:
         """Benchmark recommendation generation.
@@ -127,9 +128,11 @@ class BenchmarkExecutor:
             (25.0, 9, 5, False, 15),
         ]
 
+        engine = RecommendationEngine()
+
         def run_recommendations() -> None:
             for score, complexity, lines, has_tests, files in test_recs:
-                generate_deduplication_recommendation(score, complexity, lines, has_tests, files)
+                engine.generate_deduplication_recommendation(score, complexity, lines, has_tests, files)
 
         return self.run_timed_benchmark("code_generation", run_recommendations, iterations)
 
@@ -154,9 +157,10 @@ class BenchmarkExecutor:
             for i in range(20)
         ]
 
+        reporter = DuplicationReporter()
         return self.run_timed_benchmark(
             "full_workflow",
-            create_enhanced_duplication_response,
+            reporter.create_enhanced_duplication_response,
             iterations,
             response_candidates,
             include_diffs=False,
