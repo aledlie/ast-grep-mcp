@@ -351,29 +351,3 @@ class DuplicationReporter:
                 "generated_at": datetime.now().isoformat(),
             },
         }
-
-
-# Module-level functions for backwards compatibility
-_reporter = DuplicationReporter()
-
-
-def format_diff_with_colors(diff: str) -> str:
-    """Add ANSI color codes to a unified diff for CLI display."""
-    return _reporter.format_diff_with_colors(diff)
-
-
-def generate_before_after_example(original_code: str, replacement_code: str, function_name: str) -> Dict[str, Any]:
-    """Generate before/after code examples for a duplication extraction."""
-    return _reporter.generate_before_after_example(original_code, replacement_code, function_name)
-
-
-def visualize_complexity(score: int) -> Dict[str, Any]:
-    """Create a visual complexity indicator with recommendations."""
-    return _reporter.visualize_complexity(score)
-
-
-def create_enhanced_duplication_response(
-    candidates: List[Dict[str, Any]], include_diffs: bool = True, include_colors: bool = False
-) -> Dict[str, Any]:
-    """Create an enhanced duplication detection response."""
-    return _reporter.create_enhanced_duplication_response(candidates, include_diffs, include_colors)

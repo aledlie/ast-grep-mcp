@@ -224,15 +224,6 @@ class RecommendationEngine:
         return strategies
 
 
-# Module-level function for backwards compatibility
-def generate_deduplication_recommendation(
-    score: float, complexity: int, lines_saved: int, has_tests: bool, affected_files: int
-) -> Dict[str, Any]:
-    """Generate actionable recommendations for deduplication candidates."""
-    engine = RecommendationEngine()
-    return engine.generate_deduplication_recommendation(score, complexity, lines_saved, has_tests, affected_files)
-
-
 def generate_refactoring_suggestions(duplicates: List[Dict[str, Any]], language: str) -> List[Dict[str, Any]]:
     """Generate refactoring suggestions for duplicate code instances.
 

@@ -20,11 +20,6 @@ from ast_grep_mcp.features.deduplication.coverage import (
     CoverageDetector,
     _get_javascript_patterns,
     _get_ruby_patterns,
-    check_test_file_references_source,
-    find_test_file_patterns,
-    get_potential_test_paths,
-    get_test_coverage_for_files,
-    has_test_coverage,
 )
 
 
@@ -873,57 +868,62 @@ class TestLogBatchResults:
         )
 
 
-class TestModuleLevelFunctions:
-    """Tests for module-level convenience functions."""
+class TestClassMethods:
+    """Tests for CoverageDetector class methods (formerly module-level functions)."""
 
-    def test_find_test_file_patterns_function(self):
-        """Test module-level find_test_file_patterns."""
-        patterns = find_test_file_patterns("python")
+    def test_find_test_file_patterns(self):
+        """Test CoverageDetector.find_test_file_patterns."""
+        detector = CoverageDetector()
+        patterns = detector.find_test_file_patterns("python")
 
         assert "test_*.py" in patterns
 
-    def test_has_test_coverage_function(self):
-        """Test module-level has_test_coverage."""
+    def test_has_test_coverage(self):
+        """Test CoverageDetector.has_test_coverage."""
+        detector = CoverageDetector()
         with tempfile.TemporaryDirectory() as tmpdir:
             source_file = os.path.join(tmpdir, "lonely.py")
             with open(source_file, "w") as f:
                 f.write("pass\n")
 
-            result = has_test_coverage(source_file, "python", tmpdir)
+            result = detector.has_test_coverage(source_file, "python", tmpdir)
 
             assert isinstance(result, bool)
 
-    def test_get_test_coverage_for_files_function(self):
-        """Test module-level get_test_coverage_for_files."""
+    def test_get_test_coverage_for_files(self):
+        """Test CoverageDetector.get_test_coverage_for_files."""
+        detector = CoverageDetector()
         with tempfile.TemporaryDirectory() as tmpdir:
             source_file = os.path.join(tmpdir, "module.py")
             with open(source_file, "w") as f:
                 f.write("pass\n")
 
-            result = get_test_coverage_for_files([source_file], "python", tmpdir)
+            result = detector.get_test_coverage_for_files([source_file], "python", tmpdir)
 
             assert isinstance(result, dict)
             assert source_file in result
 
-    def test_check_test_file_references_source_function(self):
-        """Test module-level check_test_file_references_source."""
+    def test_check_test_file_references_source(self):
+        """Test CoverageDetector._check_test_file_references_source."""
+        detector = CoverageDetector()
         with tempfile.NamedTemporaryFile(mode="w", suffix="_test.py", delete=False) as f:
             f.write("from mymodule import func\n")
             f.flush()
 
-            result = check_test_file_references_source(
+            result = detector._check_test_file_references_source(
                 f.name, "/project/mymodule.py", "python"
             )
 
             assert result is True
             os.unlink(f.name)
 
-    def test_get_potential_test_paths_function(self):
-        """Test module-level get_potential_test_paths."""
+    def test_get_potential_test_paths(self):
+        """Test CoverageDetector._get_potential_test_paths."""
+        detector = CoverageDetector()
         with tempfile.TemporaryDirectory() as tmpdir:
             source_file = os.path.join(tmpdir, "module.py")
 
-            result = get_potential_test_paths(source_file, "python", tmpdir)
+            result = detector._get_potential_test_paths(source_file, "python", tmpdir)
 
             assert isinstance(result, list)
             assert len(result) > 0

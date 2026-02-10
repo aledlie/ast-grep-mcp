@@ -47,13 +47,20 @@ mcp = _MockMCP()
 # Initialize the modular cache (used by the actual implementation)
 from ast_grep_mcp.core import cache as core_cache  # noqa: E402
 from ast_grep_mcp.core import config as core_config  # noqa: E402
-from ast_grep_mcp.features.deduplication.coverage import get_test_coverage_for_files  # noqa: E402
-from ast_grep_mcp.features.deduplication.ranker import (  # noqa: E402
-    DuplicationRanker,
-    rank_deduplication_candidates,
-)
-from ast_grep_mcp.features.deduplication.recommendations import generate_deduplication_recommendation  # noqa: E402
-from ast_grep_mcp.features.deduplication.reporting import create_enhanced_duplication_response  # noqa: E402
+from ast_grep_mcp.features.deduplication.coverage import CoverageDetector  # noqa: E402
+from ast_grep_mcp.features.deduplication.ranker import DuplicationRanker  # noqa: E402
+from ast_grep_mcp.features.deduplication.recommendations import RecommendationEngine  # noqa: E402
+from ast_grep_mcp.features.deduplication.reporting import DuplicationReporter  # noqa: E402
+
+# Instantiate for use in tests
+_coverage_detector = CoverageDetector()
+get_test_coverage_for_files = _coverage_detector.get_test_coverage_for_files
+_ranker = DuplicationRanker()
+rank_deduplication_candidates = _ranker.rank_deduplication_candidates
+_engine = RecommendationEngine()
+generate_deduplication_recommendation = _engine.generate_deduplication_recommendation
+_reporter = DuplicationReporter()
+create_enhanced_duplication_response = _reporter.create_enhanced_duplication_response
 
 core_config.CACHE_ENABLED = True
 if core_cache._query_cache is None:
@@ -641,9 +648,7 @@ class TestDeduplicationBenchmarks:
         dedup_benchmark_runner: DeduplicationBenchmarkRunner
     ) -> None:
         """Benchmark calculate_deduplication_score function."""
-        from ast_grep_mcp.features.deduplication.ranker import get_ranker
-
-        ranker = get_ranker()
+        ranker = DuplicationRanker()
 
         # Test with various inputs (using new duplicate_group dict API)
         test_cases = [

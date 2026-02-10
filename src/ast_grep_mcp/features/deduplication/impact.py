@@ -685,35 +685,3 @@ class ImpactAnalyzer:
 
         # Should never reach here, but return high as failsafe
         return "high", risk_levels["high"]["recommendations"]
-
-
-# Module-level functions for backwards compatibility
-def analyze_deduplication_impact(duplicate_group: Dict[str, Any], project_root: str, language: str) -> Dict[str, Any]:
-    """Analyze the impact of applying deduplication to a duplicate group."""
-    analyzer = ImpactAnalyzer()
-    return analyzer.analyze_deduplication_impact(duplicate_group, project_root, language)
-
-
-def estimate_lines_changed(
-    duplicate_count: int,
-    lines_per_duplicate: int,
-    external_call_sites: int = 0,
-) -> Dict[str, Any]:
-    """Estimate the number of lines that would change during deduplication.
-
-    Standalone function that estimates code churn from applying deduplication.
-
-    Args:
-        duplicate_count: Number of duplicate instances
-        lines_per_duplicate: Lines in each duplicate
-        external_call_sites: Number of external references (default 0)
-
-    Returns:
-        Dict with additions, deletions, net_change, and breakdown
-    """
-    analyzer = ImpactAnalyzer()
-    return analyzer._estimate_lines_changed(duplicate_count, lines_per_duplicate, external_call_sites)
-
-
-# Alias for backward compatibility with underscore prefix
-_estimate_lines_changed = estimate_lines_changed

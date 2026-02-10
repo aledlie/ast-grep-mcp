@@ -13,12 +13,14 @@ import sys
 # Add the parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from ast_grep_mcp.features.deduplication.reporting import (
-    create_enhanced_duplication_response,
-    generate_before_after_example,
-    visualize_complexity,
-)
+from ast_grep_mcp.features.deduplication.reporting import DuplicationReporter
 from ast_grep_mcp.utils.formatters import format_diff_with_colors
+
+# Instantiate reporter for use in tests
+_reporter = DuplicationReporter()
+create_enhanced_duplication_response = _reporter.create_enhanced_duplication_response
+generate_before_after_example = _reporter.generate_before_after_example
+visualize_complexity = _reporter.visualize_complexity
 
 
 class TestFormatDiffWithColors:

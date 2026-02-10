@@ -74,10 +74,3 @@ class DeduplicationBenchmark:
         return self.reporter.format_benchmark_report(
             results, regression_detected, regression_errors, self.thresholds, save_baseline, execution_time
         )
-
-
-# Module-level function for backwards compatibility
-def benchmark_deduplication(iterations: int = 10, save_baseline: bool = False, check_regression: bool = True) -> Dict[str, Any]:
-    """Run performance benchmarks for deduplication functions."""
-    benchmark = DeduplicationBenchmark()
-    return benchmark.benchmark_deduplication(iterations, save_baseline, check_regression)
