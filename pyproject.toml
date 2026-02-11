@@ -15,7 +15,8 @@ dependencies = [
     "structlog>=24.1.0",
     "httpx>=0.28.0",
     "sentry-sdk[anthropic]>=2.0.0",
-    "datasketch>=1.6.0",  # MinHash + LSH for O(n) similarity detection
+    "datasketch>=1.6.0", # MinHash + LSH for O(n) similarity detection
+    "pillow>=12.1.0",
 ]
 
 [project.optional-dependencies]
