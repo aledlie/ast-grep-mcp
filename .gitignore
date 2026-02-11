@@ -12,7 +12,10 @@ wheels/
 # Virtual environments
 .venv
 
-# Repomix output files
+# Generated outputs
 repomix-output.xml
 .doppler.yaml
 .coverage
+htmlcov/
+analysis_reports/
+benchmark_comparisons/
