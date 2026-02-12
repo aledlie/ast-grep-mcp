@@ -629,21 +629,7 @@ class PatternAnalyzer:
             )
 
             if result.returncode == 0 and result.stdout.strip():
-                try:
-                    matches = json.loads(result.stdout)
-                    for match in matches:
-                        line = match.get("range", {}).get("start", {}).get("line", 0)
-                        text = match.get("text", "")
-                        kind = match.get("kind", "unknown")
-                        conditionals.append(
-                            {
-                                "line": line,
-                                "text": text.strip(),
-                                "kind": kind,
-                            }
-                        )
-                except json.JSONDecodeError:
-                    self.logger.warning("conditional_parse_error", language=language)
+                conditionals.extend(self._parse_conditional_matches(result.stdout, language))
 
         except subprocess.TimeoutExpired:
             self.logger.warning("conditional_extraction_timeout", language=language)
@@ -661,6 +647,22 @@ class PatternAnalyzer:
                 pass
 
         return conditionals
+
+    def _parse_conditional_matches(self, stdout: str, language: str) -> List[Dict[str, Any]]:
+        """Parse ast-grep JSON output into conditional match dicts."""
+        try:
+            matches = json.loads(stdout)
+        except json.JSONDecodeError:
+            self.logger.warning("conditional_parse_error", language=language)
+            return []
+        return [
+            {
+                "line": m.get("range", {}).get("start", {}).get("line", 0),
+                "text": m.get("text", "").strip(),
+                "kind": m.get("kind", "unknown"),
+            }
+            for m in matches
+        ]
 
     def _extract_conditionals_regex(self, code: str, language: str) -> List[Dict[str, Any]]:
         """Fallback regex-based extraction for conditionals."""
