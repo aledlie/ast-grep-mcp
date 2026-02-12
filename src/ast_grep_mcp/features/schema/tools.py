@@ -553,10 +553,7 @@ def register_schema_tools(mcp: FastMCP) -> None:
         ),
         output_mode: str = Field(
             default="analysis",
-            description=(
-                "Output: 'analysis' for suggestions, 'enhanced' for complete graph, "
-                "'diff' for additions only"
-            ),
+            description=("Output: 'analysis' for suggestions, 'enhanced' for complete graph, 'diff' for additions only"),
         ),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone enhance_entity_graph_tool function."""

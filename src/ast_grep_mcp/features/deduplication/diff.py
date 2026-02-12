@@ -61,11 +61,13 @@ def build_nested_diff_tree(code1: str, code2: str, language: str | None = None) 
             if i + 1 < len(diff_lines) and diff_lines[i + 1].startswith("+"):
                 modifications += 1
                 deletions -= 1
-                changes.append({
-                    "type": "modification",
-                    "old": line[1:].rstrip("\n"),
-                    "new": diff_lines[i + 1][1:].rstrip("\n"),
-                })
+                changes.append(
+                    {
+                        "type": "modification",
+                        "old": line[1:].rstrip("\n"),
+                        "new": diff_lines[i + 1][1:].rstrip("\n"),
+                    }
+                )
                 i += 2
                 continue
             changes.append({"type": "deletion", "content": line[1:].rstrip("\n")})
@@ -106,9 +108,7 @@ def build_nested_diff_tree(code1: str, code2: str, language: str | None = None) 
     }
 
 
-def _append_lines_as_ops(
-    diff_ops: list[dict[str, Any]], lines: list[str], op_type: str
-) -> None:
+def _append_lines_as_ops(diff_ops: list[dict[str, Any]], lines: list[str], op_type: str) -> None:
     """Append lines to diff_ops with the specified operation type."""
     for line in lines:
         diff_ops.append({"type": op_type, "content": line})
@@ -273,7 +273,7 @@ def _parse_file_header(line: str, prefix: str) -> str | None:
     """Parse a file header line and extract the filename."""
     if not line.startswith(prefix):
         return None
-    filename = line[len(prefix):].split("\t")[0]
+    filename = line[len(prefix) :].split("\t")[0]
     # Remove git prefixes
     if filename.startswith("a/") or filename.startswith("b/"):
         filename = filename[2:]

@@ -1159,10 +1159,7 @@ def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
             "language": Field(description="Programming language (python, javascript, typescript, java)"),
             "issue_types": Field(
                 default=None,
-                description=(
-                    "Types: 'sql_injection', 'xss', 'command_injection', "
-                    "'hardcoded_secrets', 'insecure_crypto', or None for all"
-                ),
+                description=("Types: 'sql_injection', 'xss', 'command_injection', 'hardcoded_secrets', 'insecure_crypto', or None for all"),
             ),
             "severity_threshold": Field(default="low", description="Minimum severity to report: 'critical', 'high', 'medium', 'low'"),
             "max_issues": Field(default=100, description="Maximum number of issues to return (0 = unlimited)"),

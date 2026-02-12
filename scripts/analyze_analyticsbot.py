@@ -18,9 +18,9 @@ from ast_grep_mcp.features.quality.tools import detect_security_issues_tool  # n
 def analyze_project(project_path: str):
     """Run comprehensive analysis on AnalyticsBot."""
 
-    console.log(f"\n{'='*80}")
+    console.log(f"\n{'=' * 80}")
     console.log("AnalyticsBot Code Analysis")
-    console.log(f"{'='*80}\n")
+    console.log(f"{'=' * 80}\n")
 
     # 1. Complexity Analysis - TypeScript/JavaScript
     console.log("1. Analyzing complexity metrics (TypeScript/JavaScript)...")
@@ -34,7 +34,7 @@ def analyze_project(project_path: str):
             cognitive_threshold=15,
             nesting_threshold=4,
             length_threshold=50,
-            store_results=False
+            store_results=False,
         )
 
         summary = complexity_result.get("summary", {})
@@ -53,8 +53,7 @@ def analyze_project(project_path: str):
             for i, func in enumerate(functions[:3], 1):
                 console.log(f"   {i}. {func.get('file', 'unknown').split('/')[-1]} (lines {func.get('lines', '?')})")
                 console.log(
-                    f"      Cyclomatic: {func.get('cyclomatic', 0)}, "
-                    f"Cognitive: {func.get('cognitive', 0)}, Length: {func.get('length', 0)}"
+                    f"      Cyclomatic: {func.get('cyclomatic', 0)}, Cognitive: {func.get('cognitive', 0)}, Length: {func.get('length', 0)}"
                 )
 
     except Exception as e:
@@ -73,7 +72,7 @@ def analyze_project(project_path: str):
             nesting_depth=4,
             class_lines=300,
             class_methods=20,
-            detect_magic_numbers=True
+            detect_magic_numbers=True,
         )
 
         if smells_result.get("smells"):
@@ -96,11 +95,7 @@ def analyze_project(project_path: str):
     console.log("\n3. Scanning for security vulnerabilities...")
     try:
         security_result = detect_security_issues_tool(
-            project_folder=project_path,
-            language="typescript",
-            issue_types=["all"],
-            severity_threshold="low",
-            max_issues=200
+            project_folder=project_path, language="typescript", issue_types=["all"], severity_threshold="low", max_issues=200
         )
 
         if security_result.get("issues"):
@@ -127,15 +122,15 @@ def analyze_project(project_path: str):
     except Exception as e:
         console.error(f"   Error: {e}")
 
-    console.log(f"\n{'='*80}")
+    console.log(f"\n{'=' * 80}")
     console.success("Analysis Complete")
-    console.log(f"{'='*80}\n")
+    console.log(f"{'=' * 80}\n")
 
     # Return structured data
     return {
-        "complexity": complexity_result if 'complexity_result' in locals() else {},
-        "smells": smells_result if 'smells_result' in locals() else {},
-        "security": security_result if 'security_result' in locals() else {}
+        "complexity": complexity_result if "complexity_result" in locals() else {},
+        "smells": smells_result if "smells_result" in locals() else {},
+        "security": security_result if "security_result" in locals() else {},
     }
 
 

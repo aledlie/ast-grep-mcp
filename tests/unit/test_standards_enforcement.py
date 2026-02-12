@@ -66,7 +66,7 @@ class TestRuleViolationDataClass:
             message="Use of eval() is dangerous",
             code_snippet="eval(user_input)",
             fix_suggestion="Use ast.literal_eval()",
-            meta_vars={"VAR": "user_input"}
+            meta_vars={"VAR": "user_input"},
         )
 
         assert violation.file == "/path/to/file.py"
@@ -92,7 +92,7 @@ class TestRuleViolationDataClass:
             severity="warning",
             rule_id="no-console",
             message="No console.log",
-            code_snippet="console.log('test')"
+            code_snippet="console.log('test')",
         )
 
         assert violation.fix_suggestion is None
@@ -109,7 +109,7 @@ class TestRuleViolationDataClass:
             severity="info",
             rule_id="test-rule",
             message="Test message",
-            code_snippet="test()"
+            code_snippet="test()",
         )
 
         assert violation.file == "/test.py"
@@ -121,22 +121,9 @@ class TestRuleSetDataClass:
 
     def test_instantiation_all_fields(self):
         """Test RuleSet with all fields."""
-        rules = [
-            LintingRule(
-                id="no-var",
-                language="typescript",
-                severity="warning",
-                message="Use const or let",
-                pattern="var $NAME = $$$"
-            )
-        ]
+        rules = [LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")]
 
-        rule_set = RuleSet(
-            name="recommended",
-            description="Best practices",
-            rules=rules,
-            priority=100
-        )
+        rule_set = RuleSet(name="recommended", description="Best practices", rules=rules, priority=100)
 
         assert rule_set.name == "recommended"
         assert rule_set.description == "Best practices"
@@ -145,32 +132,15 @@ class TestRuleSetDataClass:
 
     def test_instantiation_without_priority(self):
         """Test RuleSet with default priority."""
-        rules = [
-            LintingRule(
-                id="test-rule",
-                language="python",
-                severity="error",
-                message="Test",
-                pattern="test"
-            )
-        ]
+        rules = [LintingRule(id="test-rule", language="python", severity="error", message="Test", pattern="test")]
 
-        rule_set = RuleSet(
-            name="test",
-            description="Test set",
-            rules=rules
-        )
+        rule_set = RuleSet(name="test", description="Test set", rules=rules)
 
         assert rule_set.priority == 0
 
     def test_empty_rules_list(self):
         """Test RuleSet with empty rules list."""
-        rule_set = RuleSet(
-            name="empty",
-            description="Empty set",
-            rules=[],
-            priority=50
-        )
+        rule_set = RuleSet(name="empty", description="Empty set", rules=[], priority=50)
 
         assert len(rule_set.rules) == 0
 
@@ -190,7 +160,7 @@ class TestEnforcementResultDataClass:
                 severity="error",
                 rule_id="no-eval",
                 message="Don't use eval",
-                code_snippet="eval(x)"
+                code_snippet="eval(x)",
             )
         ]
 
@@ -202,7 +172,7 @@ class TestEnforcementResultDataClass:
             violations_by_rule={"no-eval": violations},
             rules_executed=["no-eval"],
             execution_time_ms=1500,
-            files_scanned=1
+            files_scanned=1,
         )
 
         assert result.summary["total_violations"] == 1
@@ -220,7 +190,7 @@ class TestEnforcementResultDataClass:
             violations_by_rule={},
             rules_executed=["no-var"],
             execution_time_ms=500,
-            files_scanned=10
+            files_scanned=10,
         )
 
         assert len(result.violations) == 0
@@ -241,7 +211,7 @@ class TestRuleExecutionContextDataClass:
             exclude_patterns=["**/test_*.py"],
             max_violations=100,
             max_threads=4,
-            logger=logger
+            logger=logger,
         )
 
         assert context.project_folder == "/path/to/project"
@@ -322,7 +292,7 @@ class TestTemplateToLintingRule:
             message="Use const or let",
             note="var has function scope",
             fix="Replace with const or let",
-            category="style"
+            category="style",
         )
 
         rule = _template_to_linting_rule(template)
@@ -394,21 +364,9 @@ class TestLoadCustomRules:
     @patch("ast_grep_mcp.features.quality.enforcer.load_rules_from_project")
     def test_filter_by_language(self, mock_load_project_rules):
         """Test filtering rules by language."""
-        python_rule = LintingRule(
-            id="python-rule",
-            language="python",
-            severity="error",
-            message="Python rule",
-            pattern="test"
-        )
+        python_rule = LintingRule(id="python-rule", language="python", severity="error", message="Python rule", pattern="test")
 
-        javascript_rule = LintingRule(
-            id="js-rule",
-            language="javascript",
-            severity="error",
-            message="JS rule",
-            pattern="test"
-        )
+        javascript_rule = LintingRule(id="js-rule", language="javascript", severity="error", message="JS rule", pattern="test")
 
         # Mock returns both Python and JavaScript rules
         mock_load_project_rules.return_value = [python_rule, javascript_rule]
@@ -460,13 +418,7 @@ class TestLoadCustomRules:
         mock_glob.return_value = [mock_file]
 
         # Load TypeScript rule but filter for Python
-        ts_rule = LintingRule(
-            id="ts-rule",
-            language="typescript",
-            severity="warning",
-            message="TS rule",
-            pattern="test"
-        )
+        ts_rule = LintingRule(id="ts-rule", language="typescript", severity="warning", message="TS rule", pattern="test")
 
         mock_load.return_value = ts_rule
 
@@ -522,15 +474,7 @@ class TestLoadRuleSet:
     @patch("ast_grep_mcp.features.quality.enforcer.load_custom_rules")
     def test_load_custom_rule_set(self, mock_load_custom):
         """Test loading 'custom' rule set."""
-        custom_rules = [
-            LintingRule(
-                id="custom-rule",
-                language="python",
-                severity="warning",
-                message="Custom",
-                pattern="custom"
-            )
-        ]
+        custom_rules = [LintingRule(id="custom-rule", language="python", severity="warning", message="Custom", pattern="custom")]
         mock_load_custom.return_value = custom_rules
 
         rule_set = _load_rule_set("custom", "/fake/path", "python")
@@ -595,25 +539,13 @@ class TestParseMatchToViolation:
         # ast-grep returns metaVariables in nested dict format with "single"/"multi" keys
         match = {
             "file": "/path/to/file.py",
-            "range": {
-                "start": {"line": 10, "column": 5},
-                "end": {"line": 10, "column": 15}
-            },
+            "range": {"start": {"line": 10, "column": 5}, "end": {"line": 10, "column": 15}},
             "text": "eval(user_input)",
-            "metaVariables": {
-                "single": {
-                    "VAR": {"text": "user_input"}
-                }
-            }
+            "metaVariables": {"single": {"VAR": {"text": "user_input"}}},
         }
 
         rule = LintingRule(
-            id="no-eval",
-            language="python",
-            severity="error",
-            message="Don't use eval",
-            pattern="eval($VAR)",
-            fix="Use ast.literal_eval"
+            id="no-eval", language="python", severity="error", message="Don't use eval", pattern="eval($VAR)", fix="Use ast.literal_eval"
         )
 
         violation = _parse_match_to_violation(match, rule)
@@ -632,22 +564,9 @@ class TestParseMatchToViolation:
 
     def test_parse_match_without_metavars(self):
         """Test parsing match without metavariables."""
-        match = {
-            "file": "/test.py",
-            "range": {
-                "start": {"line": 5, "column": 0},
-                "end": {"line": 5, "column": 10}
-            },
-            "text": "except:"
-        }
+        match = {"file": "/test.py", "range": {"start": {"line": 5, "column": 0}, "end": {"line": 5, "column": 10}}, "text": "except:"}
 
-        rule = LintingRule(
-            id="no-bare-except",
-            language="python",
-            severity="error",
-            message="Bare except",
-            pattern="except:"
-        )
+        rule = LintingRule(id="no-bare-except", language="python", severity="error", message="Bare except", pattern="except:")
 
         violation = _parse_match_to_violation(match, rule)
 
@@ -655,18 +574,9 @@ class TestParseMatchToViolation:
 
     def test_parse_match_missing_range(self):
         """Test parsing match with missing range information."""
-        match = {
-            "file": "/test.py",
-            "text": "test code"
-        }
+        match = {"file": "/test.py", "text": "test code"}
 
-        rule = LintingRule(
-            id="test-rule",
-            language="python",
-            severity="warning",
-            message="Test",
-            pattern="test"
-        )
+        rule = LintingRule(id="test-rule", language="python", severity="warning", message="Test", pattern="test")
 
         violation = _parse_match_to_violation(match, rule)
 
@@ -677,20 +587,11 @@ class TestParseMatchToViolation:
         """Test parsing multiline match."""
         match = {
             "file": "/test.py",
-            "range": {
-                "start": {"line": 10, "column": 0},
-                "end": {"line": 15, "column": 10}
-            },
-            "text": "def foo():\n    pass"
+            "range": {"start": {"line": 10, "column": 0}, "end": {"line": 15, "column": 10}},
+            "text": "def foo():\n    pass",
         }
 
-        rule = LintingRule(
-            id="test-rule",
-            language="python",
-            severity="info",
-            message="Test",
-            pattern="def $FUNC():\n    pass"
-        )
+        rule = LintingRule(id="test-rule", language="python", severity="info", message="Test", pattern="def $FUNC():\n    pass")
 
         violation = _parse_match_to_violation(match, rule)
 
@@ -787,27 +688,14 @@ class TestExecuteRule:
             exclude_patterns=[],
             max_violations=0,
             max_threads=4,
-            logger=logger
+            logger=logger,
         )
 
         mock_stream.return_value = [
-            {
-                "file": "/test.py",
-                "range": {
-                    "start": {"line": 5, "column": 0},
-                    "end": {"line": 5, "column": 10}
-                },
-                "text": "except:"
-            }
+            {"file": "/test.py", "range": {"start": {"line": 5, "column": 0}, "end": {"line": 5, "column": 10}}, "text": "except:"}
         ]
 
-        rule = LintingRule(
-            id="no-bare-except",
-            language="python",
-            severity="error",
-            message="Bare except",
-            pattern="except:"
-        )
+        rule = LintingRule(id="no-bare-except", language="python", severity="error", message="Bare except", pattern="except:")
 
         violations = _execute_rule(rule, context)
 
@@ -826,27 +714,14 @@ class TestExecuteRule:
             exclude_patterns=[],
             max_violations=0,
             max_threads=4,
-            logger=logger
+            logger=logger,
         )
 
         mock_stream.return_value = [
-            {
-                "file": "/test.py",
-                "range": {
-                    "start": {"line": 10, "column": 5},
-                    "end": {"line": 10, "column": 15}
-                },
-                "text": "eval(x)"
-            }
+            {"file": "/test.py", "range": {"start": {"line": 10, "column": 5}, "end": {"line": 10, "column": 15}}, "text": "eval(x)"}
         ]
 
-        rule = LintingRule(
-            id="no-eval",
-            language="python",
-            severity="error",
-            message="Don't use eval",
-            pattern="eval($VAR)"
-        )
+        rule = LintingRule(id="no-eval", language="python", severity="error", message="Don't use eval", pattern="eval($VAR)")
 
         violations = _execute_rule(rule, context)
 
@@ -864,27 +739,18 @@ class TestExecuteRule:
             exclude_patterns=["**/node_modules/**"],
             max_violations=0,
             max_threads=4,
-            logger=logger
+            logger=logger,
         )
 
         mock_stream.return_value = [
             {
                 "file": "/project/node_modules/package/file.py",
-                "range": {
-                    "start": {"line": 5, "column": 0},
-                    "end": {"line": 5, "column": 10}
-                },
-                "text": "except:"
+                "range": {"start": {"line": 5, "column": 0}, "end": {"line": 5, "column": 10}},
+                "text": "except:",
             }
         ]
 
-        rule = LintingRule(
-            id="no-bare-except",
-            language="python",
-            severity="error",
-            message="Bare except",
-            pattern="except:"
-        )
+        rule = LintingRule(id="no-bare-except", language="python", severity="error", message="Bare except", pattern="except:")
 
         violations = _execute_rule(rule, context)
 
@@ -902,29 +768,16 @@ class TestExecuteRule:
             exclude_patterns=[],
             max_violations=2,
             max_threads=4,
-            logger=logger
+            logger=logger,
         )
 
         # Return 5 matches
         mock_stream.return_value = [
-            {
-                "file": f"/test{i}.py",
-                "range": {
-                    "start": {"line": 5, "column": 0},
-                    "end": {"line": 5, "column": 10}
-                },
-                "text": "except:"
-            }
+            {"file": f"/test{i}.py", "range": {"start": {"line": 5, "column": 0}, "end": {"line": 5, "column": 10}}, "text": "except:"}
             for i in range(5)
         ]
 
-        rule = LintingRule(
-            id="no-bare-except",
-            language="python",
-            severity="error",
-            message="Bare except",
-            pattern="except:"
-        )
+        rule = LintingRule(id="no-bare-except", language="python", severity="error", message="Bare except", pattern="except:")
 
         violations = _execute_rule(rule, context)
 
@@ -942,18 +795,12 @@ class TestExecuteRule:
             exclude_patterns=[],
             max_violations=0,
             max_threads=4,
-            logger=logger
+            logger=logger,
         )
 
         mock_stream.side_effect = Exception("Execution failed")
 
-        rule = LintingRule(
-            id="test-rule",
-            language="python",
-            severity="error",
-            message="Test",
-            pattern="test"
-        )
+        rule = LintingRule(id="test-rule", language="python", severity="error", message="Test", pattern="test")
 
         violations = _execute_rule(rule, context)
 
@@ -972,18 +819,12 @@ class TestExecuteRule:
             exclude_patterns=[],
             max_violations=0,
             max_threads=4,
-            logger=logger
+            logger=logger,
         )
 
         mock_stream.return_value = []
 
-        rule = LintingRule(
-            id="test-rule",
-            language="python",
-            severity="error",
-            message="Test",
-            pattern="test"
-        )
+        rule = LintingRule(id="test-rule", language="python", severity="error", message="Test", pattern="test")
 
         _execute_rule(rule, context)
 
@@ -1004,19 +845,10 @@ class TestExecuteRulesBatch:
             exclude_patterns=[],
             max_violations=0,
             max_threads=4,
-            logger=logger
+            logger=logger,
         )
 
-        rules = [
-            LintingRule(
-                id=f"rule-{i}",
-                language="python",
-                severity="error",
-                message="Test",
-                pattern="test"
-            )
-            for i in range(3)
-        ]
+        rules = [LintingRule(id=f"rule-{i}", language="python", severity="error", message="Test", pattern="test") for i in range(3)]
 
         mock_execute.return_value = []
 
@@ -1036,19 +868,10 @@ class TestExecuteRulesBatch:
             exclude_patterns=[],
             max_violations=0,
             max_threads=4,
-            logger=logger
+            logger=logger,
         )
 
-        rules = [
-            LintingRule(
-                id=f"rule-{i}",
-                language="python",
-                severity="error",
-                message="Test",
-                pattern="test"
-            )
-            for i in range(2)
-        ]
+        rules = [LintingRule(id=f"rule-{i}", language="python", severity="error", message="Test", pattern="test") for i in range(2)]
 
         # Return 2 violations per rule
         mock_execute.return_value = [
@@ -1061,7 +884,7 @@ class TestExecuteRulesBatch:
                 severity="error",
                 rule_id="test",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             )
             for _ in range(2)
         ]
@@ -1082,19 +905,10 @@ class TestExecuteRulesBatch:
             exclude_patterns=[],
             max_violations=5,
             max_threads=4,
-            logger=logger
+            logger=logger,
         )
 
-        rules = [
-            LintingRule(
-                id=f"rule-{i}",
-                language="python",
-                severity="error",
-                message="Test",
-                pattern="test"
-            )
-            for i in range(10)
-        ]
+        rules = [LintingRule(id=f"rule-{i}", language="python", severity="error", message="Test", pattern="test") for i in range(10)]
 
         # Return 3 violations per rule
         mock_execute.return_value = [
@@ -1107,7 +921,7 @@ class TestExecuteRulesBatch:
                 severity="error",
                 rule_id="test",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             )
             for _ in range(3)
         ]
@@ -1128,26 +942,13 @@ class TestExecuteRulesBatch:
             exclude_patterns=[],
             max_violations=0,
             max_threads=4,
-            logger=logger
+            logger=logger,
         )
 
-        rules = [
-            LintingRule(
-                id=f"rule-{i}",
-                language="python",
-                severity="error",
-                message="Test",
-                pattern="test"
-            )
-            for i in range(3)
-        ]
+        rules = [LintingRule(id=f"rule-{i}", language="python", severity="error", message="Test", pattern="test") for i in range(3)]
 
         # First rule fails, others succeed
-        mock_execute.side_effect = [
-            Exception("Rule failed"),
-            [],
-            []
-        ]
+        mock_execute.side_effect = [Exception("Rule failed"), [], []]
 
         # Should not raise
         violations = _execute_rules_batch(rules, context)
@@ -1170,7 +971,7 @@ class TestGroupViolationsByFile:
                 severity="error",
                 rule_id="rule1",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             ),
             RuleViolation(
                 file="/test2.py",
@@ -1181,7 +982,7 @@ class TestGroupViolationsByFile:
                 severity="warning",
                 rule_id="rule2",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             ),
             RuleViolation(
                 file="/test1.py",
@@ -1192,8 +993,8 @@ class TestGroupViolationsByFile:
                 severity="error",
                 rule_id="rule3",
                 message="Test",
-                code_snippet="test"
-            )
+                code_snippet="test",
+            ),
         ]
 
         grouped = _group_violations_by_file(violations)
@@ -1214,7 +1015,7 @@ class TestGroupViolationsByFile:
                 severity="error",
                 rule_id="rule1",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             ),
             RuleViolation(
                 file="/test.py",
@@ -1225,7 +1026,7 @@ class TestGroupViolationsByFile:
                 severity="error",
                 rule_id="rule2",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             ),
             RuleViolation(
                 file="/test.py",
@@ -1236,8 +1037,8 @@ class TestGroupViolationsByFile:
                 severity="error",
                 rule_id="rule3",
                 message="Test",
-                code_snippet="test"
-            )
+                code_snippet="test",
+            ),
         ]
 
         grouped = _group_violations_by_file(violations)
@@ -1272,7 +1073,7 @@ class TestGroupViolationsBySeverity:
                 severity="error",
                 rule_id="rule1",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             ),
             RuleViolation(
                 file="/test.py",
@@ -1283,7 +1084,7 @@ class TestGroupViolationsBySeverity:
                 severity="warning",
                 rule_id="rule2",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             ),
             RuleViolation(
                 file="/test.py",
@@ -1294,8 +1095,8 @@ class TestGroupViolationsBySeverity:
                 severity="error",
                 rule_id="rule3",
                 message="Test",
-                code_snippet="test"
-            )
+                code_snippet="test",
+            ),
         ]
 
         grouped = _group_violations_by_severity(violations)
@@ -1316,7 +1117,7 @@ class TestGroupViolationsBySeverity:
                 severity="info",
                 rule_id="rule1",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             )
         ]
 
@@ -1350,7 +1151,7 @@ class TestGroupViolationsByRule:
                 severity="error",
                 rule_id="no-eval",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             ),
             RuleViolation(
                 file="/test.py",
@@ -1361,7 +1162,7 @@ class TestGroupViolationsByRule:
                 severity="warning",
                 rule_id="no-console",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             ),
             RuleViolation(
                 file="/test.py",
@@ -1372,8 +1173,8 @@ class TestGroupViolationsByRule:
                 severity="error",
                 rule_id="no-eval",
                 message="Test",
-                code_snippet="test"
-            )
+                code_snippet="test",
+            ),
         ]
 
         grouped = _group_violations_by_rule(violations)
@@ -1404,7 +1205,7 @@ class TestFilterViolationsBySeverity:
                 severity="error",
                 rule_id="rule1",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             ),
             RuleViolation(
                 file="/test.py",
@@ -1415,7 +1216,7 @@ class TestFilterViolationsBySeverity:
                 severity="warning",
                 rule_id="rule2",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             ),
             RuleViolation(
                 file="/test.py",
@@ -1426,8 +1227,8 @@ class TestFilterViolationsBySeverity:
                 severity="info",
                 rule_id="rule3",
                 message="Test",
-                code_snippet="test"
-            )
+                code_snippet="test",
+            ),
         ]
 
         filtered = _filter_violations_by_severity(violations, "error")
@@ -1447,7 +1248,7 @@ class TestFilterViolationsBySeverity:
                 severity="error",
                 rule_id="rule1",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             ),
             RuleViolation(
                 file="/test.py",
@@ -1458,7 +1259,7 @@ class TestFilterViolationsBySeverity:
                 severity="warning",
                 rule_id="rule2",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             ),
             RuleViolation(
                 file="/test.py",
@@ -1469,8 +1270,8 @@ class TestFilterViolationsBySeverity:
                 severity="info",
                 rule_id="rule3",
                 message="Test",
-                code_snippet="test"
-            )
+                code_snippet="test",
+            ),
         ]
 
         filtered = _filter_violations_by_severity(violations, "warning")
@@ -1490,7 +1291,7 @@ class TestFilterViolationsBySeverity:
                 severity="error",
                 rule_id="rule1",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             ),
             RuleViolation(
                 file="/test.py",
@@ -1501,7 +1302,7 @@ class TestFilterViolationsBySeverity:
                 severity="warning",
                 rule_id="rule2",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             ),
             RuleViolation(
                 file="/test.py",
@@ -1512,8 +1313,8 @@ class TestFilterViolationsBySeverity:
                 severity="info",
                 rule_id="rule3",
                 message="Test",
-                code_snippet="test"
-            )
+                code_snippet="test",
+            ),
         ]
 
         filtered = _filter_violations_by_severity(violations, "info")
@@ -1533,7 +1334,7 @@ class TestFilterViolationsBySeverity:
                 severity=sev,
                 rule_id="rule1",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             )
             for sev in ["error", "warning", "info"]
         ]
@@ -1560,7 +1361,7 @@ class TestFormatViolationReport:
                 rule_id="no-eval",
                 message="Don't use eval",
                 code_snippet="eval(x)",
-                fix_suggestion="Use ast.literal_eval"
+                fix_suggestion="Use ast.literal_eval",
             )
         ]
 
@@ -1569,7 +1370,7 @@ class TestFormatViolationReport:
                 "total_violations": 1,
                 "by_severity": {"error": 1, "warning": 0, "info": 0},
                 "files_scanned": 1,
-                "execution_time_ms": 1500
+                "execution_time_ms": 1500,
             },
             violations=violations,
             violations_by_file={"/test.py": violations},
@@ -1577,7 +1378,7 @@ class TestFormatViolationReport:
             violations_by_rule={"no-eval": violations},
             rules_executed=["no-eval"],
             execution_time_ms=1500,
-            files_scanned=1
+            files_scanned=1,
         )
 
         report = _format_violation_report(result)
@@ -1594,7 +1395,7 @@ class TestFormatViolationReport:
                 "total_violations": 5,
                 "by_severity": {"error": 2, "warning": 3, "info": 0},
                 "files_scanned": 3,
-                "execution_time_ms": 2000
+                "execution_time_ms": 2000,
             },
             violations=[],
             violations_by_file={},
@@ -1602,7 +1403,7 @@ class TestFormatViolationReport:
             violations_by_rule={},
             rules_executed=["rule1", "rule2"],
             execution_time_ms=2000,
-            files_scanned=3
+            files_scanned=3,
         )
 
         report = _format_violation_report(result)
@@ -1624,7 +1425,7 @@ class TestFormatViolationReport:
                 severity="error",
                 rule_id="no-eval",
                 message="Test",
-                code_snippet="test"
+                code_snippet="test",
             )
         ]
 
@@ -1633,7 +1434,7 @@ class TestFormatViolationReport:
                 "total_violations": 1,
                 "by_severity": {"error": 1, "warning": 0, "info": 0},
                 "files_scanned": 1,
-                "execution_time_ms": 1000
+                "execution_time_ms": 1000,
             },
             violations=violations,
             violations_by_file={"/test.py": violations},
@@ -1641,7 +1442,7 @@ class TestFormatViolationReport:
             violations_by_rule={"no-eval": violations},
             rules_executed=["no-eval"],
             execution_time_ms=1000,
-            files_scanned=1
+            files_scanned=1,
         )
 
         report = _format_violation_report(result)
@@ -1656,7 +1457,7 @@ class TestFormatViolationReport:
                 "total_violations": 0,
                 "by_severity": {"error": 0, "warning": 0, "info": 0},
                 "files_scanned": 10,
-                "execution_time_ms": 500
+                "execution_time_ms": 500,
             },
             violations=[],
             violations_by_file={},
@@ -1664,7 +1465,7 @@ class TestFormatViolationReport:
             violations_by_rule={},
             rules_executed=["rule1"],
             execution_time_ms=500,
-            files_scanned=10
+            files_scanned=10,
         )
 
         report = _format_violation_report(result)
@@ -1686,26 +1487,16 @@ class TestEnforceStandardsTool:
             name="recommended",
             description="Best practices",
             rules=[
-                LintingRule(
-                    id="no-var",
-                    language="typescript",
-                    severity="warning",
-                    message="Use const or let",
-                    pattern="var $NAME = $$$"
-                )
+                LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")
             ],
-            priority=100
+            priority=100,
         )
         mock_load.return_value = mock_rule_set
 
         mock_execute.return_value = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(
-                project_folder=tmpdir,
-                language="typescript",
-                rule_set="recommended"
-            )
+            result = enforce_standards_tool(project_folder=tmpdir, language="typescript", rule_set="recommended")
 
         assert "summary" in result
         assert result["summary"]["total_violations"] == 0
@@ -1720,27 +1511,15 @@ class TestEnforceStandardsTool:
         mock_rule_set = RuleSet(
             name="security",
             description="Security rules",
-            rules=[
-                LintingRule(
-                    id="no-eval",
-                    language="python",
-                    severity="error",
-                    message="No eval",
-                    pattern="eval($VAR)"
-                )
-            ],
-            priority=200
+            rules=[LintingRule(id="no-eval", language="python", severity="error", message="No eval", pattern="eval($VAR)")],
+            priority=200,
         )
         mock_load.return_value = mock_rule_set
 
         mock_execute.return_value = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(
-                project_folder=tmpdir,
-                language="python",
-                rule_set="security"
-            )
+            result = enforce_standards_tool(project_folder=tmpdir, language="python", rule_set="security")
 
         assert result["summary"]["total_violations"] == 0
 
@@ -1752,32 +1531,15 @@ class TestEnforceStandardsTool:
         mock_exists.return_value = True
 
         custom_rules = [
-            LintingRule(
-                id="custom-rule-1",
-                language="python",
-                severity="warning",
-                message="Custom",
-                pattern="custom"
-            ),
-            LintingRule(
-                id="custom-rule-2",
-                language="python",
-                severity="error",
-                message="Custom 2",
-                pattern="custom2"
-            )
+            LintingRule(id="custom-rule-1", language="python", severity="warning", message="Custom", pattern="custom"),
+            LintingRule(id="custom-rule-2", language="python", severity="error", message="Custom 2", pattern="custom2"),
         ]
         mock_load_custom.return_value = custom_rules
 
         mock_execute.return_value = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(
-                project_folder=tmpdir,
-                language="python",
-                rule_set="custom",
-                custom_rules=["custom-rule-1"]
-            )
+            result = enforce_standards_tool(project_folder=tmpdir, language="python", rule_set="custom", custom_rules=["custom-rule-1"])
 
         assert "summary" in result
 
@@ -1788,11 +1550,7 @@ class TestEnforceStandardsTool:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError) as exc_info:
-                enforce_standards_tool(
-                    project_folder=tmpdir,
-                    language="python",
-                    severity_threshold="critical"
-                )
+                enforce_standards_tool(project_folder=tmpdir, language="python", severity_threshold="critical")
 
         assert "severity_threshold" in str(exc_info.value)
 
@@ -1803,21 +1561,14 @@ class TestEnforceStandardsTool:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError) as exc_info:
-                enforce_standards_tool(
-                    project_folder=tmpdir,
-                    language="python",
-                    output_format="xml"
-                )
+                enforce_standards_tool(project_folder=tmpdir, language="python", output_format="xml")
 
         assert "output_format" in str(exc_info.value)
 
     def test_project_folder_not_found(self, enforce_standards_tool):
         """Test error when project folder doesn't exist."""
         with pytest.raises(ValueError) as exc_info:
-            enforce_standards_tool(
-                project_folder="/nonexistent/path",
-                language="python"
-            )
+            enforce_standards_tool(project_folder="/nonexistent/path", language="python")
 
         assert "does not exist" in str(exc_info.value)
 
@@ -1831,15 +1582,12 @@ class TestEnforceStandardsTool:
             name="recommended",
             description="Best practices",
             rules=[],  # No rules
-            priority=100
+            priority=100,
         )
         mock_load.return_value = mock_rule_set
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(
-                project_folder=tmpdir,
-                language="rust"
-            )
+            result = enforce_standards_tool(project_folder=tmpdir, language="rust")
 
         assert "message" in result or result["summary"]["total_violations"] == 0
 
@@ -1852,12 +1600,7 @@ class TestEnforceStandardsTool:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError) as exc_info:
-                enforce_standards_tool(
-                    project_folder=tmpdir,
-                    language="python",
-                    rule_set="custom",
-                    custom_rules=["nonexistent-rule"]
-                )
+                enforce_standards_tool(project_folder=tmpdir, language="python", rule_set="custom", custom_rules=["nonexistent-rule"])
 
             assert "No custom rules found" in str(exc_info.value)
 
@@ -1872,26 +1615,16 @@ class TestEnforceStandardsTool:
             name="recommended",
             description="Best practices",
             rules=[
-                LintingRule(
-                    id="no-var",
-                    language="typescript",
-                    severity="warning",
-                    message="Use const or let",
-                    pattern="var $NAME = $$$"
-                )
+                LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")
             ],
-            priority=100
+            priority=100,
         )
         mock_load.return_value = mock_rule_set
 
         mock_execute.return_value = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(
-                project_folder=tmpdir,
-                language="typescript",
-                output_format="text"
-            )
+            result = enforce_standards_tool(project_folder=tmpdir, language="typescript", output_format="text")
 
         assert "report" in result
         assert isinstance(result["report"], str)
@@ -1907,15 +1640,9 @@ class TestEnforceStandardsTool:
             name="recommended",
             description="Best practices",
             rules=[
-                LintingRule(
-                    id="no-var",
-                    language="typescript",
-                    severity="warning",
-                    message="Use const or let",
-                    pattern="var $NAME = $$$"
-                )
+                LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")
             ],
-            priority=100
+            priority=100,
         )
         mock_load.return_value = mock_rule_set
 
@@ -1929,17 +1656,13 @@ class TestEnforceStandardsTool:
                 severity="warning",
                 rule_id="no-var",
                 message="Use const or let",
-                code_snippet="var x = 5"
+                code_snippet="var x = 5",
             )
         ]
         mock_execute.return_value = violations
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(
-                project_folder=tmpdir,
-                language="typescript",
-                output_format="json"
-            )
+            result = enforce_standards_tool(project_folder=tmpdir, language="typescript", output_format="json")
 
         assert "summary" in result
         assert "violations" in result
@@ -1956,15 +1679,9 @@ class TestEnforceStandardsTool:
             name="recommended",
             description="Best practices",
             rules=[
-                LintingRule(
-                    id="no-var",
-                    language="typescript",
-                    severity="warning",
-                    message="Use const or let",
-                    pattern="var $NAME = $$$"
-                )
+                LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")
             ],
-            priority=100
+            priority=100,
         )
         mock_load.return_value = mock_rule_set
 
@@ -1979,18 +1696,14 @@ class TestEnforceStandardsTool:
                 severity="warning",
                 rule_id="no-var",
                 message="Use const or let",
-                code_snippet="var x = 5"
+                code_snippet="var x = 5",
             )
             for i in range(5)
         ]
         mock_execute.return_value = violations
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            enforce_standards_tool(
-                project_folder=tmpdir,
-                language="typescript",
-                max_violations=3
-            )
+            enforce_standards_tool(project_folder=tmpdir, language="typescript", max_violations=3)
 
         # Should respect max_violations in context
         assert mock_execute.called
@@ -2006,15 +1719,9 @@ class TestEnforceStandardsTool:
             name="recommended",
             description="Best practices",
             rules=[
-                LintingRule(
-                    id="no-var",
-                    language="typescript",
-                    severity="warning",
-                    message="Use const or let",
-                    pattern="var $NAME = $$$"
-                )
+                LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")
             ],
-            priority=100
+            priority=100,
         )
         mock_load.return_value = mock_rule_set
 
@@ -2028,17 +1735,13 @@ class TestEnforceStandardsTool:
                 severity="info",
                 rule_id="no-var",
                 message="Use const or let",
-                code_snippet="var x = 5"
+                code_snippet="var x = 5",
             )
         ]
         mock_execute.return_value = violations
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(
-                project_folder=tmpdir,
-                language="typescript",
-                severity_threshold="error"
-            )
+            result = enforce_standards_tool(project_folder=tmpdir, language="typescript", severity_threshold="error")
 
         # Info violation should be filtered out
         assert result["summary"]["total_violations"] == 0
@@ -2054,15 +1757,9 @@ class TestEnforceStandardsTool:
             name="recommended",
             description="Best practices",
             rules=[
-                LintingRule(
-                    id="no-var",
-                    language="typescript",
-                    severity="warning",
-                    message="Use const or let",
-                    pattern="var $NAME = $$$"
-                )
+                LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")
             ],
-            priority=100
+            priority=100,
         )
         mock_load.return_value = mock_rule_set
 
@@ -2070,10 +1767,7 @@ class TestEnforceStandardsTool:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             enforce_standards_tool(
-                project_folder=tmpdir,
-                language="typescript",
-                include_patterns=["src/**/*.ts"],
-                exclude_patterns=["**/test/**"]
+                project_folder=tmpdir, language="typescript", include_patterns=["src/**/*.ts"], exclude_patterns=["**/test/**"]
             )
 
         # Verify context was created with patterns
@@ -2093,26 +1787,16 @@ class TestEnforceStandardsTool:
             name="recommended",
             description="Best practices",
             rules=[
-                LintingRule(
-                    id="no-var",
-                    language="typescript",
-                    severity="warning",
-                    message="Use const or let",
-                    pattern="var $NAME = $$$"
-                )
+                LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")
             ],
-            priority=100
+            priority=100,
         )
         mock_load.return_value = mock_rule_set
 
         mock_execute.return_value = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            enforce_standards_tool(
-                project_folder=tmpdir,
-                language="typescript",
-                max_threads=8
-            )
+            enforce_standards_tool(project_folder=tmpdir, language="typescript", max_threads=8)
 
         # Verify context was created with correct threads
         call_args = mock_execute.call_args
@@ -2130,15 +1814,9 @@ class TestEnforceStandardsTool:
             name="recommended",
             description="Best practices",
             rules=[
-                LintingRule(
-                    id="no-var",
-                    language="typescript",
-                    severity="warning",
-                    message="Use const or let",
-                    pattern="var $NAME = $$$"
-                )
+                LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")
             ],
-            priority=100
+            priority=100,
         )
         mock_load.return_value = mock_rule_set
 
@@ -2146,10 +1824,7 @@ class TestEnforceStandardsTool:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(Exception) as exc_info:
-                enforce_standards_tool(
-                    project_folder=tmpdir,
-                    language="typescript"
-                )
+                enforce_standards_tool(project_folder=tmpdir, language="typescript")
 
             assert "Execution failed" in str(exc_info.value)
 

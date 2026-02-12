@@ -184,9 +184,7 @@ class OrphanAnalysisConfig:
         languages: Languages to analyze
     """
 
-    include_patterns: List[str] = field(
-        default_factory=lambda: ["**/*.py", "**/*.ts", "**/*.js"]
-    )
+    include_patterns: List[str] = field(default_factory=lambda: ["**/*.py", "**/*.ts", "**/*.js"])
     exclude_patterns: List[str] = field(
         default_factory=lambda: [
             "**/node_modules/**",

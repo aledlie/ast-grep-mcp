@@ -65,9 +65,7 @@ def get_supported_languages() -> List[str]:
     return sorted(set(languages))
 
 
-def run_command(
-    args: List[str], input_text: Optional[str] = None, *, allow_nonzero: bool = False
-) -> subprocess.CompletedProcess[str]:
+def run_command(args: List[str], input_text: Optional[str] = None, *, allow_nonzero: bool = False) -> subprocess.CompletedProcess[str]:
     """Execute a command with proper error handling.
 
     Args:

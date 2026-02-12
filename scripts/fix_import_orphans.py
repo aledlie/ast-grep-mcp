@@ -26,34 +26,35 @@ def find_orphaned_imports(lines):
             prev_line = lines[i - 1].strip()
 
             # Pattern 1: Orphaned closing paren after complete import
-            if line == ')' and prev_line.endswith(')'):
+            if line == ")" and prev_line.endswith(")"):
                 orphaned_ranges.append((i, i + 1))
                 i += 1
                 continue
 
             # Pattern 2: Indented identifiers after complete import statement
-            if (not line.startswith(('from', 'import', '#', '"""', "'''", 'class', 'def', '@')) and
-                line and
-                lines[i].startswith('    ') and  # Indented
-                '(' not in line and
-                '=' not in line and
-                'def ' not in line and
-                'class ' not in line and
-                prev_line.endswith(')')):  # Previous line ended an import
-
+            if (
+                not line.startswith(("from", "import", "#", '"""', "'''", "class", "def", "@"))
+                and line
+                and lines[i].startswith("    ")  # Indented
+                and "(" not in line
+                and "=" not in line
+                and "def " not in line
+                and "class " not in line
+                and prev_line.endswith(")")
+            ):  # Previous line ended an import
                 # This might be an orphaned import item
                 # Look ahead to find the end
                 start = i
                 while i < len(lines):
                     curr = lines[i].strip()
-                    if curr == ')':
+                    if curr == ")":
                         orphaned_ranges.append((start, i + 1))
                         break
-                    elif curr.startswith(('from', 'import', 'class', 'def', '@', '"""', "'''")):
+                    elif curr.startswith(("from", "import", "class", "def", "@", '"""', "'''")):
                         # Hit next statement, end here
                         orphaned_ranges.append((start, i))
                         break
-                    elif not curr or curr.startswith('#'):
+                    elif not curr or curr.startswith("#"):
                         # Empty line or comment, end here
                         orphaned_ranges.append((start, i))
                         break
@@ -67,7 +68,7 @@ def find_orphaned_imports(lines):
 
 def remove_orphaned_lines(filepath: Path):
     """Remove orphaned import lines from file."""
-    with open(filepath, 'r') as f:
+    with open(filepath, "r") as f:
         lines = f.readlines()
 
     orphaned = find_orphaned_imports(lines)
@@ -95,7 +96,7 @@ def remove_orphaned_lines(filepath: Path):
         if not is_orphaned:
             new_lines.append(line)
 
-    with open(filepath, 'w') as f:
+    with open(filepath, "w") as f:
         f.writelines(new_lines)
 
     return True
@@ -103,34 +104,30 @@ def remove_orphaned_lines(filepath: Path):
 
 def check_syntax(filepath: Path):
     """Check if file has valid Python syntax."""
-    result = subprocess.run(
-        [sys.executable, '-m', 'py_compile', str(filepath)],
-        capture_output=True,
-        text=True
-    )
+    result = subprocess.run([sys.executable, "-m", "py_compile", str(filepath)], capture_output=True, text=True)
     return result.returncode == 0, result.stderr
 
 
 def main():
     """Fix all test files with orphaned imports."""
     error_files = [
-        'tests/unit/test_duplication.py',
-        'tests/unit/test_coverage_detection.py',
-        'tests/unit/test_import_management.py',
-        'tests/unit/test_parameter_extraction.py',
-        'tests/unit/test_enhanced_suggestions.py',
-        'tests/unit/test_function_generation.py',
-        'tests/unit/test_standards_enforcement.py',
-        'tests/unit/test_dependency_analysis.py',
-        'tests/unit/test_linting_rules.py',
-        'tests/unit/test_diff_preview.py',
-        'tests/unit/test_complexity.py',
-        'tests/unit/test_code_smells.py',
-        'tests/unit/test_ast_diff.py',
-        'tests/unit/test_variation_classification.py',
-        'tests/unit/test_impact_analysis.py',
-        'tests/unit/test_enhanced_reporting.py',
-        'tests/unit/test_call_site.py',
+        "tests/unit/test_duplication.py",
+        "tests/unit/test_coverage_detection.py",
+        "tests/unit/test_import_management.py",
+        "tests/unit/test_parameter_extraction.py",
+        "tests/unit/test_enhanced_suggestions.py",
+        "tests/unit/test_function_generation.py",
+        "tests/unit/test_standards_enforcement.py",
+        "tests/unit/test_dependency_analysis.py",
+        "tests/unit/test_linting_rules.py",
+        "tests/unit/test_diff_preview.py",
+        "tests/unit/test_complexity.py",
+        "tests/unit/test_code_smells.py",
+        "tests/unit/test_ast_diff.py",
+        "tests/unit/test_variation_classification.py",
+        "tests/unit/test_impact_analysis.py",
+        "tests/unit/test_enhanced_reporting.py",
+        "tests/unit/test_call_site.py",
     ]
 
     console.log("=" * 80)
@@ -182,5 +179,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     exit(main())

@@ -84,79 +84,61 @@ class TestInputValidation:
         """Test validation fails for nonexistent project path."""
         orchestrator = DeduplicationAnalysisOrchestrator()
         with pytest.raises(ValueError, match="does not exist"):
-            orchestrator._validate_analysis_inputs(
-                "/nonexistent/path", "python", 0.8, 5, 100
-            )
+            orchestrator._validate_analysis_inputs("/nonexistent/path", "python", 0.8, 5, 100)
 
     def test_validate_file_instead_of_directory(self):
         """Test validation fails when project path is a file."""
         orchestrator = DeduplicationAnalysisOrchestrator()
         with tempfile.NamedTemporaryFile() as f:
             with pytest.raises(ValueError, match="not a directory"):
-                orchestrator._validate_analysis_inputs(
-                    f.name, "python", 0.8, 5, 100
-                )
+                orchestrator._validate_analysis_inputs(f.name, "python", 0.8, 5, 100)
 
     def test_validate_min_similarity_below_zero(self):
         """Test validation fails for min_similarity below 0."""
         orchestrator = DeduplicationAnalysisOrchestrator()
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError, match="min_similarity must be between"):
-                orchestrator._validate_analysis_inputs(
-                    tmpdir, "python", -0.1, 5, 100
-                )
+                orchestrator._validate_analysis_inputs(tmpdir, "python", -0.1, 5, 100)
 
     def test_validate_min_similarity_above_one(self):
         """Test validation fails for min_similarity above 1."""
         orchestrator = DeduplicationAnalysisOrchestrator()
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError, match="min_similarity must be between"):
-                orchestrator._validate_analysis_inputs(
-                    tmpdir, "python", 1.5, 5, 100
-                )
+                orchestrator._validate_analysis_inputs(tmpdir, "python", 1.5, 5, 100)
 
     def test_validate_min_lines_zero(self):
         """Test validation fails for min_lines of zero."""
         orchestrator = DeduplicationAnalysisOrchestrator()
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError, match="min_lines must be a positive"):
-                orchestrator._validate_analysis_inputs(
-                    tmpdir, "python", 0.8, 0, 100
-                )
+                orchestrator._validate_analysis_inputs(tmpdir, "python", 0.8, 0, 100)
 
     def test_validate_max_candidates_zero(self):
         """Test validation fails for max_candidates of zero."""
         orchestrator = DeduplicationAnalysisOrchestrator()
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError, match="max_candidates must be a positive"):
-                orchestrator._validate_analysis_inputs(
-                    tmpdir, "python", 0.8, 5, 0
-                )
+                orchestrator._validate_analysis_inputs(tmpdir, "python", 0.8, 5, 0)
 
     def test_validate_valid_inputs(self):
         """Test validation passes for valid inputs."""
         orchestrator = DeduplicationAnalysisOrchestrator()
         with tempfile.TemporaryDirectory() as tmpdir:
             # Should not raise
-            orchestrator._validate_analysis_inputs(
-                tmpdir, "python", 0.8, 5, 100
-            )
+            orchestrator._validate_analysis_inputs(tmpdir, "python", 0.8, 5, 100)
 
     def test_validate_boundary_min_similarity_zero(self):
         """Test validation passes for min_similarity of 0."""
         orchestrator = DeduplicationAnalysisOrchestrator()
         with tempfile.TemporaryDirectory() as tmpdir:
-            orchestrator._validate_analysis_inputs(
-                tmpdir, "python", 0.0, 5, 100
-            )
+            orchestrator._validate_analysis_inputs(tmpdir, "python", 0.0, 5, 100)
 
     def test_validate_boundary_min_similarity_one(self):
         """Test validation passes for min_similarity of 1."""
         orchestrator = DeduplicationAnalysisOrchestrator()
         with tempfile.TemporaryDirectory() as tmpdir:
-            orchestrator._validate_analysis_inputs(
-                tmpdir, "python", 1.0, 5, 100
-            )
+            orchestrator._validate_analysis_inputs(tmpdir, "python", 1.0, 5, 100)
 
 
 class TestAnalysisWorkflow:
@@ -416,9 +398,7 @@ class TestEnrichAndSummarize:
         }
         orchestrator.recommendation_engine = mock_recommendation
 
-        candidates = [
-            {"id": "1", "files": ["a.py"], "score": 50, "lines_saved": 10}
-        ]
+        candidates = [{"id": "1", "files": ["a.py"], "score": 50, "lines_saved": 10}]
         config = AnalysisConfig(
             project_path="/test/path",
             language="python",
@@ -645,9 +625,7 @@ class TestLegacyMethods:
         }
         orchestrator.recommendation_engine = mock_recommendation
 
-        candidates = [
-            {"id": "1", "files": ["a.py"], "score": 60, "lines_saved": 15}
-        ]
+        candidates = [{"id": "1", "files": ["a.py"], "score": 60, "lines_saved": 15}]
 
         result = orchestrator._enrich_and_summarize(
             ranked_candidates=candidates,
@@ -714,9 +692,7 @@ class TestUnsupportedLanguageWarning:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Should not raise, just log warning
-            orchestrator._validate_analysis_inputs(
-                tmpdir, "fortran", 0.8, 5, 100
-            )
+            orchestrator._validate_analysis_inputs(tmpdir, "fortran", 0.8, 5, 100)
 
 
 class TestParallelProcessingAdvanced:

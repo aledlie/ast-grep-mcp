@@ -111,9 +111,7 @@ class TestOrchestratorKeyNames:
         # Should match the duplication_groups from detector output
         assert candidates_passed == mock_detector_output["duplication_groups"]
 
-    def test_orchestrator_output_has_correct_keys(
-        self, temp_project_dir, orchestrator_with_mock_detector
-    ):
+    def test_orchestrator_output_has_correct_keys(self, temp_project_dir, orchestrator_with_mock_detector):
         """Regression: Orchestrator output must use 'total_groups_analyzed' key."""
         result = orchestrator_with_mock_detector.analyze_candidates(
             project_path=temp_project_dir,

@@ -28,6 +28,7 @@ class MockFastMCP:
         def decorator(func: Any) -> Any:
             self.tools[func.__name__] = func
             return func
+
         return decorator
 
     def run(self, **kwargs: Any) -> None:
@@ -47,6 +48,7 @@ def mock_field(*args: Any, **kwargs: Any) -> Any:
 
 
 # Tool Access Fixtures
+
 
 @pytest.fixture(scope="module")
 def mcp_main():
@@ -167,6 +169,7 @@ def rewrite_code_tool(mcp_main):
 def schema_client():
     """Create a fresh SchemaOrgClient instance for testing."""
     from ast_grep_mcp.features.schema.client import SchemaOrgClient
+
     return SchemaOrgClient()
 
 
@@ -211,6 +214,7 @@ def test_sentry_integration_tool(mcp_main):
 
 
 # File Setup Fixtures
+
 
 @pytest.fixture
 def project_folder(tmp_path):
@@ -323,6 +327,7 @@ def orchestration_test_files(project_folder):
 
 # Factory Fixtures
 
+
 @pytest.fixture
 def refactoring_plan_factory():
     """Factory for creating refactoring plans with various configurations.
@@ -340,6 +345,7 @@ def refactoring_plan_factory():
         ...     strategy="extract_function"
         ... )
     """
+
     def _create_plan(
         files: list[str],
         new_contents: list[str] = None,
@@ -347,7 +353,7 @@ def refactoring_plan_factory():
         extracted_function: str = "",
         extract_to_file: str = "",
         function_name: str = "extracted_func",
-        language: str = "python"
+        language: str = "python",
     ) -> Dict[str, Any]:
         """Create a refactoring plan.
 
@@ -368,19 +374,13 @@ def refactoring_plan_factory():
 
         replacements = {}
         for f, content in zip(files, new_contents):
-            replacements[f] = {
-                "new_content": content,
-                "changes": [{"line": 1, "old": "original", "new": "modified"}]
-            }
+            replacements[f] = {"new_content": content, "changes": [{"line": 1, "old": "original", "new": "modified"}]}
 
         plan = {
             "strategy": strategy,
             "files_affected": files,
-            "generated_code": {
-                "extracted_function": extracted_function,
-                "replacements": replacements
-            },
-            "language": language
+            "generated_code": {"extracted_function": extracted_function, "replacements": replacements},
+            "language": language,
         }
 
         if extract_to_file:
@@ -393,6 +393,7 @@ def refactoring_plan_factory():
 
 
 # Additional Tool Access Fixtures
+
 
 @pytest.fixture(scope="module")
 def batch_search_tool(mcp_main):
@@ -420,6 +421,7 @@ def find_code_by_rule_tool(mcp_main):
 
 # Data Factory Fixtures
 
+
 @pytest.fixture
 def match_factory():
     """Factory for creating ast-grep match dictionaries.
@@ -430,13 +432,8 @@ def match_factory():
     Example:
         >>> match = match_factory(text="hello", file="test.py", line=10)
     """
-    def _factory(
-        text: str = "match",
-        file: str = "test.py",
-        line: int = 1,
-        column: int = 0,
-        **kwargs
-    ) -> Dict[str, Any]:
+
+    def _factory(text: str = "match", file: str = "test.py", line: int = 1, column: int = 0, **kwargs) -> Dict[str, Any]:
         """Create a match dictionary.
 
         Args:
@@ -452,10 +449,7 @@ def match_factory():
         match_dict = {
             "text": text,
             "file": file,
-            "range": {
-                "start": {"line": line, "column": column},
-                "end": {"line": line, "column": column + len(text)}
-            }
+            "range": {"start": {"line": line, "column": column}, "end": {"line": line, "column": column + len(text)}},
         }
         match_dict.update(kwargs)
         return match_dict
@@ -473,13 +467,8 @@ def query_factory():
     Example:
         >>> query = query_factory(id="q1", pattern="def $FUNC", language="python")
     """
-    def _factory(
-        id: str = "query1",
-        type: str = "pattern",
-        pattern: str = "test",
-        language: str = "python",
-        **kwargs
-    ) -> Dict[str, Any]:
+
+    def _factory(id: str = "query1", type: str = "pattern", pattern: str = "test", language: str = "python", **kwargs) -> Dict[str, Any]:
         """Create a query dictionary.
 
         Args:
@@ -492,12 +481,7 @@ def query_factory():
         Returns:
             dict: Batch search query dictionary
         """
-        query_dict = {
-            "id": id,
-            "type": type,
-            "pattern": pattern,
-            "language": language
-        }
+        query_dict = {"id": id, "type": type, "pattern": pattern, "language": language}
         query_dict.update(kwargs)
         return query_dict
 
@@ -514,13 +498,9 @@ def yaml_rule_factory():
     Example:
         >>> rule = yaml_rule_factory(id="test-rule", pattern="console.log($$$)")
     """
+
     def _factory(
-        id: str = "test",
-        language: str = "python",
-        pattern: str = "test",
-        message: str = "Test message",
-        severity: str = "error",
-        **kwargs
+        id: str = "test", language: str = "python", pattern: str = "test", message: str = "Test message", severity: str = "error", **kwargs
     ) -> str:
         """Create a YAML rule string.
 
@@ -552,6 +532,7 @@ severity: {severity}
 
 # Complex Object Factory Fixtures
 
+
 @pytest.fixture
 def rule_violation_factory():
     """Factory for creating RuleViolation instances.
@@ -566,13 +547,9 @@ def rule_violation_factory():
         ...     file="test.py", line=10, severity="error", rule_id="test-rule"
         ... )
     """
+
     def _factory(
-        file: str = "/test.py",
-        line: int = 1,
-        severity: str = "error",
-        rule_id: str = "test-rule",
-        message: str = "Test message",
-        **kwargs
+        file: str = "/test.py", line: int = 1, severity: str = "error", rule_id: str = "test-rule", message: str = "Test message", **kwargs
     ) -> Dict[str, Any]:
         """Create a RuleViolation dictionary.
 
@@ -587,23 +564,10 @@ def rule_violation_factory():
         Returns:
             dict: RuleViolation dictionary (matches dataclass structure)
         """
-        defaults = {
-            "column": 0,
-            "end_line": line,
-            "end_column": 10,
-            "code_snippet": "test code",
-            "suggested_fix": None
-        }
+        defaults = {"column": 0, "end_line": line, "end_column": 10, "code_snippet": "test code", "suggested_fix": None}
         defaults.update(kwargs)
 
-        return {
-            "file": file,
-            "line": line,
-            "severity": severity,
-            "rule_id": rule_id,
-            "message": message,
-            **defaults
-        }
+        return {"file": file, "line": line, "severity": severity, "rule_id": rule_id, "message": message, **defaults}
 
     return _factory
 
@@ -620,13 +584,9 @@ def linting_rule_factory():
         ...     id="no-console", language="javascript", severity="warning"
         ... )
     """
+
     def _factory(
-        id: str = "test",
-        language: str = "python",
-        severity: str = "error",
-        pattern: str = "test",
-        message: str = "Test message",
-        **kwargs
+        id: str = "test", language: str = "python", severity: str = "error", pattern: str = "test", message: str = "Test message", **kwargs
     ) -> Dict[str, Any]:
         """Create a LintingRule dictionary.
 
@@ -648,7 +608,7 @@ def linting_rule_factory():
             "pattern": pattern,
             "message": message,
             "note": kwargs.get("note", ""),
-            "fix_template": kwargs.get("fix_template", None)
+            "fix_template": kwargs.get("fix_template", None),
         }
         rule_dict.update({k: v for k, v in kwargs.items() if k not in ["note", "fix_template"]})
         return rule_dict
@@ -657,6 +617,7 @@ def linting_rule_factory():
 
 
 # Mock Object Factory Fixtures
+
 
 @pytest.fixture
 def mock_popen_factory():
@@ -670,11 +631,8 @@ def mock_popen_factory():
         ...     stdout_lines=['{"text": "match"}'], returncode=0
         ... )
     """
-    def _factory(
-        stdout_lines: List[str] = None,
-        returncode: int = 0,
-        **kwargs
-    ) -> Mock:
+
+    def _factory(stdout_lines: List[str] = None, returncode: int = 0, **kwargs) -> Mock:
         """Create a Mock Popen process.
 
         Args:
@@ -696,10 +654,7 @@ def mock_popen_factory():
         mock_process.poll.return_value = returncode
         mock_process.wait.return_value = returncode
         mock_process.returncode = returncode
-        mock_process.communicate.return_value = (
-            "\n".join(stdout_lines).encode() if stdout_lines else b"",
-            b""
-        )
+        mock_process.communicate.return_value = ("\n".join(stdout_lines).encode() if stdout_lines else b"", b"")
 
         # Apply any additional kwargs
         for key, value in kwargs.items():
@@ -740,6 +695,7 @@ def mock_httpx_client():
 
 # State Management Fixtures
 
+
 @pytest.fixture(autouse=True)
 def reset_cache(mcp_main):
     """Auto-reset cache before each test.
@@ -770,11 +726,11 @@ def reset_schema_client(mcp_main):
     before each test to ensure test isolation.
     """
     # Reset client if it exists
-    if hasattr(mcp_main, '_schema_org_client'):
+    if hasattr(mcp_main, "_schema_org_client"):
         mcp_main._schema_org_client = None
 
     yield
 
     # Optional cleanup after test
-    if hasattr(mcp_main, '_schema_org_client'):
+    if hasattr(mcp_main, "_schema_org_client"):
         mcp_main._schema_org_client = None

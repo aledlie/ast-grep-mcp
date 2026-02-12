@@ -506,10 +506,7 @@ def _check_yaml_rule_for_common_mistakes(parsed_yaml: Dict[str, Any]) -> List[st
     # Check for lowercase metavariables in pattern
     pattern = rule.get("pattern", "") if isinstance(rule, dict) else ""
     if isinstance(pattern, str) and re.search(r"\$[a-z]", pattern):
-        warnings.append(
-            "⚠️  Pattern may contain lowercase metavariable (e.g., $name). "
-            "Use UPPERCASE: $NAME, $ARGS, etc."
-        )
+        warnings.append("⚠️  Pattern may contain lowercase metavariable (e.g., $name). Use UPPERCASE: $NAME, $ARGS, etc.")
 
     return warnings
 
@@ -582,9 +579,7 @@ def _check_rule_cache(
     return cached_result
 
 
-def _store_rule_result_in_cache(
-    cache: Any, cache_key_parts: List[str], project_folder: str, result: Any, max_results: int
-) -> None:
+def _store_rule_result_in_cache(cache: Any, cache_key_parts: List[str], project_folder: str, result: Any, max_results: int) -> None:
     """Store rule search result in cache if applicable."""
     if CACHE_ENABLED and cache and max_results == 0 and isinstance(result, list):
         cache.put("scan", cache_key_parts, project_folder, result)
@@ -886,9 +881,7 @@ def _add_metavar_if_new(
         )
 
 
-def _extract_multi_metavariables(
-    pattern: str, seen: Dict[str, int], metavars: List[MetavariableInfo]
-) -> None:
+def _extract_multi_metavariables(pattern: str, seen: Dict[str, int], metavars: List[MetavariableInfo]) -> None:
     """Extract $$$ multi-node metavariables."""
     for match in METAVAR_MULTI.finditer(pattern):
         name = match.group(1) or ""
@@ -896,9 +889,7 @@ def _extract_multi_metavariables(
         _add_metavar_if_new(display_name, "multi", seen, metavars)
 
 
-def _extract_unnamed_metavariables(
-    pattern: str, seen: Dict[str, int], metavars: List[MetavariableInfo]
-) -> None:
+def _extract_unnamed_metavariables(pattern: str, seen: Dict[str, int], metavars: List[MetavariableInfo]) -> None:
     """Extract $$ unnamed node metavariables."""
     for match in METAVAR_UNNAMED.finditer(pattern):
         start = match.start()
@@ -908,9 +899,7 @@ def _extract_unnamed_metavariables(
         _add_metavar_if_new(name, "unnamed", seen, metavars)
 
 
-def _extract_non_capturing_metavariables(
-    pattern: str, seen: Dict[str, int], metavars: List[MetavariableInfo]
-) -> None:
+def _extract_non_capturing_metavariables(pattern: str, seen: Dict[str, int], metavars: List[MetavariableInfo]) -> None:
     """Extract $_ non-capturing metavariables."""
     for match in METAVAR_NON_CAPTURING.finditer(pattern):
         name_part = match.group(1) or ""
@@ -918,9 +907,7 @@ def _extract_non_capturing_metavariables(
         _add_metavar_if_new(display_name, "non_capturing", seen, metavars)
 
 
-def _extract_single_metavariables(
-    pattern: str, seen: Dict[str, int], metavars: List[MetavariableInfo]
-) -> None:
+def _extract_single_metavariables(pattern: str, seen: Dict[str, int], metavars: List[MetavariableInfo]) -> None:
     """Extract $NAME single-node metavariables."""
     for match in METAVAR_SINGLE.finditer(pattern):
         start = match.start()
@@ -1050,8 +1037,7 @@ def _check_fragment_issues(pattern: str) -> List[PatternIssue]:
                     category=IssueCategory.SYNTAX,
                     message=message,
                     suggestion=(
-                        "Patterns must be valid, parseable code. "
-                        "Wrap in full expression or use YAML rule with 'context' and 'selector'"
+                        "Patterns must be valid, parseable code. Wrap in full expression or use YAML rule with 'context' and 'selector'"
                     ),
                 )
             )
@@ -1195,11 +1181,7 @@ def _add_error_suggestions(issues: List[PatternIssue], suggestions: List[str]) -
 
 def _add_structural_suggestions(ast_comparison: AstComparison, suggestions: List[str]) -> None:
     """Add structural mismatch suggestions (Priority 2)."""
-    has_root_mismatch = (
-        not ast_comparison.kinds_match
-        and ast_comparison.pattern_root_kind
-        and ast_comparison.code_root_kind
-    )
+    has_root_mismatch = not ast_comparison.kinds_match and ast_comparison.pattern_root_kind and ast_comparison.code_root_kind
     if has_root_mismatch:
         suggestions.append(
             f"[STRUCTURE] Pattern root is '{ast_comparison.pattern_root_kind}' but code root is "
@@ -1229,9 +1211,7 @@ def _add_debug_suggestions(
     )
 
     if ast_comparison.pattern_root_kind != ast_comparison.code_root_kind:
-        suggestions.append(
-            f"[TIP] Try using 'kind: {ast_comparison.code_root_kind}' in a YAML rule instead of pattern matching."
-        )
+        suggestions.append(f"[TIP] Try using 'kind: {ast_comparison.code_root_kind}' in a YAML rule instead of pattern matching.")
 
 
 def _add_warning_suggestions(issues: List[PatternIssue], suggestions: List[str]) -> None:
@@ -1375,9 +1355,7 @@ def debug_pattern_impl(
         match_attempt = _attempt_match(pattern, code, language)
 
         # Generate prioritized suggestions
-        suggestions = _generate_suggestions(
-            pattern, code, language, issues, ast_comparison, match_attempt
-        )
+        suggestions = _generate_suggestions(pattern, code, language, issues, ast_comparison, match_attempt)
 
         execution_time = time.time() - start_time
 
@@ -1448,51 +1426,228 @@ IDENTIFIER_PATTERNS: Dict[str, re.Pattern[str]] = {
 # Keywords by language (subset of most common)
 LANGUAGE_KEYWORDS: Dict[str, set[str]] = {
     "javascript": {
-        "function", "const", "let", "var", "return", "if", "else", "for", "while",
-        "class", "async", "await", "import", "export", "from", "new", "this",
-        "true", "false", "null", "undefined",
+        "function",
+        "const",
+        "let",
+        "var",
+        "return",
+        "if",
+        "else",
+        "for",
+        "while",
+        "class",
+        "async",
+        "await",
+        "import",
+        "export",
+        "from",
+        "new",
+        "this",
+        "true",
+        "false",
+        "null",
+        "undefined",
     },
     "typescript": {
-        "function", "const", "let", "var", "return", "if", "else", "for", "while",
-        "class", "async", "await", "import", "export", "from", "new", "this",
-        "true", "false", "null", "undefined", "interface", "type", "enum",
+        "function",
+        "const",
+        "let",
+        "var",
+        "return",
+        "if",
+        "else",
+        "for",
+        "while",
+        "class",
+        "async",
+        "await",
+        "import",
+        "export",
+        "from",
+        "new",
+        "this",
+        "true",
+        "false",
+        "null",
+        "undefined",
+        "interface",
+        "type",
+        "enum",
     },
     "python": {
-        "def", "class", "return", "if", "elif", "else", "for", "while", "import",
-        "from", "as", "try", "except", "finally", "with", "async", "await",
-        "True", "False", "None", "and", "or", "not", "in", "is", "lambda",
+        "def",
+        "class",
+        "return",
+        "if",
+        "elif",
+        "else",
+        "for",
+        "while",
+        "import",
+        "from",
+        "as",
+        "try",
+        "except",
+        "finally",
+        "with",
+        "async",
+        "await",
+        "True",
+        "False",
+        "None",
+        "and",
+        "or",
+        "not",
+        "in",
+        "is",
+        "lambda",
     },
     "go": {
-        "func", "package", "import", "return", "if", "else", "for", "range",
-        "switch", "case", "type", "struct", "interface", "var", "const",
-        "go", "defer", "chan", "select", "true", "false", "nil",
+        "func",
+        "package",
+        "import",
+        "return",
+        "if",
+        "else",
+        "for",
+        "range",
+        "switch",
+        "case",
+        "type",
+        "struct",
+        "interface",
+        "var",
+        "const",
+        "go",
+        "defer",
+        "chan",
+        "select",
+        "true",
+        "false",
+        "nil",
     },
     "rust": {
-        "fn", "let", "mut", "const", "return", "if", "else", "for", "while",
-        "loop", "match", "struct", "enum", "impl", "trait", "use", "mod",
-        "pub", "async", "await", "true", "false", "self", "Self",
+        "fn",
+        "let",
+        "mut",
+        "const",
+        "return",
+        "if",
+        "else",
+        "for",
+        "while",
+        "loop",
+        "match",
+        "struct",
+        "enum",
+        "impl",
+        "trait",
+        "use",
+        "mod",
+        "pub",
+        "async",
+        "await",
+        "true",
+        "false",
+        "self",
+        "Self",
     },
     "java": {
-        "public", "private", "protected", "class", "interface", "void", "int",
-        "boolean", "return", "if", "else", "for", "while", "new", "this",
-        "static", "final", "import", "package", "try", "catch", "throw",
-        "true", "false", "null",
+        "public",
+        "private",
+        "protected",
+        "class",
+        "interface",
+        "void",
+        "int",
+        "boolean",
+        "return",
+        "if",
+        "else",
+        "for",
+        "while",
+        "new",
+        "this",
+        "static",
+        "final",
+        "import",
+        "package",
+        "try",
+        "catch",
+        "throw",
+        "true",
+        "false",
+        "null",
     },
     "ruby": {
-        "def", "end", "class", "module", "return", "if", "elsif", "else",
-        "unless", "while", "for", "do", "begin", "rescue", "require",
-        "include", "true", "false", "nil", "self",
+        "def",
+        "end",
+        "class",
+        "module",
+        "return",
+        "if",
+        "elsif",
+        "else",
+        "unless",
+        "while",
+        "for",
+        "do",
+        "begin",
+        "rescue",
+        "require",
+        "include",
+        "true",
+        "false",
+        "nil",
+        "self",
     },
     "c": {
-        "void", "int", "char", "float", "double", "return", "if", "else",
-        "for", "while", "switch", "case", "struct", "typedef", "const",
-        "static", "sizeof", "NULL",
+        "void",
+        "int",
+        "char",
+        "float",
+        "double",
+        "return",
+        "if",
+        "else",
+        "for",
+        "while",
+        "switch",
+        "case",
+        "struct",
+        "typedef",
+        "const",
+        "static",
+        "sizeof",
+        "NULL",
     },
     "cpp": {
-        "void", "int", "char", "float", "double", "return", "if", "else",
-        "for", "while", "switch", "case", "class", "struct", "public",
-        "private", "protected", "const", "static", "virtual", "override",
-        "nullptr", "new", "delete", "template", "auto",
+        "void",
+        "int",
+        "char",
+        "float",
+        "double",
+        "return",
+        "if",
+        "else",
+        "for",
+        "while",
+        "switch",
+        "case",
+        "class",
+        "struct",
+        "public",
+        "private",
+        "protected",
+        "const",
+        "static",
+        "virtual",
+        "override",
+        "nullptr",
+        "new",
+        "delete",
+        "template",
+        "auto",
     },
 }
 
@@ -1597,9 +1752,7 @@ def _analyze_code(code: str, language: str, ast_output: str) -> CodeAnalysis:
     )
 
 
-def _generate_generalized_pattern(
-    code: str, identifiers: List[str], literals: List[str]
-) -> str:
+def _generate_generalized_pattern(code: str, identifiers: List[str], literals: List[str]) -> str:
     """Generate pattern by replacing identifiers and literals with metavariables."""
     pattern = code
 
@@ -1662,9 +1815,7 @@ def _generate_pattern_suggestions(
 
     # 2. Generalized pattern with metavariables
     if analysis.identifiers or analysis.literals:
-        generalized = _generate_generalized_pattern(
-            code.strip(), analysis.identifiers, analysis.literals
-        )
+        generalized = _generate_generalized_pattern(code.strip(), analysis.identifiers, analysis.literals)
         if generalized != code.strip():
             suggestions.append(
                 PatternSuggestion(
@@ -1749,7 +1900,7 @@ def _generate_refinement_steps(
         steps.append(
             RefinementStep(
                 action="Try kind-based matching",
-                pattern=f'rule:\n  kind: {analysis.root_kind}',
+                pattern=f"rule:\n  kind: {analysis.root_kind}",
                 explanation="Match by node type instead of exact syntax",
                 priority=priority,
             )
@@ -1759,9 +1910,7 @@ def _generate_refinement_steps(
     return steps
 
 
-def _generate_yaml_template(
-    pattern: str, language: str, analysis: CodeAnalysis
-) -> str:
+def _generate_yaml_template(pattern: str, language: str, analysis: CodeAnalysis) -> str:
     """Generate a YAML rule template with the pattern."""
     # Escape the pattern for YAML
     if "\n" in pattern:
@@ -1781,14 +1930,12 @@ rule:
   # Optional: Add context constraint
   # inside:
   #   stopBy: end
-  #   kind: {analysis.child_kinds[0] if analysis.child_kinds else 'function_declaration'}"""
+  #   kind: {analysis.child_kinds[0] if analysis.child_kinds else "function_declaration"}"""
 
     return template
 
 
-def _generate_next_steps(
-    pattern_matches: bool, analysis: CodeAnalysis
-) -> List[str]:
+def _generate_next_steps(pattern_matches: bool, analysis: CodeAnalysis) -> List[str]:
     """Generate guidance for next steps."""
     steps: List[str] = []
 
@@ -1884,9 +2031,7 @@ def develop_pattern_impl(
                 best_pattern = exact_pattern
 
         # 6. Generate refinement steps
-        refinement_steps = _generate_refinement_steps(
-            code, language, analysis, pattern_matches
-        )
+        refinement_steps = _generate_refinement_steps(code, language, analysis, pattern_matches)
 
         # 7. Generate YAML template
         yaml_template = _generate_yaml_template(best_pattern, language, analysis)

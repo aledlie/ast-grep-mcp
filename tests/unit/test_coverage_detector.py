@@ -366,10 +366,7 @@ class TestCheckGoSameDirectory:
         """Test files in same directory returns True."""
         detector = CoverageDetector()
 
-        result = detector._check_go_same_directory(
-            "/project/pkg/handler_test.go",
-            "/project/pkg/handler.go"
-        )
+        result = detector._check_go_same_directory("/project/pkg/handler_test.go", "/project/pkg/handler.go")
 
         assert result is True
 
@@ -377,10 +374,7 @@ class TestCheckGoSameDirectory:
         """Test files in different directories returns False."""
         detector = CoverageDetector()
 
-        result = detector._check_go_same_directory(
-            "/project/tests/handler_test.go",
-            "/project/pkg/handler.go"
-        )
+        result = detector._check_go_same_directory("/project/tests/handler_test.go", "/project/pkg/handler.go")
 
         assert result is False
 
@@ -396,9 +390,7 @@ class TestCheckTestFileReferencesSource:
             f.write("from mymodule import MyClass\n")
             f.flush()
 
-            result = detector._check_test_file_references_source(
-                f.name, "/project/mymodule.py", "python"
-            )
+            result = detector._check_test_file_references_source(f.name, "/project/mymodule.py", "python")
 
             assert result is True
             os.unlink(f.name)
@@ -411,9 +403,7 @@ class TestCheckTestFileReferencesSource:
             f.write("import { func } from '../mymodule'\n")
             f.flush()
 
-            result = detector._check_test_file_references_source(
-                f.name, "/project/mymodule.js", "javascript"
-            )
+            result = detector._check_test_file_references_source(f.name, "/project/mymodule.js", "javascript")
 
             assert result is True
             os.unlink(f.name)
@@ -426,9 +416,7 @@ class TestCheckTestFileReferencesSource:
             f.write("const mod = require('./mymodule')\n")
             f.flush()
 
-            result = detector._check_test_file_references_source(
-                f.name, "/project/mymodule.js", "javascript"
-            )
+            result = detector._check_test_file_references_source(f.name, "/project/mymodule.js", "javascript")
 
             assert result is True
             os.unlink(f.name)
@@ -445,9 +433,7 @@ class TestCheckTestFileReferencesSource:
             with open(test_file, "w") as f:
                 f.write("package main\n")
 
-            result = detector._check_test_file_references_source(
-                test_file, source_file, "go"
-            )
+            result = detector._check_test_file_references_source(test_file, source_file, "go")
 
             assert result is True
 
@@ -459,9 +445,7 @@ class TestCheckTestFileReferencesSource:
             f.write('import "mypackage/handler"\n')
             f.flush()
 
-            result = detector._check_test_file_references_source(
-                f.name, "/other/dir/handler.go", "go"
-            )
+            result = detector._check_test_file_references_source(f.name, "/other/dir/handler.go", "go")
 
             assert result is True
             os.unlink(f.name)
@@ -474,9 +458,7 @@ class TestCheckTestFileReferencesSource:
             f.write("import com.example.MyService;\n")
             f.flush()
 
-            result = detector._check_test_file_references_source(
-                f.name, "/project/MyService.java", "java"
-            )
+            result = detector._check_test_file_references_source(f.name, "/project/MyService.java", "java")
 
             assert result is True
             os.unlink(f.name)
@@ -489,9 +471,7 @@ class TestCheckTestFileReferencesSource:
             f.write("require 'helper'\n")
             f.flush()
 
-            result = detector._check_test_file_references_source(
-                f.name, "/project/helper.rb", "ruby"
-            )
+            result = detector._check_test_file_references_source(f.name, "/project/helper.rb", "ruby")
 
             assert result is True
             os.unlink(f.name)
@@ -504,9 +484,7 @@ class TestCheckTestFileReferencesSource:
             f.write("# Tests for myspecialmodule functionality\n")
             f.flush()
 
-            result = detector._check_test_file_references_source(
-                f.name, "/project/myspecialmodule.py", "python"
-            )
+            result = detector._check_test_file_references_source(f.name, "/project/myspecialmodule.py", "python")
 
             assert result is True
             os.unlink(f.name)
@@ -519,9 +497,7 @@ class TestCheckTestFileReferencesSource:
             f.write("from other_module import something\n")
             f.flush()
 
-            result = detector._check_test_file_references_source(
-                f.name, "/project/mymodule.py", "python"
-            )
+            result = detector._check_test_file_references_source(f.name, "/project/mymodule.py", "python")
 
             assert result is False
             os.unlink(f.name)
@@ -530,9 +506,7 @@ class TestCheckTestFileReferencesSource:
         """Test nonexistent test file returns False."""
         detector = CoverageDetector()
 
-        result = detector._check_test_file_references_source(
-            "/nonexistent/test.py", "/project/mymodule.py", "python"
-        )
+        result = detector._check_test_file_references_source("/nonexistent/test.py", "/project/mymodule.py", "python")
 
         assert result is False
 
@@ -648,9 +622,7 @@ class TestHasTestCoverageOptimized:
             # Pre-compute test files
             test_files = {os.path.normpath(test_file)}
 
-            result = detector._has_test_coverage_optimized(
-                source_file, "python", tmpdir, test_files
-            )
+            result = detector._has_test_coverage_optimized(source_file, "python", tmpdir, test_files)
 
             assert result is True
 
@@ -672,9 +644,7 @@ class TestHasTestCoverageOptimized:
             # Pre-compute test files
             test_files = {os.path.normpath(test_file)}
 
-            result = detector._has_test_coverage_optimized(
-                source_file, "python", tmpdir, test_files
-            )
+            result = detector._has_test_coverage_optimized(source_file, "python", tmpdir, test_files)
 
             assert result is True
 
@@ -701,9 +671,7 @@ class TestGetTestCoverageForFiles:
             with open(test_file, "w") as f:
                 f.write("from covered import func1\n")
 
-            result = detector.get_test_coverage_for_files(
-                [file1, file2], "python", tmpdir
-            )
+            result = detector.get_test_coverage_for_files([file1, file2], "python", tmpdir)
 
             assert isinstance(result, dict)
             assert file1 in result
@@ -733,9 +701,7 @@ class TestGetTestCoverageForFilesBatch:
             with open(source_file, "w") as f:
                 f.write("def func(): pass\n")
 
-            result = detector.get_test_coverage_for_files_batch(
-                [source_file], "python", tmpdir, parallel=False
-            )
+            result = detector.get_test_coverage_for_files_batch([source_file], "python", tmpdir, parallel=False)
 
             assert isinstance(result, dict)
             assert source_file in result
@@ -753,9 +719,7 @@ class TestGetTestCoverageForFilesBatch:
                     f.write(f"def func{i}(): pass\n")
                 files.append(source_file)
 
-            result = detector.get_test_coverage_for_files_batch(
-                files, "python", tmpdir, parallel=True, max_workers=2
-            )
+            result = detector.get_test_coverage_for_files_batch(files, "python", tmpdir, parallel=True, max_workers=2)
 
             assert len(result) == 3
             for f in files:
@@ -771,9 +735,7 @@ class TestProcessFileCoverage:
 
         # Mock to raise exception
         with patch.object(detector, "_has_test_coverage_optimized", side_effect=RuntimeError("Test error")):
-            result = detector._process_file_coverage(
-                "/some/file.py", "python", "/project", set()
-            )
+            result = detector._process_file_coverage("/some/file.py", "python", "/project", set())
 
             assert result is False
 
@@ -794,9 +756,7 @@ class TestProcessParallelBatch:
                     fp.write("pass\n")
                 files.append(f)
 
-            coverage_map, covered_count = detector._process_parallel_batch(
-                files, "python", tmpdir, set(), max_workers=2
-            )
+            coverage_map, covered_count = detector._process_parallel_batch(files, "python", tmpdir, set(), max_workers=2)
 
             assert len(coverage_map) == 2
             assert isinstance(covered_count, int)
@@ -818,9 +778,7 @@ class TestProcessSequentialBatch:
                     fp.write("pass\n")
                 files.append(f)
 
-            coverage_map, covered_count = detector._process_sequential_batch(
-                files, "python", tmpdir, set()
-            )
+            coverage_map, covered_count = detector._process_sequential_batch(files, "python", tmpdir, set())
 
             assert len(coverage_map) == 2
             assert isinstance(covered_count, int)
@@ -860,12 +818,7 @@ class TestLogBatchResults:
         detector = CoverageDetector()
 
         # Should not raise
-        detector._log_batch_results(
-            total_files=10,
-            covered_count=7,
-            parallel=True,
-            test_files_count=5
-        )
+        detector._log_batch_results(total_files=10, covered_count=7, parallel=True, test_files_count=5)
 
 
 class TestClassMethods:
@@ -910,9 +863,7 @@ class TestClassMethods:
             f.write("from mymodule import func\n")
             f.flush()
 
-            result = detector._check_test_file_references_source(
-                f.name, "/project/mymodule.py", "python"
-            )
+            result = detector._check_test_file_references_source(f.name, "/project/mymodule.py", "python")
 
             assert result is True
             os.unlink(f.name)
@@ -994,9 +945,7 @@ class TestEdgeCases:
                     f.write(f"from module{i} import func{i}\n")
 
             # Run batch with parallel processing
-            result = detector.get_test_coverage_for_files_batch(
-                files, "python", tmpdir, parallel=True, max_workers=2
-            )
+            result = detector.get_test_coverage_for_files_batch(files, "python", tmpdir, parallel=True, max_workers=2)
 
             # All files should have coverage
             assert all(result[f] is True for f in files)
@@ -1020,9 +969,7 @@ class TestEdgeCases:
                     f.write(f"from mod{i} import fn{i}\n")
 
             # Run batch with sequential processing
-            result = detector.get_test_coverage_for_files_batch(
-                files, "python", tmpdir, parallel=False
-            )
+            result = detector.get_test_coverage_for_files_batch(files, "python", tmpdir, parallel=False)
 
             # All files should have coverage
             assert all(result[f] is True for f in files)

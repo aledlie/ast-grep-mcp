@@ -57,17 +57,13 @@ class TestMinHashRegressions:
             ("func3", "class Config: pass"),
         ]
 
-        pairs = list(minhash_similarity.find_all_similar_pairs(
-            code_items,
-            min_similarity=0.5
-        ))
+        pairs = list(minhash_similarity.find_all_similar_pairs(code_items, min_similarity=0.5))
 
         # Should find func1-func2
         assert len(pairs) > 0, "LSH must find identical pairs"
-        assert any(
-            (n1 == "func1" and n2 == "func2") or (n1 == "func2" and n2 == "func1")
-            for n1, n2, _ in pairs
-        ), f"Expected func1-func2 pair, got {pairs}"
+        assert any((n1 == "func1" and n2 == "func2") or (n1 == "func2" and n2 == "func1") for n1, n2, _ in pairs), (
+            f"Expected func1-func2 pair, got {pairs}"
+        )
 
     def test_detector_identical_code_similarity(self) -> None:
         """Regression: Detector should return > 0.9 for identical code.
@@ -82,9 +78,7 @@ class TestMinHashRegressions:
 
         similarity = detector.calculate_similarity(code, code)
 
-        assert similarity > 0.9, (
-            f"Identical code must have > 0.9 similarity, got {similarity}"
-        )
+        assert similarity > 0.9, f"Identical code must have > 0.9 similarity, got {similarity}"
 
     def test_small_code_high_accuracy(self, minhash_similarity: MinHashSimilarity) -> None:
         """Regression: Small code should use accurate fallback.
@@ -98,9 +92,7 @@ class TestMinHashRegressions:
 
         result = minhash_similarity.estimate_similarity(code1, code2)
 
-        assert result > 0.95, (
-            f"Small identical code must have > 0.95 similarity, got {result}"
-        )
+        assert result > 0.95, f"Small identical code must have > 0.95 similarity, got {result}"
 
     def test_small_code_with_minor_changes(self, minhash_similarity: MinHashSimilarity) -> None:
         """Regression: Small code with minor changes should have moderate similarity."""
@@ -110,9 +102,7 @@ class TestMinHashRegressions:
         result = minhash_similarity.estimate_similarity(code1, code2)
 
         # Should still be fairly similar (structure is identical)
-        assert result > 0.5, (
-            f"Similar small code should have > 0.5 similarity, got {result}"
-        )
+        assert result > 0.5, f"Similar small code should have > 0.5 similarity, got {result}"
 
     def test_different_code_low_similarity(self, minhash_similarity: MinHashSimilarity) -> None:
         """Regression: Different code should have low similarity."""
@@ -121,9 +111,7 @@ class TestMinHashRegressions:
 
         result = minhash_similarity.estimate_similarity(code1, code2)
 
-        assert result < 0.5, (
-            f"Different code should have < 0.5 similarity, got {result}"
-        )
+        assert result < 0.5, f"Different code should have < 0.5 similarity, got {result}"
 
 
 class TestHybridPipelineRegressions:
@@ -139,9 +127,7 @@ class TestHybridPipelineRegressions:
 
         result = hybrid_similarity.calculate_hybrid_similarity(code, code)
 
-        assert result.similarity >= 0.99, (
-            f"Identical code must have >= 0.99 similarity, got {result.similarity}"
-        )
+        assert result.similarity >= 0.99, f"Identical code must have >= 0.99 similarity, got {result.similarity}"
 
     def test_hybrid_similar_code_verification(self, hybrid_similarity: HybridSimilarity) -> None:
         """Regression: Hybrid should verify similar code with AST normalization.
@@ -169,14 +155,10 @@ def process_items(items):
         result = hybrid_similarity.calculate_hybrid_similarity(code1, code2)
 
         # Similar code should have high similarity
-        assert result.similarity > 0.5, (
-            f"Similar code should have > 0.5 similarity, got {result.similarity}"
-        )
+        assert result.similarity > 0.5, f"Similar code should have > 0.5 similarity, got {result.similarity}"
         # If it passed stage1, should have AST normalized score
         if result.stage1_passed:
-            assert result.ast_similarity is not None, (
-                "Hybrid should provide AST normalized similarity when stage1 passed"
-            )
+            assert result.ast_similarity is not None, "Hybrid should provide AST normalized similarity when stage1 passed"
 
     def test_hybrid_early_exit_for_different_code(self, hybrid_similarity: HybridSimilarity) -> None:
         """Regression: Hybrid should early exit for very different code."""
@@ -198,9 +180,7 @@ class ComplexProcessor:
         result = hybrid_similarity.calculate_hybrid_similarity(code1, code2)
 
         # Very different code should have low similarity
-        assert result.similarity < 0.3, (
-            f"Very different code should have < 0.3 similarity, got {result.similarity}"
-        )
+        assert result.similarity < 0.3, f"Very different code should have < 0.3 similarity, got {result.similarity}"
 
 
 class TestDetectorModeRegressions:
@@ -217,9 +197,7 @@ class TestDetectorModeRegressions:
         detector = DuplicationDetector()
 
         # Check mode is hybrid
-        assert detector.similarity_mode == "hybrid", (
-            f"Expected hybrid mode, got {detector.similarity_mode}"
-        )
+        assert detector.similarity_mode == "hybrid", f"Expected hybrid mode, got {detector.similarity_mode}"
 
     def test_detector_minhash_mode_explicit(self) -> None:
         """Regression: Detector should support explicit minhash mode."""
@@ -261,9 +239,7 @@ class TestEdgeCaseRegressions:
 
         # Both normalize to empty, so they're identical (1.0) or treated as empty (0.0)
         # Either is acceptable behavior for this edge case
-        assert result in (0.0, 1.0), (
-            f"Whitespace-only code should return 0.0 or 1.0, got {result}"
-        )
+        assert result in (0.0, 1.0), f"Whitespace-only code should return 0.0 or 1.0, got {result}"
 
     def test_single_token_code(self, minhash_similarity: MinHashSimilarity) -> None:
         """Regression: Single token code should work without errors."""
@@ -294,6 +270,4 @@ def complex_function(data, options=None):
 
         result = minhash_similarity.estimate_similarity(code, code)
 
-        assert result > 0.95, (
-            f"Multiline identical code should have > 0.95 similarity, got {result}"
-        )
+        assert result > 0.95, f"Multiline identical code should have > 0.95 similarity, got {result}"

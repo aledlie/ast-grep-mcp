@@ -8,7 +8,7 @@ from pathlib import Path
 def analyze_function_complexity(file_path: Path, func_name: str) -> dict:
     """Analyze complexity of a specific function."""
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             tree = ast.parse(f.read())
 
         for node in ast.walk(tree):
@@ -17,28 +17,23 @@ def analyze_function_complexity(file_path: Path, func_name: str) -> dict:
                     cyclomatic = calculate_cyclomatic_complexity(node)
                     cognitive = calculate_cognitive_complexity(node)
                     nesting = calculate_max_nesting(node)
-                    lines = node.end_lineno - node.lineno + 1 if hasattr(node, 'end_lineno') else 0
+                    lines = node.end_lineno - node.lineno + 1 if hasattr(node, "end_lineno") else 0
 
-                    return {
-                        "found": True,
-                        "cyclomatic": cyclomatic,
-                        "cognitive": cognitive,
-                        "nesting": nesting,
-                        "lines": lines
-                    }
+                    return {"found": True, "cyclomatic": cyclomatic, "cognitive": cognitive, "nesting": nesting, "lines": lines}
 
         return {"found": False}
     except Exception as e:
         return {"found": False, "error": str(e)}
+
 
 def calculate_cyclomatic_complexity(node: ast.AST) -> int:
     """Calculate McCabe cyclomatic complexity."""
     complexity = 1
 
     for child in ast.walk(node):
-        if isinstance(child, (ast.If, ast.While, ast.For, ast.AsyncFor,
-                             ast.ExceptHandler, ast.With, ast.AsyncWith,
-                             ast.Assert, ast.comprehension)):
+        if isinstance(
+            child, (ast.If, ast.While, ast.For, ast.AsyncFor, ast.ExceptHandler, ast.With, ast.AsyncWith, ast.Assert, ast.comprehension)
+        ):
             complexity += 1
         elif isinstance(child, ast.BoolOp):
             complexity += len(child.values) - 1
@@ -46,6 +41,7 @@ def calculate_cyclomatic_complexity(node: ast.AST) -> int:
             complexity += 1
 
     return complexity
+
 
 def calculate_cognitive_complexity(node: ast.AST, depth: int = 0) -> int:
     """Calculate cognitive complexity with nesting penalties."""
@@ -70,6 +66,7 @@ def calculate_cognitive_complexity(node: ast.AST, depth: int = 0) -> int:
 
     return complexity
 
+
 def calculate_max_nesting(node: ast.AST, current_depth: int = 0) -> int:
     """Calculate maximum nesting depth."""
     max_depth = current_depth
@@ -77,15 +74,27 @@ def calculate_max_nesting(node: ast.AST, current_depth: int = 0) -> int:
     for child in ast.iter_child_nodes(node):
         child_depth = current_depth
 
-        if isinstance(child, (ast.If, ast.While, ast.For, ast.AsyncFor,
-                            ast.With, ast.AsyncWith, ast.Try,
-                            ast.FunctionDef, ast.AsyncFunctionDef,
-                            ast.ClassDef)):
+        if isinstance(
+            child,
+            (
+                ast.If,
+                ast.While,
+                ast.For,
+                ast.AsyncFor,
+                ast.With,
+                ast.AsyncWith,
+                ast.Try,
+                ast.FunctionDef,
+                ast.AsyncFunctionDef,
+                ast.ClassDef,
+            ),
+        ):
             child_depth += 1
 
         max_depth = max(max_depth, calculate_max_nesting(child, child_depth))
 
     return max_depth
+
 
 def scan_all_functions(project_root: Path):
     """Scan all Python files and functions."""
@@ -93,11 +102,11 @@ def scan_all_functions(project_root: Path):
     all_functions = []
 
     for py_file in src_path.rglob("*.py"):
-        if '__pycache__' in str(py_file):
+        if "__pycache__" in str(py_file):
             continue
 
         try:
-            with open(py_file, 'r') as f:
+            with open(py_file, "r") as f:
                 tree = ast.parse(f.read())
 
             for node in ast.walk(tree):
@@ -108,16 +117,12 @@ def scan_all_functions(project_root: Path):
 
     return all_functions
 
+
 def main():
     project_root = Path.cwd()
     all_functions = scan_all_functions(project_root)
 
-    CRITICAL_THRESHOLDS = {
-        "cyclomatic": 20,
-        "cognitive": 30,
-        "nesting": 6,
-        "lines": 150
-    }
+    CRITICAL_THRESHOLDS = {"cyclomatic": 20, "cognitive": 30, "nesting": 6, "lines": 150}
 
     violations = []
 
@@ -143,30 +148,29 @@ def main():
 
         if violation_reasons:
             rel_path = file_path.relative_to(project_root)
-            violations.append({
-                "path": str(rel_path),
-                "function": func_name,
-                "reasons": violation_reasons,
-                "metrics": metrics
-            })
+            violations.append({"path": str(rel_path), "function": func_name, "reasons": violation_reasons, "metrics": metrics})
 
     # Sort by severity (number of violations, then by highest metric)
-    violations.sort(key=lambda x: (
-        -len(x["reasons"]),
-        -max(x["metrics"]["cyclomatic"], x["metrics"]["cognitive"],
-             x["metrics"]["nesting"], x["metrics"]["lines"])
-    ))
+    violations.sort(
+        key=lambda x: (
+            -len(x["reasons"]),
+            -max(x["metrics"]["cyclomatic"], x["metrics"]["cognitive"], x["metrics"]["nesting"], x["metrics"]["lines"]),
+        )
+    )
 
     print(f"Found {len(violations)} violations:\n")
 
     for i, v in enumerate(violations, 1):
         print(f"{i:2d}. {v['path']}:{v['function']}")
         print(f"    Violations: {', '.join(v['reasons'])}")
-        print(f"    Metrics: cyc={v['metrics']['cyclomatic']}, "
-              f"cog={v['metrics']['cognitive']}, "
-              f"nest={v['metrics']['nesting']}, "
-              f"lines={v['metrics']['lines']}")
+        print(
+            f"    Metrics: cyc={v['metrics']['cyclomatic']}, "
+            f"cog={v['metrics']['cognitive']}, "
+            f"nest={v['metrics']['nesting']}, "
+            f"lines={v['metrics']['lines']}"
+        )
         print()
+
 
 if __name__ == "__main__":
     main()

@@ -77,9 +77,9 @@ def process(data):
 
     def test_variation_severity_enum(self):
         """Test VariationSeverity enum values."""
-        assert hasattr(VariationSeverity, 'LOW')
-        assert hasattr(VariationSeverity, 'MEDIUM')
-        assert hasattr(VariationSeverity, 'HIGH')
+        assert hasattr(VariationSeverity, "LOW")
+        assert hasattr(VariationSeverity, "MEDIUM")
+        assert hasattr(VariationSeverity, "HIGH")
 
 
 class TestParameterExtraction:
@@ -126,9 +126,9 @@ class TestParameterExtraction:
 
     def test_parameter_type_enum(self):
         """Test ParameterType enum values."""
-        assert hasattr(ParameterType, 'STRING')
-        assert hasattr(ParameterType, 'NUMBER')
-        assert hasattr(ParameterType, 'BOOLEAN')
+        assert hasattr(ParameterType, "STRING")
+        assert hasattr(ParameterType, "NUMBER")
+        assert hasattr(ParameterType, "BOOLEAN")
 
 
 class TestComplexityScoring:

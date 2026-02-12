@@ -14,6 +14,7 @@ Usage:
     python tests/scripts/benchmark_fixtures.py --fixture temp_dir
     python tests/scripts/benchmark_fixtures.py --json
 """
+
 import argparse
 import subprocess
 import time
@@ -27,6 +28,7 @@ from ast_grep_mcp.utils.console_logger import console
 @dataclass
 class FixtureBenchmark:
     """Benchmark results for a fixture."""
+
     fixture_name: str
     scope: str
     avg_setup_time: float  # milliseconds
@@ -79,12 +81,7 @@ def test_fixture_overhead_3(timing_wrapper):
             times = []
             for _ in range(iterations):
                 start = time.perf_counter()
-                result = subprocess.run(
-                    ["pytest", str(test_file), "-v", "-q"],
-                    capture_output=True,
-                    text=True,
-                    timeout=30
-                )
+                result = subprocess.run(["pytest", str(test_file), "-v", "-q"], capture_output=True, text=True, timeout=30)
                 end = time.perf_counter()
 
                 if result.returncode == 0:
@@ -107,7 +104,7 @@ def test_fixture_overhead_3(timing_wrapper):
                 avg_teardown_time=per_test_overhead * 0.4,  # Estimate 40% teardown
                 total_overhead=per_test_overhead,
                 tests_measured=3 * iterations,
-                passes_threshold=per_test_overhead < self.threshold_ms
+                passes_threshold=per_test_overhead < self.threshold_ms,
             )
 
         except Exception as e:
@@ -130,7 +127,7 @@ def test_fixture_overhead_3(timing_wrapper):
         for line in content.splitlines():
             if f"def {fixture_name}" in line:
                 # Check previous lines for scope
-                lines_before = content[:content.index(line)].splitlines()
+                lines_before = content[: content.index(line)].splitlines()
                 for prev_line in reversed(lines_before[-5:]):
                     if "scope=" in prev_line:
                         if "class" in prev_line:
@@ -153,7 +150,7 @@ def test_fixture_overhead_3(timing_wrapper):
         fixture_names = []
         content = conftest.read_text()
         for line in content.splitlines():
-            if line.strip().startswith("def ") and "@pytest.fixture" in content[:content.index(line)]:
+            if line.strip().startswith("def ") and "@pytest.fixture" in content[: content.index(line)]:
                 func_name = line.strip().split("(")[0].replace("def ", "")
                 if not func_name.startswith("_"):
                     fixture_names.append(func_name)
@@ -190,13 +187,7 @@ def format_benchmark_report(benchmarks: List[FixtureBenchmark], detailed: bool =
     for bench in sorted(benchmarks, key=lambda b: b.total_overhead, reverse=True):
         status = "✓ GOOD" if bench.passes_threshold else "⚠ SLOW"
 
-        lines.append(
-            f"{bench.fixture_name:<30} "
-            f"{bench.scope:<10} "
-            f"{bench.total_overhead:<12.2f}ms "
-            f"{bench.tests_measured:<8} "
-            f"{status:<15}"
-        )
+        lines.append(f"{bench.fixture_name:<30} {bench.scope:<10} {bench.total_overhead:<12.2f}ms {bench.tests_measured:<8} {status:<15}")
 
     lines.append("=" * 100)
     lines.append("")
@@ -211,7 +202,7 @@ def format_benchmark_report(benchmarks: List[FixtureBenchmark], detailed: bool =
     lines.append("STATISTICS:")
     lines.append("-" * 100)
     lines.append(f"Total fixtures benchmarked: {total_fixtures}")
-    lines.append(f"Fixtures passing threshold (<100ms): {passing} ({passing/total_fixtures*100:.1f}%)")
+    lines.append(f"Fixtures passing threshold (<100ms): {passing} ({passing / total_fixtures * 100:.1f}%)")
     lines.append(f"Slow fixtures (≥100ms): {slow}")
     lines.append(f"Average overhead: {avg_overhead:.2f}ms")
     lines.append("")

@@ -118,20 +118,14 @@ For more information, see: https://github.com/ast-grep/ast-grep-mcp
         type=int,
         metavar="N",
         default=None,
-        help=(
-            f"Maximum cached query results (default: {CacheDefaults.DEFAULT_CACHE_SIZE}). "
-            "Also settable via CACHE_SIZE env var."
-        ),
+        help=(f"Maximum cached query results (default: {CacheDefaults.DEFAULT_CACHE_SIZE}). Also settable via CACHE_SIZE env var."),
     )
     parser.add_argument(
         "--cache-ttl",
         type=int,
         metavar="SECONDS",
         default=None,
-        help=(
-            f"Cache TTL in seconds (default: {CacheDefaults.CLEANUP_INTERVAL_SECONDS}). "
-            "Also settable via CACHE_TTL env var."
-        ),
+        help=(f"Cache TTL in seconds (default: {CacheDefaults.CLEANUP_INTERVAL_SECONDS}). Also settable via CACHE_TTL env var."),
     )
     return parser
 

@@ -254,40 +254,50 @@ def generate_refactoring_suggestions(duplicates: List[Dict[str, Any]], language:
     line_count = len(first_code.split("\n"))
 
     # Primary suggestion: extract to shared function
-    suggestions.append({
-        "type": "extract_function",
-        "description": "Extract duplicate code into a shared utility function",
-        "priority": "high" if avg_similarity > 0.85 else "medium",
-        "estimated_savings": f"{line_count * (num_duplicates - 1)} lines",
-    })
+    suggestions.append(
+        {
+            "type": "extract_function",
+            "description": "Extract duplicate code into a shared utility function",
+            "priority": "high" if avg_similarity > 0.85 else "medium",
+            "estimated_savings": f"{line_count * (num_duplicates - 1)} lines",
+        }
+    )
 
     # Additional suggestions based on characteristics
     if num_duplicates > 3:
-        suggestions.append({
-            "type": "extract_module",
-            "description": "Consider extracting to a dedicated module for reuse across files",
-            "priority": "medium",
-        })
+        suggestions.append(
+            {
+                "type": "extract_module",
+                "description": "Consider extracting to a dedicated module for reuse across files",
+                "priority": "medium",
+            }
+        )
 
     if line_count > 20:
-        suggestions.append({
-            "type": "extract_class",
-            "description": "Extract to a class if the code has shared state or multiple related operations",
-            "priority": "low",
-        })
+        suggestions.append(
+            {
+                "type": "extract_class",
+                "description": "Extract to a class if the code has shared state or multiple related operations",
+                "priority": "low",
+            }
+        )
 
     # Language-specific suggestions
     if language in ("python", "ruby"):
-        suggestions.append({
-            "type": "decorator_pattern",
-            "description": f"Consider using a decorator pattern in {language} for cross-cutting concerns",
-            "priority": "low",
-        })
+        suggestions.append(
+            {
+                "type": "decorator_pattern",
+                "description": f"Consider using a decorator pattern in {language} for cross-cutting concerns",
+                "priority": "low",
+            }
+        )
     elif language in ("javascript", "typescript"):
-        suggestions.append({
-            "type": "higher_order_function",
-            "description": "Consider using higher-order functions for functional composition",
-            "priority": "low",
-        })
+        suggestions.append(
+            {
+                "type": "higher_order_function",
+                "description": "Consider using higher-order functions for functional composition",
+                "priority": "low",
+            }
+        )
 
     return suggestions

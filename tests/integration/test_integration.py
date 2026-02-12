@@ -55,11 +55,9 @@ class TestIntegration:
         """Test find_code_by_rule with mocked ast-grep"""
         # Mock the response with JSON format (since we always use JSON internally)
         mock_result = Mock()
-        mock_matches: List[Any] = [{
-            "text": "class Calculator:\n    pass",
-            "file": "fixtures/example.py",
-            "range": {"start": {"line": 6}, "end": {"line": 7}}
-        }]
+        mock_matches: List[Any] = [
+            {"text": "class Calculator:\n    pass", "file": "fixtures/example.py", "range": {"start": {"line": 6}, "end": {"line": 7}}}
+        ]
         mock_result.stdout = json.dumps(mock_matches)
         mock_run.return_value = mock_result
 
@@ -69,9 +67,7 @@ rule:
   kind: class_definition
   pattern: class $NAME"""
 
-        result = find_code_by_rule(
-            project_folder=fixtures_dir, yaml_rule=yaml_rule, output_format="text"
-        )
+        result = find_code_by_rule(project_folder=fixtures_dir, yaml_rule=yaml_rule, output_format="text")
 
         # Verify the result contains expected class name
         # Note: find_code_by_rule with text output returns raw ast-grep output,

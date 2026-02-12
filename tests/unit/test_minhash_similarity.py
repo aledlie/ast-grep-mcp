@@ -4,7 +4,6 @@ Tests the O(n) MinHash similarity implementation that replaces
 the O(n²) SequenceMatcher for scalable code clone detection.
 """
 
-
 from ast_grep_mcp.features.deduplication.similarity import (
     EnhancedStructureHash,
     MinHashSimilarity,
@@ -154,26 +153,35 @@ class TestMinHashLSH:
         Variable name changes reduce MinHash similarity significantly.
         """
         code_items = [
-            ("func1", """
+            (
+                "func1",
+                """
 def process_list(items):
     result = []
     for item in items:
         result.append(item.upper())
     return result
-"""),
-            ("func2", """
+""",
+            ),
+            (
+                "func2",
+                """
 def process_list(items):
     result = []
     for item in items:
         result.append(item.upper())
     return result
-"""),  # Identical to func1
-            ("func3", """
+""",
+            ),  # Identical to func1
+            (
+                "func3",
+                """
 class Config:
     def __init__(self, settings):
         self.settings = settings
         self.cache = {}
-"""),  # Different
+""",
+            ),  # Different
         ]
 
         config = SimilarityConfig(similarity_threshold=0.5)
@@ -182,10 +190,7 @@ class Config:
 
         # Should find func1-func2 pair (they're identical)
         pair_keys = [(p[0], p[1]) for p in pairs]
-        assert any(
-            ("func1", "func2") == p or ("func2", "func1") == p
-            for p in pair_keys
-        ), f"Expected func1-func2 pair, got {pair_keys}"
+        assert any(("func1", "func2") == p or ("func2", "func1") == p for p in pair_keys), f"Expected func1-func2 pair, got {pair_keys}"
 
 
 class TestSimilarityConfig:
@@ -306,12 +311,15 @@ class Complex:
         code_items = [
             ("func1", "def a(): return 1"),
             ("func2", "def b(): return 2"),  # Same structure as func1
-            ("func3", """
+            (
+                "func3",
+                """
 def complex(data):
     for item in data:
         if item:
             yield item
-"""),
+""",
+            ),
         ]
 
         hasher = EnhancedStructureHash()
@@ -384,9 +392,7 @@ def func():
         fr_idx = nodes.index("FR")
         rt_idx = nodes.index("RT")
 
-        assert fn_idx < if_idx < fr_idx < rt_idx, (
-            f"Expected order FN < IF < FR < RT, got indices {fn_idx}, {if_idx}, {fr_idx}, {rt_idx}"
-        )
+        assert fn_idx < if_idx < fr_idx < rt_idx, f"Expected order FN < IF < FR < RT, got indices {fn_idx}, {if_idx}, {fr_idx}, {rt_idx}"
 
     def test_extract_node_sequence_ignores_comments(self):
         """Should ignore comments when extracting nodes."""
@@ -597,22 +603,30 @@ class TestEnhancedStructureHashBucketDistribution:
             # Simple function
             ("simple", "def a(): return 1"),
             # Function with loop
-            ("loop", """
+            (
+                "loop",
+                """
 def b(items):
     for item in items:
         process(item)
-"""),
+""",
+            ),
             # Function with conditionals
-            ("conditional", """
+            (
+                "conditional",
+                """
 def c(x):
     if x > 0:
         return "positive"
     elif x < 0:
         return "negative"
     return "zero"
-"""),
+""",
+            ),
             # Class with methods
-            ("class", """
+            (
+                "class",
+                """
 class D:
     def __init__(self):
         self.data = {}
@@ -622,9 +636,12 @@ class D:
 
     def get(self, key):
         return self.data.get(key)
-"""),
+""",
+            ),
             # Complex nested function
-            ("complex", """
+            (
+                "complex",
+                """
 def e(data):
     results = []
     for item in data:
@@ -635,16 +652,15 @@ def e(data):
             except Exception:
                 continue
     return results
-"""),
+""",
+            ),
         ]
 
         hasher = EnhancedStructureHash()
         buckets = hasher.create_buckets(code_samples)
 
         # Should have at least 3 different buckets for diverse code
-        assert len(buckets) >= 3, (
-            f"Expected at least 3 buckets for diverse code, got {len(buckets)}"
-        )
+        assert len(buckets) >= 3, f"Expected at least 3 buckets for diverse code, got {len(buckets)}"
 
 
 class TestDetectorIntegration:
@@ -745,12 +761,12 @@ class TestDetectorMinHashRegressions:
         direct_sim = direct.estimate_similarity(code1, code2)
 
         from ast_grep_mcp.features.deduplication.detector import DuplicationDetector
+
         detector = DuplicationDetector(use_minhash=True)
         detector_sim = detector.calculate_similarity(code1, code2)
 
         # Allow 5% tolerance for any cache/timing differences
-        assert abs(direct_sim - detector_sim) < 0.05, \
-            f"Direct: {direct_sim}, Detector: {detector_sim}"
+        assert abs(direct_sim - detector_sim) < 0.05, f"Direct: {direct_sim}, Detector: {detector_sim}"
 
     def test_detector_multiline_identical_code(self):
         """Detector should handle multiline identical code correctly.
@@ -878,7 +894,8 @@ class TestSmallCodeFallback:
     def test_large_code_uses_minhash(self):
         """Test MinHash is used for large code (>= 15 tokens)."""
         # Large code (100+ tokens) - repeating a function multiple times
-        large_code = """
+        large_code = (
+            """
 def complex_function(param1, param2, param3):
     result = []
     for item in param1:
@@ -886,7 +903,9 @@ def complex_function(param1, param2, param3):
             processed = item.process(param3)
             result.append(processed)
     return result
-""" * 5  # Repeat to ensure > 15 tokens
+"""
+            * 5
+        )  # Repeat to ensure > 15 tokens
 
         similarity_calc = MinHashSimilarity()
         similarity = similarity_calc.estimate_similarity(large_code, large_code)
@@ -1029,11 +1048,11 @@ def process_complex_data(param1, param2, param3, param4):
         # Print timing results for visibility
         print(
             f"\n[Performance] Small code ({iterations} iterations): "
-            f"{small_time*1000:.2f}ms total, {small_time*1000/iterations:.3f}ms/iter"
+            f"{small_time * 1000:.2f}ms total, {small_time * 1000 / iterations:.3f}ms/iter"
         )
         print(
             f"[Performance] Large code ({iterations} iterations): "
-            f"{large_time*1000:.2f}ms total, {large_time*1000/iterations:.3f}ms/iter"
+            f"{large_time * 1000:.2f}ms total, {large_time * 1000 / iterations:.3f}ms/iter"
         )
 
         # Verify both paths produce valid similarity scores

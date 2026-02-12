@@ -1,6 +1,5 @@
 """Tests for function extraction refactoring."""
 
-
 import pytest
 
 from ast_grep_mcp.features.refactoring.analyzer import CodeSelectionAnalyzer
@@ -42,10 +41,10 @@ def process_user(user):
 
         # Check that email is detected as a parameter
         param_vars = selection.get_variables_by_type(VariableType.PARAMETER)
-        assert any(v.name == 'email' for v in param_vars)
+        assert any(v.name == "email" for v in param_vars)
 
         # Check that normalized_email is detected (assigned in selection)
-        assert 'normalized_email' in [v.name for v in selection.variables]
+        assert "normalized_email" in [v.name for v in selection.variables]
 
         # Note: domain is assigned but may be classified as LOCAL
         # What matters is that the function extraction works correctly
@@ -315,7 +314,7 @@ function processUser(user) {
 
         # Check email is detected as parameter
         param_vars = selection.get_variables_by_type(VariableType.PARAMETER)
-        assert any(v.name == 'email' for v in param_vars)
+        assert any(v.name == "email" for v in param_vars)
 
 
 # Fixtures for common test data

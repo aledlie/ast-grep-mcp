@@ -618,7 +618,6 @@ class DuplicationDetector:
             "duplication_groups": formatted_groups,
             "refactoring_suggestions": suggestions,
             "message": (
-                f"Found {stats['duplicate_groups']} duplication group(s) "
-                f"with potential to save {stats['potential_line_savings']} lines"
+                f"Found {stats['duplicate_groups']} duplication group(s) with potential to save {stats['potential_line_savings']} lines"
             ),
         }

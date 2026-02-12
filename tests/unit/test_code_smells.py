@@ -109,7 +109,7 @@ class TestMagicNumbers:
     def test_no_magic_numbers(self):
         """Code without magic numbers."""
         code = "x = 0\ny = 1"
-        lines = code.split('\n')
+        lines = code.split("\n")
         detector = MagicNumberDetector(enabled=True)
         result = detector._find_magic_numbers(code, lines, "python")
         assert len(result) == 0
@@ -117,7 +117,7 @@ class TestMagicNumbers:
     def test_simple_magic_number(self):
         """Simple magic number detection."""
         code = "delay = calculate(3600)"  # Not in allowed list, in function call
-        lines = code.split('\n')
+        lines = code.split("\n")
         detector = MagicNumberDetector(enabled=True)
         result = detector._find_magic_numbers(code, lines, "python")
         # 3600 is a magic number
@@ -126,7 +126,7 @@ class TestMagicNumbers:
     def test_allowed_values_excluded(self):
         """Common values should not be flagged."""
         code = "x = 0\ny = 1\nz = 2\na = 10\nb = 100"
-        lines = code.split('\n')
+        lines = code.split("\n")
         detector = MagicNumberDetector(enabled=True)
         result = detector._find_magic_numbers(code, lines, "python")
         assert len(result) == 0
@@ -134,7 +134,7 @@ class TestMagicNumbers:
     def test_comments_excluded(self):
         """Numbers in comments should be excluded."""
         code = "# Port 8080\nx = some_func()"
-        lines = code.split('\n')
+        lines = code.split("\n")
         detector = MagicNumberDetector(enabled=True)
         result = detector._find_magic_numbers(code, lines, "python")
         # 8080 is in a comment, should be excluded
@@ -143,7 +143,7 @@ class TestMagicNumbers:
     def test_float_magic_numbers(self):
         """Float magic numbers."""
         code = "rate = 0.15"
-        lines = code.split('\n')
+        lines = code.split("\n")
         detector = MagicNumberDetector(enabled=True)
         result = detector._find_magic_numbers(code, lines, "python")
         # 0.15 should be flagged (not in allowed list)
@@ -152,7 +152,7 @@ class TestMagicNumbers:
     def test_multiple_on_same_line(self):
         """Multiple magic numbers on same line."""
         code = "result = 42 + 123"
-        lines = code.split('\n')
+        lines = code.split("\n")
         detector = MagicNumberDetector(enabled=True)
         result = detector._find_magic_numbers(code, lines, "python")
         # Both 42 and 123 should be flagged
@@ -161,7 +161,7 @@ class TestMagicNumbers:
     def test_range_excluded(self):
         """Numbers in range() should be excluded."""
         code = "for i in range(50):\n    pass"
-        lines = code.split('\n')
+        lines = code.split("\n")
         detector = MagicNumberDetector(enabled=True)
         result = detector._find_magic_numbers(code, lines, "python")
         # range() calls are excluded
@@ -173,7 +173,7 @@ class TestClassExtraction:
 
     def test_extract_simple_class(self):
         """Extract simple Python class."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("""
 class MyClass:
     def __init__(self):
@@ -197,7 +197,7 @@ class MyClass:
 
     def test_extract_no_classes(self):
         """File with no classes."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("""
 def standalone_function():
     return 42
@@ -222,7 +222,7 @@ class TestCodeSmellDetection:
         full_code = f"def long_func():\n{code}\n    return 1"
 
         # Function has 61 lines, should trigger long function smell at threshold 50
-        line_count = len(full_code.split('\n'))
+        line_count = len(full_code.split("\n"))
         assert line_count > 50
 
     def test_parameter_bloat_detection(self):
@@ -262,7 +262,7 @@ class TestEdgeCases:
     def test_no_magic_in_strings(self):
         """Numbers in strings shouldn't be flagged."""
         code = 'message = "Error code: 404"'
-        lines = code.split('\n')
+        lines = code.split("\n")
         detector = MagicNumberDetector(enabled=True)
         result = detector._find_magic_numbers(code, lines, "python")
         # 404 is in a string, should ideally be excluded

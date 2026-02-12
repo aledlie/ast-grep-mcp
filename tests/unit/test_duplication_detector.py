@@ -307,10 +307,7 @@ class TestCalculateSimilarityDetailed:
         """Test that detailed calculation returns HybridSimilarityResult."""
         detector = DuplicationDetector()
 
-        result = detector.calculate_similarity_detailed(
-            "def func1(): return 1",
-            "def func2(): return 2"
-        )
+        result = detector.calculate_similarity_detailed("def func1(): return 1", "def func2(): return 2")
 
         # Should return a result with similarity attribute
         assert hasattr(result, "similarity")
@@ -625,10 +622,12 @@ class TestGenerateRefactoringSuggestions:
         detector = DuplicationDetector()
 
         code = "def func():\n    return 1"
-        groups = [[
-            {"text": code, "file": "f1.py", "range": {"start": {"line": 1}}},
-            {"text": code, "file": "f2.py", "range": {"start": {"line": 10}}},
-        ]]
+        groups = [
+            [
+                {"text": code, "file": "f1.py", "range": {"start": {"line": 1}}},
+                {"text": code, "file": "f2.py", "range": {"start": {"line": 10}}},
+            ]
+        ]
 
         result = detector.generate_refactoring_suggestions(groups, "function_definition")
 
@@ -694,9 +693,7 @@ class TestCalculateStatistics:
 
         all_matches = [{"file": "f1.py"}, {"file": "f2.py"}]
         duplication_groups = [[{}, {}]]
-        suggestions = [
-            {"total_duplicated_lines": 20, "potential_line_savings": 10}
-        ]
+        suggestions = [{"total_duplicated_lines": 20, "potential_line_savings": 10}]
 
         stats = detector._calculate_statistics(all_matches, duplication_groups, suggestions)
 
@@ -731,10 +728,12 @@ class TestFormatResult:
 
         code = "def func(): pass"
         all_matches = [{"file": "f1.py"}]
-        duplication_groups = [[
-            {"file": "f1.py", "range": {"start": {"line": 0}, "end": {"line": 1}}, "text": code},
-            {"file": "f2.py", "range": {"start": {"line": 5}, "end": {"line": 6}}, "text": code},
-        ]]
+        duplication_groups = [
+            [
+                {"file": "f1.py", "range": {"start": {"line": 0}, "end": {"line": 1}}, "text": code},
+                {"file": "f2.py", "range": {"start": {"line": 5}, "end": {"line": 6}}, "text": code},
+            ]
+        ]
         suggestions = [{"group_id": 1, "potential_line_savings": 5}]
         stats = {"total_constructs": 1, "duplicate_groups": 1, "total_duplicated_lines": 10, "potential_line_savings": 5}
 
@@ -751,15 +750,14 @@ class TestFormatResult:
         detector = DuplicationDetector()
 
         code = "def func(): pass"
-        groups = [[
-            {"file": "/path/f1.py", "range": {"start": {"line": 9}, "end": {"line": 10}}, "text": code},
-            {"file": "/path/f2.py", "range": {"start": {"line": 19}, "end": {"line": 20}}, "text": code},
-        ]]
+        groups = [
+            [
+                {"file": "/path/f1.py", "range": {"start": {"line": 9}, "end": {"line": 10}}, "text": code},
+                {"file": "/path/f2.py", "range": {"start": {"line": 19}, "end": {"line": 20}}, "text": code},
+            ]
+        ]
 
-        stats = {
-            "total_constructs": 0, "duplicate_groups": 1,
-            "total_duplicated_lines": 0, "potential_line_savings": 0
-        }
+        stats = {"total_constructs": 0, "duplicate_groups": 1, "total_duplicated_lines": 0, "potential_line_savings": 0}
         result = detector._format_result([], groups, [], stats, 0.1)
 
         assert len(result["duplication_groups"]) == 1
@@ -888,10 +886,7 @@ class TestEdgeCases:
         detector = DuplicationDetector()
 
         # Create exactly max_constructs matches
-        matches = [
-            {"file": f"/project/f{i}.py", "text": f"def func{i}(): pass", "range": {"start": {"line": 1}}}
-            for i in range(5)
-        ]
+        matches = [{"file": f"/project/f{i}.py", "text": f"def func{i}(): pass", "range": {"start": {"line": 1}}} for i in range(5)]
 
         with patch("ast_grep_mcp.features.deduplication.detector.stream_ast_grep_results") as mock_stream:
             mock_stream.return_value = iter(matches)

@@ -187,10 +187,7 @@ class ComplexityStatisticsAggregator:
                 }
                 for f in exceeding_functions
             ],
-            "message": (
-                f"Found {len(exceeding_functions)} function(s) exceeding thresholds "
-                f"out of {summary['total_functions']} total"
-            ),
+            "message": (f"Found {len(exceeding_functions)} function(s) exceeding thresholds out of {summary['total_functions']} total"),
         }
 
         if run_id:

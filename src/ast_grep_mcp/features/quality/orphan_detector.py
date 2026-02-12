@@ -63,9 +63,7 @@ class OrphanDetector:
         orphan_functions: List[OrphanFunction] = []
         total_functions = 0
         if self.config.analyze_functions:
-            orphan_functions, total_functions = self._find_orphan_functions(
-                base_path, graph
-            )
+            orphan_functions, total_functions = self._find_orphan_functions(base_path, graph)
 
         elapsed_ms = int((time.time() - start_time) * 1000)
 
@@ -134,9 +132,7 @@ class OrphanDetector:
                     return True
         return False
 
-    def _extract_python_imports(
-        self, file_path: Path, rel_path: str, base_path: Path, graph: DependencyGraph
-    ) -> None:
+    def _extract_python_imports(self, file_path: Path, rel_path: str, base_path: Path, graph: DependencyGraph) -> None:
         """Extract imports from a Python file."""
         try:
             content = file_path.read_text(encoding="utf-8")
@@ -151,9 +147,7 @@ class OrphanDetector:
             if isinstance(node, ast.Import):
                 self._process_import_node(node, rel_path, base_path, graph, external_imports)
             elif isinstance(node, ast.ImportFrom):
-                self._process_import_from_node(
-                    node, file_path, rel_path, base_path, graph, external_imports
-                )
+                self._process_import_from_node(node, file_path, rel_path, base_path, graph, external_imports)
 
         if external_imports:
             graph.external_imports[rel_path] = external_imports
@@ -212,9 +206,7 @@ class OrphanDetector:
         elif node.module:
             external_imports.add(node.module.split(".")[0])
 
-    def _resolve_python_import(
-        self, module_name: str, base_path: Path
-    ) -> Optional[str]:
+    def _resolve_python_import(self, module_name: str, base_path: Path) -> Optional[str]:
         """Resolve a Python module name to a file path."""
         parts = module_name.split(".")
 
@@ -241,9 +233,7 @@ class OrphanDetector:
 
         return None
 
-    def _resolve_relative_import(
-        self, file_path: Path, module: str, level: int, base_path: Path
-    ) -> Optional[str]:
+    def _resolve_relative_import(self, file_path: Path, module: str, level: int, base_path: Path) -> Optional[str]:
         """Resolve a relative Python import."""
         # Go up 'level' directories from the current file
         current_dir = file_path.parent
@@ -266,9 +256,7 @@ class OrphanDetector:
 
         return None
 
-    def _extract_js_imports(
-        self, file_path: Path, rel_path: str, base_path: Path, graph: DependencyGraph
-    ) -> None:
+    def _extract_js_imports(self, file_path: Path, rel_path: str, base_path: Path, graph: DependencyGraph) -> None:
         """Extract imports from a JavaScript/TypeScript file."""
         try:
             content = file_path.read_text(encoding="utf-8")
@@ -285,9 +273,7 @@ class OrphanDetector:
         require_pattern = r"require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)"
 
         for pattern in [import_pattern, require_pattern]:
-            self._process_js_pattern_matches(
-                pattern, content, file_path, rel_path, base_path, graph, external_imports
-            )
+            self._process_js_pattern_matches(pattern, content, file_path, rel_path, base_path, graph, external_imports)
 
         if external_imports:
             graph.external_imports[rel_path] = external_imports
@@ -305,9 +291,7 @@ class OrphanDetector:
         """Process all matches of a JS import pattern."""
         for match in re.finditer(pattern, content):
             import_path = match.group(1)
-            self._process_single_js_import(
-                import_path, match.group(0), file_path, rel_path, base_path, graph, external_imports
-            )
+            self._process_single_js_import(import_path, match.group(0), file_path, rel_path, base_path, graph, external_imports)
 
     def _process_single_js_import(
         self,
@@ -335,9 +319,7 @@ class OrphanDetector:
                 )
             )
 
-    def _resolve_js_relative_import(
-        self, file_path: Path, import_path: str, base_path: Path
-    ) -> Optional[str]:
+    def _resolve_js_relative_import(self, file_path: Path, import_path: str, base_path: Path) -> Optional[str]:
         """Resolve a relative JavaScript/TypeScript import."""
         current_dir = file_path.parent
         target_path = (current_dir / import_path).resolve()
@@ -382,9 +364,7 @@ class OrphanDetector:
 
         self.logger.debug("entry_points_identified", count=len(graph.entry_points))
 
-    def _find_orphan_files(
-        self, base_path: Path, graph: DependencyGraph
-    ) -> List[OrphanFile]:
+    def _find_orphan_files(self, base_path: Path, graph: DependencyGraph) -> List[OrphanFile]:
         """Find files with no incoming imports."""
         orphans: List[OrphanFile] = []
 
@@ -420,9 +400,7 @@ class OrphanDetector:
 
         return orphans
 
-    def _verify_orphans_with_grep(
-        self, base_path: Path, orphans: List[OrphanFile]
-    ) -> List[OrphanFile]:
+    def _verify_orphans_with_grep(self, base_path: Path, orphans: List[OrphanFile]) -> List[OrphanFile]:
         """Verify orphan candidates using grep for string references."""
         verified_orphans: List[OrphanFile] = []
 
@@ -438,11 +416,7 @@ class OrphanDetector:
                     timeout=10,
                 )
 
-                references = [
-                    line
-                    for line in result.stdout.strip().split("\n")
-                    if line and not line.endswith(orphan.file_path)
-                ]
+                references = [line for line in result.stdout.strip().split("\n") if line and not line.endswith(orphan.file_path)]
 
                 if not references:
                     orphan.status = VerificationStatus.CONFIRMED
@@ -465,9 +439,7 @@ class OrphanDetector:
 
         return verified_orphans
 
-    def _find_orphan_functions(
-        self, base_path: Path, graph: DependencyGraph
-    ) -> Tuple[List[OrphanFunction], int]:
+    def _find_orphan_functions(self, base_path: Path, graph: DependencyGraph) -> Tuple[List[OrphanFunction], int]:
         """Find functions with no call sites."""
         orphan_functions: List[OrphanFunction] = []
         total_functions = 0
@@ -477,17 +449,13 @@ class OrphanDetector:
                 continue
 
             full_path = base_path / file_path
-            functions, file_orphans = self._analyze_python_functions(
-                full_path, file_path, base_path
-            )
+            functions, file_orphans = self._analyze_python_functions(full_path, file_path, base_path)
             total_functions += functions
             orphan_functions.extend(file_orphans)
 
         return orphan_functions, total_functions
 
-    def _analyze_python_functions(
-        self, file_path: Path, rel_path: str, base_path: Path
-    ) -> Tuple[int, List[OrphanFunction]]:
+    def _analyze_python_functions(self, file_path: Path, rel_path: str, base_path: Path) -> Tuple[int, List[OrphanFunction]]:
         """Analyze Python file for orphan functions."""
         orphans: List[OrphanFunction] = []
         function_count = 0
@@ -528,9 +496,7 @@ class OrphanDetector:
 
         return function_count, orphans
 
-    def _is_function_called(
-        self, func_name: str, base_path: Path, source_file: str
-    ) -> bool:
+    def _is_function_called(self, func_name: str, base_path: Path, source_file: str) -> bool:
         """Check if a function is called anywhere in the codebase."""
         # Use grep to search for function calls
         try:

@@ -543,28 +543,30 @@ class PatternAnalyzer:
                         "line2": cond2.get("line", 0),
                     }
                     # Analyze the specific variation
-                    variation["details"] = self._analyze_conditional_difference(
-                        cond1["text"], cond2["text"], language
-                    )
+                    variation["details"] = self._analyze_conditional_difference(cond1["text"], cond2["text"], language)
                     variations.append(variation)
             elif cond1:
                 # Only in first code block
-                variations.append({
-                    "position": i + 1,
-                    "type": "removed",
-                    "condition1": cond1["text"],
-                    "condition2": None,
-                    "line1": cond1.get("line", 0),
-                })
+                variations.append(
+                    {
+                        "position": i + 1,
+                        "type": "removed",
+                        "condition1": cond1["text"],
+                        "condition2": None,
+                        "line1": cond1.get("line", 0),
+                    }
+                )
             elif cond2:
                 # Only in second code block
-                variations.append({
-                    "position": i + 1,
-                    "type": "added",
-                    "condition1": None,
-                    "condition2": cond2["text"],
-                    "line2": cond2.get("line", 0),
-                })
+                variations.append(
+                    {
+                        "position": i + 1,
+                        "type": "added",
+                        "condition1": None,
+                        "condition2": cond2["text"],
+                        "line2": cond2.get("line", 0),
+                    }
+                )
 
         self.logger.info(
             "conditional_variations_found",
@@ -599,27 +601,31 @@ class PatternAnalyzer:
         try:
             # Define ast-grep rule for conditionals based on language
             if language == "python":
-                rule = {"rule": {"any": [
-                    {"kind": "if_statement"},
-                    {"kind": "elif_clause"},
-                    {"kind": "comparison_operator"},
-                ]}}
+                rule = {
+                    "rule": {
+                        "any": [
+                            {"kind": "if_statement"},
+                            {"kind": "elif_clause"},
+                            {"kind": "comparison_operator"},
+                        ]
+                    }
+                }
             else:
                 # JavaScript/TypeScript/Java
-                rule = {"rule": {"any": [
-                    {"kind": "if_statement"},
-                    {"kind": "binary_expression"},
-                    {"kind": "ternary_expression"},
-                ]}}
+                rule = {
+                    "rule": {
+                        "any": [
+                            {"kind": "if_statement"},
+                            {"kind": "binary_expression"},
+                            {"kind": "ternary_expression"},
+                        ]
+                    }
+                }
 
             rule_yaml = yaml.dump(rule)
 
             result = subprocess.run(
-                ["ast-grep", "scan", "--rule", "-", "--json", temp_path],
-                input=rule_yaml,
-                capture_output=True,
-                text=True,
-                timeout=10
+                ["ast-grep", "scan", "--rule", "-", "--json", temp_path], input=rule_yaml, capture_output=True, text=True, timeout=10
             )
 
             if result.returncode == 0 and result.stdout.strip():
@@ -629,11 +635,13 @@ class PatternAnalyzer:
                         line = match.get("range", {}).get("start", {}).get("line", 0)
                         text = match.get("text", "")
                         kind = match.get("kind", "unknown")
-                        conditionals.append({
-                            "line": line,
-                            "text": text.strip(),
-                            "kind": kind,
-                        })
+                        conditionals.append(
+                            {
+                                "line": line,
+                                "text": text.strip(),
+                                "kind": kind,
+                            }
+                        )
                 except json.JSONDecodeError:
                     self.logger.warning("conditional_parse_error", language=language)
 
@@ -657,22 +665,25 @@ class PatternAnalyzer:
     def _extract_conditionals_regex(self, code: str, language: str) -> List[Dict[str, Any]]:
         """Fallback regex-based extraction for conditionals."""
         import re
+
         conditionals: List[Dict[str, Any]] = []
 
         # Pattern for if/elif conditions
         if language == "python":
-            pattern = r'(?:if|elif)\s+(.+?):'
+            pattern = r"(?:if|elif)\s+(.+?):"
         else:
-            pattern = r'(?:if|else\s+if)\s*\((.+?)\)'
+            pattern = r"(?:if|else\s+if)\s*\((.+?)\)"
 
-        for i, line in enumerate(code.split('\n'), 1):
+        for i, line in enumerate(code.split("\n"), 1):
             match = re.search(pattern, line)
             if match:
-                conditionals.append({
-                    "line": i,
-                    "text": match.group(0).strip(),
-                    "kind": "if_statement",
-                })
+                conditionals.append(
+                    {
+                        "line": i,
+                        "text": match.group(0).strip(),
+                        "kind": "if_statement",
+                    }
+                )
 
         return conditionals
 
@@ -692,9 +703,7 @@ class PatternAnalyzer:
             return {"rule": {"kind": "call"}}
         return {"rule": {"kind": "call_expression"}}
 
-    def _find_nested_call_in_matches(
-        self, matches: List[Dict[str, Any]], identifier: str
-    ) -> Optional[Dict[str, Any]]:
+    def _find_nested_call_in_matches(self, matches: List[Dict[str, Any]], identifier: str) -> Optional[Dict[str, Any]]:
         """Find nested function call containing identifier in ast-grep matches."""
         for match in matches:
             text = match.get("text", "")
@@ -710,9 +719,7 @@ class PatternAnalyzer:
                 }
         return None
 
-    def _run_ast_grep_for_calls(
-        self, temp_path: str, language: str, identifier: str
-    ) -> Optional[Dict[str, Any]]:
+    def _run_ast_grep_for_calls(self, temp_path: str, language: str, identifier: str) -> Optional[Dict[str, Any]]:
         """Run ast-grep to find nested function calls."""
         rule = self._get_call_rule(language)
         rule_yaml = yaml.dump(rule)
@@ -735,9 +742,7 @@ class PatternAnalyzer:
             self.logger.warning("nested_call_parse_error", language=language)
             return None
 
-    def detect_nested_function_call(
-        self, code: str, identifier: str, language: str = "python"
-    ) -> Optional[Dict[str, Any]]:
+    def detect_nested_function_call(self, code: str, identifier: str, language: str = "python") -> Optional[Dict[str, Any]]:
         """
         Detect if an identifier is used within nested function calls.
 
@@ -783,10 +788,10 @@ class PatternAnalyzer:
         depth = 0
         max_depth = 0
         for i, char in enumerate(expression[:idx]):
-            if char == '(':
+            if char == "(":
                 depth += 1
                 max_depth = max(max_depth, depth)
-            elif char == ')':
+            elif char == ")":
                 depth -= 1
 
         return max_depth
@@ -797,9 +802,9 @@ class PatternAnalyzer:
 
         # Pattern for nested function calls: func(func(...identifier...))
         # Look for identifier within parentheses that are inside other parentheses
-        pattern = r'(\w+)\s*\(\s*(\w+)\s*\([^)]*' + re.escape(identifier) + r'[^)]*\)'
+        pattern = r"(\w+)\s*\(\s*(\w+)\s*\([^)]*" + re.escape(identifier) + r"[^)]*\)"
 
-        for i, line in enumerate(code.split('\n'), 1):
+        for i, line in enumerate(code.split("\n"), 1):
             match = re.search(pattern, line)
             if match:
                 return {
@@ -813,9 +818,7 @@ class PatternAnalyzer:
 
         return None
 
-    def _analyze_conditional_difference(
-        self, cond1: str, cond2: str, language: str
-    ) -> Dict[str, Any]:
+    def _analyze_conditional_difference(self, cond1: str, cond2: str, language: str) -> Dict[str, Any]:
         """Analyze the specific differences between two conditional expressions."""
         import re
 
@@ -844,8 +847,8 @@ class PatternAnalyzer:
             details["operators"] = {"from": op1, "to": op2}
 
         # Extract numeric values
-        nums1 = re.findall(r'\b\d+(?:\.\d+)?\b', cond1)
-        nums2 = re.findall(r'\b\d+(?:\.\d+)?\b', cond2)
+        nums1 = re.findall(r"\b\d+(?:\.\d+)?\b", cond1)
+        nums2 = re.findall(r"\b\d+(?:\.\d+)?\b", cond2)
 
         if nums1 != nums2:
             details["value_changed"] = True
@@ -860,8 +863,8 @@ class PatternAnalyzer:
             cond1 = cond1.replace(op, " ")
             cond2 = cond2.replace(op, " ")
 
-        vars1 = set(re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', cond1)) - {"if", "elif", "else"}
-        vars2 = set(re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', cond2)) - {"if", "elif", "else"}
+        vars1 = set(re.findall(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b", cond1)) - {"if", "elif", "else"}
+        vars2 = set(re.findall(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b", cond2)) - {"if", "elif", "else"}
 
         if vars1 != vars2:
             details["variable_changed"] = True
@@ -893,9 +896,7 @@ def detect_conditional_variations(code1: str, code2: str, language: str = "pytho
     return analyzer.detect_conditional_variations(code1, code2, language)
 
 
-def _detect_nested_function_call(
-    code: str, identifier: str, language: str = "python"
-) -> Optional[Dict[str, Any]]:
+def _detect_nested_function_call(code: str, identifier: str, language: str = "python") -> Optional[Dict[str, Any]]:
     """
     Detect if an identifier is used within nested function calls.
 
@@ -941,41 +942,45 @@ def classify_variations(code1: str, code2: str, language: str = "python") -> Dic
     # Identify varying literals
     literal_variations = analyzer.identify_varying_literals(code1, code2, language)
     for lit_var in literal_variations:
-        variations.append({
-            "type": "literal",
-            "old_value": lit_var.get("value1", ""),
-            "new_value": lit_var.get("value2", ""),
-            "context": lit_var.get("context", ""),
-        })
+        variations.append(
+            {
+                "type": "literal",
+                "old_value": lit_var.get("value1", ""),
+                "new_value": lit_var.get("value2", ""),
+                "context": lit_var.get("context", ""),
+            }
+        )
 
     # Identify conditional variations
     cond_variations = analyzer.detect_conditional_variations(code1, code2, language)
     for cond_var in cond_variations:
-        variations.append({
-            "type": "conditional",
-            "old_value": cond_var.get("condition1", ""),
-            "new_value": cond_var.get("condition2", ""),
-            "context": f"line {cond_var.get('line1', 0)}",
-        })
+        variations.append(
+            {
+                "type": "conditional",
+                "old_value": cond_var.get("condition1", ""),
+                "new_value": cond_var.get("condition2", ""),
+                "context": f"line {cond_var.get('line1', 0)}",
+            }
+        )
 
     # Identify varying identifiers
     identifier_variations = identify_varying_identifiers(code1, code2, language)
     for ident_var in identifier_variations:
-        variations.append({
-            "type": "identifier",
-            "old_value": ident_var.get("identifier1", ""),
-            "new_value": ident_var.get("identifier2", ""),
-            "context": ident_var.get("context", ""),
-        })
+        variations.append(
+            {
+                "type": "identifier",
+                "old_value": ident_var.get("identifier1", ""),
+                "new_value": ident_var.get("identifier2", ""),
+                "context": ident_var.get("context", ""),
+            }
+        )
 
     # Classify all variations
     if variations:
         classification = analyzer.classify_variations(variations)
         # Determine overall severity based on variation types
-        high_count = sum(1 for v in classification.get("classifications", [])
-                        if v.get("severity") == VariationSeverity.HIGH)
-        medium_count = sum(1 for v in classification.get("classifications", [])
-                          if v.get("severity") == VariationSeverity.MEDIUM)
+        high_count = sum(1 for v in classification.get("classifications", []) if v.get("severity") == VariationSeverity.HIGH)
+        medium_count = sum(1 for v in classification.get("classifications", []) if v.get("severity") == VariationSeverity.MEDIUM)
 
         if high_count > 0:
             overall_severity = VariationSeverity.HIGH
@@ -1031,13 +1036,15 @@ def identify_varying_identifiers(code1: str, code2: str, language: str = "python
         if pos in identifiers2:
             ident2 = identifiers2[pos]
             if ident1["name"] != ident2["name"]:
-                varying_identifiers.append({
-                    "identifier1": ident1["name"],
-                    "identifier2": ident2["name"],
-                    "position": pos,
-                    "context": ident1.get("context", ""),
-                    "usage_type": ident1.get("usage_type", "unknown"),
-                })
+                varying_identifiers.append(
+                    {
+                        "identifier1": ident1["name"],
+                        "identifier2": ident2["name"],
+                        "position": pos,
+                        "context": ident1.get("context", ""),
+                        "usage_type": ident1.get("usage_type", "unknown"),
+                    }
+                )
 
     return varying_identifiers
 
@@ -1060,24 +1067,105 @@ def _extract_identifiers_from_code(code: str, language: str) -> Dict[int, Dict[s
     import re
 
     # Pattern for identifiers (variable names, function names, etc.)
-    identifier_pattern = r'\b([a-zA-Z_][a-zA-Z0-9_]*)\b'
+    identifier_pattern = r"\b([a-zA-Z_][a-zA-Z0-9_]*)\b"
 
     # Keywords to exclude (common across languages)
     keywords = {
-        "python": {"def", "class", "if", "else", "elif", "for", "while", "return",
-                   "import", "from", "as", "try", "except", "finally", "with",
-                   "lambda", "yield", "raise", "pass", "break", "continue",
-                   "and", "or", "not", "in", "is", "None", "True", "False",
-                   "async", "await", "global", "nonlocal", "assert"},
-        "javascript": {"function", "const", "let", "var", "if", "else", "for",
-                       "while", "return", "import", "export", "from", "class",
-                       "new", "this", "try", "catch", "finally", "throw",
-                       "async", "await", "true", "false", "null", "undefined"},
-        "typescript": {"function", "const", "let", "var", "if", "else", "for",
-                       "while", "return", "import", "export", "from", "class",
-                       "new", "this", "try", "catch", "finally", "throw",
-                       "async", "await", "true", "false", "null", "undefined",
-                       "interface", "type", "enum", "implements", "extends"},
+        "python": {
+            "def",
+            "class",
+            "if",
+            "else",
+            "elif",
+            "for",
+            "while",
+            "return",
+            "import",
+            "from",
+            "as",
+            "try",
+            "except",
+            "finally",
+            "with",
+            "lambda",
+            "yield",
+            "raise",
+            "pass",
+            "break",
+            "continue",
+            "and",
+            "or",
+            "not",
+            "in",
+            "is",
+            "None",
+            "True",
+            "False",
+            "async",
+            "await",
+            "global",
+            "nonlocal",
+            "assert",
+        },
+        "javascript": {
+            "function",
+            "const",
+            "let",
+            "var",
+            "if",
+            "else",
+            "for",
+            "while",
+            "return",
+            "import",
+            "export",
+            "from",
+            "class",
+            "new",
+            "this",
+            "try",
+            "catch",
+            "finally",
+            "throw",
+            "async",
+            "await",
+            "true",
+            "false",
+            "null",
+            "undefined",
+        },
+        "typescript": {
+            "function",
+            "const",
+            "let",
+            "var",
+            "if",
+            "else",
+            "for",
+            "while",
+            "return",
+            "import",
+            "export",
+            "from",
+            "class",
+            "new",
+            "this",
+            "try",
+            "catch",
+            "finally",
+            "throw",
+            "async",
+            "await",
+            "true",
+            "false",
+            "null",
+            "undefined",
+            "interface",
+            "type",
+            "enum",
+            "implements",
+            "extends",
+        },
     }
 
     excluded = keywords.get(language, keywords["python"])
@@ -1096,7 +1184,7 @@ def _extract_identifiers_from_code(code: str, language: str) -> Dict[int, Dict[s
                 usage_type = "function"
             elif "class " in context:
                 usage_type = "class"
-            elif "(" in context[context.find(name):context.find(name)+len(name)+2]:
+            elif "(" in context[context.find(name) : context.find(name) + len(name) + 2]:
                 usage_type = "function_call"
 
             identifiers[idx] = {

@@ -43,13 +43,13 @@ def calculate_total(items):
     return total
 """)
 
-        with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
+        with patch("ast_grep_mcp.features.refactoring.renamer.run_ast_grep") as mock_run:
             # ast-grep returns absolute paths
             mock_run.return_value = Mock(
                 returncode=0,
                 stdout=f'[{{"file": "{str(test_file)}", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "total = 0"}},'
-                       f'{{"file": "{str(test_file)}", "range": {{"start": {{"line": 4, "column": 8}}}}, "lines": "total += item"}},'
-                       f'{{"file": "{str(test_file)}", "range": {{"start": {{"line": 5, "column": 11}}}}, "lines": "return total"}}]'
+                f'{{"file": "{str(test_file)}", "range": {{"start": {{"line": 4, "column": 8}}}}, "lines": "total += item"}},'
+                f'{{"file": "{str(test_file)}", "range": {{"start": {{"line": 5, "column": 11}}}}, "lines": "return total"}}]',
             )
 
             references = python_renamer.find_symbol_references(
@@ -65,8 +65,8 @@ def calculate_total(items):
 
     def test_find_symbol_references_no_matches(self, python_renamer, tmp_path):
         """Test finding references when symbol doesn't exist."""
-        with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
-            mock_run.return_value = Mock(returncode=1, stdout='')
+        with patch("ast_grep_mcp.features.refactoring.renamer.run_ast_grep") as mock_run:
+            mock_run.return_value = Mock(returncode=1, stdout="")
 
             references = python_renamer.find_symbol_references(
                 project_folder=str(tmp_path),
@@ -280,12 +280,12 @@ def calculate(x):
     return result
 """)
 
-        with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
+        with patch("ast_grep_mcp.features.refactoring.renamer.run_ast_grep") as mock_run:
             # ast-grep returns absolute paths
             mock_run.return_value = Mock(
                 returncode=0,
                 stdout=f'[{{"file": "{str(test_file)}", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "result = x * 2"}},'
-                       f'{{"file": "{str(test_file)}", "range": {{"start": {{"line": 3, "column": 11}}}}, "lines": "return result"}}]'
+                f'{{"file": "{str(test_file)}", "range": {{"start": {{"line": 3, "column": 11}}}}, "lines": "return result"}}]',
             )
 
             result = python_coordinator.rename_symbol(
@@ -305,8 +305,8 @@ def calculate(x):
 
     def test_rename_symbol_no_references(self, python_coordinator, tmp_path):
         """Test renaming when symbol has no references."""
-        with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
-            mock_run.return_value = Mock(returncode=1, stdout='')
+        with patch("ast_grep_mcp.features.refactoring.renamer.run_ast_grep") as mock_run:
+            mock_run.return_value = Mock(returncode=1, stdout="")
 
             result = python_coordinator.rename_symbol(
                 project_folder=str(tmp_path),
@@ -328,15 +328,14 @@ def foo():
     return x + y
 """)
 
-        with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
+        with patch("ast_grep_mcp.features.refactoring.renamer.run_ast_grep") as mock_run:
             # ast-grep returns absolute paths
             mock_run.return_value = Mock(
-                returncode=0,
-                stdout=f'[{{"file": "{str(test_file)}", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "x = 1"}}]'
+                returncode=0, stdout=f'[{{"file": "{str(test_file)}", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "x = 1"}}]'
             )
 
             # Mock build_scope_tree to return a scope with 'y' already defined
-            with patch.object(python_coordinator.renamer, 'build_scope_tree') as mock_scope:
+            with patch.object(python_coordinator.renamer, "build_scope_tree") as mock_scope:
                 mock_scope.return_value = [
                     ScopeInfo(
                         scope_type="function",
@@ -347,7 +346,7 @@ def foo():
                     )
                 ]
 
-                with patch.object(python_coordinator.renamer, 'check_naming_conflicts') as mock_check:
+                with patch.object(python_coordinator.renamer, "check_naming_conflicts") as mock_check:
                     mock_check.return_value = ["test.py:2 - 'y' already defined in scope 'foo'"]
 
                     result = python_coordinator.rename_symbol(
@@ -370,15 +369,15 @@ def calculate(x):
     return result
 """)
 
-        with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
+        with patch("ast_grep_mcp.features.refactoring.renamer.run_ast_grep") as mock_run:
             # ast-grep returns absolute paths
             mock_run.return_value = Mock(
                 returncode=0,
                 stdout=f'[{{"file": "{str(test_file)}", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "result = x * 2"}},'
-                       f'{{"file": "{str(test_file)}", "range": {{"start": {{"line": 3, "column": 11}}}}, "lines": "return result"}}]'
+                f'{{"file": "{str(test_file)}", "range": {{"start": {{"line": 3, "column": 11}}}}, "lines": "return result"}}]',
             )
 
-            with patch('ast_grep_mcp.features.refactoring.rename_coordinator.create_backup') as mock_backup:
+            with patch("ast_grep_mcp.features.refactoring.rename_coordinator.create_backup") as mock_backup:
                 mock_backup.return_value = "backup-123"
 
                 result = python_coordinator.rename_symbol(
@@ -396,7 +395,7 @@ def calculate(x):
                 # Verify file was actually modified
                 modified_content = test_file.read_text()
                 assert "output" in modified_content
-                assert "result" not in modified_content.split('\n')[1]  # Check line 2
+                assert "result" not in modified_content.split("\n")[1]  # Check line 2
 
     def test_rename_in_file_word_boundary(self, python_coordinator, tmp_path):
         """Test that rename respects word boundaries."""
@@ -482,7 +481,6 @@ def foo():
 class TestRenameSymbolTool:
     """Tests for rename_symbol MCP tool."""
 
-
     def test_rename_symbol_tool_dry_run(self, tmp_path):
         """Test rename_symbol tool in dry-run mode."""
         test_file = tmp_path / "test.py"
@@ -492,12 +490,12 @@ def calculate(x):
     return result
 """)
 
-        with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
+        with patch("ast_grep_mcp.features.refactoring.renamer.run_ast_grep") as mock_run:
             # ast-grep returns absolute paths
             mock_run.return_value = Mock(
                 returncode=0,
                 stdout=f'[{{"file": "{str(test_file)}", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "result = x * 2"}},'
-                       f'{{"file": "{str(test_file)}", "range": {{"start": {{"line": 3, "column": 11}}}}, "lines": "return result"}}]'
+                f'{{"file": "{str(test_file)}", "range": {{"start": {{"line": 3, "column": 11}}}}, "lines": "return result"}}]',
             )
 
             result = rename_symbol_tool(
@@ -519,7 +517,7 @@ def calculate(x):
     def test_rename_symbol_tool_error_handling(self, tmp_path):
         """Test error handling in rename_symbol tool."""
         # Test when renamer itself throws an exception during coordination
-        with patch('ast_grep_mcp.features.refactoring.rename_coordinator.RenameCoordinator.rename_symbol') as mock_rename:
+        with patch("ast_grep_mcp.features.refactoring.rename_coordinator.RenameCoordinator.rename_symbol") as mock_rename:
             mock_rename.side_effect = Exception("Coordinator failed")
 
             result = rename_symbol_tool(
@@ -537,8 +535,8 @@ def calculate(x):
 
     def test_rename_symbol_tool_with_file_filter(self, tmp_path):
         """Test rename_symbol tool with file filter."""
-        with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
-            mock_run.return_value = Mock(returncode=1, stdout='')
+        with patch("ast_grep_mcp.features.refactoring.renamer.run_ast_grep") as mock_run:
+            mock_run.return_value = Mock(returncode=1, stdout="")
 
             result = rename_symbol_tool(
                 project_folder=str(tmp_path),
@@ -574,7 +572,7 @@ def main():
     return result
 """)
 
-        with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
+        with patch("ast_grep_mcp.features.refactoring.renamer.run_ast_grep") as mock_run:
             # ast-grep returns absolute paths
             mock_run.return_value = Mock(
                 returncode=0,
@@ -585,10 +583,10 @@ def main():
                     f' "lines": "from module1 import process_data"}},'
                     f'{{"file": "{str(file2)}", "range": {{"start": {{"line": 4, "column": 13}}}},'
                     f' "lines": "result = process_data(10)"}}]'
-                )
+                ),
             )
 
-            with patch('ast_grep_mcp.features.refactoring.rename_coordinator.create_backup') as mock_backup:
+            with patch("ast_grep_mcp.features.refactoring.rename_coordinator.create_backup") as mock_backup:
                 mock_backup.return_value = "backup-multi"
 
                 result = python_coordinator.rename_symbol(
@@ -612,18 +610,17 @@ def foo():
     return x
 """)
 
-        with patch('ast_grep_mcp.features.refactoring.renamer.run_ast_grep') as mock_run:
+        with patch("ast_grep_mcp.features.refactoring.renamer.run_ast_grep") as mock_run:
             # ast-grep returns absolute paths
             mock_run.return_value = Mock(
-                returncode=0,
-                stdout=f'[{{"file": "{str(test_file)}", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "x = 1"}}]'
+                returncode=0, stdout=f'[{{"file": "{str(test_file)}", "range": {{"start": {{"line": 2, "column": 4}}}}, "lines": "x = 1"}}]'
             )
 
-            with patch('ast_grep_mcp.features.refactoring.rename_coordinator.create_backup') as mock_backup:
+            with patch("ast_grep_mcp.features.refactoring.rename_coordinator.create_backup") as mock_backup:
                 mock_backup.return_value = "backup-fail"
 
-                with patch('ast_grep_mcp.features.refactoring.rename_coordinator.restore_backup') as mock_restore:
-                    with patch.object(python_coordinator, '_rename_in_file') as mock_rename:
+                with patch("ast_grep_mcp.features.refactoring.rename_coordinator.restore_backup") as mock_restore:
+                    with patch.object(python_coordinator, "_rename_in_file") as mock_rename:
                         mock_rename.side_effect = Exception("File write failed")
 
                         result = python_coordinator.rename_symbol(

@@ -17,6 +17,7 @@ Usage:
     # Custom output file
     python scripts/run_benchmarks.py --output benchmark_report.md
 """
+
 import argparse
 import subprocess
 import sys
@@ -25,11 +26,7 @@ from pathlib import Path
 from ast_grep_mcp.utils.console_logger import console
 
 
-def run_benchmarks(
-    save_baseline: bool = False,
-    check_regression: bool = False,
-    output_file: str = "benchmark_report.md"
-) -> int:
+def run_benchmarks(save_baseline: bool = False, check_regression: bool = False, output_file: str = "benchmark_report.md") -> int:
     """Run benchmark suite.
 
     Args:
@@ -120,35 +117,20 @@ Examples:
 
   # Combine options
   python scripts/run_benchmarks.py --check-regression --output report.md
-"""
+""",
     )
 
-    parser.add_argument(
-        "--save-baseline",
-        action="store_true",
-        help="Save current results as new baseline"
-    )
+    parser.add_argument("--save-baseline", action="store_true", help="Save current results as new baseline")
+
+    parser.add_argument("--check-regression", action="store_true", help="Fail if performance regression detected (>10%% slowdown)")
 
     parser.add_argument(
-        "--check-regression",
-        action="store_true",
-        help="Fail if performance regression detected (>10%% slowdown)"
-    )
-
-    parser.add_argument(
-        "--output",
-        type=str,
-        default="benchmark_report.md",
-        help="Output file for benchmark report (default: benchmark_report.md)"
+        "--output", type=str, default="benchmark_report.md", help="Output file for benchmark report (default: benchmark_report.md)"
     )
 
     args = parser.parse_args()
 
-    return run_benchmarks(
-        save_baseline=args.save_baseline,
-        check_regression=args.check_regression,
-        output_file=args.output
-    )
+    return run_benchmarks(save_baseline=args.save_baseline, check_regression=args.check_regression, output_file=args.output)
 
 
 if __name__ == "__main__":

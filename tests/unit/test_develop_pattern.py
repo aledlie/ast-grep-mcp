@@ -1,6 +1,5 @@
 """Tests for the develop_pattern functionality."""
 
-
 from ast_grep_mcp.features.search.service import (
     _extract_identifiers,
     _extract_literals,
@@ -58,7 +57,7 @@ class TestExtractLiterals:
 
     def test_extract_string_literals(self):
         """Should extract string literals."""
-        code = 'console.log("hello", \'world\')'
+        code = "console.log(\"hello\", 'world')"
         literals = _extract_literals(code)
         assert '"hello"' in literals
         assert "'world'" in literals

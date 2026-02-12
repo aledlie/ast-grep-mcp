@@ -103,10 +103,7 @@ class TestBuildRule:
 
     def test_build_simple_rule(self):
         """Should build a simple pattern-only rule."""
-        result = build_rule_impl(
-            pattern="console.log($$$ARGS)",
-            language="javascript"
-        )
+        result = build_rule_impl(pattern="console.log($$$ARGS)", language="javascript")
         parsed = yaml.safe_load(result)
 
         assert "id" in parsed
@@ -115,22 +112,14 @@ class TestBuildRule:
 
     def test_build_rule_with_custom_id(self):
         """Should use provided rule ID."""
-        result = build_rule_impl(
-            pattern="print($$$)",
-            language="python",
-            rule_id="my-custom-rule"
-        )
+        result = build_rule_impl(pattern="print($$$)", language="python", rule_id="my-custom-rule")
         parsed = yaml.safe_load(result)
 
         assert parsed["id"] == "my-custom-rule"
 
     def test_build_rule_with_inside_pattern(self):
         """Should add inside relational rule with stopBy."""
-        result = build_rule_impl(
-            pattern="$CALL",
-            language="python",
-            inside="def $NAME($$$): $$$BODY"
-        )
+        result = build_rule_impl(pattern="$CALL", language="python", inside="def $NAME($$$): $$$BODY")
         parsed = yaml.safe_load(result)
 
         assert "inside" in parsed["rule"]
@@ -139,11 +128,7 @@ class TestBuildRule:
 
     def test_build_rule_with_inside_kind(self):
         """Should add inside with kind instead of pattern."""
-        result = build_rule_impl(
-            pattern="console.log($$$)",
-            language="javascript",
-            inside_kind="function_declaration"
-        )
+        result = build_rule_impl(pattern="console.log($$$)", language="javascript", inside_kind="function_declaration")
         parsed = yaml.safe_load(result)
 
         assert "inside" in parsed["rule"]
@@ -153,11 +138,7 @@ class TestBuildRule:
 
     def test_build_rule_with_has(self):
         """Should add has relational rule."""
-        result = build_rule_impl(
-            pattern="function $NAME($$$) { $$$BODY }",
-            language="javascript",
-            has="return $VALUE"
-        )
+        result = build_rule_impl(pattern="function $NAME($$$) { $$$BODY }", language="javascript", has="return $VALUE")
         parsed = yaml.safe_load(result)
 
         assert "has" in parsed["rule"]
@@ -166,11 +147,7 @@ class TestBuildRule:
 
     def test_build_rule_with_follows(self):
         """Should add follows relational rule."""
-        result = build_rule_impl(
-            pattern="$VAR($$$)",
-            language="javascript",
-            follows="const $VAR = $VALUE"
-        )
+        result = build_rule_impl(pattern="$VAR($$$)", language="javascript", follows="const $VAR = $VALUE")
         parsed = yaml.safe_load(result)
 
         assert "follows" in parsed["rule"]
@@ -179,11 +156,7 @@ class TestBuildRule:
 
     def test_build_rule_with_precedes(self):
         """Should add precedes relational rule."""
-        result = build_rule_impl(
-            pattern="const $VAR = $VALUE",
-            language="javascript",
-            precedes="$VAR($$$)"
-        )
+        result = build_rule_impl(pattern="const $VAR = $VALUE", language="javascript", precedes="$VAR($$$)")
         parsed = yaml.safe_load(result)
 
         assert "precedes" in parsed["rule"]
@@ -191,56 +164,35 @@ class TestBuildRule:
 
     def test_build_rule_with_custom_stop_by(self):
         """Should use custom stopBy value."""
-        result = build_rule_impl(
-            pattern="$CALL",
-            language="python",
-            inside="def $NAME($$$): $$$",
-            stop_by="neighbor"
-        )
+        result = build_rule_impl(pattern="$CALL", language="python", inside="def $NAME($$$): $$$", stop_by="neighbor")
         parsed = yaml.safe_load(result)
 
         assert parsed["rule"]["inside"]["stopBy"] == "neighbor"
 
     def test_build_rule_with_message(self):
         """Should include message field."""
-        result = build_rule_impl(
-            pattern="print($$$)",
-            language="python",
-            message="Use logging instead of print"
-        )
+        result = build_rule_impl(pattern="print($$$)", language="python", message="Use logging instead of print")
         parsed = yaml.safe_load(result)
 
         assert parsed["message"] == "Use logging instead of print"
 
     def test_build_rule_with_severity(self):
         """Should include severity field."""
-        result = build_rule_impl(
-            pattern="eval($$$)",
-            language="javascript",
-            severity="error"
-        )
+        result = build_rule_impl(pattern="eval($$$)", language="javascript", severity="error")
         parsed = yaml.safe_load(result)
 
         assert parsed["severity"] == "error"
 
     def test_build_rule_with_fix(self):
         """Should include fix field."""
-        result = build_rule_impl(
-            pattern="var $NAME = $VALUE",
-            language="javascript",
-            fix="const $NAME = $VALUE"
-        )
+        result = build_rule_impl(pattern="var $NAME = $VALUE", language="javascript", fix="const $NAME = $VALUE")
         parsed = yaml.safe_load(result)
 
         assert parsed["fix"] == "const $NAME = $VALUE"
 
     def test_build_rule_with_empty_fix(self):
         """Should include empty fix for deletion."""
-        result = build_rule_impl(
-            pattern="console.log($$$)",
-            language="javascript",
-            fix=""
-        )
+        result = build_rule_impl(pattern="console.log($$$)", language="javascript", fix="")
         parsed = yaml.safe_load(result)
 
         assert "fix" in parsed
@@ -253,7 +205,7 @@ class TestBuildRule:
             language="javascript",
             inside="function $NAME($$$) { $$$BODY }",
             has="await $PROMISE",
-            follows="const $VAR = $VALUE"
+            follows="const $VAR = $VALUE",
         )
         parsed = yaml.safe_load(result)
 
@@ -278,11 +230,7 @@ class TestBuildRule:
     def test_build_rule_output_is_valid_yaml(self):
         """Generated output should be valid YAML."""
         result = build_rule_impl(
-            pattern="def $NAME($$$): $$$BODY",
-            language="python",
-            inside_kind="module",
-            message="Found function",
-            severity="info"
+            pattern="def $NAME($$$): $$$BODY", language="python", inside_kind="module", message="Found function", severity="info"
         )
 
         # Should not raise
@@ -295,7 +243,7 @@ class TestBuildRule:
             pattern="$CALL",
             language="javascript",
             inside="function $NAME($$$) { $$$BODY }",  # This should be overridden
-            inside_kind="function_declaration"
+            inside_kind="function_declaration",
         )
         parsed = yaml.safe_load(result)
 
@@ -475,10 +423,7 @@ class TestGetPatternExamples:
         """All categories should be documented."""
         for cat in PATTERN_CATEGORIES:
             # At least some languages should have this category
-            has_category = any(
-                cat in PATTERN_EXAMPLES[lang]
-                for lang in PATTERN_LANGUAGES
-            )
+            has_category = any(cat in PATTERN_EXAMPLES[lang] for lang in PATTERN_LANGUAGES)
             assert has_category, f"Category {cat} not in any language"
 
     def test_pattern_format(self):
@@ -511,7 +456,4 @@ class TestGetPatternExamples:
         result = get_pattern_examples("javascript", "function")
         # JavaScript function category has notes
         if "*" in result:
-            assert "Use $$$PARAMS" in result or any(
-                p.get("notes") is not None
-                for p in PATTERN_EXAMPLES["javascript"]["function"]
-            )
+            assert "Use $$$PARAMS" in result or any(p.get("notes") is not None for p in PATTERN_EXAMPLES["javascript"]["function"])

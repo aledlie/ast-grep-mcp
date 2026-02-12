@@ -188,9 +188,7 @@ class TestSemanticSimilarityMocked:
         model_instance.to.return_value = model_instance
         model_output = MagicMock()
         model_output.last_hidden_state = MagicMock()
-        model_output.last_hidden_state.__getitem__ = MagicMock(
-            return_value=MagicMock(squeeze=MagicMock(return_value=MagicMock()))
-        )
+        model_output.last_hidden_state.__getitem__ = MagicMock(return_value=MagicMock(squeeze=MagicMock(return_value=MagicMock())))
         model_instance.return_value = model_output
         mock.AutoModel.from_pretrained.return_value = model_instance
 

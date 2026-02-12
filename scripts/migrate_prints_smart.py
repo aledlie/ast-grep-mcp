@@ -8,6 +8,7 @@ Intelligently converts console.blank() statements based on context:
 - Empty lines -> console.blank()
 - Regular output -> console.log()
 """
+
 import re
 from pathlib import Path
 from typing import List, Tuple
@@ -29,12 +30,12 @@ def smart_replace_print(line: str) -> Tuple[str, bool]:
     modified = False
 
     # Skip if already using console
-    if 'console.' in line:
+    if "console." in line:
         return line, False
 
     # Pattern 1: print() with no arguments -> console.blank()
-    if re.search(r'\bprint\(\s*\)', line):
-        line = re.sub(r'\bprint\(\s*\)', 'console.blank()', line)
+    if re.search(r"\bprint\(\s*\)", line):
+        line = re.sub(r"\bprint\(\s*\)", "console.blank()", line)
         modified = True
 
     # Pattern 2: Separator lines (=, -, *, _)
@@ -43,56 +44,48 @@ def smart_replace_print(line: str) -> Tuple[str, bool]:
         if match:
             char = match.group(1)[0]
             length = len(match.group(1))
-            line = re.sub(
-                r'print\(["\']([=\-_*]+)["\']\)',
-                f'console.separator("{char}", {length})',
-                line
-            )
+            line = re.sub(r'print\(["\']([=\-_*]+)["\']\)', f'console.separator("{char}", {length})', line)
             modified = True
 
     # Pattern 3: JSON output
-    elif 'json.dumps' in line and 'print(' in line:
+    elif "json.dumps" in line and "print(" in line:
         # Extract json.dumps content
-        match = re.search(r'print\(json\.dumps\((.*?)(,\s*indent=\d+)?\)\)', line)
+        match = re.search(r"print\(json\.dumps\((.*?)(,\s*indent=\d+)?\)\)", line)
         if match:
             match.group(1)
-            line = re.sub(
-                r'print\(json\.dumps\((.*?)(,\s*indent=\d+)?\)\)',
-                r'console.json(\1)',
-                line
-            )
+            line = re.sub(r"print\(json\.dumps\((.*?)(,\s*indent=\d+)?\)\)", r"console.json(\1)", line)
             modified = True
 
     # Pattern 4: Error messages ( or "error" in text)
-    elif '' in line:
+    elif "" in line:
         # Remove file=sys.stderr and use console.error
-        content = re.sub(r',?\s*file=sys\.stderr', '', line)
-        content = re.sub(r'\bprint\((.*)\)', r'console.error(\1)', content)
+        content = re.sub(r",?\s*file=sys\.stderr", "", line)
+        content = re.sub(r"\bprint\((.*)\)", r"console.error(\1)", content)
         line = content
         modified = True
 
-    elif any(word in line.lower() for word in ['error:', 'failed', 'failure']):
-        line = re.sub(r'\bprint\(', 'console.error(', line)
+    elif any(word in line.lower() for word in ["error:", "failed", "failure"]):
+        line = re.sub(r"\bprint\(", "console.error(", line)
         modified = True
 
     # Pattern 5: Success/completion messages
-    elif any(word in line.lower() for word in ['success', 'complete', 'done', '✓']):
-        line = re.sub(r'\bprint\(', 'console.success(', line)
+    elif any(word in line.lower() for word in ["success", "complete", "done", "✓"]):
+        line = re.sub(r"\bprint\(", "console.success(", line)
         modified = True
 
     # Pattern 6: Warning messages
-    elif any(word in line.lower() for word in ['warning:', 'warn:']):
-        line = re.sub(r'\bprint\(', 'console.warning(', line)
+    elif any(word in line.lower() for word in ["warning:", "warn:"]):
+        line = re.sub(r"\bprint\(", "console.warning(", line)
         modified = True
 
     # Pattern 7: Debug/verbose messages
-    elif any(word in line.lower() for word in ['debug:', '[debug]']):
-        line = re.sub(r'\bprint\(', 'console.debug(', line)
+    elif any(word in line.lower() for word in ["debug:", "[debug]"]):
+        line = re.sub(r"\bprint\(", "console.debug(", line)
         modified = True
 
     # Pattern 8: Default to console.log()
-    elif 'console.log(' in line:
-        line = re.sub(r'\bprint\(', 'console.log(', line)
+    elif "console.log(" in line:
+        line = re.sub(r"\bprint\(", "console.log(", line)
         modified = True
 
     return line, modified
@@ -117,7 +110,7 @@ def add_console_import(lines: List[str]) -> List[str]:
     insert_idx = 0
 
     # Skip shebang
-    if lines and lines[0].startswith('#!'):
+    if lines and lines[0].startswith("#!"):
         insert_idx = 1
 
     # Skip module docstring
@@ -137,13 +130,13 @@ def add_console_import(lines: List[str]) -> List[str]:
                 break
         elif in_docstring:
             continue
-        elif line.startswith('import ') or line.startswith('from '):
+        elif line.startswith("import ") or line.startswith("from "):
             insert_idx = i + 1
 
     # Insert import and blank line
     lines.insert(insert_idx, IMPORT_STMT)
     if insert_idx < len(lines) and lines[insert_idx + 1].strip():
-        lines.insert(insert_idx + 1, '')
+        lines.insert(insert_idx + 1, "")
 
     return lines
 
@@ -158,7 +151,7 @@ def migrate_file(file_path: Path, dry_run: bool = True) -> Tuple[int, List[str]]
     Returns:
         Tuple of (migrations_count, changes_list)
     """
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
 
     modified_lines = []
@@ -175,20 +168,20 @@ def migrate_file(file_path: Path, dry_run: bool = True) -> Tuple[int, List[str]]
 
     if migrations > 0:
         # Add import
-        modified_lines_stripped = [line.rstrip('\n') for line in modified_lines]
+        modified_lines_stripped = [line.rstrip("\n") for line in modified_lines]
         modified_lines_stripped = add_console_import(modified_lines_stripped)
 
         if not dry_run:
             # Write back
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write('\n'.join(modified_lines_stripped))
-                if modified_lines_stripped and not modified_lines_stripped[-1].endswith('\n'):
-                    f.write('\n')
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(modified_lines_stripped))
+                if modified_lines_stripped and not modified_lines_stripped[-1].endswith("\n"):
+                    f.write("\n")
 
     return migrations, changes
 
 
-def migrate_directory(dir_path: Path, pattern: str = '**/*.py', dry_run: bool = True):
+def migrate_directory(dir_path: Path, pattern: str = "**/*.py", dry_run: bool = True):
     """Migrate all files in directory.
 
     Args:
@@ -196,24 +189,19 @@ def migrate_directory(dir_path: Path, pattern: str = '**/*.py', dry_run: bool = 
         pattern: Glob pattern
         dry_run: Preview mode
     """
-    results = {
-        'total_files': 0,
-        'modified_files': 0,
-        'total_migrations': 0,
-        'files': {}
-    }
+    results = {"total_files": 0, "modified_files": 0, "total_migrations": 0, "files": {}}
 
     for file_path in sorted(dir_path.glob(pattern)):
-        if file_path.is_file() and '__pycache__' not in str(file_path):
-            results['total_files'] += 1
+        if file_path.is_file() and "__pycache__" not in str(file_path):
+            results["total_files"] += 1
             migrations, changes = migrate_file(file_path, dry_run=dry_run)
 
             if migrations > 0:
-                results['modified_files'] += 1
-                results['total_migrations'] += migrations
-                results['files'][str(file_path)] = {
-                    'migrations': migrations,
-                    'changes': changes[:10]  # First 10 changes
+                results["modified_files"] += 1
+                results["total_migrations"] += migrations
+                results["files"][str(file_path)] = {
+                    "migrations": migrations,
+                    "changes": changes[:10],  # First 10 changes
                 }
 
     return results
@@ -222,12 +210,12 @@ def migrate_directory(dir_path: Path, pattern: str = '**/*.py', dry_run: bool = 
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description='Smart console.blank() to console migration')
-    parser.add_argument('--path', help='File or directory to migrate')
-    parser.add_argument('--dry-run', action='store_true', help='Preview changes')
-    parser.add_argument('--scripts', action='store_true', help='Migrate scripts/')
-    parser.add_argument('--tests', action='store_true', help='Migrate tests/')
-    parser.add_argument('--all', action='store_true', help='Migrate all')
+    parser = argparse.ArgumentParser(description="Smart console.blank() to console migration")
+    parser.add_argument("--path", help="File or directory to migrate")
+    parser.add_argument("--dry-run", action="store_true", help="Preview changes")
+    parser.add_argument("--scripts", action="store_true", help="Migrate scripts/")
+    parser.add_argument("--tests", action="store_true", help="Migrate tests/")
+    parser.add_argument("--all", action="store_true", help="Migrate all")
 
     args = parser.parse_args()
 
@@ -253,26 +241,22 @@ def main():
             console.log(f"Total migrations: {results['total_migrations']}")
 
     elif args.scripts:
-        results = migrate_directory(project_root / 'scripts', dry_run=args.dry_run)
+        results = migrate_directory(project_root / "scripts", dry_run=args.dry_run)
         console.log(f"\n{'[DRY RUN] ' if args.dry_run else ''}Scripts Migration")
         console.log("=" * 70)
         console.log(f"Files processed: {results['total_files']}")
         console.log(f"Files modified: {results['modified_files']}")
         console.log(f"Total migrations: {results['total_migrations']}")
 
-        if results['files']:
+        if results["files"]:
             console.log("\nTop modified files:")
-            for path, info in sorted(
-                results['files'].items(),
-                key=lambda x: x[1]['migrations'],
-                reverse=True
-            )[:5]:
+            for path, info in sorted(results["files"].items(), key=lambda x: x[1]["migrations"], reverse=True)[:5]:
                 console.log(f"\n{Path(path).name}: {info['migrations']} migrations")
-                for change in info['changes'][:3]:
+                for change in info["changes"][:3]:
                     console.log(f"  {change}")
 
     elif args.tests:
-        results = migrate_directory(project_root / 'tests', dry_run=args.dry_run)
+        results = migrate_directory(project_root / "tests", dry_run=args.dry_run)
         console.log(f"\n{'[DRY RUN] ' if args.dry_run else ''}Tests Migration")
         console.log("=" * 70)
         console.log(f"Files processed: {results['total_files']}")
@@ -286,32 +270,24 @@ def main():
 
         # Scripts
         console.log("\n1. SCRIPTS")
-        scripts_results = migrate_directory(project_root / 'scripts', dry_run=args.dry_run)
+        scripts_results = migrate_directory(project_root / "scripts", dry_run=args.dry_run)
         console.log(f"   Migrated: {scripts_results['modified_files']}/{scripts_results['total_files']} files")
         console.log(f"   Changes: {scripts_results['total_migrations']}")
 
         # Tests
         console.log("\n2. TESTS")
-        tests_results = migrate_directory(project_root / 'tests', dry_run=args.dry_run)
+        tests_results = migrate_directory(project_root / "tests", dry_run=args.dry_run)
         console.log(f"   Migrated: {tests_results['modified_files']}/{tests_results['total_files']} files")
         console.log(f"   Changes: {tests_results['total_migrations']}")
 
         # Root level scripts
         console.log("\n3. ROOT SCRIPTS")
-        root_results = migrate_directory(
-            project_root,
-            pattern='*.py',
-            dry_run=args.dry_run
-        )
+        root_results = migrate_directory(project_root, pattern="*.py", dry_run=args.dry_run)
         console.log(f"   Migrated: {root_results['modified_files']}/{root_results['total_files']} files")
         console.log(f"   Changes: {root_results['total_migrations']}")
 
         # Summary
-        total_migrations = (
-            scripts_results['total_migrations'] +
-            tests_results['total_migrations'] +
-            root_results['total_migrations']
-        )
+        total_migrations = scripts_results["total_migrations"] + tests_results["total_migrations"] + root_results["total_migrations"]
         console.log("\n" + "=" * 70)
         print(f"TOTAL: {total_migrations} console.blank() statements migrated")
         console.log("=" * 70)
@@ -324,5 +300,5 @@ def main():
         parser.print_help()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

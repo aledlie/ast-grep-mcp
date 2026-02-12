@@ -13,6 +13,7 @@ Usage:
     python tests/scripts/score_test_file.py --all
     python tests/scripts/score_test_file.py --all --json > scores.json
 """
+
 import argparse
 import ast
 import re
@@ -26,6 +27,7 @@ from ast_grep_mcp.utils.console_logger import console
 @dataclass
 class TestFileMetrics:
     """Metrics collected from a test file."""
+
     file_path: str
     total_lines: int
     test_count: int
@@ -45,6 +47,7 @@ class TestFileMetrics:
 @dataclass
 class RefactoringScore:
     """Refactoring priority score with breakdown."""
+
     file_path: str
     total_score: float  # 0-100
     pain_points: float  # 0-40
@@ -80,8 +83,8 @@ class TestFileAnalyzer:
         setup_lines = self._count_setup_lines()
         teardown_lines = self._count_teardown_lines()
         self_attribute_count = self._count_self_attributes()
-        temp_dir_usage = self._count_pattern(r'tempfile\.mkdtemp|TemporaryDirectory')
-        mock_usage = self._count_pattern(r'@patch|@mock|Mock\(|MagicMock\(')
+        temp_dir_usage = self._count_pattern(r"tempfile\.mkdtemp|TemporaryDirectory")
+        mock_usage = self._count_pattern(r"@patch|@mock|Mock\(|MagicMock\(")
         fixture_usage = self._count_fixture_usage()
 
         metrics = TestFileMetrics(
@@ -97,12 +100,8 @@ class TestFileAnalyzer:
             temp_dir_usage=temp_dir_usage,
             mock_usage=mock_usage,
             fixture_usage=fixture_usage,
-            duplication_score=self._calculate_duplication_score(
-                temp_dir_usage, mock_usage, class_count, setup_method_count
-            ),
-            complexity_score=self._calculate_complexity_score(
-                setup_lines, self_attribute_count, class_count, mock_usage
-            ),
+            duplication_score=self._calculate_duplication_score(temp_dir_usage, mock_usage, class_count, setup_method_count),
+            complexity_score=self._calculate_complexity_score(setup_lines, self_attribute_count, class_count, mock_usage),
         )
 
         return metrics
@@ -130,7 +129,7 @@ class TestFileAnalyzer:
         """Count test functions (def test_*)."""
         count = 0
         for node in ast.walk(self.tree):
-            if isinstance(node, ast.FunctionDef) and node.name.startswith('test_'):
+            if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
                 count += 1
         return count
 
@@ -138,7 +137,7 @@ class TestFileAnalyzer:
         """Count test classes (class Test*)."""
         count = 0
         for node in ast.walk(self.tree):
-            if isinstance(node, ast.ClassDef) and node.name.startswith('Test'):
+            if isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
                 count += 1
         return count
 
@@ -146,7 +145,7 @@ class TestFileAnalyzer:
         """Count setup_method definitions."""
         count = 0
         for node in ast.walk(self.tree):
-            if isinstance(node, ast.FunctionDef) and node.name == 'setup_method':
+            if isinstance(node, ast.FunctionDef) and node.name == "setup_method":
                 count += 1
         return count
 
@@ -154,7 +153,7 @@ class TestFileAnalyzer:
         """Count teardown_method definitions."""
         count = 0
         for node in ast.walk(self.tree):
-            if isinstance(node, ast.FunctionDef) and node.name == 'teardown_method':
+            if isinstance(node, ast.FunctionDef) and node.name == "teardown_method":
                 count += 1
         return count
 
@@ -162,14 +161,14 @@ class TestFileAnalyzer:
         """Count lines of code in setup_method functions."""
         lines = 0
         for node in ast.walk(self.tree):
-            if isinstance(node, ast.FunctionDef) and node.name == 'setup_method':
+            if isinstance(node, ast.FunctionDef) and node.name == "setup_method":
                 # Count non-empty, non-comment lines
                 start = node.lineno
                 end = node.end_lineno or start
                 for i in range(start, end + 1):
                     if i <= len(self.lines):
                         line = self.lines[i - 1].strip()
-                        if line and not line.startswith('#') and not line.startswith('"""'):
+                        if line and not line.startswith("#") and not line.startswith('"""'):
                             lines += 1
         return lines
 
@@ -177,13 +176,13 @@ class TestFileAnalyzer:
         """Count lines of code in teardown_method functions."""
         lines = 0
         for node in ast.walk(self.tree):
-            if isinstance(node, ast.FunctionDef) and node.name == 'teardown_method':
+            if isinstance(node, ast.FunctionDef) and node.name == "teardown_method":
                 start = node.lineno
                 end = node.end_lineno or start
                 for i in range(start, end + 1):
                     if i <= len(self.lines):
                         line = self.lines[i - 1].strip()
-                        if line and not line.startswith('#') and not line.startswith('"""'):
+                        if line and not line.startswith("#") and not line.startswith('"""'):
                             lines += 1
         return lines
 
@@ -192,13 +191,13 @@ class TestFileAnalyzer:
         attributes = set()
 
         for node in ast.walk(self.tree):
-            if isinstance(node, ast.FunctionDef) and node.name == 'setup_method':
+            if isinstance(node, ast.FunctionDef) and node.name == "setup_method":
                 # Find all self.attribute assignments
                 for child in ast.walk(node):
                     if isinstance(child, ast.Assign):
                         for target in child.targets:
                             if isinstance(target, ast.Attribute):
-                                if isinstance(target.value, ast.Name) and target.value.id == 'self':
+                                if isinstance(target.value, ast.Name) and target.value.id == "self":
                                     attributes.add(target.attr)
 
         return len(attributes)
@@ -211,15 +210,13 @@ class TestFileAnalyzer:
         """Count fixture parameters in test functions."""
         fixture_count = 0
         for node in ast.walk(self.tree):
-            if isinstance(node, ast.FunctionDef) and node.name.startswith('test_'):
+            if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
                 # Count parameters (excluding self)
-                params = [arg.arg for arg in node.args.args if arg.arg != 'self']
+                params = [arg.arg for arg in node.args.args if arg.arg != "self"]
                 fixture_count += len(params)
         return fixture_count
 
-    def _calculate_duplication_score(
-        self, temp_dir_usage: int, mock_usage: int, class_count: int, setup_method_count: int
-    ) -> float:
+    def _calculate_duplication_score(self, temp_dir_usage: int, mock_usage: int, class_count: int, setup_method_count: int) -> float:
         """Calculate duplication score (0-10, higher = more duplication)."""
         score = 0.0
 
@@ -242,9 +239,7 @@ class TestFileAnalyzer:
 
         return min(10.0, score)
 
-    def _calculate_complexity_score(
-        self, setup_lines: int, self_attribute_count: int, class_count: int, mock_usage: int
-    ) -> float:
+    def _calculate_complexity_score(self, setup_lines: int, self_attribute_count: int, class_count: int, mock_usage: int) -> float:
         """Calculate complexity score (0-10, higher = more complex)."""
         score = 0.0
 

@@ -14,6 +14,7 @@ Usage:
     python tests/scripts/validate_refactoring.py tests/unit/test_cache.py --baseline baseline.json
     python tests/scripts/validate_refactoring.py tests/unit/test_cache.py --performance
 """
+
 import argparse
 import json
 import subprocess
@@ -29,6 +30,7 @@ from ast_grep_mcp.utils.console_logger import console
 @dataclass
 class ValidationResult:
     """Result of validation checks."""
+
     file_path: str
     passed: bool
     checks: Dict[str, bool]
@@ -57,18 +59,13 @@ class RefactoringValidator:
             fail_count=0,
             skip_count=0,
             duration=0.0,
-            warnings=0
+            warnings=0,
         )
 
     def check_collection(self) -> bool:
         """Check that tests collect successfully."""
         try:
-            result = subprocess.run(
-                ["pytest", str(self.test_file), "--collect-only", "-q"],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
+            result = subprocess.run(["pytest", str(self.test_file), "--collect-only", "-q"], capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
                 # Count collected tests
@@ -103,12 +100,7 @@ class RefactoringValidator:
         """Check that tests execute successfully."""
         try:
             start = time.time()
-            result = subprocess.run(
-                ["pytest", str(self.test_file), "-v", "--tb=short"],
-                capture_output=True,
-                text=True,
-                timeout=120
-            )
+            result = subprocess.run(["pytest", str(self.test_file), "-v", "--tb=short"], capture_output=True, text=True, timeout=120)
             self.result.duration = time.time() - start
 
             # Parse output
@@ -128,18 +120,13 @@ class RefactoringValidator:
             if result.returncode == 0:
                 self.result.checks["execution"] = True
                 self.result.messages.append(
-                    f"✓ Execution: {self.result.pass_count} passed, "
-                    f"{self.result.fail_count} failed, "
-                    f"{self.result.skip_count} skipped"
+                    f"✓ Execution: {self.result.pass_count} passed, {self.result.fail_count} failed, {self.result.skip_count} skipped"
                 )
                 return True
             else:
                 self.result.checks["execution"] = False
                 self.result.passed = False
-                self.result.messages.append(
-                    f"✗ Execution failed: {self.result.pass_count} passed, "
-                    f"{self.result.fail_count} failed"
-                )
+                self.result.messages.append(f"✗ Execution failed: {self.result.pass_count} passed, {self.result.fail_count} failed")
 
                 # Show failures
                 for line in output.splitlines():
@@ -175,10 +162,7 @@ class RefactoringValidator:
         else:
             self.result.checks["baseline"] = False
             self.result.passed = False
-            self.result.messages.append(
-                f"✗ Baseline: Test count changed "
-                f"(was {baseline_count}, now {self.result.test_count})"
-            )
+            self.result.messages.append(f"✗ Baseline: Test count changed (was {baseline_count}, now {self.result.test_count})")
             return False
 
     def check_performance(self) -> bool:
@@ -201,8 +185,7 @@ class RefactoringValidator:
             percent_change = ((self.result.duration - baseline_duration) / baseline_duration) * 100
             self.result.checks["performance"] = True
             self.result.messages.append(
-                f"✓ Performance: {self.result.duration:.2f}s "
-                f"(baseline: {baseline_duration:.2f}s, {percent_change:+.1f}%)"
+                f"✓ Performance: {self.result.duration:.2f}s (baseline: {baseline_duration:.2f}s, {percent_change:+.1f}%)"
             )
             return True
         else:
@@ -331,7 +314,7 @@ def main():
             "test_count": result.test_count,
             "pass_count": result.pass_count,
             "duration": result.duration,
-            "warnings": result.warnings
+            "warnings": result.warnings,
         }
         with open(args.save_baseline, "w") as f:
             json.dump(baseline_data, f, indent=2)

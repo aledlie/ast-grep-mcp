@@ -12,10 +12,7 @@ import importlib.util
 
 import pytest
 
-TRANSFORMERS_AVAILABLE = (
-    importlib.util.find_spec("torch") is not None
-    and importlib.util.find_spec("transformers") is not None
-)
+TRANSFORMERS_AVAILABLE = importlib.util.find_spec("torch") is not None and importlib.util.find_spec("transformers") is not None
 
 pytestmark = [
     pytest.mark.semantic,
@@ -240,9 +237,7 @@ def compute_mean(values):
 
         # Combined should reflect weighted average
         # With weights: 0.2 MinHash + 0.5 AST + 0.3 Semantic
-        expected_min = min(
-            result.minhash_similarity, result.ast_similarity, result.semantic_similarity
-        )
+        expected_min = min(result.minhash_similarity, result.ast_similarity, result.semantic_similarity)
         assert result.combined_similarity >= expected_min * 0.8
 
 

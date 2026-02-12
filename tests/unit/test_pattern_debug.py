@@ -3,7 +3,6 @@
 Tests the debug_pattern tool which helps diagnose why patterns don't match code.
 """
 
-
 from ast_grep_mcp.features.search.service import (
     _check_pattern_issues,
     _compare_asts,
@@ -103,9 +102,7 @@ class TestCheckPatternIssues:
 
     def test_no_issues_for_valid_pattern(self):
         """Test that valid patterns have no issues."""
-        metavars = [
-            MetavariableInfo(name="$NAME", type="single", valid=True, occurrences=1)
-        ]
+        metavars = [MetavariableInfo(name="$NAME", type="single", valid=True, occurrences=1)]
         issues = _check_pattern_issues("class $NAME {}", metavars)
         # Should have no errors (may have info-level suggestions)
         errors = [i for i in issues if i.severity == IssueSeverity.ERROR]
@@ -129,9 +126,7 @@ class TestCheckPatternIssues:
 
     def test_info_for_single_arg_metavariable(self):
         """Test info suggestion for single metavar in function args."""
-        metavars = [
-            MetavariableInfo(name="$ARG", type="single", valid=True, occurrences=1)
-        ]
+        metavars = [MetavariableInfo(name="$ARG", type="single", valid=True, occurrences=1)]
         issues = _check_pattern_issues("console.log($ARG)", metavars)
         infos = [i for i in issues if i.severity == IssueSeverity.INFO]
         # Should suggest using $$$ARGS
@@ -237,9 +232,7 @@ class TestGenerateSuggestions:
         )
         match_attempt = MatchAttempt(matched=False)
 
-        suggestions = _generate_suggestions(
-            "pattern", "code", "python", issues, ast_comparison, match_attempt
-        )
+        suggestions = _generate_suggestions("pattern", "code", "python", issues, ast_comparison, match_attempt)
 
         # First suggestion should be about the error
         assert len(suggestions) > 0
@@ -257,9 +250,7 @@ class TestGenerateSuggestions:
         )
         match_attempt = MatchAttempt(matched=False)
 
-        suggestions = _generate_suggestions(
-            "pattern", "code", "python", issues, ast_comparison, match_attempt
-        )
+        suggestions = _generate_suggestions("pattern", "code", "python", issues, ast_comparison, match_attempt)
 
         assert any("[STRUCTURE]" in s for s in suggestions)
 
@@ -275,9 +266,7 @@ class TestGenerateSuggestions:
         )
         match_attempt = MatchAttempt(matched=True, match_count=1)
 
-        suggestions = _generate_suggestions(
-            "pattern", "code", "python", issues, ast_comparison, match_attempt
-        )
+        suggestions = _generate_suggestions("pattern", "code", "python", issues, ast_comparison, match_attempt)
 
         assert any("[SUCCESS]" in s for s in suggestions)
 
@@ -303,9 +292,7 @@ class TestPatternDebugResult:
                 pattern_structure="",
                 code_structure="",
             ),
-            metavariables=[
-                MetavariableInfo(name="$NAME", type="single", valid=True, occurrences=1)
-            ],
+            metavariables=[MetavariableInfo(name="$NAME", type="single", valid=True, occurrences=1)],
             issues=[],
             suggestions=["Test suggestion"],
             match_attempt=MatchAttempt(matched=True, match_count=1),

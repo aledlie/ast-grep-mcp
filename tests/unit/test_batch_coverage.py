@@ -67,12 +67,7 @@ class TestBatchCoverageOptimization:
 
         # Check module1 (has test)
         module1_path = str(temp_project / "src" / "module1.py")
-        has_coverage = detector._has_test_coverage_optimized(
-            module1_path,
-            "python",
-            str(temp_project),
-            test_files
-        )
+        has_coverage = detector._has_test_coverage_optimized(module1_path, "python", str(temp_project), test_files)
 
         assert has_coverage is True
 
@@ -83,12 +78,7 @@ class TestBatchCoverageOptimization:
 
         # Check module3 (no test)
         module3_path = str(temp_project / "src" / "module3.py")
-        has_coverage = detector._has_test_coverage_optimized(
-            module3_path,
-            "python",
-            str(temp_project),
-            test_files
-        )
+        has_coverage = detector._has_test_coverage_optimized(module3_path, "python", str(temp_project), test_files)
 
         assert has_coverage is False
 
@@ -100,17 +90,12 @@ class TestBatchCoverageOptimization:
             str(temp_project / "src" / "module3.py"),
         ]
 
-        coverage_map = detector.get_test_coverage_for_files_batch(
-            file_paths,
-            "python",
-            str(temp_project),
-            parallel=False
-        )
+        coverage_map = detector.get_test_coverage_for_files_batch(file_paths, "python", str(temp_project), parallel=False)
 
         assert isinstance(coverage_map, dict)
         assert len(coverage_map) == 3
-        assert coverage_map[file_paths[0]] is True   # module1 has test
-        assert coverage_map[file_paths[1]] is True   # module2 has test
+        assert coverage_map[file_paths[0]] is True  # module1 has test
+        assert coverage_map[file_paths[1]] is True  # module2 has test
         assert coverage_map[file_paths[2]] is False  # module3 has no test
 
     def test_batch_coverage_parallel(self, detector, temp_project):
@@ -121,28 +106,17 @@ class TestBatchCoverageOptimization:
             str(temp_project / "src" / "module3.py"),
         ]
 
-        coverage_map = detector.get_test_coverage_for_files_batch(
-            file_paths,
-            "python",
-            str(temp_project),
-            parallel=True,
-            max_workers=2
-        )
+        coverage_map = detector.get_test_coverage_for_files_batch(file_paths, "python", str(temp_project), parallel=True, max_workers=2)
 
         assert isinstance(coverage_map, dict)
         assert len(coverage_map) == 3
-        assert coverage_map[file_paths[0]] is True   # module1 has test
-        assert coverage_map[file_paths[1]] is True   # module2 has test
+        assert coverage_map[file_paths[0]] is True  # module1 has test
+        assert coverage_map[file_paths[1]] is True  # module2 has test
         assert coverage_map[file_paths[2]] is False  # module3 has no test
 
     def test_batch_coverage_empty_list(self, detector):
         """Test batch coverage with empty file list."""
-        coverage_map = detector.get_test_coverage_for_files_batch(
-            [],
-            "python",
-            "/tmp",
-            parallel=True
-        )
+        coverage_map = detector.get_test_coverage_for_files_batch([], "python", "/tmp", parallel=True)
 
         assert coverage_map == {}
 
@@ -155,12 +129,7 @@ class TestBatchCoverageOptimization:
         ]
 
         # Should not raise, should handle gracefully
-        coverage_map = detector.get_test_coverage_for_files_batch(
-            file_paths,
-            "python",
-            str(temp_project),
-            parallel=True
-        )
+        coverage_map = detector.get_test_coverage_for_files_batch(file_paths, "python", str(temp_project), parallel=True)
 
         assert isinstance(coverage_map, dict)
         assert len(coverage_map) == 2
@@ -181,9 +150,7 @@ class TestBatchVsSequentialEquivalence:
     def test_batch_sequential_equivalence(self, detector):
         """Test that batch and sequential produce identical results."""
         # Use this project's own files for testing
-        project_root = os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        )
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
         # Get some actual source files
         file_paths = [
@@ -199,27 +166,13 @@ class TestBatchVsSequentialEquivalence:
             pytest.skip("No test files available")
 
         # Get results from legacy method
-        legacy_map = detector.get_test_coverage_for_files(
-            file_paths,
-            "python",
-            project_root
-        )
+        legacy_map = detector.get_test_coverage_for_files(file_paths, "python", project_root)
 
         # Get results from batch method (sequential)
-        batch_seq_map = detector.get_test_coverage_for_files_batch(
-            file_paths,
-            "python",
-            project_root,
-            parallel=False
-        )
+        batch_seq_map = detector.get_test_coverage_for_files_batch(file_paths, "python", project_root, parallel=False)
 
         # Get results from batch method (parallel)
-        batch_par_map = detector.get_test_coverage_for_files_batch(
-            file_paths,
-            "python",
-            project_root,
-            parallel=True
-        )
+        batch_par_map = detector.get_test_coverage_for_files_batch(file_paths, "python", project_root, parallel=True)
 
         # All methods should produce identical results
         assert legacy_map == batch_seq_map
@@ -250,37 +203,20 @@ class TestBatchCoverageIntegration:
         orchestrator.coverage_detector = mock_detector
 
         candidates = [
-            {
-                "id": "dup1",
-                "files": ["/path/to/file1.py", "/path/to/file2.py"],
-                "similarity": 0.9
-            },
-            {
-                "id": "dup2",
-                "files": ["/path/to/file3.py"],
-                "similarity": 0.85
-            }
+            {"id": "dup1", "files": ["/path/to/file1.py", "/path/to/file2.py"], "similarity": 0.9},
+            {"id": "dup2", "files": ["/path/to/file3.py"], "similarity": 0.85},
         ]
 
-        orchestrator._add_test_coverage_batch(
-            candidates,
-            "python",
-            "/path/to/project"
-        )
+        orchestrator._add_test_coverage_batch(candidates, "python", "/path/to/project")
 
         # Verify batch method was called
         mock_detector.get_test_coverage_for_files_batch.assert_called_once()
 
         # Verify results were distributed to candidates
-        assert candidates[0]["test_coverage"] == {
-            "/path/to/file1.py": True,
-            "/path/to/file2.py": False
-        }
+        assert candidates[0]["test_coverage"] == {"/path/to/file1.py": True, "/path/to/file2.py": False}
         assert candidates[0]["has_tests"] is True  # At least one file has tests
 
-        assert candidates[1]["test_coverage"] == {
-            "/path/to/file3.py": True
-        }
+        assert candidates[1]["test_coverage"] == {"/path/to/file3.py": True}
         assert candidates[1]["has_tests"] is True
 
     def test_orchestrator_deduplicates_files(self, mock_detector):
@@ -297,11 +233,7 @@ class TestBatchCoverageIntegration:
             {"files": ["/path/to/file2.py"]},  # file2 repeats
         ]
 
-        orchestrator._add_test_coverage_batch(
-            candidates,
-            "python",
-            "/path/to/project"
-        )
+        orchestrator._add_test_coverage_batch(candidates, "python", "/path/to/project")
 
         # Get the actual call args
         call_args = mock_detector.get_test_coverage_for_files_batch.call_args

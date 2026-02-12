@@ -376,8 +376,7 @@ def _register_build_rule(mcp: FastMCP) -> None:
         has_kind: Optional[str] = Field(default=None, description="Node kind that must be inside the match"),
         stop_by: str = Field(
             default="end",
-            description="stopBy for relational rules: 'end' (search entire tree, DEFAULT), "
-            "'neighbor' (immediate only), or custom pattern",
+            description="stopBy for relational rules: 'end' (search entire tree, DEFAULT), 'neighbor' (immediate only), or custom pattern",
         ),
         message: Optional[str] = Field(default=None, description="Human-readable message for matches"),
         severity: Optional[str] = Field(default=None, description="Severity: error, warning, info, hint"),
@@ -474,9 +473,7 @@ def _register_get_pattern_examples(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def get_pattern_examples_tool(
-        language: str = Field(
-            description=f"Target language. Available: {', '.join(PATTERN_LANGUAGES)}"
-        ),
+        language: str = Field(description=f"Target language. Available: {', '.join(PATTERN_LANGUAGES)}"),
         category: Optional[str] = Field(
             default=None,
             description=f"Optional category filter. Available: {', '.join(PATTERN_CATEGORIES)}, all. "

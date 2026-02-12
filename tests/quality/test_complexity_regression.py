@@ -182,16 +182,16 @@ KNOWN_COMPLEXITY_EXCEPTIONS = {
 # From CODEBASE_ANALYSIS_REPORT.md Phase 1 success criteria
 CRITICAL_THRESHOLDS = {
     "cyclomatic": 20,  # Anything >20 is extremely complex
-    "cognitive": 30,   # Anything >30 is extremely complex
-    "nesting": 6,      # Anything >6 is too deeply nested
-    "lines": 150,      # Anything >150 lines should be split
+    "cognitive": 30,  # Anything >30 is extremely complex
+    "nesting": 6,  # Anything >6 is too deeply nested
+    "lines": 150,  # Anything >150 lines should be split
 }
 
 
 # Health metric targets (from CODEBASE_ANALYSIS_REPORT.md)
 HEALTH_TARGETS = {
-    "avg_cyclomatic": 8,       # Target average cyclomatic complexity
-    "avg_cognitive": 12,       # Target average cognitive complexity
+    "avg_cyclomatic": 8,  # Target average cyclomatic complexity
+    "avg_cognitive": 12,  # Target average cognitive complexity
     "functions_over_threshold": 0.10,  # Max 10% of functions can exceed thresholds
 }
 
@@ -214,9 +214,7 @@ def count_function_lines(func_node: ast.FunctionDef | ast.AsyncFunctionDef) -> i
     return func_node.end_lineno - func_node.lineno + 1
 
 
-def analyze_function_complexity(
-    file_path: Path, function_name: str
-) -> dict:
+def analyze_function_complexity(file_path: Path, function_name: str) -> dict:
     """Analyze complexity metrics for a specific function."""
     try:
         with open(file_path, "r", encoding="utf-8") as f:
@@ -266,9 +264,7 @@ class TestComplexityRegression:
         return get_project_root()
 
     @pytest.mark.parametrize("func_spec", CRITICAL_FUNCTIONS)
-    def test_function_complexity_thresholds(
-        self, project_root: Path, func_spec: dict
-    ):
+    def test_function_complexity_thresholds(self, project_root: Path, func_spec: dict):
         """Ensure refactored functions stay below complexity thresholds."""
         file_path = project_root / func_spec["file"]
         function_name = func_spec["function"]
@@ -277,29 +273,27 @@ class TestComplexityRegression:
         metrics = analyze_function_complexity(file_path, function_name)
 
         # Check if function was found
-        assert metrics["found"], metrics.get(
-            "error", f"Function {function_name} not found"
-        )
+        assert metrics["found"], metrics.get("error", f"Function {function_name} not found")
 
         # Check cyclomatic complexity
-        assert (
-            metrics["cyclomatic"] <= func_spec["max_cyclomatic"]
-        ), f"{function_name} has cyclomatic complexity {metrics['cyclomatic']}, max allowed: {func_spec['max_cyclomatic']}"
+        assert metrics["cyclomatic"] <= func_spec["max_cyclomatic"], (
+            f"{function_name} has cyclomatic complexity {metrics['cyclomatic']}, max allowed: {func_spec['max_cyclomatic']}"
+        )
 
         # Check cognitive complexity
-        assert (
-            metrics["cognitive"] <= func_spec["max_cognitive"]
-        ), f"{function_name} has cognitive complexity {metrics['cognitive']}, max allowed: {func_spec['max_cognitive']}"
+        assert metrics["cognitive"] <= func_spec["max_cognitive"], (
+            f"{function_name} has cognitive complexity {metrics['cognitive']}, max allowed: {func_spec['max_cognitive']}"
+        )
 
         # Check nesting depth
-        assert (
-            metrics["nesting"] <= func_spec["max_nesting"]
-        ), f"{function_name} has nesting depth {metrics['nesting']}, max allowed: {func_spec['max_nesting']}"
+        assert metrics["nesting"] <= func_spec["max_nesting"], (
+            f"{function_name} has nesting depth {metrics['nesting']}, max allowed: {func_spec['max_nesting']}"
+        )
 
         # Check line count
-        assert (
-            metrics["lines"] <= func_spec["max_lines"]
-        ), f"{function_name} has {metrics['lines']} lines, max allowed: {func_spec['max_lines']}"
+        assert metrics["lines"] <= func_spec["max_lines"], (
+            f"{function_name} has {metrics['lines']} lines, max allowed: {func_spec['max_lines']}"
+        )
 
     def test_all_refactored_functions_exist(self, project_root: Path):
         """Verify that all critical functions still exist after refactoring."""
@@ -315,14 +309,9 @@ class TestComplexityRegression:
 
             metrics = analyze_function_complexity(file_path, function_name)
             if not metrics["found"]:
-                missing_functions.append(
-                    f"{func_spec['file']}:{function_name} (function not found)"
-                )
+                missing_functions.append(f"{func_spec['file']}:{function_name} (function not found)")
 
-        assert not missing_functions, (
-            "Missing refactored functions:\n"
-            + "\n".join(f"  - {f}" for f in missing_functions)
-        )
+        assert not missing_functions, "Missing refactored functions:\n" + "\n".join(f"  - {f}" for f in missing_functions)
 
     def test_phase1_refactoring_impact(self, project_root: Path):
         """Verify the overall impact of Phase 1 refactoring."""
@@ -351,15 +340,9 @@ class TestComplexityRegression:
         avg_lines = total_lines / function_count if function_count > 0 else 0
 
         # Phase 1 success criteria (from CODEBASE_ANALYSIS_REPORT.md)
-        assert (
-            avg_cyclomatic < 12
-        ), f"Average cyclomatic complexity {avg_cyclomatic:.1f} exceeds target of 12"
-        assert (
-            avg_cognitive < 15
-        ), f"Average cognitive complexity {avg_cognitive:.1f} exceeds target of 15"
-        assert (
-            avg_nesting < 4
-        ), f"Average nesting depth {avg_nesting:.1f} exceeds target of 4"
+        assert avg_cyclomatic < 12, f"Average cyclomatic complexity {avg_cyclomatic:.1f} exceeds target of 12"
+        assert avg_cognitive < 15, f"Average cognitive complexity {avg_cognitive:.1f} exceeds target of 15"
+        assert avg_nesting < 4, f"Average nesting depth {avg_nesting:.1f} exceeds target of 4"
         assert avg_lines < 100, f"Average lines {avg_lines:.1f} exceeds target of 100"
 
 
@@ -431,43 +414,28 @@ class TestComplexityTrends:
             violation_reasons = []
 
             if metrics["cyclomatic"] > CRITICAL_THRESHOLDS["cyclomatic"]:
-                violation_reasons.append(
-                    f"cyclomatic={metrics['cyclomatic']} "
-                    f"(max {CRITICAL_THRESHOLDS['cyclomatic']})"
-                )
+                violation_reasons.append(f"cyclomatic={metrics['cyclomatic']} (max {CRITICAL_THRESHOLDS['cyclomatic']})")
 
             if metrics["cognitive"] > CRITICAL_THRESHOLDS["cognitive"]:
-                violation_reasons.append(
-                    f"cognitive={metrics['cognitive']} "
-                    f"(max {CRITICAL_THRESHOLDS['cognitive']})"
-                )
+                violation_reasons.append(f"cognitive={metrics['cognitive']} (max {CRITICAL_THRESHOLDS['cognitive']})")
 
             if metrics["nesting"] > CRITICAL_THRESHOLDS["nesting"]:
-                violation_reasons.append(
-                    f"nesting={metrics['nesting']} "
-                    f"(max {CRITICAL_THRESHOLDS['nesting']})"
-                )
+                violation_reasons.append(f"nesting={metrics['nesting']} (max {CRITICAL_THRESHOLDS['nesting']})")
 
             if metrics["lines"] > CRITICAL_THRESHOLDS["lines"]:
-                violation_reasons.append(
-                    f"lines={metrics['lines']} "
-                    f"(max {CRITICAL_THRESHOLDS['lines']})"
-                )
+                violation_reasons.append(f"lines={metrics['lines']} (max {CRITICAL_THRESHOLDS['lines']})")
 
             if violation_reasons:
                 rel_path = file_path.relative_to(project_root)
                 exception_key = f"{rel_path}:{func_name}"
                 if exception_key in KNOWN_COMPLEXITY_EXCEPTIONS:
                     continue
-                violations.append(
-                    f"{rel_path}:{func_name} - {', '.join(violation_reasons)}"
-                )
+                violations.append(f"{rel_path}:{func_name} - {', '.join(violation_reasons)}")
 
         # Generate detailed failure message
         if violations:
-            violation_msg = (
-                f"Found {len(violations)} function(s) exceeding CRITICAL thresholds:\n\n"
-                + "\n".join(f"  {i+1}. {v}" for i, v in enumerate(violations[:20]))
+            violation_msg = f"Found {len(violations)} function(s) exceeding CRITICAL thresholds:\n\n" + "\n".join(
+                f"  {i + 1}. {v}" for i, v in enumerate(violations[:20])
             )
             if len(violations) > 20:
                 violation_msg += f"\n  ... and {len(violations) - 20} more"
@@ -564,16 +532,10 @@ class TestComplexityTrends:
         warnings = []
 
         if avg_cyclomatic > HEALTH_TARGETS["avg_cyclomatic"]:
-            warnings.append(
-                f"Average cyclomatic complexity {avg_cyclomatic:.1f} "
-                f"exceeds target of {HEALTH_TARGETS['avg_cyclomatic']}"
-            )
+            warnings.append(f"Average cyclomatic complexity {avg_cyclomatic:.1f} exceeds target of {HEALTH_TARGETS['avg_cyclomatic']}")
 
         if avg_cognitive > HEALTH_TARGETS["avg_cognitive"]:
-            warnings.append(
-                f"Average cognitive complexity {avg_cognitive:.1f} "
-                f"exceeds target of {HEALTH_TARGETS['avg_cognitive']}"
-            )
+            warnings.append(f"Average cognitive complexity {avg_cognitive:.1f} exceeds target of {HEALTH_TARGETS['avg_cognitive']}")
 
         if pct_over_threshold > HEALTH_TARGETS["functions_over_threshold"]:
             warnings.append(
@@ -617,11 +579,7 @@ class TestComplexityTrends:
 
                         if metrics["found"]:
                             # Flag functions with extreme complexity
-                            if (
-                                metrics["cyclomatic"] > 30
-                                or metrics["cognitive"] > 50
-                                or metrics["nesting"] > 6
-                            ):
+                            if metrics["cyclomatic"] > 30 or metrics["cognitive"] > 50 or metrics["nesting"] > 6:
                                 extreme_functions.append(
                                     f"{file_rel_path}:{func_name} "
                                     f"(cyclomatic={metrics['cyclomatic']}, "
@@ -633,9 +591,8 @@ class TestComplexityTrends:
                 # Skip files that can't be parsed
                 pass
 
-        assert not extreme_functions, (
-            "Found functions with extreme complexity after Phase 1 refactoring:\n"
-            + "\n".join(f"  - {f}" for f in extreme_functions)
+        assert not extreme_functions, "Found functions with extreme complexity after Phase 1 refactoring:\n" + "\n".join(
+            f"  - {f}" for f in extreme_functions
         )
 
 

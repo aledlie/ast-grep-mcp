@@ -232,10 +232,12 @@ class TestUsageAlerts:
         """No alerts when usage is under all thresholds."""
         # Log a few normal calls
         for _ in range(5):
-            temp_db.log_usage(UsageLogEntry(
-                tool_name="test",
-                estimated_cost=0.001,
-            ))
+            temp_db.log_usage(
+                UsageLogEntry(
+                    tool_name="test",
+                    estimated_cost=0.001,
+                )
+            )
 
         alerts = temp_db.get_alerts()
         assert len(alerts) == 0
@@ -270,10 +272,12 @@ class TestUsageAlerts:
 
         # Log 10 calls, 4 failures = 40% failure rate
         for i in range(10):
-            temp_db.log_usage(UsageLogEntry(
-                tool_name="test",
-                success=i >= 4,  # First 4 fail
-            ))
+            temp_db.log_usage(
+                UsageLogEntry(
+                    tool_name="test",
+                    success=i >= 4,  # First 4 fail
+                )
+            )
 
         alerts = temp_db.get_alerts(thresholds)
         assert any(a.metric == "failure_rate" for a in alerts)
@@ -287,11 +291,13 @@ class TestUsageAlerts:
 
         # Log 7 failures
         for _ in range(7):
-            temp_db.log_usage(UsageLogEntry(
-                tool_name="test",
-                success=False,
-                error_message="Error",
-            ))
+            temp_db.log_usage(
+                UsageLogEntry(
+                    tool_name="test",
+                    success=False,
+                    error_message="Error",
+                )
+            )
 
         alerts = temp_db.get_alerts(thresholds)
         assert any(a.metric == "hourly_failures" for a in alerts)

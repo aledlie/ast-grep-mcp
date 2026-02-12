@@ -14,6 +14,7 @@ Usage:
     python tests/scripts/detect_fixture_patterns.py --detailed
     python tests/scripts/detect_fixture_patterns.py --json
 """
+
 import argparse
 import ast
 import re
@@ -28,6 +29,7 @@ from ast_grep_mcp.utils.console_logger import console
 @dataclass
 class PatternOccurrence:
     """Single occurrence of a pattern."""
+
     file: str
     line_number: int
     function_name: str
@@ -37,6 +39,7 @@ class PatternOccurrence:
 @dataclass
 class DetectedPattern:
     """A detected pattern that could become a fixture."""
+
     pattern_type: str
     description: str
     occurrences: int
@@ -88,12 +91,7 @@ class PatternDetector:
                     end = min(len(lines), i + 1)
                     snippet = "\n".join(lines[start:end])
 
-                    occurrences.append(PatternOccurrence(
-                        file=file.name,
-                        line_number=i,
-                        function_name=function_name,
-                        code_snippet=snippet
-                    ))
+                    occurrences.append(PatternOccurrence(file=file.name, line_number=i, function_name=function_name, code_snippet=snippet))
 
         files_count = len(set(occ.file for occ in occurrences))
 
@@ -111,7 +109,7 @@ def temp_dir():
     '''Provide temporary directory with automatic cleanup.'''
     temp_dir = tempfile.mkdtemp()
     yield temp_dir
-    shutil.rmtree(temp_dir, ignore_errors=True)"""
+    shutil.rmtree(temp_dir, ignore_errors=True)""",
         )
 
     def detect_file_creation_pattern(self, test_files: List[Path]) -> DetectedPattern:
@@ -131,7 +129,7 @@ def temp_dir():
                     function_name = self._find_containing_function(content, i)
 
                     # Extract file path from open()
-                    file_path_match = re.search(r'open\(([^,]+),', line)
+                    file_path_match = re.search(r"open\(([^,]+),", line)
                     if file_path_match:
                         file_path = file_path_match.group(1).strip()
                         file_patterns[file_path].append((file.name, i))
@@ -140,12 +138,7 @@ def temp_dir():
                     end = min(len(lines), i + 3)
                     snippet = "\n".join(lines[start:end])
 
-                    occurrences.append(PatternOccurrence(
-                        file=file.name,
-                        line_number=i,
-                        function_name=function_name,
-                        code_snippet=snippet
-                    ))
+                    occurrences.append(PatternOccurrence(file=file.name, line_number=i, function_name=function_name, code_snippet=snippet))
 
         files_count = len(set(occ.file for occ in occurrences))
 
@@ -168,7 +161,7 @@ def temp_project_with_files(temp_dir):
     sample_py = project / "sample.py"
     sample_py.write_text("def hello(): pass")
 
-    return {"project": str(project), "sample_py": str(sample_py)}"""
+    return {"project": str(project), "sample_py": str(sample_py)}""",
         )
 
     def detect_mock_popen_pattern(self, test_files: List[Path]) -> DetectedPattern:
@@ -181,19 +174,14 @@ def temp_project_with_files(temp_dir):
 
             # Look for @patch("subprocess.Popen") or mock_popen
             for i, line in enumerate(lines, 1):
-                if '@patch("subprocess.Popen")' in line or '@patch(\'subprocess.Popen\')' in line:
+                if '@patch("subprocess.Popen")' in line or "@patch('subprocess.Popen')" in line:
                     function_name = self._find_containing_function(content, i)
 
                     start = max(0, i - 1)
                     end = min(len(lines), i + 5)
                     snippet = "\n".join(lines[start:end])
 
-                    occurrences.append(PatternOccurrence(
-                        file=file.name,
-                        line_number=i,
-                        function_name=function_name,
-                        code_snippet=snippet
-                    ))
+                    occurrences.append(PatternOccurrence(file=file.name, line_number=i, function_name=function_name, code_snippet=snippet))
 
         files_count = len(set(occ.file for occ in occurrences))
 
@@ -214,7 +202,7 @@ def mock_popen(monkeypatch):
     mock.return_value.poll.return_value = None
     mock.return_value.wait.return_value = 0
     monkeypatch.setattr("subprocess.Popen", mock)
-    return mock"""
+    return mock""",
         )
 
     def detect_cache_initialization_pattern(self, test_files: List[Path]) -> DetectedPattern:
@@ -234,12 +222,7 @@ def mock_popen(monkeypatch):
                     end = min(len(lines), i + 3)
                     snippet = "\n".join(lines[start:end])
 
-                    occurrences.append(PatternOccurrence(
-                        file=file.name,
-                        line_number=i,
-                        function_name=function_name,
-                        code_snippet=snippet
-                    ))
+                    occurrences.append(PatternOccurrence(file=file.name, line_number=i, function_name=function_name, code_snippet=snippet))
 
         files_count = len(set(occ.file for occ in occurrences))
 
@@ -261,7 +244,7 @@ def initialized_cache():
     core_config.CACHE_ENABLED = True
     yield core_cache._query_cache
     core_cache._query_cache = None
-    core_config.CACHE_ENABLED = False"""
+    core_config.CACHE_ENABLED = False""",
         )
 
     def detect_repeated_imports_pattern(self, test_files: List[Path]) -> DetectedPattern:
@@ -281,12 +264,14 @@ def initialized_cache():
                                 import_counts[alias.name] += 1
 
                                 # Record occurrence
-                                occurrences.append(PatternOccurrence(
-                                    file=file.name,
-                                    line_number=node.lineno,
-                                    function_name="module_level",
-                                    code_snippet=f"from {node.module} import {alias.name}"
-                                ))
+                                occurrences.append(
+                                    PatternOccurrence(
+                                        file=file.name,
+                                        line_number=node.lineno,
+                                        function_name="module_level",
+                                        code_snippet=f"from {node.module} import {alias.name}",
+                                    )
+                                )
             except SyntaxError:
                 continue
 
@@ -317,7 +302,7 @@ def mcp_tools():
         import main
         main.register_mcp_tools()
         return main.mcp.tools.get(tool_name)
-    return _get_tool"""
+    return _get_tool""",
         )
 
     def _find_containing_function(self, content: str, line_number: int) -> str:

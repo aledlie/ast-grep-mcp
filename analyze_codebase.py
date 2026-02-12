@@ -24,9 +24,9 @@ from ast_grep_mcp.features.quality.tools import generate_quality_report_tool
 
 def print_section(title: str):
     """Print a formatted section header."""
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f" {title}")
-    print('='*80)
+    print("=" * 80)
 
 
 def analyze_individual_files():
@@ -34,32 +34,32 @@ def analyze_individual_files():
     print_section("PHASE 1: Individual File Complexity Analysis")
 
     files = [
-        'src/ast_grep_mcp/features/deduplication/applicator.py',
-        'src/ast_grep_mcp/features/complexity/tools.py',
-        'src/ast_grep_mcp/features/quality/smells.py',
-        'src/ast_grep_mcp/features/deduplication/metrics.py',
-        'src/ast_grep_mcp/features/schema/client.py'
+        "src/ast_grep_mcp/features/deduplication/applicator.py",
+        "src/ast_grep_mcp/features/complexity/tools.py",
+        "src/ast_grep_mcp/features/quality/smells.py",
+        "src/ast_grep_mcp/features/deduplication/metrics.py",
+        "src/ast_grep_mcp/features/schema/client.py",
     ]
 
     for file_path in files:
         print(f"\n--- {file_path} ---")
         try:
-            result = analyze_file_complexity(file_path, 'python')
-            if result.get('success'):
-                functions = result.get('functions', [])
-                critical = [f for f in functions if
-                           f.get('cyclomatic', 0) > 20 or
-                           f.get('cognitive', 0) > 30]
+            result = analyze_file_complexity(file_path, "python")
+            if result.get("success"):
+                functions = result.get("functions", [])
+                critical = [f for f in functions if f.get("cyclomatic", 0) > 20 or f.get("cognitive", 0) > 30]
 
                 print(f"Total functions: {len(functions)}")
                 print(f"Critical functions: {len(critical)}")
 
                 if critical:
                     print("\nWorst offenders:")
-                    for func in sorted(critical, key=lambda x: x.get('cognitive', 0), reverse=True)[:3]:
+                    for func in sorted(critical, key=lambda x: x.get("cognitive", 0), reverse=True)[:3]:
                         print(f"  • {func['name']} (line {func['start_line']})")
-                        print(f"    Cyclomatic: {func['cyclomatic']}, Cognitive: {func['cognitive']}, "
-                              f"Nesting: {func['nesting_depth']}, Lines: {func['length']}")
+                        print(
+                            f"    Cyclomatic: {func['cyclomatic']}, Cognitive: {func['cognitive']}, "
+                            f"Nesting: {func['nesting_depth']}, Lines: {func['length']}"
+                        )
             else:
                 print(f"  Error: {result.get('error')}")
         except Exception as e:
@@ -72,21 +72,21 @@ def analyze_project_complexity():
 
     try:
         result = analyze_complexity_tool(
-            project_folder='src/ast_grep_mcp',
-            language='python',
-            include_patterns=['**/*.py'],
-            exclude_patterns=['**/__pycache__/**', '**/test_*.py', '**/*_test.py'],
+            project_folder="src/ast_grep_mcp",
+            language="python",
+            include_patterns=["**/*.py"],
+            exclude_patterns=["**/__pycache__/**", "**/test_*.py", "**/*_test.py"],
             cyclomatic_threshold=20,
             cognitive_threshold=30,
             nesting_threshold=6,
             length_threshold=150,
             store_results=False,
             include_trends=False,
-            max_threads=4
+            max_threads=4,
         )
 
-        if result.get('success'):
-            summary = result.get('summary', {})
+        if result.get("success"):
+            summary = result.get("summary", {})
             print(f"\nTotal functions analyzed: {summary.get('total_functions', 0)}")
             print(f"Functions exceeding thresholds: {summary.get('exceeding_thresholds', 0)}")
             print(f"Percentage over threshold: {summary.get('percentage_exceeding', 0):.1f}%")
@@ -96,20 +96,21 @@ def analyze_project_complexity():
             print(f"Average function length: {summary.get('average_length', 0):.1f} lines")
 
             # Show top 10 most complex functions
-            exceeding = result.get('exceeding_functions', [])
+            exceeding = result.get("exceeding_functions", [])
             if exceeding:
                 print("\nTop 10 most complex functions by cognitive complexity:")
-                for i, func in enumerate(sorted(exceeding,
-                                                key=lambda x: x.get('cognitive', 0),
-                                                reverse=True)[:10], 1):
+                for i, func in enumerate(sorted(exceeding, key=lambda x: x.get("cognitive", 0), reverse=True)[:10], 1):
                     print(f"  {i}. {func['file']}:{func['name']} (line {func['start_line']})")
-                    print(f"     Cyclomatic: {func['cyclomatic']}, Cognitive: {func['cognitive']}, "
-                          f"Nesting: {func['nesting_depth']}, Lines: {func['length']}")
+                    print(
+                        f"     Cyclomatic: {func['cyclomatic']}, Cognitive: {func['cognitive']}, "
+                        f"Nesting: {func['nesting_depth']}, Lines: {func['length']}"
+                    )
         else:
             print(f"Error: {result.get('error')}")
     except Exception as e:
         print(f"Exception during project complexity analysis: {e}")
         import traceback
+
         traceback.print_exc()
 
 
@@ -119,26 +120,26 @@ def detect_code_smells():
 
     try:
         result = detect_code_smells_tool(
-            project_folder='src/ast_grep_mcp',
-            language='python',
-            include_patterns=['**/*.py'],
-            exclude_patterns=['**/__pycache__/**', '**/test_*.py'],
-            max_threads=4
+            project_folder="src/ast_grep_mcp",
+            language="python",
+            include_patterns=["**/*.py"],
+            exclude_patterns=["**/__pycache__/**", "**/test_*.py"],
+            max_threads=4,
         )
 
-        if result.get('success'):
-            summary = result.get('summary', {})
+        if result.get("success"):
+            summary = result.get("summary", {})
             print(f"\nTotal files analyzed: {summary.get('total_files', 0)}")
             print(f"Files with smells: {summary.get('files_with_smells', 0)}")
             print(f"Total smells found: {summary.get('total_smells', 0)}")
 
-            by_severity = summary.get('by_severity', {})
+            by_severity = summary.get("by_severity", {})
             print("\nBy severity:")
             print(f"  High: {by_severity.get('high', 0)}")
             print(f"  Medium: {by_severity.get('medium', 0)}")
             print(f"  Low: {by_severity.get('low', 0)}")
 
-            smells = result.get('smells', [])
+            smells = result.get("smells", [])
             if smells:
                 print("\nTop 10 code smells:")
                 for smell in smells[:10]:
@@ -150,6 +151,7 @@ def detect_code_smells():
     except Exception as e:
         print(f"Exception during code smell detection: {e}")
         import traceback
+
         traceback.print_exc()
 
 
@@ -159,32 +161,32 @@ def detect_security_issues():
 
     try:
         result = detect_security_issues_impl(
-            project_folder='src/ast_grep_mcp',
-            language='python',
-            include_patterns=['**/*.py'],
-            exclude_patterns=['**/__pycache__/**', '**/test_*.py'],
-            max_threads=4
+            project_folder="src/ast_grep_mcp",
+            language="python",
+            include_patterns=["**/*.py"],
+            exclude_patterns=["**/__pycache__/**", "**/test_*.py"],
+            max_threads=4,
         )
 
-        if result.get('success'):
-            summary = result.get('summary', {})
+        if result.get("success"):
+            summary = result.get("summary", {})
             print(f"\nTotal files scanned: {summary.get('total_files', 0)}")
             print(f"Total issues found: {summary.get('total_issues', 0)}")
 
-            by_severity = summary.get('by_severity', {})
+            by_severity = summary.get("by_severity", {})
             print("\nBy severity:")
             print(f"  Critical: {by_severity.get('critical', 0)}")
             print(f"  High: {by_severity.get('high', 0)}")
             print(f"  Medium: {by_severity.get('medium', 0)}")
             print(f"  Low: {by_severity.get('low', 0)}")
 
-            by_category = summary.get('by_category', {})
+            by_category = summary.get("by_category", {})
             if by_category:
                 print("\nBy category:")
                 for category, count in sorted(by_category.items(), key=lambda x: x[1], reverse=True):
                     print(f"  {category}: {count}")
 
-            issues = result.get('issues', [])
+            issues = result.get("issues", [])
             if issues:
                 print("\nTop 10 security issues:")
                 for issue in issues[:10]:
@@ -196,6 +198,7 @@ def detect_security_issues():
     except Exception as e:
         print(f"Exception during security scanning: {e}")
         import traceback
+
         traceback.print_exc()
 
 
@@ -206,50 +209,45 @@ def analyze_duplication():
     try:
         # First find duplicates
         find_result = find_duplication_tool(
-            project_folder='src/ast_grep_mcp',
-            language='python',
+            project_folder="src/ast_grep_mcp",
+            language="python",
             min_similarity=0.8,
             min_lines=10,
-            include_patterns=['**/*.py'],
-            exclude_patterns=['**/__pycache__/**', '**/test_*.py'],
-            max_threads=4
+            include_patterns=["**/*.py"],
+            exclude_patterns=["**/__pycache__/**", "**/test_*.py"],
+            max_threads=4,
         )
 
-        if not find_result.get('success'):
+        if not find_result.get("success"):
             print(f"Error finding duplicates: {find_result.get('error')}")
             return
 
         # Then analyze the candidates
-        groups = find_result.get('groups', [])
+        groups = find_result.get("groups", [])
         if not groups:
             print("\nNo duplication groups found.")
             return
 
-        result = analyze_deduplication_candidates_tool(
-            groups=groups,
-            language='python',
-            max_threads=4
-        )
+        result = analyze_deduplication_candidates_tool(groups=groups, language="python", max_threads=4)
 
-        if result.get('success'):
-            summary = result.get('summary', {})
+        if result.get("success"):
+            summary = result.get("summary", {})
             print(f"\nTotal files analyzed: {summary.get('total_files', 0)}")
             print(f"Duplication groups found: {summary.get('total_groups', 0)}")
             print(f"Total duplicated instances: {summary.get('total_instances', 0)}")
 
-            if summary.get('total_groups', 0) > 0:
+            if summary.get("total_groups", 0) > 0:
                 print(f"Average group size: {summary.get('average_group_size', 0):.1f} instances")
                 print(f"Average similarity: {summary.get('average_similarity', 0):.1%}")
                 print(f"Estimated LOC savings: {summary.get('estimated_loc_savings', 0)}")
 
-            groups = result.get('groups', [])
+            groups = result.get("groups", [])
             if groups:
                 print("\nTop 5 duplication groups by potential savings:")
                 for i, group in enumerate(groups[:5], 1):
-                    print(f"  {i}. Group with {group.get('instance_count', 0)} instances "
-                          f"({group.get('similarity', 0):.1%} similar)")
+                    print(f"  {i}. Group with {group.get('instance_count', 0)} instances ({group.get('similarity', 0):.1%} similar)")
                     print(f"     Potential LOC savings: {group.get('potential_loc_savings', 0)} lines")
-                    instances = group.get('instances', [])
+                    instances = group.get("instances", [])
                     if instances:
                         print("     Locations:")
                         for inst in instances[:3]:
@@ -259,6 +257,7 @@ def analyze_duplication():
     except Exception as e:
         print(f"Exception during duplication analysis: {e}")
         import traceback
+
         traceback.print_exc()
 
 
@@ -268,47 +267,48 @@ def generate_summary_report():
 
     try:
         result = generate_quality_report_tool(
-            project_folder='src/ast_grep_mcp',
-            language='python',
-            output_format='markdown',
-            include_patterns=['**/*.py'],
-            exclude_patterns=['**/__pycache__/**', '**/test_*.py'],
-            max_threads=4
+            project_folder="src/ast_grep_mcp",
+            language="python",
+            output_format="markdown",
+            include_patterns=["**/*.py"],
+            exclude_patterns=["**/__pycache__/**", "**/test_*.py"],
+            max_threads=4,
         )
 
-        if result.get('success'):
+        if result.get("success"):
             print("\nQuality report generated successfully!")
-            report_content = result.get('report', '')
+            report_content = result.get("report", "")
             if report_content:
                 # Save to file
-                report_file = Path('QUALITY_REPORT.md')
+                report_file = Path("QUALITY_REPORT.md")
                 report_file.write_text(report_content)
                 print(f"Report saved to: {report_file.absolute()}")
 
                 # Show summary
                 print("\nReport Summary:")
-                lines = report_content.split('\n')
+                lines = report_content.split("\n")
                 in_summary = False
                 for line in lines[:50]:  # First 50 lines
-                    if '## Summary' in line or '## Executive Summary' in line:
+                    if "## Summary" in line or "## Executive Summary" in line:
                         in_summary = True
                     if in_summary:
                         print(line)
-                        if line.startswith('##') and 'Summary' not in line:
+                        if line.startswith("##") and "Summary" not in line:
                             break
         else:
             print(f"Error: {result.get('error')}")
     except Exception as e:
         print(f"Exception during report generation: {e}")
         import traceback
+
         traceback.print_exc()
 
 
 def main():
     """Run all analyses."""
-    print("="*80)
+    print("=" * 80)
     print(" COMPREHENSIVE CODEBASE ANALYSIS - ast-grep-mcp")
-    print("="*80)
+    print("=" * 80)
     print("\nThis analysis uses all 30 MCP tools to evaluate code quality,")
     print("complexity, security, and duplication opportunities.\n")
 
@@ -325,5 +325,5 @@ def main():
     print("for detailed findings and recommendations.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

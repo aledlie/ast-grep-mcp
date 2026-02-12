@@ -36,7 +36,7 @@ class TestScoreCaching:
             "instances": [{"file": "/tmp/file1.py"}, {"file": "/tmp/file2.py"}],
             "complexity_analysis": {"cyclomatic": 5},
             "test_coverage": 80.0,  # Float percentage (0-100)
-            "impact_analysis": {"call_sites": 10}
+            "impact_analysis": {"call_sites": 10},
         }
 
     def test_cache_initialization(self, ranker_with_cache, ranker_without_cache):
@@ -67,15 +67,11 @@ class TestScoreCaching:
 
     def test_cache_key_generation_ignores_order_of_files(self, ranker_with_cache):
         """Test that file order doesn't affect cache key."""
-        candidate1 = {
-            "files": ["/tmp/a.py", "/tmp/b.py"],
-            "similarity": 0.85,
-            "lines_saved": 50
-        }
+        candidate1 = {"files": ["/tmp/a.py", "/tmp/b.py"], "similarity": 0.85, "lines_saved": 50}
         candidate2 = {
             "files": ["/tmp/b.py", "/tmp/a.py"],  # Different order
             "similarity": 0.85,
-            "lines_saved": 50
+            "lines_saved": 50,
         }
 
         key1 = ranker_with_cache._generate_cache_key(candidate1)
@@ -109,8 +105,9 @@ class TestScoreCaching:
         """Test that identical candidates hit the cache."""
         candidates = [sample_candidate, sample_candidate]  # Same candidate twice
 
-        with patch.object(ranker_with_cache.score_calculator, 'calculate_total_score',
-                          wraps=ranker_with_cache.score_calculator.calculate_total_score) as mock_calc:
+        with patch.object(
+            ranker_with_cache.score_calculator, "calculate_total_score", wraps=ranker_with_cache.score_calculator.calculate_total_score
+        ) as mock_calc:
             result = ranker_with_cache.rank_deduplication_candidates(candidates)
 
             # Should only calculate score once (second is cache hit)
@@ -125,8 +122,9 @@ class TestScoreCaching:
         candidate2 = {**sample_candidate, "lines_saved": 100, "potential_line_savings": 200}
         candidates = [sample_candidate, candidate2]
 
-        with patch.object(ranker_with_cache.score_calculator, 'calculate_total_score',
-                          wraps=ranker_with_cache.score_calculator.calculate_total_score) as mock_calc:
+        with patch.object(
+            ranker_with_cache.score_calculator, "calculate_total_score", wraps=ranker_with_cache.score_calculator.calculate_total_score
+        ) as mock_calc:
             result = ranker_with_cache.rank_deduplication_candidates(candidates)
 
             # Should calculate score twice (both are cache misses)
@@ -175,8 +173,9 @@ class TestScoreCaching:
         """Test that repeated ranking of same candidates uses cache."""
         candidates = [sample_candidate]
 
-        with patch.object(ranker_with_cache.score_calculator, 'calculate_total_score',
-                          wraps=ranker_with_cache.score_calculator.calculate_total_score) as mock_calc:
+        with patch.object(
+            ranker_with_cache.score_calculator, "calculate_total_score", wraps=ranker_with_cache.score_calculator.calculate_total_score
+        ) as mock_calc:
             # First ranking
             result1 = ranker_with_cache.rank_deduplication_candidates(candidates)
             first_call_count = mock_calc.call_count
@@ -203,8 +202,11 @@ class TestScoreCaching:
         """Test that no caching occurs when disabled."""
         candidates = [sample_candidate, sample_candidate]
 
-        with patch.object(ranker_without_cache.score_calculator, 'calculate_total_score',
-                          wraps=ranker_without_cache.score_calculator.calculate_total_score) as mock_calc:
+        with patch.object(
+            ranker_without_cache.score_calculator,
+            "calculate_total_score",
+            wraps=ranker_without_cache.score_calculator.calculate_total_score,
+        ) as mock_calc:
             ranker_without_cache.rank_deduplication_candidates(candidates)
 
             # Should calculate score twice even for identical candidates
@@ -219,7 +221,7 @@ class TestScoreCaching:
             "files": ["/tmp/file1.py"],
             "complexity_analysis": None,
             "test_coverage": None,
-            "impact_analysis": None
+            "impact_analysis": None,
         }
 
         key = ranker_with_cache._generate_cache_key(candidate)
@@ -240,12 +242,14 @@ class TestCachePerformance:
         # Create 100 unique candidates
         candidates = []
         for i in range(100):
-            candidates.append({
-                "similarity": 0.80 + (i * 0.001),  # Unique similarity for each
-                "files": [f"/tmp/file{i}.py"],
-                "lines_saved": 50 + i,
-                "instances": [{"file": f"/tmp/file{i}.py"}]
-            })
+            candidates.append(
+                {
+                    "similarity": 0.80 + (i * 0.001),  # Unique similarity for each
+                    "files": [f"/tmp/file{i}.py"],
+                    "lines_saved": 50 + i,
+                    "instances": [{"file": f"/tmp/file{i}.py"}],
+                }
+            )
 
         # Rank all candidates
         result = ranker.rank_deduplication_candidates(candidates)
@@ -264,13 +268,14 @@ class TestCachePerformance:
                 "similarity": 0.80 + (i * 0.01),
                 "files": [f"/tmp/file{i}.py"],
                 "lines_saved": 50 + i * 5,
-                "instances": [{"file": f"/tmp/file{i}.py"}]
+                "instances": [{"file": f"/tmp/file{i}.py"}],
             }
             # Add same candidate 10 times
             candidates.extend([base_candidate] * 10)
 
-        with patch.object(ranker.score_calculator, 'calculate_total_score',
-                          wraps=ranker.score_calculator.calculate_total_score) as mock_calc:
+        with patch.object(
+            ranker.score_calculator, "calculate_total_score", wraps=ranker.score_calculator.calculate_total_score
+        ) as mock_calc:
             result = ranker.rank_deduplication_candidates(candidates)
 
             # Should only calculate 10 unique scores (90% cache hit rate)
@@ -302,7 +307,7 @@ class TestCacheEdgeCases:
         candidate = {
             "similarity": 0.85,
             "files": [],  # Empty
-            "lines_saved": 50
+            "lines_saved": 50,
         }
 
         result = ranker.rank_deduplication_candidates([candidate])
@@ -314,7 +319,7 @@ class TestCacheEdgeCases:
         """Test candidate with minimal required fields."""
         candidate = {
             "similarity": 0.85,
-            "files": ["/tmp/file.py"]
+            "files": ["/tmp/file.py"],
             # Missing: lines_saved, complexity, test_coverage, etc.
         }
 

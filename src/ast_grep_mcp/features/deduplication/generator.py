@@ -165,9 +165,7 @@ def _is_null_literal(value: str) -> bool:
 
 def _is_quoted_string(value: str) -> bool:
     """Check if value is a quoted string literal."""
-    return (value.startswith('"') and value.endswith('"')) or (
-        value.startswith("'") and value.endswith("'")
-    )
+    return (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'"))
 
 
 def _is_integer_literal(value: str) -> bool:
@@ -990,7 +988,7 @@ def generate_parameter_name(identifier: str, all_identifiers: List[str]) -> str:
     prefixes_to_remove = ["get_", "set_", "is_", "has_", "_"]
     for prefix in prefixes_to_remove:
         if base_name.startswith(prefix) and len(base_name) > len(prefix):
-            base_name = base_name[len(prefix):]
+            base_name = base_name[len(prefix) :]
             break
 
     # Convert to parameter style (snake_case for Python-like, camelCase detected)
@@ -1017,15 +1015,16 @@ def generate_parameter_name(identifier: str, all_identifiers: List[str]) -> str:
 
     # Fallback with timestamp-like suffix
     import time
+
     return f"{base_name}_{int(time.time()) % 1000}"
 
 
 def _find_type_annotation(identifier: str, context: str, language: str) -> Optional[str]:
     """Find explicit type annotation for identifier in context."""
     if language == "python":
-        pattern = rf'{re.escape(identifier)}\s*:\s*([A-Za-z_][A-Za-z0-9_\[\],\s]*)'
+        pattern = rf"{re.escape(identifier)}\s*:\s*([A-Za-z_][A-Za-z0-9_\[\],\s]*)"
     elif language in ("typescript", "javascript"):
-        pattern = rf'{re.escape(identifier)}\s*:\s*([A-Za-z_][A-Za-z0-9_<>\[\],\s]*)'
+        pattern = rf"{re.escape(identifier)}\s*:\s*([A-Za-z_][A-Za-z0-9_<>\[\],\s]*)"
     else:
         return None
 
@@ -1037,23 +1036,21 @@ def _get_usage_patterns(identifier: str) -> List[Tuple[str, str, str]]:
     """Get usage patterns for type inference."""
     esc_id = re.escape(identifier)
     return [
-        (r'len\s*\(\s*' + esc_id, "Sequence", "Iterable"),
-        (r'int\s*\(\s*' + esc_id, "str", "string"),
-        (r'str\s*\(\s*' + esc_id, "Any", "any"),
-        (r'float\s*\(\s*' + esc_id, "str", "string"),
-        (r'\.append\s*\(', "List", "Array"),
-        (r'\.items\s*\(\s*\)', "Dict", "object"),
-        (r'\.keys\s*\(\s*\)', "Dict", "object"),
-        (r'\.values\s*\(\s*\)', "Dict", "object"),
-        (r'for\s+\w+\s+in\s+' + esc_id, "Iterable", "Iterable"),
-        (r'if\s+' + esc_id + r'\s*:', "bool", "boolean"),
-        (r'while\s+' + esc_id + r'\s*:', "bool", "boolean"),
+        (r"len\s*\(\s*" + esc_id, "Sequence", "Iterable"),
+        (r"int\s*\(\s*" + esc_id, "str", "string"),
+        (r"str\s*\(\s*" + esc_id, "Any", "any"),
+        (r"float\s*\(\s*" + esc_id, "str", "string"),
+        (r"\.append\s*\(", "List", "Array"),
+        (r"\.items\s*\(\s*\)", "Dict", "object"),
+        (r"\.keys\s*\(\s*\)", "Dict", "object"),
+        (r"\.values\s*\(\s*\)", "Dict", "object"),
+        (r"for\s+\w+\s+in\s+" + esc_id, "Iterable", "Iterable"),
+        (r"if\s+" + esc_id + r"\s*:", "bool", "boolean"),
+        (r"while\s+" + esc_id + r"\s*:", "bool", "boolean"),
     ]
 
 
-def _infer_from_usage_patterns(
-    identifier: str, context: str, language: str
-) -> Optional[str]:
+def _infer_from_usage_patterns(identifier: str, context: str, language: str) -> Optional[str]:
     """Infer type from common usage patterns in context."""
     for pattern, py_type, js_type in _get_usage_patterns(identifier):
         if re.search(pattern, context):
@@ -1066,13 +1063,11 @@ def _infer_from_operations(identifier: str, context: str, language: str) -> Opti
     esc_id = re.escape(identifier)
 
     # Check for numeric comparisons
-    if re.search(rf'{esc_id}\s*[<>=]+\s*\d', context) or \
-       re.search(rf'\d\s*[<>=]+\s*{esc_id}', context):
+    if re.search(rf"{esc_id}\s*[<>=]+\s*\d", context) or re.search(rf"\d\s*[<>=]+\s*{esc_id}", context):
         return "int" if language == "python" else "number"
 
     # Check for string concatenation
-    if re.search(rf'{esc_id}\s*\+\s*["\']', context) or \
-       re.search(rf'["\'\s]\s*\+\s*{esc_id}', context):
+    if re.search(rf'{esc_id}\s*\+\s*["\']', context) or re.search(rf'["\'\s]\s*\+\s*{esc_id}', context):
         return "str" if language == "python" else "string"
 
     return None

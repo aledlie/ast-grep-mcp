@@ -68,16 +68,8 @@ def hello():
     def test_generate_refactoring_suggestions(self):
         """Test generation of refactoring suggestions."""
         duplicates = [
-            {
-                "code": "def foo(): pass",
-                "file": "file1.py",
-                "similarity": 0.9
-            },
-            {
-                "code": "def bar(): pass",
-                "file": "file2.py",
-                "similarity": 0.9
-            }
+            {"code": "def foo(): pass", "file": "file1.py", "similarity": 0.9},
+            {"code": "def bar(): pass", "file": "file2.py", "similarity": 0.9},
         ]
         suggestions = generate_refactoring_suggestions(duplicates, "python")
         assert len(suggestions) > 0
@@ -113,12 +105,7 @@ def outer():
 
     def test_format_alignment_diff(self):
         """Test formatting alignment diff."""
-        diff_data = {
-            "alignments": [
-                {"type": "match", "value": "def foo():"},
-                {"type": "diff", "old": "return 1", "new": "return 2"}
-            ]
-        }
+        diff_data = {"alignments": [{"type": "match", "value": "def foo():"}, {"type": "diff", "old": "return 1", "new": "return 2"}]}
         formatted = format_alignment_diff(diff_data)
         assert formatted is not None
         assert isinstance(formatted, str) or isinstance(formatted, dict)
@@ -153,31 +140,20 @@ class TestDiffPreview:
     def test_generate_multi_file_diff(self):
         """Test generating diff for multiple files."""
         changes = [
-            {
-                "file": "file1.py",
-                "old_content": "def foo(): return 1",
-                "new_content": "def foo(): return 2"
-            },
-            {
-                "file": "file2.py",
-                "old_content": "def bar(): return 3",
-                "new_content": "def bar(): return 4"
-            }
+            {"file": "file1.py", "old_content": "def foo(): return 1", "new_content": "def foo(): return 2"},
+            {"file": "file2.py", "old_content": "def bar(): return 3", "new_content": "def bar(): return 4"},
         ]
 
         diff = generate_multi_file_diff(changes)
         assert isinstance(diff, str)
         assert "file1.py" in diff or "file2.py" in diff or diff == ""
 
-    @patch('os.path.exists')
-    @patch('builtins.open', create=True)
+    @patch("os.path.exists")
+    @patch("builtins.open", create=True)
     def test_generate_diff_from_file_paths(self, mock_open, mock_exists):
         """Test generating diff from file paths."""
         mock_exists.return_value = True
-        mock_open.return_value.__enter__.return_value.read.side_effect = [
-            "def foo(): return 1",
-            "def foo(): return 2"
-        ]
+        mock_open.return_value.__enter__.return_value.read.side_effect = ["def foo(): return 1", "def foo(): return 2"]
 
         diff = generate_diff_from_file_paths("old.py", "new.py")
         assert isinstance(diff, str)

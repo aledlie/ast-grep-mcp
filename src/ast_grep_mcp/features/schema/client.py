@@ -320,9 +320,7 @@ class SchemaOrgClient:
 
         return properties
 
-    def _collect_inherited_properties(
-        self, type_id: str, processed_props: Set[str]
-    ) -> List[Dict[str, Any]]:
+    def _collect_inherited_properties(self, type_id: str, processed_props: Set[str]) -> List[Dict[str, Any]]:
         """Collect properties inherited from parent types."""
         type_data = self.schema_data.get(type_id)
         if not type_data:
@@ -331,9 +329,7 @@ class SchemaOrgClient:
         properties = []
         super_types = self._extract_super_types(type_data)
         for super_type in super_types:
-            inherited_props = self._collect_properties_for_type(
-                super_type["id"], processed_props, inherit_from=super_type["name"]
-            )
+            inherited_props = self._collect_properties_for_type(super_type["id"], processed_props, inherit_from=super_type["name"])
             properties.extend(inherited_props)
 
         return properties

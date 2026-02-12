@@ -373,13 +373,7 @@ class TestComplexityDataClasses:
 
     def test_complexity_metrics(self):
         """Test ComplexityMetrics dataclass."""
-        metrics = ComplexityMetrics(
-            cyclomatic=5,
-            cognitive=10,
-            nesting_depth=3,
-            lines=25,
-            parameter_count=2
-        )
+        metrics = ComplexityMetrics(cyclomatic=5, cognitive=10, nesting_depth=3, lines=25, parameter_count=2)
         assert metrics.cyclomatic == 5
         assert metrics.cognitive == 10
         assert metrics.nesting_depth == 3
@@ -388,12 +382,7 @@ class TestComplexityDataClasses:
 
     def test_complexity_metrics_defaults(self):
         """Test ComplexityMetrics default values."""
-        metrics = ComplexityMetrics(
-            cyclomatic=1,
-            cognitive=0,
-            nesting_depth=0,
-            lines=5
-        )
+        metrics = ComplexityMetrics(cyclomatic=1, cognitive=0, nesting_depth=0, lines=5)
         assert metrics.parameter_count == 0
 
     def test_function_complexity(self):
@@ -406,7 +395,7 @@ class TestComplexityDataClasses:
             end_line=35,
             metrics=metrics,
             language="python",
-            exceeds=["cyclomatic", "nesting"]
+            exceeds=["cyclomatic", "nesting"],
         )
         assert func.file_path == "/path/to/file.py"
         assert func.function_name == "my_func"
@@ -422,12 +411,7 @@ class TestComplexityDataClasses:
 
     def test_custom_thresholds(self):
         """Test custom threshold values."""
-        thresholds = ComplexityThresholds(
-            cyclomatic=5,
-            cognitive=8,
-            nesting_depth=3,
-            lines=30
-        )
+        thresholds = ComplexityThresholds(cyclomatic=5, cognitive=8, nesting_depth=3, lines=30)
         assert thresholds.cyclomatic == 5
         assert thresholds.cognitive == 8
 
@@ -472,7 +456,7 @@ class TestComplexityStorage:
                 "max_cognitive": 20,
                 "max_nesting": 4,
                 "violation_count": 2,
-                "duration_ms": 1500
+                "duration_ms": 1500,
             }
 
             functions = [
@@ -483,13 +467,11 @@ class TestComplexityStorage:
                     end_line=20,
                     metrics=ComplexityMetrics(5, 8, 2, 20, 2),
                     language="python",
-                    exceeds=[]
+                    exceeds=[],
                 )
             ]
 
-            run_id = storage.store_analysis_run(
-                "/path/to/project", results, functions, "abc123", "main"
-            )
+            run_id = storage.store_analysis_run("/path/to/project", results, functions, "abc123", "main")
             assert run_id > 0
 
     def test_get_project_trends(self):
@@ -508,7 +490,7 @@ class TestComplexityStorage:
                 "max_cognitive": 20,
                 "max_nesting": 4,
                 "violation_count": 2,
-                "duration_ms": 1500
+                "duration_ms": 1500,
             }
             storage.store_analysis_run("/path/to/project", results, [])
 
@@ -523,7 +505,7 @@ class TestAnalyzeFileComplexity:
 
     def test_analyze_empty_file(self):
         """Test analyzing file with no functions."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("# Just a comment\n")
             f.flush()
 
@@ -537,7 +519,7 @@ class TestAnalyzeFileComplexity:
 
     def test_analyze_simple_function(self):
         """Test analyzing file with simple function."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("""
 def simple():
     return 42

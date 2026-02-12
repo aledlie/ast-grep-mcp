@@ -7,6 +7,7 @@ This module tests:
 - Polyglot refactoring
 - API binding generation
 """
+
 import json
 import os
 import tempfile
@@ -59,6 +60,7 @@ from ast_grep_mcp.models.cross_language import (
 # Pattern Database Tests
 # =============================================================================
 
+
 class TestPatternDatabase:
     """Tests for pattern database functions."""
 
@@ -100,10 +102,7 @@ class TestPatternDatabase:
 
     def test_get_equivalents_with_target_languages(self):
         """Test getting equivalents filtered by language."""
-        equiv = get_equivalents(
-            "list_comprehension",
-            target_languages=["python", "javascript"]
-        )
+        equiv = get_equivalents("list_comprehension", target_languages=["python", "javascript"])
         assert equiv is not None
         languages = set(equiv["examples"].keys())
         assert languages <= {"python", "javascript"}
@@ -125,40 +124,31 @@ class TestPatternDatabase:
 # Pattern Equivalence Tests
 # =============================================================================
 
+
 class TestPatternEquivalence:
     """Tests for pattern equivalence lookup."""
 
     def test_find_language_equivalents_basic(self):
         """Test basic pattern equivalence lookup."""
-        result = find_language_equivalents_impl(
-            pattern_description="list comprehension"
-        )
+        result = find_language_equivalents_impl(pattern_description="list comprehension")
         assert result is not None
         assert len(result.equivalences) > 0
         assert result.execution_time_ms >= 0
 
     def test_find_language_equivalents_with_source(self):
         """Test equivalence lookup with source language."""
-        result = find_language_equivalents_impl(
-            pattern_description="async await",
-            source_language="python"
-        )
+        result = find_language_equivalents_impl(pattern_description="async await", source_language="python")
         assert result.source_language == "python"
 
     def test_find_language_equivalents_with_targets(self):
         """Test equivalence lookup with target languages."""
-        result = find_language_equivalents_impl(
-            pattern_description="try catch",
-            target_languages=["python", "typescript"]
-        )
+        result = find_language_equivalents_impl(pattern_description="try catch", target_languages=["python", "typescript"])
         assert "python" in result.target_languages
         assert "typescript" in result.target_languages
 
     def test_find_language_equivalents_no_match(self):
         """Test equivalence lookup with no matching patterns."""
-        result = find_language_equivalents_impl(
-            pattern_description="xyznonexistent123"
-        )
+        result = find_language_equivalents_impl(pattern_description="xyznonexistent123")
         assert len(result.equivalences) == 0
         assert len(result.suggestions) > 0  # Should provide suggestions
 
@@ -184,6 +174,7 @@ class TestPatternEquivalence:
 # Language Converter Tests
 # =============================================================================
 
+
 class TestLanguageConverter:
     """Tests for language conversion functionality."""
 
@@ -193,11 +184,7 @@ class TestLanguageConverter:
 def greet(name: str) -> str:
     return f"Hello, {name}!"
 """
-        result = convert_code_language_impl(
-            code_snippet=python_code,
-            from_language="python",
-            to_language="typescript"
-        )
+        result = convert_code_language_impl(code_snippet=python_code, from_language="python", to_language="typescript")
         assert result.successful_conversions == 1
         converted = result.conversions[0].converted_code
         assert "function" in converted
@@ -210,11 +197,7 @@ class Person:
     def __init__(self, name):
         self.name = name
 """
-        result = convert_code_language_impl(
-            code_snippet=python_code,
-            from_language="python",
-            to_language="typescript"
-        )
+        result = convert_code_language_impl(code_snippet=python_code, from_language="python", to_language="typescript")
         assert result.successful_conversions == 1
         converted = result.conversions[0].converted_code
         assert "class Person" in converted
@@ -226,11 +209,7 @@ function calculateSum(a, b) {
     return a + b;
 }
 """
-        result = convert_code_language_impl(
-            code_snippet=js_code,
-            from_language="javascript",
-            to_language="python"
-        )
+        result = convert_code_language_impl(code_snippet=js_code, from_language="javascript", to_language="python")
         assert result.successful_conversions == 1
         converted = result.conversions[0].converted_code
         assert "def" in converted
@@ -238,22 +217,14 @@ function calculateSum(a, b) {
     def test_convert_with_type_mappings(self):
         """Test conversion includes type mappings."""
         python_code = "def test(x: str, y: int) -> bool: pass"
-        result = convert_code_language_impl(
-            code_snippet=python_code,
-            from_language="python",
-            to_language="typescript"
-        )
+        result = convert_code_language_impl(code_snippet=python_code, from_language="python", to_language="typescript")
         # Type mappings should be recorded
         assert result.conversions[0].success
 
     def test_convert_unsupported_pair(self):
         """Test conversion with unsupported language pair."""
         with pytest.raises(ValueError) as exc_info:
-            convert_code_language_impl(
-                code_snippet="code",
-                from_language="ruby",
-                to_language="swift"
-            )
+            convert_code_language_impl(code_snippet="code", from_language="ruby", to_language="swift")
         assert "Unsupported conversion pair" in str(exc_info.value)
 
     def test_convert_with_warnings(self):
@@ -264,22 +235,14 @@ def function():
     with context_manager():
         yield value
 """
-        result = convert_code_language_impl(
-            code_snippet=python_code,
-            from_language="python",
-            to_language="typescript"
-        )
+        result = convert_code_language_impl(code_snippet=python_code, from_language="python", to_language="typescript")
         # Should generate warnings for decorators and context managers
         assert len(result.conversions[0].warnings) > 0
 
     def test_convert_boolean_values(self):
         """Test boolean value conversion."""
         python_code = "x = True if condition else False"
-        result = convert_code_language_impl(
-            code_snippet=python_code,
-            from_language="python",
-            to_language="javascript"
-        )
+        result = convert_code_language_impl(code_snippet=python_code, from_language="python", to_language="javascript")
         converted = result.conversions[0].converted_code
         assert "true" in converted or "false" in converted
 
@@ -294,6 +257,7 @@ def function():
 # =============================================================================
 # Multi-Language Search Tests
 # =============================================================================
+
 
 class TestMultiLanguageSearch:
     """Tests for multi-language search functionality."""
@@ -343,11 +307,7 @@ class TestMultiLanguageSearch:
         with tempfile.TemporaryDirectory() as tmpdir:
             Path(tmpdir, "test.py").write_text("def test(): pass")
 
-            result = search_multi_language_impl(
-                project_folder=tmpdir,
-                semantic_pattern="function",
-                languages=["python"]
-            )
+            result = search_multi_language_impl(project_folder=tmpdir, semantic_pattern="function", languages=["python"])
 
             assert result.total_matches >= 0
             assert "python" in result.languages_searched
@@ -355,20 +315,13 @@ class TestMultiLanguageSearch:
     def test_search_multi_language_invalid_folder(self):
         """Test search with invalid folder."""
         with pytest.raises(ValueError) as exc_info:
-            search_multi_language_impl(
-                project_folder="/nonexistent/path/xyz",
-                semantic_pattern="function"
-            )
+            search_multi_language_impl(project_folder="/nonexistent/path/xyz", semantic_pattern="function")
         assert "not found" in str(exc_info.value)
 
     def test_search_multi_language_no_supported_languages(self):
         """Test search returns empty when no languages supported."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = search_multi_language_impl(
-                project_folder=tmpdir,
-                semantic_pattern="function",
-                languages=["unsupported_lang_xyz"]
-            )
+            result = search_multi_language_impl(project_folder=tmpdir, semantic_pattern="function", languages=["unsupported_lang_xyz"])
             assert result.total_matches == 0
             assert result.languages_searched == []
 
@@ -376,6 +329,7 @@ class TestMultiLanguageSearch:
 # =============================================================================
 # Polyglot Refactoring Tests
 # =============================================================================
+
 
 class TestPolyglotRefactoring:
     """Tests for polyglot refactoring functionality."""
@@ -400,7 +354,7 @@ class TestPolyglotRefactoring:
             original_line="def oldName():",
             symbol="oldName",
             new_name="newName",
-            language="python"
+            language="python",
         )
         assert change.file_path == "/test/file.py"
         assert change.line_number == 10
@@ -422,7 +376,7 @@ class TestPolyglotRefactoring:
                 refactoring_type="rename_api",
                 symbol_name="getUserProfile",
                 new_name="fetchUserProfile",
-                dry_run=True
+                dry_run=True,
             )
 
             assert result.dry_run is True
@@ -437,11 +391,7 @@ class TestPolyglotRefactoring:
             py_file.write_text("def oldSymbol():\n    oldSymbol()\n")
 
             result = refactor_polyglot_impl(
-                project_folder=tmpdir,
-                refactoring_type="rename_api",
-                symbol_name="oldSymbol",
-                new_name="newSymbol",
-                dry_run=False
+                project_folder=tmpdir, refactoring_type="rename_api", symbol_name="oldSymbol", new_name="newSymbol", dry_run=False
             )
 
             assert result.dry_run is False
@@ -454,28 +404,21 @@ class TestPolyglotRefactoring:
         """Test refactoring with invalid type."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError) as exc_info:
-                refactor_polyglot_impl(
-                    project_folder=tmpdir,
-                    refactoring_type="invalid_type",
-                    symbol_name="test"
-                )
+                refactor_polyglot_impl(project_folder=tmpdir, refactoring_type="invalid_type", symbol_name="test")
             assert "Invalid refactoring type" in str(exc_info.value)
 
     def test_refactor_polyglot_missing_new_name(self):
         """Test rename refactoring without new_name."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError) as exc_info:
-                refactor_polyglot_impl(
-                    project_folder=tmpdir,
-                    refactoring_type="rename_api",
-                    symbol_name="test"
-                )
+                refactor_polyglot_impl(project_folder=tmpdir, refactoring_type="rename_api", symbol_name="test")
             assert "new_name is required" in str(exc_info.value)
 
 
 # =============================================================================
 # API Binding Generator Tests
 # =============================================================================
+
 
 class TestBindingGenerator:
     """Tests for API binding generation functionality."""
@@ -500,22 +443,16 @@ class TestBindingGenerator:
             "servers": [{"url": "https://api.example.com"}],
             "paths": {
                 "/users": {
-                    "get": {
-                        "operationId": "getUsers",
-                        "summary": "Get all users",
-                        "responses": {"200": {"description": "Success"}}
-                    }
+                    "get": {"operationId": "getUsers", "summary": "Get all users", "responses": {"200": {"description": "Success"}}}
                 },
                 "/users/{id}": {
                     "get": {
                         "operationId": "getUser",
-                        "parameters": [
-                            {"name": "id", "in": "path", "required": True, "schema": {"type": "string"}}
-                        ],
-                        "responses": {"200": {"description": "Success"}}
+                        "parameters": [{"name": "id", "in": "path", "required": True, "schema": {"type": "string"}}],
+                        "responses": {"200": {"description": "Success"}},
                     }
-                }
-            }
+                },
+            },
         }
 
         api_name, version, base_url, endpoints = _parse_openapi_spec(spec)
@@ -532,23 +469,13 @@ class TestBindingGenerator:
                 "openapi": "3.0.0",
                 "info": {"title": "TestAPI", "version": "1.0.0"},
                 "servers": [{"url": "https://api.test.com"}],
-                "paths": {
-                    "/items": {
-                        "get": {
-                            "operationId": "getItems",
-                            "responses": {"200": {"description": "OK"}}
-                        }
-                    }
-                }
+                "paths": {"/items": {"get": {"operationId": "getItems", "responses": {"200": {"description": "OK"}}}}},
             }
             json.dump(spec, f)
             f.flush()
 
             try:
-                result = generate_language_bindings_impl(
-                    api_definition_file=f.name,
-                    target_languages=["python"]
-                )
+                result = generate_language_bindings_impl(api_definition_file=f.name, target_languages=["python"])
 
                 assert result.api_name == "TestAPI"
                 assert result.endpoints_count == 1
@@ -571,19 +498,16 @@ class TestBindingGenerator:
                         "get": {
                             "operationId": "getUserById",
                             "parameters": [{"name": "id", "in": "path", "required": True}],
-                            "responses": {"200": {"description": "OK"}}
+                            "responses": {"200": {"description": "OK"}},
                         }
                     }
-                }
+                },
             }
             json.dump(spec, f)
             f.flush()
 
             try:
-                result = generate_language_bindings_impl(
-                    api_definition_file=f.name,
-                    target_languages=["typescript"]
-                )
+                result = generate_language_bindings_impl(api_definition_file=f.name, target_languages=["typescript"])
 
                 assert len(result.bindings) == 1
                 binding = result.bindings[0]
@@ -601,15 +525,14 @@ class TestBindingGenerator:
                 "openapi": "3.0.0",
                 "info": {"title": "Multi", "version": "1.0.0"},
                 "servers": [{"url": "https://api.test.com"}],
-                "paths": {"/test": {"get": {"operationId": "test", "responses": {"200": {}}}}}
+                "paths": {"/test": {"get": {"operationId": "test", "responses": {"200": {}}}}},
             }
             json.dump(spec, f)
             f.flush()
 
             try:
                 result = generate_language_bindings_impl(
-                    api_definition_file=f.name,
-                    target_languages=["python", "typescript", "javascript"]
+                    api_definition_file=f.name, target_languages=["python", "typescript", "javascript"]
                 )
 
                 assert len(result.bindings) == 3
@@ -621,15 +544,14 @@ class TestBindingGenerator:
     def test_generate_language_bindings_invalid_file(self):
         """Test binding generation with invalid file."""
         with pytest.raises(ValueError) as exc_info:
-            generate_language_bindings_impl(
-                api_definition_file="/nonexistent/file.json"
-            )
+            generate_language_bindings_impl(api_definition_file="/nonexistent/file.json")
         assert "not found" in str(exc_info.value)
 
 
 # =============================================================================
 # Model Tests
 # =============================================================================
+
 
 class TestModels:
     """Tests for cross-language data models."""
@@ -664,24 +586,19 @@ class TestModels:
 # Integration Tests
 # =============================================================================
 
+
 class TestIntegration:
     """Integration tests for cross-language features."""
 
     def test_full_workflow_find_and_convert(self):
         """Test finding equivalents then converting code."""
         # Find pattern equivalents
-        equiv_result = find_language_equivalents_impl(
-            pattern_description="async function"
-        )
+        equiv_result = find_language_equivalents_impl(pattern_description="async function")
         assert len(equiv_result.equivalences) > 0
 
         # Convert example code
         python_code = "async def fetch(): pass"
-        convert_result = convert_code_language_impl(
-            code_snippet=python_code,
-            from_language="python",
-            to_language="typescript"
-        )
+        convert_result = convert_code_language_impl(code_snippet=python_code, from_language="python", to_language="typescript")
         assert convert_result.successful_conversions == 1
 
     def test_workflow_search_and_refactor(self):
@@ -693,11 +610,7 @@ class TestIntegration:
 
             # Refactor
             result = refactor_polyglot_impl(
-                project_folder=tmpdir,
-                refactoring_type="rename_api",
-                symbol_name="apiEndpoint",
-                new_name="newApiEndpoint",
-                dry_run=True
+                project_folder=tmpdir, refactoring_type="rename_api", symbol_name="apiEndpoint", new_name="newApiEndpoint", dry_run=True
             )
 
             # Should find in both files

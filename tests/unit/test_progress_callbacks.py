@@ -33,10 +33,8 @@ class TestProgressCallbacks:
         mock_detector = Mock()
         mock_detector.find_duplication.return_value = {
             "duplication_groups": [
-                {"similarity": 0.9, "lines_saved": 100, "complexity_score": 3,
-                 "files": ["/tmp/file1.py", "/tmp/file2.py"]},
-                {"similarity": 0.85, "lines_saved": 50, "complexity_score": 2,
-                 "files": ["/tmp/file3.py"]},
+                {"similarity": 0.9, "lines_saved": 100, "complexity_score": 3, "files": ["/tmp/file1.py", "/tmp/file2.py"]},
+                {"similarity": 0.85, "lines_saved": 50, "complexity_score": 2, "files": ["/tmp/file3.py"]},
             ]
         }
         orchestrator.detector = mock_detector
@@ -44,10 +42,15 @@ class TestProgressCallbacks:
         # Mock ranker
         mock_ranker = Mock()
         mock_ranker.rank_deduplication_candidates.return_value = [
-            {"similarity": 0.9, "lines_saved": 100, "complexity_score": 3,
-             "files": ["/tmp/file1.py", "/tmp/file2.py"], "score": 85.0, "rank": 1},
-            {"similarity": 0.85, "lines_saved": 50, "complexity_score": 2,
-             "files": ["/tmp/file3.py"], "score": 70.0, "rank": 2},
+            {
+                "similarity": 0.9,
+                "lines_saved": 100,
+                "complexity_score": 3,
+                "files": ["/tmp/file1.py", "/tmp/file2.py"],
+                "score": 85.0,
+                "rank": 1,
+            },
+            {"similarity": 0.85, "lines_saved": 50, "complexity_score": 2, "files": ["/tmp/file3.py"], "score": 70.0, "rank": 2},
         ]
         orchestrator.ranker = mock_ranker
 
@@ -64,7 +67,7 @@ class TestProgressCallbacks:
             project_path=temp_project_dir,
             language="python",
             include_test_coverage=False,  # Skip coverage to avoid I/O
-            progress_callback=track_progress
+            progress_callback=track_progress,
         )
 
         # Verify callback was called
@@ -78,10 +81,7 @@ class TestProgressCallbacks:
             progress_calls.append((stage, percent))
 
         orchestrator_with_mocks.analyze_candidates(
-            project_path=temp_project_dir,
-            language="python",
-            include_test_coverage=False,
-            progress_callback=track_progress
+            project_path=temp_project_dir, language="python", include_test_coverage=False, progress_callback=track_progress
         )
 
         # Extract stage names
@@ -100,10 +100,7 @@ class TestProgressCallbacks:
             progress_calls.append((stage, percent))
 
         orchestrator_with_mocks.analyze_candidates(
-            project_path=temp_project_dir,
-            language="python",
-            include_test_coverage=False,
-            progress_callback=track_progress
+            project_path=temp_project_dir, language="python", include_test_coverage=False, progress_callback=track_progress
         )
 
         # Extract percentages
@@ -111,8 +108,7 @@ class TestProgressCallbacks:
 
         # Verify percentages increase (or stay same for sub-steps)
         for i in range(len(percentages) - 1):
-            assert percentages[i] <= percentages[i + 1], \
-                f"Progress should not decrease: {percentages[i]} -> {percentages[i+1]}"
+            assert percentages[i] <= percentages[i + 1], f"Progress should not decrease: {percentages[i]} -> {percentages[i + 1]}"
 
     def test_progress_starts_at_zero(self, temp_project_dir, orchestrator_with_mocks):
         """Test that progress starts at 0.0."""
@@ -122,10 +118,7 @@ class TestProgressCallbacks:
             progress_calls.append((stage, percent))
 
         orchestrator_with_mocks.analyze_candidates(
-            project_path=temp_project_dir,
-            language="python",
-            include_test_coverage=False,
-            progress_callback=track_progress
+            project_path=temp_project_dir, language="python", include_test_coverage=False, progress_callback=track_progress
         )
 
         # First progress should be 0.0
@@ -139,10 +132,7 @@ class TestProgressCallbacks:
             progress_calls.append((stage, percent))
 
         orchestrator_with_mocks.analyze_candidates(
-            project_path=temp_project_dir,
-            language="python",
-            include_test_coverage=False,
-            progress_callback=track_progress
+            project_path=temp_project_dir, language="python", include_test_coverage=False, progress_callback=track_progress
         )
 
         # Last progress should be 1.0
@@ -153,10 +143,7 @@ class TestProgressCallbacks:
         """Test that analysis works when no callback is provided."""
         # Should not raise any errors
         result = orchestrator_with_mocks.analyze_candidates(
-            project_path=temp_project_dir,
-            language="python",
-            include_test_coverage=False,
-            progress_callback=None
+            project_path=temp_project_dir, language="python", include_test_coverage=False, progress_callback=None
         )
 
         assert result is not None
@@ -170,10 +157,7 @@ class TestProgressCallbacks:
             progress_calls.append((stage, percent))
 
         orchestrator_with_mocks.analyze_candidates(
-            project_path=temp_project_dir,
-            language="python",
-            include_test_coverage=True,
-            progress_callback=track_progress
+            project_path=temp_project_dir, language="python", include_test_coverage=True, progress_callback=track_progress
         )
 
         # Extract stage names
@@ -190,10 +174,7 @@ class TestProgressCallbacks:
             progress_calls.append((stage, percent))
 
         orchestrator_with_mocks.analyze_candidates(
-            project_path=temp_project_dir,
-            language="python",
-            include_test_coverage=False,
-            progress_callback=track_progress
+            project_path=temp_project_dir, language="python", include_test_coverage=False, progress_callback=track_progress
         )
 
         # Extract stage names
@@ -211,22 +192,14 @@ class TestProgressCallbacks:
             progress_calls.append((stage, percent))
 
         orchestrator_with_mocks.analyze_candidates(
-            project_path=temp_project_dir,
-            language="python",
-            include_test_coverage=True,
-            progress_callback=track_progress
+            project_path=temp_project_dir, language="python", include_test_coverage=True, progress_callback=track_progress
         )
 
         # Extract stage names
         stages = [call[0] for call in progress_calls]
 
         # Verify all key stages
-        expected_stages = [
-            "Finding duplicate code",
-            "Ranking candidates by value",
-            "Enriching candidates",
-            "Analysis complete"
-        ]
+        expected_stages = ["Finding duplicate code", "Ranking candidates by value", "Enriching candidates", "Analysis complete"]
 
         for expected in expected_stages:
             assert expected in stages, f"Stage '{expected}' should be reported"
@@ -246,19 +219,16 @@ class TestProgressCallbacks:
             progress_calls.append((stage, percent))
 
         orchestrator_with_mocks.analyze_candidates(
-            project_path=temp_project_dir,
-            language="python",
-            include_test_coverage=True,
-            progress_callback=track_progress
+            project_path=temp_project_dir, language="python", include_test_coverage=True, progress_callback=track_progress
         )
 
         # Verify all percentages are valid
         for stage, percent in progress_calls:
-            assert 0.0 <= percent <= 1.0, \
-                f"Progress percent {percent} for stage '{stage}' is out of range"
+            assert 0.0 <= percent <= 1.0, f"Progress percent {percent} for stage '{stage}' is out of range"
 
     def test_callback_exception_does_not_crash_analysis(self, temp_project_dir, orchestrator_with_mocks):
         """Test that exceptions in callback don't crash the analysis."""
+
         def failing_callback(stage: str, percent: float):
             raise RuntimeError("Callback failed!")
 
@@ -267,10 +237,7 @@ class TestProgressCallbacks:
         #  but this test documents the expected behavior)
         with pytest.raises(RuntimeError, match="Callback failed!"):
             orchestrator_with_mocks.analyze_candidates(
-                project_path=temp_project_dir,
-                language="python",
-                include_test_coverage=False,
-                progress_callback=failing_callback
+                project_path=temp_project_dir, language="python", include_test_coverage=False, progress_callback=failing_callback
             )
 
     def test_progress_with_empty_results(self, temp_project_dir):
@@ -287,10 +254,7 @@ class TestProgressCallbacks:
         orchestrator.detector = mock_detector
 
         orchestrator.analyze_candidates(
-            project_path=temp_project_dir,
-            language="python",
-            include_test_coverage=False,
-            progress_callback=track_progress
+            project_path=temp_project_dir, language="python", include_test_coverage=False, progress_callback=track_progress
         )
 
         # Progress should still be reported
@@ -304,13 +268,10 @@ class TestProgressCallbacks:
         progress_log = []
 
         def show_progress(stage: str, percent: float):
-            progress_log.append(f"[{percent*100:.0f}%] {stage}")
+            progress_log.append(f"[{percent * 100:.0f}%] {stage}")
 
         orchestrator_with_mocks.analyze_candidates(
-            project_path=temp_project_dir,
-            language="python",
-            include_test_coverage=False,
-            progress_callback=show_progress
+            project_path=temp_project_dir, language="python", include_test_coverage=False, progress_callback=show_progress
         )
 
         # Verify example callback produces expected output
@@ -340,24 +301,19 @@ class TestProgressCallbackIntegration:
         mock_detector = Mock()
         mock_detector.find_duplication.return_value = {
             "duplication_groups": [
-                {"similarity": 0.9, "lines_saved": 100, "complexity_score": 3,
-                 "files": ["/tmp/file1.py"]},
+                {"similarity": 0.9, "lines_saved": 100, "complexity_score": 3, "files": ["/tmp/file1.py"]},
             ]
         }
         orchestrator.detector = mock_detector
 
         mock_ranker = Mock()
         mock_ranker.rank_deduplication_candidates.return_value = [
-            {"similarity": 0.9, "lines_saved": 100, "complexity_score": 3,
-             "files": ["/tmp/file1.py"], "score": 85.0, "rank": 1},
+            {"similarity": 0.9, "lines_saved": 100, "complexity_score": 3, "files": ["/tmp/file1.py"], "score": 85.0, "rank": 1},
         ]
         orchestrator.ranker = mock_ranker
 
         orchestrator.analyze_candidates(
-            project_path=temp_project_dir,
-            language="python",
-            include_test_coverage=False,
-            progress_callback=track_progress
+            project_path=temp_project_dir, language="python", include_test_coverage=False, progress_callback=track_progress
         )
 
         # Verify reasonable distribution of progress percentages

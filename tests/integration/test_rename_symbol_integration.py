@@ -28,10 +28,7 @@ def ast_grep_available():
         return False
 
 
-pytestmark = pytest.mark.skipif(
-    not ast_grep_available(),
-    reason="ast-grep binary not found - install with 'cargo install ast-grep'"
-)
+pytestmark = pytest.mark.skipif(not ast_grep_available(), reason="ast-grep binary not found - install with 'cargo install ast-grep'")
 
 
 @pytest.fixture
@@ -168,8 +165,8 @@ class TestSymbolRenamerIntegration:
         usages = [ref for ref in references if not ref.is_definition and not ref.is_import]
 
         assert len(definitions) >= 1  # def calculate(...)
-        assert len(imports) >= 1      # from utils import calculate
-        assert len(usages) >= 1       # calculate(10), calculate(5)
+        assert len(imports) >= 1  # from utils import calculate
+        assert len(usages) >= 1  # calculate(10), calculate(5)
 
     def test_scope_tree_building(self, temp_project):
         """Test scope tree building for Python file."""
@@ -298,7 +295,7 @@ def process():
 
         # But 'results' and 'result_count' should NOT be changed
         assert "results = [output]" in modified_content  # 'results' unchanged
-        assert "result_count" in modified_content         # 'result_count' unchanged
+        assert "result_count" in modified_content  # 'result_count' unchanged
 
     def test_conflict_detection(self, temp_project):
         """Test that naming conflicts are detected."""

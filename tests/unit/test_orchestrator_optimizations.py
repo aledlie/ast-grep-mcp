@@ -25,10 +25,10 @@ class TestComponentInstanceCaching:
         orchestrator = DeduplicationAnalysisOrchestrator()
 
         # Components should not exist yet (lazy initialization)
-        assert not hasattr(orchestrator, '_detector')
-        assert not hasattr(orchestrator, '_ranker')
-        assert not hasattr(orchestrator, '_coverage_detector')
-        assert not hasattr(orchestrator, '_recommendation_engine')
+        assert not hasattr(orchestrator, "_detector")
+        assert not hasattr(orchestrator, "_ranker")
+        assert not hasattr(orchestrator, "_coverage_detector")
+        assert not hasattr(orchestrator, "_recommendation_engine")
 
     def test_detector_lazy_initialization(self):
         """Test that detector is created on first access."""
@@ -36,7 +36,7 @@ class TestComponentInstanceCaching:
 
         # First access creates the instance
         detector1 = orchestrator.detector
-        assert hasattr(orchestrator, '_detector')
+        assert hasattr(orchestrator, "_detector")
         assert detector1 is not None
 
         # Subsequent access returns the same instance
@@ -49,7 +49,7 @@ class TestComponentInstanceCaching:
 
         # First access creates the instance
         ranker1 = orchestrator.ranker
-        assert hasattr(orchestrator, '_ranker')
+        assert hasattr(orchestrator, "_ranker")
         assert ranker1 is not None
 
         # Subsequent access returns the same instance
@@ -62,7 +62,7 @@ class TestComponentInstanceCaching:
 
         # First access creates the instance
         detector1 = orchestrator.coverage_detector
-        assert hasattr(orchestrator, '_coverage_detector')
+        assert hasattr(orchestrator, "_coverage_detector")
         assert detector1 is not None
 
         # Subsequent access returns the same instance
@@ -75,7 +75,7 @@ class TestComponentInstanceCaching:
 
         # First access creates the instance
         engine1 = orchestrator.recommendation_engine
-        assert hasattr(orchestrator, '_recommendation_engine')
+        assert hasattr(orchestrator, "_recommendation_engine")
         assert engine1 is not None
 
         # Subsequent access returns the same instance
@@ -133,10 +133,7 @@ class TestInputValidation:
         orchestrator = DeduplicationAnalysisOrchestrator()
 
         with pytest.raises(ValueError, match="Project path does not exist"):
-            orchestrator.analyze_candidates(
-                project_path="/nonexistent/path",
-                language="python"
-            )
+            orchestrator.analyze_candidates(project_path="/nonexistent/path", language="python")
 
     def test_invalid_project_path_not_directory(self, temp_project_dir):
         """Test validation fails for project path that is not a directory."""
@@ -147,76 +144,49 @@ class TestInputValidation:
         Path(file_path).touch()
 
         with pytest.raises(ValueError, match="Project path is not a directory"):
-            orchestrator.analyze_candidates(
-                project_path=file_path,
-                language="python"
-            )
+            orchestrator.analyze_candidates(project_path=file_path, language="python")
 
     def test_invalid_min_similarity_too_low(self, temp_project_dir):
         """Test validation fails for min_similarity < 0.0."""
         orchestrator = DeduplicationAnalysisOrchestrator()
 
         with pytest.raises(ValueError, match="min_similarity must be between 0.0 and 1.0"):
-            orchestrator.analyze_candidates(
-                project_path=temp_project_dir,
-                language="python",
-                min_similarity=-0.1
-            )
+            orchestrator.analyze_candidates(project_path=temp_project_dir, language="python", min_similarity=-0.1)
 
     def test_invalid_min_similarity_too_high(self, temp_project_dir):
         """Test validation fails for min_similarity > 1.0."""
         orchestrator = DeduplicationAnalysisOrchestrator()
 
         with pytest.raises(ValueError, match="min_similarity must be between 0.0 and 1.0"):
-            orchestrator.analyze_candidates(
-                project_path=temp_project_dir,
-                language="python",
-                min_similarity=1.5
-            )
+            orchestrator.analyze_candidates(project_path=temp_project_dir, language="python", min_similarity=1.5)
 
     def test_invalid_min_lines_zero(self, temp_project_dir):
         """Test validation fails for min_lines = 0."""
         orchestrator = DeduplicationAnalysisOrchestrator()
 
         with pytest.raises(ValueError, match="min_lines must be a positive integer"):
-            orchestrator.analyze_candidates(
-                project_path=temp_project_dir,
-                language="python",
-                min_lines=0
-            )
+            orchestrator.analyze_candidates(project_path=temp_project_dir, language="python", min_lines=0)
 
     def test_invalid_min_lines_negative(self, temp_project_dir):
         """Test validation fails for min_lines < 0."""
         orchestrator = DeduplicationAnalysisOrchestrator()
 
         with pytest.raises(ValueError, match="min_lines must be a positive integer"):
-            orchestrator.analyze_candidates(
-                project_path=temp_project_dir,
-                language="python",
-                min_lines=-5
-            )
+            orchestrator.analyze_candidates(project_path=temp_project_dir, language="python", min_lines=-5)
 
     def test_invalid_max_candidates_zero(self, temp_project_dir):
         """Test validation fails for max_candidates = 0."""
         orchestrator = DeduplicationAnalysisOrchestrator()
 
         with pytest.raises(ValueError, match="max_candidates must be a positive integer"):
-            orchestrator.analyze_candidates(
-                project_path=temp_project_dir,
-                language="python",
-                max_candidates=0
-            )
+            orchestrator.analyze_candidates(project_path=temp_project_dir, language="python", max_candidates=0)
 
     def test_invalid_max_candidates_negative(self, temp_project_dir):
         """Test validation fails for max_candidates < 0."""
         orchestrator = DeduplicationAnalysisOrchestrator()
 
         with pytest.raises(ValueError, match="max_candidates must be a positive integer"):
-            orchestrator.analyze_candidates(
-                project_path=temp_project_dir,
-                language="python",
-                max_candidates=-10
-            )
+            orchestrator.analyze_candidates(project_path=temp_project_dir, language="python", max_candidates=-10)
 
     def test_valid_inputs_pass_validation(self, temp_project_dir, monkeypatch):
         """Test that valid inputs pass validation (but fail later due to no files)."""
@@ -230,11 +200,7 @@ class TestInputValidation:
 
         # This should pass validation but return empty results
         orchestrator.analyze_candidates(
-            project_path=temp_project_dir,
-            language="python",
-            min_similarity=0.8,
-            min_lines=5,
-            max_candidates=100
+            project_path=temp_project_dir, language="python", min_similarity=0.8, min_lines=5, max_candidates=100
         )
 
         # Validation passed, detector was called
@@ -290,7 +256,7 @@ class TestNamingConsistency:
         result = orchestrator.analyze_candidates(
             project_path=temp_project_dir,
             language="python",
-            max_candidates=1  # Only return 1 candidate
+            max_candidates=1,  # Only return 1 candidate
         )
 
         # Check new naming structure
@@ -310,19 +276,12 @@ class TestNamingConsistency:
         # Mock detector to return 5 candidates
         mock_detector = Mock()
         mock_detector.find_duplication.return_value = {
-            "duplication_groups": [
-                {"lines_saved": i * 10, "complexity_score": i}
-                for i in range(1, 6)
-            ]
+            "duplication_groups": [{"lines_saved": i * 10, "complexity_score": i} for i in range(1, 6)]
         }
         orchestrator.detector = mock_detector
 
         # Request only top 3
-        result = orchestrator.analyze_candidates(
-            project_path=temp_project_dir,
-            language="python",
-            max_candidates=3
-        )
+        result = orchestrator.analyze_candidates(project_path=temp_project_dir, language="python", max_candidates=3)
 
         # Verify counts
         assert result["total_groups_analyzed"] == 3  # After early exit, only 3 ranked
@@ -346,11 +305,7 @@ class TestNamingConsistency:
         orchestrator.detector = mock_detector
 
         # Request only top 2
-        result = orchestrator.analyze_candidates(
-            project_path=temp_project_dir,
-            language="python",
-            max_candidates=2
-        )
+        result = orchestrator.analyze_candidates(project_path=temp_project_dir, language="python", max_candidates=2)
 
         # top_candidates_savings_potential should only include top 2
         # Expected: 100*1 + 50*1 = 150
@@ -365,12 +320,7 @@ class TestNamingConsistency:
         mock_detector = Mock()
         mock_detector.find_duplication.return_value = {
             "duplication_groups": [
-                {
-                    "similarity": 0.9,
-                    "lines_saved": 100,
-                    "files": ["/tmp/file1.py", "/tmp/file2.py"],
-                    "complexity_score": 3
-                }
+                {"similarity": 0.9, "lines_saved": 100, "files": ["/tmp/file1.py", "/tmp/file2.py"], "complexity_score": 3}
             ]
         }
         orchestrator.detector = mock_detector
@@ -384,17 +334,13 @@ class TestNamingConsistency:
                 "files": ["/tmp/file1.py", "/tmp/file2.py"],
                 "complexity_score": 3,
                 "score": 75.0,
-                "rank": 1
+                "rank": 1,
             }
         ]
         orchestrator.ranker = mock_ranker
 
         # Run analysis without test coverage to avoid file I/O
-        orchestrator.analyze_candidates(
-            project_path=temp_project_dir,
-            language="python",
-            include_test_coverage=False
-        )
+        orchestrator.analyze_candidates(project_path=temp_project_dir, language="python", include_test_coverage=False)
 
         # Capture stdout (structlog outputs to stdout)
         captured = capsys.readouterr()
@@ -415,11 +361,7 @@ class TestParallelEnrichUtility:
         orchestrator = DeduplicationAnalysisOrchestrator()
 
         # Create test candidates
-        candidates = [
-            {"id": "c1", "value": 0},
-            {"id": "c2", "value": 0},
-            {"id": "c3", "value": 0}
-        ]
+        candidates = [{"id": "c1", "value": 0}, {"id": "c2", "value": 0}, {"id": "c3", "value": 0}]
 
         # Mock enrichment function
         def enrich_func(candidate, increment):
@@ -433,7 +375,7 @@ class TestParallelEnrichUtility:
             error_field="test_error",
             default_error_value={"value": -1},
             parallel=False,
-            increment=10
+            increment=10,
         )
 
         # Verify all candidates enriched
@@ -445,11 +387,7 @@ class TestParallelEnrichUtility:
         orchestrator = DeduplicationAnalysisOrchestrator()
 
         # Create test candidates
-        candidates = [
-            {"id": "c1", "value": 0},
-            {"id": "c2", "value": 0},
-            {"id": "c3", "value": 0}
-        ]
+        candidates = [{"id": "c1", "value": 0}, {"id": "c2", "value": 0}, {"id": "c3", "value": 0}]
 
         # Mock enrichment function
         def enrich_func(candidate, increment):
@@ -464,7 +402,7 @@ class TestParallelEnrichUtility:
             default_error_value={"value": -1},
             parallel=True,
             max_workers=2,
-            increment=10
+            increment=10,
         )
 
         # Verify all candidates enriched
@@ -491,7 +429,7 @@ class TestParallelEnrichUtility:
             operation_name="test",
             error_field="error",
             default_error_value={},
-            parallel=True
+            parallel=True,
         )
 
         # Verify sequential execution
@@ -503,11 +441,7 @@ class TestParallelEnrichUtility:
         """Test error handling in sequential mode."""
         orchestrator = DeduplicationAnalysisOrchestrator()
 
-        candidates = [
-            {"id": "c1"},
-            {"id": "c2"},
-            {"id": "c3"}
-        ]
+        candidates = [{"id": "c1"}, {"id": "c2"}, {"id": "c3"}]
 
         # Enrich function that fails for c2
         def enrich_func(candidate):
@@ -521,7 +455,7 @@ class TestParallelEnrichUtility:
             operation_name="test",
             error_field="error_msg",
             default_error_value={"success": False},
-            parallel=False
+            parallel=False,
         )
 
         # Verify error handling
@@ -541,12 +475,7 @@ class TestParallelEnrichUtility:
         """Test error handling in parallel mode."""
         orchestrator = DeduplicationAnalysisOrchestrator()
 
-        candidates = [
-            {"id": "c1"},
-            {"id": "c2"},
-            {"id": "c3"},
-            {"id": "c4"}
-        ]
+        candidates = [{"id": "c1"}, {"id": "c2"}, {"id": "c3"}, {"id": "c4"}]
 
         # Enrich function that fails for c2 and c4
         def enrich_func(candidate):
@@ -561,7 +490,7 @@ class TestParallelEnrichUtility:
             error_field="error_msg",
             default_error_value={"success": False},
             parallel=True,
-            max_workers=2
+            max_workers=2,
         )
 
         # Verify error handling
@@ -596,12 +525,8 @@ class TestParallelEnrichUtility:
             enrich_func=failing_func,
             operation_name="test",
             error_field="error",
-            default_error_value={
-                "field1": "default1",
-                "field2": 42,
-                "field3": False
-            },
-            parallel=False
+            default_error_value={"field1": "default1", "field2": 42, "field3": False},
+            parallel=False,
         )
 
         # Verify all default fields were set
@@ -631,7 +556,7 @@ class TestParallelEnrichUtility:
             parallel=False,
             arg1="value1",
             arg2=123,
-            arg3="optional"
+            arg3="optional",
         )
 
         # Verify kwargs were passed
@@ -654,7 +579,7 @@ class TestParallelEnrichUtility:
             operation_name="test_operation",
             error_field="error",
             default_error_value={},
-            parallel=True
+            parallel=True,
         )
 
         captured = capsys.readouterr()
@@ -682,7 +607,7 @@ class TestParallelEnrichUtility:
             operation_name="test_op",
             error_field="error",
             default_error_value={"ok": False},
-            parallel=False
+            parallel=False,
         )
 
         captured = capsys.readouterr()
@@ -696,11 +621,7 @@ class TestParallelEnrichUtility:
         """Test that _parallel_enrich returns list of failed candidates."""
         orchestrator = DeduplicationAnalysisOrchestrator()
 
-        candidates = [
-            {"id": "c1", "value": 1},
-            {"id": "c2", "value": 2},
-            {"id": "c3", "value": 3}
-        ]
+        candidates = [{"id": "c1", "value": 1}, {"id": "c2", "value": 2}, {"id": "c3", "value": 3}]
 
         def enrich_func(candidate):
             if candidate["value"] == 2:
@@ -713,7 +634,7 @@ class TestParallelEnrichUtility:
             operation_name="test",
             error_field="error",
             default_error_value={"processed": False},
-            parallel=False
+            parallel=False,
         )
 
         # Verify return value
@@ -730,14 +651,8 @@ class TestParallelEnrichUtility:
         candidates = [{"id": "c1", "files": ["/tmp/test.py"]}]
 
         # Patch _parallel_enrich to verify it's called
-        with patch.object(orchestrator, '_parallel_enrich', return_value=[]) as mock_parallel:
-            orchestrator._add_test_coverage(
-                candidates=candidates,
-                language="python",
-                project_path="/tmp",
-                parallel=True,
-                max_workers=4
-            )
+        with patch.object(orchestrator, "_parallel_enrich", return_value=[]) as mock_parallel:
+            orchestrator._add_test_coverage(candidates=candidates, language="python", project_path="/tmp", parallel=True, max_workers=4)
 
             # Verify _parallel_enrich was called with correct arguments
             assert mock_parallel.called
@@ -755,12 +670,8 @@ class TestParallelEnrichUtility:
         candidates = [{"id": "c1", "score": 75}]
 
         # Patch _parallel_enrich to verify it's called
-        with patch.object(orchestrator, '_parallel_enrich', return_value=[]) as mock_parallel:
-            orchestrator._add_recommendations(
-                candidates=candidates,
-                parallel=True,
-                max_workers=4
-            )
+        with patch.object(orchestrator, "_parallel_enrich", return_value=[]) as mock_parallel:
+            orchestrator._add_recommendations(candidates=candidates, parallel=True, max_workers=4)
 
             # Verify _parallel_enrich was called with correct arguments
             assert mock_parallel.called
@@ -787,7 +698,7 @@ class TestParallelEnrichUtility:
                 error_field="error",
                 default_error_value={},
                 parallel=True,
-                max_workers=max_workers
+                max_workers=max_workers,
             )
 
             # Verify execution completed successfully
@@ -797,6 +708,7 @@ class TestParallelEnrichUtility:
     def test_parallel_enrich_timeout_parameter_accepted(self):
         """Test that timeout_per_candidate parameter is accepted."""
         import time
+
         orchestrator = DeduplicationAnalysisOrchestrator()
         candidates = [{"id": "c1"}, {"id": "c2"}]
 
@@ -812,7 +724,7 @@ class TestParallelEnrichUtility:
             error_field="error",
             default_error_value={},
             parallel=True,
-            timeout_per_candidate=5  # 5 seconds should be plenty
+            timeout_per_candidate=5,  # 5 seconds should be plenty
         )
 
         # Verify successful execution with timeout set
@@ -839,7 +751,7 @@ class TestParallelEnrichUtility:
             operation_name="test",
             error_field="error",
             default_error_value={},
-            parallel=True
+            parallel=True,
         )
 
         # Verify execution completed (default timeout should be sufficient)
@@ -853,8 +765,8 @@ class TestParallelEnrichUtility:
         from ast_grep_mcp.constants import ParallelProcessing
 
         # Verify timeout constants exist and have reasonable values
-        assert hasattr(ParallelProcessing, 'DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS')
-        assert hasattr(ParallelProcessing, 'MAX_TIMEOUT_SECONDS')
+        assert hasattr(ParallelProcessing, "DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS")
+        assert hasattr(ParallelProcessing, "MAX_TIMEOUT_SECONDS")
         assert ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS > 0
         assert ParallelProcessing.MAX_TIMEOUT_SECONDS > ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS
 
@@ -879,7 +791,7 @@ class TestParallelEnrichUtility:
                 error_field="error",
                 default_error_value={},
                 parallel=True,
-                timeout_per_candidate=timeout_val
+                timeout_per_candidate=timeout_val,
             )
             assert len(failed) == 0
             assert test_candidates[0]["done"] is True
@@ -890,16 +802,17 @@ class TestParallelEnrichUtility:
 
         # Verify _parallel_enrich has timeout parameter
         import inspect
+
         parallel_sig = inspect.signature(orchestrator._parallel_enrich)
-        assert 'timeout_per_candidate' in parallel_sig.parameters
+        assert "timeout_per_candidate" in parallel_sig.parameters
 
         # Verify _add_recommendations has timeout parameter
         rec_sig = inspect.signature(orchestrator._add_recommendations)
-        assert 'timeout_per_candidate' in rec_sig.parameters
+        assert "timeout_per_candidate" in rec_sig.parameters
 
         # Verify _add_test_coverage_batch has timeout parameter
         cov_sig = inspect.signature(orchestrator._add_test_coverage_batch)
-        assert 'timeout_per_candidate' in cov_sig.parameters
+        assert "timeout_per_candidate" in cov_sig.parameters
 
     def test_add_recommendations_accepts_timeout(self):
         """Test that _add_recommendations accepts timeout_per_candidate parameter."""
@@ -910,7 +823,7 @@ class TestParallelEnrichUtility:
         failed = orchestrator._add_recommendations(
             candidates=candidates,
             parallel=False,  # Sequential to avoid actual parallelism
-            timeout_per_candidate=30
+            timeout_per_candidate=30,
         )
 
         # Verify it ran without error
@@ -935,7 +848,7 @@ class TestParallelEnrichUtility:
             language="python",
             project_path=str(temp_project_dir),
             parallel=False,  # Sequential to avoid complexity
-            timeout_per_candidate=30
+            timeout_per_candidate=30,
         )
 
         # Verify it ran without error and added coverage info

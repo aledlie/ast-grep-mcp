@@ -24,41 +24,11 @@ class TestDuplicationRanker:
     def sample_candidates(self):
         """Provide sample candidates for testing."""
         return [
-            {
-                "lines_saved": 100,
-                "complexity_score": 5,
-                "has_tests": True,
-                "affected_files": 3,
-                "external_call_sites": 10
-            },
-            {
-                "lines_saved": 50,
-                "complexity_score": 8,
-                "has_tests": False,
-                "affected_files": 2,
-                "external_call_sites": 5
-            },
-            {
-                "lines_saved": 80,
-                "complexity_score": 3,
-                "has_tests": True,
-                "affected_files": 4,
-                "external_call_sites": 8
-            },
-            {
-                "lines_saved": 30,
-                "complexity_score": 10,
-                "has_tests": False,
-                "affected_files": 1,
-                "external_call_sites": 2
-            },
-            {
-                "lines_saved": 60,
-                "complexity_score": 6,
-                "has_tests": True,
-                "affected_files": 2,
-                "external_call_sites": 6
-            }
+            {"lines_saved": 100, "complexity_score": 5, "has_tests": True, "affected_files": 3, "external_call_sites": 10},
+            {"lines_saved": 50, "complexity_score": 8, "has_tests": False, "affected_files": 2, "external_call_sites": 5},
+            {"lines_saved": 80, "complexity_score": 3, "has_tests": True, "affected_files": 4, "external_call_sites": 8},
+            {"lines_saved": 30, "complexity_score": 10, "has_tests": False, "affected_files": 1, "external_call_sites": 2},
+            {"lines_saved": 60, "complexity_score": 6, "has_tests": True, "affected_files": 2, "external_call_sites": 6},
         ]
 
     def test_rank_all_candidates(self, ranker, sample_candidates):
@@ -85,10 +55,7 @@ class TestDuplicationRanker:
     def test_rank_with_max_results(self, ranker, sample_candidates):
         """Test early exit optimization with max_results parameter."""
         max_results = 3
-        ranked = ranker.rank_deduplication_candidates(
-            sample_candidates,
-            max_results=max_results
-        )
+        ranked = ranker.rank_deduplication_candidates(sample_candidates, max_results=max_results)
 
         # Should return only 3 candidates (early exit)
         assert len(ranked) == max_results
@@ -110,10 +77,7 @@ class TestDuplicationRanker:
     def test_max_results_greater_than_candidates(self, ranker, sample_candidates):
         """Test max_results when it exceeds number of candidates."""
         max_results = 10
-        ranked = ranker.rank_deduplication_candidates(
-            sample_candidates,
-            max_results=max_results
-        )
+        ranked = ranker.rank_deduplication_candidates(sample_candidates, max_results=max_results)
 
         # Should return all 5 candidates (not 10)
         assert len(ranked) == 5
@@ -124,20 +88,14 @@ class TestDuplicationRanker:
 
     def test_max_results_zero(self, ranker, sample_candidates):
         """Test max_results=0 returns all candidates."""
-        ranked = ranker.rank_deduplication_candidates(
-            sample_candidates,
-            max_results=0
-        )
+        ranked = ranker.rank_deduplication_candidates(sample_candidates, max_results=0)
 
         # max_results=0 is treated as None (return all)
         assert len(ranked) == 5
 
     def test_max_results_one(self, ranker, sample_candidates):
         """Test max_results=1 returns only top candidate."""
-        ranked = ranker.rank_deduplication_candidates(
-            sample_candidates,
-            max_results=1
-        )
+        ranked = ranker.rank_deduplication_candidates(sample_candidates, max_results=1)
 
         # Should return only 1 candidate
         assert len(ranked) == 1
@@ -163,11 +121,7 @@ class TestDuplicationRanker:
 
     def test_include_analysis_true(self, ranker, sample_candidates):
         """Test with include_analysis=True adds score_breakdown."""
-        ranked = ranker.rank_deduplication_candidates(
-            sample_candidates,
-            include_analysis=True,
-            max_results=2
-        )
+        ranked = ranker.rank_deduplication_candidates(sample_candidates, include_analysis=True, max_results=2)
 
         # Should include score_breakdown
         for candidate in ranked:
@@ -175,11 +129,7 @@ class TestDuplicationRanker:
 
     def test_include_analysis_false(self, ranker, sample_candidates):
         """Test with include_analysis=False excludes score_breakdown."""
-        ranked = ranker.rank_deduplication_candidates(
-            sample_candidates,
-            include_analysis=False,
-            max_results=2
-        )
+        ranked = ranker.rank_deduplication_candidates(sample_candidates, include_analysis=False, max_results=2)
 
         # Should not include score_breakdown
         for candidate in ranked:
@@ -187,10 +137,7 @@ class TestDuplicationRanker:
 
     def test_max_results_negative(self, ranker, sample_candidates):
         """Test max_results with negative value returns all candidates."""
-        ranked = ranker.rank_deduplication_candidates(
-            sample_candidates,
-            max_results=-1
-        )
+        ranked = ranker.rank_deduplication_candidates(sample_candidates, max_results=-1)
 
         # Negative value should return all candidates (not trigger early exit)
         assert len(ranked) == 5
@@ -210,16 +157,13 @@ class TestEarlyExitPerformance:
                 "complexity_score": (i % 10) + 1,
                 "has_tests": i % 2 == 0,
                 "affected_files": (i % 5) + 1,
-                "external_call_sites": i * 2
+                "external_call_sites": i * 2,
             }
             for i in range(100)
         ]
 
         # Rank with max_results=10
-        ranked = ranker.rank_deduplication_candidates(
-            candidates,
-            max_results=10
-        )
+        ranked = ranker.rank_deduplication_candidates(candidates, max_results=10)
 
         # Should return exactly 10 candidates
         assert len(ranked) == 10

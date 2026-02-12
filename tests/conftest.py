@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Cache Management Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def clean_cache():
     """Clear the query cache before each test to avoid interference.
@@ -28,6 +29,7 @@ def clean_cache():
     This fixture is automatically used by tests that need cache isolation.
     """
     from ast_grep_mcp.core import cache as core_cache
+
     if core_cache._query_cache is not None:
         core_cache._query_cache.cache.clear()
     yield
@@ -44,6 +46,7 @@ def query_cache():
         QueryCache instance for testing
     """
     from ast_grep_mcp.core.cache import QueryCache
+
     cache = QueryCache()
     yield cache
     cache.cache.clear()
@@ -52,6 +55,7 @@ def query_cache():
 # ============================================================================
 # Temporary Directory Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def temp_dir() -> Generator[str, None, None]:
@@ -91,6 +95,7 @@ def temp_project_dir(temp_dir) -> str:
 # ============================================================================
 # Sample Code Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def sample_python_code() -> str:
@@ -164,6 +169,7 @@ def sample_complex_code() -> str:
 # Mock MCP Server Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_mcp_instance():
     """Provide a mock MCP server instance for testing tools.
@@ -174,6 +180,7 @@ def mock_mcp_instance():
 
     class MockFastMCP:
         """Mock FastMCP instance for testing."""
+
         def __init__(self):
             self.tools = {}
             self._resources = []
@@ -181,23 +188,29 @@ def mock_mcp_instance():
 
         def tool(self):
             """Decorator for registering tools."""
+
             def decorator(func):
                 self.tools[func.__name__] = func
                 return func
+
             return decorator
 
         def resource(self, uri: str):
             """Decorator for registering resources."""
+
             def decorator(func):
                 self._resources.append((uri, func))
                 return func
+
             return decorator
 
         def prompt(self):
             """Decorator for registering prompts."""
+
             def decorator(func):
                 self._prompts.append(func)
                 return func
+
             return decorator
 
     return MockFastMCP()
@@ -206,6 +219,7 @@ def mock_mcp_instance():
 # ============================================================================
 # File Creation Helpers
 # ============================================================================
+
 
 @pytest.fixture
 def create_test_file(temp_dir):
@@ -217,6 +231,7 @@ def create_test_file(temp_dir):
     Returns:
         Callable: Function to create files with content
     """
+
     def _create_file(filename: str, content: str, subdir: str = "") -> Path:
         """Create a file with given content in temp directory.
 
@@ -245,6 +260,7 @@ def create_test_file(temp_dir):
 # Deduplication Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def sample_duplication_matches() -> list[dict]:
     """Provide sample code matches for deduplication testing.
@@ -253,30 +269,16 @@ def sample_duplication_matches() -> list[dict]:
         list: Sample match dictionaries
     """
     return [
-        {
-            "text": "def foo():\n    return 1",
-            "file": "file1.py",
-            "start_line": 1,
-            "end_line": 2
-        },
-        {
-            "text": "def bar():\n    return 1",
-            "file": "file2.py",
-            "start_line": 1,
-            "end_line": 2
-        },
-        {
-            "text": "def baz():\n    return 2",
-            "file": "file3.py",
-            "start_line": 1,
-            "end_line": 2
-        }
+        {"text": "def foo():\n    return 1", "file": "file1.py", "start_line": 1, "end_line": 2},
+        {"text": "def bar():\n    return 1", "file": "file2.py", "start_line": 1, "end_line": 2},
+        {"text": "def baz():\n    return 2", "file": "file3.py", "start_line": 1, "end_line": 2},
     ]
 
 
 # ============================================================================
 # Schema.org Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def mock_schema_client():
@@ -285,19 +287,14 @@ def mock_schema_client():
     Returns:
         Mock client with basic schema data
     """
+
     class MockSchemaClient:
         """Mock SchemaOrgClient for testing."""
+
         def __init__(self):
             self.types = {
-                "Thing": {
-                    "label": "Thing",
-                    "comment": "The most generic type of item."
-                },
-                "Person": {
-                    "label": "Person",
-                    "comment": "A person (alive, dead, undead, or fictional).",
-                    "subClassOf": "Thing"
-                }
+                "Thing": {"label": "Thing", "comment": "The most generic type of item."},
+                "Person": {"label": "Person", "comment": "A person (alive, dead, undead, or fictional).", "subClassOf": "Thing"},
             }
 
         def get_schema_type(self, type_name: str) -> dict:
@@ -312,6 +309,7 @@ def mock_schema_client():
 # ============================================================================
 # Auto-use Fixtures
 # ============================================================================
+
 
 @pytest.fixture(autouse=True)
 def reset_module_state():
@@ -331,6 +329,7 @@ def reset_module_state():
 # Common language parameter sets
 SUPPORTED_LANGUAGES = ["python", "javascript", "typescript", "java", "go", "rust"]
 
+
 @pytest.fixture(params=SUPPORTED_LANGUAGES)
 def language(request):
     """Parametrize tests across all supported languages.
@@ -346,6 +345,7 @@ def language(request):
 # Common similarity thresholds
 SIMILARITY_THRESHOLDS = [0.7, 0.8, 0.85, 0.9, 0.95]
 
+
 @pytest.fixture(params=SIMILARITY_THRESHOLDS)
 def similarity_threshold(request):
     """Parametrize tests across common similarity thresholds."""
@@ -357,6 +357,7 @@ def similarity_threshold(request):
 def duplication_detector():
     """Provide DuplicationDetector instance."""
     from ast_grep_mcp.features.deduplication.detector import DuplicationDetector
+
     return DuplicationDetector(language="python")
 
 
@@ -364,6 +365,7 @@ def duplication_detector():
 def pattern_analyzer():
     """Provide PatternAnalyzer instance."""
     from ast_grep_mcp.features.deduplication.analyzer import PatternAnalyzer
+
     return PatternAnalyzer()
 
 
@@ -371,6 +373,7 @@ def pattern_analyzer():
 def code_generator():
     """Provide CodeGenerator instance."""
     from ast_grep_mcp.features.deduplication.generator import CodeGenerator
+
     return CodeGenerator(language="python")
 
 
@@ -378,6 +381,7 @@ def code_generator():
 def duplication_ranker():
     """Provide DuplicationRanker instance."""
     from ast_grep_mcp.features.deduplication.ranker import DuplicationRanker
+
     return DuplicationRanker()
 
 
@@ -385,12 +389,14 @@ def duplication_ranker():
 def recommendation_engine():
     """Provide RecommendationEngine instance."""
     from ast_grep_mcp.features.deduplication.recommendations import RecommendationEngine
+
     return RecommendationEngine()
 
 
 # ============================================================================
 # Cache Management with Registration
 # ============================================================================
+
 
 @pytest.fixture
 def initialized_cache():
@@ -427,6 +433,7 @@ def initialized_cache():
 # ============================================================================
 # Enhanced Temporary Project Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def temp_project_with_files(temp_dir):
@@ -503,6 +510,7 @@ def temp_project_with_files(temp_dir):
 # ============================================================================
 # MCP Tool Access Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def mcp_tools():
@@ -597,9 +605,7 @@ def mcp_tools():
         tool = tools.get(tool_name)
         if tool is None:
             available = list(tools.keys())
-            raise ValueError(
-                f"Tool '{tool_name}' not found. Available: {available}"
-            )
+            raise ValueError(f"Tool '{tool_name}' not found. Available: {available}")
         return tool
 
     return get_tool
@@ -608,6 +614,7 @@ def mcp_tools():
 # ============================================================================
 # Mock Subprocess Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def mock_ast_grep_process():
@@ -639,6 +646,7 @@ def mock_ast_grep_process():
 # Test Coverage Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def sample_test_paths() -> dict[str, str]:
     """Provide sample test file paths for coverage testing.
@@ -668,6 +676,7 @@ def sample_test_paths() -> dict[str, str]:
 # Complexity Analysis Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def sample_complexity_thresholds():
     """Provide standard complexity thresholds for testing.
@@ -685,11 +694,12 @@ def sample_complexity_thresholds():
         ComplexityThresholds: Standard threshold configuration
     """
     from ast_grep_mcp.models.complexity import ComplexityThresholds
+
     return ComplexityThresholds(
         cyclomatic=10,
         cognitive=15,
         nesting_depth=4,  # Correct parameter name
-        lines=50  # Correct parameter name
+        lines=50,  # Correct parameter name
     )
 
 
@@ -727,18 +737,21 @@ def sample_function_code() -> dict[str, str]:
                         return 1
     return 0
 """,
-        "long_function": "\n".join([
-            "def very_long_function():",
-            "    x = 1",
-        ] + [f"    x += {i}" for i in range(100)] + [
-            "    return x"
-        ])
+        "long_function": "\n".join(
+            [
+                "def very_long_function():",
+                "    x = 1",
+            ]
+            + [f"    x += {i}" for i in range(100)]
+            + ["    return x"]
+        ),
     }
 
 
 # ============================================================================
 # Code Quality & Linting Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def sample_linting_rule():
@@ -757,13 +770,14 @@ def sample_linting_rule():
         LintingRule: Sample rule instance
     """
     from ast_grep_mcp.models.standards import LintingRule
+
     return LintingRule(
         id="test-rule",
         language="python",
         severity="warning",
         message="Test message",
         pattern="test_pattern",
-        note="This is a test rule for unit tests"
+        note="This is a test rule for unit tests",
     )
 
 
@@ -780,21 +794,22 @@ def sample_rule_templates() -> list[dict]:
             "language": "javascript",
             "category": "general",
             "pattern": "console.log($$$)",
-            "message": "Avoid console.log in production code"
+            "message": "Avoid console.log in production code",
         },
         {
             "id": "no-bare-except",
             "language": "python",
             "category": "security",
             "pattern": "except:",
-            "message": "Avoid bare except clauses"
-        }
+            "message": "Avoid bare except clauses",
+        },
     ]
 
 
 # ============================================================================
 # Backup Management Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def backup_dir(temp_dir):
@@ -829,6 +844,7 @@ def backup_dir(temp_dir):
 # ============================================================================
 # File Content Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def sample_typescript_code() -> str:
@@ -878,6 +894,7 @@ def sample_java_code() -> str:
 # Schema.org Extended Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def sample_schema_types() -> list[dict]:
     """Provide sample Schema.org type definitions.
@@ -886,32 +903,28 @@ def sample_schema_types() -> list[dict]:
         list: Sample type dictionaries with properties
     """
     return [
-        {
-            "id": "Thing",
-            "label": "Thing",
-            "comment": "The most generic type of item.",
-            "properties": ["name", "description", "url"]
-        },
+        {"id": "Thing", "label": "Thing", "comment": "The most generic type of item.", "properties": ["name", "description", "url"]},
         {
             "id": "Person",
             "label": "Person",
             "comment": "A person (alive, dead, undead, or fictional).",
             "subClassOf": "Thing",
-            "properties": ["name", "givenName", "familyName", "email"]
+            "properties": ["name", "givenName", "familyName", "email"],
         },
         {
             "id": "Article",
             "label": "Article",
             "comment": "An article, such as a news article or piece of investigative report.",
             "subClassOf": "CreativeWork",
-            "properties": ["headline", "author", "datePublished", "articleBody"]
-        }
+            "properties": ["headline", "author", "datePublished", "articleBody"],
+        },
     ]
 
 
 # ============================================================================
 # Deduplication Extended Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def sample_deduplication_result() -> dict:
@@ -930,12 +943,12 @@ def sample_deduplication_result() -> dict:
                 "recommendation": "extract_function",
                 "duplication_groups": [
                     {"file": "file1.py", "start_line": 10, "end_line": 20},
-                    {"file": "file2.py", "start_line": 15, "end_line": 25}
-                ]
+                    {"file": "file2.py", "start_line": 15, "end_line": 25},
+                ],
             }
         ],
         "total_candidates": 1,
-        "analyzed_files": 10
+        "analyzed_files": 10,
     }
 
 
@@ -1041,6 +1054,7 @@ Test with complexity:
 # Code Rewrite Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def rewrite_sample_file(temp_dir):
     """Create a sample Python file for rewrite testing.
@@ -1084,9 +1098,9 @@ def rewrite_tools(mcp_tools):
             backups = rewrite_tools['list_backups'](...)
     """
     return {
-        'rewrite_code': mcp_tools('rewrite_code'),
-        'rollback_rewrite': mcp_tools('rollback_rewrite'),
-        'list_backups': mcp_tools('list_backups')
+        "rewrite_code": mcp_tools("rewrite_code"),
+        "rollback_rewrite": mcp_tools("rollback_rewrite"),
+        "list_backups": mcp_tools("list_backups"),
     }
 
 
@@ -1117,8 +1131,4 @@ def rewrite_test_files(temp_dir):
     with open(file2, "w") as f:
         f.write("console.log('file2')\n")
 
-    return {
-        'file1': file1,
-        'file2': file2,
-        'project_folder': temp_dir
-    }
+    return {"file1": file1, "file2": file2, "project_folder": temp_dir}

@@ -14,6 +14,7 @@ Usage:
     python tests/scripts/track_fixture_metrics.py --history
     python tests/scripts/track_fixture_metrics.py --json
 """
+
 import argparse
 import ast
 import json
@@ -29,6 +30,7 @@ from ast_grep_mcp.utils.console_logger import console
 @dataclass
 class FixtureUsageMetrics:
     """Metrics for fixture usage."""
+
     fixture_name: str
     usage_count: int
     files_used_in: List[str]
@@ -38,6 +40,7 @@ class FixtureUsageMetrics:
 @dataclass
 class TestFileCategory:
     """Categorize test files by testing approach."""
+
     fixture_based: List[str]  # Uses only fixtures
     setup_method_based: List[str]  # Uses setup_method
     mixed: List[str]  # Uses both
@@ -47,6 +50,7 @@ class TestFileCategory:
 @dataclass
 class AdoptionMetrics:
     """Overall fixture adoption metrics."""
+
     date: str
     total_test_files: int
     total_test_functions: int
@@ -117,12 +121,7 @@ class FixtureMetricsTracker:
             content = file_path.read_text()
             tree = ast.parse(content)
         except SyntaxError:
-            return {
-                "test_count": 0,
-                "fixtures_used": set(),
-                "has_setup_method": False,
-                "category": "neither"
-            }
+            return {"test_count": 0, "fixtures_used": set(), "has_setup_method": False, "category": "neither"}
 
         test_count = 0
         fixtures_used = set()
@@ -152,12 +151,7 @@ class FixtureMetricsTracker:
         else:
             category = "neither"
 
-        return {
-            "test_count": test_count,
-            "fixtures_used": fixtures_used,
-            "has_setup_method": has_setup_method,
-            "category": category
-        }
+        return {"test_count": test_count, "fixtures_used": fixtures_used, "has_setup_method": has_setup_method, "category": category}
 
     def track_metrics(self) -> AdoptionMetrics:
         """Track current fixture adoption metrics."""
@@ -201,10 +195,7 @@ class FixtureMetricsTracker:
         # Build fixture usage details
         for fixture_name, count in fixture_usage_counts.items():
             self.fixture_usage[fixture_name] = FixtureUsageMetrics(
-                fixture_name=fixture_name,
-                usage_count=count,
-                files_used_in=fixture_files[fixture_name],
-                tests_using_it=count
+                fixture_name=fixture_name, usage_count=count, files_used_in=fixture_files[fixture_name], tests_using_it=count
             )
 
         # Calculate adoption rate
@@ -221,7 +212,7 @@ class FixtureMetricsTracker:
             tests_using_setup_method=tests_using_setup_method,
             fixture_adoption_rate=round(adoption_rate, 1),
             fixture_usage=dict(fixture_usage_counts),
-            file_categories=self.test_file_categories
+            file_categories=self.test_file_categories,
         )
 
 

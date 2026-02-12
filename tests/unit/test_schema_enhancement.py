@@ -1,4 +1,5 @@
 """Unit tests for Schema.org entity graph enhancement feature."""
+
 import json
 import os
 import tempfile
@@ -209,9 +210,7 @@ class TestGraphLoading:
 
     def test_load_graph_from_file(self):
         """Test loading graph from JSON file."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(
                 {
                     "@context": "https://schema.org",
@@ -234,14 +233,8 @@ class TestGraphLoading:
             file1 = Path(tmpdir) / "org.json"
             file2 = Path(tmpdir) / "person.json"
 
-            file1.write_text(
-                json.dumps(
-                    {"@context": "https://schema.org", "@graph": [{"@type": "Organization"}]}
-                )
-            )
-            file2.write_text(
-                json.dumps({"@context": "https://schema.org", "@graph": [{"@type": "Person"}]})
-            )
+            file1.write_text(json.dumps({"@context": "https://schema.org", "@graph": [{"@type": "Organization"}]}))
+            file2.write_text(json.dumps({"@context": "https://schema.org", "@graph": [{"@type": "Person"}]}))
 
             entities = _load_graph_from_source(tmpdir, "directory")
             assert len(entities) == 2
@@ -362,30 +355,22 @@ class TestMissingEntityDetection:
 
     def test_parse_suggestion_rule_has(self):
         """Test parsing 'has:Type' rule."""
-        result = _parse_suggestion_rule(
-            "has:Organization", {"Organization"}, {"Organization": 1}
-        )
+        result = _parse_suggestion_rule("has:Organization", {"Organization"}, {"Organization": 1})
         assert result is True
 
     def test_parse_suggestion_rule_not_has(self):
         """Test parsing 'NOT has:Type' rule."""
-        result = _parse_suggestion_rule(
-            "NOT has:FAQPage", {"Organization"}, {"Organization": 1}
-        )
+        result = _parse_suggestion_rule("NOT has:FAQPage", {"Organization"}, {"Organization": 1})
         assert result is True
 
     def test_parse_suggestion_rule_count(self):
         """Test parsing 'count:Type>N' rule."""
-        result = _parse_suggestion_rule(
-            "count:WebPage>1", {"WebPage"}, {"WebPage": 3}
-        )
+        result = _parse_suggestion_rule("count:WebPage>1", {"WebPage"}, {"WebPage": 3})
         assert result is True
 
     def test_parse_suggestion_rule_count_not_met(self):
         """Test parsing count rule when threshold not met."""
-        result = _parse_suggestion_rule(
-            "count:WebPage>5", {"WebPage"}, {"WebPage": 3}
-        )
+        result = _parse_suggestion_rule("count:WebPage>5", {"WebPage"}, {"WebPage": 3})
         assert result is False
 
     def test_parse_suggestion_rule_complex_and(self):
@@ -397,9 +382,7 @@ class TestMissingEntityDetection:
         )
         assert result is True
 
-    def test_suggest_missing_entities_faq_page(
-        self, simple_organization_graph: List[Dict[str, Any]]
-    ):
+    def test_suggest_missing_entities_faq_page(self, simple_organization_graph: List[Dict[str, Any]]):
         """Test suggesting FAQPage for organization."""
         mock_client = MagicMock()
         suggestions = _suggest_missing_entities(simple_organization_graph, mock_client)
@@ -409,9 +392,7 @@ class TestMissingEntityDetection:
         assert "FAQPage" in entity_types
         assert "WebSite" in entity_types
 
-    def test_suggest_missing_entities_complete_graph(
-        self, complete_organization_graph: List[Dict[str, Any]]
-    ):
+    def test_suggest_missing_entities_complete_graph(self, complete_organization_graph: List[Dict[str, Any]]):
         """Test no FAQPage/WebSite suggestion for complete graph."""
         mock_client = MagicMock()
         suggestions = _suggest_missing_entities(complete_organization_graph, mock_client)
@@ -462,9 +443,7 @@ class TestSEOScoring:
         score = _calculate_entity_seo_score(entity)
         assert score == 100.0  # Perfect + validation bonus capped at 100
 
-    def test_calculate_entity_seo_score_critical_missing(
-        self, sample_entity_enhancement: EntityEnhancement
-    ):
+    def test_calculate_entity_seo_score_critical_missing(self, sample_entity_enhancement: EntityEnhancement):
         """Test score with critical property missing."""
         score = _calculate_entity_seo_score(sample_entity_enhancement)
         # 100 - 20 (CRITICAL) - 10 (HIGH) + 5 (no validation issues)
@@ -483,9 +462,7 @@ class TestSEOScoring:
         score = _calculate_entity_seo_score(entity)
         assert score == 100.0  # No bonus for validation issues
 
-    def test_calculate_overall_seo_score(
-        self, sample_entity_enhancement: EntityEnhancement
-    ):
+    def test_calculate_overall_seo_score(self, sample_entity_enhancement: EntityEnhancement):
         """Test overall score calculation."""
         sample_entity_enhancement.seo_score = 80.0
         missing = [
@@ -570,9 +547,7 @@ class TestGraphStructureValidation:
 class TestOutputGeneration:
     """Tests for output generation functions."""
 
-    def test_generate_enhanced_graph(
-        self, simple_organization_graph: List[Dict[str, Any]]
-    ):
+    def test_generate_enhanced_graph(self, simple_organization_graph: List[Dict[str, Any]]):
         """Test generating enhanced graph with suggestions."""
         enhancements = [
             EntityEnhancement(
@@ -599,9 +574,7 @@ class TestOutputGeneration:
             )
         ]
 
-        result = _generate_enhanced_graph(
-            simple_organization_graph, enhancements, missing
-        )
+        result = _generate_enhanced_graph(simple_organization_graph, enhancements, missing)
 
         assert "@context" in result
         assert "@graph" in result
@@ -652,9 +625,7 @@ class TestOutputGeneration:
         assert "https://example.com#organization" in diff["property_additions"]
         assert "logo" in diff["property_additions"]["https://example.com#organization"]
 
-    def test_generate_diff_no_changes(
-        self, simple_organization_graph: List[Dict[str, Any]]
-    ):
+    def test_generate_diff_no_changes(self, simple_organization_graph: List[Dict[str, Any]]):
         """Test diff with no changes needed."""
         diff = _generate_diff(simple_organization_graph, [], [])
 
@@ -680,9 +651,7 @@ class TestIntegration:
         )
 
         # Create temp file
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(
                 {
                     "@context": "https://schema.org",
@@ -700,9 +669,7 @@ class TestIntegration:
 
             try:
                 # Mock the Schema.org client
-                with patch(
-                    "ast_grep_mcp.features.schema.enhancement_service.get_schema_org_client"
-                ) as mock_client:
+                with patch("ast_grep_mcp.features.schema.enhancement_service.get_schema_org_client") as mock_client:
                     client_instance = MagicMock()
                     client_instance.get_type_properties = AsyncMock(return_value=[])
                     mock_client.return_value = client_instance
@@ -729,9 +696,7 @@ class TestIntegration:
             analyze_entity_graph,
         )
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(
                 {
                     "@context": "https://schema.org",
@@ -748,9 +713,7 @@ class TestIntegration:
             f.flush()
 
             try:
-                with patch(
-                    "ast_grep_mcp.features.schema.enhancement_service.get_schema_org_client"
-                ) as mock_client:
+                with patch("ast_grep_mcp.features.schema.enhancement_service.get_schema_org_client") as mock_client:
                     client_instance = MagicMock()
                     client_instance.get_type_properties = AsyncMock(return_value=[])
                     mock_client.return_value = client_instance
@@ -775,9 +738,7 @@ class TestIntegration:
             analyze_entity_graph,
         )
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(
                 {
                     "@context": "https://schema.org",
@@ -794,9 +755,7 @@ class TestIntegration:
             f.flush()
 
             try:
-                with patch(
-                    "ast_grep_mcp.features.schema.enhancement_service.get_schema_org_client"
-                ) as mock_client:
+                with patch("ast_grep_mcp.features.schema.enhancement_service.get_schema_org_client") as mock_client:
                     client_instance = MagicMock()
                     client_instance.get_type_properties = AsyncMock(return_value=[])
                     mock_client.return_value = client_instance

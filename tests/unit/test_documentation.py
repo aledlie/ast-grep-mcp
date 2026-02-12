@@ -1,7 +1,5 @@
 """Tests for documentation generation feature."""
 
-
-
 from ast_grep_mcp.models.documentation import (
     ApiRoute,
     ChangelogEntry,
@@ -401,7 +399,7 @@ class TestApiDocsGenerator:
         )
 
         test_file = tmp_path / "routes.js"
-        test_file.write_text('''
+        test_file.write_text("""
 const router = express.Router();
 
 router.get('/users', getUsers);
@@ -409,7 +407,7 @@ router.post('/users', createUser);
 router.get('/users/:id', getUserById);
 router.put('/users/:id', updateUser);
 router.delete('/users/:id', deleteUser);
-''')
+""")
 
         parser = ExpressRouteParser()
         routes = parser.parse_file(str(test_file))
@@ -431,7 +429,7 @@ router.delete('/users/:id', deleteUser);
         )
 
         test_file = tmp_path / "routes.py"
-        test_file.write_text('''
+        test_file.write_text("""
 from fastapi import FastAPI
 
 app = FastAPI()
@@ -447,7 +445,7 @@ async def create_item(item: Item):
 @app.get("/items/{item_id}")
 async def get_item(item_id: int):
     return {"id": item_id}
-''')
+""")
 
         parser = FastAPIRouteParser()
         routes = parser.parse_file(str(test_file))
@@ -608,12 +606,12 @@ Returns:
             _extract_docstring_params,
         )
 
-        docstring = '''/**
+        docstring = """/**
  * Do something.
  * @param {string} userId - The user ID.
  * @param {string} name - The user name.
  * @returns {Object} User object.
- */'''
+ */"""
 
         params = _extract_docstring_params(docstring, "typescript")
         assert "userId" in params
@@ -703,13 +701,13 @@ Returns:
 
         # Create markdown with links
         md_file = tmp_path / "test.md"
-        md_file.write_text('''# Test
+        md_file.write_text("""# Test
 
 [Good link](existing.md)
 [Broken link](nonexistent.md)
 [External](https://example.com)
 [Anchor](#section)
-''')
+""")
 
         issues = _check_markdown_links(str(md_file), str(tmp_path))
         assert len(issues) == 1
@@ -727,13 +725,13 @@ class TestToolsIntegration:
         )
 
         test_file = tmp_path / "test.py"
-        test_file.write_text('''
+        test_file.write_text("""
 def get_user(user_id: int) -> dict:
     return {"id": user_id}
 
 def create_user(name: str, email: str) -> dict:
     return {"name": name, "email": email}
-''')
+""")
 
         result = generate_docstrings_impl(
             project_folder=str(tmp_path),
@@ -773,10 +771,10 @@ def create_user(name: str, email: str) -> dict:
 
         # Create Python file with undocumented function
         test_file = tmp_path / "test.py"
-        test_file.write_text('''
+        test_file.write_text("""
 def public_function(x: int) -> int:
     return x * 2
-''')
+""")
 
         result = sync_documentation_impl(
             project_folder=str(tmp_path),

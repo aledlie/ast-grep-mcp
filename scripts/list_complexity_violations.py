@@ -63,27 +63,16 @@ def main():
         violation_reasons = []
 
         if metrics["cyclomatic"] > CRITICAL_THRESHOLDS["cyclomatic"]:
-            violation_reasons.append(
-                f"cyclomatic={metrics['cyclomatic']} "
-                f"(max {CRITICAL_THRESHOLDS['cyclomatic']})"
-            )
+            violation_reasons.append(f"cyclomatic={metrics['cyclomatic']} (max {CRITICAL_THRESHOLDS['cyclomatic']})")
 
         if metrics["cognitive"] > CRITICAL_THRESHOLDS["cognitive"]:
-            violation_reasons.append(
-                f"cognitive={metrics['cognitive']} "
-                f"(max {CRITICAL_THRESHOLDS['cognitive']})"
-            )
+            violation_reasons.append(f"cognitive={metrics['cognitive']} (max {CRITICAL_THRESHOLDS['cognitive']})")
 
         if metrics["nesting"] > CRITICAL_THRESHOLDS["nesting"]:
-            violation_reasons.append(
-                f"nesting={metrics['nesting']} "
-                f"(max {CRITICAL_THRESHOLDS['nesting']})"
-            )
+            violation_reasons.append(f"nesting={metrics['nesting']} (max {CRITICAL_THRESHOLDS['nesting']})")
 
         if metrics["lines"] > CRITICAL_THRESHOLDS["lines"]:
-            violation_reasons.append(
-                f"lines={metrics['lines']} " f"(max {CRITICAL_THRESHOLDS['lines']})"
-            )
+            violation_reasons.append(f"lines={metrics['lines']} (max {CRITICAL_THRESHOLDS['lines']})")
 
         if violation_reasons:
             rel_path = file_path.relative_to(project_root)
@@ -100,13 +89,9 @@ def main():
             )
 
     # Sort by severity (most violations first, then highest cognitive complexity)
-    violations.sort(
-        key=lambda v: (-len(v["violations"].split(",")), -v["cognitive"], -v["cyclomatic"])
-    )
+    violations.sort(key=lambda v: (-len(v["violations"].split(",")), -v["cognitive"], -v["cyclomatic"]))
 
-    print(
-        f"\n{'='*80}\nFound {len(violations)} functions exceeding CRITICAL thresholds\n{'='*80}\n"
-    )
+    print(f"\n{'=' * 80}\nFound {len(violations)} functions exceeding CRITICAL thresholds\n{'=' * 80}\n")
 
     for i, v in enumerate(violations, 1):
         print(f"{i:2d}. {v['file']}:{v['function']}")

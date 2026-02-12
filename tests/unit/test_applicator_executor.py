@@ -55,9 +55,7 @@ class TestApplyChangesDryRun:
         executor = RefactoringExecutor()
 
         orchestration_plan = {
-            "create_files": [
-                {"path": "/tmp/new_file.py", "content": "line1\nline2\nline3", "append": False}
-            ],
+            "create_files": [{"path": "/tmp/new_file.py", "content": "line1\nline2\nline3", "append": False}],
             "update_files": [{"path": "/tmp/existing.py"}],
             "import_additions": {"/tmp/existing.py": {"import_statement": "from utils import func"}},
         }

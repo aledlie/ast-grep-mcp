@@ -254,14 +254,16 @@ class TestCreateEnhancedDuplicationResponse:
 
     def test_single_candidate(self):
         """Test with single duplication candidate."""
-        candidates = [{
-            "files": ["/path/file1.py", "/path/file2.py"],
-            "code": "x = 1\ny = 2",
-            "replacement": "init_vars()",
-            "function_name": "init_vars",
-            "similarity": 95.5,
-            "complexity": 3
-        }]
+        candidates = [
+            {
+                "files": ["/path/file1.py", "/path/file2.py"],
+                "code": "x = 1\ny = 2",
+                "replacement": "init_vars()",
+                "function_name": "init_vars",
+                "similarity": 95.5,
+                "complexity": 3,
+            }
+        ]
 
         result = create_enhanced_duplication_response(candidates)
 
@@ -278,14 +280,14 @@ class TestCreateEnhancedDuplicationResponse:
                 "files": ["/f1.py"],
                 "code": "x",
                 "replacement": "a()",
-                "complexity": 8  # High complexity = lower priority
+                "complexity": 8,  # High complexity = lower priority
             },
             {
                 "files": ["/f1.py", "/f2.py", "/f3.py"],
                 "code": "y\nz\nw",
                 "replacement": "b()",
-                "complexity": 2  # Low complexity = higher priority
-            }
+                "complexity": 2,  # Low complexity = higher priority
+            },
         ]
 
         result = create_enhanced_duplication_response(candidates)
@@ -297,18 +299,8 @@ class TestCreateEnhancedDuplicationResponse:
     def test_summary_statistics(self):
         """Test summary statistics are calculated correctly."""
         candidates = [
-            {
-                "files": ["/a.py", "/b.py"],
-                "code": "line1\nline2\nline3",
-                "replacement": "call()",
-                "complexity": 2
-            },
-            {
-                "files": ["/c.py"],
-                "code": "x\ny",
-                "replacement": "other()",
-                "complexity": 7
-            }
+            {"files": ["/a.py", "/b.py"], "code": "line1\nline2\nline3", "replacement": "call()", "complexity": 2},
+            {"files": ["/c.py"], "code": "x\ny", "replacement": "other()", "complexity": 7},
         ]
 
         result = create_enhanced_duplication_response(candidates)
@@ -326,7 +318,7 @@ class TestCreateEnhancedDuplicationResponse:
                 "files": [f"/file{i}.py" for i in range(3)],
                 "code": "\n".join([f"line{j}" for j in range(20)]),
                 "replacement": "func()",
-                "complexity": 8
+                "complexity": 8,
             }
             for _ in range(6)
         ]
@@ -338,12 +330,7 @@ class TestCreateEnhancedDuplicationResponse:
 
     def test_include_diffs_option(self):
         """Test include_diffs parameter."""
-        candidates = [{
-            "files": ["/test.py"],
-            "code": "old",
-            "replacement": "new",
-            "complexity": 5
-        }]
+        candidates = [{"files": ["/test.py"], "code": "old", "replacement": "new", "complexity": 5}]
 
         # With diffs
         result_with = create_enhanced_duplication_response(candidates, include_diffs=True)
@@ -355,16 +342,9 @@ class TestCreateEnhancedDuplicationResponse:
 
     def test_include_colors_option(self):
         """Test include_colors parameter."""
-        candidates = [{
-            "files": ["/test.py"],
-            "code": "old\ncode",
-            "replacement": "new",
-            "complexity": 5
-        }]
+        candidates = [{"files": ["/test.py"], "code": "old\ncode", "replacement": "new", "complexity": 5}]
 
-        result_colored = create_enhanced_duplication_response(
-            candidates, include_diffs=True, include_colors=True
-        )
+        result_colored = create_enhanced_duplication_response(candidates, include_diffs=True, include_colors=True)
 
         # Should contain ANSI color codes
         diff = result_colored["candidates"][0]["diff_preview"]
@@ -382,13 +362,15 @@ class TestCreateEnhancedDuplicationResponse:
 
     def test_before_after_included(self):
         """Test before/after examples are included for each candidate."""
-        candidates = [{
-            "files": ["/test.py"],
-            "code": "a = 1\nb = 2\nc = a + b",
-            "replacement": "c = add(a, b)",
-            "function_name": "add",
-            "complexity": 3
-        }]
+        candidates = [
+            {
+                "files": ["/test.py"],
+                "code": "a = 1\nb = 2\nc = a + b",
+                "replacement": "c = add(a, b)",
+                "function_name": "add",
+                "complexity": 3,
+            }
+        ]
 
         result = create_enhanced_duplication_response(candidates)
 
@@ -400,12 +382,7 @@ class TestCreateEnhancedDuplicationResponse:
 
     def test_complexity_viz_included(self):
         """Test complexity visualization is included."""
-        candidates = [{
-            "files": ["/test.py"],
-            "code": "x",
-            "replacement": "y",
-            "complexity": 7
-        }]
+        candidates = [{"files": ["/test.py"], "code": "x", "replacement": "y", "complexity": 7}]
 
         result = create_enhanced_duplication_response(candidates)
 
@@ -416,12 +393,14 @@ class TestCreateEnhancedDuplicationResponse:
 
     def test_default_values_for_missing_fields(self):
         """Test that missing fields get default values."""
-        candidates = [{
-            "files": ["/test.py"],
-            "code": "test",
-            "replacement": "func()"
-            # Missing: function_name, similarity, complexity
-        }]
+        candidates = [
+            {
+                "files": ["/test.py"],
+                "code": "test",
+                "replacement": "func()",
+                # Missing: function_name, similarity, complexity
+            }
+        ]
 
         result = create_enhanced_duplication_response(candidates)
 
@@ -432,12 +411,14 @@ class TestCreateEnhancedDuplicationResponse:
 
     def test_priority_calculation(self):
         """Test priority calculation formula."""
-        candidates = [{
-            "files": ["/a.py", "/b.py"],  # 2 occurrences
-            "code": "line1\nline2\nline3\nline4",  # 4 lines
-            "replacement": "call()",
-            "complexity": 3
-        }]
+        candidates = [
+            {
+                "files": ["/a.py", "/b.py"],  # 2 occurrences
+                "code": "line1\nline2\nline3\nline4",  # 4 lines
+                "replacement": "call()",
+                "complexity": 3,
+            }
+        ]
 
         result = create_enhanced_duplication_response(candidates)
 
@@ -451,7 +432,7 @@ class TestCreateEnhancedDuplicationResponse:
                 "files": ["/a.py", "/b.py"],  # 2 occurrences
                 "code": "a\nb\nc",  # 3 lines
                 "replacement": "x()",  # 1 line, saves 2 per occurrence
-                "complexity": 3
+                "complexity": 3,
             }
         ]
 
@@ -470,10 +451,7 @@ class TestIntegration:
         candidates = [
             {
                 "files": ["/src/utils.py", "/src/helpers.py"],
-                "locations": [
-                    ("/src/utils.py", 10, 15),
-                    ("/src/helpers.py", 20, 25)
-                ],
+                "locations": [("/src/utils.py", 10, 15), ("/src/helpers.py", 20, 25)],
                 "code": """def process_data(data):
     result = []
     for item in data:
@@ -482,7 +460,7 @@ class TestIntegration:
                 "replacement": "result = process_data(data)",
                 "function_name": "process_data",
                 "similarity": 98.5,
-                "complexity": 4
+                "complexity": 4,
             },
             {
                 "files": ["/src/api.py", "/src/views.py", "/src/handlers.py"],
@@ -494,13 +472,11 @@ except Exception as e:
                 "replacement": "response = safe_fetch()",
                 "function_name": "safe_fetch",
                 "similarity": 100.0,
-                "complexity": 6
-            }
+                "complexity": 6,
+            },
         ]
 
-        result = create_enhanced_duplication_response(
-            candidates, include_diffs=True, include_colors=False
-        )
+        result = create_enhanced_duplication_response(candidates, include_diffs=True, include_colors=False)
 
         # Verify structure
         assert len(result["candidates"]) == 2
@@ -520,17 +496,17 @@ except Exception as e:
 
     def test_colored_output(self):
         """Test that colored output is properly formatted."""
-        candidates = [{
-            "files": ["/test.py"],
-            "code": "old_value = 1\nold_calc = old_value * 2",
-            "replacement": "result = calculate(1)",
-            "function_name": "calculate",
-            "complexity": 2
-        }]
+        candidates = [
+            {
+                "files": ["/test.py"],
+                "code": "old_value = 1\nold_calc = old_value * 2",
+                "replacement": "result = calculate(1)",
+                "function_name": "calculate",
+                "complexity": 2,
+            }
+        ]
 
-        result = create_enhanced_duplication_response(
-            candidates, include_diffs=True, include_colors=True
-        )
+        result = create_enhanced_duplication_response(candidates, include_diffs=True, include_colors=True)
 
         diff = result["candidates"][0]["diff_preview"]
         viz = result["candidates"][0]["complexity_viz"]

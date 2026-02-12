@@ -15,13 +15,13 @@ def fix_file(file_path: Path) -> bool:
     Returns:
         True if file was modified
     """
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     original = content
 
     # Find all misplaced imports (not at module level)
-    lines = content.split('\n')
+    lines = content.split("\n")
 
     # Remove all console imports first
     filtered_lines = [line for line in lines if CONSOLE_IMPORT not in line]
@@ -30,7 +30,7 @@ def fix_file(file_path: Path) -> bool:
     insert_idx = 0
 
     # Skip shebang
-    if filtered_lines and filtered_lines[0].startswith('#!'):
+    if filtered_lines and filtered_lines[0].startswith("#!"):
         insert_idx = 1
 
     # Skip module docstring
@@ -51,9 +51,9 @@ def fix_file(file_path: Path) -> bool:
                 break
         elif in_docstring:
             continue
-        elif line.startswith('import ') or line.startswith('from '):
+        elif line.startswith("import ") or line.startswith("from "):
             insert_idx = i + 1
-        elif line and not line.startswith('#'):
+        elif line and not line.startswith("#"):
             # Hit actual code
             break
 
@@ -63,12 +63,12 @@ def fix_file(file_path: Path) -> bool:
         filtered_lines.insert(insert_idx, CONSOLE_IMPORT)
     else:
         filtered_lines.insert(insert_idx, CONSOLE_IMPORT)
-        filtered_lines.insert(insert_idx + 1, '')
+        filtered_lines.insert(insert_idx + 1, "")
 
-    new_content = '\n'.join(filtered_lines)
+    new_content = "\n".join(filtered_lines)
 
     if new_content != original:
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(new_content)
         return True
 
@@ -80,14 +80,14 @@ def main():
 
     # Fix all files
     fixed_count = 0
-    for dir_path in [project_root / 'scripts', project_root / 'tests', project_root]:
+    for dir_path in [project_root / "scripts", project_root / "tests", project_root]:
         if dir_path == project_root:
-            pattern = '*.py'
+            pattern = "*.py"
         else:
-            pattern = '**/*.py'
+            pattern = "**/*.py"
 
         for file_path in dir_path.glob(pattern):
-            if file_path.is_file() and '__pycache__' not in str(file_path):
+            if file_path.is_file() and "__pycache__" not in str(file_path):
                 if fix_file(file_path):
                     fixed_count += 1
                     print(f"Fixed: {file_path.name}")
@@ -95,5 +95,5 @@ def main():
     print(f"\nFixed {fixed_count} files")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

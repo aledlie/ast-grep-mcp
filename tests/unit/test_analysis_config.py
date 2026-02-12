@@ -4,6 +4,7 @@ This test suite validates the configuration object pattern implementation
 for deduplication analysis, ensuring proper validation, defaults, and
 serialization.
 """
+
 import pytest
 
 from src.ast_grep_mcp.features.deduplication.config import AnalysisConfig
@@ -14,10 +15,7 @@ class TestAnalysisConfigCreation:
 
     def test_minimal_config(self):
         """Should create config with only required fields."""
-        config = AnalysisConfig(
-            project_path="/path/to/project",
-            language="python"
-        )
+        config = AnalysisConfig(project_path="/path/to/project", language="python")
 
         assert config.project_path == "/path/to/project"
         assert config.language == "python"
@@ -32,6 +30,7 @@ class TestAnalysisConfigCreation:
 
     def test_full_config(self):
         """Should create config with all fields specified."""
+
         def callback(stage, pct):
             pass
 
@@ -45,7 +44,7 @@ class TestAnalysisConfigCreation:
             exclude_patterns=["*.test.ts", "*.spec.ts"],
             parallel=False,
             max_workers=8,
-            progress_callback=callback
+            progress_callback=callback,
         )
 
         assert config.project_path == "/custom/path"
@@ -66,90 +65,50 @@ class TestAnalysisConfigValidation:
     def test_invalid_min_similarity_too_low(self):
         """Should raise ValueError for min_similarity < 0.0."""
         with pytest.raises(ValueError, match="min_similarity must be between 0.0 and 1.0"):
-            AnalysisConfig(
-                project_path="/path",
-                language="python",
-                min_similarity=-0.1
-            )
+            AnalysisConfig(project_path="/path", language="python", min_similarity=-0.1)
 
     def test_invalid_min_similarity_too_high(self):
         """Should raise ValueError for min_similarity > 1.0."""
         with pytest.raises(ValueError, match="min_similarity must be between 0.0 and 1.0"):
-            AnalysisConfig(
-                project_path="/path",
-                language="python",
-                min_similarity=1.1
-            )
+            AnalysisConfig(project_path="/path", language="python", min_similarity=1.1)
 
     def test_valid_min_similarity_boundaries(self):
         """Should accept min_similarity at boundaries (0.0, 1.0)."""
-        config_zero = AnalysisConfig(
-            project_path="/path",
-            language="python",
-            min_similarity=0.0
-        )
+        config_zero = AnalysisConfig(project_path="/path", language="python", min_similarity=0.0)
         assert config_zero.min_similarity == 0.0
 
-        config_one = AnalysisConfig(
-            project_path="/path",
-            language="python",
-            min_similarity=1.0
-        )
+        config_one = AnalysisConfig(project_path="/path", language="python", min_similarity=1.0)
         assert config_one.min_similarity == 1.0
 
     def test_invalid_min_lines_zero(self):
         """Should raise ValueError for min_lines = 0."""
         with pytest.raises(ValueError, match="min_lines must be a positive integer"):
-            AnalysisConfig(
-                project_path="/path",
-                language="python",
-                min_lines=0
-            )
+            AnalysisConfig(project_path="/path", language="python", min_lines=0)
 
     def test_invalid_min_lines_negative(self):
         """Should raise ValueError for min_lines < 0."""
         with pytest.raises(ValueError, match="min_lines must be a positive integer"):
-            AnalysisConfig(
-                project_path="/path",
-                language="python",
-                min_lines=-5
-            )
+            AnalysisConfig(project_path="/path", language="python", min_lines=-5)
 
     def test_invalid_max_candidates_zero(self):
         """Should raise ValueError for max_candidates = 0."""
         with pytest.raises(ValueError, match="max_candidates must be a positive integer"):
-            AnalysisConfig(
-                project_path="/path",
-                language="python",
-                max_candidates=0
-            )
+            AnalysisConfig(project_path="/path", language="python", max_candidates=0)
 
     def test_invalid_max_candidates_negative(self):
         """Should raise ValueError for max_candidates < 0."""
         with pytest.raises(ValueError, match="max_candidates must be a positive integer"):
-            AnalysisConfig(
-                project_path="/path",
-                language="python",
-                max_candidates=-10
-            )
+            AnalysisConfig(project_path="/path", language="python", max_candidates=-10)
 
     def test_invalid_max_workers_zero(self):
         """Should raise ValueError for max_workers = 0."""
         with pytest.raises(ValueError, match="max_workers must be positive"):
-            AnalysisConfig(
-                project_path="/path",
-                language="python",
-                max_workers=0
-            )
+            AnalysisConfig(project_path="/path", language="python", max_workers=0)
 
     def test_invalid_max_workers_negative(self):
         """Should raise ValueError for max_workers < 0."""
         with pytest.raises(ValueError, match="max_workers must be positive"):
-            AnalysisConfig(
-                project_path="/path",
-                language="python",
-                max_workers=-4
-            )
+            AnalysisConfig(project_path="/path", language="python", max_workers=-4)
 
 
 class TestAnalysisConfigNormalization:
@@ -157,31 +116,19 @@ class TestAnalysisConfigNormalization:
 
     def test_exclude_patterns_none_normalized_to_empty_list(self):
         """Should normalize None exclude_patterns to empty list."""
-        config = AnalysisConfig(
-            project_path="/path",
-            language="python",
-            exclude_patterns=None
-        )
+        config = AnalysisConfig(project_path="/path", language="python", exclude_patterns=None)
         assert config.exclude_patterns == []
         assert isinstance(config.exclude_patterns, list)
 
     def test_exclude_patterns_empty_list_preserved(self):
         """Should preserve empty list for exclude_patterns."""
-        config = AnalysisConfig(
-            project_path="/path",
-            language="python",
-            exclude_patterns=[]
-        )
+        config = AnalysisConfig(project_path="/path", language="python", exclude_patterns=[])
         assert config.exclude_patterns == []
 
     def test_exclude_patterns_with_values_preserved(self):
         """Should preserve exclude_patterns with values."""
         patterns = ["*.test.py", "node_modules/**"]
-        config = AnalysisConfig(
-            project_path="/path",
-            language="python",
-            exclude_patterns=patterns
-        )
+        config = AnalysisConfig(project_path="/path", language="python", exclude_patterns=patterns)
         assert config.exclude_patterns == patterns
 
 
@@ -190,10 +137,7 @@ class TestAnalysisConfigSerialization:
 
     def test_to_dict_minimal_config(self):
         """Should serialize minimal config to dict."""
-        config = AnalysisConfig(
-            project_path="/path/to/project",
-            language="python"
-        )
+        config = AnalysisConfig(project_path="/path/to/project", language="python")
 
         result = config.to_dict()
 
@@ -207,11 +151,12 @@ class TestAnalysisConfigSerialization:
             "exclude_patterns": [],
             "parallel": True,
             "max_workers": 4,
-            "has_progress_callback": False
+            "has_progress_callback": False,
         }
 
     def test_to_dict_full_config(self):
         """Should serialize full config to dict."""
+
         def callback(stage, pct):
             pass
 
@@ -225,7 +170,7 @@ class TestAnalysisConfigSerialization:
             exclude_patterns=["*.test.ts"],
             parallel=False,
             max_workers=8,
-            progress_callback=callback
+            progress_callback=callback,
         )
 
         result = config.to_dict()
@@ -240,19 +185,16 @@ class TestAnalysisConfigSerialization:
             "exclude_patterns": ["*.test.ts"],
             "parallel": False,
             "max_workers": 8,
-            "has_progress_callback": True  # Callback present but not serialized
+            "has_progress_callback": True,  # Callback present but not serialized
         }
 
     def test_to_dict_excludes_callback_function(self):
         """Should not include progress_callback function in dict."""
+
         def callback(stage, pct):
             pass
 
-        config = AnalysisConfig(
-            project_path="/path",
-            language="python",
-            progress_callback=callback
-        )
+        config = AnalysisConfig(project_path="/path", language="python", progress_callback=callback)
 
         result = config.to_dict()
 
@@ -267,47 +209,29 @@ class TestAnalysisConfigEdgeCases:
 
     def test_very_high_max_candidates(self):
         """Should accept very high max_candidates value."""
-        config = AnalysisConfig(
-            project_path="/path",
-            language="python",
-            max_candidates=1000000
-        )
+        config = AnalysisConfig(project_path="/path", language="python", max_candidates=1000000)
         assert config.max_candidates == 1000000
 
     def test_very_high_max_workers(self):
         """Should accept very high max_workers value."""
-        config = AnalysisConfig(
-            project_path="/path",
-            language="python",
-            max_workers=128
-        )
+        config = AnalysisConfig(project_path="/path", language="python", max_workers=128)
         assert config.max_workers == 128
 
     def test_many_exclude_patterns(self):
         """Should handle many exclude patterns."""
         patterns = [f"pattern_{i}" for i in range(100)]
-        config = AnalysisConfig(
-            project_path="/path",
-            language="python",
-            exclude_patterns=patterns
-        )
+        config = AnalysisConfig(project_path="/path", language="python", exclude_patterns=patterns)
         assert len(config.exclude_patterns) == 100
         assert config.exclude_patterns == patterns
 
     def test_unicode_in_project_path(self):
         """Should handle unicode characters in project path."""
-        config = AnalysisConfig(
-            project_path="/path/to/プロジェクト",
-            language="python"
-        )
+        config = AnalysisConfig(project_path="/path/to/プロジェクト", language="python")
         assert config.project_path == "/path/to/プロジェクト"
 
     def test_unicode_in_language(self):
         """Should handle unicode characters in language."""
-        config = AnalysisConfig(
-            project_path="/path",
-            language="日本語"
-        )
+        config = AnalysisConfig(project_path="/path", language="日本語")
         assert config.language == "日本語"
 
 
@@ -321,11 +245,7 @@ class TestAnalysisConfigCallbackIntegration:
         def callback(stage, pct):
             invocations.append((stage, pct))
 
-        config = AnalysisConfig(
-            project_path="/path",
-            language="python",
-            progress_callback=callback
-        )
+        config = AnalysisConfig(project_path="/path", language="python", progress_callback=callback)
 
         # Simulate progress reporting
         config.progress_callback("step1", 0.25)
@@ -339,11 +259,7 @@ class TestAnalysisConfigCallbackIntegration:
 
     def test_no_callback_none_check(self):
         """Should handle None callback gracefully."""
-        config = AnalysisConfig(
-            project_path="/path",
-            language="python",
-            progress_callback=None
-        )
+        config = AnalysisConfig(project_path="/path", language="python", progress_callback=None)
 
         # Should not raise when callback is None
         if config.progress_callback:
