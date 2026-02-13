@@ -36,6 +36,8 @@ import json
 import sys
 from typing import Any, Dict, Optional
 
+from ast_grep_mcp.constants import FormattingDefaults
+
 
 class ConsoleLogger:
     """Simple console logger for scripts and CLI tools.
@@ -150,7 +152,7 @@ class ConsoleLogger:
         if not self.quiet:
             print(json.dumps(data, indent=indent), **kwargs)
 
-    def separator(self, char: str = "=", length: int = 70, **kwargs: Any) -> None:
+    def separator(self, char: str = "=", length: int = FormattingDefaults.SEPARATOR_LENGTH, **kwargs: Any) -> None:
         """Output a separator line.
 
         Args:

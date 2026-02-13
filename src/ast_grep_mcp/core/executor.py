@@ -10,7 +10,7 @@ from typing import Any, Dict, Generator, List, Optional, Tuple, cast
 import sentry_sdk
 import yaml
 
-from ast_grep_mcp.constants import FileConstants, StreamDefaults
+from ast_grep_mcp.constants import DisplayDefaults, FileConstants, FormattingDefaults, StreamDefaults
 from ast_grep_mcp.core.config import CONFIG_PATH
 from ast_grep_mcp.core.exceptions import (
     AstGrepExecutionError,
@@ -111,7 +111,10 @@ def run_command(args: List[str], input_text: Optional[str] = None, *, allow_nonz
 
         execution_time = time.time() - start_time
         logger.info(
-            "command_completed", command=sanitized_args[0], execution_time_seconds=round(execution_time, 3), returncode=result.returncode
+            "command_completed",
+            command=sanitized_args[0],
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            returncode=result.returncode,
         )
 
         return result
@@ -122,9 +125,9 @@ def run_command(args: List[str], input_text: Optional[str] = None, *, allow_nonz
         logger.error(
             "command_failed",
             command=sanitized_args[0],
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             returncode=e.returncode,
-            stderr=stderr_msg[:200],  # Truncate stderr in logs
+            stderr=stderr_msg[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],  # Truncate stderr in logs
         )
 
         error = AstGrepExecutionError(command=args, returncode=e.returncode, stderr=stderr_msg)
@@ -133,8 +136,8 @@ def run_command(args: List[str], input_text: Optional[str] = None, *, allow_nonz
             extras={
                 "command": " ".join(args),
                 "returncode": e.returncode,
-                "stderr": stderr_msg[:500],
-                "execution_time_seconds": round(execution_time, 3),
+                "stderr": stderr_msg[: DisplayDefaults.AST_TRUNCATION_LENGTH],
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
                 "has_stdin": has_stdin,
             },
         )
@@ -142,7 +145,9 @@ def run_command(args: List[str], input_text: Optional[str] = None, *, allow_nonz
     except FileNotFoundError as e:
         execution_time = time.time() - start_time
 
-        logger.error("command_not_found", command=args[0], execution_time_seconds=round(execution_time, 3))
+        logger.error(
+            "command_not_found", command=args[0], execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION)
+        )
 
         if args[0] == "ast-grep":
             not_found_error = AstGrepNotFoundError()
@@ -427,7 +432,12 @@ def _handle_stream_error(
 
     execution_time = time.time() - start_time
 
-    logger.error("stream_failed", returncode=returncode, stderr=stderr_output[:200], execution_time_seconds=round(execution_time, 3))
+    logger.error(
+        "stream_failed",
+        returncode=returncode,
+        stderr=stderr_output[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+    )
 
     error = AstGrepExecutionError(command=full_command, returncode=returncode, stderr=stderr_output)
     sentry_sdk.capture_exception(
@@ -435,8 +445,8 @@ def _handle_stream_error(
         extras={
             "command": " ".join(full_command),
             "returncode": returncode,
-            "stderr": stderr_output[:500],
-            "execution_time_seconds": round(execution_time, 3),
+            "stderr": stderr_output[: DisplayDefaults.AST_TRUNCATION_LENGTH],
+            "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             "match_count": match_count,
         },
     )
@@ -534,7 +544,7 @@ def stream_ast_grep_results(
         logger.info(
             "stream_completed",
             total_matches=match_count,
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             early_terminated=max_results > 0 and match_count >= max_results,
         )
 

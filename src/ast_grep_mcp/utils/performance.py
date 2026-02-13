@@ -11,6 +11,7 @@ from typing import Any, Callable, TypeVar
 
 import sentry_sdk
 
+from ast_grep_mcp.constants import DisplayDefaults, PerformanceDefaults
 from ast_grep_mcp.core.logging import get_logger
 
 # Type variable for generic function decorators
@@ -57,7 +58,7 @@ def monitor_performance(func: F) -> F:
                 span.set_data("status", "success")
 
                 # Warn if slow (>5 seconds)
-                if duration_ms > 5000:
+                if duration_ms > PerformanceDefaults.SLOW_EXECUTION_THRESHOLD_MS:
                     logger.warning("slow_tool_execution", tool=func.__name__, duration_ms=duration_ms)
 
                 return result
@@ -66,12 +67,18 @@ def monitor_performance(func: F) -> F:
                 duration_ms = int((time.time() - start_time) * 1000)
 
                 # Log failure
-                logger.error("tool_performance", tool=func.__name__, duration_ms=duration_ms, status="failed", error=str(e)[:200])
+                logger.error(
+                    "tool_performance",
+                    tool=func.__name__,
+                    duration_ms=duration_ms,
+                    status="failed",
+                    error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+                )
 
                 # Add span data
                 span.set_data("duration_ms", duration_ms)
                 span.set_data("status", "failed")
-                span.set_data("error", str(e)[:200])
+                span.set_data("error", str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
 
                 # Re-raise to preserve exception behavior
                 raise
@@ -116,7 +123,7 @@ def monitor_performance_async(func: F) -> F:
                 span.set_data("async", True)
 
                 # Warn if slow (>5 seconds)
-                if duration_ms > 5000:
+                if duration_ms > PerformanceDefaults.SLOW_EXECUTION_THRESHOLD_MS:
                     logger.warning("slow_tool_execution", tool=func.__name__, duration_ms=duration_ms, async_execution=True)
 
                 return result
@@ -130,14 +137,14 @@ def monitor_performance_async(func: F) -> F:
                     tool=func.__name__,
                     duration_ms=duration_ms,
                     status="failed",
-                    error=str(e)[:200],
+                    error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
                     async_execution=True,
                 )
 
                 # Add span data
                 span.set_data("duration_ms", duration_ms)
                 span.set_data("status", "failed")
-                span.set_data("error", str(e)[:200])
+                span.set_data("error", str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
                 span.set_data("async", True)
 
                 # Re-raise to preserve exception behavior
@@ -197,7 +204,7 @@ class PerformanceTimer:
         return self.elapsed_ms / 1000.0
 
 
-def track_slow_operations(threshold_ms: int = 1000) -> Callable[[F], F]:
+def track_slow_operations(threshold_ms: int = PerformanceDefaults.DEFAULT_SLOW_THRESHOLD_MS) -> Callable[[F], F]:
     """Decorator factory to track operations exceeding a time threshold.
 
     Usage:

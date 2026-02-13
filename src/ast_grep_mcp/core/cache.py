@@ -5,7 +5,7 @@ import time
 from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Tuple
 
-from ast_grep_mcp.constants import CacheDefaults
+from ast_grep_mcp.constants import CacheDefaults, FormattingDefaults
 
 
 class QueryCache:
@@ -114,7 +114,7 @@ class QueryCache:
             "max_size": self.max_size,
             "hits": self.hits,
             "misses": self.misses,
-            "hit_rate": round(hit_rate, 3),
+            "hit_rate": round(hit_rate, FormattingDefaults.ROUNDING_PRECISION),
             "ttl_seconds": self.ttl_seconds,
         }
 

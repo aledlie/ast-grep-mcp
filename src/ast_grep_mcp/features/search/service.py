@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Literal, Optional, Union, cast
 import sentry_sdk
 import yaml
 
+from ast_grep_mcp.constants import CodeAnalysisDefaults, DisplayDefaults, FormattingDefaults
 from ast_grep_mcp.core.cache import get_query_cache
 from ast_grep_mcp.core.config import CACHE_ENABLED
 from ast_grep_mcp.core.exceptions import InvalidYAMLError, NoMatchesError
@@ -66,13 +67,21 @@ def dump_syntax_tree_impl(code: str, language: str, format: DumpFormat = "cst") 
 
         execution_time = time.time() - start_time
         logger.info(
-            "dump_syntax_tree_completed", execution_time_seconds=round(execution_time, 3), output_length=len(output), status="success"
+            "dump_syntax_tree_completed",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            output_length=len(output),
+            status="success",
         )
 
         return output
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error("dump_syntax_tree_failed", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed")
+        logger.error(
+            "dump_syntax_tree_failed",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            status="failed",
+        )
         sentry_sdk.capture_exception(
             e,
             extras={
@@ -80,7 +89,7 @@ def dump_syntax_tree_impl(code: str, language: str, format: DumpFormat = "cst") 
                 "language": language,
                 "format": format,
                 "code_length": len(code),
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -136,7 +145,10 @@ def test_match_code_rule_impl(code: str, yaml_rule: str) -> List[Dict[str, Any]]
 
         execution_time = time.time() - start_time
         logger.info(
-            "test_match_code_rule_completed", execution_time_seconds=round(execution_time, 3), match_count=len(matches), status="success"
+            "test_match_code_rule_completed",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            match_count=len(matches),
+            status="success",
         )
 
         if not matches:
@@ -146,7 +158,12 @@ def test_match_code_rule_impl(code: str, yaml_rule: str) -> List[Dict[str, Any]]
         if isinstance(e, (InvalidYAMLError, NoMatchesError)):
             raise
         execution_time = time.time() - start_time
-        logger.error("test_match_code_rule_failed", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed")
+        logger.error(
+            "test_match_code_rule_failed",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            status="failed",
+        )
         sentry_sdk.capture_exception(
             e,
             extras={
@@ -154,7 +171,7 @@ def test_match_code_rule_impl(code: str, yaml_rule: str) -> List[Dict[str, Any]]
                 "rule_id": parsed_yaml.get("id") if "parsed_yaml" in locals() else None,
                 "language": parsed_yaml.get("language") if "parsed_yaml" in locals() else None,
                 "code_length": len(code),
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -397,13 +414,23 @@ def find_code_impl(
         result = _format_search_results(matches, output_format)
 
         execution_time = time.time() - start_time
-        logger.info("find_code_completed", execution_time_seconds=round(execution_time, 3), match_count=len(matches), status="success")
+        logger.info(
+            "find_code_completed",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            match_count=len(matches),
+            status="success",
+        )
 
         return result
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error("find_code_failed", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed")
+        logger.error(
+            "find_code_failed",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            status="failed",
+        )
         sentry_sdk.capture_exception(
             e,
             extras={
@@ -411,7 +438,7 @@ def find_code_impl(
                 "project_folder": project_folder,
                 "pattern": pattern[:100],
                 "language": language,
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -655,7 +682,10 @@ def find_code_by_rule_impl(
         match_count = len(result) if isinstance(result, list) else result.count("\n")
 
         logger.info(
-            "find_code_by_rule_completed", execution_time_seconds=round(execution_time, 3), match_count=match_count, status="success"
+            "find_code_by_rule_completed",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            match_count=match_count,
+            status="success",
         )
 
         return _prepend_warnings_to_result(result, warnings, output_format)
@@ -664,7 +694,12 @@ def find_code_by_rule_impl(
         if isinstance(e, InvalidYAMLError):
             raise
         execution_time = time.time() - start_time
-        logger.error("find_code_by_rule_failed", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed")
+        logger.error(
+            "find_code_by_rule_failed",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            status="failed",
+        )
         sentry_sdk.capture_exception(
             e,
             extras={
@@ -672,7 +707,7 @@ def find_code_by_rule_impl(
                 "project_folder": project_folder,
                 "rule_id": parsed_yaml.get("id"),
                 "language": parsed_yaml.get("language"),
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -1127,8 +1162,12 @@ def _compare_asts(pattern_ast: str, code_ast: str) -> AstComparison:
         pattern_root_kind=pattern_root,
         code_root_kind=code_root,
         kinds_match=kinds_match,
-        pattern_structure=pattern_ast[:500] if len(pattern_ast) > 500 else pattern_ast,
-        code_structure=code_ast[:500] if len(code_ast) > 500 else code_ast,
+        pattern_structure=pattern_ast[: DisplayDefaults.AST_TRUNCATION_LENGTH]
+        if len(pattern_ast) > DisplayDefaults.AST_TRUNCATION_LENGTH
+        else pattern_ast,
+        code_structure=code_ast[: DisplayDefaults.AST_TRUNCATION_LENGTH]
+        if len(code_ast) > DisplayDefaults.AST_TRUNCATION_LENGTH
+        else code_ast,
         structural_differences=differences,
     )
 
@@ -1325,7 +1364,7 @@ def debug_pattern_impl(
             pattern_ast = dump_syntax_tree_impl(pattern, language, "pattern")
         except Exception as e:
             pattern_valid = False
-            pattern_ast = f"Error parsing pattern: {str(e)[:200]}"
+            pattern_ast = f"Error parsing pattern: {str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH]}"
             issues.append(
                 PatternIssue(
                     severity=IssueSeverity.ERROR,
@@ -1338,7 +1377,7 @@ def debug_pattern_impl(
         try:
             code_ast = dump_syntax_tree_impl(code, language, "cst")
         except Exception as e:
-            code_ast = f"Error parsing code: {str(e)[:200]}"
+            code_ast = f"Error parsing code: {str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH]}"
             issues.append(
                 PatternIssue(
                     severity=IssueSeverity.WARNING,
@@ -1376,7 +1415,7 @@ def debug_pattern_impl(
 
         logger.info(
             "debug_pattern_completed",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             pattern_valid=pattern_valid,
             issues_found=len(issues),
             matched=match_attempt.matched,
@@ -1389,8 +1428,8 @@ def debug_pattern_impl(
         execution_time = time.time() - start_time
         logger.error(
             "debug_pattern_failed",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(
@@ -1400,7 +1439,7 @@ def debug_pattern_impl(
                 "language": language,
                 "pattern_length": len(pattern),
                 "code_length": len(code),
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -1704,9 +1743,9 @@ def _determine_complexity(ast_output: str, code: str) -> str:
     depth = _count_ast_depth(ast_output)
     lines = len(code.strip().split("\n"))
 
-    if depth <= 3 and lines <= 3:
+    if depth <= CodeAnalysisDefaults.SIMPLE_CODE_DEPTH_THRESHOLD and lines <= CodeAnalysisDefaults.SIMPLE_CODE_LINES_THRESHOLD:
         return "simple"
-    elif depth <= 6 and lines <= 10:
+    elif depth <= CodeAnalysisDefaults.MEDIUM_CODE_DEPTH_THRESHOLD and lines <= CodeAnalysisDefaults.MEDIUM_CODE_LINES_THRESHOLD:
         return "medium"
     else:
         return "complex"
@@ -1723,7 +1762,7 @@ def _extract_child_kinds(ast_output: str) -> List[str]:
         if k not in seen:
             seen.add(k)
             result.append(k)
-    return result[:10]  # Limit to first 10
+    return result[: DisplayDefaults.MAX_CHILD_KINDS]  # Limit to first 10
 
 
 def _analyze_code(code: str, language: str, ast_output: str) -> CodeAnalysis:
@@ -1736,17 +1775,17 @@ def _analyze_code(code: str, language: str, ast_output: str) -> CodeAnalysis:
     complexity = _determine_complexity(ast_output, code)
 
     # Create simplified AST preview
-    ast_lines = ast_output.split("\n")[:15]  # First 15 lines
+    ast_lines = ast_output.split("\n")[: DisplayDefaults.AST_PREVIEW_MAX_LINES]
     ast_preview = "\n".join(ast_lines)
-    if len(ast_output.split("\n")) > 15:
+    if len(ast_output.split("\n")) > DisplayDefaults.AST_PREVIEW_MAX_LINES:
         ast_preview += "\n... (truncated)"
 
     return CodeAnalysis(
         root_kind=root_kind,
         child_kinds=child_kinds,
-        identifiers=identifiers[:10],  # Limit to first 10
-        literals=literals[:5],  # Limit to first 5
-        keywords=keywords_found[:10],
+        identifiers=identifiers[: DisplayDefaults.MAX_IDENTIFIERS],
+        literals=literals[: DisplayDefaults.MAX_LITERALS],
+        keywords=keywords_found[: DisplayDefaults.MAX_IDENTIFIERS],
         complexity=complexity,
         ast_preview=ast_preview,
     )
@@ -1757,7 +1796,7 @@ def _generate_generalized_pattern(code: str, identifiers: List[str], literals: L
     pattern = code
 
     # Replace literals first (before identifiers to avoid conflicts)
-    for i, lit in enumerate(literals[:3]):  # Limit replacements
+    for i, lit in enumerate(literals[: DisplayDefaults.MAX_PATTERN_REPLACEMENTS]):
         # Escape special regex characters in literal
         escaped = re.escape(lit)
         metavar = f"$LITERAL{i + 1}" if i > 0 else "$LITERAL"
@@ -1765,13 +1804,13 @@ def _generate_generalized_pattern(code: str, identifiers: List[str], literals: L
 
     # Replace identifiers with metavariables
     used_names: set[str] = set()
-    for ident in identifiers[:5]:  # Limit to first 5
+    for ident in identifiers[: DisplayDefaults.MAX_PATTERN_IDENTIFIERS]:
         if ident in used_names:
             continue
         # Choose a meaningful metavariable name
         if ident.lower() in ["name", "id", "value", "result", "data", "item", "obj"]:
             metavar = f"${ident.upper()}"
-        elif len(ident) <= 4:
+        elif len(ident) <= DisplayDefaults.SHORT_IDENTIFIER_THRESHOLD:
             metavar = f"${ident.upper()}"
         else:
             # Create abbreviation
@@ -2057,7 +2096,7 @@ def develop_pattern_impl(
 
         logger.info(
             "develop_pattern_completed",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             pattern_matches=pattern_matches,
             suggestion_count=len(suggestions),
             status="success",
@@ -2069,8 +2108,8 @@ def develop_pattern_impl(
         execution_time = time.time() - start_time
         logger.error(
             "develop_pattern_failed",
-            execution_time_seconds=round(execution_time, 3),
-            error=str(e)[:200],
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(
@@ -2079,7 +2118,7 @@ def develop_pattern_impl(
                 "function": "develop_pattern_impl",
                 "language": language,
                 "code_length": len(code),
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise

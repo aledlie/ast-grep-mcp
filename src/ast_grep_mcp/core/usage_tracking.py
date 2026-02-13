@@ -27,6 +27,8 @@ from typing import Any, Callable, Dict, Generator, List, Optional, TypeVar, cast
 
 from pydantic import BaseModel, Field
 
+from ast_grep_mcp.constants import UsageTrackingDefaults
+
 from .logging import get_logger
 
 logger = get_logger("usage_tracking")
@@ -231,20 +233,20 @@ class AlertThresholds(BaseModel):
     """Configurable alert thresholds."""
 
     # Daily thresholds
-    daily_calls_warning: int = 1000
-    daily_calls_critical: int = 5000
-    daily_cost_warning: float = 1.0
-    daily_cost_critical: float = 5.0
+    daily_calls_warning: int = UsageTrackingDefaults.DAILY_CALLS_WARNING
+    daily_calls_critical: int = UsageTrackingDefaults.DAILY_CALLS_CRITICAL
+    daily_cost_warning: float = UsageTrackingDefaults.DAILY_COST_WARNING
+    daily_cost_critical: float = UsageTrackingDefaults.DAILY_COST_CRITICAL
 
     # Error thresholds
-    hourly_failures_warning: int = 10
-    hourly_failures_critical: int = 50
-    failure_rate_warning: float = 0.1  # 10%
-    failure_rate_critical: float = 0.25  # 25%
+    hourly_failures_warning: int = UsageTrackingDefaults.HOURLY_FAILURES_WARNING
+    hourly_failures_critical: int = UsageTrackingDefaults.HOURLY_FAILURES_CRITICAL
+    failure_rate_warning: float = UsageTrackingDefaults.FAILURE_RATE_WARNING
+    failure_rate_critical: float = UsageTrackingDefaults.FAILURE_RATE_CRITICAL
 
     # Performance thresholds
-    avg_response_time_warning_ms: int = 5000
-    avg_response_time_critical_ms: int = 30000
+    avg_response_time_warning_ms: int = UsageTrackingDefaults.AVG_RESPONSE_TIME_WARNING_MS
+    avg_response_time_critical_ms: int = UsageTrackingDefaults.AVG_RESPONSE_TIME_CRITICAL_MS
 
 
 # =============================================================================
@@ -583,7 +585,7 @@ class UsageDatabase:
 
     def get_recent_logs(
         self,
-        limit: int = 100,
+        limit: int = UsageTrackingDefaults.DEFAULT_PAGINATION_LIMIT,
         tool_name: Optional[str] = None,
         success: Optional[bool] = None,
     ) -> List[UsageLogEntry]:
@@ -826,7 +828,7 @@ class _OperationTracker:
 # =============================================================================
 
 
-def get_usage_stats(days: int = 7) -> UsageStats:
+def get_usage_stats(days: int = UsageTrackingDefaults.DEFAULT_STATS_LOOKBACK_DAYS) -> UsageStats:
     """Get usage statistics for the last N days.
 
     Args:
@@ -852,7 +854,7 @@ def get_usage_alerts(thresholds: Optional[AlertThresholds] = None) -> List[Usage
 
 
 def get_recent_usage(
-    limit: int = 100,
+    limit: int = UsageTrackingDefaults.DEFAULT_PAGINATION_LIMIT,
     tool_name: Optional[str] = None,
     success: Optional[bool] = None,
 ) -> List[UsageLogEntry]:

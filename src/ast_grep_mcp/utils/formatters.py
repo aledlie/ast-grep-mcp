@@ -13,6 +13,8 @@ import tempfile
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults
+
 
 @dataclass
 class FileDiff:
@@ -214,7 +216,7 @@ def visualize_complexity(score: int) -> Dict[str, Any]:
     score = max(1, min(10, score))
 
     # Determine description and color based on score
-    if score <= 3:
+    if score <= DisplayDefaults.LOW_SCORE_THRESHOLD:
         description = "Low"
         color_code = "\033[32m"  # Green
         recommendations = [
@@ -222,7 +224,7 @@ def visualize_complexity(score: int) -> Dict[str, Any]:
             "Consider extracting as a simple helper function",
             "Low risk of introducing bugs during extraction",
         ]
-    elif score <= 6:
+    elif score <= DisplayDefaults.MEDIUM_SCORE_THRESHOLD:
         description = "Medium"
         color_code = "\033[33m"  # Yellow
         recommendations = [
@@ -246,9 +248,9 @@ def visualize_complexity(score: int) -> Dict[str, Any]:
 
     # Create ASCII bar visualization
     filled = score
-    empty = 10 - score
-    bar_plain = f"[{'=' * filled}{' ' * empty}] {score}/10"
-    bar_colored = f"{color_code}[{'=' * filled}{' ' * empty}]{reset_code} {score}/10"
+    empty = DisplayDefaults.VISUALIZATION_BAR_LENGTH - score
+    bar_plain = f"[{'=' * filled}{' ' * empty}] {score}/{DisplayDefaults.VISUALIZATION_BAR_LENGTH}"
+    bar_colored = f"{color_code}[{'=' * filled}{' ' * empty}]{reset_code} {score}/{DisplayDefaults.VISUALIZATION_BAR_LENGTH}"
 
     return {
         "score": score,
@@ -329,7 +331,9 @@ def _process_diff_lines(diff_lines: List[str]) -> Tuple[List[Dict[str, Any]], in
     return hunks, additions, deletions
 
 
-def generate_file_diff(file_path: str, original_content: str, new_content: str, context_lines: int = 3) -> FileDiff:
+def generate_file_diff(
+    file_path: str, original_content: str, new_content: str, context_lines: int = FormattingDefaults.DEFAULT_DIFF_CONTEXT_LINES
+) -> FileDiff:
     """Generate a unified diff for a single file.
 
     Args:
@@ -433,12 +437,14 @@ def _format_diff_with_line_numbers(file_path: str, diff_lines: List[str], origin
             new_line_num += 1
             output.append(f"{old_line_num:4d} {new_line_num:4d}   {line.rstrip()}")
 
-    output.append(f"\n{'=' * 70}\n")
+    output.append(f"\n{'=' * FormattingDefaults.SEPARATOR_LENGTH}\n")
 
     return "\n".join(output)
 
 
-def generate_multi_file_diff(file_changes: List[Dict[str, str]], context_lines: int = 3) -> DiffPreview:
+def generate_multi_file_diff(
+    file_changes: List[Dict[str, str]], context_lines: int = FormattingDefaults.DEFAULT_DIFF_CONTEXT_LINES
+) -> DiffPreview:
     """Generate combined diff preview for multiple file changes.
 
     Args:
@@ -586,7 +592,7 @@ def _process_python_lines(lines: List[str]) -> List[str]:
     return formatted_lines
 
 
-def format_python_code(code: str, line_length: int = 88) -> str:
+def format_python_code(code: str, line_length: int = FormattingDefaults.BLACK_LINE_LENGTH) -> str:
     """Format Python code using Black-style formatting.
 
     Attempts to use the 'black' library if available, otherwise falls back
@@ -622,7 +628,7 @@ def format_python_code(code: str, line_length: int = 88) -> str:
         return _basic_python_format(code, line_length)
 
 
-def _basic_python_format(code: str, line_length: int = 88) -> str:
+def _basic_python_format(code: str, line_length: int = FormattingDefaults.BLACK_LINE_LENGTH) -> str:
     """Basic Python formatting when Black is not available.
 
     Provides simple formatting improvements:
@@ -690,7 +696,7 @@ def _format_python_line(line: str) -> str:
     return indent + formatted
 
 
-def format_typescript_code(code: str, line_length: int = 80) -> str:
+def format_typescript_code(code: str, line_length: int = FormattingDefaults.PRETTIER_LINE_LENGTH) -> str:
     """Format TypeScript code using Prettier if available.
 
     Args:
@@ -750,7 +756,7 @@ def format_typescript_code(code: str, line_length: int = 80) -> str:
         return _basic_typescript_format(code)
 
 
-def format_javascript_code(code: str, line_length: int = 80) -> str:
+def format_javascript_code(code: str, line_length: int = FormattingDefaults.PRETTIER_LINE_LENGTH) -> str:
     """Format JavaScript code using Prettier if available.
 
     Args:
@@ -934,7 +940,7 @@ def _basic_java_format(code: str) -> str:
     return result
 
 
-def format_generated_code(code: str, language: str, line_length: int = 88) -> str:
+def format_generated_code(code: str, language: str, line_length: int = FormattingDefaults.BLACK_LINE_LENGTH) -> str:
     """Format generated code based on language.
 
     Dispatcher function that routes to language-specific formatters.

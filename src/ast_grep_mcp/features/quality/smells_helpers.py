@@ -8,6 +8,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any, Dict, List
 
+from ast_grep_mcp.constants import SmellSeverityDefaults
 from ast_grep_mcp.core.logging import get_logger
 
 
@@ -113,9 +114,9 @@ def calculate_smell_severity(metric: float, threshold: float, smell_type: str) -
 
     # Different smell types may have different severity mappings
     if smell_type in ["long_function", "large_class"]:
-        if ratio > 2.0:
+        if ratio > SmellSeverityDefaults.HIGH_RATIO_THRESHOLD:
             return "high"
-        elif ratio > 1.5:
+        elif ratio > SmellSeverityDefaults.MEDIUM_RATIO_THRESHOLD:
             return "medium"
         else:
             return "low"

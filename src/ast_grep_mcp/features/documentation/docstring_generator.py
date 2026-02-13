@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Tuple
 
 import sentry_sdk
 
+from ast_grep_mcp.constants import DocstringDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
     DocstringGenerationResult,
@@ -1136,7 +1137,7 @@ def _generate_docstring_for_function(
         line_number=func.start_line,
         docstring=docstring,
         style=style,
-        confidence=0.8,  # Basic inference confidence
+        confidence=DocstringDefaults.BASIC_INFERENCE_CONFIDENCE,
         inferred_description=True,
     )
 

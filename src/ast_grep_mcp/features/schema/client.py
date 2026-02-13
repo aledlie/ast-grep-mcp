@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, cast
 import httpx
 import sentry_sdk
 
+from ast_grep_mcp.constants import PerformanceDefaults
 from ast_grep_mcp.core.logging import get_logger
 
 # Global instance for singleton pattern
@@ -49,7 +50,7 @@ class SchemaOrgClient:
         self.logger.info("fetching_schema_org_data", url=self.SCHEMA_URL)
         with sentry_sdk.start_span(op="http.client", name="Fetch Schema.org vocabulary") as span:
             span.set_data("url", self.SCHEMA_URL)
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=PerformanceDefaults.DATABASE_TIMEOUT_SECONDS) as client:
                 response = await client.get(self.SCHEMA_URL)
                 response.raise_for_status()
                 data = response.json()

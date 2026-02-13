@@ -6,7 +6,7 @@ from typing import Any
 import sentry_sdk
 from sentry_sdk.integrations.anthropic import AnthropicIntegration
 
-from ast_grep_mcp.constants import LoggingDefaults
+from ast_grep_mcp.constants import LoggingDefaults, SentryDefaults
 from ast_grep_mcp.core.logging import get_logger
 
 # Re-export capture_exception for backward compatibility
@@ -43,8 +43,8 @@ def init_sentry(service_name: str = "ast-grep-mcp") -> None:
             ),
         ],
         # Performance monitoring - REQUIRED for AI tracking
-        traces_sample_rate=1.0 if os.getenv("SENTRY_ENVIRONMENT") == "development" else 0.1,
-        profiles_sample_rate=1.0 if os.getenv("SENTRY_ENVIRONMENT") == "development" else 0.1,
+        traces_sample_rate=1.0 if os.getenv("SENTRY_ENVIRONMENT") == "development" else SentryDefaults.PRODUCTION_TRACES_SAMPLE_RATE,
+        profiles_sample_rate=1.0 if os.getenv("SENTRY_ENVIRONMENT") == "development" else SentryDefaults.PRODUCTION_PROFILES_SAMPLE_RATE,
         # Send PII for AI context
         send_default_pii=True,
         # Additional options

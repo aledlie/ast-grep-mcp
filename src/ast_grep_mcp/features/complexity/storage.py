@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional
 
+from ast_grep_mcp.constants import PerformanceDefaults
 from ast_grep_mcp.models.complexity import FunctionComplexity
 
 # =============================================================================
@@ -95,7 +96,7 @@ class ComplexityStorage:
     @contextmanager
     def _get_connection(self) -> Generator[sqlite3.Connection, None, None]:
         """Context manager for database connections."""
-        conn = sqlite3.connect(str(self.db_path), timeout=30.0)
+        conn = sqlite3.connect(str(self.db_path), timeout=PerformanceDefaults.DATABASE_TIMEOUT_SECONDS)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")
         conn.execute("PRAGMA journal_mode = WAL")

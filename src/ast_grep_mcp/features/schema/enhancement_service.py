@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, Set
 
 import sentry_sdk
 
+from ast_grep_mcp.constants import SEODefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.schema.client import SchemaOrgClient, get_schema_org_client
 from ast_grep_mcp.features.schema.enhancement_rules import (
@@ -444,7 +445,7 @@ def _suggest_missing_entities(existing_entities: List[Dict[str, Any]], _client: 
         EnhancementPriority.MEDIUM: 2,
         EnhancementPriority.LOW: 3,
     }
-    suggestions.sort(key=lambda s: priority_order.get(s.priority, 4))
+    suggestions.sort(key=lambda s: priority_order.get(s.priority, SEODefaults.DEFAULT_PRIORITY_ORDER))
 
     return suggestions
 
@@ -507,12 +508,12 @@ def _calculate_entity_seo_score(entity_enhancement: EntityEnhancement) -> float:
         EnhancementPriority.LOW: -2,
     }
 
-    score = 100.0
+    score = SEODefaults.BASE_SCORE
     for suggestion in entity_enhancement.suggested_properties:
         score += PRIORITY_WEIGHTS.get(suggestion.priority, 0)
 
     if not entity_enhancement.validation_issues:
-        score += 5.0
+        score += SEODefaults.BONUS_INCREMENT
 
     return max(0.0, min(100.0, score))
 
@@ -532,7 +533,7 @@ def _calculate_overall_seo_score(
     if entity_enhancements:
         avg_entity_score = sum(e.seo_score for e in entity_enhancements) / len(entity_enhancements)
     else:
-        avg_entity_score = 50.0
+        avg_entity_score = SEODefaults.FALLBACK_AVG_ENTITY_SCORE
 
     overall_score = avg_entity_score
     for missing_entity in missing_entities:

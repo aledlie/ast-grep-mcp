@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from ast_grep_mcp.constants import DisplayDefaults
+
 
 class VariationCategory:
     """Categories for classifying variations between duplicate code blocks."""
@@ -151,7 +153,7 @@ class DiffTree:
 
         # Add content preview (first line only for brevity)
         if node.content:
-            preview = node.content.strip().split("\n")[0][:50]
+            preview = node.content.strip().split("\n")[0][: DisplayDefaults.CONTENT_PREVIEW_LENGTH]
             if preview:
                 lines.append(f"{indent}  > {preview}...")
 

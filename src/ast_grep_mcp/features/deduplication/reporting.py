@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+from ...constants import CodeAnalysisDefaults, DisplayDefaults, ReportingDefaults
 from ...utils.formatters import generate_multi_file_diff
 
 
@@ -162,7 +163,7 @@ class DuplicationReporter:
         score = max(1, min(10, score))
 
         # Determine description and color based on score
-        if score <= 3:
+        if score <= DisplayDefaults.LOW_SCORE_THRESHOLD:
             description = "Low"
             color_code = "\033[32m"  # Green
             recommendations = [
@@ -170,7 +171,7 @@ class DuplicationReporter:
                 "Consider extracting as a simple helper function",
                 "Low risk of introducing bugs during extraction",
             ]
-        elif score <= 6:
+        elif score <= DisplayDefaults.MEDIUM_SCORE_THRESHOLD:
             description = "Medium"
             color_code = "\033[33m"  # Yellow
             recommendations = [
@@ -194,9 +195,9 @@ class DuplicationReporter:
 
         # Create ASCII bar visualization
         filled = score
-        empty = 10 - score
-        bar_plain = f"[{'=' * filled}{' ' * empty}] {score}/10"
-        bar_colored = f"{color_code}[{'=' * filled}{' ' * empty}]{reset_code} {score}/10"
+        empty = DisplayDefaults.VISUALIZATION_BAR_LENGTH - score
+        bar_plain = f"[{'=' * filled}{' ' * empty}] {score}/{DisplayDefaults.VISUALIZATION_BAR_LENGTH}"
+        bar_colored = f"{color_code}[{'=' * filled}{' ' * empty}]{reset_code} {score}/{DisplayDefaults.VISUALIZATION_BAR_LENGTH}"
 
         return {
             "score": score,
@@ -252,13 +253,13 @@ class DuplicationReporter:
             )
 
             # Generate complexity visualization
-            complexity = candidate.get("complexity", 5)
+            complexity = candidate.get("complexity", CodeAnalysisDefaults.DEFAULT_COMPLEXITY_SCORE)
             complexity_viz = self.visualize_complexity(complexity)
 
             # Track complexity distribution
-            if complexity <= 3:
+            if complexity <= DisplayDefaults.LOW_SCORE_THRESHOLD:
                 complexity_distribution["low"] += 1
-            elif complexity <= 6:
+            elif complexity <= DisplayDefaults.MEDIUM_SCORE_THRESHOLD:
                 complexity_distribution["medium"] += 1
             else:
                 complexity_distribution["high"] += 1
@@ -321,12 +322,12 @@ class DuplicationReporter:
                 f"Found {complexity_distribution['high']} high-complexity duplicates. Consider adding tests before refactoring these."
             )
 
-        if total_lines_saveable > 50:
+        if total_lines_saveable > ReportingDefaults.SIGNIFICANT_LINES_SAVED_THRESHOLD:
             global_recommendations.append(
                 f"Potential to save {total_lines_saveable} total lines of code. Prioritize candidates by their priority score."
             )
 
-        if len(enhanced_candidates) > 5:
+        if len(enhanced_candidates) > ReportingDefaults.MANY_DUPLICATES_THRESHOLD:
             global_recommendations.append(
                 "Many duplicates found. Consider addressing high-priority items first to maximize impact with minimal effort."
             )

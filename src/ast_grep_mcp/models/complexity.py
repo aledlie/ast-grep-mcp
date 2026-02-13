@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import List
 
-from ast_grep_mcp.constants import ComplexityDefaults
+from ast_grep_mcp.constants import ComplexityDefaults, ComplexityLevelDefaults
 
 
 @dataclass
@@ -49,9 +49,9 @@ def get_complexity_level(score: int) -> str:
     Returns:
         Complexity level string: "low", "medium", or "high"
     """
-    if score < 5:
+    if score < ComplexityLevelDefaults.LOW_THRESHOLD:
         return "low"
-    elif score < 10:
+    elif score < ComplexityLevelDefaults.MEDIUM_THRESHOLD:
         return "medium"
     else:
         return "high"

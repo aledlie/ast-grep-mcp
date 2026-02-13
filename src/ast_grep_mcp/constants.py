@@ -255,6 +255,112 @@ LANGUAGE_EXTENSIONS = {
 SCHEMA_ORG_BASE_URL = "https://schema.org"
 SCHEMA_ORG_CONTEXT = "https://schema.org"
 
+class FormattingDefaults:
+    """Defaults for code formatting."""
+
+    ROUNDING_PRECISION = 3  # Decimal places for execution times, hit rates
+    DEFAULT_DIFF_CONTEXT_LINES = 3  # Context lines in unified diffs
+    BLACK_LINE_LENGTH = 88  # Black formatter default
+    PRETTIER_LINE_LENGTH = 80  # Prettier formatter default
+    SEPARATOR_LENGTH = 70  # Default CLI separator line length
+
+
+class DisplayDefaults:
+    """Constants for display and UI elements."""
+
+    VISUALIZATION_BAR_LENGTH = 10  # Length of ASCII score bars
+    LOW_SCORE_THRESHOLD = 3  # Score <= this is "low"
+    MEDIUM_SCORE_THRESHOLD = 6  # Score <= this is "medium"
+    CONTENT_PREVIEW_LENGTH = 50  # Characters in content previews
+    ERROR_OUTPUT_PREVIEW_LENGTH = 200  # Characters in error output previews
+    AST_TRUNCATION_LENGTH = 500  # Characters for AST structure previews
+    AST_PREVIEW_MAX_LINES = 15  # Lines in AST preview output
+    MAX_CHILD_KINDS = 10  # Max child kinds to return in analysis
+    MAX_LITERALS = 5  # Max literals to return in analysis
+    MAX_IDENTIFIERS = 10  # Max identifiers to return in analysis
+    MAX_PATTERN_REPLACEMENTS = 3  # Max literal replacements in patterns
+    MAX_PATTERN_IDENTIFIERS = 5  # Max identifier replacements in patterns
+    SHORT_IDENTIFIER_THRESHOLD = 4  # Length threshold for short identifiers
+
+
+class PerformanceDefaults:
+    """Defaults for performance monitoring."""
+
+    SLOW_EXECUTION_THRESHOLD_MS = 5000  # 5 seconds
+    DEFAULT_SLOW_THRESHOLD_MS = 1000  # 1 second default for track_slow_operations
+    DATABASE_TIMEOUT_SECONDS = 30.0  # SQLite/HTTP connection timeout
+
+
+class CodeAnalysisDefaults:
+    """Defaults for code structure analysis."""
+
+    SIMPLE_CODE_DEPTH_THRESHOLD = 3
+    SIMPLE_CODE_LINES_THRESHOLD = 3
+    MEDIUM_CODE_DEPTH_THRESHOLD = 6
+    MEDIUM_CODE_LINES_THRESHOLD = 10
+    DEFAULT_COMPLEXITY_SCORE = 5  # Default complexity when unknown
+
+
+class ComplexityLevelDefaults:
+    """Thresholds for classifying complexity into low/medium/high."""
+
+    LOW_THRESHOLD = 5  # Score below this is "low"
+    MEDIUM_THRESHOLD = 10  # Score below this is "medium"
+
+
+class SmellSeverityDefaults:
+    """Thresholds for code smell severity classification."""
+
+    HIGH_RATIO_THRESHOLD = 2.0  # metric/threshold ratio above this is "high"
+    MEDIUM_RATIO_THRESHOLD = 1.5  # metric/threshold ratio above this is "medium"
+
+
+class UsageTrackingDefaults:
+    """Defaults for usage tracking and alerting."""
+
+    DAILY_CALLS_WARNING = 1000
+    DAILY_CALLS_CRITICAL = 5000
+    DAILY_COST_WARNING = 1.0
+    DAILY_COST_CRITICAL = 5.0
+    HOURLY_FAILURES_WARNING = 10
+    HOURLY_FAILURES_CRITICAL = 50
+    FAILURE_RATE_WARNING = 0.1  # 10%
+    FAILURE_RATE_CRITICAL = 0.25  # 25%
+    AVG_RESPONSE_TIME_WARNING_MS = 5000
+    AVG_RESPONSE_TIME_CRITICAL_MS = 30000
+    DEFAULT_PAGINATION_LIMIT = 100
+    DEFAULT_STATS_LOOKBACK_DAYS = 7
+
+
+class ReportingDefaults:
+    """Defaults for deduplication reporting."""
+
+    SIGNIFICANT_LINES_SAVED_THRESHOLD = 50
+    MANY_DUPLICATES_THRESHOLD = 5
+
+
+class SEODefaults:
+    """Defaults for SEO scoring in schema enhancement."""
+
+    BASE_SCORE = 100.0
+    BONUS_INCREMENT = 5.0
+    FALLBACK_AVG_ENTITY_SCORE = 50.0
+    DEFAULT_PRIORITY_ORDER = 4
+
+
+class SentryDefaults:
+    """Defaults for Sentry monitoring configuration."""
+
+    PRODUCTION_TRACES_SAMPLE_RATE = 0.1
+    PRODUCTION_PROFILES_SAMPLE_RATE = 0.1
+
+
+class DocstringDefaults:
+    """Defaults for docstring generation."""
+
+    BASIC_INFERENCE_CONFIDENCE = 0.8
+
+
 # HTTP constants
 DEFAULT_USER_AGENT = "ast-grep-mcp/1.0"
 REQUEST_TIMEOUT_SECONDS = 30
