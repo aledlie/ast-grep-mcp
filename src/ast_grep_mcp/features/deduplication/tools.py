@@ -217,7 +217,7 @@ def register_deduplication_tools(mcp: Any) -> Any:
     """
     from pydantic import Field
 
-    @mcp.tool()  # type: ignore[misc]
+    @mcp.tool()  # type: ignore[misc,untyped-decorator]
     def find_duplication(
         project_folder: str = Field(description="Path to the project folder"),
         language: str = Field(description="Programming language"),
@@ -234,7 +234,7 @@ def register_deduplication_tools(mcp: Any) -> Any:
             exclude_patterns=exclude_patterns,
         )
 
-    @mcp.tool()  # type: ignore[misc]
+    @mcp.tool()  # type: ignore[misc,untyped-decorator]
     def analyze_deduplication_candidates(
         project_path: str = Field(description="The absolute path to the project folder to analyze"),
         language: str = Field(description="The target language"),
@@ -255,7 +255,7 @@ def register_deduplication_tools(mcp: Any) -> Any:
             exclude_patterns=exclude_patterns,
         )
 
-    @mcp.tool()  # type: ignore[misc]
+    @mcp.tool()  # type: ignore[misc,untyped-decorator]
     def apply_deduplication(
         project_folder: str = Field(description="The absolute path to the project folder"),
         group_id: int = Field(description="The duplication group ID from find_duplication results"),
@@ -276,7 +276,7 @@ def register_deduplication_tools(mcp: Any) -> Any:
             extract_to_file=extract_to_file,
         )
 
-    @mcp.tool()  # type: ignore[misc]
+    @mcp.tool()  # type: ignore[misc,untyped-decorator]
     def benchmark_deduplication(
         iterations: int = Field(default=10, description="Number of iterations per benchmark (default: 10)"),
         save_baseline: bool = Field(default=False, description="Save results as new baseline for regression detection"),

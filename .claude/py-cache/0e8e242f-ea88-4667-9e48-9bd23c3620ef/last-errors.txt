@@ -1,0 +1,9 @@
+=== Errors in ast-grep-mcp ===
+src/ast_grep_mcp/features/complexity/tools.py:632: error: Unused "type: ignore[misc]" comment  [unused-ignore]
+src/ast_grep_mcp/features/complexity/tools.py:666: error: Unused "type: ignore[misc]" comment  [unused-ignore]
+src/ast_grep_mcp/features/complexity/tools.py:677: error: Unused "type: ignore[misc]" comment  [unused-ignore]
+src/ast_grep_mcp/features/deduplication/tools.py:220: error: Unused "type: ignore[misc]" comment  [unused-ignore]
+src/ast_grep_mcp/features/deduplication/tools.py:237: error: Unused "type: ignore[misc]" comment  [unused-ignore]
+src/ast_grep_mcp/features/deduplication/tools.py:258: error: Unused "type: ignore[misc]" comment  [unused-ignore]
+src/ast_grep_mcp/features/deduplication/tools.py:279: error: Unused "type: ignore[misc]" comment  [unused-ignore]
+Found 7 errors in 2 files (checked 110 source files)

@@ -836,7 +836,8 @@ def build_rule_impl(
         yaml_obj["fix"] = fix
 
     # Convert to YAML string
-    return yaml.dump(yaml_obj, default_flow_style=False, sort_keys=False, allow_unicode=True)
+    result: str = yaml.dump(yaml_obj, default_flow_style=False, sort_keys=False, allow_unicode=True)
+    return result
 
 
 # =============================================================================
