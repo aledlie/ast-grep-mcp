@@ -7,6 +7,7 @@ a clean API for the MCP server.
 
 from typing import Any, Dict, List, Optional
 
+from ...constants import DeduplicationDefaults
 from ...core.logging import get_logger
 from .analysis_orchestrator import DeduplicationAnalysisOrchestrator
 from .applicator import DeduplicationApplicator
@@ -15,7 +16,7 @@ from .detector import DuplicationDetector
 
 
 def find_duplication_tool(
-    project_folder: str, language: str, min_similarity: float = 0.8, min_lines: int = 5, exclude_patterns: Optional[List[str]] = None
+    project_folder: str, language: str, min_similarity: float = DeduplicationDefaults.MIN_SIMILARITY, min_lines: int = 5, exclude_patterns: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """Find duplicate functions/classes/methods in a codebase.
 
@@ -58,10 +59,10 @@ def find_duplication_tool(
 def analyze_deduplication_candidates_tool(
     project_path: str,
     language: str,
-    min_similarity: float = 0.8,
+    min_similarity: float = DeduplicationDefaults.MIN_SIMILARITY,
     include_test_coverage: bool = True,
     min_lines: int = 5,
-    max_candidates: int = 100,
+    max_candidates: int = DeduplicationDefaults.MAX_CANDIDATES,
     exclude_patterns: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Analyze a project for deduplication candidates and return ranked results.
@@ -221,7 +222,7 @@ def register_deduplication_tools(mcp: Any) -> Any:
     def find_duplication(
         project_folder: str = Field(description="Path to the project folder"),
         language: str = Field(description="Programming language"),
-        min_similarity: float = Field(default=0.8, description="Minimum similarity threshold (0-1)"),
+        min_similarity: float = Field(default=DeduplicationDefaults.MIN_SIMILARITY, description="Minimum similarity threshold (0-1)"),
         min_lines: int = Field(default=5, description="Minimum lines to consider"),
         exclude_patterns: Optional[List[str]] = Field(default=None, description="Path patterns to exclude"),
     ) -> Dict[str, Any]:
@@ -238,7 +239,7 @@ def register_deduplication_tools(mcp: Any) -> Any:
     def analyze_deduplication_candidates(
         project_path: str = Field(description="The absolute path to the project folder to analyze"),
         language: str = Field(description="The target language"),
-        min_similarity: float = Field(default=0.8, description="Minimum similarity threshold (0.0-1.0)"),
+        min_similarity: float = Field(default=DeduplicationDefaults.MIN_SIMILARITY, description="Minimum similarity threshold (0.0-1.0)"),
         include_test_coverage: bool = Field(default=True, description="Whether to check test coverage for prioritization"),
         min_lines: int = Field(default=5, description="Minimum number of lines to consider for duplication"),
         max_candidates: int = Field(default=100, description="Maximum number of candidates to return"),

@@ -483,11 +483,11 @@ def generate_multi_file_diff(
     files_with_changes = [fd for fd in file_diffs if fd.additions > 0 or fd.deletions > 0]
     summary_lines = [
         "Diff Preview Summary",
-        "-" * 40,
+        "-" * FormattingDefaults.TABLE_SEPARATOR_WIDTH,
         f"Files modified: {len(files_with_changes)}",
         f"Total additions: +{total_additions}",
         f"Total deletions: -{total_deletions}",
-        "-" * 40,
+        "-" * FormattingDefaults.TABLE_SEPARATOR_WIDTH,
     ]
 
     for fd in files_with_changes:

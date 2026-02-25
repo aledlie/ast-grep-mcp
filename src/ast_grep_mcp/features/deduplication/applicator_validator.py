@@ -7,6 +7,7 @@ they are applied to ensure code quality and prevent syntax errors.
 from pathlib import Path
 from typing import Any, Dict, List
 
+from ...constants import DisplayDefaults
 from ...core.logging import get_logger
 from ...utils.syntax_validation import suggest_syntax_fix, validate_code_for_language
 
@@ -155,7 +156,7 @@ class RefactoringPlanValidator:
                         "type": "extracted_function",
                         "file": "extracted function",
                         "error": error_msg,
-                        "code_preview": extracted_function[:200],
+                        "code_preview": extracted_function[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
                         "suggestion": suggest_syntax_fix(error_msg, language, context="code"),
                     }
                 )

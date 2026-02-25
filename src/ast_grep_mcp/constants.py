@@ -108,6 +108,7 @@ class DeduplicationDefaults:
 
     MIN_SIMILARITY = 0.8  # Minimum similarity threshold (0-1)
     MIN_LINES = 5  # Minimum lines to consider for duplication
+    MAX_CANDIDATES = 100  # Maximum candidate pairs to analyze
 
     # Scoring weights (must sum to 1.0)
     SAVINGS_WEIGHT = 0.40
@@ -268,6 +269,10 @@ class FormattingDefaults:
     BLACK_LINE_LENGTH = 88  # Black formatter default
     PRETTIER_LINE_LENGTH = 80  # Prettier formatter default
     SEPARATOR_LENGTH = 70  # Default CLI separator line length
+    USAGE_REPORT_WIDTH = 50  # Separator width for usage summary reports
+    SECTION_DIVIDER_WIDTH = 30  # Subsection divider width in reports
+    WIDE_SECTION_WIDTH = 80  # Wide separator for enforcement/audit reports
+    TABLE_SEPARATOR_WIDTH = 40  # Table row separator width
 
 
 class DisplayDefaults:
@@ -278,6 +283,7 @@ class DisplayDefaults:
     MEDIUM_SCORE_THRESHOLD = 6  # Score <= this is "medium"
     CONTENT_PREVIEW_LENGTH = 50  # Characters in content previews
     ERROR_OUTPUT_PREVIEW_LENGTH = 200  # Characters in error output previews
+    ERROR_MESSAGE_MAX_LENGTH = 500  # Max characters for stored error messages
     AST_TRUNCATION_LENGTH = 500  # Characters for AST structure previews
     AST_PREVIEW_MAX_LINES = 15  # Lines in AST preview output
     MAX_CHILD_KINDS = 10  # Max child kinds to return in analysis
@@ -379,6 +385,9 @@ class MinHashDefaults:
     NUM_PERMUTATIONS = 128
     SHINGLE_SIZE = 3
     SMALL_CODE_TOKEN_THRESHOLD = 20
+    SEQUENCEMATCHER_TOKEN_THRESHOLD = 15  # Below this, use SequenceMatcher instead of MinHash
+    LSH_RECALL_MARGIN = 0.2              # LSH threshold margin below min_similarity for recall
+    MAX_FALLBACK_ITEMS = 100             # Max items before all-pairs O(n²) becomes too expensive
 
 
 class ASTFingerprintDefaults:
@@ -497,6 +506,12 @@ class PriorityWeights:
     COMPLEXITY_PENALTY = 3
 
 
+class CrossLanguageDefaults:
+    """Defaults for cross-language analysis."""
+
+    MAX_RESULTS_PER_LANGUAGE = 100  # Maximum results returned per language in multi-language search
+
+
 class EquivalenceDefaults:
     """Cross-language pattern equivalence defaults."""
 
@@ -508,6 +523,33 @@ class DetectorDefaults:
     """Deduplication detector defaults."""
 
     UTILITY_FUNCTION_LINE_THRESHOLD = 10
+
+
+class ComplexityStorageDefaults:
+    """Defaults for complexity trend storage and queries."""
+
+    TRENDS_LOOKBACK_DAYS = 30  # Default lookback period for trend queries
+
+
+class RuleSetPriority:
+    """Execution priority ordering for rule sets (higher = runs first)."""
+
+    SECURITY = 200    # Security rules run first
+    CUSTOM = 150      # Custom rules after security
+    RECOMMENDED = 100  # Recommended/all rules
+    PERFORMANCE = 50  # Performance rules
+    STYLE = 10        # Style rules run last
+
+
+class PatternSuggestionConfidence:
+    """Confidence scores for pattern suggestion types."""
+
+    EXACT_SIMPLE = 0.9    # Exact match for simple code
+    EXACT_COMPLEX = 0.7   # Exact match for complex code
+    GENERALIZED = 0.8     # Generalized pattern with metavariables
+    STRUCTURAL = 0.6      # Structural (kind-based) pattern
+    PATTERN_MATCH = 0.85  # Security pattern match confidence
+    UNKNOWN_FIX = 0.5     # Unknown fix pattern (conservative)
 
 
 # HTTP constants

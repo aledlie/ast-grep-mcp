@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Literal
 import sentry_sdk
 from pydantic import Field
 
-from ast_grep_mcp.constants import CodeQualityDefaults, ComplexityDefaults, FormattingDefaults, ParallelProcessing
+from ast_grep_mcp.constants import CodeQualityDefaults, ComplexityDefaults, ComplexityStorageDefaults, DisplayDefaults, FormattingDefaults, ParallelProcessing
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.complexity import ComplexityThresholds
 
@@ -138,7 +138,7 @@ def _store_and_generate_trends(
         run_id, stored_at = statistics.store_results(project_folder, summary, all_functions)
 
     if include_trends:
-        trends = statistics.get_trends(project_folder, days=30)
+        trends = statistics.get_trends(project_folder, days=ComplexityStorageDefaults.TRENDS_LOOKBACK_DAYS)
 
     return run_id, stored_at, trends
 
@@ -278,13 +278,13 @@ def analyze_complexity_tool(
     language: str,
     include_patterns: List[str] | None = None,
     exclude_patterns: List[str] | None = None,
-    cyclomatic_threshold: int = 10,
-    cognitive_threshold: int = 15,
-    nesting_threshold: int = 4,
-    length_threshold: int = 50,
+    cyclomatic_threshold: int = ComplexityDefaults.CYCLOMATIC_THRESHOLD,
+    cognitive_threshold: int = ComplexityDefaults.COGNITIVE_THRESHOLD,
+    nesting_threshold: int = ComplexityDefaults.NESTING_THRESHOLD,
+    length_threshold: int = ComplexityDefaults.LENGTH_THRESHOLD,
     store_results: bool = True,
     include_trends: bool = False,
-    max_threads: int = 4,
+    max_threads: int = ParallelProcessing.DEFAULT_WORKERS,
 ) -> Dict[str, Any]:
     """
     Analyze code complexity metrics for functions in a project.
@@ -368,7 +368,7 @@ def analyze_complexity_tool(
             "tool_failed",
             tool="analyze_complexity",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(
@@ -477,7 +477,7 @@ def test_sentry_integration_tool(
             "tool_failed",
             tool="test_sentry_integration",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         # For this test tool, capture the error even if it's not expected
@@ -544,14 +544,14 @@ def detect_code_smells_tool(
     language: str,
     include_patterns: List[str] | None = None,
     exclude_patterns: List[str] | None = None,
-    long_function_lines: int = 50,
-    parameter_count: int = 5,
-    nesting_depth: int = 4,
-    class_lines: int = 300,
-    class_methods: int = 20,
+    long_function_lines: int = CodeQualityDefaults.LONG_FUNCTION_LINES,
+    parameter_count: int = CodeQualityDefaults.PARAMETER_COUNT,
+    nesting_depth: int = CodeQualityDefaults.NESTING_DEPTH,
+    class_lines: int = CodeQualityDefaults.CLASS_LINES,
+    class_methods: int = CodeQualityDefaults.CLASS_METHODS,
     detect_magic_numbers: bool = True,
     severity_filter: str = "all",
-    max_threads: int = 4,
+    max_threads: int = ParallelProcessing.DEFAULT_WORKERS,
 ) -> Dict[str, Any]:
     """
     Detect common code smells, anti-patterns in a project.

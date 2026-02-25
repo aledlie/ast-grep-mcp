@@ -3,6 +3,7 @@
 import os
 from typing import Any, Dict, List, Optional, cast
 
+from ...constants import DisplayDefaults
 from ...core.logging import get_logger
 from .applicator_backup import DeduplicationBackupManager
 from .applicator_executor import RefactoringExecutor
@@ -95,7 +96,7 @@ class DeduplicationApplicator:
             return self._build_success_response(modified_files, validation_result, backup_id, project_folder, group_id, strategy)
 
         except Exception as e:
-            self.logger.error("apply_deduplication_failed", error=str(e)[:200])
+            self.logger.error("apply_deduplication_failed", error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
             raise
 
     def _validate_and_prepare_plan(

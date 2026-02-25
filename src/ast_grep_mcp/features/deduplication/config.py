@@ -7,6 +7,8 @@ excessive parameter passing throughout the deduplication workflow.
 from dataclasses import dataclass
 from typing import Any, Callable, List, Optional
 
+from ...constants import DeduplicationDefaults
+
 
 @dataclass
 class AnalysisConfig:
@@ -60,10 +62,10 @@ class AnalysisConfig:
     language: str
 
     # Analysis thresholds with defaults
-    min_similarity: float = 0.8
+    min_similarity: float = DeduplicationDefaults.MIN_SIMILARITY
     include_test_coverage: bool = True
-    min_lines: int = 5
-    max_candidates: int = 100
+    min_lines: int = DeduplicationDefaults.MIN_LINES
+    max_candidates: int = DeduplicationDefaults.MAX_CANDIDATES
 
     # Optional fields
     exclude_patterns: Optional[List[str]] = None

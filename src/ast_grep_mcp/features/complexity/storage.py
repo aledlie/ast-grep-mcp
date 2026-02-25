@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional
 
-from ast_grep_mcp.constants import PerformanceDefaults
+from ast_grep_mcp.constants import ComplexityStorageDefaults, PerformanceDefaults
 from ast_grep_mcp.models.complexity import FunctionComplexity
 
 # =============================================================================
@@ -199,7 +199,7 @@ class ComplexityStorage:
 
             return run_id
 
-    def get_project_trends(self, project_path: str, days: int = 30) -> List[Dict[str, Any]]:
+    def get_project_trends(self, project_path: str, days: int = ComplexityStorageDefaults.TRENDS_LOOKBACK_DAYS) -> List[Dict[str, Any]]:
         """Get complexity trends for a project over time."""
         with self._get_connection() as conn:
             cursor = conn.execute(

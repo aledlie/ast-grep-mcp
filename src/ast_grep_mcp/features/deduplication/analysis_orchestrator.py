@@ -8,7 +8,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from typing import Any, Callable, Dict, List, Optional
 
-from ...constants import ParallelProcessing
+from ...constants import DeduplicationDefaults, ParallelProcessing
 from ...core.logging import get_logger
 from .config import AnalysisConfig
 from .coverage import CoverageDetector
@@ -81,10 +81,10 @@ class DeduplicationAnalysisOrchestrator:
         self,
         project_path: str,
         language: str,
-        min_similarity: float = 0.8,
+        min_similarity: float = DeduplicationDefaults.MIN_SIMILARITY,
         include_test_coverage: bool = True,
         min_lines: int = 5,
-        max_candidates: int = 100,
+        max_candidates: int = DeduplicationDefaults.MAX_CANDIDATES,
         exclude_patterns: List[str] | None = None,
         progress_callback: Optional[ProgressCallback] = None,
     ) -> Dict[str, Any]:
@@ -622,7 +622,7 @@ class DeduplicationAnalysisOrchestrator:
                 "test_coverage",
                 "test_coverage_error",
                 {},
-                timeout_per_candidate=30,
+                timeout_per_candidate=ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS,
                 language=language,
                 project_path=project_path
             )

@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import sentry_sdk
 import yaml
 
-from ast_grep_mcp.constants import FormattingDefaults, SyntaxValidationDefaults
+from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults, SyntaxValidationDefaults
 from ast_grep_mcp.core.exceptions import InvalidYAMLError
 from ast_grep_mcp.core.executor import (
     filter_files_by_size,
@@ -451,7 +451,7 @@ def rewrite_code_impl(
         logger.error(
             "rewrite_code_failed",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(
@@ -519,7 +519,7 @@ def rollback_rewrite_impl(backup_id: str, project_folder: str) -> Dict[str, Any]
         logger.error(
             "rollback_failed",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(
@@ -558,6 +558,6 @@ def list_backups_impl(project_folder: str) -> List[Dict[str, Any]]:
         return backups
 
     except Exception as e:
-        logger.error("list_backups_failed", error=str(e)[:200])
+        logger.error("list_backups_failed", error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
         sentry_sdk.capture_exception(e, extras={"function": "list_backups_impl", "project_folder": project_folder})
         raise

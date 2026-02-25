@@ -67,16 +67,16 @@ class SimilarityConfig:
     small_code_token_threshold: int = MinHashDefaults.SMALL_CODE_TOKEN_THRESHOLD
     """Code with fewer tokens than this is considered 'small' and may need special handling."""
 
-    lsh_recall_margin: float = 0.2
+    lsh_recall_margin: float = MinHashDefaults.LSH_RECALL_MARGIN
     """LSH threshold is set to (min_similarity - margin) to improve recall. Must be < min_similarity."""
 
     enable_small_code_fallback: bool = True
     """When True, fall back to all-pairs comparison for small datasets when LSH finds no candidates."""
 
-    max_fallback_items: int = 100
+    max_fallback_items: int = MinHashDefaults.MAX_FALLBACK_ITEMS
     """Maximum number of items to use all-pairs fallback (O(n²) becomes expensive above this)."""
 
-    small_code_threshold: int = 15
+    small_code_threshold: int = MinHashDefaults.SEQUENCEMATCHER_TOKEN_THRESHOLD
     """Tokens below this threshold use SequenceMatcher for accurate similarity (Phase 4).
 
     MinHash accuracy degrades for small code due to insufficient shingles.
@@ -436,7 +436,7 @@ class MinHashSimilarity:
     def find_all_similar_pairs(
         self,
         code_items: List[Tuple[str, str]],
-        min_similarity: float = 0.8,
+        min_similarity: float = DeduplicationDefaults.MIN_SIMILARITY,
     ) -> List[Tuple[str, str, float]]:
         """Find all pairs of similar code snippets using LSH.
 
@@ -1617,7 +1617,7 @@ class SemanticSimilarityConfig:
     model_name: str = "microsoft/codebert-base"
     """Pre-trained model to use for embeddings."""
 
-    max_length: int = 512
+    max_length: int = SemanticSimilarityDefaults.MAX_TOKEN_LENGTH
     """Maximum token length for code input (CodeBERT limit)."""
 
     device: str = "auto"

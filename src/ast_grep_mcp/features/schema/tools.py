@@ -8,7 +8,7 @@ import sentry_sdk
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-from ast_grep_mcp.constants import FormattingDefaults
+from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.schema.client import get_schema_org_client
 from ast_grep_mcp.features.schema.enhancement_service import analyze_entity_graph
@@ -52,7 +52,7 @@ def get_schema_type_tool(type_name: str) -> Dict[str, Any]:
             "tool_failed",
             tool="get_schema_type",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(
@@ -106,7 +106,7 @@ def search_schemas_tool(query: str, limit: int = 10) -> List[Dict[str, Any]]:
             "tool_failed",
             tool="search_schemas",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(
@@ -159,7 +159,7 @@ def get_type_hierarchy_tool(type_name: str) -> Dict[str, Any]:
             "tool_failed",
             tool="get_type_hierarchy",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(
@@ -213,7 +213,7 @@ def get_type_properties_tool(type_name: str, include_inherited: bool = True) -> 
             "tool_failed",
             tool="get_type_properties",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(
@@ -267,7 +267,7 @@ def generate_schema_example_tool(type_name: str, custom_properties: Optional[Dic
             "tool_failed",
             tool="generate_schema_example",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(
@@ -328,7 +328,7 @@ def generate_entity_id_tool(base_url: str, entity_type: str, entity_slug: Option
             "tool_failed",
             tool="generate_entity_id",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(
@@ -391,7 +391,7 @@ def validate_entity_id_tool(entity_id: str) -> Dict[str, Any]:
             "tool_failed",
             tool="validate_entity_id",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(
@@ -459,7 +459,7 @@ def build_entity_graph_tool(entities: List[Dict[str, Any]], base_url: str) -> Di
             "tool_failed",
             tool="build_entity_graph",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(
@@ -527,7 +527,7 @@ def enhance_entity_graph_tool(input_source: str, input_type: str = "file", outpu
             "tool_failed",
             tool="enhance_entity_graph",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(

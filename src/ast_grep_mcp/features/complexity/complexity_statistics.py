@@ -7,7 +7,7 @@ retrieving trends, and formatting the final response.
 import subprocess
 from typing import Any, Dict, List, Optional
 
-from ...constants import FormattingDefaults, ValidationDefaults
+from ...constants import ComplexityStorageDefaults, FormattingDefaults, ValidationDefaults
 from ...core.logging import get_logger
 from ...models.complexity import FunctionComplexity
 from .storage import ComplexityStorage
@@ -131,7 +131,7 @@ class ComplexityStatisticsAggregator:
             self.logger.warning("storage_failed", error=str(e))
             return None, None
 
-    def get_trends(self, project_folder: str, days: int = 30) -> Optional[List[Dict[str, Any]]]:
+    def get_trends(self, project_folder: str, days: int = ComplexityStorageDefaults.TRENDS_LOOKBACK_DAYS) -> Optional[List[Dict[str, Any]]]:
         """Get historical trend data for project.
 
         Args:

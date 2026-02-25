@@ -15,7 +15,7 @@ import sentry_sdk
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-from ast_grep_mcp.constants import FormattingDefaults
+from ast_grep_mcp.constants import CrossLanguageDefaults, DisplayDefaults, FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.cross_language.binding_generator import generate_language_bindings_impl
 from ast_grep_mcp.features.cross_language.language_converter import convert_code_language_impl
@@ -123,7 +123,7 @@ def search_multi_language_tool(
     semantic_pattern: str,
     languages: Optional[List[str]] = None,
     group_by: str = "semantic",
-    max_results_per_language: int = 100,
+    max_results_per_language: int = CrossLanguageDefaults.MAX_RESULTS_PER_LANGUAGE,
 ) -> Dict[str, Any]:
     """
     Search across multiple programming languages for semantically equivalent patterns.
@@ -233,7 +233,7 @@ def search_multi_language_tool(
             "tool_failed",
             tool="search_multi_language",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -325,7 +325,7 @@ def find_language_equivalents_tool(
             "tool_failed",
             tool="find_language_equivalents",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -436,7 +436,7 @@ def convert_code_language_tool(
             "tool_failed",
             tool="convert_code_language",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -573,7 +573,7 @@ def refactor_polyglot_tool(
             "tool_failed",
             tool="refactor_polyglot",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -697,7 +697,7 @@ def generate_language_bindings_tool(
             "tool_failed",
             tool="generate_language_bindings",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -716,7 +716,7 @@ def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
             "semantic_pattern": Field(description="Semantic pattern to search for (e.g., 'async function', 'try catch')"),
             "languages": Field(default=None, description="Languages to search (['auto'] for auto-detection)"),
             "group_by": Field(default="semantic", description="Grouping strategy ('semantic', 'language', 'file')"),
-            "max_results_per_language": Field(default=100, description="Maximum results per language"),
+            "max_results_per_language": Field(default=CrossLanguageDefaults.MAX_RESULTS_PER_LANGUAGE, description="Maximum results per language"),
         },
         "find_language_equivalents": {
             "pattern_description": Field(description="Description of the pattern to find (e.g., 'list comprehension')"),

@@ -7,6 +7,7 @@ have been applied to ensure code correctness.
 import os
 from typing import Any, Dict, List
 
+from ...constants import DisplayDefaults
 from ...core.logging import get_logger
 from ...utils.syntax_validation import suggest_syntax_fix
 from .applicator_validator import ValidationResult
@@ -81,7 +82,7 @@ class RefactoringPostValidator:
                         "suggestion": suggest_syntax_fix(result.get("error"), language, context="file"),
                     }
                 )
-                self.logger.warning("syntax_validation_failed", file=file_path, error=result.get("error", "")[:200])
+                self.logger.warning("syntax_validation_failed", file=file_path, error=result.get("error", "")[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
 
         except Exception as e:
             errors.append(

@@ -27,7 +27,7 @@ from typing import Any, Callable, Dict, Generator, List, Optional, TypeVar, cast
 
 from pydantic import BaseModel, Field
 
-from ast_grep_mcp.constants import UsageTrackingDefaults
+from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults, UsageTrackingDefaults
 
 from .logging import get_logger
 
@@ -348,7 +348,7 @@ class UsageDatabase:
             )
         except Exception as e:
             # Never fail the main operation due to logging
-            logger.error("usage_log_failed", error=str(e)[:200])
+            logger.error("usage_log_failed", error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
 
     def get_stats(
         self,
@@ -690,7 +690,7 @@ def track_usage(
                 return result
             except Exception as e:
                 success = False
-                error_message = str(e)[:500]
+                error_message = str(e)[:DisplayDefaults.ERROR_MESSAGE_MAX_LENGTH]
                 raise
             finally:
                 response_time_ms = int((time.perf_counter() - start_time) * 1000)
@@ -736,7 +736,7 @@ def track_usage(
                     get_usage_database().log_usage(entry)
                 except Exception as log_error:
                     # Never fail the main operation
-                    logger.error("usage_tracking_failed", error=str(log_error)[:200])
+                    logger.error("usage_tracking_failed", error=str(log_error)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
 
         return cast(F, wrapper)
 
@@ -773,7 +773,7 @@ def track_operation(
         yield tracker
     except Exception as e:
         tracker.success = False
-        tracker.error_message = str(e)[:500]
+        tracker.error_message = str(e)[:DisplayDefaults.ERROR_MESSAGE_MAX_LENGTH]
         raise
     finally:
         tracker._finalize()
@@ -820,7 +820,7 @@ class _OperationTracker:
         try:
             get_usage_database().log_usage(entry)
         except Exception as e:
-            logger.error("usage_tracking_failed", error=str(e)[:200])
+            logger.error("usage_tracking_failed", error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
 
 
 # =============================================================================
@@ -885,13 +885,13 @@ def format_usage_report(stats: UsageStats) -> str:
         Formatted report string
     """
     lines = [
-        "=" * 50,
+        "=" * FormattingDefaults.USAGE_REPORT_WIDTH,
         "USAGE STATISTICS REPORT",
-        "=" * 50,
+        "=" * FormattingDefaults.USAGE_REPORT_WIDTH,
         f"Period: {stats.period_start.strftime('%Y-%m-%d %H:%M')} to {stats.period_end.strftime('%Y-%m-%d %H:%M')}",
         "",
         "SUMMARY",
-        "-" * 30,
+        "-" * FormattingDefaults.SECTION_DIVIDER_WIDTH,
         f"Total Calls:      {stats.total_calls:,}",
         f"Successful:       {stats.successful_calls:,}",
         f"Failed:           {stats.failed_calls:,}",
@@ -906,7 +906,7 @@ def format_usage_report(stats: UsageStats) -> str:
         lines.extend(
             [
                 "CALLS BY TOOL",
-                "-" * 30,
+                "-" * FormattingDefaults.SECTION_DIVIDER_WIDTH,
             ]
         )
         for tool, count in sorted(stats.calls_by_tool.items(), key=lambda x: -x[1]):
@@ -918,12 +918,12 @@ def format_usage_report(stats: UsageStats) -> str:
         lines.extend(
             [
                 "CALLS BY OPERATION",
-                "-" * 30,
+                "-" * FormattingDefaults.SECTION_DIVIDER_WIDTH,
             ]
         )
         for op, count in sorted(stats.calls_by_operation.items(), key=lambda x: -x[1]):
             lines.append(f"  {op}: {count:,}")
         lines.append("")
 
-    lines.append("=" * 50)
+    lines.append("=" * FormattingDefaults.USAGE_REPORT_WIDTH)
     return "\n".join(lines)

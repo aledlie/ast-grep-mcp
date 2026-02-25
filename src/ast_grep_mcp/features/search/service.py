@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Literal, Optional, Union, cast
 import sentry_sdk
 import yaml
 
-from ast_grep_mcp.constants import CodeAnalysisDefaults, DisplayDefaults, FormattingDefaults
+from ast_grep_mcp.constants import CodeAnalysisDefaults, DisplayDefaults, FormattingDefaults, PatternSuggestionConfidence
 from ast_grep_mcp.core.cache import get_query_cache
 from ast_grep_mcp.core.config import CACHE_ENABLED
 from ast_grep_mcp.core.exceptions import InvalidYAMLError, NoMatchesError
@@ -1848,7 +1848,7 @@ def _generate_pattern_suggestions(
             pattern=code.strip(),
             description="Exact match - matches this specific code only",
             type=SuggestionType.EXACT,
-            confidence=0.9 if analysis.complexity == "simple" else 0.7,
+            confidence=PatternSuggestionConfidence.EXACT_SIMPLE if analysis.complexity == "simple" else PatternSuggestionConfidence.EXACT_COMPLEX,
             notes="Good for finding exact duplicates",
         )
     )
@@ -1862,7 +1862,7 @@ def _generate_pattern_suggestions(
                     pattern=generalized,
                     description="Generalized - matches similar code with different names/values",
                     type=SuggestionType.GENERALIZED,
-                    confidence=0.8,
+                    confidence=PatternSuggestionConfidence.GENERALIZED,
                     notes="Metavariables ($NAME) match any identifier. Use $$$ARGS for multiple items.",
                 )
             )
@@ -1874,7 +1874,7 @@ def _generate_pattern_suggestions(
                 pattern=f"# For YAML rule: kind: {analysis.root_kind}",
                 description=f"Structural - matches any '{analysis.root_kind}' node",
                 type=SuggestionType.STRUCTURAL,
-                confidence=0.6,
+                confidence=PatternSuggestionConfidence.STRUCTURAL,
                 notes="Use with find_code_by_rule. Combine with 'has' or 'inside' for precision.",
             )
         )

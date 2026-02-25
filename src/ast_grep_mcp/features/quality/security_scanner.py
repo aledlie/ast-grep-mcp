@@ -18,6 +18,7 @@ from typing import Any, Dict, List, cast
 
 import sentry_sdk
 
+from ast_grep_mcp.constants import PatternSuggestionConfidence, SecurityScanDefaults
 from ast_grep_mcp.core.executor import stream_ast_grep_results
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.standards import SecurityIssue, SecurityScanResult
@@ -485,7 +486,7 @@ def _create_secret_issue(file_path: str, line_num: int, line: str, match: re.Mat
         code_snippet=line.strip(),
         remediation=pattern_def["remediation"],
         cwe_id=pattern_def.get("cwe"),
-        confidence=0.85,
+        confidence=PatternSuggestionConfidence.PATTERN_MATCH,
     )
 
 
@@ -600,7 +601,7 @@ def _build_summary(
 
 
 def detect_security_issues_impl(
-    project_folder: str, language: str, issue_types: List[str] = ["all"], severity_threshold: str = "low", max_issues: int = 100
+    project_folder: str, language: str, issue_types: List[str] = ["all"], severity_threshold: str = "low", max_issues: int = SecurityScanDefaults.MAX_ISSUES
 ) -> SecurityScanResult:
     """Scan project for security vulnerabilities.
 

@@ -17,7 +17,7 @@ import yaml
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-from ast_grep_mcp.constants import FormattingDefaults, ParallelProcessing, SecurityScanDefaults
+from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults, ParallelProcessing, SecurityScanDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.quality.enforcer import enforce_standards_impl, format_violation_report
 from ast_grep_mcp.features.quality.fixer import apply_fixes_batch
@@ -195,7 +195,7 @@ def create_linting_rule_tool(
             "tool_failed",
             tool="create_linting_rule",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(
             e,
@@ -284,7 +284,7 @@ def list_rule_templates_tool(language: Optional[str] = None, category: Optional[
             "tool_failed",
             tool="list_rule_templates",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(
             e,
@@ -472,7 +472,7 @@ def enforce_standards_tool(
             "tool_failed",
             tool="enforce_standards",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(
             e,
@@ -664,7 +664,7 @@ def apply_standards_fixes_tool(
             "tool_failed",
             tool="apply_standards_fixes",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(
             e,
@@ -768,7 +768,7 @@ def generate_quality_report_tool(
             "tool_failed",
             tool="generate_quality_report",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(
             e,
@@ -877,7 +877,7 @@ def _format_issues_by_severity(result: Any) -> Dict[str, List[Dict[str, Any]]]:
 
 
 def detect_security_issues_tool(
-    project_folder: str, language: str, issue_types: List[str] | None = None, severity_threshold: str = "low", max_issues: int = 100
+    project_folder: str, language: str, issue_types: List[str] | None = None, severity_threshold: str = "low", max_issues: int = SecurityScanDefaults.MAX_ISSUES
 ) -> Dict[str, Any]:
     """
     Scan code for security vulnerabilities and common weaknesses.
@@ -990,7 +990,7 @@ def detect_security_issues_tool(
             "tool_failed",
             tool="detect_security_issues",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(
             e,
@@ -1119,7 +1119,7 @@ def detect_orphans_tool(
             "tool_failed",
             tool="detect_orphans",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(
             e,

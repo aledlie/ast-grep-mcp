@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Set
 import sentry_sdk
 import yaml
 
-from ast_grep_mcp.constants import FormattingDefaults
+from ast_grep_mcp.constants import FormattingDefaults, RuleSetPriority
 from ast_grep_mcp.core.executor import stream_ast_grep_results
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.quality.rules import RULE_TEMPLATES, load_rules_from_project
@@ -30,7 +30,7 @@ from ast_grep_mcp.models.standards import EnforcementResult, LintingRule, RuleEx
 RULE_SETS: Dict[str, Dict[str, Any]] = {
     "recommended": {
         "description": "General best practices for clean, maintainable code",
-        "priority": 100,
+        "priority": RuleSetPriority.RECOMMENDED,
         "rules": [
             "no-var",
             "no-console-log",
@@ -46,7 +46,7 @@ RULE_SETS: Dict[str, Dict[str, Any]] = {
     },
     "security": {
         "description": "Security-focused rules to detect vulnerabilities",
-        "priority": 200,  # Higher priority = run first
+        "priority": RuleSetPriority.SECURITY,  # Higher priority = run first
         "rules": [
             "no-eval-exec",
             "no-hardcoded-credentials",
@@ -61,14 +61,14 @@ RULE_SETS: Dict[str, Dict[str, Any]] = {
     },
     "performance": {
         "description": "Performance anti-patterns and optimization opportunities",
-        "priority": 50,
+        "priority": RuleSetPriority.PERFORMANCE,
         "rules": [
             "no-magic-numbers"  # Placeholder - will expand with performance rules in future phases
         ],
     },
     "style": {
         "description": "Code style and formatting rules",
-        "priority": 10,
+        "priority": RuleSetPriority.STYLE,
         "rules": [
             "no-var",
             "prefer-const",
@@ -168,7 +168,7 @@ def _load_all_rules(language: str, logger: Any) -> RuleSet:
     rules = _load_rules_from_templates(all_rule_ids, language)
 
     logger.info("rule_set_loaded", rule_set="all", language=language, rules_count=len(rules))
-    return RuleSet(name="all", description=f"All built-in rules for {language}", rules=rules, priority=100)
+    return RuleSet(name="all", description=f"All built-in rules for {language}", rules=rules, priority=RuleSetPriority.RECOMMENDED)
 
 
 def _load_custom_rule_set(project_folder: str, language: str, logger: Any) -> RuleSet:
@@ -184,7 +184,7 @@ def _load_custom_rule_set(project_folder: str, language: str, logger: Any) -> Ru
     """
     custom_rules = load_custom_rules(project_folder, language)
     logger.info("rule_set_loaded", rule_set="custom", language=language, rules_count=len(custom_rules))
-    return RuleSet(name="custom", description="Custom rules from .ast-grep-rules/", rules=custom_rules, priority=150)
+    return RuleSet(name="custom", description="Custom rules from .ast-grep-rules/", rules=custom_rules, priority=RuleSetPriority.CUSTOM)
 
 
 def _load_builtin_rule_set(rule_set_name: str, language: str, logger: Any) -> RuleSet:
@@ -569,9 +569,9 @@ def format_violation_report(result: EnforcementResult) -> str:
     lines: List[str] = []
 
     # Summary header
-    lines.append("=" * 80)
+    lines.append("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
     lines.append("CODE STANDARDS ENFORCEMENT REPORT")
-    lines.append("=" * 80)
+    lines.append("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
     lines.append("")
 
     summary = result.summary
@@ -593,7 +593,7 @@ def format_violation_report(result: EnforcementResult) -> str:
     # Group by file
     if result.violations_by_file:
         lines.append("Violations by File:")
-        lines.append("-" * 80)
+        lines.append("-" * FormattingDefaults.WIDE_SECTION_WIDTH)
 
         for file_path, violations in sorted(result.violations_by_file.items()):
             lines.append(f"\n{file_path} ({len(violations)} violations)")
@@ -608,7 +608,7 @@ def format_violation_report(result: EnforcementResult) -> str:
     else:
         lines.append("\nNo violations found!")
 
-    lines.append("=" * 80)
+    lines.append("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
 
     return "\n".join(lines)
 
@@ -665,7 +665,7 @@ def enforce_standards_impl(
             if not rules:
                 raise ValueError(f"No custom rules found matching IDs: {custom_rules}. Available: {[r.id for r in all_custom]}")
 
-            rule_set_obj = RuleSet(name="custom", description=f"Custom rules: {', '.join(custom_rules)}", rules=rules, priority=150)
+            rule_set_obj = RuleSet(name="custom", description=f"Custom rules: {', '.join(custom_rules)}", rules=rules, priority=RuleSetPriority.CUSTOM)
         else:
             rule_set_obj = load_rule_set(rule_set, str(project_path), language)
 

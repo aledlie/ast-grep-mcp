@@ -15,7 +15,7 @@ import sentry_sdk
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-from ast_grep_mcp.constants import FormattingDefaults
+from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.documentation.api_docs_generator import generate_api_docs_impl
 from ast_grep_mcp.features.documentation.changelog_generator import generate_changelog_impl
@@ -157,7 +157,7 @@ def generate_docstrings_tool(
             "tool_failed",
             tool="generate_docstrings",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -273,7 +273,7 @@ def generate_readme_sections_tool(
             "tool_failed",
             tool="generate_readme_sections",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -408,7 +408,7 @@ def generate_api_docs_tool(
             "tool_failed",
             tool="generate_api_docs",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -550,7 +550,7 @@ def generate_changelog_tool(
             "tool_failed",
             tool="generate_changelog",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -680,7 +680,7 @@ def sync_documentation_tool(
             "tool_failed",
             tool="sync_documentation",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:200],
+            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise

@@ -19,7 +19,7 @@ import time
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Literal, Optional
 
-from ...constants import DetectorDefaults, IndentationDefaults, FormattingDefaults
+from ...constants import DeduplicationDefaults, DetectorDefaults, DisplayDefaults, FormattingDefaults, IndentationDefaults
 from ...core.executor import stream_ast_grep_results
 from ...core.logging import get_logger
 from ...core.usage_tracking import OperationType, track_operation
@@ -84,7 +84,7 @@ class DuplicationDetector:
         self,
         project_folder: str,
         construct_type: str = "function_definition",
-        min_similarity: float = 0.8,
+        min_similarity: float = DeduplicationDefaults.MIN_SIMILARITY,
         min_lines: int = 5,
         max_constructs: int = 1000,
         exclude_patterns: Optional[List[str]] = None,
@@ -169,7 +169,7 @@ class DuplicationDetector:
                 self.logger.error(
                     "find_duplication_failed",
                     execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-                    error=str(e)[:200],
+                    error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
                     status="failed",
                 )
                 raise
@@ -603,7 +603,7 @@ class DuplicationDetector:
                     {
                         "file": file_path,
                         "lines": f"{start_line}-{end_line}",
-                        "code_preview": match.get("text", "")[:200],  # First 200 chars
+                        "code_preview": match.get("text", "")[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],  # First 200 chars
                     }
                 )
 

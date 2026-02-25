@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import sentry_sdk
 
+from ast_grep_mcp.constants import PatternSuggestionConfidence
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.rewrite.backup import create_backup
 from ast_grep_mcp.features.rewrite.service import validate_syntax
@@ -81,7 +82,7 @@ def classify_fix_safety(rule_id: str, violation: RuleViolation) -> FixValidation
 
     # Unknown pattern - conservative approach
     return FixValidation(
-        is_safe=False, confidence=0.5, warnings=["Unknown fix pattern - manual review recommended"], errors=[], requires_review=True
+        is_safe=False, confidence=PatternSuggestionConfidence.UNKNOWN_FIX, warnings=["Unknown fix pattern - manual review recommended"], errors=[], requires_review=True
     )
 
 
