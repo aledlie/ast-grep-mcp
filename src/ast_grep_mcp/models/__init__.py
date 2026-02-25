@@ -1,17 +1,16 @@
 """Data models for ast-grep MCP server."""
 
 # Condense models
-from ast_grep_mcp.models.condense import (
-    CondenseResult,
-    LanguageCondenseStats,
-)
-
 # Config models
 # Complexity models
 from ast_grep_mcp.models.complexity import (
     ComplexityMetrics,
     ComplexityThresholds,
     FunctionComplexity,
+)
+from ast_grep_mcp.models.condense import (
+    CondenseResult,
+    LanguageCondenseStats,
 )
 from ast_grep_mcp.models.config import (
     AstGrepConfig,

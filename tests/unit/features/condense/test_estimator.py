@@ -1,10 +1,7 @@
 """Tests for condense estimator (non-destructive reduction estimation)."""
 
-import os
 import tempfile
 from pathlib import Path
-
-import pytest
 
 from ast_grep_mcp.features.condense.estimator import (
     _collect_files,

@@ -1,6 +1,5 @@
 """Tests for strategy definitions and validation."""
 
-import pytest
 
 from ast_grep_mcp.features.condense.strategies import (
     STRATEGY_DESCRIPTIONS,

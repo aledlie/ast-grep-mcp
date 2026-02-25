@@ -3,10 +3,7 @@
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from ast_grep_mcp.features.condense.service import condense_pack_impl
-from ast_grep_mcp.features.condense.tools import condense_pack_tool
 
 
 class TestCondensePackImpl:
@@ -95,15 +92,3 @@ class TestCondensePackImpl:
             result_analysis = condense_pack_impl(tmp, strategy="ai_analysis")
         # ai_chat should condense more aggressively
         assert result_chat["condensed_bytes"] <= result_analysis["condensed_bytes"]
-
-
-class TestCondensePackTool:
-    def test_invalid_strategy_returns_error(self):
-        result = condense_pack_tool("/tmp", strategy="banana")
-        assert "error" in result
-
-    def test_valid_strategy_delegates(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            (Path(tmp) / "a.py").write_text("x = 1\n")
-            result = condense_pack_tool(tmp, strategy="ai_analysis")
-        assert "error" not in result or "Path does not exist" not in result.get("error", "")

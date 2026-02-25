@@ -13,6 +13,8 @@ class LanguageCondenseStats:
     original_lines: int
     condensed_lines: int
     patterns_matched: int
+    original_bytes: int = 0
+    condensed_bytes: int = 0
 
 
 @dataclass

@@ -1754,7 +1754,7 @@ class SemanticSimilarity:
 
         try:
             # Load tokenizer and model
-            self._tokenizer = AutoTokenizer.from_pretrained(self.config.model_name)  # type: ignore[no-untyped-call]
+            self._tokenizer = AutoTokenizer.from_pretrained(self.config.model_name)
             self._model = AutoModel.from_pretrained(self.config.model_name)
 
             # Determine device

@@ -130,7 +130,7 @@ def _write_training_result(
             "zstd",
             "--train",
             f"--maxdict={CondenseDictionaryDefaults.DICT_SIZE_BYTES}",
-            f"--out={dict_path}",
+            "-o", str(dict_path),
         ]
         # Add all sample files
         cmd.extend(str(p) for p in tmp_dir.iterdir())

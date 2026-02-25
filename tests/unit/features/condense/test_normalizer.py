@@ -1,6 +1,5 @@
 """Tests for code normalizer transforms."""
 
-import pytest
 
 from ast_grep_mcp.features.condense.normalizer import (
     _double_to_single_quotes,

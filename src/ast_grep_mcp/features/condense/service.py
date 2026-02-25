@@ -397,6 +397,8 @@ def condense_pack_impl(
         stats.files_processed += 1
         stats.original_lines += file_result["original_lines"]
         stats.condensed_lines += file_result["condensed_lines"]
+        stats.original_bytes += file_result["original_bytes"]
+        stats.condensed_bytes += file_result["condensed_bytes"]
 
     reduction_pct = (
         max(0.0, round((1.0 - total_condensed_bytes / total_original_bytes) * 100, 1))
@@ -431,6 +433,11 @@ def condense_pack_impl(
                 "files_processed": s.files_processed,
                 "original_lines": s.original_lines,
                 "condensed_lines": s.condensed_lines,
+                "original_bytes": s.original_bytes,
+                "condensed_bytes": s.condensed_bytes,
+                "reduction_pct": round(
+                    (1.0 - s.condensed_bytes / s.original_bytes) * 100, 1
+                ) if s.original_bytes > 0 else 0.0,
             }
             for lang, s in per_language.items()
         },

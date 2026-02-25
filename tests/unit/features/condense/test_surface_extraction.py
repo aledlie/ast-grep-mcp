@@ -3,8 +3,6 @@
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from ast_grep_mcp.features.condense.service import (
     _extract_generic_surface,
     _extract_js_ts_surface,
@@ -55,13 +53,13 @@ class TestExtractPythonSurface:
     def test_keeps_function_definitions(self):
         lines = ["def foo(x):", "    return x", "", "def bar():", "    pass"]
         kept = _extract_python_surface(lines, include_docstrings=False)
-        assert any("def foo" in l for l in kept)
-        assert any("def bar" in l for l in kept)
+        assert any("def foo" in line for line in kept)
+        assert any("def bar" in line for line in kept)
 
     def test_keeps_class_definitions(self):
         lines = ["class MyClass:", "    def method(self):", "        pass"]
         kept = _extract_python_surface(lines, include_docstrings=False)
-        assert any("class MyClass" in l for l in kept)
+        assert any("class MyClass" in line for line in kept)
 
     def test_includes_docstring_when_requested(self):
         lines = [
@@ -70,7 +68,7 @@ class TestExtractPythonSurface:
             "    return 42",
         ]
         kept = _extract_python_surface(lines, include_docstrings=True)
-        assert any("docstring" in l for l in kept)
+        assert any("docstring" in line for line in kept)
 
     def test_excludes_body_lines(self):
         lines = [
@@ -129,8 +127,8 @@ class TestExtractGenericSurface:
             "}",
         ]
         kept = _extract_generic_surface(lines)
-        assert any("func Add" in l for l in kept)
-        assert any("type Point" in l for l in kept)
+        assert any("func Add" in line for line in kept)
+        assert any("type Point" in line for line in kept)
 
     def test_empty_input(self):
         assert _extract_generic_surface([]) == []
