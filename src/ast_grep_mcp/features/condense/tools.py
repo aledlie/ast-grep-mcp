@@ -1,0 +1,313 @@
+"""MCP tool definitions for code condensation features.
+
+Registers 5 tools:
+- condense_extract_surface
+- condense_normalize
+- condense_strip
+- condense_pack
+- condense_estimate
+"""
+
+import time
+from typing import Any, Dict, List, Optional
+
+import sentry_sdk
+from pydantic import Field
+
+from ...constants import CondenseDefaults, FormattingDefaults
+from ...core.logging import get_logger
+from .estimator import estimate_condensation_impl
+from .normalizer import normalize_source
+from .service import condense_pack_impl, extract_surface_impl
+from .strategies import VALID_STRATEGIES, describe_strategy
+from .strip import strip_dead_code
+
+logger = get_logger("condense.tools")
+
+
+# ---------------------------------------------------------------------------
+# Standalone tool functions (testable without MCP)
+# ---------------------------------------------------------------------------
+
+def condense_extract_surface_tool(
+    path: str,
+    language: str,
+    include_docstrings: bool = CondenseDefaults.INCLUDE_DOCSTRINGS,
+    complexity_guided: bool = False,
+    complexity_threshold: int = CondenseDefaults.COMPLEXITY_STRIP_THRESHOLD,
+) -> Dict[str, Any]:
+    """Extract public API surface from source files."""
+    logger.info("tool_invoked", tool="condense_extract_surface", path=path, language=language)
+    start = time.time()
+
+    try:
+        result = extract_surface_impl(
+            path=path,
+            language=language,
+            include_docstrings=include_docstrings,
+            complexity_guided=complexity_guided,
+            complexity_threshold=complexity_threshold,
+        )
+        logger.info(
+            "tool_completed",
+            tool="condense_extract_surface",
+            execution_time_seconds=round(time.time() - start, FormattingDefaults.ROUNDING_PRECISION),
+            files_processed=result.get("files_processed", 0),
+            reduction_pct=result.get("reduction_pct", 0.0),
+        )
+        return result
+    except Exception as exc:
+        logger.error("tool_failed", tool="condense_extract_surface", error=str(exc))
+        sentry_sdk.capture_exception(exc)
+        raise
+
+
+def condense_normalize_tool(
+    path: str,
+    language: str,
+) -> Dict[str, Any]:
+    """Normalize source code to canonical forms for better downstream compression."""
+    logger.info("tool_invoked", tool="condense_normalize", path=path, language=language)
+    start = time.time()
+
+    try:
+        from pathlib import Path
+        source = Path(path).read_text(encoding="utf-8", errors="replace")
+        normalized, count = normalize_source(source, language)
+
+        result: Dict[str, Any] = {
+            "normalized_source": normalized,
+            "normalizations_applied": count,
+            "original_bytes": len(source.encode("utf-8")),
+            "normalized_bytes": len(normalized.encode("utf-8")),
+        }
+        logger.info(
+            "tool_completed",
+            tool="condense_normalize",
+            execution_time_seconds=round(time.time() - start, FormattingDefaults.ROUNDING_PRECISION),
+            normalizations_applied=count,
+        )
+        return result
+    except Exception as exc:
+        logger.error("tool_failed", tool="condense_normalize", error=str(exc))
+        sentry_sdk.capture_exception(exc)
+        raise
+
+
+def condense_strip_tool(
+    path: str,
+    language: str,
+) -> Dict[str, Any]:
+    """Remove dead code, debug statements, and empty blocks."""
+    logger.info("tool_invoked", tool="condense_strip", path=path, language=language)
+    start = time.time()
+
+    try:
+        from pathlib import Path
+        source = Path(path).read_text(encoding="utf-8", errors="replace")
+        stripped, removed = strip_dead_code(source, language)
+
+        result: Dict[str, Any] = {
+            "stripped_source": stripped,
+            "lines_removed": removed,
+            "original_lines": source.count("\n") + 1,
+            "stripped_lines": stripped.count("\n") + 1,
+        }
+        logger.info(
+            "tool_completed",
+            tool="condense_strip",
+            execution_time_seconds=round(time.time() - start, FormattingDefaults.ROUNDING_PRECISION),
+            lines_removed=removed,
+        )
+        return result
+    except Exception as exc:
+        logger.error("tool_failed", tool="condense_strip", error=str(exc))
+        sentry_sdk.capture_exception(exc)
+        raise
+
+
+def condense_pack_tool(
+    path: str,
+    language: Optional[str] = None,
+    strategy: str = CondenseDefaults.DEFAULT_STRATEGY,
+    file_type_routing: bool = True,
+    exclude_patterns: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """Run the full normalize → strip → extract condensation pipeline."""
+    if strategy not in VALID_STRATEGIES:
+        return {
+            "error": f"Unknown strategy '{strategy}'. Valid: {sorted(VALID_STRATEGIES)}",
+            "strategy_descriptions": {s: describe_strategy(s) for s in VALID_STRATEGIES},
+        }
+
+    logger.info(
+        "tool_invoked", tool="condense_pack",
+        path=path, strategy=strategy, language=language,
+    )
+    start = time.time()
+
+    try:
+        result = condense_pack_impl(
+            path=path,
+            language=language,
+            strategy=strategy,
+            file_type_routing=file_type_routing,
+            exclude_patterns=exclude_patterns,
+        )
+        logger.info(
+            "tool_completed",
+            tool="condense_pack",
+            execution_time_seconds=round(time.time() - start, FormattingDefaults.ROUNDING_PRECISION),
+            files_processed=result.get("files_processed", 0),
+            reduction_pct=result.get("reduction_pct", 0.0),
+        )
+        return result
+    except Exception as exc:
+        logger.error("tool_failed", tool="condense_pack", error=str(exc))
+        sentry_sdk.capture_exception(exc)
+        raise
+
+
+def condense_estimate_tool(
+    path: str,
+    language: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Estimate condensation reduction ratios without modifying any files."""
+    logger.info("tool_invoked", tool="condense_estimate", path=path, language=language)
+    start = time.time()
+
+    try:
+        result = estimate_condensation_impl(path=path, language=language)
+        logger.info(
+            "tool_completed",
+            tool="condense_estimate",
+            execution_time_seconds=round(time.time() - start, FormattingDefaults.ROUNDING_PRECISION),
+            total_files=result.get("total_files", 0),
+        )
+        return result
+    except Exception as exc:
+        logger.error("tool_failed", tool="condense_estimate", error=str(exc))
+        sentry_sdk.capture_exception(exc)
+        raise
+
+
+# ---------------------------------------------------------------------------
+# MCP registration
+# ---------------------------------------------------------------------------
+
+def register_condense_tools(mcp: Any) -> None:
+    """Register all condense tools with the MCP server.
+
+    Args:
+        mcp: FastMCP instance to register tools with.
+    """
+
+    @mcp.tool()  # type: ignore[misc,untyped-decorator]
+    def condense_extract_surface(
+        path: str = Field(description="Directory or file path to analyze"),
+        language: str = Field(description="Programming language (e.g. 'python', 'typescript')"),
+        include_docstrings: bool = Field(
+            default=CondenseDefaults.INCLUDE_DOCSTRINGS,
+            description="Whether to include docstrings in the extracted surface",
+        ),
+        complexity_guided: bool = Field(
+            default=False,
+            description="Use cyclomatic complexity to decide extraction depth per function",
+        ),
+        complexity_threshold: int = Field(
+            default=CondenseDefaults.COMPLEXITY_STRIP_THRESHOLD,
+            description="Cyclomatic threshold; functions above this keep full body",
+        ),
+    ) -> Dict[str, Any]:
+        """Extract public API surface (exports, signatures, types) from source files.
+
+        Returns condensed source with only the public interface, stripping
+        function bodies for low-complexity functions when complexity_guided=True.
+        Achieves ~70-85% token reduction in ai_chat mode.
+        """
+        return condense_extract_surface_tool(
+            path=path,
+            language=language,
+            include_docstrings=include_docstrings,
+            complexity_guided=complexity_guided,
+            complexity_threshold=complexity_threshold,
+        )
+
+    @mcp.tool()  # type: ignore[misc,untyped-decorator]
+    def condense_normalize(
+        path: str = Field(description="Path to a single source file to normalize"),
+        language: str = Field(description="Programming language"),
+    ) -> Dict[str, Any]:
+        """Normalize source code to canonical forms before compression.
+
+        Applies language-specific transforms: consistent string quotes,
+        trailing semicolon removal (JS/TS), trailing comma cleanup.
+        Returns normalized_source, normalizations_applied, and byte counts.
+        """
+        return condense_normalize_tool(path=path, language=language)
+
+    @mcp.tool()  # type: ignore[misc,untyped-decorator]
+    def condense_strip(
+        path: str = Field(description="Path to a single source file"),
+        language: str = Field(description="Programming language"),
+    ) -> Dict[str, Any]:
+        """Remove dead code, debug statements, and empty blocks from source.
+
+        Strips console.log/print, debugger, pdb.set_trace, and similar.
+        Returns stripped_source and lines_removed count.
+        """
+        return condense_strip_tool(path=path, language=language)
+
+    @mcp.tool()  # type: ignore[misc,untyped-decorator]
+    def condense_pack(
+        path: str = Field(description="Directory or file path to condense"),
+        language: Optional[str] = Field(
+            default=None,
+            description="Optional language filter. If omitted, all code files are processed.",
+        ),
+        strategy: str = Field(
+            default=CondenseDefaults.DEFAULT_STRATEGY,
+            description=(
+                "Condensation strategy: 'ai_chat' (~85% reduction, lossy), "
+                "'ai_analysis' (~40% reduction, lossless), "
+                "'archival' (~30% reduction, lossless), "
+                "'polyglot' (~60-80% reduction, per-file-type routing)."
+            ),
+        ),
+        file_type_routing: bool = Field(
+            default=True,
+            description="Auto-select strategy per file type (code vs config vs text vs test)",
+        ),
+        exclude_patterns: Optional[List[str]] = Field(
+            default=None,
+            description="Additional glob patterns to exclude (e.g. ['*.generated.ts'])",
+        ),
+    ) -> Dict[str, Any]:
+        """Run the full condensation pipeline: normalize → strip → extract.
+
+        Chains all condense operations into a single pass over a directory.
+        Returns condensed_output, reduction_pct, token estimates, and per-language stats.
+        """
+        return condense_pack_tool(
+            path=path,
+            language=language,
+            strategy=strategy,
+            file_type_routing=file_type_routing,
+            exclude_patterns=exclude_patterns,
+        )
+
+    @mcp.tool()  # type: ignore[misc,untyped-decorator]
+    def condense_estimate(
+        path: str = Field(description="Directory or file path to estimate"),
+        language: Optional[str] = Field(
+            default=None,
+            description="Optional language filter",
+        ),
+    ) -> Dict[str, Any]:
+        """Estimate condensation reduction ratios without modifying any files.
+
+        Returns projected token/byte counts for all four strategies plus
+        top_reduction_candidates ranked by line count.
+        Safe to run on any codebase — read-only, no modifications.
+        """
+        return condense_estimate_tool(path=path, language=language)

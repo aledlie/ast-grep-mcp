@@ -3,6 +3,7 @@
 from mcp.server.fastmcp import FastMCP
 
 from ast_grep_mcp.features.complexity.tools import register_complexity_tools
+from ast_grep_mcp.features.condense.tools import register_condense_tools
 from ast_grep_mcp.features.cross_language.tools import register_cross_language_tools
 from ast_grep_mcp.features.deduplication.tools import register_deduplication_tools
 from ast_grep_mcp.features.documentation.tools import register_documentation_tools
@@ -29,8 +30,10 @@ def register_all_tools(mcp: FastMCP) -> None:
        generate_api_docs, generate_changelog, sync_documentation)
     9. Cross-Language (5 tools - search_multi_language, find_language_equivalents,
        convert_code_language, refactor_polyglot, generate_language_bindings)
+    10. Condense (5 tools - condense_extract_surface, condense_normalize,
+        condense_strip, condense_pack, condense_estimate)
 
-    Total: 37 tools
+    Total: 42 tools
     """
     register_search_tools(mcp)
     register_rewrite_tools(mcp)
@@ -42,3 +45,4 @@ def register_all_tools(mcp: FastMCP) -> None:
     register_schema_tools(mcp)
     register_documentation_tools(mcp)
     register_cross_language_tools(mcp)
+    register_condense_tools(mcp)

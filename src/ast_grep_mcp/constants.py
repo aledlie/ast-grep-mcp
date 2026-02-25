@@ -552,6 +552,77 @@ class PatternSuggestionConfidence:
     UNKNOWN_FIX = 0.5     # Unknown fix pattern (conservative)
 
 
+class CondenseDefaults:
+    """Defaults for code condensation pipeline."""
+
+    DEFAULT_STRATEGY = "ai_analysis"
+
+    # Extraction
+    INCLUDE_DOCSTRINGS = True
+    INCLUDE_TYPE_ANNOTATIONS = True
+    INCLUDE_IMPORTS = True
+    MAX_FUNCTION_BODY_LINES = 3  # For ai_chat: inline trivial bodies
+
+    # Normalization
+    NORMALIZE_ARROW_FUNCTIONS = True
+    NORMALIZE_STRING_QUOTES = True
+    NORMALIZE_TRAILING_COMMAS = True
+
+    # Strip targets
+    STRIP_CONSOLE_LOG = True
+    STRIP_DEBUG_STATEMENTS = True
+    STRIP_UNUSED_IMPORTS = True
+    STRIP_COMMENTS = False  # Preserve by default; 10-25% savings potential
+    STRIP_EMPTY_LINES = True
+
+    # Limits
+    MAX_FILE_SIZE_BYTES = 1_048_576  # 1 MB; skip larger files
+    MAX_FILES_PER_RUN = 500
+
+    # Estimation
+    AVG_TOKENS_PER_BYTE = 0.25  # Rough approximation for token counting
+
+    # Complexity-guided extraction thresholds (cyclomatic)
+    COMPLEXITY_INLINE_THRESHOLD = 5   # ≤5 cyclomatic AND ≤3 lines → inline full body
+    COMPLEXITY_STRIP_THRESHOLD = 10   # ≤10 cyclomatic → signature + docstring only
+    # >10 cyclomatic → keep full body
+
+
+class CondenseDictionaryDefaults:
+    """Defaults for zstd dictionary training."""
+
+    SAMPLE_COUNT = 200
+    MAX_SAMPLE_SIZE_BYTES = 102_400  # 100 KB per sample
+    DICT_SIZE_BYTES = 112_640  # 110 KB (zstd default)
+    DICT_OUTPUT_DIR = ".condense/dictionaries"
+
+
+class CondenseFileRouting:
+    """File-type routing for polyglot condensation."""
+
+    CODE_EXTENSIONS = frozenset({
+        ".ts", ".tsx", ".js", ".jsx", ".py", ".rs", ".go", ".java",
+        ".rb", ".php", ".swift", ".kt", ".cs", ".cpp", ".c", ".h",
+    })
+    CONFIG_EXTENSIONS = frozenset({
+        ".json", ".yaml", ".yml", ".toml", ".xml", ".ini",
+    })
+    TEXT_EXTENSIONS = frozenset({".md", ".txt", ".rst", ".adoc"})
+    IMAGE_EXTENSIONS = frozenset({
+        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".bmp",
+    })
+    EXCLUDE_PATTERNS = [
+        "dist/**", "build/**", "*.lock", "package-lock.json",
+        "yarn.lock", "*.gen.*", "*.min.js", "*.min.css",
+        "**/__pycache__/**", "**/.git/**", "**/node_modules/**",
+        "**/.venv/**", "**/venv/**",
+    ]
+    TEST_PATTERNS = [
+        "**/test_*", "**/test/**", "**/*_test.*",
+        "**/*.spec.*", "**/*.test.*",
+    ]
+
+
 # HTTP constants
 DEFAULT_USER_AGENT = "ast-grep-mcp/1.0"
 REQUEST_TIMEOUT_SECONDS = 30
