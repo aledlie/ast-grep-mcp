@@ -30,10 +30,10 @@ def register_all_tools(mcp: FastMCP) -> None:
        generate_api_docs, generate_changelog, sync_documentation)
     9. Cross-Language (5 tools - search_multi_language, find_language_equivalents,
        convert_code_language, refactor_polyglot, generate_language_bindings)
-    10. Condense (5 tools - condense_extract_surface, condense_normalize,
-        condense_strip, condense_pack, condense_estimate)
+    10. Condense (6 tools - condense_extract_surface, condense_normalize,
+        condense_strip, condense_pack, condense_estimate, condense_train_dictionary)
 
-    Total: 47 tools
+    Total: 48 tools
     """
     register_search_tools(mcp)
     register_rewrite_tools(mcp)

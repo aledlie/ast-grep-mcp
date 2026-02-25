@@ -1,11 +1,12 @@
 """MCP tool definitions for code condensation features.
 
-Registers 5 tools:
+Registers 6 tools:
 - condense_extract_surface
 - condense_normalize
 - condense_strip
 - condense_pack
 - condense_estimate
+- condense_train_dictionary
 """
 
 import time
@@ -15,8 +16,9 @@ from typing import Any, Dict, List, Optional
 import sentry_sdk
 from pydantic import Field
 
-from ...constants import CondenseDefaults, FormattingDefaults
+from ...constants import CondenseDictionaryDefaults, CondenseDefaults, FormattingDefaults
 from ...core.logging import get_logger
+from .dictionary import train_dictionary_impl
 from .estimator import estimate_condensation_impl
 from .normalizer import normalize_source
 from .service import condense_pack_impl, extract_surface_impl
@@ -211,6 +213,40 @@ def condense_estimate_tool(
         raise
 
 
+def condense_train_dictionary_tool(
+    path: str,
+    language: Optional[str] = None,
+    sample_count: int = CondenseDictionaryDefaults.SAMPLE_COUNT,
+    output_dir: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Train a zstd dictionary on representative code samples from a codebase."""
+    logger.info(
+        "tool_invoked", tool="condense_train_dictionary",
+        path=path, language=language, sample_count=sample_count,
+    )
+    start = time.time()
+
+    try:
+        result = train_dictionary_impl(
+            path=path,
+            language=language,
+            sample_count=sample_count,
+            output_dir=output_dir,
+        )
+        logger.info(
+            "tool_completed",
+            tool="condense_train_dictionary",
+            execution_time_seconds=round(time.time() - start, FormattingDefaults.ROUNDING_PRECISION),
+            samples_used=result.get("samples_used", 0),
+            dict_size_bytes=result.get("dict_size_bytes", 0),
+        )
+        return result
+    except Exception as exc:
+        logger.error("tool_failed", tool="condense_train_dictionary", error=str(exc))
+        sentry_sdk.capture_exception(exc)
+        return {"error": str(exc)}
+
+
 # ---------------------------------------------------------------------------
 # MCP registration
 # ---------------------------------------------------------------------------
@@ -331,3 +367,36 @@ def register_condense_tools(mcp: Any) -> None:
         Safe to run on any codebase — read-only, no modifications.
         """
         return condense_estimate_tool(path=path, language=language)
+
+    @mcp.tool()  # type: ignore[misc,untyped-decorator]
+    def condense_train_dictionary(
+        path: str = Field(description="Root directory to collect code samples from"),
+        language: Optional[str] = Field(
+            default=None,
+            description="Optional language filter (e.g. 'python', 'typescript')",
+        ),
+        sample_count: int = Field(
+            default=CondenseDictionaryDefaults.SAMPLE_COUNT,
+            description="Maximum number of sample files to use for training",
+        ),
+        output_dir: Optional[str] = Field(
+            default=None,
+            description=(
+                f"Directory to write the dictionary file. "
+                f"Defaults to .condense/dictionaries/ inside path."
+            ),
+        ),
+    ) -> Dict[str, Any]:
+        """Train a zstd dictionary on representative code samples.
+
+        A per-codebase dictionary improves zstd compression 10-30% for
+        small-to-medium files (<100KB) with consistent coding patterns.
+        Use the resulting dict_path with: zstd -D <dict_path> to compress.
+        Returns dict_path, dict_size_bytes, samples_used, and estimated improvement.
+        """
+        return condense_train_dictionary_tool(
+            path=path,
+            language=language,
+            sample_count=sample_count,
+            output_dir=output_dir,
+        )

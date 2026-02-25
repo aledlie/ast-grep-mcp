@@ -118,7 +118,7 @@ def _is_excluded(rel: Path, exclude_patterns: set[str]) -> bool:
     return any(rel.match(pattern) for pattern in exclude_patterns)
 
 
-def _language_to_extensions(language: str) -> frozenset:
+def _language_to_extensions(language: str) -> frozenset[str]:
     """Map a language name to its file extensions."""
     mapping: Dict[str, frozenset[str]] = {
         "python": frozenset({".py"}),
