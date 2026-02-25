@@ -390,11 +390,11 @@ def condense_pack_impl(
         lang = file_result["lang"]
         if lang not in per_language:
             per_language[lang] = LanguageCondenseStats(
-                language=lang, files=0, original_lines=0,
+                language=lang, files_processed=0, original_lines=0,
                 condensed_lines=0, patterns_matched=0,
             )
         stats = per_language[lang]
-        stats.files += 1
+        stats.files_processed += 1
         stats.original_lines += file_result["original_lines"]
         stats.condensed_lines += file_result["condensed_lines"]
 
@@ -428,7 +428,7 @@ def condense_pack_impl(
         "dead_code_removed_lines": dead_code_removed_lines,
         "per_language_stats": {
             lang: {
-                "files": s.files,
+                "files_processed": s.files_processed,
                 "original_lines": s.original_lines,
                 "condensed_lines": s.condensed_lines,
             }

@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 import sentry_sdk
 from pydantic import Field
 
-from ...constants import CondenseDictionaryDefaults, CondenseDefaults, FormattingDefaults
+from ...constants import CondenseDefaults, CondenseDictionaryDefaults, FormattingDefaults
 from ...core.logging import get_logger
 from .dictionary import train_dictionary_impl
 from .estimator import estimate_condensation_impl
@@ -382,8 +382,8 @@ def register_condense_tools(mcp: Any) -> None:
         output_dir: Optional[str] = Field(
             default=None,
             description=(
-                f"Directory to write the dictionary file. "
-                f"Defaults to .condense/dictionaries/ inside path."
+                "Directory to write the dictionary file. "
+                "Defaults to .condense/dictionaries/ inside path."
             ),
         ),
     ) -> Dict[str, Any]:

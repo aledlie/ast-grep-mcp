@@ -559,20 +559,14 @@ class CondenseDefaults:
 
     # Extraction
     INCLUDE_DOCSTRINGS = True
-    INCLUDE_TYPE_ANNOTATIONS = True
-    INCLUDE_IMPORTS = True
-    MAX_FUNCTION_BODY_LINES = 3  # For ai_chat: inline trivial bodies
 
     # Normalization
-    NORMALIZE_ARROW_FUNCTIONS = True
     NORMALIZE_STRING_QUOTES = True
     NORMALIZE_TRAILING_COMMAS = True
 
     # Strip targets
     STRIP_CONSOLE_LOG = True
     STRIP_DEBUG_STATEMENTS = True
-    STRIP_UNUSED_IMPORTS = True
-    STRIP_COMMENTS = False  # Preserve by default; 10-25% savings potential
     STRIP_EMPTY_LINES = True
 
     # Limits
@@ -583,7 +577,6 @@ class CondenseDefaults:
     AVG_TOKENS_PER_BYTE = 0.25  # Rough approximation for token counting
 
     # Complexity-guided extraction thresholds (cyclomatic)
-    COMPLEXITY_INLINE_THRESHOLD = 5   # ≤5 cyclomatic AND ≤3 lines → inline full body
     COMPLEXITY_STRIP_THRESHOLD = 10   # ≤10 cyclomatic → signature + docstring only
     # >10 cyclomatic → keep full body
 

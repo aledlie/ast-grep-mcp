@@ -24,7 +24,6 @@ _PY_BREAKPOINT = re.compile(r"^\s*(?:breakpoint|pdb\.set_trace)\s*\(\s*\)\s*$")
 _PY_IMPORT_PDB = re.compile(r"^\s*import\s+pdb\s*$")
 
 # Note: empty-block and commented-out-code patterns are not yet applied.
-# STRIP_COMMENTS (CondenseDefaults) controls future comment stripping.
 
 
 def strip_dead_code(source: str, language: str) -> Tuple[str, int]:

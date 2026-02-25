@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ...constants import CondenseDictionaryDefaults, CondenseDefaults
+from ...constants import CondenseDefaults, CondenseDictionaryDefaults
 from ...core.logging import get_logger
 from .estimator import _collect_files
 

@@ -9,7 +9,7 @@ class LanguageCondenseStats:
     """Per-language statistics from condensation."""
 
     language: str
-    files: int
+    files_processed: int
     original_lines: int
     condensed_lines: int
     patterns_matched: int
