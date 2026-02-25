@@ -98,6 +98,19 @@ class TestExtractJsTsSurface:
         joined = " ".join(kept)
         assert "export function add" in joined
 
+    def test_internal_function_excluded(self):
+        lines = [
+            "export function add(a, b) {",
+            "    return a + b;",
+            "}",
+            "function internal() { return 0; }",
+        ]
+        kept = _extract_js_ts_surface(lines, include_docstrings=False)
+        joined = " ".join(kept)
+        assert "export function add" in joined
+        # Non-exported function should not be in the surface
+        assert "function internal" not in joined
+
     def test_fallback_when_no_exports(self):
         lines = ["function foo() { return 1; }"]
         kept = _extract_js_ts_surface(lines, include_docstrings=False)

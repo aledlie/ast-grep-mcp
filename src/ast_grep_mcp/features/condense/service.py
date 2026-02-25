@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from ...constants import (
     CondenseDefaults,
@@ -101,7 +101,6 @@ def extract_surface_impl(
     if root.is_file():
         files = [root]
     else:
-        ext_filter = _language_to_extensions(language)
         files = _collect_files(root, language)
 
     output_parts: List[str] = []
@@ -130,7 +129,7 @@ def extract_surface_impl(
 
     condensed_source = "\n\n".join(output_parts)
     reduction_pct = (
-        round((1.0 - total_condensed / total_original) * 100, 1)
+        max(0.0, round((1.0 - total_condensed / total_original) * 100, 1))
         if total_original > 0
         else 0.0
     )
@@ -393,7 +392,7 @@ def condense_pack_impl(
         stats.condensed_lines += file_result["condensed_lines"]
 
     reduction_pct = (
-        round((1.0 - total_condensed_bytes / total_original_bytes) * 100, 1)
+        max(0.0, round((1.0 - total_condensed_bytes / total_original_bytes) * 100, 1))
         if total_original_bytes > 0
         else 0.0
     )
@@ -450,8 +449,12 @@ def _apply_strategy(source: str, language: str, strategy: str) -> str:
     """Apply the named strategy to a (normalized, stripped) source string."""
     if strategy == "ai_chat":
         # Signatures + types + docstrings only (lossy)
-        result = extract_surface_impl.__wrapped__(source, language) if hasattr(extract_surface_impl, "__wrapped__") else source
-        return result if isinstance(result, str) else source
+        return _extract_file_surface(
+            source=source,
+            file_path="",
+            language=language,
+            include_docstrings=True,
+        )
     # ai_analysis / archival / polyglot: return normalized+stripped source
     return source
 
@@ -514,9 +517,5 @@ def _route_strategy(fp: Path, strategy: str, file_type_routing: bool) -> str:
 
 
 def _path_matches_any(fp: Path, patterns: set[str]) -> bool:
-    """Check if fp's name or suffix matches any exclusion pattern."""
-    name = fp.name
-    return any(
-        name == p or name.endswith(p.lstrip("*"))
-        for p in patterns
-    )
+    """Check if fp matches any exclusion pattern using Path.match (supports globs)."""
+    return any(fp.match(p) for p in patterns)

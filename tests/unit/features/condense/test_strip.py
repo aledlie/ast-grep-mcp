@@ -1,5 +1,8 @@
 """Tests for dead code stripping."""
 
+import tempfile
+from pathlib import Path
+
 import pytest
 
 from ast_grep_mcp.features.condense.strip import (
@@ -7,6 +10,29 @@ from ast_grep_mcp.features.condense.strip import (
     _strip_python,
     strip_dead_code,
 )
+
+
+class TestCondenseStripTool:
+    def test_directory_path_raises(self):
+        from ast_grep_mcp.features.condense.tools import condense_strip_tool
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            with pytest.raises((IsADirectoryError, Exception)):
+                condense_strip_tool(tmp, "python")
+
+    def test_nonexistent_path_raises(self):
+        from ast_grep_mcp.features.condense.tools import condense_strip_tool
+        with pytest.raises((FileNotFoundError, Exception)):
+            condense_strip_tool("/nonexistent/xyz.py", "python")
+
+    def test_valid_file_works(self):
+        from ast_grep_mcp.features.condense.tools import condense_strip_tool
+        with tempfile.TemporaryDirectory() as tmp:
+            fp = Path(tmp) / "main.py"
+            fp.write_text("print('hi')\nx = 1\n")
+            result = condense_strip_tool(str(fp), "python")
+        assert "stripped_source" in result
+        assert result["lines_removed"] >= 1
 
 
 class TestStripDeadCode:

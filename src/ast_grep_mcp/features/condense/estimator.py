@@ -10,16 +10,9 @@ from typing import Any, Dict, List, Optional
 
 from ...constants import CondenseDefaults, CondenseFileRouting
 from ...core.logging import get_logger
+from .strategies import STRATEGY_REDUCTION_RATIOS as _STRATEGY_REDUCTION
 
 logger = get_logger("condense.estimator")
-
-# Expected reduction ratios per strategy (conservative estimates)
-_STRATEGY_REDUCTION = {
-    "ai_chat": 0.85,
-    "ai_analysis": 0.40,
-    "archival": 0.30,
-    "polyglot": 0.65,
-}
 
 _MAX_REDUCTION_CANDIDATES = 10
 
@@ -110,16 +103,20 @@ def _collect_files(root: Path, language: Optional[str]) -> List[Path]:
         if ext_filter is None and suffix not in CondenseFileRouting.CODE_EXTENSIONS:
             continue
         files.append(fp)
+        if len(files) >= CondenseDefaults.MAX_FILES_PER_RUN:
+            logger.warning("max_files_reached", limit=CondenseDefaults.MAX_FILES_PER_RUN, path=str(root))
+            break
 
     return files
 
 
-def _is_excluded(rel: Path, exclude_patterns: set) -> bool:
-    """Check if a relative path matches any exclusion pattern."""
-    parts = rel.parts
-    # Simple prefix-based exclusion for common dirs
+def _is_excluded(rel: Path, exclude_patterns: set[str]) -> bool:
+    """Check if a relative path matches any exclusion pattern or skip directory."""
     skip_dirs = {"dist", "build", "node_modules", "__pycache__", ".git", ".venv", "venv"}
-    return bool(parts and parts[0] in skip_dirs)
+    parts = rel.parts
+    if any(p in skip_dirs for p in parts):
+        return True
+    return any(rel.match(pattern) for pattern in exclude_patterns)
 
 
 def _language_to_extensions(language: str) -> frozenset:

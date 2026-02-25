@@ -23,13 +23,8 @@ _PY_PRINT = re.compile(r"^\s*print\s*\(.*\)\s*$")
 _PY_BREAKPOINT = re.compile(r"^\s*(?:breakpoint|pdb\.set_trace)\s*\(\s*\)\s*$")
 _PY_IMPORT_PDB = re.compile(r"^\s*import\s+pdb\s*$")
 
-# Generic empty-block patterns
-_EMPTY_BLOCK_JS = re.compile(r"^\s*\{\s*\}\s*$")
-_EMPTY_BLOCK_PY = re.compile(r"^\s*pass\s*$")
-
-# Commented-out code heuristic (lines where >50% of content is a comment)
-_JS_SINGLE_COMMENT = re.compile(r"^\s*//.*$")
-_PY_COMMENT_CODE = re.compile(r"^\s*#\s*(def |class |import |from |return |if |for |while )")
+# Note: empty-block and commented-out-code patterns are not yet applied.
+# STRIP_COMMENTS (CondenseDefaults) controls future comment stripping.
 
 
 def strip_dead_code(source: str, language: str) -> Tuple[str, int]:

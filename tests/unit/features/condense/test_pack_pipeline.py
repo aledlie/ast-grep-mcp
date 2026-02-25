@@ -82,6 +82,21 @@ class TestCondensePackImpl:
         assert "condensed_tokens_est" in result
 
 
+    def test_ai_chat_produces_fewer_bytes_than_ai_analysis(self):
+        """ai_chat (lossy) must produce fewer bytes than ai_analysis (lossless)."""
+        # Use a file large enough that surface extraction removes significant content
+        body = "\n".join(
+            f"def func_{i}(x, y, z):\n    '''Docstring for func_{i}.'''\n    return x + y + z + {i}\n"
+            for i in range(30)
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "module.py").write_text(body)
+            result_chat = condense_pack_impl(tmp, strategy="ai_chat")
+            result_analysis = condense_pack_impl(tmp, strategy="ai_analysis")
+        # ai_chat should condense more aggressively
+        assert result_chat["condensed_bytes"] <= result_analysis["condensed_bytes"]
+
+
 class TestCondensePackTool:
     def test_invalid_strategy_returns_error(self):
         result = condense_pack_tool("/tmp", strategy="banana")

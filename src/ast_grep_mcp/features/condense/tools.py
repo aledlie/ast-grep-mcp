@@ -9,6 +9,7 @@ Registers 5 tools:
 """
 
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import sentry_sdk
@@ -23,6 +24,19 @@ from .strategies import VALID_STRATEGIES, describe_strategy
 from .strip import strip_dead_code
 
 logger = get_logger("condense.tools")
+
+
+def _resolve_file_path(path: str) -> Path:
+    """Resolve and validate that path is an existing file (not a directory).
+
+    Raises FileNotFoundError or IsADirectoryError with structured messages.
+    """
+    p = Path(path).resolve()
+    if not p.exists():
+        raise FileNotFoundError(f"Path does not exist: {path}")
+    if p.is_dir():
+        raise IsADirectoryError(f"Expected a file path, got a directory: {path}")
+    return p
 
 
 # ---------------------------------------------------------------------------
@@ -71,8 +85,8 @@ def condense_normalize_tool(
     start = time.time()
 
     try:
-        from pathlib import Path
-        source = Path(path).read_text(encoding="utf-8", errors="replace")
+        resolved = _resolve_file_path(path)
+        source = resolved.read_text(encoding="utf-8", errors="replace")
         normalized, count = normalize_source(source, language)
 
         result: Dict[str, Any] = {
@@ -103,8 +117,8 @@ def condense_strip_tool(
     start = time.time()
 
     try:
-        from pathlib import Path
-        source = Path(path).read_text(encoding="utf-8", errors="replace")
+        resolved = _resolve_file_path(path)
+        source = resolved.read_text(encoding="utf-8", errors="replace")
         stripped, removed = strip_dead_code(source, language)
 
         result: Dict[str, Any] = {
