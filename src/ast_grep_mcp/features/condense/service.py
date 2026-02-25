@@ -5,7 +5,6 @@ Provides extract_surface_impl, condense_pack_impl, and supporting helpers.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -14,8 +13,8 @@ from ...constants import (
     CondenseFileRouting,
 )
 from ...core.logging import get_logger
-from ...models.condense import CondenseResult, LanguageCondenseStats
-from .estimator import _collect_files, _language_to_extensions
+from ...models.condense import LanguageCondenseStats
+from .estimator import _collect_files
 from .normalizer import normalize_source
 from .strip import strip_dead_code
 
@@ -87,12 +86,14 @@ def extract_surface_impl(
         path: Directory or file path to analyze.
         language: Programming language (e.g. "python", "typescript").
         include_docstrings: Whether to include docstrings in output.
-        complexity_guided: Use complexity scores to decide extraction depth.
-        complexity_threshold: Cyclomatic threshold; functions above keep full body.
+        complexity_guided: Reserved for future use. When True, will integrate
+            with features/complexity to vary extraction depth per function.
+            Currently has no effect — all functions use signature+docstring mode.
+        complexity_threshold: Reserved for future use alongside complexity_guided.
 
     Returns:
         Dict with condensed_source (str), files_processed (int),
-        patterns_matched (int), and reduction_pct (float).
+        condensed_lines (int), and reduction_pct (float).
     """
     root = Path(path)
     if not root.exists():
@@ -124,8 +125,8 @@ def extract_surface_impl(
             include_docstrings=include_docstrings,
         )
         total_condensed += len(condensed)
-        patterns_matched += condensed.count("\n")
-        output_parts.append(f"# {fp}\n{condensed}")
+        patterns_matched += condensed.count("\n")  # lines kept (approx. declarations found)
+        output_parts.append(f"# {fp}\n{condensed}")  # # is valid comment in most langs
 
     condensed_source = "\n\n".join(output_parts)
     reduction_pct = (
@@ -144,7 +145,7 @@ def extract_surface_impl(
     return {
         "condensed_source": condensed_source,
         "files_processed": len(files),
-        "patterns_matched": patterns_matched,
+        "condensed_lines": patterns_matched,
         "reduction_pct": reduction_pct,
     }
 
@@ -239,7 +240,13 @@ def _collect_docstring(lines: List[str], start: int) -> Tuple[List[str], int]:
 
 
 def _extract_js_ts_surface(lines: List[str], include_docstrings: bool) -> List[str]:
-    """Extract JS/TS surface: export declarations, dropping non-exported bodies."""
+    """Extract JS/TS surface: export declarations only.
+
+    Uses character-level brace counting, which is an approximation. Braces
+    inside string literals or template literals may cause early block close or
+    false-continuation. For production-quality extraction, prefer ast-grep
+    pattern matching over this line-scanner.
+    """
     kept: List[str] = []
     brace_depth = 0
     in_export = False
@@ -249,7 +256,7 @@ def _extract_js_ts_surface(lines: List[str], include_docstrings: bool) -> List[s
         stripped = line.strip()
 
         # Track export blocks
-        if stripped.startswith("export "):
+        if stripped.startswith("export ") and not in_export:
             in_export = True
             export_brace_start = brace_depth
 
@@ -258,7 +265,7 @@ def _extract_js_ts_surface(lines: List[str], include_docstrings: bool) -> List[s
 
         if in_export:
             kept.append(line.rstrip())
-            # Close of export block
+            # Close of export block: brace depth returned to pre-export level
             if brace_depth <= export_brace_start and opens < 0:
                 in_export = False
 
@@ -399,21 +406,6 @@ def condense_pack_impl(
     original_tokens = int(total_original_bytes * CondenseDefaults.AVG_TOKENS_PER_BYTE)
     condensed_tokens = int(total_condensed_bytes * CondenseDefaults.AVG_TOKENS_PER_BYTE)
 
-    result = CondenseResult(
-        strategy=strategy,
-        files_processed=files_processed,
-        files_skipped=files_skipped,
-        original_bytes=total_original_bytes,
-        condensed_bytes=total_condensed_bytes,
-        reduction_pct=reduction_pct,
-        original_tokens_est=original_tokens,
-        condensed_tokens_est=condensed_tokens,
-        normalizations_applied=normalizations_applied,
-        dead_code_removed_lines=dead_code_removed_lines,
-        duplicates_collapsed=0,
-        per_language_stats=per_language,
-    )
-
     logger.info(
         "condense_pack_complete",
         strategy=strategy,
@@ -446,16 +438,26 @@ def condense_pack_impl(
 
 
 def _apply_strategy(source: str, language: str, strategy: str) -> str:
-    """Apply the named strategy to a (normalized, stripped) source string."""
-    if strategy == "ai_chat":
-        # Signatures + types + docstrings only (lossy)
-        return _extract_file_surface(
-            source=source,
-            file_path="",
-            language=language,
-            include_docstrings=True,
-        )
-    # ai_analysis / archival / polyglot: return normalized+stripped source
+    """Apply the named strategy to a (normalized, stripped) source string.
+
+    Strategies:
+    - ai_chat: lossy surface extraction (signatures + docstrings only)
+    - ai_analysis: lossless (normalized + dead-code-stripped source)
+    - archival: lossless (same as ai_analysis at the per-file level)
+    - polyglot: ai_chat for code, ai_analysis for config/text
+    """
+    if strategy in ("ai_chat", "polyglot"):
+        # polyglot: for code languages use ai_chat surface extraction;
+        # config/text files fall through to ai_analysis (pass-through).
+        if language in ("python", "typescript", "javascript", "rust", "go",
+                        "java", "ruby", "php", "swift", "kotlin", "csharp", "cpp", "c"):
+            return _extract_file_surface(
+                source=source,
+                file_path="",
+                language=language,
+                include_docstrings=True,
+            )
+    # ai_analysis / archival: return normalized+stripped source unchanged
     return source
 
 

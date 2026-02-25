@@ -13,17 +13,18 @@ from ast_grep_mcp.features.condense.strip import (
 
 
 class TestCondenseStripTool:
-    def test_directory_path_raises(self):
+    def test_directory_path_returns_error(self):
         from ast_grep_mcp.features.condense.tools import condense_strip_tool
         import tempfile
         with tempfile.TemporaryDirectory() as tmp:
-            with pytest.raises((IsADirectoryError, Exception)):
-                condense_strip_tool(tmp, "python")
+            result = condense_strip_tool(tmp, "python")
+        assert "error" in result
+        assert "directory" in result["error"].lower()
 
-    def test_nonexistent_path_raises(self):
+    def test_nonexistent_path_returns_error(self):
         from ast_grep_mcp.features.condense.tools import condense_strip_tool
-        with pytest.raises((FileNotFoundError, Exception)):
-            condense_strip_tool("/nonexistent/xyz.py", "python")
+        result = condense_strip_tool("/nonexistent/xyz.py", "python")
+        assert "error" in result
 
     def test_valid_file_works(self):
         from ast_grep_mcp.features.condense.tools import condense_strip_tool

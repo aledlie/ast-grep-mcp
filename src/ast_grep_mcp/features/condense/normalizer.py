@@ -16,7 +16,6 @@ from ...core.logging import get_logger
 logger = get_logger("condense.normalizer")
 
 # Patterns for JS/TS normalization
-_TRAILING_SEMICOLON = re.compile(r";\s*$", re.MULTILINE)
 _DOUBLE_QUOTE_STRING = re.compile(r'"([^"\\]*(?:\\.[^"\\]*)*)"')
 _TRAILING_COMMA_OBJ = re.compile(r",(\s*[}\]])")
 _MULTI_BLANK_LINES = re.compile(r"\n{3,}")

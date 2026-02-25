@@ -1,7 +1,7 @@
 """Dead code stripping for the condense pipeline.
 
-Removes console.log/print debug statements, debugger calls, commented-out code,
-and empty blocks from source to reduce token count before AI consumption.
+Removes console.log/print debug statements and debugger calls from source.
+Empty-block and commented-out-code removal are not yet implemented.
 """
 
 from __future__ import annotations

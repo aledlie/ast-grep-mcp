@@ -4,7 +4,6 @@ Runs extraction patterns in dry-run mode to estimate token/byte reduction
 without modifying any files.
 """
 
-import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 

@@ -102,10 +102,13 @@ def condense_normalize_tool(
             normalizations_applied=count,
         )
         return result
+    except (FileNotFoundError, IsADirectoryError) as exc:
+        logger.error("tool_failed", tool="condense_normalize", error=str(exc))
+        return {"error": str(exc)}
     except Exception as exc:
         logger.error("tool_failed", tool="condense_normalize", error=str(exc))
         sentry_sdk.capture_exception(exc)
-        raise
+        return {"error": str(exc)}
 
 
 def condense_strip_tool(
@@ -134,10 +137,13 @@ def condense_strip_tool(
             lines_removed=removed,
         )
         return result
+    except (FileNotFoundError, IsADirectoryError) as exc:
+        logger.error("tool_failed", tool="condense_strip", error=str(exc))
+        return {"error": str(exc)}
     except Exception as exc:
         logger.error("tool_failed", tool="condense_strip", error=str(exc))
         sentry_sdk.capture_exception(exc)
-        raise
+        return {"error": str(exc)}
 
 
 def condense_pack_tool(
@@ -226,7 +232,7 @@ def register_condense_tools(mcp: Any) -> None:
         ),
         complexity_guided: bool = Field(
             default=False,
-            description="Use cyclomatic complexity to decide extraction depth per function",
+            description="Reserved for future use: will integrate complexity analysis for depth selection",
         ),
         complexity_threshold: int = Field(
             default=CondenseDefaults.COMPLEXITY_STRIP_THRESHOLD,

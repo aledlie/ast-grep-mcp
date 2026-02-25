@@ -33,7 +33,7 @@ def register_all_tools(mcp: FastMCP) -> None:
     10. Condense (5 tools - condense_extract_surface, condense_normalize,
         condense_strip, condense_pack, condense_estimate)
 
-    Total: 42 tools
+    Total: 47 tools
     """
     register_search_tools(mcp)
     register_rewrite_tools(mcp)
