@@ -15,6 +15,7 @@ import sentry_sdk
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
+from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.cross_language.binding_generator import generate_language_bindings_impl
 from ast_grep_mcp.features.cross_language.language_converter import convert_code_language_impl
@@ -201,7 +202,7 @@ def search_multi_language_tool(
         logger.info(
             "tool_completed",
             tool="search_multi_language",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             total_matches=result.total_matches,
             languages_searched=result.languages_searched,
         )
@@ -231,7 +232,7 @@ def search_multi_language_tool(
         logger.error(
             "tool_failed",
             tool="search_multi_language",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             error=str(e)[:200],
         )
         sentry_sdk.capture_exception(e)
@@ -312,7 +313,7 @@ def find_language_equivalents_tool(
         logger.info(
             "tool_completed",
             tool="find_language_equivalents",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             equivalences_found=len(result.equivalences),
         )
 
@@ -323,7 +324,7 @@ def find_language_equivalents_tool(
         logger.error(
             "tool_failed",
             tool="find_language_equivalents",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             error=str(e)[:200],
         )
         sentry_sdk.capture_exception(e)
@@ -423,7 +424,7 @@ def convert_code_language_tool(
         logger.info(
             "tool_completed",
             tool="convert_code_language",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             successful=result.successful_conversions,
         )
 
@@ -434,7 +435,7 @@ def convert_code_language_tool(
         logger.error(
             "tool_failed",
             tool="convert_code_language",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             error=str(e)[:200],
         )
         sentry_sdk.capture_exception(e)
@@ -533,7 +534,7 @@ def refactor_polyglot_tool(
         logger.info(
             "tool_completed",
             tool="refactor_polyglot",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             changes_count=len(result.plan.changes),
             dry_run=result.dry_run,
         )
@@ -571,7 +572,7 @@ def refactor_polyglot_tool(
         logger.error(
             "tool_failed",
             tool="refactor_polyglot",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             error=str(e)[:200],
         )
         sentry_sdk.capture_exception(e)
@@ -666,7 +667,7 @@ def generate_language_bindings_tool(
         logger.info(
             "tool_completed",
             tool="generate_language_bindings",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             bindings_generated=len(result.bindings),
         )
 
@@ -695,7 +696,7 @@ def generate_language_bindings_tool(
         logger.error(
             "tool_failed",
             tool="generate_language_bindings",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             error=str(e)[:200],
         )
         sentry_sdk.capture_exception(e)

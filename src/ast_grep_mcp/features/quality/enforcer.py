@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Set
 import sentry_sdk
 import yaml
 
+from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.core.executor import stream_ast_grep_results
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.quality.rules import RULE_TEMPLATES, load_rules_from_project
@@ -746,7 +747,7 @@ def enforce_standards_impl(
         "enforcement_completed",
         total_violations=len(filtered_violations),
         files_scanned=len(violations_by_file),
-        execution_time_seconds=round(execution_time, 3),
+        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
     )
 
     return result

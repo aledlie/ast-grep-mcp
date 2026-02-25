@@ -7,6 +7,7 @@ across programming languages.
 import time
 from typing import Any, Dict, List, Optional
 
+from ast_grep_mcp.constants import EquivalenceDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.cross_language.pattern_database import (
     PATTERN_CATEGORIES,
@@ -67,9 +68,9 @@ def _create_pattern_equivalence(
     complexity_comparison = {}
     for ex in examples:
         lines = len(ex.code.strip().split("\n"))
-        if lines <= 2:
+        if lines <= EquivalenceDefaults.SIMPLE_LINE_THRESHOLD:
             complexity_comparison[ex.language] = "simple"
-        elif lines <= 5:
+        elif lines <= EquivalenceDefaults.MODERATE_LINE_THRESHOLD:
             complexity_comparison[ex.language] = "moderate"
         else:
             complexity_comparison[ex.language] = "complex"

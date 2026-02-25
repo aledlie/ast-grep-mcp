@@ -35,7 +35,16 @@ if TYPE_CHECKING:
 
 from datasketch import MinHash, MinHashLSH
 
-from ...constants import HybridSimilarityDefaults, SemanticSimilarityDefaults
+from ...constants import (
+    ASTFingerprintDefaults,
+    DeduplicationDefaults,
+    FormattingDefaults,
+    HybridSimilarityDefaults,
+    IndentationDefaults,
+    LogBucketThresholds,
+    MinHashDefaults,
+    SemanticSimilarityDefaults,
+)
 from ...core.logging import get_logger
 
 
@@ -43,19 +52,19 @@ from ...core.logging import get_logger
 class SimilarityConfig:
     """Configuration for MinHash similarity calculation."""
 
-    num_permutations: int = 128
+    num_permutations: int = MinHashDefaults.NUM_PERMUTATIONS
     """Number of hash permutations for MinHash. Higher = more accurate but slower."""
 
-    shingle_size: int = 3
+    shingle_size: int = MinHashDefaults.SHINGLE_SIZE
     """Size of token n-grams (shingles). 3 is optimal for code per research."""
 
-    similarity_threshold: float = 0.8
+    similarity_threshold: float = DeduplicationDefaults.MIN_SIMILARITY
     """Minimum Jaccard similarity for LSH candidate retrieval."""
 
     use_token_shingles: bool = True
     """Use token-based shingles (True) vs character-based (False)."""
 
-    small_code_token_threshold: int = 20
+    small_code_token_threshold: int = MinHashDefaults.SMALL_CODE_TOKEN_THRESHOLD
     """Code with fewer tokens than this is considered 'small' and may need special handling."""
 
     lsh_recall_margin: float = 0.2
@@ -227,12 +236,16 @@ class HybridSimilarityResult:
     def to_dict(self) -> Dict[str, object]:
         """Convert result to dictionary for serialization."""
         return {
-            "similarity": round(self.similarity, 4),
+            "similarity": round(self.similarity, FormattingDefaults.SIMILARITY_PRECISION),
             "method": self.method,
             "verified": self.verified,
-            "minhash_similarity": round(self.minhash_similarity, 4),
-            "ast_similarity": round(self.ast_similarity, 4) if self.ast_similarity is not None else None,
-            "semantic_similarity": round(self.semantic_similarity, 4) if self.semantic_similarity is not None else None,
+            "minhash_similarity": round(self.minhash_similarity, FormattingDefaults.SIMILARITY_PRECISION),
+            "ast_similarity": round(self.ast_similarity, FormattingDefaults.SIMILARITY_PRECISION)
+            if self.ast_similarity is not None
+            else None,
+            "semantic_similarity": round(self.semantic_similarity, FormattingDefaults.SIMILARITY_PRECISION)
+            if self.semantic_similarity is not None
+            else None,
             "stage1_passed": self.stage1_passed,
             "stage2_passed": self.stage2_passed,
             "early_exit": self.early_exit,
@@ -830,7 +843,7 @@ class HybridSimilarity:
         if minhash_sim < self.hybrid_config.minhash_early_exit_threshold:
             self.logger.debug(
                 "hybrid_early_exit",
-                minhash_similarity=round(minhash_sim, 4),
+                minhash_similarity=round(minhash_sim, FormattingDefaults.SIMILARITY_PRECISION),
                 threshold=self.hybrid_config.minhash_early_exit_threshold,
             )
             return HybridSimilarityResult(
@@ -864,9 +877,9 @@ class HybridSimilarity:
 
         self.logger.debug(
             "hybrid_verification_complete",
-            minhash_similarity=round(minhash_sim, 4),
-            ast_similarity=round(ast_sim, 4),
-            combined_similarity=round(combined_similarity, 4),
+            minhash_similarity=round(minhash_sim, FormattingDefaults.SIMILARITY_PRECISION),
+            ast_similarity=round(ast_sim, FormattingDefaults.SIMILARITY_PRECISION),
+            combined_similarity=round(combined_similarity, FormattingDefaults.SIMILARITY_PRECISION),
             weights=f"{self.hybrid_config.minhash_weight}/{self.hybrid_config.ast_weight}",
             semantic_enabled=self.hybrid_config.enable_semantic,
             semantic_skipped=True,
@@ -921,10 +934,10 @@ class HybridSimilarity:
 
             self.logger.debug(
                 "hybrid_semantic_complete",
-                minhash_similarity=round(minhash_sim, 4),
-                ast_similarity=round(ast_sim, 4),
-                semantic_similarity=round(semantic_sim, 4),
-                combined_similarity=round(combined_similarity, 4),
+                minhash_similarity=round(minhash_sim, FormattingDefaults.SIMILARITY_PRECISION),
+                ast_similarity=round(ast_sim, FormattingDefaults.SIMILARITY_PRECISION),
+                semantic_similarity=round(semantic_sim, FormattingDefaults.SIMILARITY_PRECISION),
+                combined_similarity=round(combined_similarity, FormattingDefaults.SIMILARITY_PRECISION),
                 weights=(f"{self.hybrid_config.minhash_weight}/{self.hybrid_config.ast_weight}/{self.hybrid_config.semantic_weight}"),
             )
 
@@ -1273,14 +1286,14 @@ class EnhancedStructureHash:
         # Build multi-factor fingerprint
         fingerprint_parts = []
 
-        # 1. Node sequence fingerprint (first 20 nodes)
+        # 1. Node sequence fingerprint (first N nodes)
         # This captures the structural "shape" of the code
-        node_fingerprint = "->".join(node_sequence[:20])
+        node_fingerprint = "->".join(node_sequence[: ASTFingerprintDefaults.MAX_NODE_SEQUENCE_LENGTH])
         fingerprint_parts.append(f"N:{node_fingerprint}")
 
         # 2. Control flow complexity (cyclomatic-like)
         complexity = self._calculate_control_flow_complexity(node_sequence)
-        fingerprint_parts.append(f"X{min(complexity, 15):X}")  # Hex digit 0-F
+        fingerprint_parts.append(f"X{min(complexity, ASTFingerprintDefaults.MAX_COMPLEXITY_HEX_VALUE):X}")  # Hex digit 0-F
 
         # 3. Call pattern signature
         call_signature = self._extract_call_signature(code)
@@ -1288,7 +1301,7 @@ class EnhancedStructureHash:
 
         # 4. Nesting depth estimate
         max_depth = self._estimate_nesting_depth(code)
-        fingerprint_parts.append(f"D{min(max_depth, 9)}")
+        fingerprint_parts.append(f"D{min(max_depth, ASTFingerprintDefaults.MAX_NESTING_DEPTH_DIGIT)}")
 
         # 5. Logarithmic size bucket for uniform distribution
         lines = [line for line in code.split("\n") if line.strip()]
@@ -1297,11 +1310,11 @@ class EnhancedStructureHash:
 
         # Combine all factors into final hash
         fingerprint = "|".join(fingerprint_parts)
-        struct_hash = hash(fingerprint) % 10000
+        struct_hash = hash(fingerprint) % ASTFingerprintDefaults.HASH_MODULO
 
-        # Combined hash: structure * 100 + size_bucket
+        # Combined hash: structure * multiplier + size_bucket
         # This ensures similar structures in same size range group together
-        return struct_hash * 100 + size_bucket
+        return struct_hash * ASTFingerprintDefaults.HASH_BUCKET_MULTIPLIER + size_bucket
 
     def _extract_node_sequence(self, code: str) -> List[str]:
         """Extract AST-like node type sequence from code.
@@ -1455,7 +1468,7 @@ class EnhancedStructureHash:
             return "0000"
 
         # Create signature from unique called functions (sorted for consistency)
-        unique_calls = sorted(set(filtered_calls))[:10]  # Limit to 10 unique calls
+        unique_calls = sorted(set(filtered_calls))[: ASTFingerprintDefaults.MAX_UNIQUE_CALLS]
         call_str = ",".join(unique_calls)
 
         # Return 4-char hex hash
@@ -1476,7 +1489,11 @@ class EnhancedStructureHash:
                 # Estimate depth from leading whitespace
                 indent = len(line) - len(line.lstrip())
                 # Assume 4-space or 2-space indentation
-                depth = indent // 2 if indent % 4 != 0 else indent // 4
+                depth = (
+                    indent // IndentationDefaults.ALT_SPACES_PER_LEVEL
+                    if indent % IndentationDefaults.SPACES_PER_LEVEL != 0
+                    else indent // IndentationDefaults.SPACES_PER_LEVEL
+                )
                 max_depth = max(max_depth, depth)
         return max_depth
 
@@ -1500,21 +1517,21 @@ class EnhancedStructureHash:
         Returns:
             Bucket number (0-9).
         """
-        if line_count < 5:
+        if line_count < LogBucketThresholds.TINY:
             return 0
-        if line_count < 10:
+        if line_count < LogBucketThresholds.SMALL:
             return 1
-        if line_count < 20:
+        if line_count < LogBucketThresholds.MEDIUM:
             return 2
-        if line_count < 40:
+        if line_count < LogBucketThresholds.LARGE:
             return 3
-        if line_count < 80:
+        if line_count < LogBucketThresholds.VERY_LARGE:
             return 4
-        if line_count < 160:
+        if line_count < LogBucketThresholds.HUGE:
             return 5
-        if line_count < 320:
+        if line_count < LogBucketThresholds.MASSIVE:
             return 6
-        return min(7 + (line_count - 320) // 320, 9)
+        return min(7 + (line_count - LogBucketThresholds.MASSIVE) // LogBucketThresholds.MASSIVE, 9)
 
     def _extract_tokens(self, code: str) -> List[str]:
         """Extract meaningful tokens from code (legacy method)."""
@@ -1645,7 +1662,7 @@ class SemanticSimilarityResult:
     def to_dict(self) -> Dict[str, object]:
         """Convert result to dictionary for serialization."""
         return {
-            "similarity": round(self.similarity, 4),
+            "similarity": round(self.similarity, FormattingDefaults.SIMILARITY_PRECISION),
             "model_used": self.model_used,
             "embedding_dim": self.embedding_dim,
             "truncated": self.truncated,
@@ -1884,7 +1901,7 @@ class SemanticSimilarity:
             return SemanticSimilarityResult(
                 similarity=0.0,
                 model_used=self.config.model_name,
-                embedding_dim=768,
+                embedding_dim=SemanticSimilarityDefaults.EMBEDDING_DIM,
                 truncated=False,
                 code1_tokens=0,
                 code2_tokens=0,

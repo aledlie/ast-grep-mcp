@@ -1,0 +1,1 @@
+ast-grep-mcp:py:cd "/Users/alyshialedlie/code/ast-grep-mcp" && mypy .

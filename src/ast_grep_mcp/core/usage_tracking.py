@@ -365,7 +365,7 @@ class UsageDatabase:
             Aggregated usage statistics
         """
         if start_time is None:
-            start_time = datetime.now(UTC) - timedelta(days=7)
+            start_time = datetime.now(UTC) - timedelta(days=UsageTrackingDefaults.DEFAULT_STATS_LOOKBACK_DAYS)
         if end_time is None:
             end_time = datetime.now(UTC)
 

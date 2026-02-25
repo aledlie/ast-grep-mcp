@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Tuple, cast
 
 import sentry_sdk
 
+from ast_grep_mcp.constants import ReadmeDefaults, ReadmeSectionOrder
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
     ProjectInfo,
@@ -491,7 +492,7 @@ def _get_main_dependencies(project_folder: str, language: str) -> List[str]:
         List of main dependency names
     """
     dependencies = _get_js_dependencies(project_folder)
-    dependencies.extend(_get_python_dependencies(project_folder, max_deps=10 - len(dependencies)))
+    dependencies.extend(_get_python_dependencies(project_folder, max_deps=ReadmeDefaults.MAX_DEPENDENCIES - len(dependencies)))
     return dependencies
 
 
@@ -568,7 +569,7 @@ def _generate_installation_section(info: ProjectInfo) -> ReadmeSection:
         section_type="installation",
         title="Installation",
         content="\n".join(lines),
-        order=10,
+        order=ReadmeSectionOrder.INSTALLATION,
     )
 
 
@@ -644,7 +645,7 @@ def _generate_usage_section(info: ProjectInfo) -> ReadmeSection:
         section_type="usage",
         title="Usage",
         content="\n".join(lines),
-        order=20,
+        order=ReadmeSectionOrder.USAGE,
     )
 
 
@@ -678,7 +679,7 @@ def _generate_features_section(info: ProjectInfo) -> ReadmeSection:
         section_type="features",
         title="Features",
         content="\n".join(lines),
-        order=5,
+        order=ReadmeSectionOrder.FEATURES,
     )
 
 
@@ -706,7 +707,7 @@ def _generate_api_section(info: ProjectInfo) -> ReadmeSection:
         section_type="api",
         title="API Reference",
         content="\n".join(lines),
-        order=30,
+        order=ReadmeSectionOrder.API_REFERENCE,
     )
 
 
@@ -757,7 +758,7 @@ def _generate_structure_section(info: ProjectInfo) -> ReadmeSection:
         section_type="structure",
         title="Project Structure",
         content="\n".join(lines),
-        order=40,
+        order=ReadmeSectionOrder.PROJECT_STRUCTURE,
     )
 
 
@@ -813,7 +814,7 @@ def _generate_contributing_section(info: ProjectInfo) -> ReadmeSection:
         section_type="contributing",
         title="Contributing",
         content="\n".join(lines),
-        order=50,
+        order=ReadmeSectionOrder.CONTRIBUTING,
     )
 
 
@@ -830,7 +831,7 @@ def _generate_license_section(info: ProjectInfo) -> ReadmeSection:
         section_type="license",
         title="License",
         content="This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.",
-        order=60,
+        order=ReadmeSectionOrder.LICENSE,
     )
 
 

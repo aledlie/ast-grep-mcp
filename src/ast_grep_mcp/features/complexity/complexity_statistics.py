@@ -7,6 +7,7 @@ retrieving trends, and formatting the final response.
 import subprocess
 from typing import Any, Dict, List, Optional
 
+from ...constants import FormattingDefaults, ValidationDefaults
 from ...core.logging import get_logger
 from ...models.complexity import FunctionComplexity
 from .storage import ComplexityStorage
@@ -58,7 +59,7 @@ class ComplexityStatisticsAggregator:
             "max_cyclomatic": max_cyclomatic,
             "max_cognitive": max_cognitive,
             "max_nesting": max_nesting,
-            "analysis_time_seconds": round(execution_time, 3),
+            "analysis_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
         }
 
     def get_git_info(self, project_folder: str) -> tuple[Optional[str], Optional[str]]:
@@ -75,13 +76,13 @@ class ComplexityStatisticsAggregator:
 
         try:
             # Get commit hash
-            commit_result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=project_folder, capture_output=True, text=True, timeout=5)
+            commit_result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=project_folder, capture_output=True, text=True, timeout=ValidationDefaults.SYNTAX_CHECK_TIMEOUT_SECONDS)
             if commit_result.returncode == 0:
                 commit_hash = commit_result.stdout.strip() or None
 
             # Get branch name
             branch_result = subprocess.run(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=project_folder, capture_output=True, text=True, timeout=5
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=project_folder, capture_output=True, text=True, timeout=ValidationDefaults.SYNTAX_CHECK_TIMEOUT_SECONDS
             )
             if branch_result.returncode == 0:
                 branch_name = branch_result.stdout.strip() or None

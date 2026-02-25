@@ -11,6 +11,7 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+from ast_grep_mcp.constants import ChangelogDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
     ChangelogEntry,
@@ -151,12 +152,12 @@ def _get_commits(
         if not commit_str:
             continue
 
-        parts = commit_str.split("|", 6)
-        if len(parts) < 6:
+        parts = commit_str.split("|", ChangelogDefaults.COMMIT_PARTS_COUNT)
+        if len(parts) < ChangelogDefaults.COMMIT_PARTS_COUNT:
             continue
 
-        hash_short, hash_full, author, email, date, subject = parts[:6]
-        body = parts[6] if len(parts) > 6 else ""
+        hash_short, hash_full, author, email, date, subject = parts[:ChangelogDefaults.COMMIT_PARTS_COUNT]
+        body = parts[ChangelogDefaults.COMMIT_PARTS_COUNT] if len(parts) > ChangelogDefaults.COMMIT_PARTS_COUNT else ""
 
         # Parse conventional commit format
         parsed = _parse_conventional_commit(subject, body)

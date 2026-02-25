@@ -13,7 +13,7 @@ import tempfile
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults
+from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults, SubprocessDefaults
 
 
 @dataclass
@@ -733,7 +733,7 @@ def format_typescript_code(code: str, line_length: int = FormattingDefaults.PRET
                     ],
                     capture_output=True,
                     text=True,
-                    timeout=10,
+                    timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
                 )
 
                 if result.returncode == 0:
@@ -793,7 +793,7 @@ def format_javascript_code(code: str, line_length: int = FormattingDefaults.PRET
                     ],
                     capture_output=True,
                     text=True,
-                    timeout=10,
+                    timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
                 )
 
                 if result.returncode == 0:
@@ -884,7 +884,7 @@ def format_java_code(code: str) -> str:
 
             try:
                 # Run google-java-format
-                _ = subprocess.run([formatter_path, "--replace", temp_path], capture_output=True, text=True, timeout=10)
+                _ = subprocess.run([formatter_path, "--replace", temp_path], capture_output=True, text=True, timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS)
 
                 # Read formatted code
                 with open(temp_path, "r") as f:

@@ -10,7 +10,7 @@ import statistics
 import time
 from typing import Any, Callable, Dict, List
 
-from ...constants import DeduplicationDefaults
+from ...constants import DeduplicationDefaults, FormattingDefaults
 from ...core.logging import get_logger
 from .ranker import DuplicationRanker
 from .recommendations import RecommendationEngine
@@ -50,15 +50,20 @@ class BenchmarkExecutor:
         result = {
             "name": name,
             "iterations": iterations,
-            "mean_seconds": round(statistics.mean(times), 6),
-            "std_dev_seconds": round(statistics.stdev(times) if len(times) > 1 else 0.0, 6),
-            "min_seconds": round(min(times), 6),
-            "max_seconds": round(max(times), 6),
+            "mean_seconds": round(statistics.mean(times), FormattingDefaults.BENCHMARK_PRECISION),
+            "std_dev_seconds": round(statistics.stdev(times) if len(times) > 1 else 0.0, FormattingDefaults.BENCHMARK_PRECISION),
+            "min_seconds": round(min(times), FormattingDefaults.BENCHMARK_PRECISION),
+            "max_seconds": round(max(times), FormattingDefaults.BENCHMARK_PRECISION),
         }
 
         mean_seconds = result["mean_seconds"]
         assert isinstance(mean_seconds, (int, float))
-        self.logger.info("benchmark_complete", name=name, mean_ms=round(mean_seconds * 1000, 3), iterations=iterations)
+        self.logger.info(
+            "benchmark_complete",
+            name=name,
+            mean_ms=round(mean_seconds * 1000, FormattingDefaults.ROUNDING_PRECISION),
+            iterations=iterations,
+        )
 
         return result
 
@@ -240,14 +245,14 @@ class BenchmarkReporter:
             "regression_errors": regression_errors,
             "thresholds": thresholds,
             "baseline_saved": baseline_saved,
-            "execution_time_seconds": round(execution_time, 3),
+            "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
         }
 
         self.logger.info(
             "report_formatted",
             total_benchmarks=len(results),
             regression_detected=regression_detected,
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
         )
 
         return report
@@ -465,7 +470,7 @@ class DeduplicationBenchmark:
             "benchmark_complete",
             total_benchmarks=len(results),
             regression_detected=regression_detected,
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
         )
 
         return self.reporter.format_benchmark_report(

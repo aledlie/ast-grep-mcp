@@ -10,6 +10,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import sentry_sdk
 import yaml
 
+from ast_grep_mcp.constants import FormattingDefaults, SyntaxValidationDefaults
 from ast_grep_mcp.core.exceptions import InvalidYAMLError
 from ast_grep_mcp.core.executor import (
     filter_files_by_size,
@@ -59,7 +60,9 @@ try {{
     console.log("INVALID: " + e.message);
 }}
 """
-        node_result = subprocess.run(["node", "-e", node_code], capture_output=True, text=True, timeout=5)
+        node_result = subprocess.run(
+            ["node", "-e", node_code], capture_output=True, text=True, timeout=SyntaxValidationDefaults.NODE_TIMEOUT_SECONDS
+        )
         if "INVALID:" in node_result.stdout:
             error_msg = node_result.stdout.replace("INVALID: ", "").strip()
             return {"valid": False, "error": error_msg}
@@ -78,9 +81,11 @@ def _validate_java_syntax(file_path: str) -> Dict[str, Any]:
         Dict with 'valid' and 'error' keys
     """
     try:
-        javac_result = subprocess.run(["javac", "-Xlint:none", file_path], capture_output=True, text=True, timeout=10)
+        javac_result = subprocess.run(
+            ["javac", "-Xlint:none", file_path], capture_output=True, text=True, timeout=SyntaxValidationDefaults.JAVAC_TIMEOUT_SECONDS
+        )
         if javac_result.returncode != 0:
-            return {"valid": False, "error": javac_result.stderr[:500]}
+            return {"valid": False, "error": javac_result.stderr[: SyntaxValidationDefaults.JAVAC_ERROR_PREVIEW_LENGTH]}
 
         # Clean up .class file if compilation succeeded
         class_file = file_path.replace(".java", ".class")
@@ -268,7 +273,11 @@ def _perform_dry_run(args: List[str], search_targets: List[str], logger: Any, st
     if not matches:
         execution_time = time.time() - start_time
         logger.info(
-            "rewrite_code_completed", execution_time_seconds=round(execution_time, 3), dry_run=True, changes_found=0, status="success"
+            "rewrite_code_completed",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            dry_run=True,
+            changes_found=0,
+            status="success",
         )
         return {"dry_run": True, "message": "No matches found - no changes would be applied", "changes": []}
 
@@ -289,7 +298,7 @@ def _perform_dry_run(args: List[str], search_targets: List[str], logger: Any, st
     execution_time = time.time() - start_time
     logger.info(
         "rewrite_code_completed",
-        execution_time_seconds=round(execution_time, 3),
+        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
         dry_run=True,
         changes_found=len(changes),
         status="success",
@@ -364,7 +373,7 @@ def _apply_rewrites(
     execution_time = time.time() - start_time
     logger.info(
         "rewrite_code_completed",
-        execution_time_seconds=round(execution_time, 3),
+        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
         dry_run=False,
         modified_files=len(files_to_modify),
         backup_id=backup_id,
@@ -439,14 +448,19 @@ def rewrite_code_impl(
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error("rewrite_code_failed", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed")
+        logger.error(
+            "rewrite_code_failed",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+            status="failed",
+        )
         sentry_sdk.capture_exception(
             e,
             extras={
                 "function": "rewrite_code_impl",
                 "project_folder": project_folder,
                 "dry_run": dry_run,
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -480,7 +494,7 @@ def rollback_rewrite_impl(backup_id: str, project_folder: str) -> Dict[str, Any]
         execution_time = time.time() - start_time
         logger.info(
             "rollback_completed",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             success=result["success"],
             restored_files=len(result["restored_files"]),
             status="success" if result["success"] else "partial",
@@ -502,14 +516,19 @@ def rollback_rewrite_impl(backup_id: str, project_folder: str) -> Dict[str, Any]
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error("rollback_failed", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed")
+        logger.error(
+            "rollback_failed",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+            status="failed",
+        )
         sentry_sdk.capture_exception(
             e,
             extras={
                 "function": "rollback_rewrite_impl",
                 "backup_id": backup_id,
                 "project_folder": project_folder,
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise

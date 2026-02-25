@@ -522,7 +522,11 @@ def stream_ast_grep_results(
 
                 # Log progress if needed
                 if _should_log_progress(match_count, last_progress_log, progress_interval):
-                    logger.info("stream_progress", matches_found=match_count, execution_time_seconds=round(time.time() - start_time, 3))
+                    logger.info(
+                        "stream_progress",
+                        matches_found=match_count,
+                        execution_time_seconds=round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION),
+                    )
                     last_progress_log = match_count
 
                 yield match

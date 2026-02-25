@@ -2,10 +2,12 @@
 
 from typing import Any, Dict, List, cast
 
+from ...constants import RecommendationDefaults
+
 # Configuration-driven strategy definitions
 STRATEGY_CONFIG = {
     "extract_function": {
-        "base_score": 70.0,
+        "base_score": RecommendationDefaults.EXTRACT_FUNCTION_BASE_SCORE,
         "description": "Extract duplicate code into a shared function",
         "scoring_rules": [
             {"condition": lambda c, ln, a, s, h: c <= 5, "adjustment": +20},
@@ -18,7 +20,7 @@ STRATEGY_CONFIG = {
         "best_for": "Simple, stateless duplicates with clear inputs/outputs",
     },
     "extract_class": {
-        "base_score": 50.0,
+        "base_score": RecommendationDefaults.EXTRACT_CLASS_BASE_SCORE,
         "description": "Extract duplicate code into a shared class with state",
         "scoring_rules": [
             {"condition": lambda c, ln, a, s, h: c > 10, "adjustment": +30},
@@ -32,7 +34,7 @@ STRATEGY_CONFIG = {
         "best_for": "Complex duplicates with shared state or multiple related functions",
     },
     "inline": {
-        "base_score": 30.0,
+        "base_score": RecommendationDefaults.INLINE_BASE_SCORE,
         "description": "Keep code duplicated (intentional duplication)",
         "scoring_rules": [
             {"condition": lambda c, ln, a, s, h: s < 40, "adjustment": +40},
@@ -74,21 +76,21 @@ class RecommendationEngine:
             - effort_value_ratio: Numeric ratio (higher = better value)
         """
         # Calculate effort estimate based on complexity and affected files
-        base_effort = complexity * 0.3 + affected_files * 0.5
+        base_effort = complexity * RecommendationDefaults.EFFORT_COMPLEXITY_WEIGHT + affected_files * RecommendationDefaults.EFFORT_FILES_WEIGHT
         if not has_tests:
-            base_effort *= 1.5  # Higher effort without test safety net
+            base_effort *= RecommendationDefaults.NO_TESTS_EFFORT_MULTIPLIER
 
         # Calculate value based on lines saved and affected files
-        value = lines_saved * 0.4 + affected_files * 10
+        value = lines_saved * RecommendationDefaults.VALUE_LINES_WEIGHT + affected_files * RecommendationDefaults.VALUE_FILES_BONUS
 
         # Avoid division by zero
         effort_value_ratio = value / max(base_effort, 1)
 
         # Generate recommendation text based on score
-        if score > 80:
+        if score > RecommendationDefaults.HIGH_PRIORITY_SCORE_THRESHOLD:
             recommendation_text = "High Value: Extract to shared utility"
             priority = "high"
-        elif score >= 50:
+        elif score >= RecommendationDefaults.MEDIUM_PRIORITY_SCORE_THRESHOLD:
             recommendation_text = "Medium Value: Consider refactoring"
             priority = "medium"
         else:
@@ -247,7 +249,7 @@ def generate_refactoring_suggestions(duplicates: List[Dict[str, Any]], language:
 
     # Analyze the duplicates to determine best refactoring strategy
     num_duplicates = len(duplicates)
-    avg_similarity = sum(d.get("similarity", 0.9) for d in duplicates) / max(num_duplicates, 1)
+    avg_similarity = sum(d.get("similarity", RecommendationDefaults.DEFAULT_SIMILARITY) for d in duplicates) / max(num_duplicates, 1)
 
     # Get code characteristics from first duplicate
     first_code = duplicates[0].get("code", "") if duplicates else ""
@@ -258,13 +260,13 @@ def generate_refactoring_suggestions(duplicates: List[Dict[str, Any]], language:
         {
             "type": "extract_function",
             "description": "Extract duplicate code into a shared utility function",
-            "priority": "high" if avg_similarity > 0.85 else "medium",
+            "priority": "high" if avg_similarity > RecommendationDefaults.HIGH_SIMILARITY_THRESHOLD else "medium",
             "estimated_savings": f"{line_count * (num_duplicates - 1)} lines",
         }
     )
 
     # Additional suggestions based on characteristics
-    if num_duplicates > 3:
+    if num_duplicates > RecommendationDefaults.MODULE_EXTRACTION_DUPLICATE_THRESHOLD:
         suggestions.append(
             {
                 "type": "extract_module",
@@ -273,7 +275,7 @@ def generate_refactoring_suggestions(duplicates: List[Dict[str, Any]], language:
             }
         )
 
-    if line_count > 20:
+    if line_count > RecommendationDefaults.CLASS_EXTRACTION_LINE_THRESHOLD:
         suggestions.append(
             {
                 "type": "extract_class",

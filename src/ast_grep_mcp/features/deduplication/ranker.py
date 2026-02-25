@@ -9,7 +9,7 @@ import hashlib
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
-from ...constants import DeduplicationDefaults
+from ...constants import CodeAnalysisDefaults, DeduplicationDefaults, RankerDefaults, RiskMultipliers
 from ...core.logging import get_logger
 
 
@@ -77,7 +77,7 @@ class DeduplicationScoreCalculator:
         """
         lines_saved = duplicate_group.get("potential_line_savings", 0)
         # Normalize to 0-100 (cap at 500 lines for max score)
-        savings_score = min(lines_saved / 5, 100)
+        savings_score = min(lines_saved / RankerDefaults.SAVINGS_NORMALIZATION_DIVISOR, RankerDefaults.MAX_NORMALIZED_SCORE)
         weighted_score = savings_score * self.WEIGHT_SAVINGS
 
         self.logger.debug("savings_score_calculated", lines_saved=lines_saved, raw_score=savings_score, weighted_score=weighted_score)
@@ -96,11 +96,11 @@ class DeduplicationScoreCalculator:
             Weighted complexity score
         """
         if complexity:
-            complexity_value = complexity.get("complexity_score", 5)
+            complexity_value = complexity.get("complexity_score", CodeAnalysisDefaults.DEFAULT_COMPLEXITY_SCORE)
             # Invert: 1 = 100, 7 = 0
-            complexity_score = max(0, 100 - (complexity_value - 1) * 16.67)
+            complexity_score = max(0, RankerDefaults.MAX_NORMALIZED_SCORE - (complexity_value - 1) * RankerDefaults.COMPLEXITY_INVERSION_FACTOR)
         else:
-            complexity_score = 50  # Default middle score
+            complexity_score = RankerDefaults.DEFAULT_MIDDLE_SCORE
 
         weighted_score = complexity_score * self.WEIGHT_COMPLEXITY
 
@@ -126,7 +126,7 @@ class DeduplicationScoreCalculator:
         Returns:
             Weighted risk score
         """
-        risk_score: float = 50.0  # Default
+        risk_score: float = RankerDefaults.DEFAULT_MIDDLE_SCORE
 
         # Test coverage component
         if test_coverage is not None:
@@ -136,8 +136,8 @@ class DeduplicationScoreCalculator:
         # Breaking change risk component
         if impact_analysis:
             breaking_risk = impact_analysis.get("breaking_change_risk", "medium")
-            risk_multipliers = {"low": 1.0, "medium": 0.7, "high": 0.3}
-            risk_score *= risk_multipliers.get(breaking_risk, 0.7)
+            risk_multipliers = {"low": RiskMultipliers.LOW, "medium": RiskMultipliers.MEDIUM, "high": RiskMultipliers.HIGH}
+            risk_score *= risk_multipliers.get(breaking_risk, RiskMultipliers.MEDIUM)
 
         weighted_score = risk_score * self.WEIGHT_RISK
 
@@ -167,7 +167,7 @@ class DeduplicationScoreCalculator:
         file_count = len(set(inst.get("file", "") for inst in duplicate_group.get("instances", [])))
 
         # More instances and files = more effort = lower score
-        effort_score = max(0, 100 - (instance_count * 5 + file_count * 10))
+        effort_score = max(0, RankerDefaults.MAX_NORMALIZED_SCORE - (instance_count * RankerDefaults.EFFORT_INSTANCE_PENALTY + file_count * RankerDefaults.EFFORT_FILE_PENALTY))
         weighted_score = effort_score * self.WEIGHT_EFFORT
 
         self.logger.debug(

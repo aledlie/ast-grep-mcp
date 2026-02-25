@@ -15,6 +15,8 @@ import re
 import subprocess
 from typing import Any, Dict, List, Optional, Tuple, cast
 
+from ast_grep_mcp.constants import IndentationDefaults, SubprocessDefaults
+
 # =============================================================================
 # COMPLEXITY PATTERNS
 # =============================================================================
@@ -150,7 +152,7 @@ def count_pattern_matches(code: str, pattern: str, language: str) -> int:
     """
     try:
         result = subprocess.run(
-            ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json"], input=code, capture_output=True, text=True, timeout=10
+            ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json"], input=code, capture_output=True, text=True, timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS
         )
         if result.returncode == 0 and result.stdout.strip():
             matches = json.loads(result.stdout)
@@ -268,9 +270,9 @@ def _calculate_line_indentation(line: str, base_indent: Optional[int]) -> Tuple[
     if base_indent is None:
         return 0, indent
 
-    # Calculate nesting level (assume 4 spaces per level)
+    # Calculate nesting level based on indentation
     indent_diff = indent - base_indent
-    current_nesting = max(0, indent_diff // 4)
+    current_nesting = max(0, indent_diff // IndentationDefaults.SPACES_PER_LEVEL)
 
     return current_nesting, base_indent
 
@@ -500,7 +502,7 @@ def calculate_nesting_depth(code: str, language: str) -> int:
 
         # Calculate depth from indentation difference
         indent_diff = indent - base_indent
-        depth = max(0, indent_diff // 4)  # Assume 4 spaces per level
+        depth = max(0, indent_diff // IndentationDefaults.SPACES_PER_LEVEL)
         max_depth = max(max_depth, depth)
 
     return max_depth

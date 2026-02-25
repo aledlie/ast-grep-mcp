@@ -198,6 +198,9 @@ class SemanticSimilarityDefaults:
     # Whether to L2-normalize embeddings (recommended for cosine similarity)
     NORMALIZE_EMBEDDINGS = True
 
+    # Embedding vector dimensionality for CodeBERT
+    EMBEDDING_DIM = 768
+
 
 class SecurityScanDefaults:
     """Defaults for security scanning."""
@@ -259,6 +262,8 @@ class FormattingDefaults:
     """Defaults for code formatting."""
 
     ROUNDING_PRECISION = 3  # Decimal places for execution times, hit rates
+    SIMILARITY_PRECISION = 4  # Decimal places for similarity scores
+    BENCHMARK_PRECISION = 6  # Decimal places for benchmark timing
     DEFAULT_DIFF_CONTEXT_LINES = 3  # Context lines in unified diffs
     BLACK_LINE_LENGTH = 88  # Black formatter default
     PRETTIER_LINE_LENGTH = 80  # Prettier formatter default
@@ -359,6 +364,150 @@ class DocstringDefaults:
     """Defaults for docstring generation."""
 
     BASIC_INFERENCE_CONFIDENCE = 0.8
+
+
+class IndentationDefaults:
+    """Indentation analysis defaults."""
+
+    SPACES_PER_LEVEL = 4
+    ALT_SPACES_PER_LEVEL = 2
+
+
+class MinHashDefaults:
+    """MinHash algorithm configuration."""
+
+    NUM_PERMUTATIONS = 128
+    SHINGLE_SIZE = 3
+    SMALL_CODE_TOKEN_THRESHOLD = 20
+
+
+class ASTFingerprintDefaults:
+    """AST structural fingerprinting configuration."""
+
+    MAX_NODE_SEQUENCE_LENGTH = 20
+    MAX_COMPLEXITY_HEX_VALUE = 15
+    MAX_NESTING_DEPTH_DIGIT = 9
+    HASH_MODULO = 10000
+    HASH_BUCKET_MULTIPLIER = 100
+    MAX_UNIQUE_CALLS = 10
+
+
+class RankerDefaults:
+    """Deduplication ranker scoring configuration."""
+
+    SAVINGS_NORMALIZATION_DIVISOR = 5
+    MAX_NORMALIZED_SCORE = 100
+    COMPLEXITY_INVERSION_FACTOR = 16.67
+    DEFAULT_MIDDLE_SCORE = 50.0
+    EFFORT_INSTANCE_PENALTY = 5
+    EFFORT_FILE_PENALTY = 10
+
+
+class RiskMultipliers:
+    """Risk score multipliers for deduplication."""
+
+    LOW = 1.0
+    MEDIUM = 0.7
+    HIGH = 0.3
+
+
+class RecommendationDefaults:
+    """Deduplication recommendation configuration."""
+
+    EXTRACT_FUNCTION_BASE_SCORE = 70.0
+    EXTRACT_CLASS_BASE_SCORE = 50.0
+    INLINE_BASE_SCORE = 30.0
+    EFFORT_COMPLEXITY_WEIGHT = 0.3
+    EFFORT_FILES_WEIGHT = 0.5
+    NO_TESTS_EFFORT_MULTIPLIER = 1.5
+    VALUE_LINES_WEIGHT = 0.4
+    VALUE_FILES_BONUS = 10
+    HIGH_PRIORITY_SCORE_THRESHOLD = 80
+    MEDIUM_PRIORITY_SCORE_THRESHOLD = 50
+    HIGH_SIMILARITY_THRESHOLD = 0.85
+    DEFAULT_SIMILARITY = 0.9
+    MODULE_EXTRACTION_DUPLICATE_THRESHOLD = 3
+    CLASS_EXTRACTION_LINE_THRESHOLD = 20
+
+
+class ChangelogDefaults:
+    """Changelog generator configuration."""
+
+    COMMIT_PARTS_COUNT = 6
+
+
+class ReadmeSectionOrder:
+    """Section ordering for README generation."""
+
+    FEATURES = 5
+    INSTALLATION = 10
+    USAGE = 20
+    API_REFERENCE = 30
+    PROJECT_STRUCTURE = 40
+    CONTRIBUTING = 50
+    LICENSE = 60
+
+
+class ReadmeDefaults:
+    """README generation defaults."""
+
+    MAX_DEPENDENCIES = 10
+
+
+class SyntaxValidationDefaults:
+    """Syntax validation timeouts and limits."""
+
+    NODE_TIMEOUT_SECONDS = 5
+    JAVAC_TIMEOUT_SECONDS = 10
+    JAVAC_ERROR_PREVIEW_LENGTH = 500
+
+
+class SubprocessDefaults:
+    """Default timeouts for subprocess operations."""
+
+    GREP_TIMEOUT_SECONDS = 10
+    AST_GREP_TIMEOUT_SECONDS = 30
+
+
+class LogBucketThresholds:
+    """Logarithmic bucket boundaries for code size classification."""
+
+    TINY = 5
+    SMALL = 10
+    MEDIUM = 20
+    LARGE = 40
+    VERY_LARGE = 80
+    HUGE = 160
+    MASSIVE = 320
+
+
+class DifficultyThresholds:
+    """Complexity-based difficulty classification thresholds."""
+
+    SIMPLE = 3
+    MODERATE = 4
+    COMPLEX = 5
+
+
+class PriorityWeights:
+    """Weights for priority calculation in deduplication reporting."""
+
+    OCCURRENCE_WEIGHT = 10
+    LINE_WEIGHT = 2
+    COMPLEXITY_PENALTY = 3
+
+
+class EquivalenceDefaults:
+    """Cross-language pattern equivalence defaults."""
+
+    SIMPLE_LINE_THRESHOLD = 2
+    MODERATE_LINE_THRESHOLD = 5
+
+
+class DetectorDefaults:
+    """Deduplication detector defaults."""
+
+    UTILITY_FUNCTION_LINE_THRESHOLD = 10
 
 
 # HTTP constants

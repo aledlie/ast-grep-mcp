@@ -10,6 +10,7 @@ import re
 import subprocess
 from typing import Any, Dict, List, Tuple
 
+from ast_grep_mcp.constants import SubprocessDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.complexity import (
     ComplexityMetrics,
@@ -61,7 +62,7 @@ def extract_functions_from_file(file_path: str, language: str) -> List[Dict[str,
                 ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=SubprocessDefaults.AST_GREP_TIMEOUT_SECONDS,
             )
             if result.returncode == 0 and result.stdout.strip():
                 matches = json.loads(result.stdout)
@@ -125,7 +126,7 @@ def _execute_ast_grep_for_classes(file_path: str, language: str, pattern: str) -
         List of match dictionaries from ast-grep output
     """
     result = subprocess.run(
-        ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path], capture_output=True, text=True, timeout=30
+        ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path], capture_output=True, text=True, timeout=SubprocessDefaults.AST_GREP_TIMEOUT_SECONDS
     )
 
     # Early return for failed or empty results

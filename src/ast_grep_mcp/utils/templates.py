@@ -12,6 +12,8 @@ import subprocess
 import tempfile
 from typing import List, Optional, Tuple
 
+from ast_grep_mcp.constants import SubprocessDefaults
+
 # =============================================================================
 # Python Templates
 # =============================================================================
@@ -93,7 +95,7 @@ def _try_google_java_format(code: str) -> Optional[str]:
             f.write(code)
             temp_path = f.name
 
-        result = subprocess.run(["google-java-format", temp_path], capture_output=True, text=True, timeout=30)
+        result = subprocess.run(["google-java-format", temp_path], capture_output=True, text=True, timeout=SubprocessDefaults.AST_GREP_TIMEOUT_SECONDS)
 
         # Clean up temp file
         try:

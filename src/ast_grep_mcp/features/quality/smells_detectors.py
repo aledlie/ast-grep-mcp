@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List
 
+from ast_grep_mcp.constants import SubprocessDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.complexity.analyzer import calculate_nesting_depth, extract_functions_from_file
 from ast_grep_mcp.features.quality.smells_helpers import calculate_smell_severity
@@ -357,7 +358,7 @@ class LargeClassDetector(SmellDetector):
             List of match dictionaries from ast-grep output
         """
         result = subprocess.run(
-            ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path], capture_output=True, text=True, timeout=30
+            ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path], capture_output=True, text=True, timeout=SubprocessDefaults.AST_GREP_TIMEOUT_SECONDS
         )
 
         # Early return for failed or empty results

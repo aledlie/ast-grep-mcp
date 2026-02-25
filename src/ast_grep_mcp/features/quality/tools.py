@@ -17,6 +17,7 @@ import yaml
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
+from ast_grep_mcp.constants import FormattingDefaults, ParallelProcessing, SecurityScanDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.quality.enforcer import enforce_standards_impl, format_violation_report
 from ast_grep_mcp.features.quality.fixer import apply_fixes_batch
@@ -180,7 +181,7 @@ def create_linting_rule_tool(
             logger.info(
                 "tool_completed",
                 tool="create_linting_rule",
-                execution_time_seconds=round(execution_time, 3),
+                execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
                 rule_id=rule.id,
                 is_valid=validation_result.is_valid,
                 saved=saved_path is not None,
@@ -190,14 +191,19 @@ def create_linting_rule_tool(
 
     except (RuleValidationError, RuleStorageError, ValueError) as e:
         execution_time = time.time() - start_time
-        logger.error("tool_failed", tool="create_linting_rule", execution_time_seconds=round(execution_time, 3), error=str(e)[:200])
+        logger.error(
+            "tool_failed",
+            tool="create_linting_rule",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+        )
         sentry_sdk.capture_exception(
             e,
             extras={
                 "tool": "create_linting_rule",
                 "rule_name": rule_name,
                 "language": language,
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -259,7 +265,7 @@ def list_rule_templates_tool(language: Optional[str] = None, category: Optional[
             logger.info(
                 "tool_completed",
                 tool="list_rule_templates",
-                execution_time_seconds=round(execution_time, 3),
+                execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
                 total_templates=len(template_dicts),
                 filtered=bool(language or category),
             )
@@ -274,14 +280,19 @@ def list_rule_templates_tool(language: Optional[str] = None, category: Optional[
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error("tool_failed", tool="list_rule_templates", execution_time_seconds=round(execution_time, 3), error=str(e)[:200])
+        logger.error(
+            "tool_failed",
+            tool="list_rule_templates",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+        )
         sentry_sdk.capture_exception(
             e,
             extras={
                 "tool": "list_rule_templates",
                 "language": language,
                 "category": category,
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -366,8 +377,8 @@ def enforce_standards_tool(
     include_patterns: List[str] | None = None,
     exclude_patterns: List[str] | None = None,
     severity_threshold: str = "info",
-    max_violations: int = 100,
-    max_threads: int = 4,
+    max_violations: int = SecurityScanDefaults.MAX_ISSUES,
+    max_threads: int = ParallelProcessing.DEFAULT_WORKERS,
     output_format: str = "json",
 ) -> Dict[str, Any]:
     """
@@ -447,7 +458,7 @@ def enforce_standards_tool(
         logger.info(
             "tool_completed",
             tool="enforce_standards",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             total_violations=result.summary["total_violations"],
             files_scanned=result.files_scanned,
         )
@@ -457,7 +468,12 @@ def enforce_standards_tool(
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error("tool_failed", tool="enforce_standards", execution_time_seconds=round(execution_time, 3), error=str(e)[:200])
+        logger.error(
+            "tool_failed",
+            tool="enforce_standards",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+        )
         sentry_sdk.capture_exception(
             e,
             extras={
@@ -465,7 +481,7 @@ def enforce_standards_tool(
                 "project_folder": project_folder,
                 "language": language,
                 "rule_set": rule_set,
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -631,7 +647,7 @@ def apply_standards_fixes_tool(
         logger.info(
             "tool_completed",
             tool="apply_standards_fixes",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             total_violations=result.total_violations,
             fixes_attempted=result.fixes_attempted,
             fixes_successful=result.fixes_successful,
@@ -644,7 +660,12 @@ def apply_standards_fixes_tool(
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error("tool_failed", tool="apply_standards_fixes", execution_time_seconds=round(execution_time, 3), error=str(e)[:200])
+        logger.error(
+            "tool_failed",
+            tool="apply_standards_fixes",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+        )
         sentry_sdk.capture_exception(
             e,
             extras={
@@ -652,7 +673,7 @@ def apply_standards_fixes_tool(
                 "violations_count": len(violations),
                 "language": language,
                 "fix_types": fix_types,
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -734,7 +755,7 @@ def generate_quality_report_tool(
         logger.info(
             "tool_completed",
             tool="generate_quality_report",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             output_format=output_format,
             saved=save_to_file is not None,
         )
@@ -743,14 +764,19 @@ def generate_quality_report_tool(
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error("tool_failed", tool="generate_quality_report", execution_time_seconds=round(execution_time, 3), error=str(e)[:200])
+        logger.error(
+            "tool_failed",
+            tool="generate_quality_report",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+        )
         sentry_sdk.capture_exception(
             e,
             extras={
                 "tool": "generate_quality_report",
                 "project_name": project_name,
                 "output_format": output_format,
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -941,7 +967,7 @@ def detect_security_issues_tool(
         logger.info(
             "tool_completed",
             tool="detect_security_issues",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             total_issues=result.summary["total_issues"],
             critical_count=result.summary["critical_count"],
             high_count=result.summary["high_count"],
@@ -960,7 +986,12 @@ def detect_security_issues_tool(
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error("tool_failed", tool="detect_security_issues", execution_time_seconds=round(execution_time, 3), error=str(e)[:200])
+        logger.error(
+            "tool_failed",
+            tool="detect_security_issues",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+        )
         sentry_sdk.capture_exception(
             e,
             extras={
@@ -968,7 +999,7 @@ def detect_security_issues_tool(
                 "project_folder": project_folder,
                 "language": language,
                 "issue_types": issue_types,
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -1074,7 +1105,7 @@ def detect_orphans_tool(
         logger.info(
             "tool_completed",
             tool="detect_orphans",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             orphan_files=result["summary"]["orphan_files"],
             orphan_functions=result["summary"]["orphan_functions"],
             total_files=result["summary"]["total_files_analyzed"],
@@ -1084,14 +1115,19 @@ def detect_orphans_tool(
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error("tool_failed", tool="detect_orphans", execution_time_seconds=round(execution_time, 3), error=str(e)[:200])
+        logger.error(
+            "tool_failed",
+            tool="detect_orphans",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+        )
         sentry_sdk.capture_exception(
             e,
             extras={
                 "tool": "detect_orphans",
                 "project_folder": project_folder,
                 "analyze_functions": analyze_functions,
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -1131,9 +1167,12 @@ def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
             "exclude_patterns": Field(default_factory=_get_default_exclude_patterns, description="Glob patterns for files to exclude"),
             "severity_threshold": Field(default="info", description="Only report violations >= this severity ('error', 'warning', 'info')"),
             "max_violations": Field(
-                default=100, description="Maximum violations to find (0 = unlimited). Stops execution early when reached."
+                default=SecurityScanDefaults.MAX_ISSUES,
+                description="Maximum violations to find (0 = unlimited). Stops execution early when reached.",
             ),
-            "max_threads": Field(default=4, description="Number of parallel threads for rule execution (default: 4)"),
+            "max_threads": Field(
+                default=ParallelProcessing.DEFAULT_WORKERS, description="Number of parallel threads for rule execution (default: 4)"
+            ),
             "output_format": Field(default="json", description="Output format: 'json' (structured data) or 'text' (human-readable report)"),
         },
         "apply_standards_fixes": {
@@ -1162,7 +1201,7 @@ def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
                 description=("Types: 'sql_injection', 'xss', 'command_injection', 'hardcoded_secrets', 'insecure_crypto', or None for all"),
             ),
             "severity_threshold": Field(default="low", description="Minimum severity to report: 'critical', 'high', 'medium', 'low'"),
-            "max_issues": Field(default=100, description="Maximum number of issues to return (0 = unlimited)"),
+            "max_issues": Field(default=SecurityScanDefaults.MAX_ISSUES, description="Maximum number of issues to return (0 = unlimited)"),
         },
         "detect_orphans": {
             "project_folder": Field(description="Absolute path to project root directory"),

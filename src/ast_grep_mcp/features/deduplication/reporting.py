@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from ...constants import CodeAnalysisDefaults, DisplayDefaults, ReportingDefaults
+from ...constants import CodeAnalysisDefaults, DisplayDefaults, PriorityWeights, ReportingDefaults
 from ...utils.formatters import generate_multi_file_diff
 
 
@@ -286,7 +286,7 @@ class DuplicationReporter:
             # Calculate priority based on multiple factors
             occurrences = len(candidate.get("files", []))
             lines = before_after["original_lines"]
-            priority = (occurrences * 10) + (lines * 2) - (complexity * 3)
+            priority = (occurrences * PriorityWeights.OCCURRENCE_WEIGHT) + (lines * PriorityWeights.LINE_WEIGHT) - (complexity * PriorityWeights.COMPLEXITY_PENALTY)
 
             # Track total saveable lines
             total_lines_saveable += before_after["lines_saved"] * occurrences

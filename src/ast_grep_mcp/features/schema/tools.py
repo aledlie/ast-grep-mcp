@@ -8,6 +8,7 @@ import sentry_sdk
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
+from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.schema.client import get_schema_org_client
 from ast_grep_mcp.features.schema.enhancement_service import analyze_entity_graph
@@ -37,16 +38,30 @@ def get_schema_type_tool(type_name: str) -> Dict[str, Any]:
         result = asyncio.run(client.get_schema_type(type_name))
 
         execution_time = time.time() - start_time
-        logger.info("tool_completed", tool="get_schema_type", execution_time_seconds=round(execution_time, 3), status="success")
+        logger.info(
+            "tool_completed",
+            tool="get_schema_type",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            status="success",
+        )
 
         return result
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed", tool="get_schema_type", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
+            "tool_failed",
+            tool="get_schema_type",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+            status="failed",
         )
         sentry_sdk.capture_exception(
-            e, extras={"tool": "get_schema_type", "type_name": type_name, "execution_time_seconds": round(execution_time, 3)}
+            e,
+            extras={
+                "tool": "get_schema_type",
+                "type_name": type_name,
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            },
         )
         raise
 
@@ -79,7 +94,7 @@ def search_schemas_tool(query: str, limit: int = 10) -> List[Dict[str, Any]]:
         logger.info(
             "tool_completed",
             tool="search_schemas",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             result_count=len(results),
             status="success",
         )
@@ -88,10 +103,20 @@ def search_schemas_tool(query: str, limit: int = 10) -> List[Dict[str, Any]]:
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed", tool="search_schemas", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
+            "tool_failed",
+            tool="search_schemas",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+            status="failed",
         )
         sentry_sdk.capture_exception(
-            e, extras={"tool": "search_schemas", "query": query, "limit": limit, "execution_time_seconds": round(execution_time, 3)}
+            e,
+            extras={
+                "tool": "search_schemas",
+                "query": query,
+                "limit": limit,
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            },
         )
         raise
 
@@ -120,16 +145,30 @@ def get_type_hierarchy_tool(type_name: str) -> Dict[str, Any]:
         result = asyncio.run(client.get_type_hierarchy(type_name))
 
         execution_time = time.time() - start_time
-        logger.info("tool_completed", tool="get_type_hierarchy", execution_time_seconds=round(execution_time, 3), status="success")
+        logger.info(
+            "tool_completed",
+            tool="get_type_hierarchy",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            status="success",
+        )
 
         return result
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed", tool="get_type_hierarchy", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
+            "tool_failed",
+            tool="get_type_hierarchy",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+            status="failed",
         )
         sentry_sdk.capture_exception(
-            e, extras={"tool": "get_type_hierarchy", "type_name": type_name, "execution_time_seconds": round(execution_time, 3)}
+            e,
+            extras={
+                "tool": "get_type_hierarchy",
+                "type_name": type_name,
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            },
         )
         raise
 
@@ -162,7 +201,7 @@ def get_type_properties_tool(type_name: str, include_inherited: bool = True) -> 
         logger.info(
             "tool_completed",
             tool="get_type_properties",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             property_count=len(results),
             status="success",
         )
@@ -171,7 +210,11 @@ def get_type_properties_tool(type_name: str, include_inherited: bool = True) -> 
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed", tool="get_type_properties", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
+            "tool_failed",
+            tool="get_type_properties",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+            status="failed",
         )
         sentry_sdk.capture_exception(
             e,
@@ -179,7 +222,7 @@ def get_type_properties_tool(type_name: str, include_inherited: bool = True) -> 
                 "tool": "get_type_properties",
                 "type_name": type_name,
                 "include_inherited": include_inherited,
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -210,7 +253,12 @@ def generate_schema_example_tool(type_name: str, custom_properties: Optional[Dic
         result = asyncio.run(client.generate_example(type_name, custom_properties))
 
         execution_time = time.time() - start_time
-        logger.info("tool_completed", tool="generate_schema_example", execution_time_seconds=round(execution_time, 3), status="success")
+        logger.info(
+            "tool_completed",
+            tool="generate_schema_example",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            status="success",
+        )
 
         return result
     except Exception as e:
@@ -218,7 +266,7 @@ def generate_schema_example_tool(type_name: str, custom_properties: Optional[Dic
         logger.error(
             "tool_failed",
             tool="generate_schema_example",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             error=str(e)[:200],
             status="failed",
         )
@@ -228,7 +276,7 @@ def generate_schema_example_tool(type_name: str, custom_properties: Optional[Dic
                 "tool": "generate_schema_example",
                 "type_name": type_name,
                 "has_custom_properties": custom_properties is not None,
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -268,7 +316,7 @@ def generate_entity_id_tool(base_url: str, entity_type: str, entity_slug: Option
         logger.info(
             "tool_completed",
             tool="generate_entity_id",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             generated_id=result,
             status="success",
         )
@@ -277,7 +325,11 @@ def generate_entity_id_tool(base_url: str, entity_type: str, entity_slug: Option
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed", tool="generate_entity_id", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
+            "tool_failed",
+            tool="generate_entity_id",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+            status="failed",
         )
         sentry_sdk.capture_exception(
             e,
@@ -286,7 +338,7 @@ def generate_entity_id_tool(base_url: str, entity_type: str, entity_slug: Option
                 "base_url": base_url,
                 "entity_type": entity_type,
                 "has_slug": entity_slug is not None,
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -326,7 +378,7 @@ def validate_entity_id_tool(entity_id: str) -> Dict[str, Any]:
         logger.info(
             "tool_completed",
             tool="validate_entity_id",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             is_valid=result["valid"],
             warning_count=len(result["warnings"]),
             status="success",
@@ -336,10 +388,19 @@ def validate_entity_id_tool(entity_id: str) -> Dict[str, Any]:
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed", tool="validate_entity_id", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
+            "tool_failed",
+            tool="validate_entity_id",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+            status="failed",
         )
         sentry_sdk.capture_exception(
-            e, extras={"tool": "validate_entity_id", "entity_id": entity_id, "execution_time_seconds": round(execution_time, 3)}
+            e,
+            extras={
+                "tool": "validate_entity_id",
+                "entity_id": entity_id,
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            },
         )
         raise
 
@@ -386,7 +447,7 @@ def build_entity_graph_tool(entities: List[Dict[str, Any]], base_url: str) -> Di
         logger.info(
             "tool_completed",
             tool="build_entity_graph",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             entity_count=len(result.get("@graph", [])),
             status="success",
         )
@@ -395,7 +456,11 @@ def build_entity_graph_tool(entities: List[Dict[str, Any]], base_url: str) -> Di
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed", tool="build_entity_graph", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
+            "tool_failed",
+            tool="build_entity_graph",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+            status="failed",
         )
         sentry_sdk.capture_exception(
             e,
@@ -403,7 +468,7 @@ def build_entity_graph_tool(entities: List[Dict[str, Any]], base_url: str) -> Di
                 "tool": "build_entity_graph",
                 "entity_count": len(entities),
                 "base_url": base_url,
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
@@ -448,7 +513,7 @@ def enhance_entity_graph_tool(input_source: str, input_type: str = "file", outpu
         logger.info(
             "tool_completed",
             tool="enhance_entity_graph",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             entity_count=len(result.get("entity_enhancements", [])),
             seo_score=result.get("overall_seo_score", 0),
             status="success",
@@ -459,7 +524,11 @@ def enhance_entity_graph_tool(input_source: str, input_type: str = "file", outpu
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
-            "tool_failed", tool="enhance_entity_graph", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
+            "tool_failed",
+            tool="enhance_entity_graph",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[:200],
+            status="failed",
         )
         sentry_sdk.capture_exception(
             e,
@@ -468,7 +537,7 @@ def enhance_entity_graph_tool(input_source: str, input_type: str = "file", outpu
                 "input_source": input_source,
                 "input_type": input_type,
                 "output_mode": output_mode,
-                "execution_time_seconds": round(execution_time, 3),
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise

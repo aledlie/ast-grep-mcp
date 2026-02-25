@@ -13,6 +13,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import yaml
 
+from ...constants import DifficultyThresholds, SubprocessDefaults
 from ...core.logging import get_logger
 from ...models.deduplication import VariationCategory, VariationSeverity
 
@@ -114,7 +115,7 @@ class PatternAnalyzer:
             rule_yaml = yaml.dump(rule)
 
             result = subprocess.run(
-                ["ast-grep", "scan", "--rule", "-", "--json", temp_path], input=rule_yaml, capture_output=True, text=True, timeout=10
+                ["ast-grep", "scan", "--rule", "-", "--json", temp_path], input=rule_yaml, capture_output=True, text=True, timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS
             )
 
             if result.returncode == 0 and result.stdout.strip():
@@ -264,11 +265,11 @@ class PatternAnalyzer:
         # Determine refactoring difficulty
         if avg_complexity <= 2:
             difficulty = "trivial"
-        elif avg_complexity <= 3:
+        elif avg_complexity <= DifficultyThresholds.SIMPLE:
             difficulty = "simple"
-        elif avg_complexity <= 4:
+        elif avg_complexity <= DifficultyThresholds.MODERATE:
             difficulty = "moderate"
-        elif avg_complexity <= 5:
+        elif avg_complexity <= DifficultyThresholds.COMPLEX:
             difficulty = "complex"
         else:
             difficulty = "very_complex"
@@ -625,7 +626,7 @@ class PatternAnalyzer:
             rule_yaml = yaml.dump(rule)
 
             result = subprocess.run(
-                ["ast-grep", "scan", "--rule", "-", "--json", temp_path], input=rule_yaml, capture_output=True, text=True, timeout=10
+                ["ast-grep", "scan", "--rule", "-", "--json", temp_path], input=rule_yaml, capture_output=True, text=True, timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS
             )
 
             if result.returncode == 0 and result.stdout.strip():
@@ -731,7 +732,7 @@ class PatternAnalyzer:
             input=rule_yaml,
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
         )
 
         if result.returncode != 0 or not result.stdout.strip():

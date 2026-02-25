@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from ast_grep_mcp.constants import SubprocessDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.orphan import (
     DependencyEdge,
@@ -413,7 +414,7 @@ class OrphanDetector:
                     ["grep", "-r", "-l", module_basename, str(base_path)],
                     capture_output=True,
                     text=True,
-                    timeout=10,
+                    timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
                 )
 
                 references = [line for line in result.stdout.strip().split("\n") if line and not line.endswith(orphan.file_path)]
@@ -507,7 +508,7 @@ class OrphanDetector:
                 ["grep", "-r", "-E", pattern, str(base_path / "src")],
                 capture_output=True,
                 text=True,
-                timeout=5,
+                timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
             )
 
             # Filter out the definition itself and comments

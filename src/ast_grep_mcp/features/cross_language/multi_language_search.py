@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from ast_grep_mcp.constants import SubprocessDefaults
 from ast_grep_mcp.core.executor import run_ast_grep
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.cross_language import (
@@ -318,7 +319,7 @@ def search_multi_language_impl(
         for future in futures:
             lang = futures[future]
             try:
-                matches = future.result(timeout=30)
+                matches = future.result(timeout=SubprocessDefaults.AST_GREP_TIMEOUT_SECONDS)
                 all_matches.extend(matches)
                 matches_by_language[lang] = len(matches)
             except Exception as e:

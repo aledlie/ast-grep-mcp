@@ -19,6 +19,7 @@ import time
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Literal, Optional
 
+from ...constants import DetectorDefaults, IndentationDefaults, FormattingDefaults
 from ...core.executor import stream_ast_grep_results
 from ...core.logging import get_logger
 from ...core.usage_tracking import OperationType, track_operation
@@ -155,7 +156,7 @@ class DuplicationDetector:
                 execution_time = time.time() - start_time
                 self.logger.info(
                     "find_duplication_completed",
-                    execution_time_seconds=round(execution_time, 3),
+                    execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
                     total_constructs=len(all_matches),
                     duplicate_groups=len(duplication_groups),
                     status="success",
@@ -166,7 +167,10 @@ class DuplicationDetector:
             except Exception as e:
                 execution_time = time.time() - start_time
                 self.logger.error(
-                    "find_duplication_failed", execution_time_seconds=round(execution_time, 3), error=str(e)[:200], status="failed"
+                    "find_duplication_failed",
+                    execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+                    error=str(e)[:200],
+                    status="failed",
                 )
                 raise
 
@@ -330,7 +334,7 @@ class DuplicationDetector:
             if line:
                 # Normalize indentation to single spaces
                 indent_count = len(line) - len(line.lstrip())
-                normalized_line = " " * min(indent_count, 4) + line.lstrip()
+                normalized_line = " " * min(indent_count, IndentationDefaults.SPACES_PER_LEVEL) + line.lstrip()
                 lines.append(normalized_line)
         return "\n".join(lines)
 
@@ -540,7 +544,7 @@ class DuplicationDetector:
 
         # Simple heuristics for strategy selection
         if construct_type == "function_definition":
-            if line_count < 10:
+            if line_count < DetectorDefaults.UTILITY_FUNCTION_LINE_THRESHOLD:
                 return {"type": "extract_utility_function", "description": "Extract duplicated logic into a shared utility function"}
             else:
                 return {"type": "extract_module", "description": "Extract duplicated logic into a separate module"}
@@ -571,7 +575,7 @@ class DuplicationDetector:
                 "duplicate_groups": 0,
                 "total_duplicated_lines": 0,
                 "potential_line_savings": 0,
-                "analysis_time_seconds": round(execution_time, 3),
+                "analysis_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
             "duplication_groups": [],
             "refactoring_suggestions": [],
@@ -614,7 +618,7 @@ class DuplicationDetector:
             )
 
         return {
-            "summary": {**stats, "analysis_time_seconds": round(execution_time, 3)},
+            "summary": {**stats, "analysis_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION)},
             "duplication_groups": formatted_groups,
             "refactoring_suggestions": suggestions,
             "message": (

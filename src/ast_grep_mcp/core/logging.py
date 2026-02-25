@@ -1,5 +1,6 @@
 """Logging configuration for ast-grep MCP server."""
 
+import logging
 import sys
 from typing import Any, List, Optional
 
@@ -15,12 +16,12 @@ def configure_logging(log_level: str = "INFO", log_file: Optional[str] = None) -
     """
     # Convert log level string to int
     level_mapping = {
-        "DEBUG": 10,
-        "INFO": 20,
-        "WARNING": 30,
-        "ERROR": 40,
+        "DEBUG": logging.DEBUG,
+        "INFO": logging.INFO,
+        "WARNING": logging.WARNING,
+        "ERROR": logging.ERROR,
     }
-    numeric_level = level_mapping.get(log_level.upper(), 20)  # Default to INFO
+    numeric_level = level_mapping.get(log_level.upper(), logging.INFO)
 
     # Configure processors for structured logging
     processors: List[Any] = [

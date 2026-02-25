@@ -15,6 +15,7 @@ import sentry_sdk
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
+from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.documentation.api_docs_generator import generate_api_docs_impl
 from ast_grep_mcp.features.documentation.changelog_generator import generate_changelog_impl
@@ -121,7 +122,7 @@ def generate_docstrings_tool(
         logger.info(
             "tool_completed",
             tool="generate_docstrings",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             total_functions=result.total_functions,
             functions_generated=result.functions_generated,
         )
@@ -155,7 +156,7 @@ def generate_docstrings_tool(
         logger.error(
             "tool_failed",
             tool="generate_docstrings",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             error=str(e)[:200],
         )
         sentry_sdk.capture_exception(e)
@@ -239,7 +240,7 @@ def generate_readme_sections_tool(
         logger.info(
             "tool_completed",
             tool="generate_readme_sections",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             sections_generated=len(result.sections),
         )
 
@@ -271,7 +272,7 @@ def generate_readme_sections_tool(
         logger.error(
             "tool_failed",
             tool="generate_readme_sections",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             error=str(e)[:200],
         )
         sentry_sdk.capture_exception(e)
@@ -388,7 +389,7 @@ def generate_api_docs_tool(
         logger.info(
             "tool_completed",
             tool="generate_api_docs",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             routes_found=len(result.routes),
             framework=result.framework,
         )
@@ -406,7 +407,7 @@ def generate_api_docs_tool(
         logger.error(
             "tool_failed",
             tool="generate_api_docs",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             error=str(e)[:200],
         )
         sentry_sdk.capture_exception(e)
@@ -504,7 +505,7 @@ def generate_changelog_tool(
         logger.info(
             "tool_completed",
             tool="generate_changelog",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             commits_processed=result.commits_processed,
             versions=len(result.versions),
         )
@@ -548,7 +549,7 @@ def generate_changelog_tool(
         logger.error(
             "tool_failed",
             tool="generate_changelog",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             error=str(e)[:200],
         )
         sentry_sdk.capture_exception(e)
@@ -641,7 +642,7 @@ def sync_documentation_tool(
         logger.info(
             "tool_completed",
             tool="sync_documentation",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             issues_found=len(result.issues),
         )
 
@@ -678,7 +679,7 @@ def sync_documentation_tool(
         logger.error(
             "tool_failed",
             tool="sync_documentation",
-            execution_time_seconds=round(execution_time, 3),
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             error=str(e)[:200],
         )
         sentry_sdk.capture_exception(e)
