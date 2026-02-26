@@ -64,7 +64,7 @@ Add to `.cursor-mcp/settings.json` or `~/Library/Application Support/Claude/clau
 ## Error Tracking (Optional)
 
 **Sentry integration** (optional, zero overhead when disabled) provides:
-- Error tracking for all 18 tools
+- Error tracking for all 53 tools
 - Performance monitoring (subprocess, API, batch operations)
 - AI interaction tracking (with Anthropic SDK)
 - Service tagging: `service:ast-grep-mcp`
@@ -83,29 +83,20 @@ export SENTRY_ENVIRONMENT="production"
 
 **Docs:** [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md), [DOPPLER-MIGRATION.md](DOPPLER-MIGRATION.md)
 
-## Tools (18 Total)
+## Tools (53 Total)
 
-### Code Analysis (ast-grep)
-
-**🔍 `dump_syntax_tree`** - Visualize AST structure for debugging patterns
-**🧪 `test_match_code_rule`** - Test YAML rules against code snippets
-**🎯 `find_code`** - Simple pattern search (params: `max_results`, `output_format`: text/json)
-**🚀 `find_code_by_rule`** - Advanced YAML rule search with relational constraints
-**🔁 `find_duplication`** - Detect duplicate code with similarity scoring and refactoring suggestions
-**🧪 `test_sentry_integration`** - Verify Sentry error tracking configuration
-
-### Schema.org (8 tools)
-
-**📋 `get_schema_type`** - Get type details (description, properties, parent types)
-**🔎 `search_schemas`** - Find types by keyword (params: `query`, `limit`)
-**🌳 `get_type_hierarchy`** - Show inheritance chain (e.g., NewsArticle → Article → CreativeWork → Thing)
-**🏷️ `get_type_properties`** - List all properties for a type (params: `include_inherited`)
-**✨ `generate_schema_example`** - Generate JSON-LD with optional custom properties
-**🔗 `generate_entity_id`** - Create stable @id values (`{canonical_url}#{entity_type}`)
-**✅ `validate_entity_id`** - Check @id against best practices
-**🕸️ `build_entity_graph`** - Build knowledge graphs with proper @id references
-
-**Best practices:** Use canonical URLs + hash fragments, keep IDs stable, avoid timestamps
+| Feature | Count | Tools |
+|---------|-------|-------|
+| Search | 9 | find_code, find_code_by_rule, dump_syntax_tree, test_match_code_rule, debug_pattern, develop_pattern, get_ast_grep_docs, build_rule, get_pattern_examples |
+| Rewrite | 3 | rewrite_code, rollback_rewrite, list_backups |
+| Refactoring | 2 | extract_function, rename_symbol |
+| Deduplication | 4 | find_duplication, analyze_deduplication_candidates, apply_deduplication, benchmark_deduplication |
+| Complexity | 3 | analyze_complexity, test_sentry_integration, detect_code_smells |
+| Quality | 7 | create_linting_rule, list_linting_rules, apply_linting_rule, detect_security_issues, apply_standards_fixes, generate_quality_report, enforce_code_standards |
+| Documentation | 5 | generate_docstrings, generate_readme_sections, generate_api_docs, generate_changelog, sync_documentation |
+| Cross-Language | 5 | search_multi_language, find_language_equivalents, convert_code_language, refactor_polyglot, generate_language_bindings |
+| Schema.org | 9 | get_schema_type, search_schemas, get_type_hierarchy, get_type_properties, generate_schema_example, generate_entity_id, validate_entity_id, build_entity_graph, enhance_entity_graph |
+| Condense | 6 | condense_extract_surface, condense_normalize, condense_strip, condense_pack, condense_estimate, condense_train_dictionary |
 
 
 ## Usage Examples
@@ -165,13 +156,17 @@ JavaScript/TypeScript, Python, Rust, Go, Java, C/C++, C#, and [many more](https:
 
 ## Repository
 
-- `main.py` - Single-file server (~4000 lines)
-- `tests/` - 267 tests (254 unit, 13 integration)
-- `scripts/` - Standalone utilities
-- `mcp-docs/` - Reference for 30+ MCP servers
-- `dev/` - Development docs
+```
+src/ast_grep_mcp/          # 118 modules
+├── core/                  # Config, cache, executor, logging, sentry, usage tracking
+├── models/                # Data models (13 modules)
+├── utils/                 # Formatters, validation, templates, text processing
+├── features/              # 11 feature modules (search, rewrite, refactoring, deduplication,
+│                          #   complexity, quality, documentation, cross_language, schema, condense)
+└── server/                # MCP registry + runner
+```
 
-**Repomix snapshots:** Regenerate with `repomix mcp-docs/` after major changes.
+- `tests/` - 1,378 tests (unit + integration + quality regression)
 
 ## Related
 

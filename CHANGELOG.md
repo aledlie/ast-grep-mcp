@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### 2026-02-25: Code Condensation Feature
+
+- Added `condense_extract_surface` tool — semantic surface extraction with per-language AST patterns (830b7ed)
+- Added `condense_normalize` tool — rewrite transforms (identifier shortening, whitespace, comments) (830b7ed)
+- Added `condense_strip` tool — dead code removal (unreachable branches, unused imports) (830b7ed)
+- Added `condense_pack` tool — full pipeline orchestration with token-aware packing (830b7ed)
+- Added `condense_estimate` tool — token estimation before condensation (830b7ed)
+- Added `condense_train_dictionary` tool — zstd dictionary training from codebase samples (1ffc15b)
+- Polyglot strategy routing for language-specific condensation (830b7ed)
+- Fixed async event loop conflict and zstd `--train` flag handling (87a1d91)
+- Removed unused CondenseDefaults constants, standardized field naming (d97d782)
+- Addressed code review findings and genai quality gaps (6c8b635, 9a09893)
+- 81+ new tests for condense feature
+- Total MCP tools: 53
+
+---
+
+#### 2026-02-25: Constants Standardization
+
+- Migrated magic numbers to named constants across 17 modules (b0ea4b0, dcae1ff, 9e65f55)
+- Zero complexity violations maintained throughout refactoring
+
+---
+
 #### 2026-02-10: Test Stability & Documentation Improvements
 
 - Added `develop_pattern` tool for iterative pattern development with strictness levels (63613b0)
@@ -178,6 +202,8 @@ Based on the [ast-grep Prompting Guide](https://ast-grep.github.io/advanced/prom
 
 | Date | Feature | Tools Added |
 |------|---------|-------------|
+| 2026-02-25 | Code Condensation | +6 (condense_extract_surface, condense_normalize, condense_strip, condense_pack, condense_estimate, condense_train_dictionary) |
+| 2026-02-25 | Constants Standardization | Infrastructure only |
 | 2026-02-10 | Test Stability & Docs | +1 (develop_pattern) |
 | 2026-01-10 | Documentation & Rule Builder | +3 (get_ast_grep_docs, build_rule, get_pattern_examples) |
 | 2026-01-09 | Pattern Debugging | +1 (debug_pattern) |
@@ -190,4 +216,4 @@ Based on the [ast-grep Prompting Guide](https://ast-grep.github.io/advanced/prom
 | 2025-11-24 | Modular Architecture | Multiple tools |
 | 2025-11-23 | Enhanced Deduplication | Multiple tools |
 
-**Current Total:** 47 MCP tools
+**Current Total:** 53 MCP tools

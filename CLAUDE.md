@@ -4,7 +4,7 @@
 
 ```bash
 uv sync                          # Install dependencies
-uv run pytest                    # Run all tests (1,261)
+uv run pytest                    # Run all tests (1,378)
 uv run ruff check . && mypy src/ # Lint and type check
 uv run main.py                   # Run MCP server locally
 doppler run -- uv run main.py    # Run with Doppler secrets
@@ -12,9 +12,9 @@ doppler run -- uv run main.py    # Run with Doppler secrets
 
 ## Overview
 
-Modular MCP server (109 modules) with ast-grep structural code search, Schema.org tools, refactoring, deduplication, quality, and documentation generation.
+Modular MCP server (118 modules) with ast-grep structural code search, Schema.org tools, refactoring, deduplication, quality, documentation generation, and semantic code condensation.
 
-**47 Tools:** Search (9), Rewrite (3), Refactoring (2), Deduplication (4), Schema.org (9), Complexity (3), Quality (7), Documentation (5), Cross-Language (5)
+**53 Tools:** Search (9), Rewrite (3), Refactoring (2), Deduplication (4), Schema.org (9), Complexity (3), Quality (7), Documentation (5), Cross-Language (5), Condense (6)
 
 **Deps:** ast-grep CLI (required), Doppler CLI (optional), Python 3.13+, uv
 
@@ -25,7 +25,7 @@ src/ast_grep_mcp/
 ├── core/           # Config, cache, executor, logging, sentry, usage tracking
 ├── models/         # Data models
 ├── utils/          # Templates, formatters, validation
-├── features/       # search, rewrite, refactoring, schema, deduplication, complexity, quality, documentation, cross_language
+├── features/       # search, rewrite, refactoring, schema, deduplication, complexity, quality, documentation, cross_language, condense
 └── server/         # MCP server registry
 ```
 
@@ -59,3 +59,6 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 - [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Configuration options
 - [docs/SENTRY-INTEGRATION.md](docs/SENTRY-INTEGRATION.md) - Error tracking
 - [docs/BENCHMARKING.md](docs/BENCHMARKING.md) - Performance benchmarking
+- [docs/CODE-CONDENSE-PREP.md](docs/CODE-CONDENSE-PREP.md) - Condense feature design
+- [docs/CODE-CONDENSE-PHASE-2.md](docs/CODE-CONDENSE-PHASE-2.md) - Condense phase 2 design
+- [docs/BACKLOG.md](docs/BACKLOG.md) - Open backlog items

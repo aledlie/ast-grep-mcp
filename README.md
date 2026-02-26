@@ -17,11 +17,12 @@ A Model Context Protocol (MCP) server providing structural code search, refactor
 - **Documentation** - Docstring generation (Google/NumPy/JSDoc), README sections, OpenAPI specs, changelog, doc sync
 - **Cross-Language** - Multi-language search, pattern equivalents, code conversion, polyglot refactoring, binding generation
 - **Schema.org** - Type search, property listing, JSON-LD validation, template generation, entity graph enhancement
+- **Code Condensation** - Semantic surface extraction, normalization, dead code stripping, token-aware packing, zstd dictionary training
 
 ## Architecture
 
 ```
-src/ast_grep_mcp/          # 94 modules
+src/ast_grep_mcp/          # 118 modules
 ├── core/                  # Config, cache, executor, logging, sentry, usage tracking
 ├── models/                # Data models (13 modules)
 ├── utils/                 # Formatters, validation, templates, text processing
@@ -34,11 +35,12 @@ src/ast_grep_mcp/          # 94 modules
 │   ├── quality/           # 7 tools  — linting, security scanner, auto-fix, reports
 │   ├── documentation/     # 5 tools  — docstrings, readme, api_docs, changelog, sync
 │   ├── cross_language/    # 5 tools  — multi-lang search, equivalents, conversion, refactoring, bindings
-│   └── schema/            # 9 tools  — type search, properties, validation, templates, entity graph
+│   ├── schema/            # 9 tools  — type search, properties, validation, templates, entity graph
+│   └── condense/          # 6 tools  — surface extraction, normalization, strip, pack, estimate, dictionary
 └── server/                # MCP registry + runner
 ```
 
-**47 MCP tools** | **1,261 tests** | **Zero complexity violations** (cyclomatic ≤20, cognitive ≤30, nesting ≤6, function ≤150 lines)
+**53 MCP tools** | **1,378 tests** | **Zero complexity violations** (cyclomatic ≤20, cognitive ≤30, nesting ≤6, function ≤150 lines)
 
 ## Quick Start
 
@@ -183,6 +185,9 @@ uv run mypy src/                           # type check
 - [docs/DEDUPLICATION-GUIDE.md](docs/DEDUPLICATION-GUIDE.md) - Deduplication workflow
 - [docs/BENCHMARKING.md](docs/BENCHMARKING.md) - Performance benchmarking
 - [docs/SENTRY-INTEGRATION.md](docs/SENTRY-INTEGRATION.md) - Error tracking
+- [docs/CODE-CONDENSE-PREP.md](docs/CODE-CONDENSE-PREP.md) - Condense feature design
+- [docs/CODE-CONDENSE-PHASE-2.md](docs/CODE-CONDENSE-PHASE-2.md) - Condense phase 2 design
+- [docs/BACKLOG.md](docs/BACKLOG.md) - Open backlog items
 
 ## Acknowledgments
 
