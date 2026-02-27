@@ -729,6 +729,9 @@ class FunctionSignatureParser:
 
                     parameters = self._parse_js_ts_params(params_str or "")
 
+                    # Find existing docstring
+                    existing_docstring = self._find_js_ts_docstring(lines, i)
+
                     func = FunctionSignature(
                         name=name,
                         parameters=parameters,
@@ -738,11 +741,56 @@ class FunctionSignatureParser:
                         file_path=file_path,
                         start_line=i + 1,
                         end_line=i + 1,
+                        existing_docstring=existing_docstring,
                     )
                     functions.append(func)
                     break
 
         return functions
+
+    def _find_js_ts_docstring(self, lines: List[str], func_idx: int) -> Optional[str]:
+        """Find existing JSDoc before function definition."""
+        if func_idx <= 0:
+            return None
+
+        # Look at lines before function def
+        j = func_idx - 1
+        # Skip empty lines
+        while j >= 0 and not lines[j].strip():
+            j -= 1
+
+        if j < 0:
+            return None
+
+        line = lines[j].strip()
+        if line.endswith("*/"):
+            # Potential docstring end
+            doc_lines = []
+            if "/**" in line:
+                # Single-line JSDoc
+                start_idx = line.find("/**")
+                return line[start_idx + 3 : -2].strip()
+
+            # Multi-line JSDoc
+            doc_lines.append(line[:-2])
+            j -= 1
+            while j >= 0:
+                curr_line = lines[j].strip()
+                if "/**" in curr_line:
+                    start_idx = curr_line.find("/**")
+                    doc_lines.append(curr_line[start_idx + 3 :])
+                    break
+                if curr_line.startswith("*"):
+                    doc_lines.append(curr_line[1:].strip())
+                else:
+                    doc_lines.append(curr_line)
+                j -= 1
+
+            if j >= 0:
+                doc_lines.reverse()
+                return "\n".join(doc_lines).strip()
+
+        return None
 
     def _parse_js_ts_params(self, params_str: str) -> List[ParameterInfo]:
         """Parse JavaScript/TypeScript function parameters."""
@@ -805,6 +853,9 @@ class FunctionSignatureParser:
 
                 parameters = self._parse_java_params(params_str or "")
 
+                # Find existing docstring
+                existing_docstring = self._find_js_ts_docstring(lines, i)
+
                 func = FunctionSignature(
                     name=name,
                     parameters=parameters,
@@ -813,6 +864,7 @@ class FunctionSignatureParser:
                     file_path=file_path,
                     start_line=i + 1,
                     end_line=i + 1,
+                    existing_docstring=existing_docstring,
                 )
                 functions.append(func)
 
