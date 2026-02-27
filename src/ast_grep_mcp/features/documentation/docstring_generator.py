@@ -798,8 +798,8 @@ class FunctionSignatureParser:
         if not params_str.strip():
             return params
 
-        # Split by comma (simple version)
-        parts = params_str.split(",")
+        # Split by comma, respecting angle brackets and braces
+        parts = self._split_params(params_str)
 
         for part in parts:
             part = part.strip()
@@ -833,6 +833,26 @@ class FunctionSignatureParser:
                 )
 
         return params
+
+    @staticmethod
+    def _split_params(params_str: str) -> List[str]:
+        """Split parameter string by commas, respecting angle brackets, braces, and parens."""
+        parts: list[str] = []
+        depth = 0
+        current: list[str] = []
+        for char in params_str:
+            if char in ("<", "{", "("):
+                depth += 1
+            elif char in (">", "}", ")"):
+                depth -= 1
+            elif char == "," and depth == 0:
+                parts.append("".join(current))
+                current = []
+                continue
+            current.append(char)
+        if current:
+            parts.append("".join(current))
+        return parts
 
     def _parse_java_functions(self, content: str, file_path: str) -> List[FunctionSignature]:
         """Parse Java method signatures."""

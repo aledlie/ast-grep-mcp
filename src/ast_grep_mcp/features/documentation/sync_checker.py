@@ -73,7 +73,7 @@ def _extract_js_docstring_params(docstring: str) -> List[str]:
     Returns:
         List of parameter names
     """
-    return [m.group(1) for m in re.finditer(r"@param\s+(?:\{[^}]+\}\s+)?(\w+)", docstring)]
+    return [m.group(1) for m in re.finditer(r"@param\s+(?:\{(?:[^{}]|\{[^}]*\})*\}\s+)?\[?(\w+)", docstring)]
 
 
 def _extract_docstring_params(docstring: str, language: str) -> List[str]:
@@ -160,7 +160,7 @@ def _check_docstring_sync(
     doc_params = set(_extract_docstring_params(func.existing_docstring, language))
 
     # Get actual params (excluding self/cls)
-    actual_params = set(p.name for p in func.parameters if p.name not in ("self", "cls"))
+    actual_params = set(p.name.rstrip("?") for p in func.parameters if p.name not in ("self", "cls"))
 
     # Check for missing params in docstring
     missing_in_doc = actual_params - doc_params
