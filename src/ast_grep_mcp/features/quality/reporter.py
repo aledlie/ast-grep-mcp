@@ -51,13 +51,14 @@ def _generate_summary_section(result: EnforcementResult) -> List[str]:
         List of summary lines
     """
     summary = result.summary
+    by_severity = summary.get("by_severity", {})
     return [
         "## Summary\n",
         f"- **Total Violations:** {summary['total_violations']}",
-        f"- **Error:** {summary['error_count']}",
-        f"- **Warning:** {summary['warning_count']}",
-        f"- **Info:** {summary['info_count']}",
-        f"- **Files with Violations:** {summary['files_with_violations']}",
+        f"- **Error:** {by_severity.get('error', 0)}",
+        f"- **Warning:** {by_severity.get('warning', 0)}",
+        f"- **Info:** {by_severity.get('info', 0)}",
+        f"- **Files with Violations:** {summary.get('files_scanned', 0)}",
         f"- **Rules Executed:** {len(result.rules_executed)}",
         "\n---\n",
     ]
@@ -235,17 +236,20 @@ def _generate_recommendations_section(result: EnforcementResult) -> List[str]:
         List of recommendation lines
     """
     lines = ["\n---\n", "## Recommendations\n"]
-    summary = result.summary
+    by_severity = result.summary.get("by_severity", {})
+    error_count = by_severity.get("error", 0)
+    warning_count = by_severity.get("warning", 0)
+    info_count = by_severity.get("info", 0)
 
     # Add severity-based recommendations
-    if summary["error_count"] > 0:
-        lines.append(f"- **🔴 {summary['error_count']} errors** require immediate attention")
+    if error_count > 0:
+        lines.append(f"- **{error_count} errors** require immediate attention")
 
-    if summary["warning_count"] > 0:
-        lines.append(f"- **🟡 {summary['warning_count']} warnings** should be addressed")
+    if warning_count > 0:
+        lines.append(f"- **{warning_count} warnings** should be addressed")
 
-    if summary["info_count"] > 0:
-        lines.append(f"- **ℹ️ {summary['info_count']} info items** are suggestions for improvement")
+    if info_count > 0:
+        lines.append(f"- **{info_count} info items** are suggestions for improvement")
 
     # Add auto-fix recommendation
     fixable_count = sum(1 for v in result.violations if v.fix_suggestion is not None)
@@ -309,11 +313,11 @@ def generate_json_report(result: EnforcementResult, project_name: str = "Project
         "generated_at": datetime.now().isoformat(),
         "summary": {
             "total_violations": result.summary["total_violations"],
-            "error_count": result.summary["error_count"],
-            "warning_count": result.summary["warning_count"],
-            "info_count": result.summary["info_count"],
+            "error_count": result.summary.get("by_severity", {}).get("error", 0),
+            "warning_count": result.summary.get("by_severity", {}).get("warning", 0),
+            "info_count": result.summary.get("by_severity", {}).get("info", 0),
             "files_scanned": result.files_scanned,
-            "files_with_violations": result.summary["files_with_violations"],
+            "files_with_violations": result.summary.get("files_scanned", 0),
             "rules_executed": len(result.rules_executed),
             "execution_time_ms": result.execution_time_ms,
         },
