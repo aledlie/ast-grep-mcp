@@ -7,6 +7,7 @@ This module provides functionality to automatically fix code quality violations:
 - Multi-fix coordination (batch operations with rollback)
 """
 
+import re
 import time
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -468,6 +469,90 @@ def _execute_real_run(
     return fix_results, files_modified, fixes_successful, fixes_failed, validation_passed
 
 
+# Pattern matching assignment operators after a variable name.
+# Covers: =, +=, -=, *=, /=, %=, <<=, >>=, >>>=, &=, |=, ^=, &&=, ||=, ??=
+_ASSIGNMENT_OPS = re.compile(
+    r"(?:\+\+|--"            # postfix increment/decrement
+    r"|\?\?=|\|\|=|&&="      # logical assignment (check before single-char)
+    r"|>>>=|<<=|>>="         # shift assignment
+    r"|[+\-*/%&|^]=)"        # compound assignment
+    r"|(?<![=!<>])=[^=>]"    # plain assignment (not ==, !=, <=, >=, =>)
+)
+
+
+def _line_reassigns_var(line: str, var_pattern: re.Pattern[str]) -> bool:
+    """Check if a single line reassigns the variable matched by var_pattern."""
+    for match in var_pattern.finditer(line):
+        after = line[match.end():].lstrip()
+        before = line[:match.start()].rstrip()
+
+        if _ASSIGNMENT_OPS.match(after):
+            return True
+        if before.endswith("++") or before.endswith("--"):
+            return True
+
+    return False
+
+
+def _decl_line_has_reassignment(line: str, var_pattern: re.Pattern[str]) -> bool:
+    """Check if a declaration line also reassigns the variable (e.g., for-loop iterators).
+
+    Skips the first occurrence (the declaration) and checks subsequent occurrences.
+    """
+    first = var_pattern.search(line)
+    if not first:
+        return False
+    rest = line[first.end():]
+    return var_pattern.search(rest) is not None and _line_reassigns_var(rest, var_pattern)
+
+
+def _is_variable_reassigned(file_path: str, var_name: str, decl_line: int) -> bool:
+    """Check if a let-declared variable is reassigned after its declaration.
+
+    Args:
+        file_path: Path to the source file
+        var_name: Variable name to check
+        decl_line: 1-indexed line number of the declaration
+
+    Returns:
+        True if the variable appears to be reassigned
+    """
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+    except OSError:
+        return True  # Assume reassigned if we can't read
+
+    var_pattern = re.compile(rf"\b{re.escape(var_name)}\b")
+    decl_idx = decl_line - 1  # Convert to 0-indexed
+
+    for i, line in enumerate(lines):
+        if i < decl_idx:
+            continue
+        stripped = line.lstrip()
+        if stripped.startswith("//") or stripped.startswith("*"):
+            continue
+        if not var_pattern.search(line):
+            continue
+        if i == decl_idx:
+            if _decl_line_has_reassignment(line, var_pattern):
+                return True
+            continue
+        if _line_reassigns_var(line, var_pattern):
+            return True
+
+    return False
+
+
+def _extract_var_name_from_let(code_snippet: str) -> Optional[str]:
+    """Extract variable name from a let declaration snippet.
+
+    Returns None for destructuring patterns (too complex to verify).
+    """
+    m = re.match(r"\s*let\s+(\w+)\s*[=;:,)]", code_snippet)
+    return m.group(1) if m else None
+
+
 # Rule-specific code transformations for rules whose fix field is a
 # human-readable description rather than an ast-grep rewrite pattern.
 # Each handler takes original code and returns transformed code.
@@ -494,6 +579,19 @@ def _apply_single_fix(file_path: str, violation: RuleViolation, language: str) -
     """
     # 1. Check for a known code transformation
     if violation.rule_id in _RULE_CODE_TRANSFORMS:
+        # prefer-const: verify the variable is not reassigned before fixing
+        if violation.rule_id == "prefer-const":
+            var_name = _extract_var_name_from_let(violation.code_snippet)
+            if var_name is None or _is_variable_reassigned(file_path, var_name, violation.line):
+                logger.debug(f"Skipping prefer-const for reassigned variable '{var_name}' at {file_path}:{violation.line}")
+                return FixResult(
+                    violation=violation,
+                    success=True,
+                    file_modified=False,
+                    original_code=violation.code_snippet,
+                    fix_type="skipped",
+                )
+
         transform = _RULE_CODE_TRANSFORMS[violation.rule_id]
         fixed_code = transform(violation.code_snippet)
         return apply_pattern_fix(file_path, violation, fixed_code, language)

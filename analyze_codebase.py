@@ -10,6 +10,7 @@ This script analyzes the ast-grep-mcp codebase for:
 """
 
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 
@@ -340,7 +341,7 @@ def generate_summary_report(project_folder: str, language: str, apply_fixes: boo
 
         # Apply fixes if requested
         if apply_fixes:
-            _apply_fixes(enforcement_result, language)
+            _apply_fixes(enforcement_result, language, project_folder=project_folder)
 
     except Exception as e:
         print(f"Exception during report generation: {e}")
@@ -349,7 +350,51 @@ def generate_summary_report(project_folder: str, language: str, apply_fixes: boo
         traceback.print_exc()
 
 
-def _apply_fixes(enforcement_result: dict, language: str):
+def _run_tsc_check(project_folder: str) -> bool:
+    """Run tsc --noEmit to verify no type errors after fixes.
+
+    Args:
+        project_folder: Path to the project folder
+
+    Returns:
+        True if tsc passes (or is not available), False if errors found
+    """
+    tsconfig = Path(project_folder) / "tsconfig.json"
+    if not tsconfig.exists():
+        return True
+
+    print("\nRunning tsc --noEmit to verify fixes...")
+    try:
+        result = subprocess.run(
+            ["npx", "tsc", "--noEmit"],
+            cwd=project_folder,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        if result.returncode == 0:
+            print("tsc --noEmit: PASSED (no type errors)")
+            return True
+
+        error_lines = result.stdout.strip().splitlines() if result.stdout else []
+        error_count = sum(1 for line in error_lines if ": error TS" in line)
+        print(f"tsc --noEmit: FAILED ({error_count} type errors)")
+        # Show first 20 errors
+        for line in error_lines[:20]:
+            if ": error TS" in line:
+                print(f"  {line}")
+        if error_count > 20:
+            print(f"  ... and {error_count - 20} more errors")
+        return False
+    except FileNotFoundError:
+        print("tsc not found, skipping type check")
+        return True
+    except subprocess.TimeoutExpired:
+        print("tsc --noEmit timed out after 120s, skipping")
+        return True
+
+
+def _apply_fixes(enforcement_result: dict, language: str, project_folder: str = ""):
     """Apply automatic standards fixes from enforcement violations."""
     print_section("PHASE 7: Apply Standards Fixes")
 
@@ -393,6 +438,13 @@ def _apply_fixes(enforcement_result: dict, language: str):
         backup_id = fix_result.get("backup_id")
         if backup_id:
             print(f"Backup ID: {backup_id}")
+
+        # Post-fix type check for TypeScript
+        if language == "typescript" and project_folder:
+            if not _run_tsc_check(project_folder):
+                print(f"\nWARNING: Type errors detected after fixes. Backup available: {backup_id}")
+                print("Review errors above and restore from backup if needed.")
+
     except Exception as e:
         print(f"Exception during fix application: {e}")
         import traceback
