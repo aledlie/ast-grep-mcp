@@ -1,58 +1,43 @@
 # Code Quality Report: ast-grep-mcp
 
-**Generated:** 2026-03-01 00:16:14
-**Execution Time:** 452ms
-**Files Scanned:** 53
+**Generated:** 2026-03-01 00:59:43
+**Execution Time:** 496ms
+**Files Scanned:** 33
 
 ---
 
 ## Summary
 
-- **Total Violations:** 161
-- **Error:** 0
-- **Warning:** 70
-- **Info:** 91
-- **Files with Violations:** 53
+- **Total Violations:** 88
+- **Error:** 1
+- **Warning:** 0
+- **Info:** 87
+- **Files with Violations:** 33
 - **Rules Executed:** 7
 
 ---
 
 ## Violations by Severity
 
-### WARNING (70)
+### ERROR (1)
 
-#### `no-console-log` (67 occurrences)
-- **generate-token-tree.ts:30** - Remove console.log before committing
-- **auth.ts:68** - Remove console.log before committing
-- **auth.ts:89** - Remove console.log before committing
-- **index.ts:165** - Remove console.log before committing
-- **index.ts:226** - Remove console.log before committing
-- **generate-token-tree.ts:30** - Remove console.log before committing
-- **server.ts:34** - Remove console.log before committing
-- **judge-evaluations.ts:221** - Remove console.log before committing
-- **judge-evaluations.ts:856** - Remove console.log before committing
-- **judge-evaluations.ts:909** - Remove console.log before committing
-  - *...and 57 more*
+#### `no-empty-catch` (1 occurrences)
+- **sync-to-kv.ts:211** - Empty catch block detected - handle the error or add a comment explaining why it's ignored
 
-#### `no-double-equals` (3 occurrences)
-- **agents.ts:85** - Use === instead of == for type-safe comparison
-- **dashboard.ts:40** - Use === instead of == for type-safe comparison
-- **local-jsonl.ts:324** - Use === instead of == for type-safe comparison
+### INFO (87)
 
-### INFO (91)
-
-#### `prefer-const` (91 occurrences)
-- **server.ts:255** - This variable is never reassigned, use const instead
-- **local-jsonl-circuit-breaker.test.ts:64** - This variable is never reassigned, use const instead
-- **query-sanitizer.ts:187** - This variable is never reassigned, use const instead
-- **query-sanitizer.ts:272** - This variable is never reassigned, use const instead
-- **get-trace-url.ts:27** - This variable is never reassigned, use const instead
-- **auth.ts:26** - This variable is never reassigned, use const instead
-- **error-sanitizer.ts:34** - This variable is never reassigned, use const instead
-- **error-sanitizer.ts:177** - This variable is never reassigned, use const instead
-- **cloud.ts:317** - This variable is never reassigned, use const instead
-- **server.test.ts:710** - This variable is never reassigned, use const instead
-  - *...and 81 more*
+#### `prefer-const` (87 occurrences)
+- **quality.ts:26** - This variable is never reassigned, use const instead
+- **auth.ts:27** - This variable is never reassigned, use const instead
+- **judge-evaluations.ts:420** - This variable is never reassigned, use const instead
+- **judge-evaluations.ts:786** - This variable is never reassigned, use const instead
+- **judge-evaluations.ts:871** - This variable is never reassigned, use const instead
+- **judge-evaluations.ts:898** - This variable is never reassigned, use const instead
+- **useQualityLive.ts:18** - This variable is never reassigned, use const instead
+- **update-readme-tree.ts:66** - This variable is never reassigned, use const instead
+- **pipeline-integration.test.ts:319** - This variable is never reassigned, use const instead
+- **sync-prioritization.test.ts:161** - This variable is never reassigned, use const instead
+  - *...and 77 more*
 
 
 ---
@@ -61,9 +46,8 @@
 
 | Rule | Count | Severity |
 |------|-------|----------|
-| `prefer-const` | 91 | info |
-| `no-console-log` | 67 | warning |
-| `no-double-equals` | 3 | warning |
+| `prefer-const` | 87 | info |
+| `no-empty-catch` | 1 | error |
 
 ---
 
@@ -71,23 +55,23 @@
 
 | File | Violations | Errors | Warnings | Info |
 |------|------------|--------|----------|------|
-| `judge-evaluations.ts` | 26 | 0 | 22 | 4 |
-| `server.test.ts` | 14 | 0 | 0 | 14 |
-| `sync-to-kv.ts` | 13 | 0 | 13 | 0 |
-| `derive-evaluations.ts` | 10 | 0 | 6 | 4 |
-| `populate-dashboard.ts` | 8 | 0 | 8 | 0 |
-| `fuzz-generators.ts` | 5 | 0 | 0 | 5 |
-| `memfs-utils.ts` | 5 | 0 | 0 | 5 |
+| `get-trace-url.test.ts` | 12 | 0 | 0 | 12 |
+| `llm-judge-qag.test.ts` | 6 | 0 | 0 | 6 |
 | `query-metrics.ts` | 5 | 0 | 0 | 5 |
-| `health-check.ts` | 4 | 0 | 0 | 4 |
-| `race-condition-helpers.ts` | 4 | 0 | 0 | 4 |
+| `llm-judge-security.ts` | 5 | 0 | 0 | 5 |
+| `judge-evaluations.ts` | 4 | 0 | 0 | 4 |
+| `index.ts` | 4 | 0 | 0 | 4 |
+| `api.test.ts` | 4 | 0 | 0 | 4 |
+| `auth.test.ts` | 4 | 0 | 0 | 4 |
+| `agent-auditor-scoring.ts` | 4 | 0 | 0 | 4 |
+| `query-evaluations.test.ts` | 3 | 0 | 0 | 3 |
 
 ---
 
 ## Recommendations
 
-- **70 warnings** should be addressed
-- **91 info items** are suggestions for improvement
+- **1 errors** require immediate attention
+- **87 info items** are suggestions for improvement
 
-**💡 94 violations have automatic fixes available.**
+**💡 87 violations have automatic fixes available.**
 Consider using `apply_standards_fixes` to auto-fix safe violations.
