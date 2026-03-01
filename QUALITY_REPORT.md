@@ -1,43 +1,38 @@
 # Code Quality Report: ast-grep-mcp
 
-**Generated:** 2026-03-01 00:59:43
-**Execution Time:** 496ms
-**Files Scanned:** 33
+**Generated:** 2026-03-01 04:26:40
+**Execution Time:** 14ms
+**Files Scanned:** 1
 
 ---
 
 ## Summary
 
-- **Total Violations:** 88
-- **Error:** 1
-- **Warning:** 0
-- **Info:** 87
-- **Files with Violations:** 33
-- **Rules Executed:** 7
+- **Total Violations:** 36
+- **Error:** 0
+- **Warning:** 36
+- **Info:** 0
+- **Files with Violations:** 1
+- **Rules Executed:** 3
 
 ---
 
 ## Violations by Severity
 
-### ERROR (1)
+### WARNING (36)
 
-#### `no-empty-catch` (1 occurrences)
-- **sync-to-kv.ts:211** - Empty catch block detected - handle the error or add a comment explaining why it's ignored
-
-### INFO (87)
-
-#### `prefer-const` (87 occurrences)
-- **quality.ts:26** - This variable is never reassigned, use const instead
-- **auth.ts:27** - This variable is never reassigned, use const instead
-- **judge-evaluations.ts:420** - This variable is never reassigned, use const instead
-- **judge-evaluations.ts:786** - This variable is never reassigned, use const instead
-- **judge-evaluations.ts:871** - This variable is never reassigned, use const instead
-- **judge-evaluations.ts:898** - This variable is never reassigned, use const instead
-- **useQualityLive.ts:18** - This variable is never reassigned, use const instead
-- **update-readme-tree.ts:66** - This variable is never reassigned, use const instead
-- **pipeline-integration.test.ts:319** - This variable is never reassigned, use const instead
-- **sync-prioritization.test.ts:161** - This variable is never reassigned, use const instead
-  - *...and 77 more*
+#### `no-print-production` (36 occurrences)
+- **collect_git_activity.py:76** - Use proper logging instead of print()
+- **collect_git_activity.py:89** - Use proper logging instead of print()
+- **collect_git_activity.py:101** - Use proper logging instead of print()
+- **collect_git_activity.py:122** - Use proper logging instead of print()
+- **collect_git_activity.py:125** - Use proper logging instead of print()
+- **collect_git_activity.py:168** - Use proper logging instead of print()
+- **collect_git_activity.py:307** - Use proper logging instead of print()
+- **collect_git_activity.py:344** - Use proper logging instead of print()
+- **collect_git_activity.py:389** - Use proper logging instead of print()
+- **collect_git_activity.py:410** - Use proper logging instead of print()
+  - *...and 26 more*
 
 
 ---
@@ -46,8 +41,7 @@
 
 | Rule | Count | Severity |
 |------|-------|----------|
-| `prefer-const` | 87 | info |
-| `no-empty-catch` | 1 | error |
+| `no-print-production` | 36 | warning |
 
 ---
 
@@ -55,23 +49,13 @@
 
 | File | Violations | Errors | Warnings | Info |
 |------|------------|--------|----------|------|
-| `get-trace-url.test.ts` | 12 | 0 | 0 | 12 |
-| `llm-judge-qag.test.ts` | 6 | 0 | 0 | 6 |
-| `query-metrics.ts` | 5 | 0 | 0 | 5 |
-| `llm-judge-security.ts` | 5 | 0 | 0 | 5 |
-| `judge-evaluations.ts` | 4 | 0 | 0 | 4 |
-| `index.ts` | 4 | 0 | 0 | 4 |
-| `api.test.ts` | 4 | 0 | 0 | 4 |
-| `auth.test.ts` | 4 | 0 | 0 | 4 |
-| `agent-auditor-scoring.ts` | 4 | 0 | 0 | 4 |
-| `query-evaluations.test.ts` | 3 | 0 | 0 | 3 |
+| `collect_git_activity.py` | 36 | 0 | 36 | 0 |
 
 ---
 
 ## Recommendations
 
-- **1 errors** require immediate attention
-- **87 info items** are suggestions for improvement
+- **36 warnings** should be addressed
 
-**💡 87 violations have automatic fixes available.**
+**💡 36 violations have automatic fixes available.**
 Consider using `apply_standards_fixes` to auto-fix safe violations.

@@ -77,6 +77,7 @@ class FilePatterns:
         "**/vendor/**",
         "**/.svelte-kit/**",
         "**/.nuxt/**",
+        "**/.ast-grep-backups/**",
     ]
 
     MINIFIED_EXCLUDE = [
