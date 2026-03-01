@@ -37,7 +37,7 @@ def find_duplication_tool(
     if exclude_patterns is None:
         exclude_patterns = ["site-packages", "node_modules", ".venv", "venv", "vendor", "__pycache__", ".git"]
 
-    detector = DuplicationDetector()
+    detector = DuplicationDetector(language=language)
     results = detector.find_duplication(
         project_folder=project_folder,
         construct_type="function_definition",  # Default to functions

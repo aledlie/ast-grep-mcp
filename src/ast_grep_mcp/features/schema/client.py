@@ -207,46 +207,59 @@ class SchemaOrgClient:
             raise ValueError("Query must be a non-empty string")
 
         normalized_limit = max(1, min(limit or 10, 100))
-        results = []
         query_lower = query.lower().strip()
 
         if not query_lower:
             raise ValueError("Query cannot be empty")
 
-        for item in self.schema_data.values():
-            if not item.get("@type"):
-                continue
+        results = self._collect_matching_types(query_lower, normalized_limit)
 
-            types = self._normalize_to_array(item["@type"])
-            if "rdfs:Class" not in types:
-                continue
-
-            label = item.get("rdfs:label", "")
-            comment = item.get("rdfs:comment", "")
-
-            if not isinstance(label, str):
-                continue
-
-            label_lower = label.lower()
-            comment_lower = comment.lower() if isinstance(comment, str) else ""
-
-            if query_lower in label_lower or query_lower in comment_lower:
-                results.append(
-                    {
-                        "name": label,
-                        "description": comment or "No description available",
-                        "id": item.get("@id", ""),
-                        "url": f"https://schema.org/{label}",
-                        "relevance": 2 if query_lower in label_lower else 1,
-                    }
-                )
-
-            if len(results) >= normalized_limit * 2:
-                break
-
-        # Sort by relevance and limit
         results.sort(key=lambda x: x["relevance"], reverse=True)
         return [{"name": r["name"], "description": r["description"], "id": r["id"], "url": r["url"]} for r in results[:normalized_limit]]
+
+    def _collect_matching_types(self, query_lower: str, limit: int) -> List[Dict[str, Any]]:
+        """Collect schema types matching the query string."""
+        results: List[Dict[str, Any]] = []
+        max_candidates = limit * 2
+
+        for item in self.schema_data.values():
+            match = self._match_schema_item(item, query_lower)
+            if match:
+                results.append(match)
+            if len(results) >= max_candidates:
+                break
+
+        return results
+
+    def _match_schema_item(self, item: Dict[str, Any], query_lower: str) -> Optional[Dict[str, Any]]:
+        """Return a match result if item matches query, else None."""
+        if not item.get("@type"):
+            return None
+
+        types = self._normalize_to_array(item["@type"])
+        if "rdfs:Class" not in types:
+            return None
+
+        label = item.get("rdfs:label", "")
+        if not isinstance(label, str):
+            return None
+
+        comment = item.get("rdfs:comment", "")
+        label_lower = label.lower()
+        comment_lower = comment.lower() if isinstance(comment, str) else ""
+
+        in_label = query_lower in label_lower
+        in_comment = query_lower in comment_lower
+        if not in_label and not in_comment:
+            return None
+
+        return {
+            "name": label,
+            "description": comment or "No description available",
+            "id": item.get("@id", ""),
+            "url": f"https://schema.org/{label}",
+            "relevance": 2 if in_label else 1,
+        }
 
     async def get_type_hierarchy(self, type_name: str) -> Dict[str, Any]:
         """Get the inheritance hierarchy for a type."""

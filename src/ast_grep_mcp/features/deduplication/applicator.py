@@ -11,7 +11,12 @@ from .applicator_post_validator import RefactoringPostValidator
 from .applicator_validator import RefactoringPlanValidator
 from .generator import CodeGenerator
 
-__all__ = ["DeduplicationApplicator", "_plan_file_modification_order", "_add_import_to_content", "_generate_import_for_extracted_function"]
+__all__ = [
+    "DeduplicationApplicator",
+    "_plan_file_modification_order",
+    "_add_import_to_content",
+    "_generate_import_for_extracted_function",
+]
 
 
 class DeduplicationApplicator:
@@ -530,75 +535,91 @@ class DeduplicationApplicator:
         if not import_statement:
             return content
 
-        lines = content.split("\n")
-        lang = language.lower()
-
         # Check if import already exists
         if import_statement.strip() in content:
             return content
 
-        if lang == "python":
-            # Find last import statement
-            last_import_idx = -1
-            for i, line in enumerate(lines):
-                stripped = line.strip()
-                if stripped.startswith("import ") or stripped.startswith("from "):
-                    last_import_idx = i
-                elif stripped and not stripped.startswith("#") and last_import_idx >= 0:
-                    break
+        lines = content.split("\n")
+        lang = language.lower()
 
-            if last_import_idx >= 0:
-                lines.insert(last_import_idx + 1, import_statement)
+        inserters = {
+            "python": self._insert_python_import,
+            "javascript": self._insert_js_import,
+            "typescript": self._insert_js_import,
+            "jsx": self._insert_js_import,
+            "tsx": self._insert_js_import,
+            "java": self._insert_java_import,
+        }
+        inserter = inserters.get(lang, self._insert_default_import)
+        inserter(lines, import_statement)
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def _insert_python_import(lines: List[str], import_statement: str) -> None:
+        """Insert import into Python source lines."""
+        last_import_idx = -1
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped.startswith("import ") or stripped.startswith("from "):
+                last_import_idx = i
+            elif stripped and not stripped.startswith("#") and last_import_idx >= 0:
+                break
+
+        if last_import_idx >= 0:
+            lines.insert(last_import_idx + 1, import_statement)
+            return
+
+        # No imports found, add after shebang/encoding comments
+        insert_idx = 0
+        for i, line in enumerate(lines):
+            if not line.strip() or line.startswith("#"):
+                insert_idx = i + 1
             else:
-                # No imports found, add at the top after any shebang/encoding
-                insert_idx = 0
-                for i, line in enumerate(lines):
-                    if not line.strip() or line.startswith("#"):
-                        insert_idx = i + 1
-                    else:
-                        break
-                lines.insert(insert_idx, import_statement)
-                if insert_idx > 0:
-                    lines.insert(insert_idx, "")
+                break
+        lines.insert(insert_idx, import_statement)
+        if insert_idx > 0:
+            lines.insert(insert_idx, "")
 
-        elif lang in ("javascript", "typescript", "jsx", "tsx"):
-            # Add after last import/require
-            last_import_idx = -1
-            for i, line in enumerate(lines):
-                if "import " in line or "require(" in line:
-                    last_import_idx = i
+    @staticmethod
+    def _insert_js_import(lines: List[str], import_statement: str) -> None:
+        """Insert import into JS/TS source lines."""
+        last_import_idx = -1
+        for i, line in enumerate(lines):
+            if "import " in line or "require(" in line:
+                last_import_idx = i
 
-            if last_import_idx >= 0:
-                lines.insert(last_import_idx + 1, import_statement)
-            else:
-                lines.insert(0, import_statement)
-                lines.insert(1, "")
-
-        elif lang == "java":
-            # Add after package statement but before class
-            package_idx = -1
-            last_import_idx = -1
-            for i, line in enumerate(lines):
-                if line.strip().startswith("package "):
-                    package_idx = i
-                elif line.strip().startswith("import "):
-                    last_import_idx = i
-
-            if last_import_idx >= 0:
-                lines.insert(last_import_idx + 1, import_statement)
-            elif package_idx >= 0:
-                lines.insert(package_idx + 1, "")
-                lines.insert(package_idx + 2, import_statement)
-            else:
-                lines.insert(0, import_statement)
-                lines.insert(1, "")
-
+        if last_import_idx >= 0:
+            lines.insert(last_import_idx + 1, import_statement)
         else:
-            # Default: add at the top
             lines.insert(0, import_statement)
             lines.insert(1, "")
 
-        return "\n".join(lines)
+    @staticmethod
+    def _insert_java_import(lines: List[str], import_statement: str) -> None:
+        """Insert import into Java source lines."""
+        package_idx = -1
+        last_import_idx = -1
+        for i, line in enumerate(lines):
+            if line.strip().startswith("package "):
+                package_idx = i
+            elif line.strip().startswith("import "):
+                last_import_idx = i
+
+        if last_import_idx >= 0:
+            lines.insert(last_import_idx + 1, import_statement)
+        elif package_idx >= 0:
+            lines.insert(package_idx + 1, "")
+            lines.insert(package_idx + 2, import_statement)
+        else:
+            lines.insert(0, import_statement)
+            lines.insert(1, "")
+
+    @staticmethod
+    def _insert_default_import(lines: List[str], import_statement: str) -> None:
+        """Insert import at file top (fallback for unsupported languages)."""
+        lines.insert(0, import_statement)
+        lines.insert(1, "")
 
     def _validate_code_for_language(self, code: str, language: str) -> tuple[bool, str]:
         """Basic syntax validation for generated code."""

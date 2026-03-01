@@ -468,6 +468,19 @@ def _execute_real_run(
     return fix_results, files_modified, fixes_successful, fixes_failed, validation_passed
 
 
+# Rule-specific code transformations for rules whose fix field is a
+# human-readable description rather than an ast-grep rewrite pattern.
+# Each handler takes original code and returns transformed code.
+_RULE_CODE_TRANSFORMS: Dict[str, Any] = {
+    "prefer-const": lambda code: code.replace("let ", "const ", 1),
+    "no-var": lambda code: code.replace("var ", "const ", 1),
+    "no-double-equals": lambda code: code.replace("==", "===", 1) if "!==" not in code else code.replace("!=", "!==", 1),
+}
+
+# Rules that should use line removal instead of pattern replacement.
+_REMOVAL_RULES = {"no-console-log", "no-debugger", "no-print-production", "no-system-out"}
+
+
 def _apply_single_fix(file_path: str, violation: RuleViolation, language: str) -> FixResult:
     """Apply a single fix to a violation.
 
@@ -479,13 +492,18 @@ def _apply_single_fix(file_path: str, violation: RuleViolation, language: str) -
     Returns:
         FixResult with outcome
     """
-    # Determine fix method
-    if violation.fix_suggestion:
-        # Use pattern-based fix
-        return apply_pattern_fix(file_path, violation, violation.fix_suggestion, language)
-    else:
-        # Use removal fix (for patterns like no-console-log, no-debugger)
+    # 1. Check for a known code transformation
+    if violation.rule_id in _RULE_CODE_TRANSFORMS:
+        transform = _RULE_CODE_TRANSFORMS[violation.rule_id]
+        fixed_code = transform(violation.code_snippet)
+        return apply_pattern_fix(file_path, violation, fixed_code, language)
+
+    # 2. Check for removal rules (no-console-log, no-debugger, etc.)
+    if violation.rule_id in _REMOVAL_RULES or not violation.fix_suggestion:
         return apply_removal_fix(file_path, violation, language)
+
+    # 3. Fallback: use the fix_suggestion as a literal pattern
+    return apply_pattern_fix(file_path, violation, violation.fix_suggestion, language)
 
 
 def _process_fix_result(
