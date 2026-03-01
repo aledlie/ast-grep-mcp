@@ -83,7 +83,7 @@ class DeduplicationAnalysisOrchestrator:
         language: str,
         min_similarity: float = DeduplicationDefaults.MIN_SIMILARITY,
         include_test_coverage: bool = True,
-        min_lines: int = 5,
+        min_lines: int = DeduplicationDefaults.MIN_LINES,
         max_candidates: int = DeduplicationDefaults.MAX_CANDIDATES,
         exclude_patterns: List[str] | None = None,
         progress_callback: Optional[ProgressCallback] = None,
@@ -184,13 +184,13 @@ class DeduplicationAnalysisOrchestrator:
 
         # Step 2: Rank candidates by refactoring value (25% -> 40%)
         # Pass max_candidates for early exit optimization (avoids unnecessary rank numbering)
-        report_progress("Ranking candidates by value", 0.25)
+        report_progress("Ranking candidates by value", DeduplicationDefaults.PROGRESS_RANKING)
         ranked_candidates = self.ranker.rank_deduplication_candidates(
             duplication_results.get("duplication_groups", []), max_results=config.max_candidates
         )
 
         # Step 3-5: Enrich and summarize top candidates (40% -> 100%)
-        report_progress("Enriching candidates", 0.40)
+        report_progress("Enriching candidates", DeduplicationDefaults.PROGRESS_ENRICHING)
         result = self._enrich_and_summarize_with_config(ranked_candidates, config, progress_callback=report_progress)
 
         # Complete
@@ -374,23 +374,23 @@ class DeduplicationAnalysisOrchestrator:
             }
 
         # Get top candidates (40% -> 50%)
-        report("Selecting top candidates", 0.50)
+        report("Selecting top candidates", DeduplicationDefaults.PROGRESS_SELECTION)
         top_candidates = self._get_top_candidates(ranked_candidates, config.max_candidates)
 
         # Step 3: Check test coverage if requested (50% -> 75%)
         if config.include_test_coverage:
-            report("Checking test coverage", 0.60)
+            report("Checking test coverage", DeduplicationDefaults.PROGRESS_COVERAGE_CHECK)
             self._add_test_coverage_batch(
                 top_candidates, config.language, config.project_path, parallel=config.parallel, max_workers=config.max_workers
             )
-            report("Test coverage complete", 0.75)
+            report("Test coverage complete", DeduplicationDefaults.PROGRESS_COVERAGE_COMPLETE)
 
         # Step 4: Generate recommendations (75% -> 90%)
-        report("Generating recommendations", 0.85)
+        report("Generating recommendations", DeduplicationDefaults.PROGRESS_RECOMMENDATIONS)
         self._add_recommendations(top_candidates, parallel=config.parallel, max_workers=config.max_workers)
 
         # Step 5: Calculate summary statistics (90% -> 95%)
-        report("Calculating statistics", 0.90)
+        report("Calculating statistics", DeduplicationDefaults.PROGRESS_STATISTICS)
         top_candidates_savings = self._calculate_total_savings(top_candidates)
 
         self.logger.info(
@@ -434,7 +434,7 @@ class DeduplicationAnalysisOrchestrator:
         """
         recommendation = self.recommendation_engine.generate_deduplication_recommendation(
             score=candidate.get("score", 0),
-            complexity=candidate.get("complexity_score", 5),
+            complexity=candidate.get("complexity_score", DeduplicationDefaults.DEFAULT_COMPLEXITY_SCORE),
             lines_saved=candidate.get("lines_saved", 0),
             has_tests=candidate.get("has_tests", False),
             affected_files=len(candidate.get("files", [])),
@@ -591,7 +591,7 @@ class DeduplicationAnalysisOrchestrator:
         error_field: str,
         default_error_value: Any,
         parallel: bool = True,
-        max_workers: int = 4,
+        max_workers: int = ParallelProcessing.DEFAULT_WORKERS,
         timeout_per_candidate: Optional[int] = None,
         **kwargs: Any,
     ) -> List[Dict[str, Any]]:
@@ -653,7 +653,7 @@ class DeduplicationAnalysisOrchestrator:
         language: str,
         project_path: str,
         parallel: bool = True,
-        max_workers: int = 4,
+        max_workers: int = ParallelProcessing.DEFAULT_WORKERS,
         timeout_per_candidate: Optional[int] = None,
     ) -> None:
         """Add test coverage information using optimized batch processing.

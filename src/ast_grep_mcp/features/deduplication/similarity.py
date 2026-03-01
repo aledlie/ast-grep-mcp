@@ -174,13 +174,13 @@ class HybridSimilarityConfig:
         # Validate weight sum based on whether semantic is enabled
         if self.enable_semantic:
             total_weight = self.minhash_weight + self.ast_weight + self.semantic_weight
-            if abs(total_weight - 1.0) > 0.001:
+            if abs(total_weight - HybridSimilarityDefaults.WEIGHT_SUM_TARGET) > HybridSimilarityDefaults.WEIGHT_SUM_TOLERANCE:
                 raise ValueError(
                     f"minhash_weight + ast_weight + semantic_weight must equal 1.0 when semantic is enabled, got {total_weight}"
                 )
         else:
             total_weight = self.minhash_weight + self.ast_weight
-            if abs(total_weight - 1.0) > 0.001:
+            if abs(total_weight - HybridSimilarityDefaults.WEIGHT_SUM_TARGET) > HybridSimilarityDefaults.WEIGHT_SUM_TOLERANCE:
                 raise ValueError(f"minhash_weight + ast_weight must equal 1.0, got {total_weight}")
 
 
@@ -519,7 +519,7 @@ class MinHashSimilarity:
         Returns:
             Adaptive LSH threshold (always >= 0.1).
         """
-        return max(0.1, min_similarity - self.config.lsh_recall_margin)
+        return max(HybridSimilarityDefaults.LSH_THRESHOLD_FLOOR, min_similarity - self.config.lsh_recall_margin)
 
     def _find_lsh_candidates(
         self,
@@ -1064,7 +1064,7 @@ class HybridSimilarity:
 
             # Normalize indentation to 4-space units
             indent_count = len(line) - len(line.lstrip())
-            indent_level = indent_count // 2  # Assume 2-space or 4-space indent
+            indent_level = indent_count // IndentationDefaults.NORMALIZATION_DIVISOR
             normalized_line = "    " * indent_level + line.lstrip()
 
             if normalized_line.strip():
@@ -1472,7 +1472,7 @@ class EnhancedStructureHash:
         call_str = ",".join(unique_calls)
 
         # Return 4-char hex hash
-        return f"{hash(call_str) % 0xFFFF:04X}"
+        return f"{hash(call_str) % ASTFingerprintDefaults.CALL_SIGNATURE_BITMASK:0{ASTFingerprintDefaults.CALL_SIGNATURE_HEX_WIDTH}X}"
 
     def _estimate_nesting_depth(self, code: str) -> int:
         """Estimate maximum nesting depth from indentation.
@@ -1531,7 +1531,7 @@ class EnhancedStructureHash:
             return 5
         if line_count < LogBucketThresholds.MASSIVE:
             return 6
-        return min(7 + (line_count - LogBucketThresholds.MASSIVE) // LogBucketThresholds.MASSIVE, 9)
+        return min(LogBucketThresholds.OVERFLOW_BASE_BUCKET + (line_count - LogBucketThresholds.MASSIVE) // LogBucketThresholds.MASSIVE, LogBucketThresholds.MAX_BUCKET)
 
     def _extract_tokens(self, code: str) -> List[str]:
         """Extract meaningful tokens from code (legacy method)."""
@@ -1754,7 +1754,7 @@ class SemanticSimilarity:
 
         try:
             # Load tokenizer and model
-            self._tokenizer = AutoTokenizer.from_pretrained(self.config.model_name)
+            self._tokenizer = AutoTokenizer.from_pretrained(self.config.model_name)  # type: ignore[no-untyped-call]
             self._model = AutoModel.from_pretrained(self.config.model_name)
 
             # Determine device

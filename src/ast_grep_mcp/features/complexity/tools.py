@@ -656,7 +656,7 @@ def register_complexity_tools(mcp: Any) -> None:
         mcp: FastMCP server instance
     """
 
-    @mcp.tool()  # type: ignore[misc]
+    @mcp.tool()  # type: ignore[untyped-decorator]
     def analyze_complexity(
         project_folder: str = Field(description="The absolute path to the project folder to analyze"),
         language: str = Field(description="The programming language (python, typescript, javascript, java)"),
@@ -700,7 +700,7 @@ def register_complexity_tools(mcp: Any) -> None:
             max_threads=max_threads,
         )
 
-    @mcp.tool()  # type: ignore[misc]
+    @mcp.tool()  # type: ignore[untyped-decorator]
     def test_sentry_integration(
         test_type: Literal["error", "warning", "breadcrumb", "span"] = Field(
             default="breadcrumb",
@@ -711,7 +711,7 @@ def register_complexity_tools(mcp: Any) -> None:
         """Wrapper that calls the standalone test_sentry_integration_tool function."""
         return test_sentry_integration_tool(test_type=test_type, message=message)
 
-    @mcp.tool()  # type: ignore[misc]
+    @mcp.tool()  # type: ignore[untyped-decorator]
     def detect_code_smells(
         project_folder: str = Field(description="The absolute path to the project folder to analyze"),
         language: str = Field(description="The programming language (python, typescript, javascript, java)"),

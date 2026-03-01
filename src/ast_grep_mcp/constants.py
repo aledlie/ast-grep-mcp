@@ -122,6 +122,16 @@ class DeduplicationDefaults:
     REGRESSION_FULL_WORKFLOW = 0.20  # 20% slowdown allowed
     REGRESSION_SCORING = 0.05  # 5% slowdown allowed
     REGRESSION_TEST_COVERAGE = 0.15  # 15% slowdown allowed
+    DEFAULT_COMPLEXITY_SCORE = 5
+
+    # Analysis pipeline progress stages
+    PROGRESS_RANKING = 0.25
+    PROGRESS_ENRICHING = 0.40
+    PROGRESS_SELECTION = 0.50
+    PROGRESS_COVERAGE_CHECK = 0.60
+    PROGRESS_COVERAGE_COMPLETE = 0.75
+    PROGRESS_RECOMMENDATIONS = 0.85
+    PROGRESS_STATISTICS = 0.90
 
 
 class HybridSimilarityDefaults:
@@ -140,6 +150,13 @@ class HybridSimilarityDefaults:
     # Must sum to 1.0. AST gets higher weight due to structural precision.
     MINHASH_WEIGHT = 0.4
     AST_WEIGHT = 0.6
+
+    # Weight validation
+    WEIGHT_SUM_TARGET = 1.0
+    WEIGHT_SUM_TOLERANCE = 0.001
+
+    # LSH threshold floor to prevent overly aggressive filtering
+    LSH_THRESHOLD_FLOOR = 0.1
 
     # Minimum token count to use hybrid approach
     # Very short code snippets may not benefit from AST analysis
@@ -337,6 +354,7 @@ class UsageTrackingDefaults:
     HOURLY_FAILURES_CRITICAL = 50
     FAILURE_RATE_WARNING = 0.1  # 10%
     FAILURE_RATE_CRITICAL = 0.25  # 25%
+    USAGE_ID_HASH_LENGTH = 16
     AVG_RESPONSE_TIME_WARNING_MS = 5000
     AVG_RESPONSE_TIME_CRITICAL_MS = 30000
     DEFAULT_PAGINATION_LIMIT = 100
@@ -377,6 +395,7 @@ class IndentationDefaults:
 
     SPACES_PER_LEVEL = 4
     ALT_SPACES_PER_LEVEL = 2
+    NORMALIZATION_DIVISOR = 2
 
 
 class MinHashDefaults:
@@ -399,6 +418,8 @@ class ASTFingerprintDefaults:
     HASH_MODULO = 10000
     HASH_BUCKET_MULTIPLIER = 100
     MAX_UNIQUE_CALLS = 10
+    CALL_SIGNATURE_BITMASK = 0xFFFF
+    CALL_SIGNATURE_HEX_WIDTH = 4
 
 
 class RankerDefaults:
@@ -437,6 +458,40 @@ class RecommendationDefaults:
     DEFAULT_SIMILARITY = 0.9
     MODULE_EXTRACTION_DUPLICATE_THRESHOLD = 3
     CLASS_EXTRACTION_LINE_THRESHOLD = 20
+
+    # Extract function scoring thresholds
+    EXTRACT_FN_LOW_COMPLEXITY = 5
+    EXTRACT_FN_LOW_COMPLEXITY_BONUS = 20
+    EXTRACT_FN_HIGH_COMPLEXITY = 10
+    EXTRACT_FN_HIGH_COMPLEXITY_PENALTY = -20
+    EXTRACT_FN_LINES_BONUS_THRESHOLD = 10
+    EXTRACT_FN_LINES_BONUS = 10
+    EXTRACT_FN_FILES_THRESHOLD = 3
+    EXTRACT_FN_FILES_BONUS = 10
+
+    # Extract class scoring thresholds
+    EXTRACT_CLS_HIGH_COMPLEXITY = 10
+    EXTRACT_CLS_HIGH_COMPLEXITY_BONUS = 30
+    EXTRACT_CLS_MID_COMPLEXITY_LOWER = 5
+    EXTRACT_CLS_MID_COMPLEXITY_BONUS = 15
+    EXTRACT_CLS_LINES_THRESHOLD = 20
+    EXTRACT_CLS_LINES_BONUS = 15
+    EXTRACT_CLS_FILES_THRESHOLD = 2
+    EXTRACT_CLS_FILES_BONUS = 10
+    EXTRACT_CLS_LOW_COMPLEXITY = 3
+    EXTRACT_CLS_LOW_LINES = 10
+    EXTRACT_CLS_LOW_EFFORT_PENALTY = -20
+
+    # Inline scoring thresholds
+    INLINE_LOW_SIMILARITY = 40
+    INLINE_LOW_SIMILARITY_BONUS = 40
+    INLINE_MID_SIMILARITY_UPPER = 60
+    INLINE_MID_SIMILARITY_BONUS = 20
+    INLINE_SINGLE_FILE_BONUS = 20
+    INLINE_SMALL_LINES_THRESHOLD = 5
+    INLINE_SMALL_LINES_BONUS = 20
+    INLINE_HIGH_SIMILARITY = 80
+    INLINE_HIGH_SIMILARITY_PENALTY = -30
 
 
 class ChangelogDefaults:
@@ -488,6 +543,8 @@ class LogBucketThresholds:
     VERY_LARGE = 80
     HUGE = 160
     MASSIVE = 320
+    OVERFLOW_BASE_BUCKET = 7
+    MAX_BUCKET = 9
 
 
 class DifficultyThresholds:
