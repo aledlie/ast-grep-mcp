@@ -9,6 +9,7 @@ This script analyzes the ast-grep-mcp codebase for:
 - Code quality standards
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -19,12 +20,32 @@ from ast_grep_mcp.features.complexity.analyzer import analyze_file_complexity
 from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool, detect_code_smells_tool
 from ast_grep_mcp.features.deduplication.tools import analyze_deduplication_candidates_tool, find_duplication_tool
 from ast_grep_mcp.features.quality.security_scanner import detect_security_issues_impl
-from ast_grep_mcp.features.quality.tools import enforce_standards_tool, generate_quality_report_tool
+from ast_grep_mcp.features.quality.tools import apply_standards_fixes_tool, enforce_standards_tool, generate_quality_report_tool
 from ast_grep_mcp.models.complexity import ComplexityThresholds
 
-PROJECT_FOLDER = "src/ast_grep_mcp"
-LANGUAGE = "python"
-EXCLUDE_PATTERNS = ["**/__pycache__/**", "**/test_*.py", "**/*_test.py"]
+DEFAULT_PROJECT_FOLDER = "src/ast_grep_mcp"
+DEFAULT_LANGUAGE = "python"
+EXCLUDE_PATTERNS = [
+    "**/node_modules/**",
+    "**/__pycache__/**",
+    "**/test_*.py",
+    "**/*_test.py",
+    "**/dist/**",
+    "**/build/**",
+    "**/.git/**",
+]
+TOP_FILES_COUNT = 5
+LANGUAGE_EXTENSIONS = {
+    "python": "py",
+    "javascript": "js",
+    "typescript": "ts",
+    "java": "java",
+    "rust": "rs",
+    "go": "go",
+    "ruby": "rb",
+    "cpp": "cpp",
+    "c": "c",
+}
 
 
 def print_section(title: str):
@@ -34,24 +55,49 @@ def print_section(title: str):
     print("=" * 80)
 
 
-def analyze_individual_files():
-    """Analyze the top 5 most complex files individually."""
-    print_section("PHASE 1: Individual File Complexity Analysis")
-
-    files = [
-        "src/ast_grep_mcp/features/deduplication/applicator.py",
-        "src/ast_grep_mcp/features/complexity/tools.py",
-        "src/ast_grep_mcp/features/quality/smells.py",
-        "src/ast_grep_mcp/features/deduplication/metrics.py",
-        "src/ast_grep_mcp/features/schema/client.py",
+def _discover_source_files(project_folder: str, language: str) -> list[Path]:
+    """Discover source files in the project folder by language."""
+    ext = LANGUAGE_EXTENSIONS.get(language, language)
+    glob_pattern = f"*.{ext}"
+    folder = Path(project_folder)
+    if not folder.is_dir():
+        return []
+    exclude_set = {"node_modules", "__pycache__", "test_", "_test.", "/dist/", "/build/"}
+    return [
+        f for f in sorted(folder.rglob(glob_pattern))
+        if not any(ex in str(f) for ex in exclude_set)
     ]
 
-    thresholds = ComplexityThresholds()
 
-    for file_path in files:
+def analyze_individual_files(project_folder: str, language: str):
+    """Analyze the top most complex files individually."""
+    print_section("PHASE 1: Individual File Complexity Analysis")
+
+    source_files = _discover_source_files(project_folder, language)
+    if not source_files:
+        print(f"\nNo {language} source files found in {project_folder}")
+        return
+
+    # First pass: score each file by max cognitive complexity
+    thresholds = ComplexityThresholds()
+    file_scores: list[tuple[str, int]] = []
+    for f in source_files:
+        try:
+            functions = analyze_file_complexity(str(f), language, thresholds)
+            max_cog = max((fn.metrics.cognitive for fn in functions), default=0)
+            file_scores.append((str(f), max_cog))
+        except Exception:
+            continue
+
+    # Take the top N files by worst cognitive complexity
+    top_files = [path for path, _ in sorted(file_scores, key=lambda x: x[1], reverse=True)[:TOP_FILES_COUNT]]
+
+    print(f"\nAnalyzing top {len(top_files)} most complex files out of {len(source_files)} total:")
+
+    for file_path in top_files:
         print(f"\n--- {file_path} ---")
         try:
-            functions = analyze_file_complexity(file_path, LANGUAGE, thresholds)
+            functions = analyze_file_complexity(file_path, language, thresholds)
             critical = [
                 f for f in functions
                 if f.metrics.cyclomatic > thresholds.cyclomatic or f.metrics.cognitive > thresholds.cognitive
@@ -72,15 +118,15 @@ def analyze_individual_files():
             print(f"  Exception: {e}")
 
 
-def analyze_project_complexity():
+def analyze_project_complexity(project_folder: str, language: str):
     """Run project-wide complexity analysis."""
     print_section("PHASE 2: Project-Wide Complexity Analysis")
 
     try:
         result = analyze_complexity_tool(
-            project_folder=PROJECT_FOLDER,
-            language=LANGUAGE,
-            include_patterns=["**/*.py"],
+            project_folder=project_folder,
+            language=language,
+            include_patterns=[f"**/*.{LANGUAGE_EXTENSIONS.get(language, language)}"],
             exclude_patterns=EXCLUDE_PATTERNS,
             store_results=False,
             include_trends=False,
@@ -114,15 +160,15 @@ def analyze_project_complexity():
         traceback.print_exc()
 
 
-def detect_code_smells():
+def detect_code_smells(project_folder: str, language: str):
     """Run code smell detection."""
     print_section("PHASE 3: Code Smell Detection")
 
     try:
         result = detect_code_smells_tool(
-            project_folder=PROJECT_FOLDER,
-            language=LANGUAGE,
-            include_patterns=["**/*.py"],
+            project_folder=project_folder,
+            language=language,
+            include_patterns=[f"**/*.{LANGUAGE_EXTENSIONS.get(language, language)}"],
             exclude_patterns=EXCLUDE_PATTERNS,
         )
 
@@ -154,14 +200,14 @@ def detect_code_smells():
         traceback.print_exc()
 
 
-def detect_security_issues():
+def detect_security_issues(project_folder: str, language: str):
     """Run security vulnerability scanning."""
     print_section("PHASE 4: Security Vulnerability Scanning")
 
     try:
         result = detect_security_issues_impl(
-            project_folder=PROJECT_FOLDER,
-            language=LANGUAGE,
+            project_folder=project_folder,
+            language=language,
         )
 
         summary = result.summary
@@ -194,14 +240,14 @@ def detect_security_issues():
         traceback.print_exc()
 
 
-def analyze_duplication():
+def analyze_duplication(project_folder: str, language: str):
     """Analyze code duplication opportunities."""
     print_section("PHASE 5: Code Duplication Analysis")
 
     try:
         find_result = find_duplication_tool(
-            project_folder=PROJECT_FOLDER,
-            language=LANGUAGE,
+            project_folder=project_folder,
+            language=language,
             min_similarity=0.8,
             min_lines=10,
             exclude_patterns=EXCLUDE_PATTERNS,
@@ -213,8 +259,8 @@ def analyze_duplication():
             return
 
         result = analyze_deduplication_candidates_tool(
-            project_path=PROJECT_FOLDER,
-            language=LANGUAGE,
+            project_path=project_folder,
+            language=language,
             min_similarity=0.8,
             min_lines=10,
             exclude_patterns=EXCLUDE_PATTERNS,
@@ -251,16 +297,16 @@ def analyze_duplication():
         traceback.print_exc()
 
 
-def generate_summary_report():
-    """Generate comprehensive quality report."""
+def generate_summary_report(project_folder: str, language: str, apply_fixes: bool = False):
+    """Generate comprehensive quality report and optionally apply fixes."""
     print_section("PHASE 6: Generate Comprehensive Quality Report")
 
     try:
         # First run enforcement to get the result needed by the report generator
         enforcement_result = enforce_standards_tool(
-            project_folder=PROJECT_FOLDER,
-            language=LANGUAGE,
-            include_patterns=["**/*.py"],
+            project_folder=project_folder,
+            language=language,
+            include_patterns=[f"**/*.{LANGUAGE_EXTENSIONS.get(language, language)}"],
             exclude_patterns=EXCLUDE_PATTERNS,
         )
 
@@ -291,6 +337,11 @@ def generate_summary_report():
                             break
         else:
             print(f"Error: {result.get('error')}")
+
+        # Apply fixes if requested
+        if apply_fixes:
+            _apply_fixes(enforcement_result, language)
+
     except Exception as e:
         print(f"Exception during report generation: {e}")
         import traceback
@@ -298,20 +349,105 @@ def generate_summary_report():
         traceback.print_exc()
 
 
+def _apply_fixes(enforcement_result: dict, language: str):
+    """Apply automatic standards fixes from enforcement violations."""
+    print_section("PHASE 7: Apply Standards Fixes")
+
+    violations = enforcement_result.get("violations", [])
+    if not violations:
+        print("\nNo violations to fix.")
+        return
+
+    try:
+        # Dry run first
+        dry_result = apply_standards_fixes_tool(
+            violations=violations,
+            language=language,
+            fix_types=["safe"],
+            dry_run=True,
+            create_backup=True,
+        )
+
+        summary = dry_result.get("summary", {})
+        fixable = summary.get("total_violations", 0)
+        safe_count = sum(1 for r in dry_result.get("results", []) if r.get("fix_type") == "safe")
+        print(f"\nDry run: {safe_count} of {fixable} violations can be auto-fixed (safe fixes only)")
+
+        if safe_count == 0:
+            print("No auto-fixable violations found.")
+            return
+
+        # Apply fixes
+        fix_result = apply_standards_fixes_tool(
+            violations=violations,
+            language=language,
+            fix_types=["safe"],
+            dry_run=False,
+            create_backup=True,
+        )
+
+        fix_summary = fix_result.get("summary", {})
+        print(f"\nFixed: {fix_summary.get('fixes_successful', 0)} violations")
+        print(f"Failed: {fix_summary.get('fixes_failed', 0)}")
+        print(f"Files modified: {fix_summary.get('files_modified', 0)}")
+        backup_id = fix_result.get("backup_id")
+        if backup_id:
+            print(f"Backup ID: {backup_id}")
+    except Exception as e:
+        print(f"Exception during fix application: {e}")
+        import traceback
+
+        traceback.print_exc()
+
+
+def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Comprehensive codebase analysis using MCP tools."
+    )
+    parser.add_argument(
+        "project_folder",
+        nargs="?",
+        default=DEFAULT_PROJECT_FOLDER,
+        help=f"Path to the project folder to analyze (default: {DEFAULT_PROJECT_FOLDER})",
+    )
+    parser.add_argument(
+        "-l", "--language",
+        default=DEFAULT_LANGUAGE,
+        help=f"Source language (default: {DEFAULT_LANGUAGE})",
+    )
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Apply safe auto-fixes for standards violations",
+    )
+    return parser.parse_args()
+
+
 def main():
     """Run all analyses."""
+    args = parse_args()
+    project_folder = args.project_folder
+    language = args.language
+
+    folder = Path(project_folder)
+    if not folder.is_dir():
+        print(f"Error: '{project_folder}' is not a valid directory")
+        sys.exit(1)
+
     print("=" * 80)
-    print(" COMPREHENSIVE CODEBASE ANALYSIS - ast-grep-mcp")
+    print(f" COMPREHENSIVE CODEBASE ANALYSIS - {project_folder}")
     print("=" * 80)
-    print("\nThis analysis uses MCP tools to evaluate code quality,")
+    print(f"\nTarget: {project_folder} ({language})")
+    print("This analysis uses MCP tools to evaluate code quality,")
     print("complexity, security, and duplication opportunities.\n")
 
-    analyze_individual_files()
-    analyze_project_complexity()
-    detect_code_smells()
-    detect_security_issues()
-    analyze_duplication()
-    generate_summary_report()
+    analyze_individual_files(project_folder, language)
+    analyze_project_complexity(project_folder, language)
+    detect_code_smells(project_folder, language)
+    detect_security_issues(project_folder, language)
+    analyze_duplication(project_folder, language)
+    generate_summary_report(project_folder, language, apply_fixes=args.fix)
 
     print_section("ANALYSIS COMPLETE")
     print("\nAll phases completed. Review the output above and QUALITY_REPORT.md")

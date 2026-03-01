@@ -174,6 +174,7 @@ class DeduplicationAnalysisOrchestrator:
 
         # Step 1: Find duplicates (0% -> 25%)
         report_progress("Finding duplicate code", 0.0)
+        self.detector.language = config.language
         duplication_results = self.detector.find_duplication(
             project_folder=config.project_path,
             construct_type="function_definition",

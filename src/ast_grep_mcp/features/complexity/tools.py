@@ -7,7 +7,7 @@ and Sentry integration testing.
 
 import os
 import time
-from typing import Any, Dict, List, Literal
+from typing import Any, Callable, Dict, List, Literal
 
 import sentry_sdk
 from pydantic import Field
@@ -390,6 +390,60 @@ def analyze_complexity_tool(
         raise
 
 
+def _sentry_test_error(message: str, result: Dict[str, Any]) -> None:
+    """Trigger a test exception for Sentry."""
+    try:
+        raise ValueError(f"Sentry integration test error: {message}")
+    except ValueError as e:
+        sentry_sdk.capture_exception(e, extras={"test": True, "tool": "test_sentry_integration", "message": message})
+        result["message"] = "Test exception captured and sent to Sentry"
+        result["exception_type"] = "ValueError"
+
+
+def _sentry_test_warning(message: str, result: Dict[str, Any]) -> None:
+    """Send a test warning message to Sentry."""
+    sentry_sdk.capture_message(
+        f"Sentry integration test warning: {message}", level="warning", extras={"test": True, "tool": "test_sentry_integration"}
+    )
+    result["message"] = "Test warning message sent to Sentry"
+
+
+def _sentry_test_breadcrumb(message: str, result: Dict[str, Any]) -> None:
+    """Add test breadcrumbs and send to Sentry."""
+    sentry_sdk.add_breadcrumb(
+        message=f"Test breadcrumb 1: {message}", category="test.breadcrumb", level="info", data={"test": True, "sequence": 1}
+    )
+    sentry_sdk.add_breadcrumb(
+        message="Test breadcrumb 2: Sequence item", category="test.breadcrumb", level="info", data={"test": True, "sequence": 2}
+    )
+    sentry_sdk.capture_message(
+        "Test breadcrumb context (check breadcrumb trail)", level="info", extras={"test": True, "tool": "test_sentry_integration"}
+    )
+    result["message"] = "Test breadcrumbs added and sent to Sentry (check breadcrumb trail in event)"
+    result["breadcrumb_count"] = 2
+
+
+def _sentry_test_span(message: str, result: Dict[str, Any]) -> None:
+    """Create a test performance span in Sentry."""
+    with sentry_sdk.start_span(op="test.operation", name=f"Test span: {message}") as span:
+        span.set_data("test", True)
+        span.set_data("message", message)
+        span.set_data("tool", "test_sentry_integration")
+        time.sleep(0.1)
+    sentry_sdk.capture_message(
+        "Test span completed (check performance monitoring)", level="info", extras={"test": True, "tool": "test_sentry_integration"}
+    )
+    result["message"] = "Test performance span created and sent to Sentry"
+
+
+_SENTRY_TEST_HANDLERS: Dict[str, Callable[[str, Dict[str, Any]], None]] = {
+    "error": _sentry_test_error,
+    "warning": _sentry_test_warning,
+    "breadcrumb": _sentry_test_breadcrumb,
+    "span": _sentry_test_span,
+}
+
+
 def test_sentry_integration_tool(
     test_type: Literal["error", "warning", "breadcrumb", "span"] = "breadcrumb", message: str = "Test message"
 ) -> Dict[str, Any]:
@@ -422,48 +476,8 @@ def test_sentry_integration_tool(
             return {"status": "skipped", "message": "Sentry not configured (SENTRY_DSN not set)", "test_type": test_type}
 
         result: Dict[str, Any] = {"status": "success", "test_type": test_type}
-
-        if test_type == "error":
-            # Trigger a test exception
-            try:
-                raise ValueError(f"Sentry integration test error: {message}")
-            except ValueError as e:
-                sentry_sdk.capture_exception(e, extras={"test": True, "tool": "test_sentry_integration", "message": message})
-                result["message"] = "Test exception captured and sent to Sentry"
-                result["exception_type"] = "ValueError"
-
-        elif test_type == "warning":
-            sentry_sdk.capture_message(
-                f"Sentry integration test warning: {message}", level="warning", extras={"test": True, "tool": "test_sentry_integration"}
-            )
-            result["message"] = "Test warning message sent to Sentry"
-
-        elif test_type == "breadcrumb":
-            sentry_sdk.add_breadcrumb(
-                message=f"Test breadcrumb 1: {message}", category="test.breadcrumb", level="info", data={"test": True, "sequence": 1}
-            )
-            sentry_sdk.add_breadcrumb(
-                message="Test breadcrumb 2: Sequence item", category="test.breadcrumb", level="info", data={"test": True, "sequence": 2}
-            )
-            # Breadcrumbs only show up with events, so also send a message
-            sentry_sdk.capture_message(
-                "Test breadcrumb context (check breadcrumb trail)", level="info", extras={"test": True, "tool": "test_sentry_integration"}
-            )
-            result["message"] = "Test breadcrumbs added and sent to Sentry (check breadcrumb trail in event)"
-            result["breadcrumb_count"] = 2
-
-        elif test_type == "span":
-            with sentry_sdk.start_span(op="test.operation", name=f"Test span: {message}") as span:
-                span.set_data("test", True)
-                span.set_data("message", message)
-                span.set_data("tool", "test_sentry_integration")
-                # Simulate some work
-                time.sleep(0.1)
-            # Spans need a transaction to show up
-            sentry_sdk.capture_message(
-                "Test span completed (check performance monitoring)", level="info", extras={"test": True, "tool": "test_sentry_integration"}
-            )
-            result["message"] = "Test performance span created and sent to Sentry"
+        handler = _SENTRY_TEST_HANDLERS[test_type]
+        handler(message, result)
 
         execution_time = time.time() - start_time
         logger.info(
@@ -487,7 +501,6 @@ def test_sentry_integration_tool(
             error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
-        # For this test tool, capture the error even if it's not expected
         sentry_sdk.capture_exception(
             e,
             extras={
