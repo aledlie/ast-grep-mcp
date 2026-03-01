@@ -17,7 +17,7 @@ import yaml
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults, ParallelProcessing, SecurityScanDefaults
+from ast_grep_mcp.constants import DisplayDefaults, FilePatterns, FormattingDefaults, ParallelProcessing, SecurityScanDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.quality.enforcer import enforce_standards_impl, format_violation_report
 from ast_grep_mcp.features.quality.fixer import apply_fixes_batch
@@ -300,17 +300,7 @@ def list_rule_templates_tool(language: Optional[str] = None, category: Optional[
 
 def _get_default_exclude_patterns() -> List[str]:
     """Get default exclude patterns for file scanning."""
-    return [
-        "**/node_modules/**",
-        "**/__pycache__/**",
-        "**/venv/**",
-        "**/.venv/**",
-        "**/site-packages/**",
-        "**/dist/**",
-        "**/build/**",
-        "**/.git/**",
-        "**/coverage/**",
-    ]
+    return list(FilePatterns.DEFAULT_EXCLUDE)
 
 
 def _validate_enforcement_inputs(severity_threshold: str, output_format: str) -> None:

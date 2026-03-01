@@ -17,6 +17,7 @@ from ast_grep_mcp.constants import (
     ComplexityDefaults,
     ComplexityStorageDefaults,
     DisplayDefaults,
+    FilePatterns,
     FormattingDefaults,
     ParallelProcessing,
 )
@@ -514,7 +515,7 @@ def test_sentry_integration_tool(
 
 def _get_default_smell_exclude_patterns() -> List[str]:
     """Get default exclude patterns for code smell detection."""
-    return ["**/node_modules/**", "**/__pycache__/**", "**/venv/**", "**/.venv/**", "**/site-packages/**", "**/test*/**", "**/*test*"]
+    return FilePatterns.DEFAULT_EXCLUDE + FilePatterns.TEST_EXCLUDE
 
 
 def _prepare_smell_detection_params(include_patterns: List[str] | None, exclude_patterns: List[str] | None) -> tuple[List[str], List[str]]:
