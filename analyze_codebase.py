@@ -404,7 +404,10 @@ def _is_cli_entry_point(file_path: str) -> bool:
 _DESTRUCTIVE_RULES = {"no-print-production", "no-console-log", "no-system-out"}
 
 # File patterns where print/console output is intentional user-facing output.
-_CLI_FILE_PATTERNS = {"cli", "runner", "main", "__main__", "test_", "_test"}
+_CLI_FILE_PATTERNS = {"cli", "runner", "main", "__main__", "test_", "_test", "pipeline"}
+
+# Directory patterns where print/console output is intentional.
+_CLI_DIR_PATTERNS = {"scripts", "pipeline-runners", "bin", "cli"}
 
 
 def _filter_destructive_violations(violations: list[dict]) -> tuple[list[dict], int]:
@@ -427,6 +430,10 @@ def _filter_destructive_violations(violations: list[dict]) -> tuple[list[dict], 
         if rule_id in _DESTRUCTIVE_RULES:
             file_name = Path(file_path).stem
             if any(p in file_name for p in _CLI_FILE_PATTERNS):
+                skipped += 1
+                continue
+            parts = Path(file_path).parts
+            if any(d in parts for d in _CLI_DIR_PATTERNS):
                 skipped += 1
                 continue
             if file_path not in cli_cache:
