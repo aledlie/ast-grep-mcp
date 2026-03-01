@@ -13,7 +13,7 @@ A Model Context Protocol (MCP) server providing structural code search, refactor
 - **Refactoring** - Extract function with parameter detection, scope-aware rename with conflict detection
 - **Deduplication** - Duplicate detection via MinHash/LSH, ranked candidates, automated refactoring with impact analysis
 - **Complexity Analysis** - Cyclomatic, cognitive, nesting metrics; code smell detection
-- **Code Quality** - 24+ linting templates, custom rules, security scanning, auto-fix, standards enforcement
+- **Code Quality** - 24+ linting templates (pattern and kind-based), custom rules, security scanning, auto-fix, standards enforcement
 - **Documentation** - Docstring generation (Google/NumPy/JSDoc), README sections, OpenAPI specs, changelog, doc sync
 - **Cross-Language** - Multi-language search, pattern equivalents, code conversion, polyglot refactoring, binding generation
 - **Schema.org** - Type search, property listing, JSON-LD validation, template generation, entity graph enhancement
@@ -40,7 +40,7 @@ src/ast_grep_mcp/          # 118 modules
 └── server/                # MCP registry + runner
 ```
 
-**53 MCP tools** | **1,378 tests** | **Zero complexity violations** (cyclomatic ≤20, cognitive ≤30, nesting ≤6, function ≤150 lines)
+**53 MCP tools** | **1,378+ tests** | **Zero complexity violations** (cyclomatic ≤20, cognitive ≤30, nesting ≤6, function ≤150 lines)
 
 ## Quick Start
 
@@ -168,6 +168,8 @@ uv run pytest tests/quality/ -v            # complexity regression tests
 uv run pytest --cov=src/ast_grep_mcp       # with coverage
 uv run ruff check . && uv run ruff format --check .  # lint + format
 uv run mypy src/                           # type check
+uv run python analyze_codebase.py <path> -l <lang>        # codebase analysis
+uv run python analyze_codebase.py <path> -l <lang> --fix  # analysis + auto-fix
 ```
 
 ### Adding Features

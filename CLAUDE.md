@@ -4,7 +4,7 @@
 
 ```bash
 uv sync                          # Install dependencies
-uv run pytest                    # Run all tests (1,378)
+uv run pytest                    # Run all tests (1,378+)
 uv run ruff check . && mypy src/ # Lint and type check
 uv run main.py                   # Run MCP server locally
 doppler run -- uv run main.py    # Run with Doppler secrets
@@ -45,10 +45,11 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 
 ## Notes
 
-- YAML rules require `kind` field; add `stopBy: end` to relational rules
+- YAML rules support `kind`-based matching (e.g., `kind: catch_clause` with `has`); add `stopBy: end` to relational rules
 - Windows: use `shell=True` for npm-installed ast-grep
 - **All tool functions are synchronous** — call directly, do NOT wrap in `asyncio.run()`
 - CLI invocation: `uv run python -c "from ast_grep_mcp.features.X.tools import Y; print(Y(...))"`
+- Codebase analyzer: `uv run python analyze_codebase.py <path> -l <language> [--fix]`
 - ast-grep supported languages: python, javascript, typescript, tsx, html, css, json, yaml, rust, go, java, kotlin, c, cpp, csharp, swift, ruby, lua, scala — **not** dart
 
 ## Docs
