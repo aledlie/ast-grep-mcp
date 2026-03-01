@@ -513,52 +513,98 @@ class MagicNumberDetector(SmellDetector):
 
         return smells
 
+    # Regex matching a digit sequence preceded by a standard prefix,
+    # e.g. SHA-256, ISO 8601, UTF-8, RFC 2616, ISO-17442
+    _STANDARD_ID_RE = re.compile(r"(?:SHA|ISO|RFC|UTF|IEEE|ANSI|IEC|ECMA)-?\s*(\d+)", re.IGNORECASE)
+
+    # Patterns for lines to skip entirely (comments, imports, etc.)
+    _LINE_EXCLUDE_PATTERNS = [
+        r"^\s*#",  # Python comments
+        r"^\s*//",  # JS/Java comments
+        r"^\s*\*",  # Multi-line comment continuation
+        r"^\s*import",  # Import statements
+        r"^\s*from",  # Python from imports
+        r"=\s*\d+\s*$",  # Variable assignment (likely a constant definition)
+        r"range\(",  # Range calls
+        r"sleep\(",  # Sleep calls
+        r"timeout",  # Timeout settings
+        r"port\s*=",  # Port assignments
+        r"version",  # Version numbers
+    ]
+
+    # Common values that aren't magic
+    _ALLOWED_VALUES = frozenset({"0", "1", "-1", "2", "10", "100", "1000", "0.0", "1.0", "0.5"})
+
     def _find_magic_numbers(self, content: str, lines: List[str], language: str) -> List[Dict[str, Any]]:
         """Find magic numbers in code."""
         magic_numbers: List[Dict[str, Any]] = []
-
-        # Common values that aren't magic
-        allowed_values = {"0", "1", "-1", "2", "10", "100", "1000", "0.0", "1.0", "0.5"}
-
-        # Patterns for different contexts to exclude
-        exclude_patterns = [
-            r"^\s*#",  # Python comments
-            r"^\s*//",  # JS/Java comments
-            r"^\s*\*",  # Multi-line comment continuation
-            r"^\s*import",  # Import statements
-            r"^\s*from",  # Python from imports
-            r"=\s*\d+\s*$",  # Variable assignment (likely a constant definition)
-            r"range\(",  # Range calls
-            r"sleep\(",  # Sleep calls
-            r"timeout",  # Timeout settings
-            r"port\s*=",  # Port assignments
-            r"version",  # Version numbers
-        ]
+        docstring_lines = self._find_docstring_lines(content, language)
 
         for line_num, line in enumerate(lines, 1):
-            # Skip comments and certain patterns
-            should_skip = False
-            for pattern in exclude_patterns:
-                if re.search(pattern, line, re.IGNORECASE):
-                    should_skip = True
-                    break
-
-            if should_skip:
+            if line_num in docstring_lines:
+                continue
+            if self._should_skip_line(line):
                 continue
 
-            # Find all numeric literals in line
-            numbers = re.findall(r"\b(\d+\.?\d*)\b", line)
+            found = self._extract_magic_from_line(line)
+            for num in found:
+                magic_numbers.append({"line": line_num, "value": num})
 
-            for num in numbers:
-                if num not in allowed_values:
-                    # Check it's not in a string (simple check)
-                    before_num = line[: line.find(num)]
-                    quote_count = before_num.count('"') + before_num.count("'")
-                    if quote_count % 2 == 0:  # Even number of quotes = not in string
-                        magic_numbers.append({"line": line_num, "value": num})
-
-        # Limit to avoid overwhelming output
         return magic_numbers[:50]
+
+    def _should_skip_line(self, line: str) -> bool:
+        """Check if the entire line should be skipped."""
+        for pattern in self._LINE_EXCLUDE_PATTERNS:
+            if re.search(pattern, line, re.IGNORECASE):
+                return True
+        return False
+
+    def _extract_magic_from_line(self, line: str) -> List[str]:
+        """Extract magic number values from a single line."""
+        standard_id_numbers = {m.group(1) for m in self._STANDARD_ID_RE.finditer(line)}
+        numbers = re.findall(r"\b(\d+\.?\d*)\b", line)
+        result: List[str] = []
+
+        for num in numbers:
+            if num in self._ALLOWED_VALUES or num in standard_id_numbers:
+                continue
+            idx = line.find(num)
+            if self._is_false_positive(line, num, idx):
+                continue
+            result.append(num)
+
+        return result
+
+    @staticmethod
+    def _is_false_positive(line: str, num: str, idx: int) -> bool:
+        """Check if a numeric literal at idx is a false positive."""
+        # Preceded by '-' → part of hyphenated identifier (sha-256)
+        if idx > 0 and line[idx - 1] == "-":
+            return True
+        before_num = line[:idx]
+        # Named keyword argument (cost_per_unit=0.001)
+        if re.search(r"\w+=\s*$", before_num):
+            return True
+        # Inside a string (odd quote count before the number)
+        quote_count = before_num.count('"') + before_num.count("'")
+        if quote_count % 2 != 0:
+            return True
+        return False
+
+    @staticmethod
+    def _find_docstring_lines(content: str, language: str) -> set[int]:
+        """Return the set of 1-based line numbers inside triple-quoted strings."""
+        lines_in_docstrings: set[int] = set()
+        if language.lower() not in ("python",):
+            return lines_in_docstrings
+
+        for match in re.finditer(r'(\"\"\"[\s\S]*?\"\"\"|\'\'\'[\s\S]*?\'\'\')', content):
+            start_line = content[:match.start()].count("\n") + 1
+            end_line = content[:match.end()].count("\n") + 1
+            for ln in range(start_line, end_line + 1):
+                lines_in_docstrings.add(ln)
+
+        return lines_in_docstrings
 
 
 class SmellAnalyzer:
