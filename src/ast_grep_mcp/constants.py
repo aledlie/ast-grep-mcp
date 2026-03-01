@@ -62,11 +62,28 @@ class FilePatterns:
         "**/__pycache__/**",
         "**/venv/**",
         "**/.venv/**",
+        "**/virtualenv/**",
         "**/site-packages/**",
         "**/dist/**",
         "**/build/**",
         "**/.git/**",
         "**/coverage/**",
+        "**/.next/**",
+        "**/.turbo/**",
+        "**/.cache/**",
+        "**/output/**",
+        "**/generated/**",
+        "**/logs/**",
+        "**/vendor/**",
+        "**/.svelte-kit/**",
+        "**/.nuxt/**",
+    ]
+
+    MINIFIED_EXCLUDE = [
+        "**/*.d.ts",
+        "**/*.min.js",
+        "**/*.min.css",
+        "**/*.map",
     ]
 
     TEST_EXCLUDE = [

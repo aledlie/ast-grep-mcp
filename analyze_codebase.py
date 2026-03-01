@@ -17,6 +17,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
+from ast_grep_mcp.constants import FilePatterns
 from ast_grep_mcp.features.complexity.analyzer import analyze_file_complexity
 from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool, detect_code_smells_tool
 from ast_grep_mcp.features.deduplication.tools import analyze_deduplication_candidates_tool, find_duplication_tool
@@ -26,29 +27,7 @@ from ast_grep_mcp.models.complexity import ComplexityThresholds
 
 DEFAULT_PROJECT_FOLDER = "src/ast_grep_mcp"
 DEFAULT_LANGUAGE = "python"
-EXCLUDE_PATTERNS = [
-    "**/node_modules/**",
-    "**/__pycache__/**",
-    "**/test_*.py",
-    "**/*_test.py",
-    "**/dist/**",
-    "**/build/**",
-    "**/.git/**",
-    "**/coverage/**",
-    "**/.next/**",
-    "**/.turbo/**",
-    "**/.cache/**",
-    "**/output/**",
-    "**/generated/**",
-    "**/logs/**",
-    "**/*.d.ts",
-    "**/*.min.js",
-    "**/*.min.css",
-    "**/*.map",
-    "**/vendor/**",
-    "**/.svelte-kit/**",
-    "**/.nuxt/**",
-]
+EXCLUDE_PATTERNS = FilePatterns.DEFAULT_EXCLUDE + FilePatterns.TEST_EXCLUDE + FilePatterns.MINIFIED_EXCLUDE
 TOP_FILES_COUNT = 5
 LANGUAGE_EXTENSIONS = {
     "python": "py",
@@ -77,12 +56,10 @@ def _discover_source_files(project_folder: str, language: str) -> list[Path]:
     folder = Path(project_folder)
     if not folder.is_dir():
         return []
-    exclude_dirs = {
-        "node_modules", "__pycache__", "dist", "build", ".git",
-        "coverage", ".next", ".turbo", ".cache", "output",
-        "generated", "logs", "vendor", ".svelte-kit", ".nuxt",
-    }
-    exclude_suffixes = {".d.ts", ".min.js", ".min.css", ".map"}
+    # Derive dir names from glob patterns like "**/node_modules/**" -> "node_modules"
+    exclude_dirs = {p.strip("**/") for p in FilePatterns.DEFAULT_EXCLUDE}
+    # Derive suffixes from glob patterns like "**/*.min.js" -> ".min.js"
+    exclude_suffixes = {p.removeprefix("**/").removeprefix("*") for p in FilePatterns.MINIFIED_EXCLUDE}
     return [
         f for f in sorted(folder.rglob(glob_pattern))
         if not any(part in exclude_dirs for part in f.parts)
@@ -414,6 +391,55 @@ def _run_tsc_check(project_folder: str) -> bool:
         return True
 
 
+def _is_cli_entry_point(file_path: str) -> bool:
+    """Check if a file is a CLI entry point (has if __name__ == '__main__')."""
+    try:
+        content = Path(file_path).read_text(encoding="utf-8")
+        return '__name__' in content and "'__main__'" in content or '"__main__"' in content
+    except (OSError, UnicodeDecodeError):
+        return False
+
+
+# Rules that delete lines rather than replacing them — dangerous for CLI/test files.
+_DESTRUCTIVE_RULES = {"no-print-production", "no-console-log", "no-system-out"}
+
+# File patterns where print/console output is intentional user-facing output.
+_CLI_FILE_PATTERNS = {"cli", "runner", "main", "__main__", "test_", "_test"}
+
+
+def _filter_destructive_violations(violations: list[dict]) -> tuple[list[dict], int]:
+    """Filter out violations where removal rules would delete intentional output.
+
+    Removes violations from _DESTRUCTIVE_RULES when the target file is a CLI
+    entry point, test runner, or matches known CLI file patterns.
+
+    Returns:
+        Tuple of (filtered_violations, skipped_count)
+    """
+    filtered = []
+    skipped = 0
+    cli_cache: dict[str, bool] = {}
+
+    for v in violations:
+        rule_id = v.get("rule_id", "")
+        file_path = v.get("file", "")
+
+        if rule_id in _DESTRUCTIVE_RULES:
+            file_name = Path(file_path).stem
+            if any(p in file_name for p in _CLI_FILE_PATTERNS):
+                skipped += 1
+                continue
+            if file_path not in cli_cache:
+                cli_cache[file_path] = _is_cli_entry_point(file_path)
+            if cli_cache[file_path]:
+                skipped += 1
+                continue
+
+        filtered.append(v)
+
+    return filtered, skipped
+
+
 def _apply_fixes(enforcement_result: dict, language: str, project_folder: str = ""):
     """Apply automatic standards fixes from enforcement violations."""
     print_section("PHASE 7: Apply Standards Fixes")
@@ -421,6 +447,14 @@ def _apply_fixes(enforcement_result: dict, language: str, project_folder: str = 
     violations = enforcement_result.get("violations", [])
     if not violations:
         print("\nNo violations to fix.")
+        return
+
+    # Filter out destructive fixes targeting CLI scripts and test runners
+    violations, skipped = _filter_destructive_violations(violations)
+    if skipped:
+        print(f"\nSkipped {skipped} violations in CLI/test files (removal rules would delete intentional output)")
+    if not violations:
+        print("No remaining violations to fix after filtering.")
         return
 
     try:

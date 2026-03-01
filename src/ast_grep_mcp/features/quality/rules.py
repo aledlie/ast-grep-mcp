@@ -218,7 +218,14 @@ RULE_TEMPLATES: Dict[str, RuleTemplate] = {
         note="print() statements should be replaced with proper logging in production code.",
         fix="Replace with logger.info() or appropriate log level",
         category="style",
-        exclude_files=["**/console_logger.py"],
+        exclude_files=[
+            "**/console_logger.py",
+            "**/cli/**",
+            "**/__main__.py",
+            "**/test_*.py",
+            "**/*_test.py",
+            "**/tests/**",
+        ],
     ),
     "require-type-hints": RuleTemplate(
         id="require-type-hints",
