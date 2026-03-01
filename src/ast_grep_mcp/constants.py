@@ -522,8 +522,10 @@ class SyntaxValidationDefaults:
     """Syntax validation timeouts and limits."""
 
     NODE_TIMEOUT_SECONDS = 5
+    TSC_TIMEOUT_SECONDS = 10
     JAVAC_TIMEOUT_SECONDS = 10
     JAVAC_ERROR_PREVIEW_LENGTH = 500
+    TSC_SYNTAX_ERROR_PATTERN = r"error TS1\d{3}:"
 
 
 class SubprocessDefaults:

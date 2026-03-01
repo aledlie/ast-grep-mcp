@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -43,7 +44,10 @@ def _validate_python_syntax(content: str, file_path: str) -> Dict[str, Any]:
 
 
 def _validate_javascript_syntax(content: str) -> Dict[str, Any]:
-    """Validate JavaScript/TypeScript syntax using Node.js.
+    """Validate JavaScript syntax using Node.js with ESM support.
+
+    Writes content to a temp .mjs file and uses node --check, which
+    correctly handles ESM import/export statements.
 
     Args:
         content: File content
@@ -52,23 +56,59 @@ def _validate_javascript_syntax(content: str) -> Dict[str, Any]:
         Dict with 'valid' and 'error' keys
     """
     try:
-        node_code = f"""
-try {{
-    new Function({json.dumps(content)});
-    console.log("VALID");
-}} catch(e) {{
-    console.log("INVALID: " + e.message);
-}}
-"""
-        node_result = subprocess.run(
-            ["node", "-e", node_code], capture_output=True, text=True, timeout=SyntaxValidationDefaults.NODE_TIMEOUT_SECONDS
-        )
-        if "INVALID:" in node_result.stdout:
-            error_msg = node_result.stdout.replace("INVALID: ", "").strip()
-            return {"valid": False, "error": error_msg}
-        return {"valid": True, "error": None}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".mjs", delete=False, encoding="utf-8") as f:
+            f.write(content)
+            tmp_path = f.name
+        try:
+            result = subprocess.run(
+                ["node", "--check", tmp_path],
+                capture_output=True, text=True,
+                timeout=SyntaxValidationDefaults.NODE_TIMEOUT_SECONDS,
+            )
+            if result.returncode != 0:
+                error_msg = result.stderr.strip().split("\n")[0] if result.stderr else "Syntax error"
+                return {"valid": False, "error": error_msg}
+            return {"valid": True, "error": None}
+        finally:
+            os.unlink(tmp_path)
     except (subprocess.SubprocessError, FileNotFoundError):
         return {"valid": True, "error": "JavaScript validation skipped (node not available)"}
+
+
+def _validate_typescript_syntax(file_path: str) -> Dict[str, Any]:
+    """Validate TypeScript syntax using tsc.
+
+    Runs tsc --noEmit on the file and filters output for TS1xxx
+    syntax errors only, ignoring type errors (TS2xxx+) that may
+    arise from missing modules or type definitions.
+
+    Args:
+        file_path: Path to the TypeScript file
+
+    Returns:
+        Dict with 'valid' and 'error' keys
+    """
+    try:
+        result = subprocess.run(
+            ["tsc", "--noEmit", "--noResolve", "--skipLibCheck",
+             "--module", "esnext", "--target", "esnext",
+             "--moduleResolution", "bundler", file_path],
+            capture_output=True, text=True,
+            timeout=SyntaxValidationDefaults.TSC_TIMEOUT_SECONDS,
+        )
+        # Filter for syntax errors only (TS1xxx), ignore type errors (TS2xxx+)
+        combined = result.stdout + result.stderr
+        syntax_errors = re.findall(SyntaxValidationDefaults.TSC_SYNTAX_ERROR_PATTERN, combined)
+        if syntax_errors:
+            # Extract first syntax error line for the message
+            for line in combined.split("\n"):
+                if re.search(SyntaxValidationDefaults.TSC_SYNTAX_ERROR_PATTERN, line):
+                    return {"valid": False, "error": line.strip()}
+        return {"valid": True, "error": None}
+    except FileNotFoundError:
+        return {"valid": True, "error": "TypeScript validation skipped (tsc not available)"}
+    except subprocess.SubprocessError:
+        return {"valid": True, "error": "TypeScript validation skipped (tsc timed out)"}
 
 
 def _validate_java_syntax(file_path: str) -> Dict[str, Any]:
@@ -116,8 +156,8 @@ def validate_syntax(file_path: str, language: str) -> Dict[str, Any]:
         validators: Dict[str, Callable[[], Dict[str, Any]]] = {
             "python": lambda: _validate_python_syntax(content, file_path),
             "javascript": lambda: _validate_javascript_syntax(content),
-            "typescript": lambda: _validate_javascript_syntax(content),
-            "tsx": lambda: _validate_javascript_syntax(content),
+            "typescript": lambda: _validate_typescript_syntax(file_path),
+            "tsx": lambda: _validate_typescript_syntax(file_path),
             "jsx": lambda: _validate_javascript_syntax(content),
             "java": lambda: _validate_java_syntax(file_path),
         }
