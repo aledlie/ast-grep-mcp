@@ -34,6 +34,20 @@ EXCLUDE_PATTERNS = [
     "**/dist/**",
     "**/build/**",
     "**/.git/**",
+    "**/coverage/**",
+    "**/.next/**",
+    "**/.turbo/**",
+    "**/.cache/**",
+    "**/output/**",
+    "**/generated/**",
+    "**/logs/**",
+    "**/*.d.ts",
+    "**/*.min.js",
+    "**/*.min.css",
+    "**/*.map",
+    "**/vendor/**",
+    "**/.svelte-kit/**",
+    "**/.nuxt/**",
 ]
 TOP_FILES_COUNT = 5
 LANGUAGE_EXTENSIONS = {
@@ -63,10 +77,16 @@ def _discover_source_files(project_folder: str, language: str) -> list[Path]:
     folder = Path(project_folder)
     if not folder.is_dir():
         return []
-    exclude_set = {"node_modules", "__pycache__", "test_", "_test.", "/dist/", "/build/"}
+    exclude_dirs = {
+        "node_modules", "__pycache__", "dist", "build", ".git",
+        "coverage", ".next", ".turbo", ".cache", "output",
+        "generated", "logs", "vendor", ".svelte-kit", ".nuxt",
+    }
+    exclude_suffixes = {".d.ts", ".min.js", ".min.css", ".map"}
     return [
         f for f in sorted(folder.rglob(glob_pattern))
-        if not any(ex in str(f) for ex in exclude_set)
+        if not any(part in exclude_dirs for part in f.parts)
+        and not any(str(f).endswith(s) for s in exclude_suffixes)
     ]
 
 
