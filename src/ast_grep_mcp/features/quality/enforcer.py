@@ -107,6 +107,7 @@ def template_to_linting_rule(template: RuleTemplate) -> LintingRule:
         note=template.note,
         fix=template.fix,
         constraints=template.constraints,
+        exclude_files=template.exclude_files,
     )
 
 
@@ -353,8 +354,10 @@ def execute_rule(rule: LintingRule, context: RuleExecutionContext) -> List[RuleV
         for match in matches:
             violation = parse_match_to_violation(match, rule)
 
-            # Apply exclude patterns
+            # Apply exclude patterns (context-level and per-rule)
             if should_exclude_file(violation.file, context.exclude_patterns):
+                continue
+            if rule.exclude_files and should_exclude_file(violation.file, rule.exclude_files):
                 continue
 
             violations.append(violation)

@@ -9,6 +9,7 @@ import re
 import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -457,18 +458,32 @@ class LargeClassDetector(SmellDetector):
 class MagicNumberDetector(SmellDetector):
     """Detects magic numbers in code."""
 
-    def __init__(self, enabled: bool = True) -> None:
+    DEFAULT_EXCLUDE_FILES = ["**/constants.py", "**/constants.ts", "**/constants/**"]
+
+    def __init__(self, enabled: bool = True, exclude_files: List[str] | None = None) -> None:
         """Initialize magic number detector.
 
         Args:
             enabled: Whether detection is enabled
+            exclude_files: Glob patterns for files to skip (defaults to constants files)
         """
         self.enabled = enabled
+        self.exclude_files = exclude_files if exclude_files is not None else self.DEFAULT_EXCLUDE_FILES
         self.logger = get_logger("smell_detector.magic_number")
+
+    def _is_excluded(self, file_path: str) -> bool:
+        """Check if file matches any exclude pattern."""
+        name = Path(file_path).name
+        for pattern in self.exclude_files:
+            if fnmatch(file_path, pattern) or fnmatch(name, pattern.replace("**/", "")):
+                return True
+        return False
 
     def detect(self, file_path: str, content: str, language: str, project_path: Path) -> List[SmellInfo]:
         """Detect magic numbers in the code."""
         if not self.enabled:
+            return []
+        if self._is_excluded(file_path):
             return []
 
         smells = []

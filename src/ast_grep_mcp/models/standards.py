@@ -39,6 +39,7 @@ class LintingRule:
     note: Optional[str] = None
     fix: Optional[str] = None
     constraints: Optional[Dict[str, Any]] = None
+    exclude_files: List[str] = field(default_factory=list)
 
     def to_yaml_dict(self) -> Dict[str, Any]:
         """Convert to ast-grep YAML format.
@@ -100,6 +101,7 @@ class RuleTemplate:
     fix: Optional[str] = None
     category: str = "general"
     constraints: Optional[Dict[str, Any]] = None
+    exclude_files: List[str] = field(default_factory=list)
 
 
 @dataclass
