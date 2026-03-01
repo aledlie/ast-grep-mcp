@@ -82,6 +82,22 @@ def ts_project(tmp_path: Path) -> str:
     return str(tmp_path)
 
 
+PYTHON_BARE_EXCEPT = """\
+import json
+
+def parse_config(raw):
+    try:
+        return json.loads(raw)
+    except:
+        return {}
+
+def safe_divide(a, b):
+    try:
+        return a / b
+    except:
+        return None
+"""
+
 @pytest.fixture
 def py_project(tmp_path: Path) -> str:
     """Create a temp Python project with test files."""
@@ -93,6 +109,7 @@ def py_project(tmp_path: Path) -> str:
         "    print('hi')\n"
         "    return x\n"
     )
+    (src / "bare_except.py").write_text(PYTHON_BARE_EXCEPT)
     return str(tmp_path)
 
 
@@ -287,6 +304,63 @@ class TestEnforcementPipelineE2E:
         assert backup_dir.exists()
 
 
+# -- Tests: no-bare-except Fix -----------------------------------------------
+
+
+class TestNoBareExceptFixE2E:
+    """E2E: no-bare-except auto-fix replaces except: with except Exception:."""
+
+    def test_apply_fixes_converts_bare_except(self, py_project: str):
+        """Auto-fix should convert bare except: to except Exception:."""
+        result = enforce_standards_tool(
+            project_folder=py_project,
+            language="python",
+            rule_set="recommended",
+            include_patterns=["**/bare_except.py"],
+        )
+        violations = result.get("violations", [])
+        bare = [v for v in violations if v["rule_id"] == "no-bare-except"]
+        assert len(bare) == 2
+
+        fix_result = apply_standards_fixes_tool(
+            violations=bare,
+            language="python",
+            fix_types=["safe"],
+            dry_run=False,
+            create_backup=False,
+        )
+        assert fix_result["summary"]["fixes_successful"] == 2
+        assert fix_result["summary"]["fixes_failed"] == 0
+
+        content = (Path(py_project) / "src" / "bare_except.py").read_text()
+        assert "except:" not in content
+        assert content.count("except Exception:") == 2
+
+    def test_dry_run_does_not_modify_bare_except(self, py_project: str):
+        """Dry run should preview without changing files."""
+        original = (Path(py_project) / "src" / "bare_except.py").read_text()
+
+        result = enforce_standards_tool(
+            project_folder=py_project,
+            language="python",
+            rule_set="recommended",
+            include_patterns=["**/bare_except.py"],
+        )
+        violations = result.get("violations", [])
+        bare = [v for v in violations if v["rule_id"] == "no-bare-except"]
+
+        apply_standards_fixes_tool(
+            violations=bare,
+            language="python",
+            fix_types=["safe"],
+            dry_run=True,
+            create_backup=False,
+        )
+
+        after = (Path(py_project) / "src" / "bare_except.py").read_text()
+        assert original == after
+
+
 # -- Tests: Multi-Language Enforcement ---------------------------------------
 
 
@@ -325,6 +399,7 @@ class TestFixSafetyClassificationE2E:
         ("no-console-log", True),
         ("no-debugger", True),
         ("no-double-equals", True),
+        ("no-bare-except", True),
         ("no-empty-catch", False),
         ("no-eval-exec", False),
     ])

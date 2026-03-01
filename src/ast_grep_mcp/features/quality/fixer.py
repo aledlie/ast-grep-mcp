@@ -92,6 +92,49 @@ def classify_fix_safety(rule_id: str, violation: RuleViolation) -> FixValidation
 # =============================================================================
 
 
+def _splice_fixed_code(lines: List[str], start_line: int, end_line: int, snippet: str, fixed_code: str) -> List[str]:
+    """Replace a range of file lines with fixed code, preserving indentation.
+
+    ast-grep snippets strip the leading indent from the first line but keep
+    absolute indentation on subsequent lines.  This helper re-applies the
+    stripped indent so the replacement integrates cleanly into the file.
+
+    Each replacement line is emitted as a separate list entry (one ``\\n``
+    per entry) so that line indices remain valid for subsequent operations
+    on the same ``lines`` list.
+
+    Args:
+        lines: File lines (with line endings, from ``str.splitlines(keepends=True)``).
+        start_line: 0-indexed first line of the span to replace.
+        end_line: 0-indexed last line (inclusive) of the span to replace.
+        snippet: The original ``code_snippet`` returned by ast-grep.
+        fixed_code: The transformed code to splice in.
+
+    Returns:
+        A new list of lines with the replacement applied.
+    """
+    result = list(lines)
+
+    if start_line == end_line:
+        # Single-line — the snippet is a substring of the line, so a simple
+        # str.replace preserves surrounding whitespace.
+        result[start_line] = result[start_line].replace(snippet, fixed_code)
+    else:
+        # Multi-line — compute the indent that ast-grep stripped from line 0.
+        file_first = result[start_line]
+        leading_indent = file_first[: len(file_first) - len(file_first.lstrip())]
+
+        fixed_lines = fixed_code.split("\n")
+        fixed_lines[0] = leading_indent + fixed_lines[0]
+
+        # Emit each line as a separate entry with its own newline so that
+        # downstream line-index arithmetic stays correct.
+        replacement = [fl + "\n" for fl in fixed_lines]
+        result[start_line : end_line + 1] = replacement
+
+    return result
+
+
 def apply_pattern_fix(file_path: str, violation: RuleViolation, fix_pattern: str, language: str) -> FixResult:
     """Apply a pattern-based fix to a single violation.
 
@@ -140,14 +183,8 @@ def apply_pattern_fix(file_path: str, violation: RuleViolation, fix_pattern: str
                 fix_type="pattern",
             )
 
-        # Replace in file
-        if start_line == end_line:
-            # Single line fix
-            line = lines[start_line]
-            lines[start_line] = line.replace(original_code, fixed_code)
-        else:
-            # Multi-line fix
-            lines[start_line : end_line + 1] = [fixed_code + "\n"]
+        # Replace in file (indent-aware)
+        lines = _splice_fixed_code(lines, start_line, end_line, original_code, fixed_code)
 
         # Write back
         new_content = "".join(lines)
@@ -560,6 +597,7 @@ _RULE_CODE_TRANSFORMS: Dict[str, Any] = {
     "prefer-const": lambda code: code.replace("let ", "const ", 1),
     "no-var": lambda code: code.replace("var ", "const ", 1),
     "no-double-equals": lambda code: code.replace("==", "===", 1) if "!==" not in code else code.replace("!=", "!==", 1),
+    "no-bare-except": lambda code: code.replace("except:", "except Exception:", 1),
 }
 
 # Rules that should use line removal instead of pattern replacement.
