@@ -1,5 +1,15 @@
 # Backlog
 
+## Low Priority (P3)
+
+#### L1: `cost-estimation.ts` complexity exceeds thresholds
+**Priority**: P3 | **Source**: analyze_codebase.py run (2026-02-28)
+`cost-estimation.ts` has cyclomatic 44 / cognitive 59 / 258 lines — significantly above thresholds (20/30/150). Consider extracting sub-functions. -- `observability-toolkit/src/lib/cost/cost-estimation.ts`
+
+#### L2: `health-check.ts` complexity exceeds thresholds
+**Priority**: P3 | **Source**: analyze_codebase.py run (2026-02-28)
+`health-check.ts` has cyclomatic 31 / cognitive 44 / 174 lines. Consider decomposing the main function. -- `observability-toolkit/src/tools/health-check.ts`
+
 ## Medium Priority (P2)
 
 #### M1: Handle JS/TS brace counter edge cases
