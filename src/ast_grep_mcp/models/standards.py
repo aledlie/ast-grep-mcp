@@ -55,7 +55,9 @@ class LintingRule:
         }
 
         # Add rule configuration
-        rule_config: Dict[str, Any] = {"pattern": self.pattern}
+        rule_config: Dict[str, Any] = {}
+        if self.pattern:
+            rule_config["pattern"] = self.pattern
 
         # Add constraints if present
         if self.constraints:

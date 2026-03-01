@@ -86,10 +86,11 @@ RULE_TEMPLATES: Dict[str, RuleTemplate] = {
         description="Disallow empty catch blocks",
         language="typescript",
         severity="error",
-        pattern="catch ($E) {}",
+        pattern="",
         message="Empty catch block detected - handle the error or add a comment explaining why it's ignored",
         note="Empty catch blocks silently swallow errors, making debugging difficult.",
         category="security",
+        constraints={"kind": "catch_clause", "has": {"field": "body", "pattern": "{}"}},
     ),
     "no-any-type": RuleTemplate(
         id="no-any-type",
