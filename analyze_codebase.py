@@ -400,21 +400,20 @@ def _is_cli_entry_point(file_path: str) -> bool:
         return False
 
 
-# Rules that delete lines rather than replacing them — dangerous for CLI/test files.
+# Rules that delete lines rather than replacing them — dangerous for CLI entry points.
+# Directory/file-name patterns (scripts/, bin/, cli/, *_runner.py, etc.) are handled
+# by each rule's exclude_files in rules.py.  This filter catches the remaining case:
+# files containing `if __name__ == '__main__'` which can't be expressed as a glob.
 _DESTRUCTIVE_RULES = {"no-print-production", "no-console-log", "no-system-out"}
-
-# File patterns where print/console output is intentional user-facing output.
-_CLI_FILE_PATTERNS = {"cli", "runner", "main", "__main__", "test_", "_test", "pipeline"}
-
-# Directory patterns where print/console output is intentional.
-_CLI_DIR_PATTERNS = {"scripts", "pipeline-runners", "bin", "cli"}
 
 
 def _filter_destructive_violations(violations: list[dict]) -> tuple[list[dict], int]:
-    """Filter out violations where removal rules would delete intentional output.
+    """Filter out removal-rule violations targeting CLI entry points.
 
-    Removes violations from _DESTRUCTIVE_RULES when the target file is a CLI
-    entry point, test runner, or matches known CLI file patterns.
+    Skips violations from _DESTRUCTIVE_RULES when the target file contains
+    ``if __name__ == '__main__'``, indicating intentional user-facing output.
+    Directory and filename-based exclusions are handled at detection time by
+    each rule's ``exclude_files`` patterns.
 
     Returns:
         Tuple of (filtered_violations, skipped_count)
@@ -428,14 +427,6 @@ def _filter_destructive_violations(violations: list[dict]) -> tuple[list[dict], 
         file_path = v.get("file", "")
 
         if rule_id in _DESTRUCTIVE_RULES:
-            file_name = Path(file_path).stem
-            if any(p in file_name for p in _CLI_FILE_PATTERNS):
-                skipped += 1
-                continue
-            parts = Path(file_path).parts
-            if any(d in parts for d in _CLI_DIR_PATTERNS):
-                skipped += 1
-                continue
             if file_path not in cli_cache:
                 cli_cache[file_path] = _is_cli_entry_point(file_path)
             if cli_cache[file_path]:
