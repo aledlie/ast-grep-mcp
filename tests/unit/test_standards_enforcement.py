@@ -551,9 +551,9 @@ class TestParseMatchToViolation:
         violation = _parse_match_to_violation(match, rule)
 
         assert violation.file == "/path/to/file.py"
-        assert violation.line == 10
+        assert violation.line == 11  # ast-grep 0-indexed (10) → 1-indexed
         assert violation.column == 5
-        assert violation.end_line == 10
+        assert violation.end_line == 11  # ast-grep 0-indexed (10) → 1-indexed
         assert violation.end_column == 15
         assert violation.severity == "error"
         assert violation.rule_id == "no-eval"
@@ -580,7 +580,7 @@ class TestParseMatchToViolation:
 
         violation = _parse_match_to_violation(match, rule)
 
-        assert violation.line == 0
+        assert violation.line == 1  # default 0 + 1 = 1 (1-indexed)
         assert violation.column == 0
 
     def test_parse_multiline_match(self):
@@ -595,8 +595,8 @@ class TestParseMatchToViolation:
 
         violation = _parse_match_to_violation(match, rule)
 
-        assert violation.line == 10
-        assert violation.end_line == 15
+        assert violation.line == 11  # ast-grep 0-indexed (10) → 1-indexed
+        assert violation.end_line == 16  # ast-grep 0-indexed (15) → 1-indexed
 
 
 class TestShouldExcludeFile:
@@ -725,7 +725,7 @@ class TestExecuteRule:
 
         violations = _execute_rule(rule, context)
 
-        assert violations[0].line == 10
+        assert violations[0].line == 11  # ast-grep 0-indexed (10) → 1-indexed
         assert violations[0].column == 5
 
     @patch("ast_grep_mcp.core.executor.stream_ast_grep_results")
