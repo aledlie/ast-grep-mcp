@@ -426,8 +426,9 @@ def _handle_stream_error(
 
     stderr_output = process.stderr.read() if process.stderr else ""
 
-    # Exit code 1 with no stderr typically means "no matches found" - not an error
-    if returncode == 1 and not stderr_output.strip():
+    # Exit code 1 means "scan succeeded, found error-level diagnostics" or
+    # "no matches found" — neither is an execution error.
+    if returncode == 1:
         return
 
     execution_time = time.time() - start_time
