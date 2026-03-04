@@ -103,7 +103,7 @@ class PatternDetector:
             occurrences=len(occurrences),
             files_count=files_count,
             complexity_score=2.0,  # Simple pattern
-            fixture_value_score=9.0 if files_count >= 3 else 5.0,
+            fixture_value_score=9.0 if files_count >= SharedTopN.SMALL else 5.0,
             occurrences_list=occurrences,
             suggested_fixture_name="temp_dir",
             suggested_implementation="""@pytest.fixture
@@ -150,7 +150,7 @@ def temp_dir():
             occurrences=len(occurrences),
             files_count=files_count,
             complexity_score=4.0,
-            fixture_value_score=8.0 if files_count >= 3 else 4.0,
+            fixture_value_score=8.0 if files_count >= SharedTopN.SMALL else 4.0,
             occurrences_list=occurrences,
             suggested_fixture_name="temp_project_with_files",
             suggested_implementation="""@pytest.fixture
@@ -193,7 +193,7 @@ def temp_project_with_files(temp_dir):
             occurrences=len(occurrences),
             files_count=files_count,
             complexity_score=6.0,
-            fixture_value_score=9.0 if files_count >= 3 else 6.0,
+            fixture_value_score=9.0 if files_count >= SharedTopN.SMALL else 6.0,
             occurrences_list=occurrences,
             suggested_fixture_name="mock_popen",
             suggested_implementation="""@pytest.fixture
@@ -234,7 +234,7 @@ def mock_popen(monkeypatch):
             occurrences=len(occurrences),
             files_count=files_count,
             complexity_score=5.0,
-            fixture_value_score=8.0 if files_count >= 3 else 5.0,
+            fixture_value_score=8.0 if files_count >= SharedTopN.SMALL else 5.0,
             occurrences_list=occurrences,
             suggested_fixture_name="initialized_cache",
             suggested_implementation="""@pytest.fixture

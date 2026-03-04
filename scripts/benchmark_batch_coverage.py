@@ -19,7 +19,12 @@ import time
 from pathlib import Path
 from typing import Dict, List
 
-from ast_grep_mcp.constants import BenchmarkExpectationDefaults, FormattingDefaults, SemanticSimilarityDefaults
+from ast_grep_mcp.constants import (
+    BenchmarkExpectationDefaults,
+    FormattingDefaults,
+    ReportingDefaults,
+    SemanticSimilarityDefaults,
+)
 from ast_grep_mcp.utils.console_logger import console
 
 # Add project root to path
@@ -60,7 +65,7 @@ def create_test_candidates(file_count: int, files_per_candidate: int) -> List[Di
                     "id": f"candidate_{i}",
                     "files": [str(f) for f in file_slice],
                     "similarity": SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
-                    "lines_saved": 50,
+                    "lines_saved": ReportingDefaults.SIGNIFICANT_LINES_SAVED_THRESHOLD,
                 }
             )
 

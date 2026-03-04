@@ -155,7 +155,11 @@ JAVA_TO_KOTLIN_PATTERNS: List[Tuple[str, str, str]] = [
     (r"(\w+)\s*!=\s*null", r"\1 != null", "not_null"),
     (r"(\w+)\s*==\s*null", r"\1 == null", "is_null"),
     # String templates
-    (r'"(.+)"\s*\+\s*(\w+)\s*\+\s*"(.+)"', r'"$\1$\2$\3"', "string_concat"),
+    (
+        r'"(.+)"\s*\+\s*(\w+)\s*\+\s*"(.+)"',
+        f'"${RegexCaptureGroups.FIRST}${RegexCaptureGroups.SECOND}${RegexCaptureGroups.THIRD}"',
+        "string_concat",
+    ),
     # System.out
     (r"System\.out\.println\((.*?)\)", r"println(\1)", "println"),
     # New instance
