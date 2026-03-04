@@ -13,10 +13,16 @@ import re
 from pathlib import Path
 from typing import List, Tuple
 
-from ast_grep_mcp.constants import FormattingDefaults, SemanticVolumeDefaults
+from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.utils.console_logger import console
+from ast_grep_mcp.utils.slicing import take_top_n
 
 IMPORT_STMT = "from ast_grep_mcp.utils.console_logger import console"
+
+MIGRATION_CHANGES_SUMMARY_LIMIT = 10
+CLI_FILE_CHANGES_PREVIEW_LIMIT = 15
+TOP_MODIFIED_FILES_LIMIT = 5
+PER_FILE_CHANGES_PREVIEW_LIMIT = 3
 
 
 def smart_replace_print(line: str) -> Tuple[str, bool]:
@@ -202,7 +208,7 @@ def migrate_directory(dir_path: Path, pattern: str = "**/*.py", dry_run: bool = 
                 results["total_migrations"] += migrations
                 results["files"][str(file_path)] = {
                     "migrations": migrations,
-                    "changes": changes[:10],  # First 10 changes
+                    "changes": take_top_n(changes, MIGRATION_CHANGES_SUMMARY_LIMIT),
                 }
 
     return results
@@ -231,7 +237,7 @@ def main():
             migrations, changes = migrate_file(path, dry_run=args.dry_run)
             console.log(f"\n{'[DRY RUN] ' if args.dry_run else ''}Migrated {path.name}")
             console.log(f"Migrations: {migrations}")
-            for change in changes[:15]:
+            for change in take_top_n(changes, CLI_FILE_CHANGES_PREVIEW_LIMIT):
                 console.log(f"  {change}")
         else:
             results = migrate_directory(path, dry_run=args.dry_run)
@@ -251,13 +257,16 @@ def main():
 
         if results["files"]:
             console.log("\nTop modified files:")
-            for path, info in sorted(
-                results["files"].items(),
-                key=lambda x: x[1]["migrations"],
-                reverse=True,
-            )[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]:
+            for path, info in take_top_n(
+                sorted(
+                    results["files"].items(),
+                    key=lambda x: x[1]["migrations"],
+                    reverse=True,
+                ),
+                TOP_MODIFIED_FILES_LIMIT,
+            ):
                 console.log(f"\n{Path(path).name}: {info['migrations']} migrations")
-                for change in info["changes"][:3]:
+                for change in take_top_n(info["changes"], PER_FILE_CHANGES_PREVIEW_LIMIT):
                     console.log(f"  {change}")
 
     elif args.tests:

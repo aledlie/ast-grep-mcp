@@ -5,8 +5,9 @@ import json
 import sys
 from pathlib import Path
 
-from ast_grep_mcp.constants import FormattingDefaults, SemanticVolumeDefaults
+from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.utils.console_logger import console
+from ast_grep_mcp.utils.slicing import take_top_n
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -14,6 +15,9 @@ sys.path.insert(0, str(project_root))
 
 from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool, detect_code_smells_tool  # noqa: E402
 from ast_grep_mcp.features.quality.tools import detect_security_issues_tool  # noqa: E402
+
+TOP_COMPLEX_FUNCTIONS_PREVIEW_LIMIT = 3
+TOP_SECURITY_TYPES_PREVIEW_LIMIT = 5
 
 
 def analyze_project(project_path: str):
@@ -51,7 +55,7 @@ def analyze_project(project_path: str):
 
         if functions:
             console.log("\n   Top 3 most complex functions:")
-            for i, func in enumerate(functions[:3], 1):
+            for i, func in enumerate(take_top_n(functions, TOP_COMPLEX_FUNCTIONS_PREVIEW_LIMIT), 1):
                 console.log(f"   {i}. {func.get('file', 'unknown').split('/')[-1]} (lines {func.get('lines', '?')})")
                 console.log(
                     f"      Cyclomatic: {func.get('cyclomatic', 0)}, Cognitive: {func.get('cognitive', 0)}, Length: {func.get('length', 0)}"
@@ -115,7 +119,10 @@ def analyze_project(project_path: str):
                     console.log(f"     {severity.capitalize()}: {by_severity[severity]}")
 
             console.log("   By type:")
-            for issue_type, count in sorted(by_type.items(), key=lambda x: x[1], reverse=True)[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]:
+            for issue_type, count in take_top_n(
+                sorted(by_type.items(), key=lambda x: x[1], reverse=True),
+                TOP_SECURITY_TYPES_PREVIEW_LIMIT,
+            ):
                 console.log(f"     {issue_type}: {count}")
         else:
             console.log("   No security issues detected")
