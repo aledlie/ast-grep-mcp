@@ -76,13 +76,23 @@ class ComplexityStatisticsAggregator:
 
         try:
             # Get commit hash
-            commit_result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=project_folder, capture_output=True, text=True, timeout=ValidationDefaults.SYNTAX_CHECK_TIMEOUT_SECONDS)
+            commit_result = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=project_folder,
+                capture_output=True,
+                text=True,
+                timeout=ValidationDefaults.SYNTAX_CHECK_TIMEOUT_SECONDS,
+            )
             if commit_result.returncode == 0:
                 commit_hash = commit_result.stdout.strip() or None
 
             # Get branch name
             branch_result = subprocess.run(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=project_folder, capture_output=True, text=True, timeout=ValidationDefaults.SYNTAX_CHECK_TIMEOUT_SECONDS
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=project_folder,
+                capture_output=True,
+                text=True,
+                timeout=ValidationDefaults.SYNTAX_CHECK_TIMEOUT_SECONDS,
             )
             if branch_result.returncode == 0:
                 branch_name = branch_result.stdout.strip() or None

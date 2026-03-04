@@ -115,7 +115,11 @@ class PatternAnalyzer:
             rule_yaml = yaml.dump(rule)
 
             result = subprocess.run(
-                ["ast-grep", "scan", "--rule", "-", "--json", temp_path], input=rule_yaml, capture_output=True, text=True, timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS
+                ["ast-grep", "scan", "--rule", "-", "--json", temp_path],
+                input=rule_yaml,
+                capture_output=True,
+                text=True,
+                timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
             )
 
             if result.returncode == 0 and result.stdout.strip():
@@ -626,7 +630,11 @@ class PatternAnalyzer:
             rule_yaml = yaml.dump(rule)
 
             result = subprocess.run(
-                ["ast-grep", "scan", "--rule", "-", "--json", temp_path], input=rule_yaml, capture_output=True, text=True, timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS
+                ["ast-grep", "scan", "--rule", "-", "--json", temp_path],
+                input=rule_yaml,
+                capture_output=True,
+                text=True,
+                timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
             )
 
             if result.returncode == 0 and result.stdout.strip():

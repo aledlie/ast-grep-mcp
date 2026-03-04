@@ -186,7 +186,11 @@ def calculate_operation_cost(
 class UsageLogEntry(BaseModel):
     """A single usage log entry."""
 
-    id: str = Field(default_factory=lambda: hashlib.sha256(f"{time.time()}-{os.getpid()}".encode()).hexdigest()[:UsageTrackingDefaults.USAGE_ID_HASH_LENGTH])
+    id: str = Field(
+        default_factory=lambda: hashlib.sha256(f"{time.time()}-{os.getpid()}".encode()).hexdigest()[
+            : UsageTrackingDefaults.USAGE_ID_HASH_LENGTH
+        ]
+    )
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     tool_name: str
     operation_type: OperationType = OperationType.UNKNOWN

@@ -83,7 +83,11 @@ def classify_fix_safety(rule_id: str, violation: RuleViolation) -> FixValidation
 
     # Unknown pattern - conservative approach
     return FixValidation(
-        is_safe=False, confidence=PatternSuggestionConfidence.UNKNOWN_FIX, warnings=["Unknown fix pattern - manual review recommended"], errors=[], requires_review=True
+        is_safe=False,
+        confidence=PatternSuggestionConfidence.UNKNOWN_FIX,
+        warnings=["Unknown fix pattern - manual review recommended"],
+        errors=[],
+        requires_review=True,
     )
 
 

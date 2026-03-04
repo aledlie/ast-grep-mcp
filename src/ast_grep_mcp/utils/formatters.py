@@ -884,7 +884,12 @@ def format_java_code(code: str) -> str:
 
             try:
                 # Run google-java-format
-                _ = subprocess.run([formatter_path, "--replace", temp_path], capture_output=True, text=True, timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS)
+                _ = subprocess.run(
+                    [formatter_path, "--replace", temp_path],
+                    capture_output=True,
+                    text=True,
+                    timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
+                )
 
                 # Read formatted code
                 with open(temp_path, "r") as f:

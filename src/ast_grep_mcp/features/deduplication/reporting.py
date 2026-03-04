@@ -286,7 +286,11 @@ class DuplicationReporter:
             # Calculate priority based on multiple factors
             occurrences = len(candidate.get("files", []))
             lines = before_after["original_lines"]
-            priority = (occurrences * PriorityWeights.OCCURRENCE_WEIGHT) + (lines * PriorityWeights.LINE_WEIGHT) - (complexity * PriorityWeights.COMPLEXITY_PENALTY)
+            priority = (
+                (occurrences * PriorityWeights.OCCURRENCE_WEIGHT)
+                + (lines * PriorityWeights.LINE_WEIGHT)
+                - (complexity * PriorityWeights.COMPLEXITY_PENALTY)
+            )
 
             # Track total saveable lines
             total_lines_saveable += before_after["lines_saved"] * occurrences

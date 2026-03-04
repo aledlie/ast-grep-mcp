@@ -716,7 +716,10 @@ def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
             "semantic_pattern": Field(description="Semantic pattern to search for (e.g., 'async function', 'try catch')"),
             "languages": Field(default=None, description="Languages to search (['auto'] for auto-detection)"),
             "group_by": Field(default="semantic", description="Grouping strategy ('semantic', 'language', 'file')"),
-            "max_results_per_language": Field(default=CrossLanguageDefaults.MAX_RESULTS_PER_LANGUAGE, description="Maximum results per language"),
+            "max_results_per_language": Field(
+                default=CrossLanguageDefaults.MAX_RESULTS_PER_LANGUAGE,
+                description="Maximum results per language",
+            ),
         },
         "find_language_equivalents": {
             "pattern_description": Field(description="Description of the pattern to find (e.g., 'list comprehension')"),

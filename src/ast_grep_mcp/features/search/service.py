@@ -1848,7 +1848,11 @@ def _generate_pattern_suggestions(
             pattern=code.strip(),
             description="Exact match - matches this specific code only",
             type=SuggestionType.EXACT,
-            confidence=PatternSuggestionConfidence.EXACT_SIMPLE if analysis.complexity == "simple" else PatternSuggestionConfidence.EXACT_COMPLEX,
+            confidence=(
+                PatternSuggestionConfidence.EXACT_SIMPLE
+                if analysis.complexity == "simple"
+                else PatternSuggestionConfidence.EXACT_COMPLEX
+            ),
             notes="Good for finding exact duplicates",
         )
     )

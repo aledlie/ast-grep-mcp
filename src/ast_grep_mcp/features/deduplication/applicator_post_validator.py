@@ -82,7 +82,11 @@ class RefactoringPostValidator:
                         "suggestion": suggest_syntax_fix(result.get("error"), language, context="file"),
                     }
                 )
-                self.logger.warning("syntax_validation_failed", file=file_path, error=result.get("error", "")[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
+                self.logger.warning(
+                    "syntax_validation_failed",
+                    file=file_path,
+                    error=result.get("error", "")[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+                )
 
         except Exception as e:
             errors.append(

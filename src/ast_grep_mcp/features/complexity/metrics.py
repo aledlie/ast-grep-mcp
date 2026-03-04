@@ -152,7 +152,11 @@ def count_pattern_matches(code: str, pattern: str, language: str) -> int:
     """
     try:
         result = subprocess.run(
-            ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json"], input=code, capture_output=True, text=True, timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS
+            ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json"],
+            input=code,
+            capture_output=True,
+            text=True,
+            timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
         )
         if result.returncode == 0 and result.stdout.strip():
             matches = json.loads(result.stdout)

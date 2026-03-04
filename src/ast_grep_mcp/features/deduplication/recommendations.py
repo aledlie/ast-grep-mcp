@@ -10,10 +10,22 @@ STRATEGY_CONFIG = {
         "base_score": RecommendationDefaults.EXTRACT_FUNCTION_BASE_SCORE,
         "description": "Extract duplicate code into a shared function",
         "scoring_rules": [
-            {"condition": lambda c, ln, a, s, h: c <= RecommendationDefaults.EXTRACT_FN_LOW_COMPLEXITY, "adjustment": RecommendationDefaults.EXTRACT_FN_LOW_COMPLEXITY_BONUS},
-            {"condition": lambda c, ln, a, s, h: c > RecommendationDefaults.EXTRACT_FN_HIGH_COMPLEXITY, "adjustment": RecommendationDefaults.EXTRACT_FN_HIGH_COMPLEXITY_PENALTY},
-            {"condition": lambda c, ln, a, s, h: ln >= RecommendationDefaults.EXTRACT_FN_LINES_BONUS_THRESHOLD, "adjustment": RecommendationDefaults.EXTRACT_FN_LINES_BONUS},
-            {"condition": lambda c, ln, a, s, h: a >= RecommendationDefaults.EXTRACT_FN_FILES_THRESHOLD, "adjustment": RecommendationDefaults.EXTRACT_FN_FILES_BONUS},
+            {
+                "condition": lambda c, ln, a, s, h: c <= RecommendationDefaults.EXTRACT_FN_LOW_COMPLEXITY,
+                "adjustment": RecommendationDefaults.EXTRACT_FN_LOW_COMPLEXITY_BONUS,
+            },
+            {
+                "condition": lambda c, ln, a, s, h: c > RecommendationDefaults.EXTRACT_FN_HIGH_COMPLEXITY,
+                "adjustment": RecommendationDefaults.EXTRACT_FN_HIGH_COMPLEXITY_PENALTY,
+            },
+            {
+                "condition": lambda c, ln, a, s, h: ln >= RecommendationDefaults.EXTRACT_FN_LINES_BONUS_THRESHOLD,
+                "adjustment": RecommendationDefaults.EXTRACT_FN_LINES_BONUS,
+            },
+            {
+                "condition": lambda c, ln, a, s, h: a >= RecommendationDefaults.EXTRACT_FN_FILES_THRESHOLD,
+                "adjustment": RecommendationDefaults.EXTRACT_FN_FILES_BONUS,
+            },
         ],
         "effort_fn": lambda c, ln, a, h: "low" if c <= RecommendationDefaults.EXTRACT_FN_LOW_COMPLEXITY else "medium",
         "risk_fn": lambda c, ln, a, h: "low" if h else "medium",
@@ -23,11 +35,33 @@ STRATEGY_CONFIG = {
         "base_score": RecommendationDefaults.EXTRACT_CLASS_BASE_SCORE,
         "description": "Extract duplicate code into a shared class with state",
         "scoring_rules": [
-            {"condition": lambda c, ln, a, s, h: c > RecommendationDefaults.EXTRACT_CLS_HIGH_COMPLEXITY, "adjustment": RecommendationDefaults.EXTRACT_CLS_HIGH_COMPLEXITY_BONUS},
-            {"condition": lambda c, ln, a, s, h: RecommendationDefaults.EXTRACT_CLS_MID_COMPLEXITY_LOWER < c <= RecommendationDefaults.EXTRACT_CLS_HIGH_COMPLEXITY, "adjustment": RecommendationDefaults.EXTRACT_CLS_MID_COMPLEXITY_BONUS},
-            {"condition": lambda c, ln, a, s, h: ln >= RecommendationDefaults.EXTRACT_CLS_LINES_THRESHOLD, "adjustment": RecommendationDefaults.EXTRACT_CLS_LINES_BONUS},
-            {"condition": lambda c, ln, a, s, h: a >= RecommendationDefaults.EXTRACT_CLS_FILES_THRESHOLD, "adjustment": RecommendationDefaults.EXTRACT_CLS_FILES_BONUS},
-            {"condition": lambda c, ln, a, s, h: c <= RecommendationDefaults.EXTRACT_CLS_LOW_COMPLEXITY and ln < RecommendationDefaults.EXTRACT_CLS_LOW_LINES, "adjustment": RecommendationDefaults.EXTRACT_CLS_LOW_EFFORT_PENALTY},
+            {
+                "condition": lambda c, ln, a, s, h: c > RecommendationDefaults.EXTRACT_CLS_HIGH_COMPLEXITY,
+                "adjustment": RecommendationDefaults.EXTRACT_CLS_HIGH_COMPLEXITY_BONUS,
+            },
+            {
+                "condition": (
+                    lambda c, ln, a, s, h: RecommendationDefaults.EXTRACT_CLS_MID_COMPLEXITY_LOWER
+                    < c
+                    <= RecommendationDefaults.EXTRACT_CLS_HIGH_COMPLEXITY
+                ),
+                "adjustment": RecommendationDefaults.EXTRACT_CLS_MID_COMPLEXITY_BONUS,
+            },
+            {
+                "condition": lambda c, ln, a, s, h: ln >= RecommendationDefaults.EXTRACT_CLS_LINES_THRESHOLD,
+                "adjustment": RecommendationDefaults.EXTRACT_CLS_LINES_BONUS,
+            },
+            {
+                "condition": lambda c, ln, a, s, h: a >= RecommendationDefaults.EXTRACT_CLS_FILES_THRESHOLD,
+                "adjustment": RecommendationDefaults.EXTRACT_CLS_FILES_BONUS,
+            },
+            {
+                "condition": (
+                    lambda c, ln, a, s, h: c <= RecommendationDefaults.EXTRACT_CLS_LOW_COMPLEXITY
+                    and ln < RecommendationDefaults.EXTRACT_CLS_LOW_LINES
+                ),
+                "adjustment": RecommendationDefaults.EXTRACT_CLS_LOW_EFFORT_PENALTY,
+            },
         ],
         "effort_fn": lambda c, ln, a, h: "medium" if c <= RecommendationDefaults.EXTRACT_CLS_HIGH_COMPLEXITY else "high",
         "risk_fn": lambda c, ln, a, h: "medium" if h else "high",
@@ -37,11 +71,30 @@ STRATEGY_CONFIG = {
         "base_score": RecommendationDefaults.INLINE_BASE_SCORE,
         "description": "Keep code duplicated (intentional duplication)",
         "scoring_rules": [
-            {"condition": lambda c, ln, a, s, h: s < RecommendationDefaults.INLINE_LOW_SIMILARITY, "adjustment": RecommendationDefaults.INLINE_LOW_SIMILARITY_BONUS},
-            {"condition": lambda c, ln, a, s, h: RecommendationDefaults.INLINE_LOW_SIMILARITY <= s < RecommendationDefaults.INLINE_MID_SIMILARITY_UPPER, "adjustment": RecommendationDefaults.INLINE_MID_SIMILARITY_BONUS},
-            {"condition": lambda c, ln, a, s, h: a == 1, "adjustment": RecommendationDefaults.INLINE_SINGLE_FILE_BONUS},
-            {"condition": lambda c, ln, a, s, h: ln < RecommendationDefaults.INLINE_SMALL_LINES_THRESHOLD, "adjustment": RecommendationDefaults.INLINE_SMALL_LINES_BONUS},
-            {"condition": lambda c, ln, a, s, h: s > RecommendationDefaults.INLINE_HIGH_SIMILARITY, "adjustment": RecommendationDefaults.INLINE_HIGH_SIMILARITY_PENALTY},
+            {
+                "condition": lambda c, ln, a, s, h: s < RecommendationDefaults.INLINE_LOW_SIMILARITY,
+                "adjustment": RecommendationDefaults.INLINE_LOW_SIMILARITY_BONUS,
+            },
+            {
+                "condition": (
+                    lambda c, ln, a, s, h: RecommendationDefaults.INLINE_LOW_SIMILARITY
+                    <= s
+                    < RecommendationDefaults.INLINE_MID_SIMILARITY_UPPER
+                ),
+                "adjustment": RecommendationDefaults.INLINE_MID_SIMILARITY_BONUS,
+            },
+            {
+                "condition": lambda c, ln, a, s, h: a == 1,
+                "adjustment": RecommendationDefaults.INLINE_SINGLE_FILE_BONUS,
+            },
+            {
+                "condition": lambda c, ln, a, s, h: ln < RecommendationDefaults.INLINE_SMALL_LINES_THRESHOLD,
+                "adjustment": RecommendationDefaults.INLINE_SMALL_LINES_BONUS,
+            },
+            {
+                "condition": lambda c, ln, a, s, h: s > RecommendationDefaults.INLINE_HIGH_SIMILARITY,
+                "adjustment": RecommendationDefaults.INLINE_HIGH_SIMILARITY_PENALTY,
+            },
         ],
         "effort_fn": lambda c, ln, a, h: "none",
         "risk_fn": lambda c, ln, a, h: "none",
@@ -76,7 +129,10 @@ class RecommendationEngine:
             - effort_value_ratio: Numeric ratio (higher = better value)
         """
         # Calculate effort estimate based on complexity and affected files
-        base_effort = complexity * RecommendationDefaults.EFFORT_COMPLEXITY_WEIGHT + affected_files * RecommendationDefaults.EFFORT_FILES_WEIGHT
+        base_effort = (
+            complexity * RecommendationDefaults.EFFORT_COMPLEXITY_WEIGHT
+            + affected_files * RecommendationDefaults.EFFORT_FILES_WEIGHT
+        )
         if not has_tests:
             base_effort *= RecommendationDefaults.NO_TESTS_EFFORT_MULTIPLIER
 
