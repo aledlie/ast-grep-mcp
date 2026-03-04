@@ -59,6 +59,7 @@ def _write_project(tmp: str, files: dict[str, str]) -> None:
 # condense_extract_surface_tool
 # ---------------------------------------------------------------------------
 
+
 class TestExtractSurfaceTool:
     def test_nonexistent_path_returns_error(self):
         result = condense_extract_surface_tool("/nonexistent/xyz", "python")
@@ -90,6 +91,7 @@ class TestExtractSurfaceTool:
 # ---------------------------------------------------------------------------
 # condense_normalize_tool
 # ---------------------------------------------------------------------------
+
 
 class TestNormalizeTool:
     def test_nonexistent_path_returns_error(self):
@@ -125,6 +127,7 @@ class TestNormalizeTool:
 # ---------------------------------------------------------------------------
 # condense_strip_tool
 # ---------------------------------------------------------------------------
+
 
 class TestStripTool:
     def test_nonexistent_path_returns_error(self):
@@ -167,6 +170,7 @@ class TestStripTool:
 # condense_pack_tool
 # ---------------------------------------------------------------------------
 
+
 class TestPackTool:
     def test_invalid_strategy_returns_error_with_descriptions(self):
         result = condense_pack_tool("/tmp", strategy="banana")
@@ -188,9 +192,14 @@ class TestPackTool:
             _write_project(tmp, {"main.py": SAMPLE_PYTHON})
             result = condense_pack_tool(tmp, strategy="ai_analysis")
         for key in (
-            "condensed_output", "strategy", "files_processed",
-            "reduction_pct", "original_bytes", "condensed_bytes",
-            "original_tokens_est", "condensed_tokens_est",
+            "condensed_output",
+            "strategy",
+            "files_processed",
+            "reduction_pct",
+            "original_bytes",
+            "condensed_bytes",
+            "original_tokens_est",
+            "condensed_tokens_est",
             "per_language_stats",
         ):
             assert key in result, f"Missing key: {key}"
@@ -212,6 +221,7 @@ class TestPackTool:
 # condense_estimate_tool
 # ---------------------------------------------------------------------------
 
+
 class TestEstimateTool:
     def test_nonexistent_path_returns_error(self):
         result = condense_estimate_tool("/nonexistent/xyz")
@@ -222,8 +232,11 @@ class TestEstimateTool:
             _write_project(tmp, {"main.py": SAMPLE_PYTHON})
             result = condense_estimate_tool(tmp)
         for key in (
-            "total_files", "total_lines", "total_bytes",
-            "estimated_condensed_bytes", "estimated_tokens",
+            "total_files",
+            "total_lines",
+            "total_bytes",
+            "estimated_condensed_bytes",
+            "estimated_tokens",
             "top_reduction_candidates",
         ):
             assert key in result, f"Missing key: {key}"
@@ -231,10 +244,13 @@ class TestEstimateTool:
 
     def test_language_filter(self):
         with tempfile.TemporaryDirectory() as tmp:
-            _write_project(tmp, {
-                "a.py": "x = 1\n",
-                "b.ts": "const y = 2;\n",
-            })
+            _write_project(
+                tmp,
+                {
+                    "a.py": "x = 1\n",
+                    "b.ts": "const y = 2;\n",
+                },
+            )
             result = condense_estimate_tool(tmp, language="python")
         assert result["total_files"] == 1
 
@@ -247,6 +263,7 @@ class TestEstimateTool:
 # ---------------------------------------------------------------------------
 # condense_train_dictionary_tool
 # ---------------------------------------------------------------------------
+
 
 class TestTrainDictionaryTool:
     def test_nonexistent_path_returns_error(self):
@@ -266,9 +283,7 @@ class TestTrainDictionaryTool:
     def test_successful_training_mocked(self):
         with tempfile.TemporaryDirectory() as tmp:
             for i in range(15):
-                (Path(tmp) / f"m{i}.py").write_text(
-                    f"def func_{i}(x):\n    return x + {i}\n"
-                )
+                (Path(tmp) / f"m{i}.py").write_text(f"def func_{i}(x):\n    return x + {i}\n")
 
             def fake_write(samples: list, dict_path: Path) -> tuple[int, int]:
                 dict_path.write_bytes(b"\x00" * 1024)
@@ -280,8 +295,7 @@ class TestTrainDictionaryTool:
             ):
                 result = condense_train_dictionary_tool(tmp, language="python")
 
-        for key in ("dict_path", "dict_size_bytes", "samples_used",
-                     "estimated_improvement_pct", "language"):
+        for key in ("dict_path", "dict_size_bytes", "samples_used", "estimated_improvement_pct", "language"):
             assert key in result, f"Missing key: {key}"
         assert result["samples_used"] == 15
         assert result["language"] == "python"
@@ -297,6 +311,7 @@ class TestTrainDictionaryTool:
 # MCP registration
 # ---------------------------------------------------------------------------
 
+
 class TestRegisterCondenseTools:
     def test_all_tools_registered(self):
         from ast_grep_mcp.features.condense.tools import register_condense_tools
@@ -304,10 +319,12 @@ class TestRegisterCondenseTools:
         class MockMCP:
             def __init__(self):
                 self.tools: dict[str, object] = {}
+
             def tool(self):
                 def decorator(func):
                     self.tools[func.__name__] = func
                     return func
+
                 return decorator
 
         mcp = MockMCP()

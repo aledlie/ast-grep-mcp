@@ -157,7 +157,7 @@ def generate_docstrings_tool(
             "tool_failed",
             tool="generate_docstrings",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -273,7 +273,7 @@ def generate_readme_sections_tool(
             "tool_failed",
             tool="generate_readme_sections",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -408,7 +408,7 @@ def generate_api_docs_tool(
             "tool_failed",
             tool="generate_api_docs",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -550,7 +550,7 @@ def generate_changelog_tool(
             "tool_failed",
             tool="generate_changelog",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -680,7 +680,7 @@ def sync_documentation_tool(
             "tool_failed",
             tool="sync_documentation",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise

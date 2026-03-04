@@ -935,9 +935,7 @@ def get_docs(topic: str) -> str:
         sections = []
         for name, content in AST_GREP_DOCS.items():
             sections.append(
-                f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}\n"
-                f"{name.upper()}\n"
-                f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}\n\n{content}"
+                f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}\n{name.upper()}\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}\n\n{content}"
             )
         return "\n\n".join(sections)
 

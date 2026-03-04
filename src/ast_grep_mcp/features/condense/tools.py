@@ -46,6 +46,7 @@ def _resolve_file_path(path: str) -> Path:
 # Standalone tool functions (testable without MCP)
 # ---------------------------------------------------------------------------
 
+
 def condense_extract_surface_tool(
     path: str,
     language: str,
@@ -164,8 +165,11 @@ def condense_pack_tool(
         }
 
     logger.info(
-        "tool_invoked", tool="condense_pack",
-        path=path, strategy=strategy, language=language,
+        "tool_invoked",
+        tool="condense_pack",
+        path=path,
+        strategy=strategy,
+        language=language,
     )
     start = time.time()
 
@@ -222,8 +226,11 @@ def condense_train_dictionary_tool(
 ) -> Dict[str, Any]:
     """Train a zstd dictionary on representative code samples from a codebase."""
     logger.info(
-        "tool_invoked", tool="condense_train_dictionary",
-        path=path, language=language, sample_count=sample_count,
+        "tool_invoked",
+        tool="condense_train_dictionary",
+        path=path,
+        language=language,
+        sample_count=sample_count,
     )
     start = time.time()
 
@@ -251,6 +258,7 @@ def condense_train_dictionary_tool(
 # ---------------------------------------------------------------------------
 # MCP registration
 # ---------------------------------------------------------------------------
+
 
 def register_condense_tools(mcp: FastMCP) -> None:
     """Register all condense tools with the MCP server.
@@ -382,10 +390,7 @@ def register_condense_tools(mcp: FastMCP) -> None:
         ),
         output_dir: Optional[str] = Field(
             default=None,
-            description=(
-                "Directory to write the dictionary file. "
-                "Defaults to .condense/dictionaries/ inside path."
-            ),
+            description=("Directory to write the dictionary file. Defaults to .condense/dictionaries/ inside path."),
         ),
     ) -> Dict[str, Any]:
         """Train a zstd dictionary on representative code samples.

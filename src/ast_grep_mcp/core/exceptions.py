@@ -40,7 +40,7 @@ class InvalidYAMLError(AstGrepError):
         error_msg += "  rule:\n"
         error_msg += "    pattern: console.log($$$)\n"
         if yaml_content:
-            error_msg += f"\n\nProvided YAML:\n{yaml_content[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH]}"
+            error_msg += f"\n\nProvided YAML:\n{yaml_content[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH]}"
         super().__init__(error_msg)
 
 

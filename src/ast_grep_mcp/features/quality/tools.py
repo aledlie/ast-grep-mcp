@@ -195,7 +195,7 @@ def create_linting_rule_tool(
             "tool_failed",
             tool="create_linting_rule",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(
             e,
@@ -284,7 +284,7 @@ def list_rule_templates_tool(language: Optional[str] = None, category: Optional[
             "tool_failed",
             tool="list_rule_templates",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(
             e,
@@ -468,7 +468,7 @@ def enforce_standards_tool(
             "tool_failed",
             tool="enforce_standards",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(
             e,
@@ -660,7 +660,7 @@ def apply_standards_fixes_tool(
             "tool_failed",
             tool="apply_standards_fixes",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(
             e,
@@ -764,7 +764,7 @@ def generate_quality_report_tool(
             "tool_failed",
             tool="generate_quality_report",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(
             e,
@@ -990,7 +990,7 @@ def detect_security_issues_tool(
             "tool_failed",
             tool="detect_security_issues",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(
             e,
@@ -1119,7 +1119,7 @@ def detect_orphans_tool(
             "tool_failed",
             tool="detect_orphans",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(
             e,

@@ -5,7 +5,6 @@ absolute indentation on subsequent lines.  _splice_fixed_code must restore
 the stripped indent so the replacement integrates cleanly into the file.
 """
 
-
 from ast_grep_mcp.features.quality.fixer import _splice_fixed_code
 
 
@@ -17,6 +16,7 @@ def _lines(text: str) -> list[str]:
 # ---------------------------------------------------------------------------
 # Single-line replacements
 # ---------------------------------------------------------------------------
+
 
 class TestSingleLineSplice:
     """Single-line path: str.replace within the line preserves indent."""
@@ -56,6 +56,7 @@ class TestSingleLineSplice:
 # Multi-line replacements
 # ---------------------------------------------------------------------------
 
+
 class TestMultiLineSplice:
     """Multi-line path: re-applies stripped first-line indent."""
 
@@ -70,59 +71,27 @@ class TestMultiLineSplice:
 
     def test_bare_except_8space(self):
         """except: at 8-space indent, body at 12-space."""
-        lines = _lines(
-            "        try:\n"
-            "            x = 1\n"
-            "        except:\n"
-            "            pass\n"
-        )
+        lines = _lines("        try:\n            x = 1\n        except:\n            pass\n")
         snippet = "except:\n            pass"
         fixed = "except Exception:\n            pass"
         result = _splice_fixed_code(lines, 2, 3, snippet, fixed)
-        assert result == _lines(
-            "        try:\n"
-            "            x = 1\n"
-            "        except Exception:\n"
-            "            pass\n"
-        )
+        assert result == _lines("        try:\n            x = 1\n        except Exception:\n            pass\n")
 
     def test_bare_except_12space(self):
         """Deeply nested: 12-space indent."""
-        lines = _lines(
-            "            try:\n"
-            "                x = 1\n"
-            "            except:\n"
-            "                pass\n"
-        )
+        lines = _lines("            try:\n                x = 1\n            except:\n                pass\n")
         snippet = "except:\n                pass"
         fixed = "except Exception:\n                pass"
         result = _splice_fixed_code(lines, 2, 3, snippet, fixed)
-        assert result == _lines(
-            "            try:\n"
-            "                x = 1\n"
-            "            except Exception:\n"
-            "                pass\n"
-        )
+        assert result == _lines("            try:\n                x = 1\n            except Exception:\n                pass\n")
 
     def test_multi_line_body_preserved(self):
         """Multiple body lines keep their absolute indentation."""
-        lines = _lines(
-            "    try:\n"
-            "        x = 1\n"
-            "    except:\n"
-            "        log(err)\n"
-            "        return None\n"
-        )
+        lines = _lines("    try:\n        x = 1\n    except:\n        log(err)\n        return None\n")
         snippet = "except:\n        log(err)\n        return None"
         fixed = "except Exception:\n        log(err)\n        return None"
         result = _splice_fixed_code(lines, 2, 4, snippet, fixed)
-        assert result == _lines(
-            "    try:\n"
-            "        x = 1\n"
-            "    except Exception:\n"
-            "        log(err)\n"
-            "        return None\n"
-        )
+        assert result == _lines("    try:\n        x = 1\n    except Exception:\n        log(err)\n        return None\n")
 
     def test_surrounding_lines_untouched(self):
         """Lines before and after the replaced span are unchanged."""
@@ -170,8 +139,8 @@ class TestMultiLineSplice:
 # Edge cases
 # ---------------------------------------------------------------------------
 
-class TestSpliceEdgeCases:
 
+class TestSpliceEdgeCases:
     def test_does_not_mutate_input(self):
         """The original lines list must not be modified."""
         lines = _lines("    let x = 1;\n")

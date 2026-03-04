@@ -93,6 +93,7 @@ def _normalize_quotes_js(source: str) -> Tuple[str, int]:
 
 def _double_to_single_quotes(line: str) -> str:
     """Replace double-quoted strings with single-quoted in one line."""
+
     def replacer(m: re.Match[str]) -> str:
         inner = m.group(1)
         # Skip if already contains single quote (would need escaping)

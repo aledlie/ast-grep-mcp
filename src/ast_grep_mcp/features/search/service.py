@@ -810,7 +810,7 @@ def build_rule_impl(
     # Generate rule ID if not provided
     if not rule_id:
         hash_input = f"{pattern}{language}{inside}{has}"
-        rule_id = f"rule-{hashlib.md5(hash_input.encode()).hexdigest()[:8]}"
+        rule_id = f"rule-{hashlib.sha256(hash_input.encode()).hexdigest()[:8]}"
 
     # Build the rule object
     rule_obj: Dict[str, Any] = {"pattern": pattern}
@@ -1860,9 +1860,7 @@ def _generate_pattern_suggestions(
             description="Exact match - matches this specific code only",
             type=SuggestionType.EXACT,
             confidence=(
-                PatternSuggestionConfidence.EXACT_SIMPLE
-                if analysis.complexity == "simple"
-                else PatternSuggestionConfidence.EXACT_COMPLEX
+                PatternSuggestionConfidence.EXACT_SIMPLE if analysis.complexity == "simple" else PatternSuggestionConfidence.EXACT_COMPLEX
             ),
             notes="Good for finding exact duplicates",
         )
@@ -1942,10 +1940,12 @@ def _generate_refinement_steps(
         )
         priority += 1
 
+        code_preview = code[: DisplayDefaults.CONTENT_PREVIEW_LENGTH]
+        dump_syntax_tree_command = f'dump_syntax_tree(code="{code_preview}...", language="{language}", format="cst")'
         steps.append(
             RefinementStep(
                 action="Use dump_syntax_tree",
-                pattern=f'dump_syntax_tree(code="{code[:DisplayDefaults.CONTENT_PREVIEW_LENGTH]}...", language="{language}", format="cst")',
+                pattern=dump_syntax_tree_command,
                 explanation="Compare pattern AST with code AST to find structural mismatches",
                 priority=priority,
             )

@@ -1,7 +1,5 @@
 """Tests for dead code stripping."""
 
-
-
 from ast_grep_mcp.features.condense.strip import (
     _strip_js_ts,
     _strip_python,

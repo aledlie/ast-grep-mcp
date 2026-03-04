@@ -352,7 +352,7 @@ class UsageDatabase:
             )
         except Exception as e:
             # Never fail the main operation due to logging
-            logger.error("usage_log_failed", error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
+            logger.error("usage_log_failed", error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
 
     def get_stats(
         self,
@@ -694,7 +694,7 @@ def track_usage(
                 return result
             except Exception as e:
                 success = False
-                error_message = str(e)[:DisplayDefaults.ERROR_MESSAGE_MAX_LENGTH]
+                error_message = str(e)[: DisplayDefaults.ERROR_MESSAGE_MAX_LENGTH]
                 raise
             finally:
                 response_time_ms = int((time.perf_counter() - start_time) * 1000)
@@ -740,7 +740,7 @@ def track_usage(
                     get_usage_database().log_usage(entry)
                 except Exception as log_error:
                     # Never fail the main operation
-                    logger.error("usage_tracking_failed", error=str(log_error)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
+                    logger.error("usage_tracking_failed", error=str(log_error)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
 
         return cast(F, wrapper)
 
@@ -777,7 +777,7 @@ def track_operation(
         yield tracker
     except Exception as e:
         tracker.success = False
-        tracker.error_message = str(e)[:DisplayDefaults.ERROR_MESSAGE_MAX_LENGTH]
+        tracker.error_message = str(e)[: DisplayDefaults.ERROR_MESSAGE_MAX_LENGTH]
         raise
     finally:
         tracker._finalize()
@@ -824,7 +824,7 @@ class _OperationTracker:
         try:
             get_usage_database().log_usage(entry)
         except Exception as e:
-            logger.error("usage_tracking_failed", error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
+            logger.error("usage_tracking_failed", error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
 
 
 # =============================================================================

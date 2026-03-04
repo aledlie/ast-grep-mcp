@@ -96,17 +96,13 @@ def safe_divide(a, b):
         return None
 """
 
+
 @pytest.fixture
 def py_project(tmp_path: Path) -> str:
     """Create a temp Python project with test files."""
     src = tmp_path / "src"
     src.mkdir()
-    (src / "main.py").write_text(
-        "x = 10\n"
-        "def hello():\n"
-        "    print('hi')\n"
-        "    return x\n"
-    )
+    (src / "main.py").write_text("x = 10\ndef hello():\n    print('hi')\n    return x\n")
     (src / "bare_except.py").write_text(PYTHON_BARE_EXCEPT)
     return str(tmp_path)
 
@@ -391,16 +387,19 @@ class TestMultiLanguageEnforcementE2E:
 class TestFixSafetyClassificationE2E:
     """E2E: fix safety classification for all rule types."""
 
-    @pytest.mark.parametrize("rule_id,expected_safe", [
-        ("prefer-const", True),
-        ("no-var", True),
-        ("no-console-log", True),
-        ("no-debugger", True),
-        ("no-double-equals", True),
-        ("no-bare-except", True),
-        ("no-empty-catch", False),
-        ("no-eval-exec", False),
-    ])
+    @pytest.mark.parametrize(
+        "rule_id,expected_safe",
+        [
+            ("prefer-const", True),
+            ("no-var", True),
+            ("no-console-log", True),
+            ("no-debugger", True),
+            ("no-double-equals", True),
+            ("no-bare-except", True),
+            ("no-empty-catch", False),
+            ("no-eval-exec", False),
+        ],
+    )
     def test_classify_fix_safety(self, rule_id: str, expected_safe: bool):
         from ast_grep_mcp.models.standards import RuleViolation
 

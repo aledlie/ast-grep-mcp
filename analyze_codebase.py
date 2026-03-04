@@ -25,6 +25,7 @@ from ast_grep_mcp.features.deduplication.tools import analyze_deduplication_cand
 from ast_grep_mcp.features.quality.security_scanner import detect_security_issues_impl
 from ast_grep_mcp.features.quality.tools import apply_standards_fixes_tool, enforce_standards_tool, generate_quality_report_tool
 from ast_grep_mcp.models.complexity import ComplexityThresholds
+from ast_grep_mcp.utils.console_logger import console
 from ast_grep_mcp.utils.slicing import take_top_n
 
 DEFAULT_PROJECT_FOLDER = "src/ast_grep_mcp"
@@ -43,11 +44,16 @@ LANGUAGE_EXTENSIONS = {
 }
 
 
+def out(message: object = "") -> None:
+    """Emit CLI output via shared console logger."""
+    console.log(str(message))
+
+
 def print_section(title: str):
     """Print a formatted section header."""
-    print(f"\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
-    print(f" {title}")
-    print("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
+    out(f"\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
+    out(f" {title}")
+    out("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
 
 
 def _discover_source_files(project_folder: str, language: str) -> list[Path]:
@@ -62,9 +68,9 @@ def _discover_source_files(project_folder: str, language: str) -> list[Path]:
     # Derive suffixes from glob patterns like "**/*.min.js" -> ".min.js"
     exclude_suffixes = {p.removeprefix("**/").removeprefix("*") for p in FilePatterns.MINIFIED_EXCLUDE}
     return [
-        f for f in sorted(folder.rglob(glob_pattern))
-        if not any(part in exclude_dirs for part in f.parts)
-        and not any(str(f).endswith(s) for s in exclude_suffixes)
+        f
+        for f in sorted(folder.rglob(glob_pattern))
+        if not any(part in exclude_dirs for part in f.parts) and not any(str(f).endswith(s) for s in exclude_suffixes)
     ]
 
 
@@ -74,7 +80,7 @@ def analyze_individual_files(project_folder: str, language: str):
 
     source_files = _discover_source_files(project_folder, language)
     if not source_files:
-        print(f"\nNo {language} source files found in {project_folder}")
+        out(f"\nNo {language} source files found in {project_folder}")
         return
 
     # First pass: score each file by max cognitive complexity
@@ -97,33 +103,30 @@ def analyze_individual_files(project_folder: str, language: str):
         )
     ]
 
-    print(f"\nAnalyzing top {len(top_files)} most complex files out of {len(source_files)} total:")
+    out(f"\nAnalyzing top {len(top_files)} most complex files out of {len(source_files)} total:")
 
     for file_path in top_files:
-        print(f"\n--- {file_path} ---")
+        out(f"\n--- {file_path} ---")
         try:
             functions = analyze_file_complexity(file_path, language, thresholds)
-            critical = [
-                f for f in functions
-                if f.metrics.cyclomatic > thresholds.cyclomatic or f.metrics.cognitive > thresholds.cognitive
-            ]
+            critical = [f for f in functions if f.metrics.cyclomatic > thresholds.cyclomatic or f.metrics.cognitive > thresholds.cognitive]
 
-            print(f"Total functions: {len(functions)}")
-            print(f"Critical functions: {len(critical)}")
+            out(f"Total functions: {len(functions)}")
+            out(f"Critical functions: {len(critical)}")
 
             if critical:
-                print("\nWorst offenders:")
+                out("\nWorst offenders:")
                 for func in take_top_n(
                     sorted(critical, key=lambda x: x.metrics.cognitive, reverse=True),
                     AnalyzeCodebaseTopN.WORST_OFFENDERS,
                 ):
-                    print(f"  - {func.function_name} (line {func.start_line})")
-                    print(
+                    out(f"  - {func.function_name} (line {func.start_line})")
+                    out(
                         f"    Cyclomatic: {func.metrics.cyclomatic}, Cognitive: {func.metrics.cognitive}, "
                         f"Nesting: {func.metrics.nesting_depth}, Lines: {func.metrics.lines}"
                     )
         except Exception as e:
-            print(f"  Exception: {e}")
+            out(f"  Exception: {e}")
 
 
 def analyze_project_complexity(project_folder: str, language: str):
@@ -142,17 +145,17 @@ def analyze_project_complexity(project_folder: str, language: str):
 
         if result.get("success"):
             summary = result.get("summary", {})
-            print(f"\nTotal functions analyzed: {summary.get('total_functions', 0)}")
-            print(f"Functions exceeding thresholds: {summary.get('exceeding_thresholds', 0)}")
-            print(f"Percentage over threshold: {summary.get('percentage_exceeding', 0):.1f}%")
-            print(f"\nAverage cyclomatic complexity: {summary.get('average_cyclomatic', 0):.2f}")
-            print(f"Average cognitive complexity: {summary.get('average_cognitive', 0):.2f}")
-            print(f"Average nesting depth: {summary.get('average_nesting', 0):.2f}")
-            print(f"Average function length: {summary.get('average_length', 0):.1f} lines")
+            out(f"\nTotal functions analyzed: {summary.get('total_functions', 0)}")
+            out(f"Functions exceeding thresholds: {summary.get('exceeding_thresholds', 0)}")
+            out(f"Percentage over threshold: {summary.get('percentage_exceeding', 0):.1f}%")
+            out(f"\nAverage cyclomatic complexity: {summary.get('average_cyclomatic', 0):.2f}")
+            out(f"Average cognitive complexity: {summary.get('average_cognitive', 0):.2f}")
+            out(f"Average nesting depth: {summary.get('average_nesting', 0):.2f}")
+            out(f"Average function length: {summary.get('average_length', 0):.1f} lines")
 
             exceeding = result.get("exceeding_functions", [])
             if exceeding:
-                print("\nTop 10 most complex functions by cognitive complexity:")
+                out("\nTop 10 most complex functions by cognitive complexity:")
                 for i, func in enumerate(
                     take_top_n(
                         sorted(exceeding, key=lambda x: x.get("cognitive", 0), reverse=True),
@@ -160,15 +163,15 @@ def analyze_project_complexity(project_folder: str, language: str):
                     ),
                     1,
                 ):
-                    print(f"  {i}. {func['file']}:{func['name']} (line {func['start_line']})")
-                    print(
+                    out(f"  {i}. {func['file']}:{func['name']} (line {func['start_line']})")
+                    out(
                         f"     Cyclomatic: {func['cyclomatic']}, Cognitive: {func['cognitive']}, "
                         f"Nesting: {func['nesting_depth']}, Lines: {func['length']}"
                     )
         else:
-            print(f"Error: {result.get('error')}")
+            out(f"Error: {result.get('error')}")
     except Exception as e:
-        print(f"Exception during project complexity analysis: {e}")
+        out(f"Exception during project complexity analysis: {e}")
         import traceback
 
         traceback.print_exc()
@@ -188,27 +191,27 @@ def detect_code_smells(project_folder: str, language: str):
 
         if result.get("success"):
             summary = result.get("summary", {})
-            print(f"\nTotal files analyzed: {summary.get('total_files', 0)}")
-            print(f"Files with smells: {summary.get('files_with_smells', 0)}")
-            print(f"Total smells found: {summary.get('total_smells', 0)}")
+            out(f"\nTotal files analyzed: {summary.get('total_files', 0)}")
+            out(f"Files with smells: {summary.get('files_with_smells', 0)}")
+            out(f"Total smells found: {summary.get('total_smells', 0)}")
 
             by_severity = summary.get("by_severity", {})
-            print("\nBy severity:")
-            print(f"  High: {by_severity.get('high', 0)}")
-            print(f"  Medium: {by_severity.get('medium', 0)}")
-            print(f"  Low: {by_severity.get('low', 0)}")
+            out("\nBy severity:")
+            out(f"  High: {by_severity.get('high', 0)}")
+            out(f"  Medium: {by_severity.get('medium', 0)}")
+            out(f"  Low: {by_severity.get('low', 0)}")
 
             smells = result.get("smells", [])
             if smells:
-                print("\nTop 10 code smells:")
+                out("\nTop 10 code smells:")
                 for smell in take_top_n(smells, AnalyzeCodebaseTopN.TOP_SMELLS_PREVIEW):
-                    print(f"  - [{smell.get('severity', 'unknown').upper()}] {smell.get('type', 'unknown')}")
-                    print(f"    File: {smell.get('file', 'unknown')}:{smell.get('line', '?')}")
-                    print(f"    {smell.get('message', 'No message')}")
+                    out(f"  - [{smell.get('severity', 'unknown').upper()}] {smell.get('type', 'unknown')}")
+                    out(f"    File: {smell.get('file', 'unknown')}:{smell.get('line', '?')}")
+                    out(f"    {smell.get('message', 'No message')}")
         else:
-            print(f"Error: {result.get('error')}")
+            out(f"Error: {result.get('error')}")
     except Exception as e:
-        print(f"Exception during code smell detection: {e}")
+        out(f"Exception during code smell detection: {e}")
         import traceback
 
         traceback.print_exc()
@@ -225,30 +228,30 @@ def detect_security_issues(project_folder: str, language: str):
         )
 
         summary = result.summary
-        print(f"\nTotal files scanned: {summary.get('total_files', 0)}")
-        print(f"Total issues found: {summary.get('total_issues', 0)}")
+        out(f"\nTotal files scanned: {summary.get('total_files', 0)}")
+        out(f"Total issues found: {summary.get('total_issues', 0)}")
 
         by_severity = summary.get("by_severity", {})
-        print("\nBy severity:")
-        print(f"  Critical: {by_severity.get('critical', 0)}")
-        print(f"  High: {by_severity.get('high', 0)}")
-        print(f"  Medium: {by_severity.get('medium', 0)}")
-        print(f"  Low: {by_severity.get('low', 0)}")
+        out("\nBy severity:")
+        out(f"  Critical: {by_severity.get('critical', 0)}")
+        out(f"  High: {by_severity.get('high', 0)}")
+        out(f"  Medium: {by_severity.get('medium', 0)}")
+        out(f"  Low: {by_severity.get('low', 0)}")
 
         by_category = summary.get("by_category", {})
         if by_category:
-            print("\nBy category:")
+            out("\nBy category:")
             for category, count in sorted(by_category.items(), key=lambda x: x[1], reverse=True):
-                print(f"  {category}: {count}")
+                out(f"  {category}: {count}")
 
         if result.issues:
-            print("\nTop 10 security issues:")
+            out("\nTop 10 security issues:")
             for issue in take_top_n(result.issues, AnalyzeCodebaseTopN.TOP_SECURITY_ISSUES_PREVIEW):
-                print(f"  - [{issue.severity.upper()}] {issue.issue_type}")
-                print(f"    File: {issue.file}:{issue.line}")
-                print(f"    {issue.description}")
+                out(f"  - [{issue.severity.upper()}] {issue.issue_type}")
+                out(f"    File: {issue.file}:{issue.line}")
+                out(f"    {issue.description}")
     except Exception as e:
-        print(f"Exception during security scanning: {e}")
+        out(f"Exception during security scanning: {e}")
         import traceback
 
         traceback.print_exc()
@@ -269,7 +272,7 @@ def analyze_duplication(project_folder: str, language: str):
 
         groups = find_result.get("groups", [])
         if not groups:
-            print("\nNo duplication groups found.")
+            out("\nNo duplication groups found.")
             return
 
         result = analyze_deduplication_candidates_tool(
@@ -282,30 +285,30 @@ def analyze_duplication(project_folder: str, language: str):
 
         if result.get("success"):
             summary = result.get("summary", {})
-            print(f"\nTotal files analyzed: {summary.get('total_files', 0)}")
-            print(f"Duplication groups found: {summary.get('total_groups', 0)}")
-            print(f"Total duplicated instances: {summary.get('total_instances', 0)}")
+            out(f"\nTotal files analyzed: {summary.get('total_files', 0)}")
+            out(f"Duplication groups found: {summary.get('total_groups', 0)}")
+            out(f"Total duplicated instances: {summary.get('total_instances', 0)}")
 
             if summary.get("total_groups", 0) > 0:
-                print(f"Average group size: {summary.get('average_group_size', 0):.1f} instances")
-                print(f"Average similarity: {summary.get('average_similarity', 0):.1%}")
-                print(f"Estimated LOC savings: {summary.get('estimated_loc_savings', 0)}")
+                out(f"Average group size: {summary.get('average_group_size', 0):.1f} instances")
+                out(f"Average similarity: {summary.get('average_similarity', 0):.1%}")
+                out(f"Estimated LOC savings: {summary.get('estimated_loc_savings', 0)}")
 
             dedup_groups = result.get("groups", [])
             if dedup_groups:
-                print(f"\nTop {SemanticVolumeDefaults.TOP_RESULTS_LIMIT} duplication groups by potential savings:")
+                out(f"\nTop {SemanticVolumeDefaults.TOP_RESULTS_LIMIT} duplication groups by potential savings:")
                 for i, group in enumerate(dedup_groups[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT], 1):
-                    print(f"  {i}. Group with {group.get('instance_count', 0)} instances ({group.get('similarity', 0):.1%} similar)")
-                    print(f"     Potential LOC savings: {group.get('potential_loc_savings', 0)} lines")
+                    out(f"  {i}. Group with {group.get('instance_count', 0)} instances ({group.get('similarity', 0):.1%} similar)")
+                    out(f"     Potential LOC savings: {group.get('potential_loc_savings', 0)} lines")
                     instances = group.get("instances", [])
                     if instances:
-                        print("     Locations:")
+                        out("     Locations:")
                         for inst in take_top_n(instances, AnalyzeCodebaseTopN.DUPLICATION_LOCATION_PREVIEW):
-                            print(f"       - {inst.get('file', 'unknown')}:{inst.get('start_line', '?')}")
+                            out(f"       - {inst.get('file', 'unknown')}:{inst.get('start_line', '?')}")
         else:
-            print(f"Error: {result.get('error')}")
+            out(f"Error: {result.get('error')}")
     except Exception as e:
-        print(f"Exception during duplication analysis: {e}")
+        out(f"Exception during duplication analysis: {e}")
         import traceback
 
         traceback.print_exc()
@@ -332,32 +335,32 @@ def generate_summary_report(project_folder: str, language: str, apply_fixes: boo
         )
 
         if result.get("success"):
-            print("\nQuality report generated successfully!")
+            out("\nQuality report generated successfully!")
             report_path = result.get("file_path")
             if report_path:
-                print(f"Report saved to: {report_path}")
+                out(f"Report saved to: {report_path}")
 
             report_content = result.get("report", "")
             if report_content:
-                print("\nReport Summary:")
+                out("\nReport Summary:")
                 lines = report_content.split("\n")
                 in_summary = False
                 for line in lines[: SemanticVolumeDefaults.SUMMARY_PREVIEW_LIMIT]:
                     if "## Summary" in line or "## Executive Summary" in line:
                         in_summary = True
                     if in_summary:
-                        print(line)
+                        out(line)
                         if line.startswith("##") and "Summary" not in line:
                             break
         else:
-            print(f"Error: {result.get('error')}")
+            out(f"Error: {result.get('error')}")
 
         # Apply fixes if requested
         if apply_fixes:
             _apply_fixes(enforcement_result, language, project_folder=project_folder)
 
     except Exception as e:
-        print(f"Exception during report generation: {e}")
+        out(f"Exception during report generation: {e}")
         import traceback
 
         traceback.print_exc()
@@ -376,7 +379,7 @@ def _run_tsc_check(project_folder: str) -> bool:
     if not tsconfig.exists():
         return True
 
-    print("\nRunning tsc --noEmit to verify fixes...")
+    out("\nRunning tsc --noEmit to verify fixes...")
     try:
         result = subprocess.run(
             ["npx", "tsc", "--noEmit"],
@@ -386,24 +389,24 @@ def _run_tsc_check(project_folder: str) -> bool:
             timeout=120,
         )
         if result.returncode == 0:
-            print("tsc --noEmit: PASSED (no type errors)")
+            out("tsc --noEmit: PASSED (no type errors)")
             return True
 
         error_lines = result.stdout.strip().splitlines() if result.stdout else []
         error_count = sum(1 for line in error_lines if ": error TS" in line)
-        print(f"tsc --noEmit: FAILED ({error_count} type errors)")
+        out(f"tsc --noEmit: FAILED ({error_count} type errors)")
         # Show bounded error preview
         for line in error_lines[: SemanticVolumeDefaults.DETAIL_RESULTS_LIMIT]:
             if ": error TS" in line:
-                print(f"  {line}")
+                out(f"  {line}")
         if error_count > SemanticVolumeDefaults.DETAIL_RESULTS_LIMIT:
-            print(f"  ... and {error_count - SemanticVolumeDefaults.DETAIL_RESULTS_LIMIT} more errors")
+            out(f"  ... and {error_count - SemanticVolumeDefaults.DETAIL_RESULTS_LIMIT} more errors")
         return False
     except FileNotFoundError:
-        print("tsc not found, skipping type check")
+        out("tsc not found, skipping type check")
         return True
     except subprocess.TimeoutExpired:
-        print("tsc --noEmit timed out after 120s, skipping")
+        out("tsc --noEmit timed out after 120s, skipping")
         return True
 
 
@@ -411,7 +414,7 @@ def _is_cli_entry_point(file_path: str) -> bool:
     """Check if a file is a CLI entry point (has if __name__ == '__main__')."""
     try:
         content = Path(file_path).read_text(encoding="utf-8")
-        return '__name__' in content and "'__main__'" in content or '"__main__"' in content
+        return "__name__" in content and "'__main__'" in content or '"__main__"' in content
     except (OSError, UnicodeDecodeError):
         return False
 
@@ -460,15 +463,15 @@ def _apply_fixes(enforcement_result: dict, language: str, project_folder: str = 
 
     violations = enforcement_result.get("violations", [])
     if not violations:
-        print("\nNo violations to fix.")
+        out("\nNo violations to fix.")
         return
 
     # Filter out destructive fixes targeting CLI scripts and test runners
     violations, skipped = _filter_destructive_violations(violations)
     if skipped:
-        print(f"\nSkipped {skipped} violations in CLI/test files (removal rules would delete intentional output)")
+        out(f"\nSkipped {skipped} violations in CLI/test files (removal rules would delete intentional output)")
     if not violations:
-        print("No remaining violations to fix after filtering.")
+        out("No remaining violations to fix after filtering.")
         return
 
     try:
@@ -484,10 +487,10 @@ def _apply_fixes(enforcement_result: dict, language: str, project_folder: str = 
         summary = dry_result.get("summary", {})
         fixable = summary.get("total_violations", 0)
         safe_count = sum(1 for r in dry_result.get("results", []) if r.get("fix_type") == "safe")
-        print(f"\nDry run: {safe_count} of {fixable} violations can be auto-fixed (safe fixes only)")
+        out(f"\nDry run: {safe_count} of {fixable} violations can be auto-fixed (safe fixes only)")
 
         if safe_count == 0:
-            print("No auto-fixable violations found.")
+            out("No auto-fixable violations found.")
             return
 
         # Apply fixes
@@ -500,21 +503,21 @@ def _apply_fixes(enforcement_result: dict, language: str, project_folder: str = 
         )
 
         fix_summary = fix_result.get("summary", {})
-        print(f"\nFixed: {fix_summary.get('fixes_successful', 0)} violations")
-        print(f"Failed: {fix_summary.get('fixes_failed', 0)}")
-        print(f"Files modified: {fix_summary.get('files_modified', 0)}")
+        out(f"\nFixed: {fix_summary.get('fixes_successful', 0)} violations")
+        out(f"Failed: {fix_summary.get('fixes_failed', 0)}")
+        out(f"Files modified: {fix_summary.get('files_modified', 0)}")
         backup_id = fix_result.get("backup_id")
         if backup_id:
-            print(f"Backup ID: {backup_id}")
+            out(f"Backup ID: {backup_id}")
 
         # Post-fix type check for TypeScript
         if language == "typescript" and project_folder:
             if not _run_tsc_check(project_folder):
-                print(f"\nWARNING: Type errors detected after fixes. Backup available: {backup_id}")
-                print("Review errors above and restore from backup if needed.")
+                out(f"\nWARNING: Type errors detected after fixes. Backup available: {backup_id}")
+                out("Review errors above and restore from backup if needed.")
 
     except Exception as e:
-        print(f"Exception during fix application: {e}")
+        out(f"Exception during fix application: {e}")
         import traceback
 
         traceback.print_exc()
@@ -522,9 +525,7 @@ def _apply_fixes(enforcement_result: dict, language: str, project_folder: str = 
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Comprehensive codebase analysis using MCP tools."
-    )
+    parser = argparse.ArgumentParser(description="Comprehensive codebase analysis using MCP tools.")
     parser.add_argument(
         "project_folder",
         nargs="?",
@@ -532,7 +533,8 @@ def parse_args() -> argparse.Namespace:
         help=f"Path to the project folder to analyze (default: {DEFAULT_PROJECT_FOLDER})",
     )
     parser.add_argument(
-        "-l", "--language",
+        "-l",
+        "--language",
         default=DEFAULT_LANGUAGE,
         help=f"Source language (default: {DEFAULT_LANGUAGE})",
     )
@@ -552,15 +554,15 @@ def main():
 
     folder = Path(project_folder)
     if not folder.is_dir():
-        print(f"Error: '{project_folder}' is not a valid directory")
+        out(f"Error: '{project_folder}' is not a valid directory")
         sys.exit(1)
 
-    print("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
-    print(f" COMPREHENSIVE CODEBASE ANALYSIS - {project_folder}")
-    print("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
-    print(f"\nTarget: {project_folder} ({language})")
-    print("This analysis uses MCP tools to evaluate code quality,")
-    print("complexity, security, and duplication opportunities.\n")
+    out("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
+    out(f" COMPREHENSIVE CODEBASE ANALYSIS - {project_folder}")
+    out("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
+    out(f"\nTarget: {project_folder} ({language})")
+    out("This analysis uses MCP tools to evaluate code quality,")
+    out("complexity, security, and duplication opportunities.\n")
 
     analyze_individual_files(project_folder, language)
     analyze_project_complexity(project_folder, language)
@@ -570,8 +572,8 @@ def main():
     generate_summary_report(project_folder, language, apply_fixes=args.fix)
 
     print_section("ANALYSIS COMPLETE")
-    print("\nAll phases completed. Review the output above and QUALITY_REPORT.md")
-    print("for detailed findings and recommendations.")
+    out("\nAll phases completed. Review the output above and QUALITY_REPORT.md")
+    out("for detailed findings and recommendations.")
 
 
 if __name__ == "__main__":

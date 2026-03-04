@@ -292,7 +292,7 @@ def initialized_cache():
 
         if frequent_imports:
             most_common = max(frequent_imports.items(), key=lambda x: x[1])
-            description = f"Frequently imported: {', '.join(list(frequent_imports.keys())[:SharedTopN.STANDARD])}"
+            description = f"Frequently imported: {', '.join(list(frequent_imports.keys())[: SharedTopN.STANDARD])}"
         else:
             description = "No frequently repeated imports detected"
             most_common = ("unknown", 0)
@@ -304,7 +304,7 @@ def initialized_cache():
             files_count=files_count,
             complexity_score=3.0,
             fixture_value_score=FIXTURE_VALUE_RECOMMENDED if most_common[1] >= SharedTopN.STANDARD else FIXTURE_VALUE_MIN,
-            occurrences_list=occurrences[:SemanticVolumeDefaults.DETAIL_RESULTS_LIMIT],
+            occurrences_list=occurrences[: SemanticVolumeDefaults.DETAIL_RESULTS_LIMIT],
             suggested_fixture_name="mcp_tools",
             suggested_implementation="""@pytest.fixture
 def mcp_tools():
@@ -403,7 +403,7 @@ def format_pattern_report(patterns: List[DetectedPattern], detailed: bool = Fals
             if pattern.occurrences_list:
                 lines.append(f"\nExample Occurrences (showing first {SharedTopN.STANDARD}):")
                 lines.append("-" * 100)
-                for occ in pattern.occurrences_list[:SharedTopN.STANDARD]:
+                for occ in pattern.occurrences_list[: SharedTopN.STANDARD]:
                     lines.append(f"\nFile: {occ.file}, Line: {occ.line_number}, Function: {occ.function_name}")
                     lines.append("Code:")
                     for line in occ.code_snippet.splitlines():

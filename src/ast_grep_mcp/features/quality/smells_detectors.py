@@ -4,6 +4,7 @@ This module contains individual detector classes for each type of code smell,
 following the strategy pattern for extensibility and maintainability.
 """
 
+import ast
 import json
 import re
 import subprocess
@@ -557,9 +558,35 @@ class MagicNumberDetector(SmellDetector):
 
     def _should_skip_line(self, line: str) -> bool:
         """Check if the entire line should be skipped."""
+        if self._is_uppercase_numeric_constant_assignment(line):
+            return True
         for pattern in self._LINE_EXCLUDE_PATTERNS:
             if re.search(pattern, line, re.IGNORECASE):
                 return True
+        return False
+
+    @staticmethod
+    def _is_uppercase_numeric_constant_assignment(line: str) -> bool:
+        """Return True for UPPER_CASE assignments to number/list/tuple values."""
+        stripped_line = line.strip()
+        if not stripped_line:
+            return False
+
+        code_only = stripped_line.split("#", 1)[0].strip()
+        match = re.match(r"^([A-Z][A-Z0-9_]*)(?:\s*:\s*[^=]+)?\s*=\s*(.+)$", code_only)
+        if not match:
+            return False
+
+        rhs = match.group(2).strip()
+        try:
+            value = ast.literal_eval(rhs)
+        except (SyntaxError, ValueError):
+            return False
+
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return True
+        if isinstance(value, (list, tuple)):
+            return all(isinstance(item, (int, float)) and not isinstance(item, bool) for item in value)
         return False
 
     def _extract_magic_from_line(self, line: str) -> List[str]:
@@ -601,9 +628,9 @@ class MagicNumberDetector(SmellDetector):
         if language.lower() not in ("python",):
             return lines_in_docstrings
 
-        for match in re.finditer(r'(\"\"\"[\s\S]*?\"\"\"|\'\'\'[\s\S]*?\'\'\')', content):
-            start_line = content[:match.start()].count("\n") + 1
-            end_line = content[:match.end()].count("\n") + 1
+        for match in re.finditer(r"(\"\"\"[\s\S]*?\"\"\"|\'\'\'[\s\S]*?\'\'\')", content):
+            start_line = content[: match.start()].count("\n") + 1
+            end_line = content[: match.end()].count("\n") + 1
             for ln in range(start_line, end_line + 1):
                 lines_in_docstrings.add(ln)
 

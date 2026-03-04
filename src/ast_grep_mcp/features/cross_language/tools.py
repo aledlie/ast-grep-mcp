@@ -233,7 +233,7 @@ def search_multi_language_tool(
             "tool_failed",
             tool="search_multi_language",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -325,7 +325,7 @@ def find_language_equivalents_tool(
             "tool_failed",
             tool="find_language_equivalents",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -436,7 +436,7 @@ def convert_code_language_tool(
             "tool_failed",
             tool="convert_code_language",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -573,7 +573,7 @@ def refactor_polyglot_tool(
             "tool_failed",
             tool="refactor_polyglot",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise
@@ -697,7 +697,7 @@ def generate_language_bindings_tool(
             "tool_failed",
             tool="generate_language_bindings",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
         sentry_sdk.capture_exception(e)
         raise

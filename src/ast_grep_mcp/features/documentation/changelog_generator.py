@@ -156,7 +156,7 @@ def _get_commits(
         if len(parts) < ChangelogDefaults.COMMIT_PARTS_COUNT:
             continue
 
-        hash_short, hash_full, author, email, date, subject = parts[:ChangelogDefaults.COMMIT_PARTS_COUNT]
+        hash_short, hash_full, author, email, date, subject = parts[: ChangelogDefaults.COMMIT_PARTS_COUNT]
         body = parts[ChangelogDefaults.COMMIT_PARTS_COUNT] if len(parts) > ChangelogDefaults.COMMIT_PARTS_COUNT else ""
 
         # Parse conventional commit format

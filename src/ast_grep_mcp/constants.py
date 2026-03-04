@@ -341,6 +341,7 @@ LANGUAGE_EXTENSIONS = {
 SCHEMA_ORG_BASE_URL = "https://schema.org"
 SCHEMA_ORG_CONTEXT = "https://schema.org"
 
+
 class FormattingDefaults:
     """Defaults for code formatting."""
 
@@ -513,8 +514,8 @@ class MinHashDefaults:
     SHINGLE_SIZE = 3
     SMALL_CODE_TOKEN_THRESHOLD = 20
     SEQUENCEMATCHER_TOKEN_THRESHOLD = 15  # Below this, use SequenceMatcher instead of MinHash
-    LSH_RECALL_MARGIN = 0.2              # LSH threshold margin below min_similarity for recall
-    MAX_FALLBACK_ITEMS = 100             # Max items before all-pairs O(n²) becomes too expensive
+    LSH_RECALL_MARGIN = 0.2  # LSH threshold margin below min_similarity for recall
+    MAX_FALLBACK_ITEMS = 100  # Max items before all-pairs O(n²) becomes too expensive
 
 
 class ASTFingerprintDefaults:
@@ -708,22 +709,22 @@ class ComplexityStorageDefaults:
 class RuleSetPriority:
     """Execution priority ordering for rule sets (higher = runs first)."""
 
-    SECURITY = 200    # Security rules run first
-    CUSTOM = 150      # Custom rules after security
+    SECURITY = 200  # Security rules run first
+    CUSTOM = 150  # Custom rules after security
     RECOMMENDED = 100  # Recommended/all rules
     PERFORMANCE = 50  # Performance rules
-    STYLE = 10        # Style rules run last
+    STYLE = 10  # Style rules run last
 
 
 class PatternSuggestionConfidence:
     """Confidence scores for pattern suggestion types."""
 
-    EXACT_SIMPLE = 0.9    # Exact match for simple code
-    EXACT_COMPLEX = 0.7   # Exact match for complex code
-    GENERALIZED = 0.8     # Generalized pattern with metavariables
-    STRUCTURAL = 0.6      # Structural (kind-based) pattern
+    EXACT_SIMPLE = 0.9  # Exact match for simple code
+    EXACT_COMPLEX = 0.7  # Exact match for complex code
+    GENERALIZED = 0.8  # Generalized pattern with metavariables
+    STRUCTURAL = 0.6  # Structural (kind-based) pattern
     PATTERN_MATCH = SecurityScanDefaults.ELEVATED_CONFIDENCE  # Security pattern match confidence
-    UNKNOWN_FIX = 0.5     # Unknown fix pattern (conservative)
+    UNKNOWN_FIX = 0.5  # Unknown fix pattern (conservative)
 
 
 class CondenseDefaults:
@@ -751,7 +752,7 @@ class CondenseDefaults:
     AVG_TOKENS_PER_BYTE = 0.25  # Rough approximation for token counting
 
     # Complexity-guided extraction thresholds (cyclomatic)
-    COMPLEXITY_STRIP_THRESHOLD = 10   # ≤10 cyclomatic → signature + docstring only
+    COMPLEXITY_STRIP_THRESHOLD = 10  # ≤10 cyclomatic → signature + docstring only
     # >10 cyclomatic → keep full body
 
 
@@ -767,26 +768,69 @@ class CondenseDictionaryDefaults:
 class CondenseFileRouting:
     """File-type routing for polyglot condensation."""
 
-    CODE_EXTENSIONS = frozenset({
-        ".ts", ".tsx", ".js", ".jsx", ".py", ".rs", ".go", ".java",
-        ".rb", ".php", ".swift", ".kt", ".cs", ".cpp", ".c", ".h",
-    })
-    CONFIG_EXTENSIONS = frozenset({
-        ".json", ".yaml", ".yml", ".toml", ".xml", ".ini",
-    })
+    CODE_EXTENSIONS = frozenset(
+        {
+            ".ts",
+            ".tsx",
+            ".js",
+            ".jsx",
+            ".py",
+            ".rs",
+            ".go",
+            ".java",
+            ".rb",
+            ".php",
+            ".swift",
+            ".kt",
+            ".cs",
+            ".cpp",
+            ".c",
+            ".h",
+        }
+    )
+    CONFIG_EXTENSIONS = frozenset(
+        {
+            ".json",
+            ".yaml",
+            ".yml",
+            ".toml",
+            ".xml",
+            ".ini",
+        }
+    )
     TEXT_EXTENSIONS = frozenset({".md", ".txt", ".rst", ".adoc"})
-    IMAGE_EXTENSIONS = frozenset({
-        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".bmp",
-    })
+    IMAGE_EXTENSIONS = frozenset(
+        {
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".webp",
+            ".ico",
+            ".bmp",
+        }
+    )
     EXCLUDE_PATTERNS = [
-        "dist/**", "build/**", "*.lock", "package-lock.json",
-        "yarn.lock", "*.gen.*", "*.min.js", "*.min.css",
-        "**/__pycache__/**", "**/.git/**", "**/node_modules/**",
-        "**/.venv/**", "**/venv/**",
+        "dist/**",
+        "build/**",
+        "*.lock",
+        "package-lock.json",
+        "yarn.lock",
+        "*.gen.*",
+        "*.min.js",
+        "*.min.css",
+        "**/__pycache__/**",
+        "**/.git/**",
+        "**/node_modules/**",
+        "**/.venv/**",
+        "**/venv/**",
     ]
     TEST_PATTERNS = [
-        "**/test_*", "**/test/**", "**/*_test.*",
-        "**/*.spec.*", "**/*.test.*",
+        "**/test_*",
+        "**/test/**",
+        "**/*_test.*",
+        "**/*.spec.*",
+        "**/*.test.*",
     ]
 
 
