@@ -415,7 +415,7 @@ def _format_diff_with_line_numbers(file_path: str, diff_lines: List[str], origin
             output.append(f"+++ {file_path} (modified)")
         elif line.startswith("@@"):
             # Parse hunk header for line numbers
-            match = re.match(r"@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)", line)
+            match = re.match(r"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)", line)
             if match:
                 old_line_num = int(match.group(UnifiedDiffRegexGroups.OLD_START)) - 1
                 new_line_num = int(match.group(UnifiedDiffRegexGroups.NEW_START)) - 1
