@@ -35,7 +35,7 @@ def find_duplication_tool(
     project_folder: str,
     language: str,
     min_similarity: float = DeduplicationDefaults.MIN_SIMILARITY,
-    min_lines: int = 5,
+    min_lines: int = DeduplicationDefaults.MIN_LINES,
     exclude_patterns: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Find duplicate functions/classes/methods in a codebase.
@@ -80,7 +80,7 @@ def analyze_deduplication_candidates_tool(
     language: str,
     min_similarity: float = DeduplicationDefaults.MIN_SIMILARITY,
     include_test_coverage: bool = True,
-    min_lines: int = 5,
+    min_lines: int = DeduplicationDefaults.MIN_LINES,
     max_candidates: int = DeduplicationDefaults.MAX_CANDIDATES,
     exclude_patterns: Optional[List[str]] = None,
 ) -> Dict[str, Any]:

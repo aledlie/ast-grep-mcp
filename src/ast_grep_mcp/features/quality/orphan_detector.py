@@ -427,7 +427,7 @@ class OrphanDetector:
                     # Has some references, mark as uncertain
                     orphan.status = VerificationStatus.UNCERTAIN
                     orphan.reason = f"Found {len(references)} possible string references"
-                    orphan.importers = references[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]  # Store top 5
+                    orphan.importers = references[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]  # Store top references
                     verified_orphans.append(orphan)
 
             except subprocess.TimeoutExpired:

@@ -401,7 +401,7 @@ def main():
             console.log("\nChanges by file:")
             for file_path, file_results in results["changes_by_file"].items():
                 console.log(f"\n{Path(file_path).name}: {file_results['migrations']} migrations")
-                for change in file_results["changes"][: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]:  # Show first 5
+                for change in file_results["changes"][: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]:  # Show initial changes
                     console.log(f"  - {change}")
                 if len(file_results["changes"]) > SemanticVolumeDefaults.TOP_RESULTS_LIMIT:
                     console.log(f"  ... and {len(file_results['changes']) - SemanticVolumeDefaults.TOP_RESULTS_LIMIT} more")

@@ -17,7 +17,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from ast_grep_mcp.constants import FilePatterns, FormattingDefaults, SemanticVolumeDefaults
+from ast_grep_mcp.constants import DeduplicationDefaults, FilePatterns, FormattingDefaults, SemanticVolumeDefaults
 from ast_grep_mcp.features.complexity.analyzer import analyze_file_complexity
 from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool, detect_code_smells_tool
 from ast_grep_mcp.features.deduplication.tools import analyze_deduplication_candidates_tool, find_duplication_tool
@@ -246,7 +246,7 @@ def analyze_duplication(project_folder: str, language: str):
         find_result = find_duplication_tool(
             project_folder=project_folder,
             language=language,
-            min_similarity=0.8,
+            min_similarity=DeduplicationDefaults.MIN_SIMILARITY,
             min_lines=10,
             exclude_patterns=EXCLUDE_PATTERNS,
         )
@@ -259,7 +259,7 @@ def analyze_duplication(project_folder: str, language: str):
         result = analyze_deduplication_candidates_tool(
             project_path=project_folder,
             language=language,
-            min_similarity=0.8,
+            min_similarity=DeduplicationDefaults.MIN_SIMILARITY,
             min_lines=10,
             exclude_patterns=EXCLUDE_PATTERNS,
         )
@@ -376,7 +376,7 @@ def _run_tsc_check(project_folder: str) -> bool:
         error_lines = result.stdout.strip().splitlines() if result.stdout else []
         error_count = sum(1 for line in error_lines if ": error TS" in line)
         print(f"tsc --noEmit: FAILED ({error_count} type errors)")
-        # Show first 20 errors
+        # Show bounded error preview
         for line in error_lines[: SemanticVolumeDefaults.DETAIL_RESULTS_LIMIT]:
             if ": error TS" in line:
                 print(f"  {line}")

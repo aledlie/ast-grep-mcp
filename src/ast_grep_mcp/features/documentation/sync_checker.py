@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import FilePatterns
+from ast_grep_mcp.constants import FilePatterns, SeverityRankingDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
     DocSyncIssue,
@@ -547,8 +547,14 @@ def sync_documentation_impl(
         all_issues.extend(_check_markdown_link_issues(project_folder))
 
     # Sort issues by severity
-    severity_order = {"error": 0, "warning": 1, "info": 2}
-    all_issues.sort(key=lambda i: (severity_order.get(i.severity, 3), i.file_path, i.line_number))
+    severity_order = SeverityRankingDefaults.DOC_SYNC_SORT_ORDER
+    all_issues.sort(
+        key=lambda i: (
+            severity_order.get(i.severity, SeverityRankingDefaults.FALLBACK_RANK),
+            i.file_path,
+            i.line_number,
+        )
+    )
 
     execution_time = int((time.time() - start_time) * 1000)
 

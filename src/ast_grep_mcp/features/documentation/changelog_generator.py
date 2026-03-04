@@ -11,7 +11,7 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from ast_grep_mcp.constants import ChangelogDefaults
+from ast_grep_mcp.constants import ChangelogDefaults, RegexCaptureGroups
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
     ChangelogEntry,
@@ -206,9 +206,9 @@ def _parse_conventional_commit(subject: str, body: str) -> Dict[str, Any]:
     match = pattern.match(subject)
 
     if match:
-        result["type"] = match.group(1).lower()
-        result["scope"] = match.group(2)
-        result["is_breaking"] = bool(match.group(3))
+        result["type"] = match.group(RegexCaptureGroups.FIRST).lower()
+        result["scope"] = match.group(RegexCaptureGroups.SECOND)
+        result["is_breaking"] = bool(match.group(RegexCaptureGroups.THIRD))
 
     # Check for BREAKING CHANGE in body
     if "BREAKING CHANGE" in body or "BREAKING-CHANGE" in body:

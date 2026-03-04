@@ -18,7 +18,7 @@ from typing import Any, Dict, List, cast
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import PatternSuggestionConfidence, SecurityScanDefaults
+from ast_grep_mcp.constants import PatternSuggestionConfidence, SecurityScanDefaults, SeverityRankingDefaults
 from ast_grep_mcp.core.executor import stream_ast_grep_results
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.standards import SecurityIssue, SecurityScanResult
@@ -540,7 +540,7 @@ def _filter_by_severity(issues: List[SecurityIssue], severity_threshold: str, ma
     Returns:
         Filtered list of security issues
     """
-    severity_order = {"critical": 3, "high": 2, "medium": 1, "low": 0}
+    severity_order = SeverityRankingDefaults.SECURITY_SCAN_ORDER
     threshold_level = severity_order.get(severity_threshold, 0)
 
     filtered = [issue for issue in issues if severity_order.get(issue.severity, 0) >= threshold_level]

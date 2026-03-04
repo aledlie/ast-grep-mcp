@@ -361,6 +361,25 @@ class UnifiedDiffRegexGroups:
     CONTEXT = 5
 
 
+class RegexCaptureGroups:
+    """Generic regex capture group indices for parser helpers."""
+
+    FIRST = 1
+    SECOND = 2
+    THIRD = 3
+    FOURTH = 4
+    FIFTH = 5
+
+
+class SeverityRankingDefaults:
+    """Shared severity ranking maps and fallback rank values."""
+
+    FALLBACK_RANK = 3
+    SECURITY_SCAN_ORDER = {"critical": 3, "high": 2, "medium": 1, "low": 0}
+    SMELL_SORT_ORDER = {"high": 0, "medium": 1, "low": 2}
+    DOC_SYNC_SORT_ORDER = {"error": 0, "warning": 1, "info": 2}
+
+
 class DisplayDefaults:
     """Constants for display and UI elements."""
 

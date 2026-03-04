@@ -18,7 +18,7 @@ CONFIG_PATH: Optional[str] = None
 # Global cache configuration (set by parse_args_and_get_config)
 CACHE_ENABLED: bool = True
 CACHE_SIZE: int = CacheDefaults.DEFAULT_CACHE_SIZE
-CACHE_TTL: int = CacheDefaults.CLEANUP_INTERVAL_SECONDS  # Actually 300 seconds, reused for TTL
+CACHE_TTL: int = CacheDefaults.CLEANUP_INTERVAL_SECONDS  # Reuse cleanup interval for TTL
 
 # Global cache instance (will be set after cache.py is extracted)
 _query_cache: Optional[Any] = None
