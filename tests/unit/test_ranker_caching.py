@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
+from src.ast_grep_mcp.constants import SemanticSimilarityDefaults
 from src.ast_grep_mcp.features.deduplication.ranker import DuplicationRanker
 
 
@@ -29,7 +30,7 @@ class TestScoreCaching:
     def sample_candidate(self):
         """Create a sample candidate for testing."""
         return {
-            "similarity": 0.85,
+            "similarity": SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
             "files": ["/tmp/file1.py", "/tmp/file2.py"],
             "lines_saved": 50,
             "potential_line_savings": 100,
@@ -67,10 +68,14 @@ class TestScoreCaching:
 
     def test_cache_key_generation_ignores_order_of_files(self, ranker_with_cache):
         """Test that file order doesn't affect cache key."""
-        candidate1 = {"files": ["/tmp/a.py", "/tmp/b.py"], "similarity": 0.85, "lines_saved": 50}
+        candidate1 = {
+            "files": ["/tmp/a.py", "/tmp/b.py"],
+            "similarity": SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
+            "lines_saved": 50,
+        }
         candidate2 = {
             "files": ["/tmp/b.py", "/tmp/a.py"],  # Different order
-            "similarity": 0.85,
+            "similarity": SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
             "lines_saved": 50,
         }
 
@@ -217,7 +222,7 @@ class TestScoreCaching:
     def test_cache_key_handles_none_values(self, ranker_with_cache):
         """Test that cache key generation handles None values gracefully."""
         candidate = {
-            "similarity": 0.85,
+            "similarity": SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
             "files": ["/tmp/file1.py"],
             "complexity_analysis": None,
             "test_coverage": None,
@@ -305,7 +310,7 @@ class TestCacheEdgeCases:
     def test_candidate_with_empty_files_list(self, ranker):
         """Test candidate with empty files list."""
         candidate = {
-            "similarity": 0.85,
+            "similarity": SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
             "files": [],  # Empty
             "lines_saved": 50,
         }
@@ -318,7 +323,7 @@ class TestCacheEdgeCases:
     def test_candidate_with_missing_optional_fields(self, ranker):
         """Test candidate with minimal required fields."""
         candidate = {
-            "similarity": 0.85,
+            "similarity": SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
             "files": ["/tmp/file.py"],
             # Missing: lines_saved, complexity, test_coverage, etc.
         }

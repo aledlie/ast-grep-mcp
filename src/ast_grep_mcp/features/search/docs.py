@@ -9,6 +9,8 @@ Based on: https://ast-grep.github.io/llms-full.txt
 
 from typing import Dict, List, Optional
 
+from ast_grep_mcp.constants import FormattingDefaults
+
 # Documentation content organized by topic
 AST_GREP_DOCS: Dict[str, str] = {
     "pattern": """# ast-grep Pattern Syntax
@@ -932,7 +934,11 @@ def get_docs(topic: str) -> str:
     if topic == "all":
         sections = []
         for name, content in AST_GREP_DOCS.items():
-            sections.append(f"{'=' * 80}\n{name.upper()}\n{'=' * 80}\n\n{content}")
+            sections.append(
+                f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}\n"
+                f"{name.upper()}\n"
+                f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}\n\n{content}"
+            )
         return "\n\n".join(sections)
 
     if topic in AST_GREP_DOCS:

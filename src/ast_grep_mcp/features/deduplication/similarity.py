@@ -26,6 +26,7 @@ Compared to SequenceMatcher O(n²), this enables:
 """
 
 import re
+import time
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Set, Tuple
@@ -160,6 +161,17 @@ class HybridSimilarityConfig:
 
     def __post_init__(self) -> None:
         """Validate configuration values."""
+        # Backward-compatible rebalance: enabling semantic with legacy two-stage
+        # defaults should automatically switch to the semantic weight profile.
+        uses_legacy_two_stage_defaults = (
+            abs(self.minhash_weight - HybridSimilarityDefaults.MINHASH_WEIGHT) <= HybridSimilarityDefaults.WEIGHT_SUM_TOLERANCE
+            and abs(self.ast_weight - HybridSimilarityDefaults.AST_WEIGHT) <= HybridSimilarityDefaults.WEIGHT_SUM_TOLERANCE
+            and abs(self.semantic_weight - SemanticSimilarityDefaults.SEMANTIC_WEIGHT) <= HybridSimilarityDefaults.WEIGHT_SUM_TOLERANCE
+        )
+        if self.enable_semantic and uses_legacy_two_stage_defaults:
+            self.minhash_weight = SemanticSimilarityDefaults.MINHASH_WEIGHT_WITH_SEMANTIC
+            self.ast_weight = SemanticSimilarityDefaults.AST_WEIGHT_WITH_SEMANTIC
+
         if not (0.0 <= self.minhash_early_exit_threshold <= 1.0):
             raise ValueError("minhash_early_exit_threshold must be between 0.0 and 1.0")
         if not (0.0 <= self.minhash_weight <= 1.0):
@@ -232,6 +244,11 @@ class HybridSimilarityResult:
 
     semantic_model: Optional[str] = None
     """CodeBERT model used for semantic similarity (if applicable)."""
+
+    @property
+    def combined_similarity(self) -> float:
+        """Backward-compatible alias for final similarity score."""
+        return self.similarity
 
     def to_dict(self) -> Dict[str, object]:
         """Convert result to dictionary for serialization."""
@@ -736,6 +753,12 @@ class HybridSimilarity:
             minhash_config: Configuration for MinHash similarity (Stage 1).
             hybrid_config: Configuration for hybrid pipeline behavior.
         """
+        # Backward compatibility: some callers pass HybridSimilarityConfig as
+        # the first positional argument.
+        if isinstance(minhash_config, HybridSimilarityConfig) and hybrid_config is None:
+            hybrid_config = minhash_config
+            minhash_config = None
+
         self.minhash_config = minhash_config or SimilarityConfig()
         self.hybrid_config = hybrid_config or HybridSimilarityConfig()
         self.logger = get_logger("deduplication.hybrid_similarity")
@@ -788,6 +811,66 @@ class HybridSimilarity:
             )
             return None
 
+    def _build_empty_similarity_result(self) -> HybridSimilarityResult:
+        """Build result for empty input comparison."""
+        return HybridSimilarityResult(
+            similarity=0.0,
+            method="minhash",
+            verified=False,
+            minhash_similarity=0.0,
+            ast_similarity=None,
+            semantic_similarity=None,
+            stage1_passed=False,
+            stage2_passed=False,
+            early_exit=True,
+            semantic_skipped=True,
+            token_count=0,
+            semantic_model=None,
+        )
+
+    def _run_stage1_filter(
+        self,
+        code1: str,
+        code2: str,
+        tokens1: List[str],
+        tokens2: List[str],
+        avg_token_count: int,
+    ) -> Tuple[float, Optional[HybridSimilarityResult]]:
+        """Run Stage 1 filter and return early-exit result when applicable."""
+        minhash_sim = self._minhash.estimate_similarity(code1, code2)
+
+        if (
+            minhash_sim < self.hybrid_config.minhash_early_exit_threshold
+            and self.hybrid_config.enable_semantic
+            and self.minhash_config.use_small_code_fallback
+        ):
+            fallback_sim = SequenceMatcher(None, tokens1, tokens2).ratio()
+            if fallback_sim > minhash_sim:
+                minhash_sim = fallback_sim
+
+        if minhash_sim >= self.hybrid_config.minhash_early_exit_threshold:
+            return minhash_sim, None
+
+        self.logger.debug(
+            "hybrid_early_exit",
+            minhash_similarity=round(minhash_sim, FormattingDefaults.SIMILARITY_PRECISION),
+            threshold=self.hybrid_config.minhash_early_exit_threshold,
+        )
+        return minhash_sim, HybridSimilarityResult(
+            similarity=minhash_sim,
+            method="minhash",
+            verified=False,
+            minhash_similarity=minhash_sim,
+            ast_similarity=None,
+            semantic_similarity=None,
+            stage1_passed=False,
+            stage2_passed=False,
+            early_exit=True,
+            semantic_skipped=True,
+            token_count=avg_token_count,
+            semantic_model=None,
+        )
+
     def calculate_hybrid_similarity(
         self,
         code1: str,
@@ -816,50 +899,17 @@ class HybridSimilarity:
         """
         # Handle empty inputs
         if not code1 or not code2:
-            return HybridSimilarityResult(
-                similarity=0.0,
-                method="minhash",
-                verified=False,
-                minhash_similarity=0.0,
-                ast_similarity=None,
-                semantic_similarity=None,
-                stage1_passed=False,
-                stage2_passed=False,
-                early_exit=True,
-                semantic_skipped=True,
-                token_count=0,
-                semantic_model=None,
-            )
+            return self._build_empty_similarity_result()
 
         # Count tokens for diagnostics
         tokens1 = self._minhash._tokenize(code1)
         tokens2 = self._minhash._tokenize(code2)
         avg_token_count = (len(tokens1) + len(tokens2)) // 2
 
-        # Stage 1: Fast MinHash estimation (O(n))
-        minhash_sim = self._minhash.estimate_similarity(code1, code2)
-
-        # Early exit for dissimilar code
-        if minhash_sim < self.hybrid_config.minhash_early_exit_threshold:
-            self.logger.debug(
-                "hybrid_early_exit",
-                minhash_similarity=round(minhash_sim, FormattingDefaults.SIMILARITY_PRECISION),
-                threshold=self.hybrid_config.minhash_early_exit_threshold,
-            )
-            return HybridSimilarityResult(
-                similarity=minhash_sim,
-                method="minhash",
-                verified=False,
-                minhash_similarity=minhash_sim,
-                ast_similarity=None,
-                semantic_similarity=None,
-                stage1_passed=False,
-                stage2_passed=False,
-                early_exit=True,
-                semantic_skipped=True,
-                token_count=avg_token_count,
-                semantic_model=None,
-            )
+        # Stage 1: Fast filter with optional semantic-aware fallback.
+        minhash_sim, early_exit_result = self._run_stage1_filter(code1, code2, tokens1, tokens2, avg_token_count)
+        if early_exit_result is not None:
+            return early_exit_result
 
         # Stage 2: Precise structural verification
         ast_sim = self._calculate_ast_similarity(code1, code2)
@@ -1531,7 +1581,10 @@ class EnhancedStructureHash:
             return 5
         if line_count < LogBucketThresholds.MASSIVE:
             return 6
-        return min(LogBucketThresholds.OVERFLOW_BASE_BUCKET + (line_count - LogBucketThresholds.MASSIVE) // LogBucketThresholds.MASSIVE, LogBucketThresholds.MAX_BUCKET)
+        return min(
+            LogBucketThresholds.OVERFLOW_BASE_BUCKET + (line_count - LogBucketThresholds.MASSIVE) // LogBucketThresholds.MASSIVE,
+            LogBucketThresholds.MAX_BUCKET,
+        )
 
     def _extract_tokens(self, code: str) -> List[str]:
         """Extract meaningful tokens from code (legacy method)."""
@@ -1659,15 +1712,37 @@ class SemanticSimilarityResult:
     code2_tokens: int = 0
     """Number of tokens in second code snippet (before truncation)."""
 
+    computation_time_ms: int = 0
+    """Time spent computing semantic similarity."""
+
+    @property
+    def model_name(self) -> str:
+        """Backward-compatible alias for model identifier."""
+        return self.model_used
+
+    @property
+    def embedding1_shape(self) -> Tuple[int]:
+        """Backward-compatible embedding shape for first snippet."""
+        return (self.embedding_dim,)
+
+    @property
+    def embedding2_shape(self) -> Tuple[int]:
+        """Backward-compatible embedding shape for second snippet."""
+        return (self.embedding_dim,)
+
     def to_dict(self) -> Dict[str, object]:
         """Convert result to dictionary for serialization."""
         return {
             "similarity": round(self.similarity, FormattingDefaults.SIMILARITY_PRECISION),
             "model_used": self.model_used,
+            "model_name": self.model_used,
             "embedding_dim": self.embedding_dim,
+            "embedding1_shape": self.embedding1_shape,
+            "embedding2_shape": self.embedding2_shape,
             "truncated": self.truncated,
             "code1_tokens": self.code1_tokens,
             "code2_tokens": self.code2_tokens,
+            "computation_time_ms": self.computation_time_ms,
         }
 
 
@@ -1713,6 +1788,8 @@ class SemanticSimilarity:
 
         # Embedding cache (code_hash -> embedding tensor)
         self._embedding_cache: Dict[int, Any] = {}
+        self._cache_hits = 0
+        self._cache_misses = 0
 
         # Track initialization state
         self._initialized = False
@@ -1822,7 +1899,9 @@ class SemanticSimilarity:
         # Check cache
         code_hash = hash(code)
         if self.config.cache_embeddings and code_hash in self._embedding_cache:
+            self._cache_hits += 1
             return self._embedding_cache[code_hash]
+        self._cache_misses += 1
 
         # Tokenize
         inputs = self._tokenizer(
@@ -1877,15 +1956,34 @@ class SemanticSimilarity:
         emb1 = self.get_embedding(code1)
         emb2 = self.get_embedding(code2)
 
-        # Cosine similarity
-        similarity: float = functional.cosine_similarity(
+        # Cosine similarity from embeddings
+        embedding_cosine: float = functional.cosine_similarity(
             emb1.unsqueeze(0),
             emb2.unsqueeze(0),
             dim=1,
         ).item()
 
-        # Normalize to 0-1 range (cosine similarity is -1 to 1)
-        return (similarity + 1.0) / 2.0
+        # Normalize cosine to 0-1 and calibrate with lexical overlap.
+        # CodeBERT cosine is highly anisotropic for short snippets; blending a
+        # light lexical signal improves separation of unrelated code.
+        semantic_score = (embedding_cosine + 1.0) / 2.0
+        lexical_score = self._calculate_lexical_similarity(code1, code2)
+        similarity = 0.5 * semantic_score + 0.5 * lexical_score
+        return max(0.0, min(1.0, similarity))
+
+    def _calculate_lexical_similarity(self, code1: str, code2: str) -> float:
+        """Compute token-level lexical similarity for semantic calibration."""
+        tokens1 = re.findall(
+            r"[a-zA-Z_][a-zA-Z0-9_]*|[0-9]+|[+\-*/=<>!&|%^~]+|[(){}\[\],;:.]",
+            re.sub(r"\s+", " ", code1),
+        )
+        tokens2 = re.findall(
+            r"[a-zA-Z_][a-zA-Z0-9_]*|[0-9]+|[+\-*/=<>!&|%^~]+|[(){}\[\],;:.]",
+            re.sub(r"\s+", " ", code2),
+        )
+        if not tokens1 or not tokens2:
+            return 0.0
+        return float(SequenceMatcher(None, tokens1, tokens2).ratio())
 
     def calculate_similarity_detailed(self, code1: str, code2: str) -> SemanticSimilarityResult:
         """Calculate semantic similarity with detailed results.
@@ -1905,9 +2003,11 @@ class SemanticSimilarity:
                 truncated=False,
                 code1_tokens=0,
                 code2_tokens=0,
+                computation_time_ms=0,
             )
 
         self._load_model()
+        start_time = time.perf_counter()
 
         # Get token counts before truncation
         tokens1: int = self._tokenizer(code1, return_tensors="pt")["input_ids"].shape[1]
@@ -1916,6 +2016,7 @@ class SemanticSimilarity:
         truncated = tokens1 > self.config.max_length or tokens2 > self.config.max_length
 
         similarity = self.calculate_similarity(code1, code2)
+        elapsed_ms = int((time.perf_counter() - start_time) * 1000)
 
         return SemanticSimilarityResult(
             similarity=similarity,
@@ -1924,11 +2025,14 @@ class SemanticSimilarity:
             truncated=truncated,
             code1_tokens=tokens1,
             code2_tokens=tokens2,
+            computation_time_ms=elapsed_ms,
         )
 
     def clear_cache(self) -> None:
         """Clear the embedding cache."""
         self._embedding_cache.clear()
+        self._cache_hits = 0
+        self._cache_misses = 0
         self.logger.debug("embedding_cache_cleared")
 
     def get_cache_stats(self) -> Dict[str, int]:
@@ -1939,4 +2043,6 @@ class SemanticSimilarity:
         """
         return {
             "cache_size": len(self._embedding_cache),
+            "hits": self._cache_hits,
+            "misses": self._cache_misses,
         }

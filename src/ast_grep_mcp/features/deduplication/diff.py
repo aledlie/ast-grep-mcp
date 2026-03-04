@@ -9,6 +9,8 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
+from ...constants import UnifiedDiffRegexGroups
+
 
 def build_nested_diff_tree(code1: str, code2: str, language: str | None = None) -> dict[str, Any]:
     """Build a nested diff tree from two code snippets.
@@ -286,11 +288,15 @@ def _parse_hunk_header(line: str) -> dict[str, Any] | None:
     if not match:
         return None
     return {
-        "old_start": int(match.group(1)),
-        "old_count": int(match.group(2)) if match.group(2) else 1,
-        "new_start": int(match.group(3)),
-        "new_count": int(match.group(4)) if match.group(4) else 1,
-        "context": match.group(5).strip(),
+        "old_start": int(match.group(UnifiedDiffRegexGroups.OLD_START)),
+        "old_count": int(match.group(UnifiedDiffRegexGroups.OLD_COUNT))
+        if match.group(UnifiedDiffRegexGroups.OLD_COUNT)
+        else 1,
+        "new_start": int(match.group(UnifiedDiffRegexGroups.NEW_START)),
+        "new_count": int(match.group(UnifiedDiffRegexGroups.NEW_COUNT))
+        if match.group(UnifiedDiffRegexGroups.NEW_COUNT)
+        else 1,
+        "context": match.group(UnifiedDiffRegexGroups.CONTEXT).strip(),
         "changes": [],
     }
 

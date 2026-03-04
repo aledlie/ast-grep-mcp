@@ -4,6 +4,7 @@
 import time
 from typing import Any, Dict, List
 
+from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.utils.console_logger import console
 
 
@@ -33,9 +34,9 @@ def benchmark_enrichment():
     # Test with different candidate counts
     candidate_counts = [10, 25, 50, 100]
 
-    console.log("=" * 70)
+    console.log("=" * FormattingDefaults.SEPARATOR_LENGTH)
     console.log("Parallel vs Sequential Enrichment Benchmark")
-    console.log("=" * 70)
+    console.log("=" * FormattingDefaults.SEPARATOR_LENGTH)
     console.blank()
 
     for count in candidate_counts:
@@ -65,9 +66,9 @@ def benchmark_enrichment():
         console.log(f"  Improvement: {improvement:.1f}%")
         console.blank()
 
-    console.log("=" * 70)
+    console.log("=" * FormattingDefaults.SEPARATOR_LENGTH)
     console.log("Note: Actual speedup depends on I/O operations and CPU cores.")
-    console.log("=" * 70)
+    console.log("=" * FormattingDefaults.SEPARATOR_LENGTH)
 
 
 if __name__ == "__main__":

@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 from typing import Dict, List
 
+from ast_grep_mcp.constants import FormattingDefaults, SemanticSimilarityDefaults
 from ast_grep_mcp.utils.console_logger import console
 
 # Add project root to path
@@ -54,7 +55,14 @@ def create_test_candidates(file_count: int, files_per_candidate: int) -> List[Di
     for i in range(0, file_count, files_per_candidate):
         file_slice = all_files[i : i + files_per_candidate]
         if file_slice:
-            candidates.append({"id": f"candidate_{i}", "files": [str(f) for f in file_slice], "similarity": 0.85, "lines_saved": 50})
+            candidates.append(
+                {
+                    "id": f"candidate_{i}",
+                    "files": [str(f) for f in file_slice],
+                    "similarity": SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
+                    "lines_saved": 50,
+                }
+            )
 
     return candidates
 
@@ -139,9 +147,9 @@ def run_benchmark_suite(file_count: int, files_per_candidate: int, project_path:
     Returns:
         Dictionary with all benchmark results
     """
-    console.log(f"\n{'=' * 80}")
+    console.log(f"\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
     console.log(f"Benchmarking with {file_count} files, {files_per_candidate} files/candidate")
-    console.log(f"{'=' * 80}\n")
+    console.log(f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}\n")
 
     detector = CoverageDetector()
     orchestrator = DeduplicationAnalysisOrchestrator()
@@ -181,9 +189,9 @@ def run_benchmark_suite(file_count: int, files_per_candidate: int, project_path:
 
     # Calculate speedups
     baseline = results["benchmarks"][0]["elapsed_seconds"]
-    console.log(f"\n{'=' * 80}")
+    console.log(f"\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
     console.log("Performance Summary:")
-    console.log(f"{'=' * 80}")
+    console.log(f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
     for benchmark in results["benchmarks"]:
         speedup = baseline / benchmark["elapsed_seconds"]
         improvement = ((baseline - benchmark["elapsed_seconds"]) / baseline) * 100
@@ -231,9 +239,9 @@ def main():
             with open(baseline_path, "r") as f:
                 baseline_results = json.load(f)
 
-            console.log(f"\n{'=' * 80}")
+            console.log(f"\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
             console.log("Comparison with Baseline:")
-            console.log(f"{'=' * 80}")
+            console.log(f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
 
             for method in ["legacy_sequential", "batch_parallel"]:
                 baseline_bench = next((b for b in baseline_results["benchmarks"] if b["method"] == method), None)
@@ -249,9 +257,9 @@ def main():
             console.log(f"Baseline file not found: {baseline_path}")
 
     # Print expected vs actual
-    console.log(f"\n{'=' * 80}")
+    console.log(f"\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
     console.log("Expected vs Actual Performance:")
-    console.log(f"{'=' * 80}")
+    console.log(f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
 
     batch_parallel = next((b for b in results["benchmarks"] if b["method"] == "batch_parallel"), None)
 

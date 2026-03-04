@@ -16,6 +16,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from ast_grep_mcp.constants import SemanticSimilarityDefaults
 
 # ============================================================================
 # Cache Management Fixtures
@@ -343,7 +344,7 @@ def language(request):
 
 
 # Common similarity thresholds
-SIMILARITY_THRESHOLDS = [0.7, 0.8, 0.85, 0.9, 0.95]
+SIMILARITY_THRESHOLDS = [0.7, 0.8, SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD, 0.9, 0.95]
 
 
 @pytest.fixture(params=SIMILARITY_THRESHOLDS)

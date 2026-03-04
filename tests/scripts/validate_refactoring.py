@@ -24,6 +24,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Dict, Optional
 
+from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.utils.console_logger import console
 
 
@@ -247,9 +248,9 @@ def format_result_report(result: ValidationResult) -> str:
     """Format validation result as readable report."""
     lines = []
 
-    lines.append("=" * 80)
+    lines.append("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
     lines.append("REFACTORING VALIDATION RESULT")
-    lines.append("=" * 80)
+    lines.append("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
     lines.append(f"File: {result.file_path}")
     lines.append("")
 
@@ -262,21 +263,21 @@ def format_result_report(result: ValidationResult) -> str:
 
     # Checks
     lines.append("CHECKS:")
-    lines.append("-" * 80)
+    lines.append("-" * FormattingDefaults.WIDE_SECTION_WIDTH)
     for message in result.messages:
         lines.append(message)
     lines.append("")
 
     # Summary
     lines.append("SUMMARY:")
-    lines.append("-" * 80)
+    lines.append("-" * FormattingDefaults.WIDE_SECTION_WIDTH)
     lines.append(f"Tests collected: {result.test_count}")
     lines.append(f"Tests passed: {result.pass_count}")
     lines.append(f"Tests failed: {result.fail_count}")
     lines.append(f"Tests skipped: {result.skip_count}")
     lines.append(f"Duration: {result.duration:.2f}s")
     lines.append(f"Warnings: {result.warnings}")
-    lines.append("=" * 80)
+    lines.append("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
 
     return "\n".join(lines)
 

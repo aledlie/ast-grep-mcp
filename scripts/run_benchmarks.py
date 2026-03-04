@@ -23,6 +23,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.utils.console_logger import console
 
 
@@ -37,9 +38,9 @@ def run_benchmarks(save_baseline: bool = False, check_regression: bool = False, 
     Returns:
         Exit code (0 = success, 1 = failure)
     """
-    console.log("=" * 80)
+    console.log("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
     console.log("AST-Grep MCP Server - Performance Benchmarks")
-    console.log("=" * 80)
+    console.log("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
     console.blank()
 
     # Build pytest command
@@ -93,9 +94,9 @@ def run_benchmarks(save_baseline: bool = False, check_regression: bool = False, 
         console.log("   Run with --save-baseline to create baseline")
 
     console.blank()
-    console.log("=" * 80)
+    console.log("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
     console.log(f"Benchmark report: {output_file}")
-    console.log("=" * 80)
+    console.log("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
 
     return 0
 

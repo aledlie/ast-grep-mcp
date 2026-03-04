@@ -4,6 +4,7 @@ Tests the O(n) MinHash similarity implementation that replaces
 the O(n²) SequenceMatcher for scalable code clone detection.
 """
 
+from ast_grep_mcp.constants import SemanticSimilarityDefaults
 from ast_grep_mcp.features.deduplication.similarity import (
     EnhancedStructureHash,
     MinHashSimilarity,
@@ -222,11 +223,11 @@ class TestSimilarityResult:
     def test_result_creation(self):
         """Should create result with expected values."""
         result = SimilarityResult(
-            similarity=0.85,
+            similarity=SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
             method="minhash",
             verified=False,
         )
-        assert result.similarity == 0.85
+        assert result.similarity == SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD
         assert result.method == "minhash"
         assert result.verified is False
         assert result.candidate_count == 0

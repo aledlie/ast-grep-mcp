@@ -11,11 +11,15 @@ superior precision/recall compared to either approach alone.
 
 import pytest
 
+from ast_grep_mcp.constants import SemanticSimilarityDefaults
 from ast_grep_mcp.features.deduplication.similarity import (
     HybridSimilarity,
     HybridSimilarityConfig,
     HybridSimilarityResult,
 )
+
+PRECISION_TEST_SIMILARITY_INPUT = 0.85123
+PRECISION_TEST_SIMILARITY_ROUNDED = 0.8512
 
 
 class TestHybridSimilarityConfig:
@@ -66,7 +70,7 @@ class TestHybridSimilarityResult:
     def test_result_creation(self):
         """Should create result with expected values."""
         result = HybridSimilarityResult(
-            similarity=0.85,
+            similarity=SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
             method="hybrid",
             verified=True,
             minhash_similarity=0.8,
@@ -75,7 +79,7 @@ class TestHybridSimilarityResult:
             early_exit=False,
             token_count=50,
         )
-        assert result.similarity == 0.85
+        assert result.similarity == SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD
         assert result.method == "hybrid"
         assert result.verified is True
         assert result.minhash_similarity == 0.8
@@ -87,14 +91,14 @@ class TestHybridSimilarityResult:
     def test_result_to_dict(self):
         """Should convert to dictionary correctly."""
         result = HybridSimilarityResult(
-            similarity=0.85123,
+            similarity=PRECISION_TEST_SIMILARITY_INPUT,
             method="hybrid",
             verified=True,
             minhash_similarity=0.8,
             ast_similarity=0.88,
         )
         d = result.to_dict()
-        assert d["similarity"] == 0.8512  # Rounded to 4 decimals
+        assert d["similarity"] == PRECISION_TEST_SIMILARITY_ROUNDED  # Rounded to 4 decimals
         assert d["method"] == "hybrid"
         assert d["verified"] is True
         assert d["minhash_similarity"] == 0.8
