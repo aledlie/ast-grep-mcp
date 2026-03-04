@@ -18,7 +18,6 @@ from ast_grep_mcp.features.quality.tools import (
 )
 from ast_grep_mcp.features.search.service import find_code_impl
 
-
 # -- Fixtures ----------------------------------------------------------------
 
 PYTHON_PROJECT_FILES = {

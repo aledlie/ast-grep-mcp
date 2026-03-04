@@ -10,6 +10,7 @@ import time
 from typing import Any, Callable, Dict, List, Literal
 
 import sentry_sdk
+from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from ast_grep_mcp.constants import (
@@ -675,14 +676,14 @@ def detect_code_smells_tool(
         raise
 
 
-def register_complexity_tools(mcp: Any) -> None:
+def register_complexity_tools(mcp: FastMCP) -> None:
     """Register complexity analysis tools with the MCP server.
 
     Args:
         mcp: FastMCP server instance
     """
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     def analyze_complexity(
         project_folder: str = Field(description="The absolute path to the project folder to analyze"),
         language: str = Field(description="The programming language (python, typescript, javascript, java)"),
@@ -726,7 +727,7 @@ def register_complexity_tools(mcp: Any) -> None:
             max_threads=max_threads,
         )
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     def test_sentry_integration(
         test_type: Literal["error", "warning", "breadcrumb", "span"] = Field(
             default="breadcrumb",
@@ -737,7 +738,7 @@ def register_complexity_tools(mcp: Any) -> None:
         """Wrapper that calls the standalone test_sentry_integration_tool function."""
         return test_sentry_integration_tool(test_type=test_type, message=message)
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     def detect_code_smells(
         project_folder: str = Field(description="The absolute path to the project folder to analyze"),
         language: str = Field(description="The programming language (python, typescript, javascript, java)"),

@@ -1,6 +1,5 @@
 """Rewrite feature service - implements code transformation functionality."""
 
-import json
 import os
 import re
 import subprocess
