@@ -98,7 +98,10 @@ class DeduplicationScoreCalculator:
         if complexity:
             complexity_value = complexity.get("complexity_score", CodeAnalysisDefaults.DEFAULT_COMPLEXITY_SCORE)
             # Invert: 1 = 100, 7 = 0
-            complexity_score = max(0, RankerDefaults.MAX_NORMALIZED_SCORE - (complexity_value - 1) * RankerDefaults.COMPLEXITY_INVERSION_FACTOR)
+            complexity_score = max(
+                0,
+                RankerDefaults.MAX_NORMALIZED_SCORE - (complexity_value - 1) * RankerDefaults.COMPLEXITY_INVERSION_FACTOR,
+            )
         else:
             complexity_score = RankerDefaults.DEFAULT_MIDDLE_SCORE
 
@@ -167,7 +170,11 @@ class DeduplicationScoreCalculator:
         file_count = len(set(inst.get("file", "") for inst in duplicate_group.get("instances", [])))
 
         # More instances and files = more effort = lower score
-        effort_score = max(0, RankerDefaults.MAX_NORMALIZED_SCORE - (instance_count * RankerDefaults.EFFORT_INSTANCE_PENALTY + file_count * RankerDefaults.EFFORT_FILE_PENALTY))
+        effort_score = max(
+            0,
+            RankerDefaults.MAX_NORMALIZED_SCORE
+            - (instance_count * RankerDefaults.EFFORT_INSTANCE_PENALTY + file_count * RankerDefaults.EFFORT_FILE_PENALTY),
+        )
         weighted_score = effort_score * self.WEIGHT_EFFORT
 
         self.logger.debug(

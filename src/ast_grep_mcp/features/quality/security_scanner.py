@@ -601,7 +601,11 @@ def _build_summary(
 
 
 def detect_security_issues_impl(
-    project_folder: str, language: str, issue_types: List[str] = ["all"], severity_threshold: str = "low", max_issues: int = SecurityScanDefaults.MAX_ISSUES
+    project_folder: str,
+    language: str,
+    issue_types: List[str] = ["all"],
+    severity_threshold: str = "low",
+    max_issues: int = SecurityScanDefaults.MAX_ISSUES,
 ) -> SecurityScanResult:
     """Scan project for security vulnerabilities.
 

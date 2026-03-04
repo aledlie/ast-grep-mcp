@@ -669,7 +669,12 @@ def enforce_standards_impl(
             if not rules:
                 raise ValueError(f"No custom rules found matching IDs: {custom_rules}. Available: {[r.id for r in all_custom]}")
 
-            rule_set_obj = RuleSet(name="custom", description=f"Custom rules: {', '.join(custom_rules)}", rules=rules, priority=RuleSetPriority.CUSTOM)
+            rule_set_obj = RuleSet(
+                name="custom",
+                description=f"Custom rules: {', '.join(custom_rules)}",
+                rules=rules,
+                priority=RuleSetPriority.CUSTOM,
+            )
         else:
             rule_set_obj = load_rule_set(rule_set, str(project_path), language)
 

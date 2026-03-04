@@ -359,7 +359,10 @@ class LargeClassDetector(SmellDetector):
             List of match dictionaries from ast-grep output
         """
         result = subprocess.run(
-            ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path], capture_output=True, text=True, timeout=SubprocessDefaults.AST_GREP_TIMEOUT_SECONDS
+            ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path],
+            capture_output=True,
+            text=True,
+            timeout=SubprocessDefaults.AST_GREP_TIMEOUT_SECONDS,
         )
 
         # Early return for failed or empty results

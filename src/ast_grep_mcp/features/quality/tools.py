@@ -873,7 +873,11 @@ def _format_issues_by_severity(result: Any) -> Dict[str, List[Dict[str, Any]]]:
 
 
 def detect_security_issues_tool(
-    project_folder: str, language: str, issue_types: List[str] | None = None, severity_threshold: str = "low", max_issues: int = SecurityScanDefaults.MAX_ISSUES
+    project_folder: str,
+    language: str,
+    issue_types: List[str] | None = None,
+    severity_threshold: str = "low",
+    max_issues: int = SecurityScanDefaults.MAX_ISSUES,
 ) -> Dict[str, Any]:
     """
     Scan code for security vulnerabilities and common weaknesses.
