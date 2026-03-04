@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import sentry_sdk
 
+from ast_grep_mcp.constants import FilePatterns
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
     DocSyncIssue,
@@ -334,6 +335,7 @@ def _find_source_files(
             "**/build/**",
             "**/.git/**",
         ]
+    exclude_patterns = FilePatterns.merge_with_venv_excludes(exclude_patterns)
 
     # Find files matching include patterns
     for pattern in include_patterns:
