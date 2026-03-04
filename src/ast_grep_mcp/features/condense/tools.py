@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import sentry_sdk
+from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from ...constants import CondenseDefaults, CondenseDictionaryDefaults, FormattingDefaults
@@ -251,14 +252,14 @@ def condense_train_dictionary_tool(
 # MCP registration
 # ---------------------------------------------------------------------------
 
-def register_condense_tools(mcp: Any) -> None:
+def register_condense_tools(mcp: FastMCP) -> None:
     """Register all condense tools with the MCP server.
 
     Args:
         mcp: FastMCP instance to register tools with.
     """
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     def condense_extract_surface(
         path: str = Field(description="Directory or file path to analyze"),
         language: str = Field(description="Programming language (e.g. 'python', 'typescript')"),
@@ -289,7 +290,7 @@ def register_condense_tools(mcp: Any) -> None:
             complexity_threshold=complexity_threshold,
         )
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     def condense_normalize(
         path: str = Field(description="Path to a single source file to normalize"),
         language: str = Field(description="Programming language"),
@@ -302,7 +303,7 @@ def register_condense_tools(mcp: Any) -> None:
         """
         return condense_normalize_tool(path=path, language=language)
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     def condense_strip(
         path: str = Field(description="Path to a single source file"),
         language: str = Field(description="Programming language"),
@@ -314,7 +315,7 @@ def register_condense_tools(mcp: Any) -> None:
         """
         return condense_strip_tool(path=path, language=language)
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     def condense_pack(
         path: str = Field(description="Directory or file path to condense"),
         language: Optional[str] = Field(
@@ -352,7 +353,7 @@ def register_condense_tools(mcp: Any) -> None:
             exclude_patterns=exclude_patterns,
         )
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     def condense_estimate(
         path: str = Field(description="Directory or file path to estimate"),
         language: Optional[str] = Field(
@@ -368,7 +369,7 @@ def register_condense_tools(mcp: Any) -> None:
         """
         return condense_estimate_tool(path=path, language=language)
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     def condense_train_dictionary(
         path: str = Field(description="Root directory to collect code samples from"),
         language: Optional[str] = Field(

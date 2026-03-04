@@ -7,6 +7,8 @@ a clean API for the MCP server.
 
 from typing import Any, Dict, List, Optional
 
+from mcp.server.fastmcp import FastMCP
+
 from ...constants import DeduplicationDefaults
 from ...core.logging import get_logger
 from .analysis_orchestrator import DeduplicationAnalysisOrchestrator
@@ -222,7 +224,7 @@ def benchmark_deduplication_tool(iterations: int = 10, save_baseline: bool = Fal
     return results
 
 
-def register_deduplication_tools(mcp: Any) -> Any:
+def register_deduplication_tools(mcp: FastMCP) -> None:
     """Register all deduplication tools with the MCP server.
 
     This function creates MCP tool wrappers that call the standalone *_tool functions.
@@ -234,7 +236,7 @@ def register_deduplication_tools(mcp: Any) -> Any:
     """
     from pydantic import Field
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     def find_duplication(
         project_folder: str = Field(description="Path to the project folder"),
         language: str = Field(description="Programming language"),
@@ -251,7 +253,7 @@ def register_deduplication_tools(mcp: Any) -> Any:
             exclude_patterns=exclude_patterns,
         )
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     def analyze_deduplication_candidates(
         project_path: str = Field(description="The absolute path to the project folder to analyze"),
         language: str = Field(description="The target language"),
@@ -272,7 +274,7 @@ def register_deduplication_tools(mcp: Any) -> Any:
             exclude_patterns=exclude_patterns,
         )
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     def apply_deduplication(
         project_folder: str = Field(description="The absolute path to the project folder"),
         group_id: int = Field(description="The duplication group ID from find_duplication results"),
@@ -293,7 +295,7 @@ def register_deduplication_tools(mcp: Any) -> Any:
             extract_to_file=extract_to_file,
         )
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     def benchmark_deduplication(
         iterations: int = Field(default=10, description="Number of iterations per benchmark (default: 10)"),
         save_baseline: bool = Field(default=False, description="Save results as new baseline for regression detection"),

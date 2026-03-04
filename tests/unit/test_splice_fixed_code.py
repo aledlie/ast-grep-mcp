@@ -5,7 +5,6 @@ absolute indentation on subsequent lines.  _splice_fixed_code must restore
 the stripped indent so the replacement integrates cleanly into the file.
 """
 
-import pytest
 
 from ast_grep_mcp.features.quality.fixer import _splice_fixed_code
 

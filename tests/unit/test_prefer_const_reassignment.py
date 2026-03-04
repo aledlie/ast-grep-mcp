@@ -1,16 +1,14 @@
 """Tests for prefer-const reassignment detection in fixer.py."""
 
 import os
+import re
 import tempfile
-
-import pytest
 
 from ast_grep_mcp.features.quality.fixer import (
     _extract_var_name_from_let,
     _is_variable_reassigned,
     _line_reassigns_var,
 )
-import re
 
 
 class TestExtractVarName:

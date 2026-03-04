@@ -10,7 +10,6 @@ from pathlib import Path
 import pytest
 
 from ast_grep_mcp.features.quality.fixer import (
-    _extract_var_name_from_let,
     _is_variable_reassigned,
     classify_fix_safety,
 )
@@ -18,7 +17,6 @@ from ast_grep_mcp.features.quality.tools import (
     apply_standards_fixes_tool,
     enforce_standards_tool,
 )
-
 
 # -- Fixtures ----------------------------------------------------------------
 
