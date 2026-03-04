@@ -49,6 +49,8 @@ from ...constants import (
 from ...core.logging import get_logger
 from .scoring_scales import SimilarityDiscreteBand
 
+COSINE_UNIT_INTERVAL_DIVISOR = 2.0
+
 
 @dataclass
 class SimilarityConfig:
@@ -1967,7 +1969,7 @@ class SemanticSimilarity:
         # Normalize cosine to 0-1 and calibrate with lexical overlap.
         # CodeBERT cosine is highly anisotropic for short snippets; blending a
         # light lexical signal improves separation of unrelated code.
-        semantic_score = (embedding_cosine + 1.0) / 2.0
+        semantic_score = (embedding_cosine + 1.0) / COSINE_UNIT_INTERVAL_DIVISOR
         lexical_score = self._calculate_lexical_similarity(code1, code2)
         similarity = 0.5 * semantic_score + 0.5 * lexical_score
         return max(0.0, min(1.0, similarity))

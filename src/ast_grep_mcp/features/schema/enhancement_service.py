@@ -34,6 +34,16 @@ from ast_grep_mcp.models.schema_enhancement import (
 
 logger = get_logger("schema_enhancement")
 
+LOW_PRIORITY_SORT_ORDER = 3
+MIN_URL_PARTS_FOR_BASE_DOMAIN = 3
+
+ENHANCEMENT_PRIORITY_ORDER = {
+    EnhancementPriority.CRITICAL: 0,
+    EnhancementPriority.HIGH: 1,
+    EnhancementPriority.MEDIUM: 2,
+    EnhancementPriority.LOW: LOW_PRIORITY_SORT_ORDER,
+}
+
 
 # =============================================================================
 # Graph Loading Functions
@@ -290,13 +300,7 @@ async def _get_suggested_properties(entity_type: str, existing_properties: List[
         if enhancement.priority in [EnhancementPriority.CRITICAL, EnhancementPriority.HIGH, EnhancementPriority.MEDIUM]:
             suggested.append(enhancement)
 
-    priority_order = {
-        EnhancementPriority.CRITICAL: 0,
-        EnhancementPriority.HIGH: 1,
-        EnhancementPriority.MEDIUM: 2,
-        EnhancementPriority.LOW: 3,
-    }
-    suggested.sort(key=lambda p: priority_order[p.priority])
+    suggested.sort(key=lambda p: ENHANCEMENT_PRIORITY_ORDER[p.priority])
 
     return suggested
 
@@ -439,13 +443,7 @@ def _suggest_missing_entities(existing_entities: List[Dict[str, Any]], _client: 
             )
             suggestions.append(suggestion)
 
-    priority_order = {
-        EnhancementPriority.CRITICAL: 0,
-        EnhancementPriority.HIGH: 1,
-        EnhancementPriority.MEDIUM: 2,
-        EnhancementPriority.LOW: 3,
-    }
-    suggestions.sort(key=lambda s: priority_order.get(s.priority, SEODefaults.DEFAULT_PRIORITY_ORDER))
+    suggestions.sort(key=lambda s: ENHANCEMENT_PRIORITY_ORDER.get(s.priority, SEODefaults.DEFAULT_PRIORITY_ORDER))
 
     return suggestions
 
@@ -800,6 +798,6 @@ def _extract_base_url(entities: List[Dict[str, Any]]) -> str:
         if entity_id.startswith("http"):
             # Extract base URL (remove fragment and path after domain)
             parts = entity_id.split("#")[0].split("/")
-            if len(parts) >= 3:
+            if len(parts) >= MIN_URL_PARTS_FOR_BASE_DOMAIN:
                 return f"{parts[0]}//{parts[2]}"
     return "https://example.com"

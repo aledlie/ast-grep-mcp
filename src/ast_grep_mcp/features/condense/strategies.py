@@ -6,12 +6,17 @@ The actual pipeline is in service.py; this module documents the contract.
 
 from typing import Dict
 
+AI_CHAT_REDUCTION_RATIO = 0.85
+AI_ANALYSIS_REDUCTION_RATIO = 0.40
+ARCHIVAL_REDUCTION_RATIO = 0.30
+POLYGLOT_REDUCTION_RATIO = 0.65
+
 # Expected token reduction ratios (conservative estimates)
 STRATEGY_REDUCTION_RATIOS: Dict[str, float] = {
-    "ai_chat": 0.85,       # Signatures + types + docstrings only (lossy)
-    "ai_analysis": 0.40,   # Full source minus dead code (lossless)
-    "archival": 0.30,       # Normalized, deduplicated (lossless)
-    "polyglot": 0.65,       # Per-language optimal selection
+    "ai_chat": AI_CHAT_REDUCTION_RATIO,  # Signatures + types + docstrings only (lossy)
+    "ai_analysis": AI_ANALYSIS_REDUCTION_RATIO,  # Full source minus dead code (lossless)
+    "archival": ARCHIVAL_REDUCTION_RATIO,  # Normalized, deduplicated (lossless)
+    "polyglot": POLYGLOT_REDUCTION_RATIO,  # Per-language optimal selection
 }
 
 STRATEGY_DESCRIPTIONS: Dict[str, str] = {

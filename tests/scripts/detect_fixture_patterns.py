@@ -27,6 +27,15 @@ from ast_grep_mcp.constants import SemanticVolumeDefaults
 from ast_grep_mcp.features.deduplication.scoring_scales import SharedTopN
 from ast_grep_mcp.utils.console_logger import console
 
+CONTEXT_LINES_STANDARD = 3
+CONTEXT_LINES_EXPANDED = 5
+FIXTURE_VALUE_MIN = 4.0
+FIXTURE_VALUE_BASE = 5.0
+FIXTURE_VALUE_COMPLEX = 6.0
+FIXTURE_VALUE_RECOMMENDED = 7.0
+FIXTURE_VALUE_STRONG = 8.0
+FIXTURE_VALUE_TOP = 9.0
+
 
 @dataclass
 class PatternOccurrence:
@@ -103,7 +112,7 @@ class PatternDetector:
             occurrences=len(occurrences),
             files_count=files_count,
             complexity_score=2.0,  # Simple pattern
-            fixture_value_score=9.0 if files_count >= SharedTopN.SMALL else 5.0,
+            fixture_value_score=FIXTURE_VALUE_TOP if files_count >= SharedTopN.SMALL else FIXTURE_VALUE_BASE,
             occurrences_list=occurrences,
             suggested_fixture_name="temp_dir",
             suggested_implementation="""@pytest.fixture
@@ -137,7 +146,7 @@ def temp_dir():
                         file_patterns[file_path].append((file.name, i))
 
                     start = max(0, i - 1)
-                    end = min(len(lines), i + 3)
+                    end = min(len(lines), i + CONTEXT_LINES_STANDARD)
                     snippet = "\n".join(lines[start:end])
 
                     occurrences.append(PatternOccurrence(file=file.name, line_number=i, function_name=function_name, code_snippet=snippet))
@@ -150,7 +159,7 @@ def temp_dir():
             occurrences=len(occurrences),
             files_count=files_count,
             complexity_score=4.0,
-            fixture_value_score=8.0 if files_count >= SharedTopN.SMALL else 4.0,
+            fixture_value_score=FIXTURE_VALUE_STRONG if files_count >= SharedTopN.SMALL else FIXTURE_VALUE_MIN,
             occurrences_list=occurrences,
             suggested_fixture_name="temp_project_with_files",
             suggested_implementation="""@pytest.fixture
@@ -180,7 +189,7 @@ def temp_project_with_files(temp_dir):
                     function_name = self._find_containing_function(content, i)
 
                     start = max(0, i - 1)
-                    end = min(len(lines), i + 5)
+                    end = min(len(lines), i + CONTEXT_LINES_EXPANDED)
                     snippet = "\n".join(lines[start:end])
 
                     occurrences.append(PatternOccurrence(file=file.name, line_number=i, function_name=function_name, code_snippet=snippet))
@@ -193,7 +202,7 @@ def temp_project_with_files(temp_dir):
             occurrences=len(occurrences),
             files_count=files_count,
             complexity_score=6.0,
-            fixture_value_score=9.0 if files_count >= SharedTopN.SMALL else 6.0,
+            fixture_value_score=FIXTURE_VALUE_TOP if files_count >= SharedTopN.SMALL else FIXTURE_VALUE_COMPLEX,
             occurrences_list=occurrences,
             suggested_fixture_name="mock_popen",
             suggested_implementation="""@pytest.fixture
@@ -221,7 +230,7 @@ def mock_popen(monkeypatch):
                     function_name = self._find_containing_function(content, i)
 
                     start = max(0, i - 1)
-                    end = min(len(lines), i + 3)
+                    end = min(len(lines), i + CONTEXT_LINES_STANDARD)
                     snippet = "\n".join(lines[start:end])
 
                     occurrences.append(PatternOccurrence(file=file.name, line_number=i, function_name=function_name, code_snippet=snippet))
@@ -234,7 +243,7 @@ def mock_popen(monkeypatch):
             occurrences=len(occurrences),
             files_count=files_count,
             complexity_score=5.0,
-            fixture_value_score=8.0 if files_count >= SharedTopN.SMALL else 5.0,
+            fixture_value_score=FIXTURE_VALUE_STRONG if files_count >= SharedTopN.SMALL else FIXTURE_VALUE_BASE,
             occurrences_list=occurrences,
             suggested_fixture_name="initialized_cache",
             suggested_implementation="""@pytest.fixture
@@ -294,7 +303,7 @@ def initialized_cache():
             occurrences=len(occurrences),
             files_count=files_count,
             complexity_score=3.0,
-            fixture_value_score=7.0 if most_common[1] >= SharedTopN.STANDARD else 4.0,
+            fixture_value_score=FIXTURE_VALUE_RECOMMENDED if most_common[1] >= SharedTopN.STANDARD else FIXTURE_VALUE_MIN,
             occurrences_list=occurrences[:SemanticVolumeDefaults.DETAIL_RESULTS_LIMIT],
             suggested_fixture_name="mcp_tools",
             suggested_implementation="""@pytest.fixture
@@ -362,7 +371,7 @@ def format_pattern_report(patterns: List[DetectedPattern], detailed: bool = Fals
     lines.append("-" * 100)
 
     for pattern in patterns:
-        status = "RECOMMEND FIXTURE" if pattern.fixture_value_score >= 7.0 else "Consider"
+        status = "RECOMMEND FIXTURE" if pattern.fixture_value_score >= FIXTURE_VALUE_RECOMMENDED else "Consider"
 
         lines.append(
             f"{pattern.pattern_type:<25} "

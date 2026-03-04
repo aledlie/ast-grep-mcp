@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, cast
 import httpx
 import sentry_sdk
 
-from ast_grep_mcp.constants import PerformanceDefaults
+from ast_grep_mcp.constants import ExampleDataDefaults, PerformanceDefaults
 from ast_grep_mcp.core.logging import get_logger
 
 # Global instance for singleton pattern
@@ -158,8 +158,8 @@ class SchemaOrgClient:
             "URL": lambda: "https://example.com",
             "Date": lambda: "2024-01-01",
             "DateTime": lambda: "2024-01-01T12:00:00Z",
-            "Number": lambda: 42,
-            "Integer": lambda: 42,
+            "Number": lambda: ExampleDataDefaults.NUMERIC_EXAMPLE,
+            "Integer": lambda: ExampleDataDefaults.NUMERIC_EXAMPLE,
             "Boolean": lambda: True,
             "ImageObject": lambda: {
                 "@type": "ImageObject",

@@ -18,6 +18,12 @@ from .estimator import _collect_files
 
 logger = get_logger("condense.dictionary")
 
+SMALL_SAMPLE_THRESHOLD = 10
+MEDIUM_SAMPLE_THRESHOLD = 50
+SMALL_SAMPLE_IMPROVEMENT_PCT = 5.0
+MEDIUM_SAMPLE_IMPROVEMENT_PCT = 10.0
+LARGE_SAMPLE_IMPROVEMENT_PCT = 15.0
+
 
 def train_dictionary_impl(
     path: str,
@@ -160,8 +166,8 @@ def _estimate_improvement(samples_used: int, total_bytes: int) -> float:
     better compression for small-to-medium files with consistent patterns.
     We use a conservative 15% estimate with a small-sample penalty.
     """
-    if samples_used < 10:
-        return 5.0   # Too few samples for reliable training
-    if samples_used < 50:
-        return 10.0  # Moderate sample set
-    return 15.0      # Full benefit for large, diverse sample sets
+    if samples_used < SMALL_SAMPLE_THRESHOLD:
+        return SMALL_SAMPLE_IMPROVEMENT_PCT  # Too few samples for reliable training
+    if samples_used < MEDIUM_SAMPLE_THRESHOLD:
+        return MEDIUM_SAMPLE_IMPROVEMENT_PCT  # Moderate sample set
+    return LARGE_SAMPLE_IMPROVEMENT_PCT  # Full benefit for large, diverse sample sets

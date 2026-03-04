@@ -690,6 +690,7 @@ class ExampleDataDefaults:
     """Shared sample data values used in cross-language examples."""
 
     PERSON_AGE = 30
+    NUMERIC_EXAMPLE = 42
 
 
 class DetectorDefaults:

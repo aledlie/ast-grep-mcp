@@ -127,6 +127,8 @@ SEMANTIC_GROUP_KEYWORDS = {
     "loops": ["for ", "while "],
 }
 
+MAX_LANGUAGE_SEARCH_WORKERS = 5
+
 
 def _detect_semantic_group(snippet: str) -> str:
     """Detect semantic group from code snippet using keyword matching."""
@@ -302,7 +304,7 @@ def search_multi_language_impl(
     matches_by_language: Dict[str, int] = {}
 
     # Search each language in parallel
-    with ThreadPoolExecutor(max_workers=min(len(languages), 5)) as executor:
+    with ThreadPoolExecutor(max_workers=min(len(languages), MAX_LANGUAGE_SEARCH_WORKERS)) as executor:
         futures = {}
         for lang in languages:
             ast_pattern = _get_ast_grep_pattern(semantic_key, lang)

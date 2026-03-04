@@ -18,6 +18,8 @@ from ...core.logging import get_logger
 from ...models.deduplication import VariationCategory, VariationSeverity
 from .scoring_scales import VariationScoreCutoff, VariationScoreScale
 
+IDENTIFIER_CONTEXT_WINDOW_CHARS = 20
+
 
 class PatternAnalyzer:
     """Analyzes patterns and variations in duplicate code."""
@@ -1186,8 +1188,8 @@ def _extract_identifiers_from_code(code: str, language: str) -> Dict[int, Dict[s
         name = match.group(RegexCaptureGroups.FIRST)
         if name not in excluded and not name.isupper():  # Exclude constants
             # Get surrounding context
-            start = max(0, match.start() - 20)
-            end = min(len(code), match.end() + 20)
+            start = max(0, match.start() - IDENTIFIER_CONTEXT_WINDOW_CHARS)
+            end = min(len(code), match.end() + IDENTIFIER_CONTEXT_WINDOW_CHARS)
             context = code[start:end].strip()
 
             # Determine usage type based on context
