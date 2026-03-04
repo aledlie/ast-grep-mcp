@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from ...constants import CodeAnalysisDefaults, DisplayDefaults, PriorityWeights, ReportingDefaults
+from ...constants import CodeAnalysisDefaults, DisplayDefaults, PriorityWeights, RankerDefaults, ReportingDefaults
 from ...utils.formatters import generate_multi_file_diff
 
 
@@ -305,7 +305,7 @@ class DuplicationReporter:
                 "original_code": candidate.get("code", ""),
                 "suggested_function_name": function_name,
                 "replacement_code": candidate.get("replacement", ""),
-                "similarity_score": candidate.get("similarity", 100.0),
+                "similarity_score": candidate.get("similarity", float(RankerDefaults.MAX_NORMALIZED_SCORE)),
                 "complexity_score": complexity,
                 "before_after": before_after,
                 "complexity_viz": complexity_viz,

@@ -365,7 +365,7 @@ class RegressionDetector:
         """
         baseline_mean = baseline_result.get("mean_seconds", 0)
         current_mean = current_result["mean_seconds"]
-        threshold = self.thresholds.get(name, 0.10)
+        threshold = self.thresholds.get(name, DeduplicationDefaults.REGRESSION_CODE_GENERATION)
 
         if baseline_mean <= 0:
             self.logger.warning("invalid_baseline_mean", name=name, baseline_mean=baseline_mean)
