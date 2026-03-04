@@ -22,7 +22,7 @@ A Model Context Protocol (MCP) server providing structural code search, refactor
 ## Architecture
 
 ```
-src/ast_grep_mcp/          # 118 modules
+src/ast_grep_mcp/          # 120 modules
 ├── core/                  # Config, cache, executor, logging, sentry, usage tracking
 ├── models/                # Data models (13 modules)
 ├── utils/                 # Formatters, validation, templates, text processing
@@ -40,7 +40,7 @@ src/ast_grep_mcp/          # 118 modules
 └── server/                # MCP registry + runner
 ```
 
-**53 MCP tools** | **1,378+ tests** | **Zero complexity violations** (cyclomatic ≤20, cognitive ≤30, nesting ≤6, function ≤150 lines)
+**53 MCP tools** | **1,469 tests collected** | **Quality gates: Ruff + mypy + pytest + analyzer pipeline**
 
 ## Quick Start
 
@@ -171,6 +171,13 @@ uv run mypy src/                           # type check
 uv run python analyze_codebase.py <path> -l <lang>        # codebase analysis
 uv run python analyze_codebase.py <path> -l <lang> --fix  # analysis + auto-fix
 ```
+
+## Recent Maintenance (2026-03-04)
+
+- Consolidated semantic-overlap constants and scoring scales; replaced many duplicated literals.
+- Updated magic-number detection to skip one-off constant declarations (`UPPER_CASE = ...`) to reduce false positives.
+- Enforced virtual-environment and backup-directory exclusions (`venv/.venv/virtualenv/site-packages/.ast-grep-backups`) across quality analyzers.
+- Fixed unified diff hunk parsing to align capture groups with shared constants; full suite now passes (`1468 passed, 1 skipped`).
 
 ### Adding Features
 
