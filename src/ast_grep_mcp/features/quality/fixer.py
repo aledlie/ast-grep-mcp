@@ -51,7 +51,10 @@ SAFE_FIX_PATTERNS: Dict[str, Dict[str, Any]] = {
 
 # Patterns that require review (lower confidence)
 REVIEW_REQUIRED_PATTERNS: Dict[str, Dict[str, Any]] = {
-    "no-eval-exec": {"confidence": 0.6, "reason": "eval/exec removal may break functionality"},
+    "no-eval-exec": {
+        "confidence": PatternSuggestionConfidence.STRUCTURAL,
+        "reason": "eval/exec removal may break functionality",
+    },
     "no-sql-injection": {"confidence": SecurityScanDefaults.MEDIUM_CONFIDENCE, "reason": "SQL parameterization needs careful review"},
     "no-empty-catch": {"confidence": 0.75, "reason": "Empty catch replacement may change behavior"},
     "proper-exception-handling": {"confidence": SecurityScanDefaults.MEDIUM_CONFIDENCE, "reason": "Exception handling changes need review"},

@@ -6,6 +6,8 @@ across programming languages, organized by category.
 
 from typing import Any, Dict, List
 
+from ...constants import ExampleDataDefaults
+
 # =============================================================================
 # Pattern Categories
 # =============================================================================
@@ -269,27 +271,40 @@ PATTERN_DATABASE: Dict[str, Dict[str, Any]] = {
         "description": "Creating a dictionary/map with key-value pairs",
         "examples": {
             "python": {
-                "code": "person = {'name': 'Alice', 'age': 30}",
+                "code": f"person = {{'name': 'Alice', 'age': {ExampleDataDefaults.PERSON_AGE}}}",
                 "description": "Python dictionary literal",
             },
             "javascript": {
-                "code": "const person = { name: 'Alice', age: 30 };",
+                "code": f"const person = {{ name: 'Alice', age: {ExampleDataDefaults.PERSON_AGE} }};",
                 "description": "JavaScript object literal",
             },
             "typescript": {
-                "code": "const person: { name: string; age: number } = { name: 'Alice', age: 30 };",
+                "code": (
+                    "const person: { name: string; age: number } = "
+                    f"{{ name: 'Alice', age: {ExampleDataDefaults.PERSON_AGE} }};"
+                ),
                 "description": "TypeScript object with type annotation",
             },
             "java": {
-                "code": 'Map<String, Object> person = Map.of("name", "Alice", "age", 30);',
+                "code": f'Map<String, Object> person = Map.of("name", "Alice", "age", {ExampleDataDefaults.PERSON_AGE});',
                 "description": "Java immutable map (Java 9+)",
             },
             "go": {
-                "code": 'person := map[string]interface{}{\n    "name": "Alice",\n    "age":  30,\n}',
+                "code": (
+                    'person := map[string]interface{}{\n'
+                    '    "name": "Alice",\n'
+                    f'    "age":  {ExampleDataDefaults.PERSON_AGE},\n'
+                    "}"
+                ),
                 "description": "Go map literal",
             },
             "rust": {
-                "code": 'let person: HashMap<&str, &str> = HashMap::from([\n    ("name", "Alice"),\n    ("age", "30"),\n]);',
+                "code": (
+                    "let person: HashMap<&str, &str> = HashMap::from([\n"
+                    '    ("name", "Alice"),\n'
+                    f'    ("age", "{ExampleDataDefaults.PERSON_AGE}"),\n'
+                    "]);"
+                ),
                 "description": "Rust HashMap from array",
             },
         },
@@ -301,7 +316,17 @@ PATTERN_DATABASE: Dict[str, Dict[str, Any]] = {
         "description": "Extract values from objects/arrays into variables",
         "examples": {
             "python": {
-                "code": "name, age = person['name'], person['age']\n# or with dataclass:\nfrom dataclasses import dataclass\n@dataclass\nclass Person:\n    name: str\n    age: int\np = Person('Alice', 30)\nname, age = p.name, p.age",
+                "code": (
+                    "name, age = person['name'], person['age']\n"
+                    "# or with dataclass:\n"
+                    "from dataclasses import dataclass\n"
+                    "@dataclass\n"
+                    "class Person:\n"
+                    "    name: str\n"
+                    "    age: int\n"
+                    f"p = Person('Alice', {ExampleDataDefaults.PERSON_AGE})\n"
+                    "name, age = p.name, p.age"
+                ),
                 "description": "Python unpacking (limited destructuring)",
             },
             "javascript": {
@@ -313,7 +338,13 @@ PATTERN_DATABASE: Dict[str, Dict[str, Any]] = {
                 "description": "TypeScript destructuring with types",
             },
             "java": {
-                "code": '// Java 16+ record pattern\nrecord Person(String name, int age) {}\nPerson p = new Person("Alice", 30);\nString name = p.name();\nint age = p.age();',
+                "code": (
+                    "// Java 16+ record pattern\n"
+                    "record Person(String name, int age) {}\n"
+                    f'Person p = new Person("Alice", {ExampleDataDefaults.PERSON_AGE});\n'
+                    "String name = p.name();\n"
+                    "int age = p.age();"
+                ),
                 "description": "Java records (no true destructuring)",
                 "notes": ["Java lacks destructuring syntax"],
             },

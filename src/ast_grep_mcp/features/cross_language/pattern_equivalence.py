@@ -254,7 +254,7 @@ def list_pattern_categories() -> List[Dict[str, Any]]:
 
         if category not in category_examples:
             category_examples[category] = []
-        if len(category_examples[category]) < 3:
+        if len(category_examples[category]) < PatternEquivalenceTopN.CATEGORY_RELATED_SUGGESTION:
             category_examples[category].append(pattern_id)
 
     return [
