@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 from typing import Dict, List
 
-from ast_grep_mcp.constants import FormattingDefaults, SemanticSimilarityDefaults
+from ast_grep_mcp.constants import BenchmarkExpectationDefaults, FormattingDefaults, SemanticSimilarityDefaults
 from ast_grep_mcp.utils.console_logger import console
 
 # Add project root to path
@@ -267,13 +267,20 @@ def main():
         speedup = results["speedups"]["batch_parallel"]["speedup"]
         improvement = results["speedups"]["batch_parallel"]["improvement_percent"]
 
-        console.log("Expected: 60-80% improvement")
+        console.log(
+            "Expected: "
+            f"{BenchmarkExpectationDefaults.BATCH_PARALLEL_IMPROVEMENT_MIN_PERCENT}-"
+            f"{BenchmarkExpectationDefaults.BATCH_PARALLEL_IMPROVEMENT_MAX_PERCENT}% improvement"
+        )
         console.log(f"Actual:   {improvement:.1f}% improvement ({speedup:.2f}x speedup)")
 
-        if improvement >= 60:
+        if improvement >= BenchmarkExpectationDefaults.BATCH_PARALLEL_PASS_MIN_PERCENT:
             console.success("✓ PASSED: Performance goal achieved!")
-        elif improvement >= 40:
-            console.log("⚠ PARTIAL: Good improvement, but below 60% target")
+        elif improvement >= BenchmarkExpectationDefaults.BATCH_PARALLEL_PARTIAL_MIN_PERCENT:
+            console.log(
+                "⚠ PARTIAL: Good improvement, but below "
+                f"{BenchmarkExpectationDefaults.BATCH_PARALLEL_PASS_MIN_PERCENT}% target"
+            )
         else:
             console.error("✗ FAILED: Performance improvement below expectations")
 

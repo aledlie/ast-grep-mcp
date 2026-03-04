@@ -12,6 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
+from ...constants import BackupDefaults
 from ...core.logging import get_logger
 
 
@@ -152,7 +153,7 @@ class DeduplicationBackupManager:
 
         return restored_files
 
-    def cleanup_old_backups(self, days: int = 30) -> int:
+    def cleanup_old_backups(self, days: int = BackupDefaults.RETENTION_DAYS) -> int:
         """Remove backups older than specified days.
 
         Args:

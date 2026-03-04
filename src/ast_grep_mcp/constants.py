@@ -53,6 +53,12 @@ class ParallelProcessing:
         return max(1, min(cpu_count - 1, ParallelProcessing.MAX_WORKERS))
 
 
+class BackupDefaults:
+    """Defaults for backup retention and lifecycle management."""
+
+    RETENTION_DAYS = 30
+
+
 class CacheDefaults:
     """Cache configuration defaults."""
 
@@ -408,6 +414,19 @@ class PerformanceDefaults:
     DATABASE_TIMEOUT_SECONDS = 30.0  # SQLite/HTTP connection timeout
 
 
+class BenchmarkExpectationDefaults:
+    """Expected performance-improvement thresholds for benchmark scripts."""
+
+    BATCH_SEQUENTIAL_IMPROVEMENT_MIN_PERCENT = 40
+    BATCH_SEQUENTIAL_IMPROVEMENT_MAX_PERCENT = 50
+    BATCH_PARALLEL_IMPROVEMENT_MIN_PERCENT = 60
+    BATCH_PARALLEL_IMPROVEMENT_MAX_PERCENT = 80
+
+    # Classification thresholds for reporting benchmark outcomes
+    BATCH_PARALLEL_PARTIAL_MIN_PERCENT = 40
+    BATCH_PARALLEL_PASS_MIN_PERCENT = 60
+
+
 class CodeAnalysisDefaults:
     """Defaults for code structure analysis."""
 
@@ -665,6 +684,12 @@ class EquivalenceDefaults:
 
     SIMPLE_LINE_THRESHOLD = 2
     MODERATE_LINE_THRESHOLD = 5
+
+
+class ExampleDataDefaults:
+    """Shared sample data values used in cross-language examples."""
+
+    PERSON_AGE = 30
 
 
 class DetectorDefaults:
