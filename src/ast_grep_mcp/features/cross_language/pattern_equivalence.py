@@ -13,6 +13,7 @@ from ast_grep_mcp.features.cross_language.pattern_database import (
     PATTERN_CATEGORIES,
     PATTERN_DATABASE,
 )
+from ast_grep_mcp.features.deduplication.scoring_scales import PatternEquivalenceTopN
 from ast_grep_mcp.models.cross_language import (
     SUPPORTED_LANGUAGES,
     PatternEquivalence,
@@ -22,11 +23,6 @@ from ast_grep_mcp.models.cross_language import (
 from ast_grep_mcp.utils.slicing import take_top_n
 
 logger = get_logger(__name__)
-
-CATEGORY_RELATED_SUGGESTION_LIMIT = 3
-CATEGORY_DISCOVERY_LIMIT = 4
-MIN_PATTERNS_FOR_CATEGORY_HINT = 3
-MAX_SUGGESTIONS_LIMIT = 5
 
 
 def _create_pattern_equivalence(
@@ -159,16 +155,16 @@ def _get_suggestions(
     # Suggest category exploration
     if category:
         category_patterns = [pid for pid, p in PATTERN_DATABASE.items() if p.get("category") == category and pid not in found_patterns]
-        category_preview = take_top_n(category_patterns, CATEGORY_RELATED_SUGGESTION_LIMIT)
+        category_preview = take_top_n(category_patterns, PatternEquivalenceTopN.CATEGORY_RELATED_SUGGESTION)
         if category_preview:
             suggestions.append(f"More in '{category}': {', '.join(category_preview)}")
 
     # Suggest categories to explore
-    if not category and len(found_patterns) < MIN_PATTERNS_FOR_CATEGORY_HINT:
-        category_preview = take_top_n(PATTERN_CATEGORIES, CATEGORY_DISCOVERY_LIMIT)
+    if not category and len(found_patterns) < PatternEquivalenceTopN.MIN_PATTERNS_FOR_CATEGORY_HINT:
+        category_preview = take_top_n(PATTERN_CATEGORIES, PatternEquivalenceTopN.CATEGORY_DISCOVERY)
         suggestions.append(f"Try searching by category: {', '.join(category_preview)}")
 
-    return take_top_n(suggestions, MAX_SUGGESTIONS_LIMIT)
+    return take_top_n(suggestions, PatternEquivalenceTopN.MAX_SUGGESTIONS)
 
 
 def find_language_equivalents_impl(

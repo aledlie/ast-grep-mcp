@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from ast_grep_mcp.constants import FormattingDefaults
+from ast_grep_mcp.features.deduplication.scoring_scales import AnalyticsBotTopN
 from ast_grep_mcp.utils.console_logger import console
 from ast_grep_mcp.utils.slicing import take_top_n
 
@@ -15,9 +16,6 @@ sys.path.insert(0, str(project_root))
 
 from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool, detect_code_smells_tool  # noqa: E402
 from ast_grep_mcp.features.quality.tools import detect_security_issues_tool  # noqa: E402
-
-TOP_COMPLEX_FUNCTIONS_PREVIEW_LIMIT = 3
-TOP_SECURITY_TYPES_PREVIEW_LIMIT = 5
 
 
 def analyze_project(project_path: str):
@@ -54,8 +52,8 @@ def analyze_project(project_path: str):
         console.log(f"   Max cognitive complexity: {summary.get('max_cognitive', 0)}")
 
         if functions:
-            console.log("\n   Top 3 most complex functions:")
-            for i, func in enumerate(take_top_n(functions, TOP_COMPLEX_FUNCTIONS_PREVIEW_LIMIT), 1):
+            console.log(f"\n   Top {AnalyticsBotTopN.TOP_COMPLEX_FUNCTIONS_PREVIEW} most complex functions:")
+            for i, func in enumerate(take_top_n(functions, AnalyticsBotTopN.TOP_COMPLEX_FUNCTIONS_PREVIEW), 1):
                 console.log(f"   {i}. {func.get('file', 'unknown').split('/')[-1]} (lines {func.get('lines', '?')})")
                 console.log(
                     f"      Cyclomatic: {func.get('cyclomatic', 0)}, Cognitive: {func.get('cognitive', 0)}, Length: {func.get('length', 0)}"
@@ -121,7 +119,7 @@ def analyze_project(project_path: str):
             console.log("   By type:")
             for issue_type, count in take_top_n(
                 sorted(by_type.items(), key=lambda x: x[1], reverse=True),
-                TOP_SECURITY_TYPES_PREVIEW_LIMIT,
+                AnalyticsBotTopN.TOP_SECURITY_TYPES_PREVIEW,
             ):
                 console.log(f"     {issue_type}: {count}")
         else:

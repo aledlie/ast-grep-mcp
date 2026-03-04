@@ -14,15 +14,11 @@ from pathlib import Path
 from typing import List, Tuple
 
 from ast_grep_mcp.constants import FormattingDefaults
+from ast_grep_mcp.features.deduplication.scoring_scales import PrintMigrationTopN
 from ast_grep_mcp.utils.console_logger import console
 from ast_grep_mcp.utils.slicing import take_top_n
 
 IMPORT_STMT = "from ast_grep_mcp.utils.console_logger import console"
-
-MIGRATION_CHANGES_SUMMARY_LIMIT = 10
-CLI_FILE_CHANGES_PREVIEW_LIMIT = 15
-TOP_MODIFIED_FILES_LIMIT = 5
-PER_FILE_CHANGES_PREVIEW_LIMIT = 3
 
 
 def smart_replace_print(line: str) -> Tuple[str, bool]:
@@ -208,7 +204,7 @@ def migrate_directory(dir_path: Path, pattern: str = "**/*.py", dry_run: bool = 
                 results["total_migrations"] += migrations
                 results["files"][str(file_path)] = {
                     "migrations": migrations,
-                    "changes": take_top_n(changes, MIGRATION_CHANGES_SUMMARY_LIMIT),
+                    "changes": take_top_n(changes, PrintMigrationTopN.MIGRATION_CHANGES_SUMMARY),
                 }
 
     return results
@@ -237,7 +233,7 @@ def main():
             migrations, changes = migrate_file(path, dry_run=args.dry_run)
             console.log(f"\n{'[DRY RUN] ' if args.dry_run else ''}Migrated {path.name}")
             console.log(f"Migrations: {migrations}")
-            for change in take_top_n(changes, CLI_FILE_CHANGES_PREVIEW_LIMIT):
+            for change in take_top_n(changes, PrintMigrationTopN.CLI_FILE_CHANGES_PREVIEW):
                 console.log(f"  {change}")
         else:
             results = migrate_directory(path, dry_run=args.dry_run)
@@ -263,10 +259,10 @@ def main():
                     key=lambda x: x[1]["migrations"],
                     reverse=True,
                 ),
-                TOP_MODIFIED_FILES_LIMIT,
+                PrintMigrationTopN.TOP_MODIFIED_FILES,
             ):
                 console.log(f"\n{Path(path).name}: {info['migrations']} migrations")
-                for change in take_top_n(info["changes"], PER_FILE_CHANGES_PREVIEW_LIMIT):
+                for change in take_top_n(info["changes"], PrintMigrationTopN.PER_FILE_CHANGES_PREVIEW):
                     console.log(f"  {change}")
 
     elif args.tests:

@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from ast_grep_mcp.constants import DeduplicationDefaults, FilePatterns, FormattingDefaults, SemanticVolumeDefaults
 from ast_grep_mcp.features.complexity.analyzer import analyze_file_complexity
 from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool, detect_code_smells_tool
+from ast_grep_mcp.features.deduplication.scoring_scales import AnalyzeCodebaseTopN
 from ast_grep_mcp.features.deduplication.tools import analyze_deduplication_candidates_tool, find_duplication_tool
 from ast_grep_mcp.features.quality.security_scanner import detect_security_issues_impl
 from ast_grep_mcp.features.quality.tools import apply_standards_fixes_tool, enforce_standards_tool, generate_quality_report_tool
@@ -29,12 +30,6 @@ from ast_grep_mcp.utils.slicing import take_top_n
 DEFAULT_PROJECT_FOLDER = "src/ast_grep_mcp"
 DEFAULT_LANGUAGE = "python"
 EXCLUDE_PATTERNS = FilePatterns.DEFAULT_EXCLUDE + FilePatterns.TEST_EXCLUDE + FilePatterns.MINIFIED_EXCLUDE
-TOP_FILES_COUNT = 5
-WORST_OFFENDERS_LIMIT = 3
-TOP_COMPLEX_FUNCTIONS_LIMIT = 10
-TOP_SMELLS_PREVIEW_LIMIT = 10
-TOP_SECURITY_ISSUES_PREVIEW_LIMIT = 10
-DUPLICATION_LOCATION_PREVIEW_LIMIT = 3
 LANGUAGE_EXTENSIONS = {
     "python": "py",
     "javascript": "js",
@@ -94,7 +89,13 @@ def analyze_individual_files(project_folder: str, language: str):
             continue
 
     # Take the top N files by worst cognitive complexity
-    top_files = [path for path, _ in sorted(file_scores, key=lambda x: x[1], reverse=True)[:TOP_FILES_COUNT]]
+    top_files = [
+        path
+        for path, _ in take_top_n(
+            sorted(file_scores, key=lambda x: x[1], reverse=True),
+            AnalyzeCodebaseTopN.TOP_FILES,
+        )
+    ]
 
     print(f"\nAnalyzing top {len(top_files)} most complex files out of {len(source_files)} total:")
 
@@ -112,7 +113,10 @@ def analyze_individual_files(project_folder: str, language: str):
 
             if critical:
                 print("\nWorst offenders:")
-                for func in take_top_n(sorted(critical, key=lambda x: x.metrics.cognitive, reverse=True), WORST_OFFENDERS_LIMIT):
+                for func in take_top_n(
+                    sorted(critical, key=lambda x: x.metrics.cognitive, reverse=True),
+                    AnalyzeCodebaseTopN.WORST_OFFENDERS,
+                ):
                     print(f"  - {func.function_name} (line {func.start_line})")
                     print(
                         f"    Cyclomatic: {func.metrics.cyclomatic}, Cognitive: {func.metrics.cognitive}, "
@@ -152,7 +156,7 @@ def analyze_project_complexity(project_folder: str, language: str):
                 for i, func in enumerate(
                     take_top_n(
                         sorted(exceeding, key=lambda x: x.get("cognitive", 0), reverse=True),
-                        TOP_COMPLEX_FUNCTIONS_LIMIT,
+                        AnalyzeCodebaseTopN.TOP_COMPLEX_FUNCTIONS,
                     ),
                     1,
                 ):
@@ -197,7 +201,7 @@ def detect_code_smells(project_folder: str, language: str):
             smells = result.get("smells", [])
             if smells:
                 print("\nTop 10 code smells:")
-                for smell in take_top_n(smells, TOP_SMELLS_PREVIEW_LIMIT):
+                for smell in take_top_n(smells, AnalyzeCodebaseTopN.TOP_SMELLS_PREVIEW):
                     print(f"  - [{smell.get('severity', 'unknown').upper()}] {smell.get('type', 'unknown')}")
                     print(f"    File: {smell.get('file', 'unknown')}:{smell.get('line', '?')}")
                     print(f"    {smell.get('message', 'No message')}")
@@ -239,7 +243,7 @@ def detect_security_issues(project_folder: str, language: str):
 
         if result.issues:
             print("\nTop 10 security issues:")
-            for issue in take_top_n(result.issues, TOP_SECURITY_ISSUES_PREVIEW_LIMIT):
+            for issue in take_top_n(result.issues, AnalyzeCodebaseTopN.TOP_SECURITY_ISSUES_PREVIEW):
                 print(f"  - [{issue.severity.upper()}] {issue.issue_type}")
                 print(f"    File: {issue.file}:{issue.line}")
                 print(f"    {issue.description}")
@@ -296,7 +300,7 @@ def analyze_duplication(project_folder: str, language: str):
                     instances = group.get("instances", [])
                     if instances:
                         print("     Locations:")
-                        for inst in take_top_n(instances, DUPLICATION_LOCATION_PREVIEW_LIMIT):
+                        for inst in take_top_n(instances, AnalyzeCodebaseTopN.DUPLICATION_LOCATION_PREVIEW):
                             print(f"       - {inst.get('file', 'unknown')}:{inst.get('start_line', '?')}")
         else:
             print(f"Error: {result.get('error')}")
