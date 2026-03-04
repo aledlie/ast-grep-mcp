@@ -300,7 +300,14 @@ def list_rule_templates_tool(language: Optional[str] = None, category: Optional[
 
 def _get_default_exclude_patterns() -> List[str]:
     """Get default exclude patterns for file scanning."""
-    return list(FilePatterns.DEFAULT_EXCLUDE)
+    return FilePatterns.merge_with_venv_excludes(FilePatterns.DEFAULT_EXCLUDE)
+
+
+def _normalize_exclude_patterns(exclude_patterns: List[str] | None) -> List[str]:
+    """Normalize exclude patterns and enforce virtualenv exclusions."""
+    if exclude_patterns is None:
+        exclude_patterns = _get_default_exclude_patterns()
+    return FilePatterns.merge_with_venv_excludes(exclude_patterns)
 
 
 def _validate_enforcement_inputs(severity_threshold: str, output_format: str) -> None:
@@ -409,8 +416,7 @@ def enforce_standards_tool(
         custom_rules = []
     if include_patterns is None:
         include_patterns = ["**/*"]
-    if exclude_patterns is None:
-        exclude_patterns = _get_default_exclude_patterns()
+    exclude_patterns = _normalize_exclude_patterns(exclude_patterns)
 
     logger = get_logger("tool.enforce_standards")
     start_time = time.time()
@@ -1085,7 +1091,7 @@ def detect_orphans_tool(
         result = detect_orphans_impl(
             project_folder=project_folder,
             include_patterns=include_patterns,
-            exclude_patterns=exclude_patterns,
+            exclude_patterns=_normalize_exclude_patterns(exclude_patterns),
             analyze_functions=analyze_functions,
             verify_with_grep=verify_with_grep,
         )

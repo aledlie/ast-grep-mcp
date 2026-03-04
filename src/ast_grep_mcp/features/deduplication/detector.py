@@ -34,6 +34,7 @@ from .similarity import (
 
 # Type alias for similarity mode selection
 SimilarityMode = Literal["minhash", "hybrid", "sequence_matcher"]
+_MANDATORY_ENV_EXCLUDE_PATTERNS = ["site-packages", ".venv", "venv", "virtualenv"]
 
 
 class DuplicationDetector:
@@ -107,6 +108,11 @@ class DuplicationDetector:
 
         if exclude_patterns is None:
             exclude_patterns = ["site-packages", "node_modules", ".venv", "venv", "vendor"]
+        else:
+            exclude_patterns = list(exclude_patterns)
+        for pattern in _MANDATORY_ENV_EXCLUDE_PATTERNS:
+            if pattern not in exclude_patterns:
+                exclude_patterns.append(pattern)
 
         self.logger.info(
             "find_duplication_started",

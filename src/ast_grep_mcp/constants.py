@@ -57,13 +57,17 @@ class CacheDefaults:
 class FilePatterns:
     """Common file patterns for analysis."""
 
-    DEFAULT_EXCLUDE = [
-        "**/node_modules/**",
-        "**/__pycache__/**",
+    VENV_EXCLUDE = [
         "**/venv/**",
         "**/.venv/**",
         "**/virtualenv/**",
         "**/site-packages/**",
+    ]
+
+    DEFAULT_EXCLUDE = [
+        "**/node_modules/**",
+        "**/__pycache__/**",
+        *VENV_EXCLUDE,
         "**/dist/**",
         "**/build/**",
         "**/.git/**",
@@ -94,6 +98,19 @@ class FilePatterns:
         "**/*_test.py",
         "**/test_*.py",
     ]
+
+    @staticmethod
+    def merge_with_venv_excludes(exclude_patterns: list[str] | None) -> list[str]:
+        """Ensure virtualenv/site-packages paths are always excluded.
+
+        This is intentionally applied even when callers provide custom exclude
+        patterns, so environment directories never enter analysis scope.
+        """
+        merged = list(exclude_patterns or [])
+        for pattern in FilePatterns.VENV_EXCLUDE:
+            if pattern not in merged:
+                merged.append(pattern)
+        return merged
 
 
 class StreamDefaults:

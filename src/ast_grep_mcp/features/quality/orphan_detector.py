@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from ast_grep_mcp.constants import SubprocessDefaults
+from ast_grep_mcp.constants import FilePatterns, SubprocessDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.orphan import (
     DependencyEdge,
@@ -558,7 +558,13 @@ def detect_orphans_impl(
     if include_patterns:
         config.include_patterns = include_patterns
     if exclude_patterns:
-        config.exclude_patterns = exclude_patterns
+        # Merge user patterns with defaults; do not allow custom lists to drop
+        # environment exclusions like venv/.venv/site-packages.
+        merged_patterns = list(config.exclude_patterns)
+        merged_patterns.extend(exclude_patterns)
+        config.exclude_patterns = list(dict.fromkeys(merged_patterns))
+
+    config.exclude_patterns = FilePatterns.merge_with_venv_excludes(config.exclude_patterns)
 
     detector = OrphanDetector(config)
     result = detector.analyze(project_folder)

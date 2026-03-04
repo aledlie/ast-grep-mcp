@@ -14,9 +14,27 @@ from .applicator import DeduplicationApplicator
 from .benchmark import DeduplicationBenchmark
 from .detector import DuplicationDetector
 
+_MANDATORY_ENV_EXCLUDE_PATTERNS = ["site-packages", ".venv", "venv", "virtualenv"]
+
+
+def _normalize_exclude_patterns(exclude_patterns: Optional[List[str]]) -> List[str]:
+    """Normalize exclude patterns and enforce virtualenv exclusions."""
+    if exclude_patterns is None:
+        exclude_patterns = ["site-packages", "node_modules", ".venv", "venv", "vendor", "__pycache__", ".git"]
+
+    normalized = list(exclude_patterns)
+    for pattern in _MANDATORY_ENV_EXCLUDE_PATTERNS:
+        if pattern not in normalized:
+            normalized.append(pattern)
+    return normalized
+
 
 def find_duplication_tool(
-    project_folder: str, language: str, min_similarity: float = DeduplicationDefaults.MIN_SIMILARITY, min_lines: int = 5, exclude_patterns: Optional[List[str]] = None
+    project_folder: str,
+    language: str,
+    min_similarity: float = DeduplicationDefaults.MIN_SIMILARITY,
+    min_lines: int = 5,
+    exclude_patterns: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Find duplicate functions/classes/methods in a codebase.
 
@@ -34,8 +52,7 @@ def find_duplication_tool(
     """
     logger = get_logger("deduplication.tool.find")
 
-    if exclude_patterns is None:
-        exclude_patterns = ["site-packages", "node_modules", ".venv", "venv", "vendor", "__pycache__", ".git"]
+    exclude_patterns = _normalize_exclude_patterns(exclude_patterns)
 
     detector = DuplicationDetector(language=language)
     results = detector.find_duplication(
@@ -91,8 +108,7 @@ def analyze_deduplication_candidates_tool(
     """
     logger = get_logger("deduplication.tool.analyze")
 
-    if exclude_patterns is None:
-        exclude_patterns = ["site-packages", "node_modules", ".venv", "venv", "vendor", "__pycache__", ".git"]
+    exclude_patterns = _normalize_exclude_patterns(exclude_patterns)
 
     # Delegate to orchestrator
     orchestrator = DeduplicationAnalysisOrchestrator()

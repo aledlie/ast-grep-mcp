@@ -49,6 +49,18 @@ def _validate_inputs(language: str) -> None:
         raise ValueError(f"Unsupported language '{language}'. Supported: {', '.join(supported_langs)}")
 
 
+def _get_default_complexity_exclude_patterns() -> List[str]:
+    """Get default exclude patterns for complexity analysis."""
+    return ["**/node_modules/**", "**/__pycache__/**", *FilePatterns.VENV_EXCLUDE]
+
+
+def _normalize_complexity_exclude_patterns(exclude_patterns: List[str] | None) -> List[str]:
+    """Normalize exclude patterns and enforce virtualenv exclusions."""
+    if exclude_patterns is None:
+        exclude_patterns = _get_default_complexity_exclude_patterns()
+    return FilePatterns.merge_with_venv_excludes(exclude_patterns)
+
+
 def _find_files_to_analyze(
     project_folder: str, language: str, include_patterns: List[str], exclude_patterns: List[str], logger: Any
 ) -> tuple[List[str], ComplexityFileFinder]:
@@ -330,8 +342,7 @@ def analyze_complexity_tool(
     # Set defaults
     if include_patterns is None:
         include_patterns = ["**/*"]
-    if exclude_patterns is None:
-        exclude_patterns = ["**/node_modules/**", "**/__pycache__/**", "**/venv/**", "**/.venv/**", "**/site-packages/**"]
+    exclude_patterns = _normalize_complexity_exclude_patterns(exclude_patterns)
 
     logger = get_logger("tool.analyze_complexity")
     start_time = time.time()
@@ -515,7 +526,7 @@ def test_sentry_integration_tool(
 
 def _get_default_smell_exclude_patterns() -> List[str]:
     """Get default exclude patterns for code smell detection."""
-    return FilePatterns.DEFAULT_EXCLUDE + FilePatterns.TEST_EXCLUDE
+    return FilePatterns.merge_with_venv_excludes(FilePatterns.DEFAULT_EXCLUDE + FilePatterns.TEST_EXCLUDE)
 
 
 def _prepare_smell_detection_params(include_patterns: List[str] | None, exclude_patterns: List[str] | None) -> tuple[List[str], List[str]]:
@@ -532,6 +543,7 @@ def _prepare_smell_detection_params(include_patterns: List[str] | None, exclude_
         include_patterns = ["**/*"]
     if exclude_patterns is None:
         exclude_patterns = _get_default_smell_exclude_patterns()
+    exclude_patterns = FilePatterns.merge_with_venv_excludes(exclude_patterns)
     return include_patterns, exclude_patterns
 
 
