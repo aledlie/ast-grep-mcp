@@ -27,6 +27,9 @@ from typing import Dict, Optional
 from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.utils.console_logger import console
 
+ALLOWED_PERFORMANCE_SLOWDOWN_FACTOR = 1.2
+ALLOWED_PERFORMANCE_SLOWDOWN_PERCENT = 20
+
 
 @dataclass
 class ValidationResult:
@@ -179,8 +182,8 @@ class RefactoringValidator:
             self.result.messages.append(f"⊘ Performance: {self.result.duration:.2f}s (no baseline)")
             return True
 
-        # Allow 20% slowdown
-        threshold = baseline_duration * 1.2
+        # Allow bounded slowdown versus baseline.
+        threshold = baseline_duration * ALLOWED_PERFORMANCE_SLOWDOWN_FACTOR
 
         if self.result.duration <= threshold:
             percent_change = ((self.result.duration - baseline_duration) / baseline_duration) * 100
@@ -195,7 +198,7 @@ class RefactoringValidator:
             self.result.passed = False
             self.result.messages.append(
                 f"✗ Performance: {self.result.duration:.2f}s "
-                f"(baseline: {baseline_duration:.2f}s, {percent_change:+.1f}% - exceeded 20% threshold)"
+                f"(baseline: {baseline_duration:.2f}s, {percent_change:+.1f}% - exceeded {ALLOWED_PERFORMANCE_SLOWDOWN_PERCENT}% threshold)"
             )
             return False
 

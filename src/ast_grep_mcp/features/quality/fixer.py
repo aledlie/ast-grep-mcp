@@ -25,6 +25,7 @@ from ast_grep_mcp.models.standards import (
 )
 
 logger = get_logger(__name__)
+REVIEW_EMPTY_CATCH_CONFIDENCE = 0.75
 
 # =============================================================================
 # Fix Classification - Determine Safety Level
@@ -56,7 +57,7 @@ REVIEW_REQUIRED_PATTERNS: Dict[str, Dict[str, Any]] = {
         "reason": "eval/exec removal may break functionality",
     },
     "no-sql-injection": {"confidence": SecurityScanDefaults.MEDIUM_CONFIDENCE, "reason": "SQL parameterization needs careful review"},
-    "no-empty-catch": {"confidence": 0.75, "reason": "Empty catch replacement may change behavior"},
+    "no-empty-catch": {"confidence": REVIEW_EMPTY_CATCH_CONFIDENCE, "reason": "Empty catch replacement may change behavior"},
     "proper-exception-handling": {"confidence": SecurityScanDefaults.MEDIUM_CONFIDENCE, "reason": "Exception handling changes need review"},
 }
 

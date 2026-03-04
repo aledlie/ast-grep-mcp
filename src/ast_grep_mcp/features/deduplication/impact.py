@@ -14,6 +14,11 @@ __all__ = [
     "ImpactAnalyzer",
 ]
 
+EXTRACTED_FUNCTION_GROWTH_FACTOR = 1.2
+EXTERNAL_CALL_RISK_CAP = 3
+REEXPORT_FILE_RISK_SCORE = 3
+MEDIUM_RISK_MAX_SCORE = 4
+
 
 class _RiskLevelConfig(TypedDict):
     """Type definition for risk level configuration."""
@@ -493,7 +498,7 @@ class ImpactAnalyzer:
 
         # Additions:
         # - One extracted function (slightly more lines due to parameterization)
-        extracted_function_lines = int(lines_per_duplicate * 1.2)
+        extracted_function_lines = int(lines_per_duplicate * EXTRACTED_FUNCTION_GROWTH_FACTOR)
 
         # - Import statements for each file (1 line per file)
         import_lines = duplicate_count - 1  # minus the file with the extracted function
@@ -589,7 +594,7 @@ class ImpactAnalyzer:
 
         if call_count > 0:
             factors.append(f"Found {call_count} external call site(s) that may need updates")
-            score += min(call_count, 3)  # Cap at 3
+            score += min(call_count, EXTERNAL_CALL_RISK_CAP)
 
         if import_count > 0:
             factors.append(f"Found {import_count} import statement(s) referencing the code")
@@ -648,7 +653,7 @@ class ImpactAnalyzer:
         reexport_files = [f for f in files_in_group if os.path.basename(f) in reexport_filenames]
 
         if reexport_files:
-            return 3, ["Code is in module export file - higher breakage risk"]
+            return REEXPORT_FILE_RISK_SCORE, ["Code is in module export file - higher breakage risk"]
 
         return 0, []
 
@@ -658,7 +663,7 @@ class ImpactAnalyzer:
         risk_levels: Dict[str, _RiskLevelConfig] = {
             "low": {"max_score": 1, "recommendations": ["Safe to proceed with standard review", "Run tests after applying changes"]},
             "medium": {
-                "max_score": 4,
+                "max_score": MEDIUM_RISK_MAX_SCORE,
                 "recommendations": [
                     "Review external call sites before applying",
                     "Consider updating call sites in the same commit",

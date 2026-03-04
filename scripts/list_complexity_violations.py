@@ -37,7 +37,7 @@ def scan_all_python_files(root: Path) -> list[tuple[Path, str]]:
                 stripped = line.lstrip()
                 if stripped.startswith("def "):
                     # Extract function name
-                    func_name = stripped[4:].split("(")[0].strip()
+                    func_name = stripped[len("def ") :].split("(")[0].strip()
                     if func_name and not func_name.startswith("_test"):
                         functions.append((py_file, func_name))
 

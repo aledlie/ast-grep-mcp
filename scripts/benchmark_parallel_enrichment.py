@@ -4,8 +4,12 @@
 import time
 from typing import Any, Dict, List
 
-from ast_grep_mcp.constants import FormattingDefaults
+from ast_grep_mcp.constants import FormattingDefaults, ReportingDefaults
 from ast_grep_mcp.utils.console_logger import console
+
+MOCK_CANDIDATE_SCORE = 75.5
+MOCK_CANDIDATE_COMPLEXITY = 8
+BENCHMARK_CANDIDATE_COUNTS = [10, 25, 50, 100]
 
 
 # Mock data for benchmarking
@@ -16,9 +20,9 @@ def create_mock_candidates(count: int) -> List[Dict[str, Any]]:
         {
             "group_id": i,
             "files": [f"file_{i}_1.py", f"file_{i}_2.py"],
-            "lines_saved": 50,
-            "score": 75.5,
-            "complexity_score": 8,
+            "lines_saved": ReportingDefaults.SIGNIFICANT_LINES_SAVED_THRESHOLD,
+            "score": MOCK_CANDIDATE_SCORE,
+            "complexity_score": MOCK_CANDIDATE_COMPLEXITY,
             "has_tests": False,
         }
         for i in range(count)
@@ -32,7 +36,7 @@ def benchmark_enrichment():
     orchestrator = DeduplicationAnalysisOrchestrator()
 
     # Test with different candidate counts
-    candidate_counts = [10, 25, 50, 100]
+    candidate_counts = BENCHMARK_CANDIDATE_COUNTS
 
     console.log("=" * FormattingDefaults.SEPARATOR_LENGTH)
     console.log("Parallel vs Sequential Enrichment Benchmark")

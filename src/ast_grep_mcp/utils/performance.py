@@ -16,6 +16,7 @@ from ast_grep_mcp.core.logging import get_logger
 
 # Type variable for generic function decorators
 F = TypeVar("F", bound=Callable[..., Any])
+MILLISECONDS_PER_SECOND = 1000.0
 
 
 def monitor_performance(func: F) -> F:
@@ -201,7 +202,7 @@ class PerformanceTimer:
     @property
     def elapsed_seconds(self) -> float:
         """Get elapsed time in seconds."""
-        return self.elapsed_ms / 1000.0
+        return self.elapsed_ms / MILLISECONDS_PER_SECOND
 
 
 def track_slow_operations(threshold_ms: int = PerformanceDefaults.DEFAULT_SLOW_THRESHOLD_MS) -> Callable[[F], F]:

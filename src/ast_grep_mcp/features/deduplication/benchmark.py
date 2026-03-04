@@ -10,11 +10,33 @@ import statistics
 import time
 from typing import Any, Callable, Dict, List
 
-from ...constants import DeduplicationDefaults, FormattingDefaults
+from ...constants import DeduplicationDefaults, FormattingDefaults, ReportingDefaults
 from ...core.logging import get_logger
 from .ranker import DuplicationRanker
 from .recommendations import RecommendationEngine
 from .reporting import DuplicationReporter
+
+BENCHMARK_HIGH_SIMILARITY_SCORE = 85.0
+BENCHMARK_MEDIUM_SIMILARITY_SCORE = 45.0
+BENCHMARK_LOW_SIMILARITY_SCORE = 25.0
+BENCHMARK_HIGH_COMPLEXITY_SCORE = 3
+BENCHMARK_MEDIUM_COMPLEXITY_SCORE = 7
+BENCHMARK_LOW_COMPLEXITY_SCORE = 9
+BENCHMARK_HIGH_LINES_SAVED = 100
+BENCHMARK_MEDIUM_LINES_SAVED = 20
+BENCHMARK_LOW_LINES_SAVED = 5
+BENCHMARK_HIGH_AFFECTED_FILES = 3
+BENCHMARK_MEDIUM_AFFECTED_FILES = 8
+BENCHMARK_LOW_AFFECTED_FILES = 15
+BENCHMARK_SCORING_HIGH_LINE_A = 10
+BENCHMARK_SCORING_HIGH_LINE_B = 20
+BENCHMARK_SCORING_HIGH_LINE_C = 50
+BENCHMARK_SCORING_LOW_INSTANCE_COUNT = 8
+BENCHMARK_SCORING_MEDIUM_INSTANCE_COUNT = 5
+BENCHMARK_SCORING_MODULE_BUCKET_COUNT = 5
+BENCHMARK_PATTERN_CANDIDATE_COUNT = 50
+PATTERN_ANALYSIS_ITERATION_MULTIPLIER = 5
+CODE_GENERATION_ITERATION_MULTIPLIER = 5
 
 
 class BenchmarkExecutor:
@@ -79,16 +101,26 @@ class BenchmarkExecutor:
         ranker = DuplicationRanker()
         test_cases = [
             {  # High value candidate
-                "potential_line_savings": 100,
-                "instances": [{"file": "a.py", "line": 10}, {"file": "b.py", "line": 20}, {"file": "a.py", "line": 50}],
+                "potential_line_savings": BENCHMARK_HIGH_LINES_SAVED,
+                "instances": [
+                    {"file": "a.py", "line": BENCHMARK_SCORING_HIGH_LINE_A},
+                    {"file": "b.py", "line": BENCHMARK_SCORING_HIGH_LINE_B},
+                    {"file": "a.py", "line": BENCHMARK_SCORING_HIGH_LINE_C},
+                ],
             },
             {  # Low value candidate
                 "potential_line_savings": 10,
-                "instances": [{"file": f"file{i}.py", "line": i * 10} for i in range(8)],
+                "instances": [
+                    {"file": f"file{i}.py", "line": i * BENCHMARK_SCORING_HIGH_LINE_A}
+                    for i in range(BENCHMARK_SCORING_LOW_INSTANCE_COUNT)
+                ],
             },
             {  # Medium value candidate
-                "potential_line_savings": 50,
-                "instances": [{"file": f"module{i % 5}.py", "line": i * 5} for i in range(5)],
+                "potential_line_savings": ReportingDefaults.SIGNIFICANT_LINES_SAVED_THRESHOLD,
+                "instances": [
+                    {"file": f"module{i % BENCHMARK_SCORING_MODULE_BUCKET_COUNT}.py", "line": i * BENCHMARK_LOW_LINES_SAVED}
+                    for i in range(BENCHMARK_SCORING_MEDIUM_INSTANCE_COUNT)
+                ],
             },
         ]
 
@@ -112,10 +144,10 @@ class BenchmarkExecutor:
                 "lines_saved": i * 10,
                 "complexity_score": (i % 10) + 1,
                 "has_tests": i % 2 == 0,
-                "affected_files": (i % 5) + 1,
+                "affected_files": (i % BENCHMARK_SCORING_MODULE_BUCKET_COUNT) + 1,
                 "external_call_sites": i * 2,
             }
-            for i in range(50)
+            for i in range(BENCHMARK_PATTERN_CANDIDATE_COUNT)
         ]
 
         ranker = DuplicationRanker()
@@ -131,9 +163,27 @@ class BenchmarkExecutor:
             Benchmark result dictionary
         """
         test_recs = [
-            (85.0, 3, 100, True, 3),
-            (45.0, 7, 20, False, 8),
-            (25.0, 9, 5, False, 15),
+            (
+                BENCHMARK_HIGH_SIMILARITY_SCORE,
+                BENCHMARK_HIGH_COMPLEXITY_SCORE,
+                BENCHMARK_HIGH_LINES_SAVED,
+                True,
+                BENCHMARK_HIGH_AFFECTED_FILES,
+            ),
+            (
+                BENCHMARK_MEDIUM_SIMILARITY_SCORE,
+                BENCHMARK_MEDIUM_COMPLEXITY_SCORE,
+                BENCHMARK_MEDIUM_LINES_SAVED,
+                False,
+                BENCHMARK_MEDIUM_AFFECTED_FILES,
+            ),
+            (
+                BENCHMARK_LOW_SIMILARITY_SCORE,
+                BENCHMARK_LOW_COMPLEXITY_SCORE,
+                BENCHMARK_LOW_LINES_SAVED,
+                False,
+                BENCHMARK_LOW_AFFECTED_FILES,
+            ),
         ]
 
         engine = RecommendationEngine()
@@ -158,7 +208,7 @@ class BenchmarkExecutor:
                 "code": f"def helper_{i}(x, y): return x + y * {i}",
                 "function_name": f"helper_{i}",
                 "replacement": f"result = extracted_helper_{i}(x, y)",
-                "similarity": 85.0 + i,
+                "similarity": BENCHMARK_HIGH_SIMILARITY_SCORE + i,
                 "complexity": (i % 10) + 1,
                 "files": [f"file_{i}.py"],
             }
@@ -190,10 +240,10 @@ class BenchmarkExecutor:
         results.append(self.benchmark_scoring(iterations * 10))
 
         # Benchmark 2: Pattern Analysis (ranking)
-        results.append(self.benchmark_pattern_analysis(iterations * 5))
+        results.append(self.benchmark_pattern_analysis(iterations * PATTERN_ANALYSIS_ITERATION_MULTIPLIER))
 
         # Benchmark 3: Code Generation (recommendations)
-        results.append(self.benchmark_code_generation(iterations * 5))
+        results.append(self.benchmark_code_generation(iterations * CODE_GENERATION_ITERATION_MULTIPLIER))
 
         # Benchmark 4: Full Workflow (fewest iterations - slowest)
         results.append(self.benchmark_full_workflow(iterations))

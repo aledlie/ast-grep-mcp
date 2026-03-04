@@ -77,6 +77,7 @@ COMMON_IDENTIFIERS = {"id", "type", "class", "name", "value"}
 
 # Default languages for refactoring
 DEFAULT_LANGUAGES = ["python", "typescript", "javascript", "java", "go"]
+LARGE_REFACTORING_CHANGE_THRESHOLD = 50
 
 
 # =============================================================================
@@ -215,7 +216,7 @@ def _analyze_risks(
     """Analyze risks of the refactoring."""
     risks = []
 
-    if len(changes) > 50:
+    if len(changes) > LARGE_REFACTORING_CHANGE_THRESHOLD:
         risks.append(f"Large refactoring: {len(changes)} changes across multiple files")
 
     languages = set(c.language for c in changes)
