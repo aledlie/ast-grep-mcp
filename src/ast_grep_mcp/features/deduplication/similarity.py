@@ -47,6 +47,7 @@ from ...constants import (
     SemanticSimilarityDefaults,
 )
 from ...core.logging import get_logger
+from .scoring_scales import SimilarityDiscreteBand
 
 
 @dataclass
@@ -1574,13 +1575,13 @@ class EnhancedStructureHash:
         if line_count < LogBucketThresholds.MEDIUM:
             return 2
         if line_count < LogBucketThresholds.LARGE:
-            return 3
+            return int(SimilarityDiscreteBand.BAND_3)
         if line_count < LogBucketThresholds.VERY_LARGE:
-            return 4
+            return int(SimilarityDiscreteBand.BAND_4)
         if line_count < LogBucketThresholds.HUGE:
-            return 5
+            return int(SimilarityDiscreteBand.BAND_5)
         if line_count < LogBucketThresholds.MASSIVE:
-            return 6
+            return int(SimilarityDiscreteBand.BAND_6)
         return min(
             LogBucketThresholds.OVERFLOW_BASE_BUCKET + (line_count - LogBucketThresholds.MASSIVE) // LogBucketThresholds.MASSIVE,
             LogBucketThresholds.MAX_BUCKET,

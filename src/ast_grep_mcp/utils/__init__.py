@@ -19,6 +19,9 @@ from .formatters import (
     generate_multi_file_diff,
     visualize_complexity,
 )
+from .slicing import (
+    take_top_n,
+)
 from .templates import (
     JAVA_METHOD_TEMPLATE,
     JAVASCRIPT_ARROW_FUNCTION_TEMPLATE,
@@ -82,6 +85,8 @@ __all__ = [
     "generate_multi_file_diff",
     "FileDiff",
     "DiffPreview",
+    # Slicing utilities
+    "take_top_n",
     # Text utilities
     "normalize_code",
     "calculate_similarity",

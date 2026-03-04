@@ -30,6 +30,7 @@ from .ranker import (
 )
 from .recommendations import RecommendationEngine, generate_refactoring_suggestions
 from .reporting import DuplicationReporter, EnhancedDuplicationCandidate
+from .scoring_scales import SimilarityDiscreteBand, VariationScoreCutoff, VariationScoreScale
 
 # Similarity calculation
 from .similarity import (
@@ -70,6 +71,9 @@ __all__ = [
     # Enums/Constants
     "VariationCategory",
     "VariationSeverity",
+    "VariationScoreScale",
+    "VariationScoreCutoff",
+    "SimilarityDiscreteBand",
     # Standalone functions
     "generate_refactoring_suggestions",
     # Diff utilities

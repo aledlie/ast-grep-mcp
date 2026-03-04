@@ -16,6 +16,7 @@ import yaml
 from ...constants import DifficultyThresholds, RegexCaptureGroups, SemanticVolumeDefaults, SubprocessDefaults
 from ...core.logging import get_logger
 from ...models.deduplication import VariationCategory, VariationSeverity
+from .scoring_scales import VariationScoreCutoff, VariationScoreScale
 
 
 class PatternAnalyzer:
@@ -446,32 +447,32 @@ class PatternAnalyzer:
     def _score_expression_variation(self, severity: str) -> tuple[int, str]:
         """Score expression category variation."""
         if severity == VariationSeverity.LOW:
-            return 3, "Minor expression variation"
+            return int(VariationScoreScale.SCORE_3), "Minor expression variation"
         if severity == VariationSeverity.MEDIUM:
-            return 4, "Different operations or function calls"
-        return 4, "Significant expression restructuring"
+            return int(VariationScoreScale.SCORE_4), "Different operations or function calls"
+        return int(VariationScoreScale.SCORE_4), "Significant expression restructuring"
 
     def _score_type_variation(self, severity: str) -> tuple[int, str]:
         """Score type category variation."""
         if severity == VariationSeverity.LOW:
-            return 4, "Simple type substitution"
+            return int(VariationScoreScale.SCORE_4), "Simple type substitution"
         if severity == VariationSeverity.MEDIUM:
-            return 5, "Generic type variation"
-        return 6, "Complex type system changes"
+            return int(VariationScoreScale.SCORE_5), "Generic type variation"
+        return int(VariationScoreScale.SCORE_6), "Complex type system changes"
 
     def _score_logic_variation(self, severity: str, old_value: str, new_value: str) -> tuple[int, str]:
         """Score logic category variation."""
         if "inserted" in str(old_value) or "deleted" in str(new_value):
-            return 7, "Added or removed logic branches"
+            return int(VariationScoreScale.SCORE_7), "Added or removed logic branches"
         if severity == VariationSeverity.HIGH:
-            return 7, "Significant control flow differences"
-        return 5, "Conditional logic variation"
+            return int(VariationScoreScale.SCORE_7), "Significant control flow differences"
+        return int(VariationScoreScale.SCORE_5), "Conditional logic variation"
 
     def _get_complexity_level(self, score: int) -> str:
         """Get complexity level from score."""
         if score <= 2:
             return "trivial"
-        if score <= 4:
+        if score <= int(VariationScoreCutoff.MODERATE_MAX):
             return "moderate"
         return "complex"
 
@@ -499,7 +500,7 @@ class PatternAnalyzer:
         if scorer:
             score, reasoning = scorer()
         else:
-            score, reasoning = 3, "Unknown variation type"
+            score, reasoning = int(VariationScoreScale.SCORE_3), "Unknown variation type"
 
         # Determine complexity level
         level = self._get_complexity_level(score)
