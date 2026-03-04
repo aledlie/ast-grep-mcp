@@ -16,6 +16,15 @@ class ComplexityDefaults:
     LENGTH_THRESHOLD = 50
 
 
+class CriticalComplexityThresholds:
+    """Critical complexity thresholds for script-level audit/report tools."""
+
+    CYCLOMATIC = 20
+    COGNITIVE = 30
+    NESTING = 6
+    LINES = 150
+
+
 class ParallelProcessing:
     """Parallel processing configuration."""
 
@@ -236,6 +245,9 @@ class SemanticSimilarityDefaults:
     # This provides a second early-exit point to avoid expensive model inference
     SEMANTIC_STAGE_THRESHOLD = 0.6
 
+    # Medium semantic similarity baseline used for heuristic comparisons/reporting
+    MEDIUM_SIMILARITY_THRESHOLD = 0.85
+
     # Default model for CodeBERT embeddings
     MODEL_NAME = "microsoft/codebert-base"
 
@@ -262,9 +274,21 @@ class SecurityScanDefaults:
     DEFAULT_SEVERITY_THRESHOLD = "low"  # Minimum severity to report
 
     # Confidence thresholds
+    VERY_HIGH_CONFIDENCE = 0.95
     HIGH_CONFIDENCE = 0.9
+    ELEVATED_CONFIDENCE = 0.85  # High confidence with moderate residual uncertainty
+    DEFAULT_CONFIDENCE = 0.8
     MEDIUM_CONFIDENCE = 0.7
     LOW_CONFIDENCE = 0.5
+
+
+class SemanticVolumeDefaults:
+    """Shared list-volume limits from high-overlap magic-number clusters."""
+
+    TOP_RESULTS_LIMIT = 5
+    DETAIL_RESULTS_LIMIT = 20
+    SUMMARY_PREVIEW_LIMIT = 50
+    MAGIC_NUMBER_SAMPLE_LIMIT = 50
 
 
 class CodeQualityDefaults:
@@ -325,6 +349,16 @@ class FormattingDefaults:
     SECTION_DIVIDER_WIDTH = 30  # Subsection divider width in reports
     WIDE_SECTION_WIDTH = 80  # Wide separator for enforcement/audit reports
     TABLE_SEPARATOR_WIDTH = 40  # Table row separator width
+
+
+class UnifiedDiffRegexGroups:
+    """Capture group indices for unified diff hunk header parsing."""
+
+    OLD_START = 1
+    OLD_COUNT = 2
+    NEW_START = 3
+    NEW_COUNT = 4
+    CONTEXT = 5
 
 
 class DisplayDefaults:
@@ -642,7 +676,7 @@ class PatternSuggestionConfidence:
     EXACT_COMPLEX = 0.7   # Exact match for complex code
     GENERALIZED = 0.8     # Generalized pattern with metavariables
     STRUCTURAL = 0.6      # Structural (kind-based) pattern
-    PATTERN_MATCH = 0.85  # Security pattern match confidence
+    PATTERN_MATCH = SecurityScanDefaults.ELEVATED_CONFIDENCE  # Security pattern match confidence
     UNKNOWN_FIX = 0.5     # Unknown fix pattern (conservative)
 
 

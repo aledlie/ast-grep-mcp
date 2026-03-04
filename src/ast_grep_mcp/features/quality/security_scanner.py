@@ -50,7 +50,7 @@ SQL_INJECTION_PATTERNS = {
             "description": "Using f-strings or string formatting in SQL queries allows SQL injection attacks",
             "remediation": "Use parameterized queries with placeholders (?, %s, etc.)",
             "cwe": "CWE-89",
-            "confidence": 0.9,
+            "confidence": SecurityScanDefaults.HIGH_CONFIDENCE,
         },
         {
             "pattern": "cursor.execute($STR.format($$$))",
@@ -59,7 +59,7 @@ SQL_INJECTION_PATTERNS = {
             "description": "Using .format() in SQL queries allows SQL injection attacks",
             "remediation": "Use parameterized queries instead of string formatting",
             "cwe": "CWE-89",
-            "confidence": 0.9,
+            "confidence": SecurityScanDefaults.HIGH_CONFIDENCE,
         },
         {
             "pattern": "cursor.execute($STR + $$$)",
@@ -68,7 +68,7 @@ SQL_INJECTION_PATTERNS = {
             "description": "Concatenating user input into SQL queries allows SQL injection",
             "remediation": "Use parameterized queries with ? or %s placeholders",
             "cwe": "CWE-89",
-            "confidence": 0.85,
+            "confidence": SecurityScanDefaults.ELEVATED_CONFIDENCE,
         },
     ],
     "javascript": [
@@ -79,7 +79,7 @@ SQL_INJECTION_PATTERNS = {
             "description": "Using template literals with variables in SQL queries enables SQL injection",
             "remediation": "Use parameterized queries or prepared statements",
             "cwe": "CWE-89",
-            "confidence": 0.9,
+            "confidence": SecurityScanDefaults.HIGH_CONFIDENCE,
         }
     ],
     "typescript": [
@@ -90,7 +90,7 @@ SQL_INJECTION_PATTERNS = {
             "description": "Using template literals with variables in SQL queries enables SQL injection",
             "remediation": "Use parameterized queries or prepared statements",
             "cwe": "CWE-89",
-            "confidence": 0.9,
+            "confidence": SecurityScanDefaults.HIGH_CONFIDENCE,
         }
     ],
 }
@@ -108,7 +108,7 @@ XSS_PATTERNS = {
             "description": "Inserting user input directly into HTML without escaping enables XSS attacks",
             "remediation": "Use HTML escaping functions like html.escape() or template engine auto-escaping",
             "cwe": "CWE-79",
-            "confidence": 0.7,
+            "confidence": SecurityScanDefaults.MEDIUM_CONFIDENCE,
         }
     ],
     "javascript": [
@@ -119,7 +119,7 @@ XSS_PATTERNS = {
             "description": "Assigning user input to innerHTML without sanitization enables XSS",
             "remediation": "Use textContent or sanitize HTML with DOMPurify",
             "cwe": "CWE-79",
-            "confidence": 0.8,
+            "confidence": SecurityScanDefaults.DEFAULT_CONFIDENCE,
         },
         {
             "pattern": "document.write($VAR)",
@@ -128,7 +128,7 @@ XSS_PATTERNS = {
             "description": "Using document.write() with user input can enable XSS attacks",
             "remediation": "Avoid document.write() or sanitize input properly",
             "cwe": "CWE-79",
-            "confidence": 0.85,
+            "confidence": SecurityScanDefaults.ELEVATED_CONFIDENCE,
         },
     ],
     "typescript": [
@@ -139,7 +139,7 @@ XSS_PATTERNS = {
             "description": "Assigning user input to innerHTML without sanitization enables XSS",
             "remediation": "Use textContent or sanitize HTML with DOMPurify",
             "cwe": "CWE-79",
-            "confidence": 0.8,
+            "confidence": SecurityScanDefaults.DEFAULT_CONFIDENCE,
         }
     ],
 }
@@ -157,7 +157,7 @@ COMMAND_INJECTION_PATTERNS = {
             "description": "Using os.system() with formatted strings allows command injection",
             "remediation": "Use subprocess.run() with list of arguments instead",
             "cwe": "CWE-78",
-            "confidence": 0.95,
+            "confidence": SecurityScanDefaults.VERY_HIGH_CONFIDENCE,
         },
         {
             "pattern": "os.system($STR + $$$)",
@@ -166,7 +166,7 @@ COMMAND_INJECTION_PATTERNS = {
             "description": "String concatenation in os.system() enables command injection",
             "remediation": "Use subprocess.run(['cmd', arg1, arg2]) with array form",
             "cwe": "CWE-78",
-            "confidence": 0.9,
+            "confidence": SecurityScanDefaults.HIGH_CONFIDENCE,
         },
         {
             "pattern": "subprocess.run($STR, shell=True)",
@@ -175,7 +175,7 @@ COMMAND_INJECTION_PATTERNS = {
             "description": "Using shell=True with user input allows command injection",
             "remediation": "Use subprocess.run() with list form and shell=False",
             "cwe": "CWE-78",
-            "confidence": 0.85,
+            "confidence": SecurityScanDefaults.ELEVATED_CONFIDENCE,
         },
         {
             "pattern": "eval($VAR)",
@@ -269,7 +269,7 @@ CRYPTO_PATTERNS = {
             "description": "MD5 is cryptographically broken and should not be used for security",
             "remediation": "Use bcrypt, argon2, or scrypt for password hashing; SHA-256+ for checksums",
             "cwe": "CWE-327",
-            "confidence": 0.9,
+            "confidence": SecurityScanDefaults.HIGH_CONFIDENCE,
         },
         {
             "pattern": "hashlib.sha1($$$)",
@@ -278,7 +278,7 @@ CRYPTO_PATTERNS = {
             "description": "SHA-1 is weak and deprecated for security purposes",
             "remediation": "Use SHA-256 or stronger; use bcrypt/argon2 for passwords",
             "cwe": "CWE-327",
-            "confidence": 0.9,
+            "confidence": SecurityScanDefaults.HIGH_CONFIDENCE,
         },
     ]
 }
@@ -327,7 +327,7 @@ def scan_for_vulnerability(project_folder: str, language: str, patterns: List[Di
                     code_snippet=match.get("text", ""),
                     remediation=pattern_def["remediation"],
                     cwe_id=pattern_def.get("cwe"),
-                    confidence=pattern_def.get("confidence", 0.8),
+                    confidence=pattern_def.get("confidence", SecurityScanDefaults.DEFAULT_CONFIDENCE),
                 )
                 issues.append(issue)
 

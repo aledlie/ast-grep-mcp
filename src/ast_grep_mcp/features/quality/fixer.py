@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import PatternSuggestionConfidence
+from ast_grep_mcp.constants import PatternSuggestionConfidence, SecurityScanDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.rewrite.backup import create_backup
 from ast_grep_mcp.features.rewrite.service import validate_syntax
@@ -34,24 +34,27 @@ logger = get_logger(__name__)
 SAFE_FIX_PATTERNS: Dict[str, Dict[str, Any]] = {
     # JavaScript/TypeScript
     "no-var": {"confidence": 1.0, "reason": "var → const/let is safe"},
-    "no-console-log": {"confidence": 0.95, "reason": "console.log removal is usually safe"},
+    "no-console-log": {"confidence": SecurityScanDefaults.VERY_HIGH_CONFIDENCE, "reason": "console.log removal is usually safe"},
     "no-debugger": {"confidence": 1.0, "reason": "debugger removal is always safe"},
     "prefer-const": {"confidence": 1.0, "reason": "let → const is safe when variable not reassigned"},
-    "no-double-equals": {"confidence": 0.9, "reason": "== → === is usually safe"},
+    "no-double-equals": {"confidence": SecurityScanDefaults.HIGH_CONFIDENCE, "reason": "== → === is usually safe"},
     # Python
-    "no-print-production": {"confidence": 0.9, "reason": "print() removal is usually safe"},
-    "no-bare-except": {"confidence": 0.85, "reason": "except: → except Exception: is usually safe"},
-    "no-mutable-defaults": {"confidence": 0.95, "reason": "Mutable default fix is usually safe"},
+    "no-print-production": {"confidence": SecurityScanDefaults.HIGH_CONFIDENCE, "reason": "print() removal is usually safe"},
+    "no-bare-except": {
+        "confidence": SecurityScanDefaults.ELEVATED_CONFIDENCE,
+        "reason": "except: → except Exception: is usually safe",
+    },
+    "no-mutable-defaults": {"confidence": SecurityScanDefaults.VERY_HIGH_CONFIDENCE, "reason": "Mutable default fix is usually safe"},
     # Java
-    "no-system-out": {"confidence": 0.9, "reason": "System.out removal is usually safe"},
+    "no-system-out": {"confidence": SecurityScanDefaults.HIGH_CONFIDENCE, "reason": "System.out removal is usually safe"},
 }
 
 # Patterns that require review (lower confidence)
 REVIEW_REQUIRED_PATTERNS: Dict[str, Dict[str, Any]] = {
     "no-eval-exec": {"confidence": 0.6, "reason": "eval/exec removal may break functionality"},
-    "no-sql-injection": {"confidence": 0.7, "reason": "SQL parameterization needs careful review"},
+    "no-sql-injection": {"confidence": SecurityScanDefaults.MEDIUM_CONFIDENCE, "reason": "SQL parameterization needs careful review"},
     "no-empty-catch": {"confidence": 0.75, "reason": "Empty catch replacement may change behavior"},
-    "proper-exception-handling": {"confidence": 0.7, "reason": "Exception handling changes need review"},
+    "proper-exception-handling": {"confidence": SecurityScanDefaults.MEDIUM_CONFIDENCE, "reason": "Exception handling changes need review"},
 }
 
 

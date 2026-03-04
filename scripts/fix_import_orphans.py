@@ -5,6 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults
 from ast_grep_mcp.utils.console_logger import console
 
 
@@ -90,7 +91,7 @@ def remove_orphaned_lines(filepath: Path):
             if start <= i < end:
                 is_orphaned = True
                 skip_until = end
-                console.log(f"    Removing lines {start + 1}-{end}: {repr(lines[start].strip()[:50])}")
+                console.log(f"    Removing lines {start + 1}-{end}: {repr(lines[start].strip()[: DisplayDefaults.CONTENT_PREVIEW_LENGTH])}")
                 break
 
         if not is_orphaned:
@@ -130,9 +131,9 @@ def main():
         "tests/unit/test_call_site.py",
     ]
 
-    console.log("=" * 80)
+    console.log("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
     console.log("Fixing orphaned import lines from migration")
-    console.log("=" * 80)
+    console.log("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
 
     fixed_count = 0
     failed = []
@@ -167,7 +168,7 @@ def main():
             console.error(f"    Original error: {error_before.strip()}")
             failed.append(filepath_str)
 
-    console.log("\n" + "=" * 80)
+    console.log("\n" + "=" * FormattingDefaults.WIDE_SECTION_WIDTH)
     console.log(f"Results: {fixed_count} files fixed")
 
     if failed:

@@ -8,7 +8,13 @@ from typing import Any, Dict, List, Literal, Optional, Union, cast
 import sentry_sdk
 import yaml
 
-from ast_grep_mcp.constants import CodeAnalysisDefaults, DisplayDefaults, FormattingDefaults, PatternSuggestionConfidence
+from ast_grep_mcp.constants import (
+    CodeAnalysisDefaults,
+    DisplayDefaults,
+    FormattingDefaults,
+    PatternSuggestionConfidence,
+    SemanticVolumeDefaults,
+)
 from ast_grep_mcp.core.cache import get_query_cache
 from ast_grep_mcp.core.config import CACHE_ENABLED
 from ast_grep_mcp.core.exceptions import InvalidYAMLError, NoMatchesError
@@ -1201,7 +1207,7 @@ rule:
         return MatchAttempt(
             matched=len(matches) > 0,
             match_count=len(matches),
-            matches=matches[:5],  # Limit to first 5 matches for debugging
+            matches=matches[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT],  # Limit to first 5 matches for debugging
         )
     except Exception as e:
         logger.debug("match_attempt_failed", error=str(e))
@@ -1934,7 +1940,7 @@ def _generate_refinement_steps(
         steps.append(
             RefinementStep(
                 action="Use dump_syntax_tree",
-                pattern=f'dump_syntax_tree(code="{code[:50]}...", language="{language}", format="cst")',
+                pattern=f'dump_syntax_tree(code="{code[:DisplayDefaults.CONTENT_PREVIEW_LENGTH]}...", language="{language}", format="cst")',
                 explanation="Compare pattern AST with code AST to find structural mismatches",
                 priority=priority,
             )
