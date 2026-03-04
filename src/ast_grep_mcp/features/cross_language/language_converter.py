@@ -8,6 +8,7 @@ import re
 import time
 from typing import Dict, List, Tuple
 
+from ast_grep_mcp.constants import RegexCaptureGroups
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.cross_language.pattern_database import (
     get_type_mapping,
@@ -212,12 +213,12 @@ def _extract_type_hints(code: str, language: str) -> List[Tuple[str, str]]:
         # Python type hints: name: Type
         pattern = r"(\w+):\s*(\w+(?:\[[\w,\s]+\])?)"
         for match in re.finditer(pattern, code):
-            hints.append((match.group(1), match.group(2)))
+            hints.append((match.group(RegexCaptureGroups.FIRST), match.group(RegexCaptureGroups.SECOND)))
     elif language in ("typescript", "java"):
         # TypeScript/Java: Type name or name: Type
         pattern = r"(\w+):\s*(\w+(?:<[\w,\s]+>)?)"
         for match in re.finditer(pattern, code):
-            hints.append((match.group(1), match.group(2)))
+            hints.append((match.group(RegexCaptureGroups.FIRST), match.group(RegexCaptureGroups.SECOND)))
 
     return hints
 

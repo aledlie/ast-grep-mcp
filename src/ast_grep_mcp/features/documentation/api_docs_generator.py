@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 import sentry_sdk
 
+from ast_grep_mcp.constants import RegexCaptureGroups
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
     ApiDocsResult,
@@ -148,12 +149,12 @@ class ExpressRouteParser:
         for i, line in enumerate(lines):
             match = route_pattern.search(line)
             if match:
-                method = match.group(1).upper()
-                path = match.group(2)
+                method = match.group(RegexCaptureGroups.FIRST).upper()
+                path = match.group(RegexCaptureGroups.SECOND)
 
                 # Try to find handler name
                 handler_match = re.search(r",\s*(\w+)\s*\)", line)
-                handler_name = handler_match.group(1) if handler_match else "anonymous"
+                handler_name = handler_match.group(RegexCaptureGroups.FIRST) if handler_match else "anonymous"
 
                 # Extract path parameters
                 params = self._extract_path_params(path)
@@ -177,7 +178,7 @@ class ExpressRouteParser:
         for match in re.finditer(r":(\w+)", path):
             params.append(
                 RouteParameter(
-                    name=match.group(1),
+                    name=match.group(RegexCaptureGroups.FIRST),
                     location="path",
                     required=True,
                 )
@@ -205,8 +206,8 @@ class FastAPIRouteParser:
             match = decorator_pattern.search(line)
 
             if match:
-                method = match.group(1).upper()
-                path = match.group(2)
+                method = match.group(RegexCaptureGroups.FIRST).upper()
+                path = match.group(RegexCaptureGroups.SECOND)
 
                 # Look for function definition on next line(s)
                 j = i + 1
@@ -221,7 +222,7 @@ class FastAPIRouteParser:
                     # Extract function name
                     name_match = re.search(r"(?:async\s+)?def\s+(\w+)", func_line)
                     if name_match:
-                        handler_name = name_match.group(1)
+                        handler_name = name_match.group(RegexCaptureGroups.FIRST)
 
                     # Extract parameters
                     params = self._extract_params(func_line)
@@ -250,7 +251,7 @@ class FastAPIRouteParser:
         for match in re.finditer(r"\{(\w+)\}", path):
             params.append(
                 RouteParameter(
-                    name=match.group(1),
+                    name=match.group(RegexCaptureGroups.FIRST),
                     location="path",
                     required=True,
                 )
@@ -266,7 +267,7 @@ class FastAPIRouteParser:
         if not param_match:
             return params
 
-        params_str = param_match.group(1)
+        params_str = param_match.group(RegexCaptureGroups.FIRST)
 
         # Parse each parameter
         for part in params_str.split(","):
@@ -280,7 +281,7 @@ class FastAPIRouteParser:
                 if name_match:
                     params.append(
                         RouteParameter(
-                            name=name_match.group(1),
+                            name=name_match.group(RegexCaptureGroups.FIRST),
                             location="query",
                             required="..." not in part,
                         )
@@ -290,7 +291,7 @@ class FastAPIRouteParser:
                 if name_match:
                     params.append(
                         RouteParameter(
-                            name=name_match.group(1),
+                            name=name_match.group(RegexCaptureGroups.FIRST),
                             location="body",
                             required="..." not in part,
                         )
@@ -319,8 +320,8 @@ class FlaskRouteParser:
             match = decorator_pattern.search(line)
 
             if match:
-                path = match.group(1)
-                methods_str = match.group(2)
+                path = match.group(RegexCaptureGroups.FIRST)
+                methods_str = match.group(RegexCaptureGroups.SECOND)
 
                 # Parse methods
                 if methods_str:
@@ -338,7 +339,7 @@ class FlaskRouteParser:
                     func_line = lines[j]
                     name_match = re.search(r"def\s+(\w+)", func_line)
                     if name_match:
-                        handler_name = name_match.group(1)
+                        handler_name = name_match.group(RegexCaptureGroups.FIRST)
 
                 # Extract path parameters
                 path_params = self._extract_path_params(path)
@@ -364,8 +365,8 @@ class FlaskRouteParser:
         params = []
         # Match <param> or <type:param> syntax
         for match in re.finditer(r"<(?:(\w+):)?(\w+)>", path):
-            type_hint = match.group(1)
-            name = match.group(2)
+            type_hint = match.group(RegexCaptureGroups.FIRST)
+            name = match.group(RegexCaptureGroups.SECOND)
             params.append(
                 RouteParameter(
                     name=name,

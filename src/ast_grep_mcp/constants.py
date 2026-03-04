@@ -378,6 +378,7 @@ class SeverityRankingDefaults:
     SECURITY_SCAN_ORDER = {"critical": 3, "high": 2, "medium": 1, "low": 0}
     SMELL_SORT_ORDER = {"high": 0, "medium": 1, "low": 2}
     DOC_SYNC_SORT_ORDER = {"error": 0, "warning": 1, "info": 2}
+    ENFORCER_THRESHOLD_ORDER = {"info": 0, "warning": 1, "error": 2}
 
 
 class DisplayDefaults:

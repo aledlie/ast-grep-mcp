@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import FilePatterns, SeverityRankingDefaults
+from ast_grep_mcp.constants import FilePatterns, RegexCaptureGroups, SeverityRankingDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
     DocSyncIssue,
@@ -45,22 +45,22 @@ def _extract_python_docstring_params(docstring: str) -> List[str]:
     # Google style: Args:
     args_match = re.search(r"Args:\s*\n((?:\s+\w+.*\n?)+)", docstring)
     if args_match:
-        for line in args_match.group(1).split("\n"):
+        for line in args_match.group(RegexCaptureGroups.FIRST).split("\n"):
             param_match = re.match(r"\s+(\w+)(?:\s*\(|\s*:)", line)
             if param_match:
-                params.append(param_match.group(1))
+                params.append(param_match.group(RegexCaptureGroups.FIRST))
 
     # NumPy style: Parameters
     params_match = re.search(r"Parameters\s*\n-+\s*\n((?:.*\n?)+?)(?:\n\w|\Z)", docstring)
     if params_match:
-        for line in params_match.group(1).split("\n"):
+        for line in params_match.group(RegexCaptureGroups.FIRST).split("\n"):
             param_match = re.match(r"(\w+)\s*:", line)
             if param_match:
-                params.append(param_match.group(1))
+                params.append(param_match.group(RegexCaptureGroups.FIRST))
 
     # Sphinx style: :param name:
     for match in re.finditer(r":param\s+(\w+):", docstring):
-        params.append(match.group(1))
+        params.append(match.group(RegexCaptureGroups.FIRST))
 
     return params
 
@@ -74,7 +74,7 @@ def _extract_js_docstring_params(docstring: str) -> List[str]:
     Returns:
         List of parameter names
     """
-    return [m.group(1) for m in re.finditer(r"@param\s+(?:\{(?:[^{}]|\{[^}]*\})*\}\s+)?\[?(\w+)", docstring)]
+    return [m.group(RegexCaptureGroups.FIRST) for m in re.finditer(r"@param\s+(?:\{(?:[^{}]|\{[^}]*\})*\}\s+)?\[?(\w+)", docstring)]
 
 
 def _extract_docstring_params(docstring: str, language: str) -> List[str]:
@@ -255,8 +255,8 @@ def _check_markdown_links(file_path: str, project_folder: str) -> List[DocSyncIs
 
     for i, line in enumerate(lines):
         for match in link_pattern.finditer(line):
-            _text = match.group(1)  # noqa: F841
-            url = match.group(2)
+            _text = match.group(RegexCaptureGroups.FIRST)  # noqa: F841
+            url = match.group(RegexCaptureGroups.SECOND)
 
             # Skip external URLs
             if url.startswith(("http://", "https://", "mailto:")):

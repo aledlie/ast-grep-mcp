@@ -666,8 +666,8 @@ class CodeGenerator:
 
     def _process_each_loop(self, match: re.Match[str], variables: Dict[str, str], strict: bool) -> str:
         """Process each loop template blocks."""
-        var_name = match.group(1)
-        loop_content = match.group(2)
+        var_name = match.group(RegexCaptureGroups.FIRST)
+        loop_content = match.group(RegexCaptureGroups.SECOND)
 
         if var_name not in variables:
             if strict:
@@ -684,7 +684,7 @@ class CodeGenerator:
 
     def _substitute_simple_variable(self, match: re.Match[str], variables: Dict[str, str], strict: bool) -> str:
         """Substitute simple template variable."""
-        var_name = match.group(1)
+        var_name = match.group(RegexCaptureGroups.FIRST)
         if var_name not in variables:
             if strict:
                 raise ValueError(f"Missing required variable: {var_name}")
@@ -1030,7 +1030,7 @@ def _find_type_annotation(identifier: str, context: str, language: str) -> Optio
         return None
 
     match = re.search(pattern, context)
-    return match.group(1).strip() if match else None
+    return match.group(RegexCaptureGroups.FIRST).strip() if match else None
 
 
 def _get_usage_patterns(identifier: str) -> List[Tuple[str, str, str]]:
