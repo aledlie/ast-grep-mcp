@@ -11,6 +11,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from ast_grep_mcp.constants import SemanticSimilarityDefaults
 from ast_grep_mcp.features.deduplication.coverage import CoverageDetector
 
 
@@ -204,7 +205,11 @@ class TestBatchCoverageIntegration:
 
         candidates = [
             {"id": "dup1", "files": ["/path/to/file1.py", "/path/to/file2.py"], "similarity": 0.9},
-            {"id": "dup2", "files": ["/path/to/file3.py"], "similarity": 0.85},
+            {
+                "id": "dup2",
+                "files": ["/path/to/file3.py"],
+                "similarity": SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
+            },
         ]
 
         orchestrator._add_test_coverage_batch(candidates, "python", "/path/to/project")

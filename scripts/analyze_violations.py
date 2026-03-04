@@ -2,7 +2,12 @@
 """Analyze all complexity violations in the codebase."""
 
 import ast
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from ast_grep_mcp.constants import CriticalComplexityThresholds
 
 
 def analyze_function_complexity(file_path: Path, func_name: str) -> dict:
@@ -122,7 +127,12 @@ def main():
     project_root = Path.cwd()
     all_functions = scan_all_functions(project_root)
 
-    CRITICAL_THRESHOLDS = {"cyclomatic": 20, "cognitive": 30, "nesting": 6, "lines": 150}
+    CRITICAL_THRESHOLDS = {
+        "cyclomatic": CriticalComplexityThresholds.CYCLOMATIC,
+        "cognitive": CriticalComplexityThresholds.COGNITIVE,
+        "nesting": CriticalComplexityThresholds.NESTING,
+        "lines": CriticalComplexityThresholds.LINES,
+    }
 
     violations = []
 

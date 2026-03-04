@@ -24,6 +24,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
 
+from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.utils.console_logger import console
 
 
@@ -237,15 +238,15 @@ def format_metrics_report(metrics: AdoptionMetrics, detailed: bool = False) -> s
     """Format metrics as readable report."""
     lines = []
 
-    lines.append("=" * 80)
+    lines.append("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
     lines.append("FIXTURE ADOPTION METRICS")
-    lines.append("=" * 80)
+    lines.append("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
     lines.append(f"Date: {metrics.date}")
     lines.append("")
 
     # Overall stats
     lines.append("OVERALL STATISTICS")
-    lines.append("-" * 80)
+    lines.append("-" * FormattingDefaults.WIDE_SECTION_WIDTH)
     lines.append(f"Total test files: {metrics.total_test_files}")
     lines.append(f"Total test functions: {metrics.total_test_functions}")
     lines.append(f"Tests using fixtures: {metrics.tests_using_fixtures}")
@@ -255,7 +256,7 @@ def format_metrics_report(metrics: AdoptionMetrics, detailed: bool = False) -> s
 
     # File categories
     lines.append("FILE CATEGORIES")
-    lines.append("-" * 80)
+    lines.append("-" * FormattingDefaults.WIDE_SECTION_WIDTH)
     lines.append(f"Fixture-based: {len(metrics.file_categories.fixture_based)} files")
     lines.append(f"Setup-method-based: {len(metrics.file_categories.setup_method_based)} files")
     lines.append(f"Mixed: {len(metrics.file_categories.mixed)} files")
@@ -264,7 +265,7 @@ def format_metrics_report(metrics: AdoptionMetrics, detailed: bool = False) -> s
 
     # Top fixtures
     lines.append("TOP 10 MOST-USED FIXTURES")
-    lines.append("-" * 80)
+    lines.append("-" * FormattingDefaults.WIDE_SECTION_WIDTH)
     sorted_fixtures = sorted(metrics.fixture_usage.items(), key=lambda x: x[1], reverse=True)
     for fixture, count in sorted_fixtures[:10]:
         lines.append(f"{fixture:<30} {count:>5} uses")
@@ -273,26 +274,26 @@ def format_metrics_report(metrics: AdoptionMetrics, detailed: bool = False) -> s
     if detailed:
         # Detailed breakdown
         lines.append("DETAILED FIXTURE USAGE")
-        lines.append("-" * 80)
+        lines.append("-" * FormattingDefaults.WIDE_SECTION_WIDTH)
         for fixture, count in sorted_fixtures:
             lines.append(f"\n{fixture}: {count} uses")
 
         lines.append("\n\nFIXTURE-BASED FILES")
-        lines.append("-" * 80)
+        lines.append("-" * FormattingDefaults.WIDE_SECTION_WIDTH)
         for file in sorted(metrics.file_categories.fixture_based):
             lines.append(f"  ✓ {file}")
 
         lines.append("\n\nSETUP-METHOD-BASED FILES")
-        lines.append("-" * 80)
+        lines.append("-" * FormattingDefaults.WIDE_SECTION_WIDTH)
         for file in sorted(metrics.file_categories.setup_method_based):
             lines.append(f"  ✗ {file}")
 
         lines.append("\n\nMIXED FILES (needs migration)")
-        lines.append("-" * 80)
+        lines.append("-" * FormattingDefaults.WIDE_SECTION_WIDTH)
         for file in sorted(metrics.file_categories.mixed):
             lines.append(f"  ~ {file}")
 
-    lines.append("=" * 80)
+    lines.append("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
 
     return "\n".join(lines)
 
@@ -303,14 +304,14 @@ def format_history_report(history: List[Dict]) -> str:
         return "No historical data available."
 
     lines = []
-    lines.append("=" * 80)
+    lines.append("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
     lines.append("FIXTURE ADOPTION TREND")
-    lines.append("=" * 80)
+    lines.append("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
     lines.append("")
 
     # Extract trend data
     lines.append(f"{'Date':<20} {'Tests':<8} {'Fixtures':<10} {'Adoption':<10} {'Change':<10}")
-    lines.append("-" * 80)
+    lines.append("-" * FormattingDefaults.WIDE_SECTION_WIDTH)
 
     prev_rate = None
     for entry in history:
@@ -328,7 +329,7 @@ def format_history_report(history: List[Dict]) -> str:
         lines.append(f"{date:<20} {total:<8} {using_fixtures:<10} {rate:<10.1f}% {change_str:<10}")
         prev_rate = rate
 
-    lines.append("=" * 80)
+    lines.append("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
 
     return "\n".join(lines)
 

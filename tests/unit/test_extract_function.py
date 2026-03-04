@@ -251,7 +251,6 @@ def process():
         # Should have no return values
         assert len(result["return_values"]) == 0
 
-    @pytest.mark.skip(reason="Requires file modification - integration test")
     def test_extract_function_apply(self, tmp_path):
         """Test applying function extraction (not dry-run)."""
         test_file = tmp_path / "test.py"

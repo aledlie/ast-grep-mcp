@@ -7,14 +7,15 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from ast_grep_mcp.constants import CriticalComplexityThresholds, FormattingDefaults
 from ast_grep_mcp.features.complexity.analyzer import analyze_function_complexity
 
 # Critical thresholds
 CRITICAL_THRESHOLDS = {
-    "cyclomatic": 20,
-    "cognitive": 30,
-    "nesting": 6,
-    "lines": 150,
+    "cyclomatic": CriticalComplexityThresholds.CYCLOMATIC,
+    "cognitive": CriticalComplexityThresholds.COGNITIVE,
+    "nesting": CriticalComplexityThresholds.NESTING,
+    "lines": CriticalComplexityThresholds.LINES,
 }
 
 
@@ -91,7 +92,8 @@ def main():
     # Sort by severity (most violations first, then highest cognitive complexity)
     violations.sort(key=lambda v: (-len(v["violations"].split(",")), -v["cognitive"], -v["cyclomatic"]))
 
-    print(f"\n{'=' * 80}\nFound {len(violations)} functions exceeding CRITICAL thresholds\n{'=' * 80}\n")
+    separator = "=" * FormattingDefaults.WIDE_SECTION_WIDTH
+    print(f"\n{separator}\nFound {len(violations)} functions exceeding CRITICAL thresholds\n{separator}\n")
 
     for i, v in enumerate(violations, 1):
         print(f"{i:2d}. {v['file']}:{v['function']}")

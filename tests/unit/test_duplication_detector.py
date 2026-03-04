@@ -19,6 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
+from ast_grep_mcp.constants import SemanticSimilarityDefaults
 from ast_grep_mcp.features.deduplication.detector import (
     DuplicationDetector,
 )
@@ -253,11 +254,15 @@ class TestCalculateSimilarity:
         """Test that hybrid mode uses hybrid calculator."""
         detector = DuplicationDetector(similarity_mode="hybrid")
 
-        with patch.object(detector._hybrid, "estimate_similarity", return_value=0.85) as mock:
+        with patch.object(
+            detector._hybrid,
+            "estimate_similarity",
+            return_value=SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
+        ) as mock:
             result = detector.calculate_similarity("code1", "code2")
 
             mock.assert_called_once_with("code1", "code2")
-            assert result == 0.85
+            assert result == SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD
 
     def test_minhash_mode_uses_minhash(self):
         """Test that minhash mode uses minhash calculator."""

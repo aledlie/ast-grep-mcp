@@ -12,6 +12,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from ast_grep_mcp.constants import SemanticSimilarityDefaults
 from ast_grep_mcp.features.deduplication.analysis_orchestrator import DeduplicationAnalysisOrchestrator, ProgressCallback
 
 
@@ -34,7 +35,12 @@ class TestProgressCallbacks:
         mock_detector.find_duplication.return_value = {
             "duplication_groups": [
                 {"similarity": 0.9, "lines_saved": 100, "complexity_score": 3, "files": ["/tmp/file1.py", "/tmp/file2.py"]},
-                {"similarity": 0.85, "lines_saved": 50, "complexity_score": 2, "files": ["/tmp/file3.py"]},
+                {
+                    "similarity": SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
+                    "lines_saved": 50,
+                    "complexity_score": 2,
+                    "files": ["/tmp/file3.py"],
+                },
             ]
         }
         orchestrator.detector = mock_detector
@@ -50,7 +56,14 @@ class TestProgressCallbacks:
                 "score": 85.0,
                 "rank": 1,
             },
-            {"similarity": 0.85, "lines_saved": 50, "complexity_score": 2, "files": ["/tmp/file3.py"], "score": 70.0, "rank": 2},
+            {
+                "similarity": SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
+                "lines_saved": 50,
+                "complexity_score": 2,
+                "files": ["/tmp/file3.py"],
+                "score": 70.0,
+                "rank": 2,
+            },
         ]
         orchestrator.ranker = mock_ranker
 

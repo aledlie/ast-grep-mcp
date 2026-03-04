@@ -16,6 +16,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from ast_grep_mcp.constants import SemanticSimilarityDefaults
 from ast_grep_mcp.features.deduplication.analysis_orchestrator import (
     DeduplicationAnalysisOrchestrator,
 )
@@ -598,14 +599,14 @@ class TestLegacyMethods:
 
         metadata = orchestrator._build_analysis_metadata(
             language="python",
-            min_similarity=0.85,
+            min_similarity=SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
             min_lines=10,
             include_test_coverage=True,
             project_path="/legacy/path",
         )
 
         assert metadata["language"] == "python"
-        assert metadata["min_similarity"] == 0.85
+        assert metadata["min_similarity"] == SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD
         assert metadata["min_lines"] == 10
         assert metadata["include_test_coverage"] is True
         assert metadata["project_path"] == "/legacy/path"

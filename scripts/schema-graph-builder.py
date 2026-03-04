@@ -28,6 +28,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TypedDict
 
+from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.utils.console_logger import console
 
 
@@ -273,9 +274,9 @@ class SchemaGraphBuilder:
         """
         all_entities = []
 
-        console.log(f"\n{'=' * 80}")
+        console.log(f"\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
         console.log(f"Building Entity Graph for {self.project_name}")
-        console.log(f"{'=' * 80}")
+        console.log(f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
         console.log(f"Base URL: {self.base_url}")
         console.log(f"Source files: {len(json_files)}")
 
@@ -596,9 +597,9 @@ Examples:
     builder = SchemaGraphBuilder(args.base_url, args.name)
 
     # Discover JSON files
-    console.log(f"\n{'=' * 80}")
+    console.log(f"\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
     console.log("Schema.org Entity Graph Builder")
-    console.log(f"{'=' * 80}")
+    console.log(f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
     console.log(f"Directory: {args.directory}")
     console.log(f"Base URL: {args.base_url}")
     console.log(f"Output: {output_dir}")
@@ -618,9 +619,9 @@ Examples:
     graph = builder.build_entity_graph(json_files)
 
     # Analyze relationships
-    console.log(f"\n{'=' * 80}")
+    console.log(f"\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
     console.log("Analyzing Relationships")
-    console.log(f"{'=' * 80}")
+    console.log(f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
     analysis = builder.analyze_relationships(graph)
 
     console.log(f"\nTotal entities: {analysis['total_entities']}")
@@ -634,9 +635,9 @@ Examples:
         console.log(f"  {prop}: {count}")
 
     # Validate all @id values
-    console.log(f"\n{'=' * 80}")
+    console.log(f"\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
     console.log("Validating @id Values")
-    console.log(f"{'=' * 80}")
+    console.log(f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
     validation_results = builder.validate_all_entity_ids(graph)
 
     valid_count = sum(1 for r in validation_results if r["valid"])
@@ -651,9 +652,9 @@ Examples:
                     console.log(f"    - {warning}")
 
     # Save outputs
-    console.log(f"\n{'=' * 80}")
+    console.log(f"\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
     console.log("Saving Outputs")
-    console.log(f"{'=' * 80}")
+    console.log(f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
 
     # Save unified graph
     graph_file = output_dir / "unified-entity-graph.json"
@@ -681,9 +682,9 @@ Examples:
     console.log(f"✅ Documentation: {doc_file}")
 
     # Print summary
-    console.log(f"\n{'=' * 80}")
+    console.log(f"\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
     console.success("Build Complete")
-    console.log(f"{'=' * 80}")
+    console.log(f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
     console.log("\n📊 Summary:")
     console.log(f"  - {analysis['total_entities']} unique entities")
     console.log(f"  - {len(analysis['entities_by_type'])} Schema.org types")

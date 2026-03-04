@@ -299,7 +299,7 @@ class TestHybridSimilarityResultSemantic:
             similarity=0.88,
             method="hybrid",
             verified=True,
-            minhash_similarity=0.85,
+            minhash_similarity=SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
             ast_similarity=0.87,
             semantic_similarity=0.92,
             stage1_passed=True,
@@ -317,7 +317,7 @@ class TestHybridSimilarityResultSemantic:
     def test_result_without_semantic(self):
         """Should create result with semantic fields as None."""
         result = HybridSimilarityResult(
-            similarity=0.85,
+            similarity=SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
             method="hybrid",
             verified=True,
             minhash_similarity=0.8,
@@ -340,7 +340,7 @@ class TestHybridSimilarityResultSemantic:
             similarity=0.88,
             method="hybrid",
             verified=True,
-            minhash_similarity=0.85,
+            minhash_similarity=SemanticSimilarityDefaults.MEDIUM_SIMILARITY_THRESHOLD,
             ast_similarity=0.87,
             semantic_similarity=0.92123,
             stage1_passed=True,
