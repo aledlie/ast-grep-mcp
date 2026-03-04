@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from ast_grep_mcp.constants import FilePatterns, SubprocessDefaults
+from ast_grep_mcp.constants import FilePatterns, SemanticVolumeDefaults, SubprocessDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.orphan import (
     DependencyEdge,
@@ -427,7 +427,7 @@ class OrphanDetector:
                     # Has some references, mark as uncertain
                     orphan.status = VerificationStatus.UNCERTAIN
                     orphan.reason = f"Found {len(references)} possible string references"
-                    orphan.importers = references[:5]  # Store top 5
+                    orphan.importers = references[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]  # Store top 5
                     verified_orphans.append(orphan)
 
             except subprocess.TimeoutExpired:

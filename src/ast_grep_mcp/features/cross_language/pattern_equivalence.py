@@ -7,7 +7,7 @@ across programming languages.
 import time
 from typing import Any, Dict, List, Optional
 
-from ast_grep_mcp.constants import EquivalenceDefaults
+from ast_grep_mcp.constants import EquivalenceDefaults, SemanticVolumeDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.cross_language.pattern_database import (
     PATTERN_CATEGORIES,
@@ -160,7 +160,7 @@ def _get_suggestions(
     if not category and len(found_patterns) < 3:
         suggestions.append(f"Try searching by category: {', '.join(PATTERN_CATEGORIES[:4])}")
 
-    return suggestions[:5]  # Limit suggestions
+    return suggestions[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]  # Limit suggestions
 
 
 def find_language_equivalents_impl(

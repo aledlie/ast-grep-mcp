@@ -10,7 +10,7 @@ import re
 import subprocess
 from typing import Any, Dict, List, Tuple
 
-from ast_grep_mcp.constants import SubprocessDefaults
+from ast_grep_mcp.constants import SemanticVolumeDefaults, SubprocessDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.complexity import (
     ComplexityMetrics,
@@ -343,7 +343,7 @@ def _find_magic_numbers(content: str, lines: List[str], language: str) -> List[D
                     magic_numbers.append({"line": line_num, "value": num})
 
     # Limit to avoid overwhelming output
-    return magic_numbers[:50]
+    return magic_numbers[: SemanticVolumeDefaults.MAGIC_NUMBER_SAMPLE_LIMIT]
 
 
 def _extract_function_name(func: Dict[str, Any]) -> str:

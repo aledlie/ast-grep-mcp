@@ -13,6 +13,7 @@ import re
 from pathlib import Path
 from typing import List, Tuple
 
+from ast_grep_mcp.constants import FormattingDefaults, SemanticVolumeDefaults
 from ast_grep_mcp.utils.console_logger import console
 
 IMPORT_STMT = "from ast_grep_mcp.utils.console_logger import console"
@@ -235,7 +236,7 @@ def main():
         else:
             results = migrate_directory(path, dry_run=args.dry_run)
             console.log(f"\n{'[DRY RUN] ' if args.dry_run else ''}Migration Results")
-            console.log("=" * 70)
+            console.log("=" * FormattingDefaults.SEPARATOR_LENGTH)
             console.log(f"Total files: {results['total_files']}")
             console.log(f"Modified files: {results['modified_files']}")
             console.log(f"Total migrations: {results['total_migrations']}")
@@ -243,14 +244,18 @@ def main():
     elif args.scripts:
         results = migrate_directory(project_root / "scripts", dry_run=args.dry_run)
         console.log(f"\n{'[DRY RUN] ' if args.dry_run else ''}Scripts Migration")
-        console.log("=" * 70)
+        console.log("=" * FormattingDefaults.SEPARATOR_LENGTH)
         console.log(f"Files processed: {results['total_files']}")
         console.log(f"Files modified: {results['modified_files']}")
         console.log(f"Total migrations: {results['total_migrations']}")
 
         if results["files"]:
             console.log("\nTop modified files:")
-            for path, info in sorted(results["files"].items(), key=lambda x: x[1]["migrations"], reverse=True)[:5]:
+            for path, info in sorted(
+                results["files"].items(),
+                key=lambda x: x[1]["migrations"],
+                reverse=True,
+            )[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]:
                 console.log(f"\n{Path(path).name}: {info['migrations']} migrations")
                 for change in info["changes"][:3]:
                     console.log(f"  {change}")
@@ -258,15 +263,15 @@ def main():
     elif args.tests:
         results = migrate_directory(project_root / "tests", dry_run=args.dry_run)
         console.log(f"\n{'[DRY RUN] ' if args.dry_run else ''}Tests Migration")
-        console.log("=" * 70)
+        console.log("=" * FormattingDefaults.SEPARATOR_LENGTH)
         console.log(f"Files processed: {results['total_files']}")
         console.log(f"Files modified: {results['modified_files']}")
         console.log(f"Total migrations: {results['total_migrations']}")
 
     elif args.all:
-        console.log("\n" + "=" * 70)
+        console.log("\n" + "=" * FormattingDefaults.SEPARATOR_LENGTH)
         console.log("MIGRATING ALL FILES")
-        console.log("=" * 70)
+        console.log("=" * FormattingDefaults.SEPARATOR_LENGTH)
 
         # Scripts
         console.log("\n1. SCRIPTS")
@@ -288,9 +293,9 @@ def main():
 
         # Summary
         total_migrations = scripts_results["total_migrations"] + tests_results["total_migrations"] + root_results["total_migrations"]
-        console.log("\n" + "=" * 70)
+        console.log("\n" + "=" * FormattingDefaults.SEPARATOR_LENGTH)
         print(f"TOTAL: {total_migrations} console.blank() statements migrated")
-        console.log("=" * 70)
+        console.log("=" * FormattingDefaults.SEPARATOR_LENGTH)
 
         if args.dry_run:
             console.log("\n⚠ DRY RUN - No files were modified")

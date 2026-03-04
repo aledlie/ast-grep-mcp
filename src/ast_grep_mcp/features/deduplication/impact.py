@@ -6,6 +6,7 @@ import re
 import subprocess
 from typing import Any, Dict, List, Tuple, TypedDict, Union, cast
 
+from ...constants import SemanticVolumeDefaults
 from ...core import run_ast_grep
 from ...core.logging import get_logger
 
@@ -70,7 +71,7 @@ class ImpactAnalyzer:
             "impact_analysis_start",
             duplicate_count=duplicate_count,
             files_in_group=len(files_in_group),
-            function_names=function_names[:5] if function_names else [],
+            function_names=function_names[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT] if function_names else [],
         )
 
         # Find external call sites using ast-grep

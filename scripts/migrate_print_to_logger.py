@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+from ast_grep_mcp.constants import FormattingDefaults, SemanticVolumeDefaults
 from ast_grep_mcp.utils.console_logger import console
 
 
@@ -391,7 +392,7 @@ def main():
     else:
         mode = "DRY RUN - " if args.dry_run else ""
         console.log(f"\n{mode}Print Statement Migration Results")
-        console.log("=" * 70)
+        console.log("=" * FormattingDefaults.SEPARATOR_LENGTH)
         console.log(f"Files processed: {results['files_processed']}")
         console.log(f"Files modified: {results['files_modified']}")
         console.log(f"Total migrations: {results['total_migrations']}")
@@ -400,10 +401,10 @@ def main():
             console.log("\nChanges by file:")
             for file_path, file_results in results["changes_by_file"].items():
                 console.log(f"\n{Path(file_path).name}: {file_results['migrations']} migrations")
-                for change in file_results["changes"][:5]:  # Show first 5
+                for change in file_results["changes"][: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]:  # Show first 5
                     console.log(f"  - {change}")
-                if len(file_results["changes"]) > 5:
-                    console.log(f"  ... and {len(file_results['changes']) - 5} more")
+                if len(file_results["changes"]) > SemanticVolumeDefaults.TOP_RESULTS_LIMIT:
+                    console.log(f"  ... and {len(file_results['changes']) - SemanticVolumeDefaults.TOP_RESULTS_LIMIT} more")
 
         if args.dry_run:
             console.log("\n⚠ This was a dry run. No files were modified.")

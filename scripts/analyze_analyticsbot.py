@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+from ast_grep_mcp.constants import FormattingDefaults, SemanticVolumeDefaults
 from ast_grep_mcp.utils.console_logger import console
 
 # Add project root to path
@@ -18,9 +19,9 @@ from ast_grep_mcp.features.quality.tools import detect_security_issues_tool  # n
 def analyze_project(project_path: str):
     """Run comprehensive analysis on AnalyticsBot."""
 
-    console.log(f"\n{'=' * 80}")
+    console.log(f"\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
     console.log("AnalyticsBot Code Analysis")
-    console.log(f"{'=' * 80}\n")
+    console.log(f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}\n")
 
     # 1. Complexity Analysis - TypeScript/JavaScript
     console.log("1. Analyzing complexity metrics (TypeScript/JavaScript)...")
@@ -114,7 +115,7 @@ def analyze_project(project_path: str):
                     console.log(f"     {severity.capitalize()}: {by_severity[severity]}")
 
             console.log("   By type:")
-            for issue_type, count in sorted(by_type.items(), key=lambda x: x[1], reverse=True)[:5]:
+            for issue_type, count in sorted(by_type.items(), key=lambda x: x[1], reverse=True)[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]:
                 console.log(f"     {issue_type}: {count}")
         else:
             console.log("   No security issues detected")
@@ -122,9 +123,9 @@ def analyze_project(project_path: str):
     except Exception as e:
         console.error(f"   Error: {e}")
 
-    console.log(f"\n{'=' * 80}")
+    console.log(f"\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
     console.success("Analysis Complete")
-    console.log(f"{'=' * 80}\n")
+    console.log(f"{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}\n")
 
     # Return structured data
     return {

@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from ast_grep_mcp.constants import DisplayDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.cross_language import (
     SUPPORTED_LANGUAGES,
@@ -126,7 +127,7 @@ def _find_symbol_occurrences(
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             lines = f.readlines()
     except Exception as e:
-        logger.warning("file_read_error", file=file_path, error=str(e)[:50])
+        logger.warning("file_read_error", file=file_path, error=str(e)[: DisplayDefaults.CONTENT_PREVIEW_LENGTH])
         return []
 
     patterns = API_SYMBOL_PATTERNS.get(language, {})

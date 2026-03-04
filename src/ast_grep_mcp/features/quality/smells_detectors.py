@@ -13,7 +13,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any, Dict, List
 
-from ast_grep_mcp.constants import SubprocessDefaults
+from ast_grep_mcp.constants import SemanticVolumeDefaults, SubprocessDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.complexity.analyzer import calculate_nesting_depth, extract_functions_from_file
 from ast_grep_mcp.features.quality.smells_helpers import calculate_smell_severity
@@ -553,7 +553,7 @@ class MagicNumberDetector(SmellDetector):
             for num in found:
                 magic_numbers.append({"line": line_num, "value": num})
 
-        return magic_numbers[:50]
+        return magic_numbers[: SemanticVolumeDefaults.MAGIC_NUMBER_SAMPLE_LIMIT]
 
     def _should_skip_line(self, line: str) -> bool:
         """Check if the entire line should be skipped."""

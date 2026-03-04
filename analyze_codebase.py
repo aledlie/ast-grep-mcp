@@ -17,7 +17,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from ast_grep_mcp.constants import FilePatterns
+from ast_grep_mcp.constants import FilePatterns, FormattingDefaults, SemanticVolumeDefaults
 from ast_grep_mcp.features.complexity.analyzer import analyze_file_complexity
 from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool, detect_code_smells_tool
 from ast_grep_mcp.features.deduplication.tools import analyze_deduplication_candidates_tool, find_duplication_tool
@@ -44,9 +44,9 @@ LANGUAGE_EXTENSIONS = {
 
 def print_section(title: str):
     """Print a formatted section header."""
-    print(f"\n{'=' * 80}")
+    print(f"\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
     print(f" {title}")
-    print("=" * 80)
+    print("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
 
 
 def _discover_source_files(project_folder: str, language: str) -> list[Path]:
@@ -277,8 +277,8 @@ def analyze_duplication(project_folder: str, language: str):
 
             dedup_groups = result.get("groups", [])
             if dedup_groups:
-                print("\nTop 5 duplication groups by potential savings:")
-                for i, group in enumerate(dedup_groups[:5], 1):
+                print(f"\nTop {SemanticVolumeDefaults.TOP_RESULTS_LIMIT} duplication groups by potential savings:")
+                for i, group in enumerate(dedup_groups[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT], 1):
                     print(f"  {i}. Group with {group.get('instance_count', 0)} instances ({group.get('similarity', 0):.1%} similar)")
                     print(f"     Potential LOC savings: {group.get('potential_loc_savings', 0)} lines")
                     instances = group.get("instances", [])
@@ -326,7 +326,7 @@ def generate_summary_report(project_folder: str, language: str, apply_fixes: boo
                 print("\nReport Summary:")
                 lines = report_content.split("\n")
                 in_summary = False
-                for line in lines[:50]:
+                for line in lines[: SemanticVolumeDefaults.SUMMARY_PREVIEW_LIMIT]:
                     if "## Summary" in line or "## Executive Summary" in line:
                         in_summary = True
                     if in_summary:
@@ -377,11 +377,11 @@ def _run_tsc_check(project_folder: str) -> bool:
         error_count = sum(1 for line in error_lines if ": error TS" in line)
         print(f"tsc --noEmit: FAILED ({error_count} type errors)")
         # Show first 20 errors
-        for line in error_lines[:20]:
+        for line in error_lines[: SemanticVolumeDefaults.DETAIL_RESULTS_LIMIT]:
             if ": error TS" in line:
                 print(f"  {line}")
-        if error_count > 20:
-            print(f"  ... and {error_count - 20} more errors")
+        if error_count > SemanticVolumeDefaults.DETAIL_RESULTS_LIMIT:
+            print(f"  ... and {error_count - SemanticVolumeDefaults.DETAIL_RESULTS_LIMIT} more errors")
         return False
     except FileNotFoundError:
         print("tsc not found, skipping type check")
@@ -539,9 +539,9 @@ def main():
         print(f"Error: '{project_folder}' is not a valid directory")
         sys.exit(1)
 
-    print("=" * 80)
+    print("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
     print(f" COMPREHENSIVE CODEBASE ANALYSIS - {project_folder}")
-    print("=" * 80)
+    print("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
     print(f"\nTarget: {project_folder} ({language})")
     print("This analysis uses MCP tools to evaluate code quality,")
     print("complexity, security, and duplication opportunities.\n")

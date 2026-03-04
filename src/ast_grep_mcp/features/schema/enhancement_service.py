@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Set
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import SEODefaults
+from ast_grep_mcp.constants import SemanticVolumeDefaults, SEODefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.schema.client import SchemaOrgClient, get_schema_org_client
 from ast_grep_mcp.features.schema.enhancement_rules import (
@@ -165,7 +165,7 @@ def _is_schema_org_data(data: Any) -> bool:
 
     # Handle list of entities
     if isinstance(data, list):
-        return any(_is_schema_org_data(item) for item in data[:5])  # Check first 5
+        return any(_is_schema_org_data(item) for item in data[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT])  # Check first 5
 
     # Check for @context with schema.org
     context = data.get("@context", "")
