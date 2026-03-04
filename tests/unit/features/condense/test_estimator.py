@@ -68,6 +68,7 @@ class TestEstimateCondensationImpl:
 
     def test_large_file_skipped(self):
         from ast_grep_mcp.constants import CondenseDefaults
+
         with tempfile.TemporaryDirectory() as tmp:
             fp = Path(tmp) / "big.py"
             fp.write_bytes(b"x = 1\n" * (CondenseDefaults.MAX_FILE_SIZE_BYTES // 6 + 1))
@@ -105,6 +106,7 @@ class TestLanguageToExtensions:
 
     def test_unknown_falls_back_to_code_extensions(self):
         from ast_grep_mcp.constants import CondenseFileRouting
+
         exts = _language_to_extensions("cobol")
         assert exts == CondenseFileRouting.CODE_EXTENSIONS
 

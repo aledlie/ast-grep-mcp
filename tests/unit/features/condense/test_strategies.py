@@ -1,6 +1,5 @@
 """Tests for strategy definitions and validation."""
 
-
 from ast_grep_mcp.features.condense.strategies import (
     STRATEGY_DESCRIPTIONS,
     STRATEGY_REDUCTION_RATIOS,

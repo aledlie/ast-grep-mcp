@@ -130,8 +130,7 @@ class RecommendationEngine:
         """
         # Calculate effort estimate based on complexity and affected files
         base_effort = (
-            complexity * RecommendationDefaults.EFFORT_COMPLEXITY_WEIGHT
-            + affected_files * RecommendationDefaults.EFFORT_FILES_WEIGHT
+            complexity * RecommendationDefaults.EFFORT_COMPLEXITY_WEIGHT + affected_files * RecommendationDefaults.EFFORT_FILES_WEIGHT
         )
         if not has_tests:
             base_effort *= RecommendationDefaults.NO_TESTS_EFFORT_MULTIPLIER

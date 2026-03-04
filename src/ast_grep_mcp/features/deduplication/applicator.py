@@ -101,7 +101,7 @@ class DeduplicationApplicator:
             return self._build_success_response(modified_files, validation_result, backup_id, project_folder, group_id, strategy)
 
         except Exception as e:
-            self.logger.error("apply_deduplication_failed", error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
+            self.logger.error("apply_deduplication_failed", error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
             raise
 
     def _validate_and_prepare_plan(

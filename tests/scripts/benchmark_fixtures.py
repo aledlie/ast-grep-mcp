@@ -228,9 +228,7 @@ def format_benchmark_report(benchmarks: List[FixtureBenchmark], detailed: bool =
     lines.append("-" * 100)
     lines.append(f"Total fixtures benchmarked: {total_fixtures}")
     lines.append(
-        "Fixtures passing threshold "
-        f"(<{FixtureBenchmarkDefaults.THRESHOLD_MS:.0f}ms): "
-        f"{passing} ({passing / total_fixtures * 100:.1f}%)"
+        f"Fixtures passing threshold (<{FixtureBenchmarkDefaults.THRESHOLD_MS:.0f}ms): {passing} ({passing / total_fixtures * 100:.1f}%)"
     )
     lines.append(f"Slow fixtures (≥{FixtureBenchmarkDefaults.THRESHOLD_MS:.0f}ms): {slow}")
     lines.append(f"Average overhead: {avg_overhead:.2f}ms")

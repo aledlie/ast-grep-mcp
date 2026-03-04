@@ -388,7 +388,7 @@ def analyze_complexity_tool(
             "tool_failed",
             tool="analyze_complexity",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(
@@ -511,7 +511,7 @@ def test_sentry_integration_tool(
             "tool_failed",
             tool="test_sentry_integration",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(

@@ -156,7 +156,7 @@ class RefactoringPlanValidator:
                         "type": "extracted_function",
                         "file": "extracted function",
                         "error": error_msg,
-                        "code_preview": extracted_function[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+                        "code_preview": extracted_function[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
                         "suggestion": suggest_syntax_fix(error_msg, language, context="code"),
                     }
                 )

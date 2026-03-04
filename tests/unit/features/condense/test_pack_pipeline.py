@@ -20,12 +20,7 @@ class TestCondensePackImpl:
     def test_python_ai_analysis_strategy(self):
         with tempfile.TemporaryDirectory() as tmp:
             fp = Path(tmp) / "main.py"
-            fp.write_text(
-                "import os\n\n"
-                "def compute(x):\n"
-                "    print(x)\n"
-                "    return x * 2\n"
-            )
+            fp.write_text("import os\n\ndef compute(x):\n    print(x)\n    return x * 2\n")
             result = condense_pack_impl(tmp, language="python", strategy="ai_analysis")
         assert result["files_processed"] == 1
         assert result["condensed_bytes"] > 0
@@ -56,7 +51,8 @@ class TestCondensePackImpl:
             (Path(tmp) / "keep.py").write_text("x = 1\n")
             (Path(tmp) / "skip.generated.py").write_text("y = 2\n")
             result = condense_pack_impl(
-                tmp, language="python",
+                tmp,
+                language="python",
                 exclude_patterns=["*.generated.py"],
             )
         # The generated file should be excluded
@@ -64,6 +60,7 @@ class TestCondensePackImpl:
 
     def test_oversized_file_skipped(self):
         from ast_grep_mcp.constants import CondenseDefaults
+
         with tempfile.TemporaryDirectory() as tmp:
             fp = Path(tmp) / "huge.py"
             fp.write_bytes(b"x = 1\n" * (CondenseDefaults.MAX_FILE_SIZE_BYTES // 6 + 1))
@@ -78,14 +75,10 @@ class TestCondensePackImpl:
         assert "original_tokens_est" in result
         assert "condensed_tokens_est" in result
 
-
     def test_ai_chat_produces_fewer_bytes_than_ai_analysis(self):
         """ai_chat (lossy) must produce fewer bytes than ai_analysis (lossless)."""
         # Use a file large enough that surface extraction removes significant content
-        body = "\n".join(
-            f"def func_{i}(x, y, z):\n    '''Docstring for func_{i}.'''\n    return x + y + z + {i}\n"
-            for i in range(30)
-        )
+        body = "\n".join(f"def func_{i}(x, y, z):\n    '''Docstring for func_{i}.'''\n    return x + y + z + {i}\n" for i in range(30))
         with tempfile.TemporaryDirectory() as tmp:
             (Path(tmp) / "module.py").write_text(body)
             result_chat = condense_pack_impl(tmp, strategy="ai_chat")

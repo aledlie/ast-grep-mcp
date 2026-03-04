@@ -61,7 +61,8 @@ def _validate_javascript_syntax(content: str) -> Dict[str, Any]:
         try:
             result = subprocess.run(
                 ["node", "--check", tmp_path],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
                 timeout=SyntaxValidationDefaults.NODE_TIMEOUT_SECONDS,
             )
             if result.returncode != 0:
@@ -89,10 +90,21 @@ def _validate_typescript_syntax(file_path: str) -> Dict[str, Any]:
     """
     try:
         result = subprocess.run(
-            ["tsc", "--noEmit", "--noResolve", "--skipLibCheck",
-             "--module", "esnext", "--target", "esnext",
-             "--moduleResolution", "bundler", file_path],
-            capture_output=True, text=True,
+            [
+                "tsc",
+                "--noEmit",
+                "--noResolve",
+                "--skipLibCheck",
+                "--module",
+                "esnext",
+                "--target",
+                "esnext",
+                "--moduleResolution",
+                "bundler",
+                file_path,
+            ],
+            capture_output=True,
+            text=True,
             timeout=SyntaxValidationDefaults.TSC_TIMEOUT_SECONDS,
         )
         # Filter for syntax errors only (TS1xxx), ignore type errors (TS2xxx+)
@@ -490,7 +502,7 @@ def rewrite_code_impl(
         logger.error(
             "rewrite_code_failed",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(
@@ -558,7 +570,7 @@ def rollback_rewrite_impl(backup_id: str, project_folder: str) -> Dict[str, Any]
         logger.error(
             "rollback_failed",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
         )
         sentry_sdk.capture_exception(
@@ -597,6 +609,6 @@ def list_backups_impl(project_folder: str) -> List[Dict[str, Any]]:
         return backups
 
     except Exception as e:
-        logger.error("list_backups_failed", error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
+        logger.error("list_backups_failed", error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
         sentry_sdk.capture_exception(e, extras={"function": "list_backups_impl", "project_folder": project_folder})
         raise

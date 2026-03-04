@@ -19,13 +19,7 @@ class TestExtractSurfaceImpl:
     def test_single_python_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             fp = Path(tmp) / "module.py"
-            fp.write_text(
-                "def public_func(x):\n"
-                '    """Docstring."""\n'
-                "    return x * 2\n\n"
-                "def _private(y):\n"
-                "    return y\n"
-            )
+            fp.write_text('def public_func(x):\n    """Docstring."""\n    return x * 2\n\ndef _private(y):\n    return y\n')
             result = extract_surface_impl(tmp, "python")
         assert result["files_processed"] == 1
         assert "condensed_source" in result
@@ -35,10 +29,7 @@ class TestExtractSurfaceImpl:
         with tempfile.TemporaryDirectory() as tmp:
             fp = Path(tmp) / "big.py"
             # Large file with many function bodies
-            content = "\n".join(
-                f"def func_{i}(x):\n    return x + {i}\n"
-                for i in range(100)
-            )
+            content = "\n".join(f"def func_{i}(x):\n    return x + {i}\n" for i in range(100))
             fp.write_text(content)
             result = extract_surface_impl(tmp, "python")
         assert 0.0 <= result["reduction_pct"] <= 100.0

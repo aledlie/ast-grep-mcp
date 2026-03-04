@@ -279,10 +279,7 @@ PATTERN_DATABASE: Dict[str, Dict[str, Any]] = {
                 "description": "JavaScript object literal",
             },
             "typescript": {
-                "code": (
-                    "const person: { name: string; age: number } = "
-                    f"{{ name: 'Alice', age: {ExampleDataDefaults.PERSON_AGE} }};"
-                ),
+                "code": (f"const person: {{ name: string; age: number }} = {{ name: 'Alice', age: {ExampleDataDefaults.PERSON_AGE} }};"),
                 "description": "TypeScript object with type annotation",
             },
             "java": {
@@ -290,12 +287,7 @@ PATTERN_DATABASE: Dict[str, Dict[str, Any]] = {
                 "description": "Java immutable map (Java 9+)",
             },
             "go": {
-                "code": (
-                    'person := map[string]interface{}{\n'
-                    '    "name": "Alice",\n'
-                    f'    "age":  {ExampleDataDefaults.PERSON_AGE},\n'
-                    "}"
-                ),
+                "code": (f'person := map[string]interface{{}}{{\n    "name": "Alice",\n    "age":  {ExampleDataDefaults.PERSON_AGE},\n}}'),
                 "description": "Go map literal",
             },
             "rust": {

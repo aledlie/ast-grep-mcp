@@ -175,7 +175,7 @@ class DuplicationDetector:
                 self.logger.error(
                     "find_duplication_failed",
                     execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-                    error=str(e)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+                    error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
                     status="failed",
                 )
                 raise
@@ -609,7 +609,7 @@ class DuplicationDetector:
                     {
                         "file": file_path,
                         "lines": f"{start_line}-{end_line}",
-                        "code_preview": match.get("text", "")[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],  # Truncated preview
+                        "code_preview": match.get("text", "")[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],  # Truncated preview
                     }
                 )
 
@@ -617,9 +617,9 @@ class DuplicationDetector:
                 {
                     "group_id": idx + 1,
                     "similarity_score": round(
-                            self.calculate_similarity(group[0].get("text", ""), group[1].get("text", "")),
-                            FormattingDefaults.ROUNDING_PRECISION,
-                        )
+                        self.calculate_similarity(group[0].get("text", ""), group[1].get("text", "")),
+                        FormattingDefaults.ROUNDING_PRECISION,
+                    )
                     if len(group) >= 2
                     else 1.0,
                     "instances": instances,

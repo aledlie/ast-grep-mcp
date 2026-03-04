@@ -520,19 +520,19 @@ def _execute_real_run(
 # Pattern matching assignment operators after a variable name.
 # Covers: =, +=, -=, *=, /=, %=, <<=, >>=, >>>=, &=, |=, ^=, &&=, ||=, ??=
 _ASSIGNMENT_OPS = re.compile(
-    r"(?:\+\+|--"            # postfix increment/decrement
-    r"|\?\?=|\|\|=|&&="      # logical assignment (check before single-char)
-    r"|>>>=|<<=|>>="         # shift assignment
-    r"|[+\-*/%&|^]=)"        # compound assignment
-    r"|(?<![=!<>])=[^=>]"    # plain assignment (not ==, !=, <=, >=, =>)
+    r"(?:\+\+|--"  # postfix increment/decrement
+    r"|\?\?=|\|\|=|&&="  # logical assignment (check before single-char)
+    r"|>>>=|<<=|>>="  # shift assignment
+    r"|[+\-*/%&|^]=)"  # compound assignment
+    r"|(?<![=!<>])=[^=>]"  # plain assignment (not ==, !=, <=, >=, =>)
 )
 
 
 def _line_reassigns_var(line: str, var_pattern: re.Pattern[str]) -> bool:
     """Check if a single line reassigns the variable matched by var_pattern."""
     for match in var_pattern.finditer(line):
-        after = line[match.end():].lstrip()
-        before = line[:match.start()].rstrip()
+        after = line[match.end() :].lstrip()
+        before = line[: match.start()].rstrip()
 
         if _ASSIGNMENT_OPS.match(after):
             return True
@@ -550,7 +550,7 @@ def _decl_line_has_reassignment(line: str, var_pattern: re.Pattern[str]) -> bool
     first = var_pattern.search(line)
     if not first:
         return False
-    rest = line[first.end():]
+    rest = line[first.end() :]
     return var_pattern.search(rest) is not None and _line_reassigns_var(rest, var_pattern)
 
 

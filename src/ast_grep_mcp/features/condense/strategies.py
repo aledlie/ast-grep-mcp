@@ -25,8 +25,7 @@ STRATEGY_DESCRIPTIONS: Dict[str, str] = {
         "Drops function bodies for low-complexity functions. ~85% token reduction."
     ),
     "ai_analysis": (
-        "Lossless: full source minus dead code and debug statements. "
-        "Normalizes formatting for better compression. ~40% token reduction."
+        "Lossless: full source minus dead code and debug statements. Normalizes formatting for better compression. ~40% token reduction."
     ),
     "archival": (
         "Lossless: full source, normalized, ready for downstream compression. "

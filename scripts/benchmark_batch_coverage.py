@@ -282,10 +282,7 @@ def main():
         if improvement >= BenchmarkExpectationDefaults.BATCH_PARALLEL_PASS_MIN_PERCENT:
             console.success("✓ PASSED: Performance goal achieved!")
         elif improvement >= BenchmarkExpectationDefaults.BATCH_PARALLEL_PARTIAL_MIN_PERCENT:
-            console.log(
-                "⚠ PARTIAL: Good improvement, but below "
-                f"{BenchmarkExpectationDefaults.BATCH_PARALLEL_PASS_MIN_PERCENT}% target"
-            )
+            console.log(f"⚠ PARTIAL: Good improvement, but below {BenchmarkExpectationDefaults.BATCH_PARALLEL_PASS_MIN_PERCENT}% target")
         else:
             console.error("✗ FAILED: Performance improvement below expectations")
 

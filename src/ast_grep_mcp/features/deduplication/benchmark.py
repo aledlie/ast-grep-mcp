@@ -111,8 +111,7 @@ class BenchmarkExecutor:
             {  # Low value candidate
                 "potential_line_savings": 10,
                 "instances": [
-                    {"file": f"file{i}.py", "line": i * BENCHMARK_SCORING_HIGH_LINE_A}
-                    for i in range(BENCHMARK_SCORING_LOW_INSTANCE_COUNT)
+                    {"file": f"file{i}.py", "line": i * BENCHMARK_SCORING_HIGH_LINE_A} for i in range(BENCHMARK_SCORING_LOW_INSTANCE_COUNT)
                 ],
             },
             {  # Medium value candidate

@@ -36,9 +36,7 @@ class TestTrainDictionaryImpl:
         """Unit test: mock _write_training_result to avoid actual zstd call."""
         with tempfile.TemporaryDirectory() as tmp:
             for i in range(15):
-                (Path(tmp) / f"module_{i}.py").write_text(
-                    f"def func_{i}(x):\n    return x + {i}\n"
-                )
+                (Path(tmp) / f"module_{i}.py").write_text(f"def func_{i}(x):\n    return x + {i}\n")
 
             def fake_write(samples: list, dict_path: Path) -> tuple[int, int]:
                 # Create a real file so stat() works
@@ -65,9 +63,7 @@ class TestTrainDictionaryImpl:
 
             def fake_write(samples: list, dict_path: Path) -> tuple[int, int]:
                 # Verify only .py files were selected
-                assert all(s.suffix == ".py" for s in samples), (
-                    f"Expected only .py samples, got: {[s.suffix for s in samples]}"
-                )
+                assert all(s.suffix == ".py" for s in samples), f"Expected only .py samples, got: {[s.suffix for s in samples]}"
                 dict_path.touch()
                 return len(samples), 500
 
@@ -112,6 +108,7 @@ class TestSelectSamples:
 
     def test_skips_oversized_files(self):
         from ast_grep_mcp.constants import CondenseDictionaryDefaults
+
         with tempfile.TemporaryDirectory() as tmp:
             big = Path(tmp) / "big.py"
             big.write_bytes(b"x = 1\n" * (CondenseDictionaryDefaults.MAX_SAMPLE_SIZE_BYTES // 6 + 1))

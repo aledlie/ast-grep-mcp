@@ -130,11 +130,7 @@ def extract_surface_impl(
         output_parts.append(f"# {fp}\n{condensed}")  # # is valid comment in most langs
 
     condensed_source = "\n\n".join(output_parts)
-    reduction_pct = (
-        max(0.0, round((1.0 - total_condensed / total_original) * 100, 1))
-        if total_original > 0
-        else 0.0
-    )
+    reduction_pct = max(0.0, round((1.0 - total_condensed / total_original) * 100, 1)) if total_original > 0 else 0.0
 
     logger.info(
         "extract_surface_complete",
@@ -276,14 +272,23 @@ def _extract_js_ts_surface(lines: List[str], include_docstrings: bool) -> List[s
 def _extract_generic_surface(lines: List[str]) -> List[str]:
     """Generic surface extraction: keep declaration-looking lines."""
     declaration_keywords = (
-        "func ", "fn ", "def ", "class ", "struct ", "interface ",
-        "type ", "enum ", "pub ", "export ", "module ", "namespace ",
+        "func ",
+        "fn ",
+        "def ",
+        "class ",
+        "struct ",
+        "interface ",
+        "type ",
+        "enum ",
+        "pub ",
+        "export ",
+        "module ",
+        "namespace ",
     )
     return [
         line.rstrip()
         for line in lines
-        if any(line.lstrip().startswith(kw) for kw in declaration_keywords)
-        or not line.strip()  # preserve blank lines for readability
+        if any(line.lstrip().startswith(kw) for kw in declaration_keywords) or not line.strip()  # preserve blank lines for readability
     ]
 
 
@@ -361,10 +366,7 @@ def condense_pack_impl(
 
     if exclude_patterns:
         exclusion_set = set(exclude_patterns)
-        all_files = [
-            fp for fp in all_files
-            if not _path_matches_any(fp, exclusion_set)
-        ]
+        all_files = [fp for fp in all_files if not _path_matches_any(fp, exclusion_set)]
 
     output_parts: List[str] = []
     files_processed = 0
@@ -391,8 +393,11 @@ def condense_pack_impl(
         lang = file_result["lang"]
         if lang not in per_language:
             per_language[lang] = LanguageCondenseStats(
-                language=lang, files_processed=0, original_lines=0,
-                condensed_lines=0, patterns_matched=0,
+                language=lang,
+                files_processed=0,
+                original_lines=0,
+                condensed_lines=0,
+                patterns_matched=0,
             )
         stats = per_language[lang]
         stats.files_processed += 1
@@ -401,11 +406,7 @@ def condense_pack_impl(
         stats.original_bytes += file_result["original_bytes"]
         stats.condensed_bytes += file_result["condensed_bytes"]
 
-    reduction_pct = (
-        max(0.0, round((1.0 - total_condensed_bytes / total_original_bytes) * 100, 1))
-        if total_original_bytes > 0
-        else 0.0
-    )
+    reduction_pct = max(0.0, round((1.0 - total_condensed_bytes / total_original_bytes) * 100, 1)) if total_original_bytes > 0 else 0.0
     original_tokens = int(total_original_bytes * CondenseDefaults.AVG_TOKENS_PER_BYTE)
     condensed_tokens = int(total_condensed_bytes * CondenseDefaults.AVG_TOKENS_PER_BYTE)
 
@@ -436,9 +437,7 @@ def condense_pack_impl(
                 "condensed_lines": s.condensed_lines,
                 "original_bytes": s.original_bytes,
                 "condensed_bytes": s.condensed_bytes,
-                "reduction_pct": round(
-                    (1.0 - s.condensed_bytes / s.original_bytes) * 100, 1
-                ) if s.original_bytes > 0 else 0.0,
+                "reduction_pct": round((1.0 - s.condensed_bytes / s.original_bytes) * 100, 1) if s.original_bytes > 0 else 0.0,
             }
             for lang, s in per_language.items()
         },
@@ -457,8 +456,7 @@ def _apply_strategy(source: str, language: str, strategy: str) -> str:
     if strategy in ("ai_chat", "polyglot"):
         # polyglot: for code languages use ai_chat surface extraction;
         # config/text files fall through to ai_analysis (pass-through).
-        if language in ("python", "typescript", "javascript", "rust", "go",
-                        "java", "ruby", "php", "swift", "kotlin", "csharp", "cpp", "c"):
+        if language in ("python", "typescript", "javascript", "rust", "go", "java", "ruby", "php", "swift", "kotlin", "csharp", "cpp", "c"):
             return _extract_file_surface(
                 source=source,
                 file_path="",
@@ -473,8 +471,10 @@ def _detect_language(fp: Path) -> str:
     """Map file extension to language string."""
     ext_to_lang = {
         ".py": "python",
-        ".ts": "typescript", ".tsx": "typescript",
-        ".js": "javascript", ".jsx": "javascript",
+        ".ts": "typescript",
+        ".tsx": "typescript",
+        ".js": "javascript",
+        ".jsx": "javascript",
         ".rs": "rust",
         ".go": "go",
         ".java": "java",
@@ -483,12 +483,15 @@ def _detect_language(fp: Path) -> str:
         ".swift": "swift",
         ".kt": "kotlin",
         ".cs": "csharp",
-        ".cpp": "cpp", ".cc": "cpp", ".cxx": "cpp",
+        ".cpp": "cpp",
+        ".cc": "cpp",
+        ".cxx": "cpp",
         ".c": "c",
         ".h": "c",
         ".md": "markdown",
         ".json": "json",
-        ".yaml": "yaml", ".yml": "yaml",
+        ".yaml": "yaml",
+        ".yml": "yaml",
         ".toml": "toml",
     }
     return ext_to_lang.get(fp.suffix.lower(), "unknown")

@@ -291,13 +291,9 @@ def _parse_hunk_header(line: str) -> Dict[str, Any]:
         return {
             "header": line,
             "old_start": int(match.group(UnifiedDiffRegexGroups.OLD_START)),
-            "old_count": int(match.group(UnifiedDiffRegexGroups.OLD_COUNT))
-            if match.group(UnifiedDiffRegexGroups.OLD_COUNT)
-            else 1,
+            "old_count": int(match.group(UnifiedDiffRegexGroups.OLD_COUNT)) if match.group(UnifiedDiffRegexGroups.OLD_COUNT) else 1,
             "new_start": int(match.group(UnifiedDiffRegexGroups.NEW_START)),
-            "new_count": int(match.group(UnifiedDiffRegexGroups.NEW_COUNT))
-            if match.group(UnifiedDiffRegexGroups.NEW_COUNT)
-            else 1,
+            "new_count": int(match.group(UnifiedDiffRegexGroups.NEW_COUNT)) if match.group(UnifiedDiffRegexGroups.NEW_COUNT) else 1,
             "lines": [],
         }
     return {"header": line, "lines": []}
