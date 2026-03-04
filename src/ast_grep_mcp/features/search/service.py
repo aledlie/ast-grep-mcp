@@ -13,6 +13,7 @@ from ast_grep_mcp.constants import (
     DisplayDefaults,
     FormattingDefaults,
     PatternSuggestionConfidence,
+    RegexCaptureGroups,
     SemanticVolumeDefaults,
 )
 from ast_grep_mcp.core.cache import get_query_cache
@@ -1127,7 +1128,11 @@ def _extract_root_kind(ast_output: str) -> Optional[str]:
     # Try CST format - look for first node type in parentheses or brackets
     cst_match = re.search(r"\((\w+)\)|\[(\w+)\]|^(\w+)\s", ast_output)
     if cst_match:
-        return cst_match.group(1) or cst_match.group(2) or cst_match.group(3)
+        return (
+            cst_match.group(RegexCaptureGroups.FIRST)
+            or cst_match.group(RegexCaptureGroups.SECOND)
+            or cst_match.group(RegexCaptureGroups.THIRD)
+        )
 
     # Try to find first word that looks like a node kind
     first_line = ast_output.split("\n")[0] if ast_output else ""
@@ -1207,7 +1212,7 @@ rule:
         return MatchAttempt(
             matched=len(matches) > 0,
             match_count=len(matches),
-            matches=matches[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT],  # Limit to first 5 matches for debugging
+            matches=matches[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT],  # Limit matches for debugging
         )
     except Exception as e:
         logger.debug("match_attempt_failed", error=str(e))

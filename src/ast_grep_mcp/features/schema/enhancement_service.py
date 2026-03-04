@@ -165,7 +165,7 @@ def _is_schema_org_data(data: Any) -> bool:
 
     # Handle list of entities
     if isinstance(data, list):
-        return any(_is_schema_org_data(item) for item in data[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT])  # Check first 5
+        return any(_is_schema_org_data(item) for item in data[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT])  # Check an initial sample
 
     # Check for @context with schema.org
     context = data.get("@context", "")
@@ -515,7 +515,7 @@ def _calculate_entity_seo_score(entity_enhancement: EntityEnhancement) -> float:
     if not entity_enhancement.validation_issues:
         score += SEODefaults.BONUS_INCREMENT
 
-    return max(0.0, min(100.0, score))
+    return max(0.0, min(SEODefaults.BASE_SCORE, score))
 
 
 def _calculate_overall_seo_score(
@@ -539,7 +539,7 @@ def _calculate_overall_seo_score(
     for missing_entity in missing_entities:
         overall_score += MISSING_ENTITY_PENALTIES.get(missing_entity.priority, 0)
 
-    return max(0.0, min(100.0, overall_score))
+    return max(0.0, min(SEODefaults.BASE_SCORE, overall_score))
 
 
 def _build_priority_summary(

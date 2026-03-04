@@ -8,7 +8,7 @@ including function extraction, parameter inference, and import generation.
 import re
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
-from ...constants import SemanticVolumeDefaults
+from ...constants import RegexCaptureGroups, SemanticVolumeDefaults
 from ...core.logging import get_logger
 from ...models.deduplication import FunctionTemplate
 from ...utils.formatters import format_generated_code
@@ -518,7 +518,7 @@ class CodeGenerator:
                 matches = re.findall(pattern, code)
                 dependencies.extend(m for m in matches if m not in ["print", "len", "range", "str", "int"])
 
-        return list(set(dependencies))[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]  # Limit to top 5
+        return list(set(dependencies))[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]  # Limit to top dependencies
 
     def generate_module_structure(self, module_name: str, functions: List[Dict[str, str]], imports: Optional[List[str]] = None) -> str:
         """
@@ -653,9 +653,9 @@ class CodeGenerator:
 
     def _process_conditional(self, match: re.Match[str], variables: Dict[str, str]) -> str:
         """Process conditional template blocks."""
-        condition_type = match.group(1)  # 'if' or 'unless'
-        var_name = match.group(2)
-        content = match.group(3)
+        condition_type = match.group(RegexCaptureGroups.FIRST)  # 'if' or 'unless'
+        var_name = match.group(RegexCaptureGroups.SECOND)
+        content = match.group(RegexCaptureGroups.THIRD)
 
         var_value = variables.get(var_name, "")
         is_truthy = var_value and var_value.lower() not in ("false", "0", "")

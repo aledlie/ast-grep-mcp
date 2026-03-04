@@ -86,7 +86,7 @@ class DuplicationDetector:
         project_folder: str,
         construct_type: str = "function_definition",
         min_similarity: float = DeduplicationDefaults.MIN_SIMILARITY,
-        min_lines: int = 5,
+        min_lines: int = DeduplicationDefaults.MIN_LINES,
         max_constructs: int = 1000,
         exclude_patterns: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
@@ -609,14 +609,17 @@ class DuplicationDetector:
                     {
                         "file": file_path,
                         "lines": f"{start_line}-{end_line}",
-                        "code_preview": match.get("text", "")[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],  # First 200 chars
+                        "code_preview": match.get("text", "")[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],  # Truncated preview
                     }
                 )
 
             formatted_groups.append(
                 {
                     "group_id": idx + 1,
-                    "similarity_score": round(self.calculate_similarity(group[0].get("text", ""), group[1].get("text", "")), 3)
+                    "similarity_score": round(
+                            self.calculate_similarity(group[0].get("text", ""), group[1].get("text", "")),
+                            FormattingDefaults.ROUNDING_PRECISION,
+                        )
                     if len(group) >= 2
                     else 1.0,
                     "instances": instances,

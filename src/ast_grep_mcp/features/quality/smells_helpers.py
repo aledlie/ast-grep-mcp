@@ -8,7 +8,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any, Dict, List
 
-from ast_grep_mcp.constants import SmellSeverityDefaults
+from ast_grep_mcp.constants import SeverityRankingDefaults, SmellSeverityDefaults
 from ast_grep_mcp.core.logging import get_logger
 
 
@@ -160,8 +160,13 @@ def format_smell_detection_response(
         smells = [s for s in smells if s.get("severity") == severity_filter]
 
     # Sort by severity (high > medium > low) then by type
-    severity_order = {"high": 0, "medium": 1, "low": 2}
-    smells.sort(key=lambda s: (severity_order.get(s.get("severity", "low"), 3), s.get("type", "")))
+    severity_order = SeverityRankingDefaults.SMELL_SORT_ORDER
+    smells.sort(
+        key=lambda s: (
+            severity_order.get(s.get("severity", "low"), SeverityRankingDefaults.FALLBACK_RANK),
+            s.get("type", ""),
+        )
+    )
 
     # Generate summary statistics
     smell_counts: Dict[str, int] = {}

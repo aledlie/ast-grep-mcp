@@ -284,7 +284,7 @@ class PatternAnalyzer:
             "refactoring_difficulty": difficulty,
             "classifications": classifications,
             "parameterizable_count": parameterizable_count,
-            "parameter_suggestions": param_suggestions[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT],  # Top 5 suggestions
+            "parameter_suggestions": param_suggestions[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT],  # Top suggestions
         }
 
     def _determine_category(self, variation_type: str, old_value: str, new_value: str) -> str:

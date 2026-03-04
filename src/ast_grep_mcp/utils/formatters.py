@@ -13,7 +13,7 @@ import tempfile
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults, SubprocessDefaults
+from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults, SubprocessDefaults, UnifiedDiffRegexGroups
 
 
 @dataclass
@@ -290,10 +290,14 @@ def _parse_hunk_header(line: str) -> Dict[str, Any]:
     if match:
         return {
             "header": line,
-            "old_start": int(match.group(1)),
-            "old_count": int(match.group(2)) if match.group(2) else 1,
-            "new_start": int(match.group(3)),
-            "new_count": int(match.group(4)) if match.group(4) else 1,
+            "old_start": int(match.group(UnifiedDiffRegexGroups.OLD_START)),
+            "old_count": int(match.group(UnifiedDiffRegexGroups.OLD_COUNT))
+            if match.group(UnifiedDiffRegexGroups.OLD_COUNT)
+            else 1,
+            "new_start": int(match.group(UnifiedDiffRegexGroups.NEW_START)),
+            "new_count": int(match.group(UnifiedDiffRegexGroups.NEW_COUNT))
+            if match.group(UnifiedDiffRegexGroups.NEW_COUNT)
+            else 1,
             "lines": [],
         }
     return {"header": line, "lines": []}
@@ -401,9 +405,9 @@ def _format_diff_with_line_numbers(file_path: str, diff_lines: List[str], origin
         return f"No changes in {file_path}"
 
     output = []
-    output.append(f"{'=' * 70}")
+    output.append(f"{'=' * FormattingDefaults.SEPARATOR_LENGTH}")
     output.append(f"File: {file_path}")
-    output.append(f"{'=' * 70}")
+    output.append(f"{'=' * FormattingDefaults.SEPARATOR_LENGTH}")
 
     old_line_num = 0
     new_line_num = 0
@@ -417,9 +421,9 @@ def _format_diff_with_line_numbers(file_path: str, diff_lines: List[str], origin
             # Parse hunk header for line numbers
             match = re.match(r"@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)", line)
             if match:
-                old_line_num = int(match.group(1)) - 1
-                new_line_num = int(match.group(2)) - 1
-                context = match.group(3).strip()
+                old_line_num = int(match.group(UnifiedDiffRegexGroups.OLD_START)) - 1
+                new_line_num = int(match.group(UnifiedDiffRegexGroups.NEW_START)) - 1
+                context = match.group(UnifiedDiffRegexGroups.CONTEXT).strip()
                 output.append(f"\n{line.strip()}")
                 if context:
                     output.append(f"  Context: {context}")

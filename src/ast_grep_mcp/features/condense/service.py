@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from ...constants import (
     CondenseDefaults,
     CondenseFileRouting,
+    IndentationDefaults,
 )
 from ...core.logging import get_logger
 from ...models.condense import LanguageCondenseStats
@@ -197,7 +198,7 @@ def _extract_python_surface(lines: List[str], include_docstrings: bool) -> List[
                 doc_lines, advance = _collect_docstring(lines, i + 1)
                 kept.extend(doc_lines)
                 i += advance
-            body_indent = indent + 4
+            body_indent = indent + IndentationDefaults.SPACES_PER_LEVEL
         elif body_indent is not None and stripped and indent >= body_indent:
             pass  # skip body line
         else:
