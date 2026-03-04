@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Set
 import sentry_sdk
 import yaml
 
-from ast_grep_mcp.constants import FormattingDefaults, RuleSetPriority
+from ast_grep_mcp.constants import FormattingDefaults, RuleSetPriority, SeverityRankingDefaults
 from ast_grep_mcp.core.executor import stream_ast_grep_results
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.quality.rules import RULE_TEMPLATES, load_rules_from_project
@@ -550,7 +550,7 @@ def filter_violations_by_severity(violations: List[RuleViolation], severity_thre
     Returns:
         Filtered list of violations
     """
-    severity_order = {"info": 0, "warning": 1, "error": 2}
+    severity_order = SeverityRankingDefaults.ENFORCER_THRESHOLD_ORDER
     min_level = severity_order.get(severity_threshold, 0)
 
     return [v for v in violations if severity_order.get(v.severity, 0) >= min_level]

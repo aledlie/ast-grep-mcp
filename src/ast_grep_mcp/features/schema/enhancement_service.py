@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Set
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import SemanticVolumeDefaults, SEODefaults
+from ast_grep_mcp.constants import RegexCaptureGroups, SemanticVolumeDefaults, SEODefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.schema.client import SchemaOrgClient, get_schema_org_client
 from ast_grep_mcp.features.schema.enhancement_rules import (
@@ -401,8 +401,8 @@ def _parse_suggestion_rule(rule: str, entity_types: Set[str], type_counts: Dict[
         elif "count:" in condition and ">" in condition:
             match = re.match(r"count:(\w+)>(\d+)", condition)
             if match:
-                entity_type = match.group(1)
-                threshold = int(match.group(2))
+                entity_type = match.group(RegexCaptureGroups.FIRST)
+                threshold = int(match.group(RegexCaptureGroups.SECOND))
                 if type_counts.get(entity_type, 0) <= threshold:
                     return False
             else:

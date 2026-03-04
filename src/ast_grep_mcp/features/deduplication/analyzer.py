@@ -13,7 +13,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import yaml
 
-from ...constants import DifficultyThresholds, SemanticVolumeDefaults, SubprocessDefaults
+from ...constants import DifficultyThresholds, RegexCaptureGroups, SemanticVolumeDefaults, SubprocessDefaults
 from ...core.logging import get_logger
 from ...models.deduplication import VariationCategory, VariationSeverity
 
@@ -823,8 +823,8 @@ class PatternAnalyzer:
                     "nesting_depth": 2,
                     "call_expression": match.group(0),
                     "line": i,
-                    "outer_function": match.group(1),
-                    "inner_function": match.group(2),
+                    "outer_function": match.group(RegexCaptureGroups.FIRST),
+                    "inner_function": match.group(RegexCaptureGroups.SECOND),
                 }
 
         return None
@@ -1182,7 +1182,7 @@ def _extract_identifiers_from_code(code: str, language: str) -> Dict[int, Dict[s
     excluded = keywords.get(language, keywords["python"])
 
     for idx, match in enumerate(re.finditer(identifier_pattern, code)):
-        name = match.group(1)
+        name = match.group(RegexCaptureGroups.FIRST)
         if name not in excluded and not name.isupper():  # Exclude constants
             # Get surrounding context
             start = max(0, match.start() - 20)
