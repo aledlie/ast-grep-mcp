@@ -16,12 +16,12 @@ brew install ast-grep  # or: cargo install ast-grep --locked
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Clone and install
-git clone https://github.com/ast-grep/ast-grep-mcp.git
+git clone https://github.com/aledlie/ast-grep-mcp.git
 cd ast-grep-mcp
 uv sync
 
 # Run directly from GitHub (no clone)
-uvx --from git+https://github.com/ast-grep/ast-grep-mcp ast-grep-server
+uvx --from git+https://github.com/aledlie/ast-grep-mcp ast-grep-server
 ```
 
 ## Configuration
@@ -81,7 +81,7 @@ export SENTRY_DSN="your-dsn"
 export SENTRY_ENVIRONMENT="production"
 ```
 
-**Docs:** [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md), [DOPPLER-MIGRATION.md](DOPPLER-MIGRATION.md)
+**Docs:** [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md)
 
 ## Tools (53 Total)
 
@@ -152,12 +152,12 @@ JavaScript/TypeScript, Python, Rust, Go, Java, C/C++, C#, and [many more](https:
 
 **Sentry:** Run `test_sentry_integration()`, check `SENTRY_DSN`. See [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md).
 
-**Doppler:** Verify auth (`doppler login`), check secrets (`doppler secrets --project bottleneck --config dev`). See [DOPPLER-MIGRATION.md](DOPPLER-MIGRATION.md).
+**Doppler:** Verify auth (`doppler login`) and secrets (`doppler secrets --project bottleneck --config dev`).
 
 ## Repository
 
 ```
-src/ast_grep_mcp/          # 118 modules
+src/ast_grep_mcp/          # 120 modules
 ├── core/                  # Config, cache, executor, logging, sentry, usage tracking
 ├── models/                # Data models (13 modules)
 ├── utils/                 # Formatters, validation, templates, text processing
@@ -166,7 +166,11 @@ src/ast_grep_mcp/          # 118 modules
 └── server/                # MCP registry + runner
 ```
 
-- `tests/` - 1,378 tests (unit + integration + quality regression)
+- `tests/` - 1,469 collected tests (unit + integration + quality regression)
+
+## Recent Updates
+
+- [changelog/2026-03-04-maintenance-quality.md](changelog/2026-03-04-maintenance-quality.md) - Constants consolidation, analyzer false-positive reduction, exclusion hardening, and diff parser fix.
 
 ## Related
 

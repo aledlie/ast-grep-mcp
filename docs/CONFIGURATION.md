@@ -628,7 +628,7 @@ View who accessed secrets in Project Settings → Audit Logs.
 
 ### Migration
 
-If you're currently using manual environment variables, see [DOPPLER-MIGRATION.md](../DOPPLER-MIGRATION.md) for step-by-step migration guide.
+If you're currently using manual environment variables, follow the Doppler setup steps in [docs/README.md](README.md#configuration) and mirror your existing values into Doppler secrets.
 
 ---
 
@@ -867,6 +867,6 @@ test_sentry_integration()
 
 - **ast-grep Configuration**: [ast-grep docs](https://ast-grep.github.io/guide/project/project-config.html)
 - **Sentry Integration**: [SENTRY-INTEGRATION.md](../SENTRY-INTEGRATION.md)
-- **Doppler Migration**: [DOPPLER-MIGRATION.md](../DOPPLER-MIGRATION.md)
+- **Doppler Setup**: [docs/README.md](README.md#configuration)
 - **Main Documentation**: [README.md](../README.md)
 - **Development Guide**: [CLAUDE.md](../CLAUDE.md)

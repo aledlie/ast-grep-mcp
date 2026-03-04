@@ -4,15 +4,15 @@
 
 ```bash
 uv sync                          # Install dependencies
-uv run pytest                    # Run all tests (1,378+)
-uv run ruff check . && mypy src/ # Lint and type check
+uv run pytest                    # Run all tests (1,469 collected)
+uv run ruff check . && uv run mypy src/ # Lint and type check
 uv run main.py                   # Run MCP server locally
 doppler run -- uv run main.py    # Run with Doppler secrets
 ```
 
 ## Overview
 
-Modular MCP server (118 modules) with ast-grep structural code search, Schema.org tools, refactoring, deduplication, quality, documentation generation, and semantic code condensation.
+Modular MCP server (120 modules) with ast-grep structural code search, Schema.org tools, refactoring, deduplication, quality, documentation generation, and semantic code condensation.
 
 **53 Tools:** Search (9), Rewrite (3), Refactoring (2), Deduplication (4), Schema.org (9), Complexity (3), Quality (7), Documentation (5), Cross-Language (5), Condense (6)
 
@@ -33,11 +33,18 @@ src/ast_grep_mcp/
 
 ## Code Quality
 
-Zero complexity violations: Cyclomatic ≤20, Cognitive ≤30, Nesting ≤6, Function ≤150 lines
+Quality gates: Ruff + mypy + pytest + analyze_codebase.py
 
 ```bash
 uv run pytest tests/quality/test_complexity_regression.py -v
 ```
+
+## Recent Maintenance (2026-03-04)
+
+- Consolidated repeated scoring/confidence literals into shared constants and scales.
+- Reduced magic-number false positives by ignoring one-off constant declarations in smell detection.
+- Enforced venv and backup exclusions across analyzer/search scans.
+- Fixed unified diff hunk parsing to match shared capture-group constants.
 
 ## Config
 
