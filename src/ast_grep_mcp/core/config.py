@@ -18,7 +18,7 @@ CONFIG_PATH: Optional[str] = None
 # Global cache configuration (set by parse_args_and_get_config)
 CACHE_ENABLED: bool = True
 CACHE_SIZE: int = CacheDefaults.DEFAULT_CACHE_SIZE
-CACHE_TTL: int = CacheDefaults.CLEANUP_INTERVAL_SECONDS  # Reuse cleanup interval for TTL
+CACHE_TTL: int = CacheDefaults.TTL_SECONDS
 
 # Global cache instance (will be set after cache.py is extracted)
 _query_cache: Optional[Any] = None
@@ -125,7 +125,7 @@ For more information, see: https://github.com/ast-grep/ast-grep-mcp
         type=int,
         metavar="SECONDS",
         default=None,
-        help=(f"Cache TTL in seconds (default: {CacheDefaults.CLEANUP_INTERVAL_SECONDS}). Also settable via CACHE_TTL env var."),
+        help=(f"Cache TTL in seconds (default: {CacheDefaults.TTL_SECONDS}). Also settable via CACHE_TTL env var."),
     )
     return parser
 
