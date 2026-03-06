@@ -28,6 +28,11 @@ from typing import Dict, List, Tuple
 from ast_grep_mcp.constants import FormattingDefaults, SemanticVolumeDefaults
 from ast_grep_mcp.utils.console_logger import console
 
+try:
+    from scripts.import_helpers import CONSOLE_IMPORT_STMT, compute_import_insert_index, ensure_import_present, scan_import_state
+except ImportError:  # pragma: no cover - script execution path
+    from import_helpers import CONSOLE_IMPORT_STMT, compute_import_insert_index, ensure_import_present, scan_import_state
+
 
 @dataclass
 class PrintStatement:
@@ -53,7 +58,7 @@ class PrintMigrator:
         """
         self.dry_run = dry_run
         self.backup = backup
-        self.import_statement = "from ast_grep_mcp.utils.console_logger import console"
+        self.import_statement = CONSOLE_IMPORT_STMT
 
     def analyze_print_call(self, code: str) -> str:
         """Analyze console.blank() call and determine appropriate logger method.
@@ -235,6 +240,50 @@ class PrintMigrator:
         # For simplicity, return what we have
         return "".join(result) if result else None
 
+    def _read_file_lines(self, file_path: Path) -> List[str]:
+        """Read file content and return split lines."""
+        with open(file_path, "r", encoding="utf-8") as file_obj:
+            return file_obj.read().split("\n")
+
+    def _create_backup_if_needed(self, file_path: Path, changes: List[str]) -> None:
+        """Create backup file when migration is not a dry run."""
+        if self.backup and not self.dry_run:
+            backup_path = file_path.with_suffix(".py.bak")
+            shutil.copy(file_path, backup_path)
+            changes.append(f"Created backup: {backup_path}")
+
+    def _scan_import_state(self, lines: List[str]) -> Tuple[bool, int]:
+        """Return whether console import exists and last import line index."""
+        return scan_import_state(lines, self.import_statement)
+
+    def _apply_statement_replacements(self, lines: List[str], statements: List[PrintStatement], changes: List[str]) -> None:
+        """Replace print statements in reverse order to preserve line indices."""
+        for stmt in reversed(statements):
+            line_idx = stmt.line_number - 1
+            line = lines[line_idx]
+            lines[line_idx] = line.replace(stmt.original_code, stmt.suggested_replacement)
+            changes.append(f"Line {stmt.line_number}: {stmt.original_code.strip()} -> {stmt.suggested_replacement.strip()}")
+
+    def _compute_import_insert_index(self, lines: List[str]) -> int:
+        """Find insertion index after shebang/docstring for import insertion."""
+        return compute_import_insert_index(lines)
+
+    def _ensure_import_present(self, lines: List[str], has_import: bool, import_line_index: int, changes: List[str]) -> None:
+        """Ensure console import exists in file content."""
+        if has_import:
+            return
+
+        _ = import_line_index  # Kept for compatibility with current call signature.
+        if ensure_import_present(lines, self.import_statement, add_blank_line=True, blank_line_only_when_needed=False):
+            changes.append(f"Added import: {self.import_statement}")
+
+    def _write_lines_if_needed(self, file_path: Path, lines: List[str]) -> None:
+        """Persist updated lines unless running in dry-run mode."""
+        if self.dry_run:
+            return
+        with open(file_path, "w", encoding="utf-8") as file_obj:
+            file_obj.write("\n".join(lines))
+
     def migrate_file(self, file_path: Path) -> Tuple[int, List[str]]:
         """Migrate all console.blank() statements in a file.
 
@@ -249,74 +298,12 @@ class PrintMigrator:
             return 0, []
 
         changes = []
-
-        # Read original content
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
-            lines = content.split("\n")
-
-        # Create backup if requested
-        if self.backup and not self.dry_run:
-            backup_path = file_path.with_suffix(".py.bak")
-            shutil.copy(file_path, backup_path)
-            changes.append(f"Created backup: {backup_path}")
-
-        # Check if file already has console import
-        has_import = False
-        import_line_index = -1
-
-        for i, line in enumerate(lines):
-            if self.import_statement in line:
-                has_import = True
-                break
-            if line.startswith("import ") or line.startswith("from "):
-                import_line_index = i
-
-        # Replace print statements (in reverse order to maintain line numbers)
-        for stmt in reversed(statements):
-            line_idx = stmt.line_number - 1
-            line = lines[line_idx]
-
-            # Replace the print statement
-            new_line = line.replace(stmt.original_code, stmt.suggested_replacement)
-            lines[line_idx] = new_line
-
-            changes.append(f"Line {stmt.line_number}: {stmt.original_code.strip()} -> {stmt.suggested_replacement.strip()}")
-
-        # Add import if not present
-        if not has_import:
-            if import_line_index >= 0:
-                # Add after last import
-                lines.insert(import_line_index + 1, self.import_statement)
-            else:
-                # Add at top after docstring/shebang
-                insert_idx = 0
-                for i, line in enumerate(lines):
-                    if line.strip().startswith("#!"):
-                        insert_idx = i + 1
-                    elif line.strip().startswith('"""') or line.strip().startswith("'''"):
-                        # Find end of docstring
-                        quote = '"""' if '"""' in line else "'''"
-                        if line.count(quote) >= 2:
-                            insert_idx = i + 1
-                            break
-                        else:
-                            for j in range(i + 1, len(lines)):
-                                if quote in lines[j]:
-                                    insert_idx = j + 1
-                                    break
-                        break
-
-                lines.insert(insert_idx, self.import_statement)
-                lines.insert(insert_idx + 1, "")  # Blank line
-
-            changes.append(f"Added import: {self.import_statement}")
-
-        # Write updated content
-        if not self.dry_run:
-            new_content = "\n".join(lines)
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(new_content)
+        lines = self._read_file_lines(file_path)
+        self._create_backup_if_needed(file_path, changes)
+        has_import, import_line_index = self._scan_import_state(lines)
+        self._apply_statement_replacements(lines, statements, changes)
+        self._ensure_import_present(lines, has_import, import_line_index, changes)
+        self._write_lines_if_needed(file_path, lines)
 
         return len(statements), changes
 
