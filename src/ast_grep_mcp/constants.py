@@ -172,7 +172,6 @@ class DeduplicationDefaults:
     REGRESSION_FULL_WORKFLOW = 0.20  # 20% slowdown allowed
     REGRESSION_SCORING = 0.05  # 5% slowdown allowed
     REGRESSION_TEST_COVERAGE = 0.15  # 15% slowdown allowed
-    DEFAULT_COMPLEXITY_SCORE = 5
 
     # Analysis pipeline progress stages
     PROGRESS_RANKING = 0.25
