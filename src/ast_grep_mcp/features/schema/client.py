@@ -62,27 +62,25 @@ class SchemaOrgClient:
 
         return cast(Dict[str, Any], data)
 
+    def _index_item(self, item: Any) -> None:
+        """Index a single graph item by @id and label."""
+        if not item or not isinstance(item, dict):
+            return
+        item_id = item.get("@id")
+        if not item_id:
+            return
+        self.schema_data[item_id] = item
+        label = item.get("rdfs:label")
+        if isinstance(label, str):
+            self.schema_data[f"schema:{label}"] = item
+
     def _validate_and_index_data(self, data: Dict[str, Any]) -> None:
         """Validate data format and index all types and properties."""
         graph = data.get("@graph")
         if not graph or not isinstance(graph, list):
             raise RuntimeError("Invalid schema.org data format: missing @graph array")
-
         for item in graph:
-            if not item or not isinstance(item, dict):
-                continue
-
-            item_id = item.get("@id")
-            if not item_id:
-                continue
-
-            self.schema_data[item_id] = item
-
-            # Also index by label for easier lookup
-            label = item.get("rdfs:label")
-            if isinstance(label, str):
-                self.schema_data[f"schema:{label}"] = item
-
+            self._index_item(item)
         if not self.schema_data:
             raise RuntimeError("No schema data was loaded")
 
@@ -103,25 +101,23 @@ class SchemaOrgClient:
                 result.append({"name": label if isinstance(label, str) else sc["@id"].replace("schema:", ""), "id": sc["@id"]})
         return result
 
+    def _is_subtype_of(self, item: Dict[str, Any], type_id: str) -> bool:
+        """Return True if item directly subclasses type_id."""
+        super_classes = self._normalize_to_array(item.get("rdfs:subClassOf"))
+        return any(isinstance(sc, dict) and sc.get("@id") == type_id for sc in super_classes)
+
     def _find_sub_types(self, type_id: str) -> List[Dict[str, str]]:
         """Find all subtypes of a given type."""
         sub_types = []
         for item in self.schema_data.values():
-            if not item.get("@type"):
-                continue
-
-            types = self._normalize_to_array(item["@type"])
+            types = self._normalize_to_array(item.get("@type", []))
             if "rdfs:Class" not in types:
                 continue
-
-            super_classes = self._normalize_to_array(item.get("rdfs:subClassOf"))
-            for sc in super_classes:
-                if isinstance(sc, dict) and sc.get("@id") == type_id:
-                    label = item.get("rdfs:label")
-                    if label:
-                        sub_types.append({"name": label, "id": item["@id"]})
-                    break
-
+            if not self._is_subtype_of(item, type_id):
+                continue
+            label = item.get("rdfs:label")
+            if label:
+                sub_types.append({"name": label, "id": item["@id"]})
         return sub_types
 
     def _format_property(self, prop: Dict[str, Any]) -> Dict[str, Any]:
@@ -598,25 +594,11 @@ class SchemaOrgClient:
         """Build a knowledge graph of related entities with proper @id references.
 
         Args:
-            entities: List of entity definitions with type, properties, and relationships
+            entities: List of entity definitions (type, slug, id_fragment, properties, relationships)
             base_url: Base canonical URL for generating @id values
 
         Returns:
             Complete JSON-LD @graph with all entities properly connected via @id references
-
-        Entity Definition Format:
-            {
-                "type": "Organization",           # Required: Schema.org type
-                "slug": "about",                  # Optional: URL path segment
-                "id_fragment": "org-acme",        # Optional: Custom fragment for referencing
-                "properties": {                   # Required: Entity properties
-                    "name": "Acme Corp",
-                    "url": "https://example.com"
-                },
-                "relationships": {                # Optional: References to other entities
-                    "founder": "person-john"      # References id_fragment of another entity
-                }
-            }
         """
         await self.initialize()
 

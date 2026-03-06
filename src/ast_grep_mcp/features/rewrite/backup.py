@@ -11,30 +11,38 @@ from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
 
 
-def create_backup(files_to_backup: List[str], project_folder: str) -> str:
-    """Create a timestamped backup of files before rewriting.
-
-    Args:
-        files_to_backup: List of absolute file paths to backup
-        project_folder: Project root folder
-
-    Returns:
-        backup_id: Unique identifier for this backup (timestamp-based)
-    """
-    logger = get_logger("rewrite.backup")
-
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-FormattingDefaults.TIMESTAMP_MS_TRIM]
-    backup_id = f"backup-{timestamp}"
-    backup_base_dir = os.path.join(project_folder, ".ast-grep-backups")
+def _resolve_backup_dir(prefix: str, timestamp: str, backup_base_dir: str) -> tuple[str, str]:
+    backup_id = f"{prefix}-{timestamp}"
     backup_dir = os.path.join(backup_base_dir, backup_id)
-
-    # Handle collision by appending counter suffix
     counter = 1
     while os.path.exists(backup_dir):
-        backup_id = f"backup-{timestamp}-{counter}"
+        backup_id = f"{prefix}-{timestamp}-{counter}"
         backup_dir = os.path.join(backup_base_dir, backup_id)
         counter += 1
+    return backup_id, backup_dir
 
+
+def _copy_file_to_backup(
+    file_path: str, project_folder: str, backup_dir: str, logger: Any, original_hashes: Optional[Dict[str, str]] = None
+) -> Optional[Dict[str, Any]]:
+    if not os.path.exists(file_path):
+        logger.warning("file_not_found_for_backup", file_path=file_path)
+        return None
+    rel_path = os.path.relpath(file_path, project_folder)
+    backup_file_path = os.path.join(backup_dir, rel_path)
+    os.makedirs(os.path.dirname(backup_file_path), exist_ok=True)
+    shutil.copy2(file_path, backup_file_path)
+    entry: Dict[str, Any] = {"original": file_path, "relative": rel_path, "backup": backup_file_path}
+    if original_hashes is not None:
+        entry["original_hash"] = original_hashes.get(file_path, "")
+    return entry
+
+
+def create_backup(files_to_backup: List[str], project_folder: str) -> str:
+    logger = get_logger("rewrite.backup")
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-FormattingDefaults.TIMESTAMP_MS_TRIM]
+    backup_base_dir = os.path.join(project_folder, ".ast-grep-backups")
+    backup_id, backup_dir = _resolve_backup_dir("backup", timestamp, backup_base_dir)
     os.makedirs(backup_dir, exist_ok=True)
 
     metadata: Dict[str, Any] = {
@@ -43,58 +51,25 @@ def create_backup(files_to_backup: List[str], project_folder: str) -> str:
         "files": [],
         "project_folder": project_folder,
     }
-
     for file_path in files_to_backup:
-        if not os.path.exists(file_path):
-            logger.warning("file_not_found_for_backup", file_path=file_path)
-            continue
+        entry = _copy_file_to_backup(file_path, project_folder, backup_dir, logger)
+        if entry:
+            metadata["files"].append(entry)
 
-        rel_path = os.path.relpath(file_path, project_folder)
-        backup_file_path = os.path.join(backup_dir, rel_path)
-
-        os.makedirs(os.path.dirname(backup_file_path), exist_ok=True)
-        shutil.copy2(file_path, backup_file_path)
-
-        metadata["files"].append({"original": file_path, "relative": rel_path, "backup": backup_file_path})
-
-    metadata_path = os.path.join(backup_dir, "backup-metadata.json")
-    with open(metadata_path, "w") as f:
+    with open(os.path.join(backup_dir, "backup-metadata.json"), "w") as f:
         json.dump(metadata, f, indent=2)
 
     logger.info("backup_created", backup_id=backup_id, files_backed_up=len(metadata["files"]), backup_dir=backup_dir)
-
     return backup_id
 
 
 def create_deduplication_backup(
     files_to_backup: List[str], project_folder: str, duplicate_group_id: int, strategy: str, original_hashes: Dict[str, str]
 ) -> str:
-    """Create a backup with deduplication-specific metadata.
-
-    Args:
-        files_to_backup: List of absolute file paths to backup
-        project_folder: Project root folder
-        duplicate_group_id: ID of the duplicate group being refactored
-        strategy: Deduplication strategy used (e.g., 'extract_function', 'consolidate')
-        original_hashes: Dict mapping file paths to their content hashes
-
-    Returns:
-        backup_id: Unique identifier for this backup (timestamp-based)
-    """
     logger = get_logger("rewrite.backup")
-
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-FormattingDefaults.TIMESTAMP_MS_TRIM]
-    backup_id = f"dedup-backup-{timestamp}"
     backup_base_dir = os.path.join(project_folder, ".ast-grep-backups")
-    backup_dir = os.path.join(backup_base_dir, backup_id)
-
-    # Handle collision by appending counter suffix
-    counter = 1
-    while os.path.exists(backup_dir):
-        backup_id = f"dedup-backup-{timestamp}-{counter}"
-        backup_dir = os.path.join(backup_base_dir, backup_id)
-        counter += 1
-
+    backup_id, backup_dir = _resolve_backup_dir("dedup-backup", timestamp, backup_base_dir)
     os.makedirs(backup_dir, exist_ok=True)
 
     metadata: Dict[str, Any] = {
@@ -110,24 +85,12 @@ def create_deduplication_backup(
             "affected_files": files_to_backup,
         },
     }
-
     for file_path in files_to_backup:
-        if not os.path.exists(file_path):
-            logger.warning("file_not_found_for_backup", file_path=file_path)
-            continue
+        entry = _copy_file_to_backup(file_path, project_folder, backup_dir, logger, original_hashes)
+        if entry:
+            metadata["files"].append(entry)
 
-        rel_path = os.path.relpath(file_path, project_folder)
-        backup_file_path = os.path.join(backup_dir, rel_path)
-
-        os.makedirs(os.path.dirname(backup_file_path), exist_ok=True)
-        shutil.copy2(file_path, backup_file_path)
-
-        metadata["files"].append(
-            {"original": file_path, "relative": rel_path, "backup": backup_file_path, "original_hash": original_hashes.get(file_path, "")}
-        )
-
-    metadata_path = os.path.join(backup_dir, "backup-metadata.json")
-    with open(metadata_path, "w") as f:
+    with open(os.path.join(backup_dir, "backup-metadata.json"), "w") as f:
         json.dump(metadata, f, indent=2)
 
     logger.info(
@@ -138,7 +101,6 @@ def create_deduplication_backup(
         duplicate_group_id=duplicate_group_id,
         strategy=strategy,
     )
-
     return backup_id
 
 
@@ -158,60 +120,49 @@ def get_file_hash(file_path: str) -> str:
         return ""
 
 
-def verify_backup_integrity(backup_id: str, project_folder: str) -> Dict[str, Any]:
-    """Verify that a backup can be safely restored.
-
-    Args:
-        backup_id: The unique identifier of the backup
-        project_folder: Project root folder
-
-    Returns:
-        Dict with verification results:
-        - valid: Whether the backup is valid and restorable
-        - errors: List of errors found
-        - warnings: List of warnings
-        - metadata: The backup metadata if valid
-    """
-    logger = get_logger("rewrite.backup")
-
-    backup_dir = os.path.join(project_folder, ".ast-grep-backups", backup_id)
-    metadata_path = os.path.join(backup_dir, "backup-metadata.json")
-
-    result: Dict[str, Any] = {"valid": False, "errors": [], "warnings": [], "metadata": None}
-
-    # Check backup directory exists
-    if not os.path.exists(backup_dir):
-        result["errors"].append(f"Backup directory not found: {backup_dir}")
-        return result
-
-    # Check metadata file exists
-    if not os.path.exists(metadata_path):
-        result["errors"].append(f"Backup metadata not found: {metadata_path}")
-        return result
-
-    # Load and validate metadata
-    try:
-        with open(metadata_path, "r") as f:
-            metadata = json.load(f)
-            result["metadata"] = metadata
-    except (json.JSONDecodeError, IOError) as e:
-        result["errors"].append(f"Failed to load metadata: {e}")
-        return result
-
-    # Verify all backup files exist
+def _verify_backup_files_exist(metadata: Dict[str, Any], errors: List[str]) -> None:
     for file_info in metadata.get("files", []):
         backup_path = file_info.get("backup")
         if backup_path and not os.path.exists(backup_path):
-            result["errors"].append(f"Backup file missing: {backup_path}")
+            errors.append(f"Backup file missing: {backup_path}")
 
-    # Check for conflicts with current files
+
+def _check_file_conflicts(metadata: Dict[str, Any], warnings: List[str]) -> None:
     for file_info in metadata.get("files", []):
         original_path = file_info.get("original")
         if original_path and os.path.exists(original_path):
             current_hash = get_file_hash(original_path)
             if "original_hash" in file_info and file_info["original_hash"] != current_hash:
-                result["warnings"].append(f"File has been modified since backup: {original_path}")
+                warnings.append(f"File has been modified since backup: {original_path}")
 
+
+def _load_integrity_metadata(backup_dir: str, metadata_path: str, result: Dict[str, Any]) -> bool:
+    if not os.path.exists(backup_dir):
+        result["errors"].append(f"Backup directory not found: {backup_dir}")
+        return False
+    if not os.path.exists(metadata_path):
+        result["errors"].append(f"Backup metadata not found: {metadata_path}")
+        return False
+    try:
+        with open(metadata_path, "r") as f:
+            result["metadata"] = json.load(f)
+        return True
+    except (json.JSONDecodeError, IOError) as e:
+        result["errors"].append(f"Failed to load metadata: {e}")
+        return False
+
+
+def verify_backup_integrity(backup_id: str, project_folder: str) -> Dict[str, Any]:
+    logger = get_logger("rewrite.backup")
+    backup_dir = os.path.join(project_folder, ".ast-grep-backups", backup_id)
+    metadata_path = os.path.join(backup_dir, "backup-metadata.json")
+    result: Dict[str, Any] = {"valid": False, "errors": [], "warnings": [], "metadata": None}
+
+    if not _load_integrity_metadata(backup_dir, metadata_path, result):
+        return result
+
+    _verify_backup_files_exist(result["metadata"], result["errors"])
+    _check_file_conflicts(result["metadata"], result["warnings"])
     result["valid"] = len(result["errors"]) == 0
 
     logger.info(
@@ -221,58 +172,36 @@ def verify_backup_integrity(backup_id: str, project_folder: str) -> Dict[str, An
         error_count=len(result["errors"]),
         warning_count=len(result["warnings"]),
     )
-
     return result
 
 
+def _restore_single_file(file_info: Dict[str, Any], result: Dict[str, Any]) -> None:
+    backup_path = file_info.get("backup")
+    original_path = file_info.get("original")
+    if not backup_path or not original_path:
+        result["errors"].append(f"Invalid file info in metadata: {file_info}")
+        return
+    try:
+        os.makedirs(os.path.dirname(original_path), exist_ok=True)
+        shutil.copy2(backup_path, original_path)
+        result["restored_files"].append(original_path)
+    except Exception as e:
+        result["errors"].append(f"Failed to restore {original_path}: {e}")
+
+
 def restore_backup(backup_id: str, project_folder: str) -> Dict[str, Any]:
-    """Restore files from a backup.
-
-    Args:
-        backup_id: The unique identifier of the backup to restore
-        project_folder: Project root folder
-
-    Returns:
-        Dict with restoration results:
-        - success: Whether restoration was successful
-        - restored_files: List of restored file paths
-        - errors: List of errors encountered
-    """
     logger = get_logger("rewrite.backup")
-
-    # First verify backup integrity
     verification = verify_backup_integrity(backup_id, project_folder)
-
     result: Dict[str, Any] = {"success": False, "restored_files": [], "errors": []}
 
     if not verification["valid"]:
         result["errors"].extend(verification["errors"])
         return result
 
-    metadata = verification["metadata"]
-
-    # Restore each file
-    for file_info in metadata.get("files", []):
-        backup_path = file_info.get("backup")
-        original_path = file_info.get("original")
-
-        if not backup_path or not original_path:
-            result["errors"].append(f"Invalid file info in metadata: {file_info}")
-            continue
-
-        try:
-            # Create parent directory if needed
-            os.makedirs(os.path.dirname(original_path), exist_ok=True)
-
-            # Copy backup file to original location
-            shutil.copy2(backup_path, original_path)
-            result["restored_files"].append(original_path)
-
-        except Exception as e:
-            result["errors"].append(f"Failed to restore {original_path}: {e}")
+    for file_info in verification["metadata"].get("files", []):
+        _restore_single_file(file_info, result)
 
     result["success"] = len(result["errors"]) == 0
-
     logger.info(
         "backup_restored",
         backup_id=backup_id,
@@ -280,7 +209,6 @@ def restore_backup(backup_id: str, project_folder: str) -> Dict[str, Any]:
         restored_count=len(result["restored_files"]),
         error_count=len(result["errors"]),
     )
-
     return result
 
 
