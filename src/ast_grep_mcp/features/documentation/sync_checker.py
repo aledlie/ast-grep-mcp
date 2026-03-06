@@ -29,6 +29,28 @@ logger = get_logger(__name__)
 # =============================================================================
 
 
+def _extract_google_style_params(docstring: str) -> List[str]:
+    args_match = re.search(r"Args:\s*\n((?:\s+\w+.*\n?)+)", docstring)
+    if not args_match:
+        return []
+    return [
+        m.group(RegexCaptureGroups.FIRST)
+        for line in args_match.group(RegexCaptureGroups.FIRST).split("\n")
+        if (m := re.match(r"\s+(\w+)(?:\s*\(|\s*:)", line))
+    ]
+
+
+def _extract_numpy_style_params(docstring: str) -> List[str]:
+    params_match = re.search(r"Parameters\s*\n-+\s*\n((?:.*\n?)+?)(?:\n\w|\Z)", docstring)
+    if not params_match:
+        return []
+    return [
+        m.group(RegexCaptureGroups.FIRST)
+        for line in params_match.group(RegexCaptureGroups.FIRST).split("\n")
+        if (m := re.match(r"(\w+)\s*:", line))
+    ]
+
+
 def _extract_python_docstring_params(docstring: str) -> List[str]:
     """Extract parameter names from Python docstrings.
 
@@ -40,28 +62,8 @@ def _extract_python_docstring_params(docstring: str) -> List[str]:
     Returns:
         List of parameter names
     """
-    params = []
-
-    # Google style: Args:
-    args_match = re.search(r"Args:\s*\n((?:\s+\w+.*\n?)+)", docstring)
-    if args_match:
-        for line in args_match.group(RegexCaptureGroups.FIRST).split("\n"):
-            param_match = re.match(r"\s+(\w+)(?:\s*\(|\s*:)", line)
-            if param_match:
-                params.append(param_match.group(RegexCaptureGroups.FIRST))
-
-    # NumPy style: Parameters
-    params_match = re.search(r"Parameters\s*\n-+\s*\n((?:.*\n?)+?)(?:\n\w|\Z)", docstring)
-    if params_match:
-        for line in params_match.group(RegexCaptureGroups.FIRST).split("\n"):
-            param_match = re.match(r"(\w+)\s*:", line)
-            if param_match:
-                params.append(param_match.group(RegexCaptureGroups.FIRST))
-
-    # Sphinx style: :param name:
-    for match in re.finditer(r":param\s+(\w+):", docstring):
-        params.append(match.group(RegexCaptureGroups.FIRST))
-
+    params = _extract_google_style_params(docstring) + _extract_numpy_style_params(docstring)
+    params += [m.group(RegexCaptureGroups.FIRST) for m in re.finditer(r":param\s+(\w+):", docstring)]
     return params
 
 
@@ -94,6 +96,14 @@ def _extract_docstring_params(docstring: str, language: str) -> List[str]:
     return []
 
 
+_RETURN_PATTERNS: Dict[str, List[str]] = {
+    "python": [r"Returns:\s*\n", r"Returns\s*\n-+", r":returns?:"],
+    "typescript": [r"@returns?\s"],
+    "javascript": [r"@returns?\s"],
+    "java": [r"@return\s"],
+}
+
+
 def _extract_docstring_return(docstring: str, language: str) -> bool:
     """Check if docstring documents a return value.
 
@@ -104,28 +114,47 @@ def _extract_docstring_return(docstring: str, language: str) -> bool:
     Returns:
         True if return is documented
     """
-    if language == "python":
-        # Google style: Returns:
-        if re.search(r"Returns:\s*\n", docstring):
-            return True
-        # NumPy style: Returns
-        if re.search(r"Returns\s*\n-+", docstring):
-            return True
-        # Sphinx style: :return: or :returns:
-        if re.search(r":returns?:", docstring):
-            return True
+    return any(re.search(p, docstring) for p in _RETURN_PATTERNS.get(language, []))
 
-    elif language in ("typescript", "javascript"):
-        # JSDoc style: @returns or @return
-        if re.search(r"@returns?\s", docstring):
-            return True
 
-    elif language == "java":
-        # Javadoc style: @return
-        if re.search(r"@return\s", docstring):
-            return True
+def _make_issue(func: FunctionSignature, issue_type: str, description: str, severity: str, suggested_fix: Optional[str] = None) -> DocSyncIssue:
+    return DocSyncIssue(
+        issue_type=issue_type,
+        file_path=func.file_path,
+        line_number=func.start_line,
+        function_name=func.name,
+        description=description,
+        suggested_fix=suggested_fix,
+        severity=severity,
+    )
 
-    return False
+
+def _check_param_sync(func: FunctionSignature, language: str) -> List[DocSyncIssue]:
+    doc_params = set(_extract_docstring_params(func.existing_docstring, language))  # type: ignore[arg-type]
+    actual_params = {
+        (p.name[:-1] if p.name.endswith("?") else p.name)
+        for p in func.parameters
+        if p.name not in ("self", "cls")
+    }
+    issues = [
+        _make_issue(func, "mismatch", f"Parameter '{p}' is not documented", "info", f"Add documentation for parameter '{p}'")
+        for p in (actual_params - doc_params)
+    ]
+    issues += [
+        _make_issue(func, "stale", f"Documented parameter '{p}' does not exist in function signature", "warning", f"Remove documentation for parameter '{p}'")
+        for p in (doc_params - actual_params)
+    ]
+    return issues
+
+
+def _check_return_sync(func: FunctionSignature, language: str) -> List[DocSyncIssue]:
+    has_return = func.return_type and func.return_type.lower() not in ("none", "void")
+    doc_has_return = _extract_docstring_return(func.existing_docstring, language)  # type: ignore[arg-type]
+    if has_return and not doc_has_return:
+        return [_make_issue(func, "mismatch", f"Return value of type '{func.return_type}' is not documented", "info", "Add return value documentation")]
+    if not has_return and doc_has_return:
+        return [_make_issue(func, "stale", "Documented return value but function has no return type", "info", "Remove return value documentation or add return type annotation")]
+    return []
 
 
 def _check_docstring_sync(
@@ -141,94 +170,43 @@ def _check_docstring_sync(
     Returns:
         List of issues found
     """
-    issues = []
-
     if not func.existing_docstring:
-        # No docstring - this is an "undocumented" issue
-        issues.append(
-            DocSyncIssue(
-                issue_type="undocumented",
-                file_path=func.file_path,
-                line_number=func.start_line,
-                function_name=func.name,
-                description=f"Function '{func.name}' is missing documentation",
-                severity="warning",
-            )
-        )
-        return issues
-
-    # Extract documented params
-    doc_params = set(_extract_docstring_params(func.existing_docstring, language))
-
-    # Get actual params (excluding self/cls)
-    actual_params = set(p.name[:-1] if p.name.endswith("?") else p.name for p in func.parameters if p.name not in ("self", "cls"))
-
-    # Check for missing params in docstring
-    missing_in_doc = actual_params - doc_params
-    for param in missing_in_doc:
-        issues.append(
-            DocSyncIssue(
-                issue_type="mismatch",
-                file_path=func.file_path,
-                line_number=func.start_line,
-                function_name=func.name,
-                description=f"Parameter '{param}' is not documented",
-                suggested_fix=f"Add documentation for parameter '{param}'",
-                severity="info",
-            )
-        )
-
-    # Check for documented params that don't exist
-    extra_in_doc = doc_params - actual_params
-    for param in extra_in_doc:
-        issues.append(
-            DocSyncIssue(
-                issue_type="stale",
-                file_path=func.file_path,
-                line_number=func.start_line,
-                function_name=func.name,
-                description=f"Documented parameter '{param}' does not exist in function signature",
-                suggested_fix=f"Remove documentation for parameter '{param}'",
-                severity="warning",
-            )
-        )
-
-    # Check return documentation
-    has_return = func.return_type and func.return_type.lower() not in ("none", "void")
-    doc_has_return = _extract_docstring_return(func.existing_docstring, language)
-
-    if has_return and not doc_has_return:
-        issues.append(
-            DocSyncIssue(
-                issue_type="mismatch",
-                file_path=func.file_path,
-                line_number=func.start_line,
-                function_name=func.name,
-                description=f"Return value of type '{func.return_type}' is not documented",
-                suggested_fix="Add return value documentation",
-                severity="info",
-            )
-        )
-
-    if not has_return and doc_has_return:
-        issues.append(
-            DocSyncIssue(
-                issue_type="stale",
-                file_path=func.file_path,
-                line_number=func.start_line,
-                function_name=func.name,
-                description="Documented return value but function has no return type",
-                suggested_fix="Remove return value documentation or add return type annotation",
-                severity="info",
-            )
-        )
-
-    return issues
+        return [_make_issue(func, "undocumented", f"Function '{func.name}' is missing documentation", "warning")]
+    return _check_param_sync(func, language) + _check_return_sync(func, language)
 
 
 # =============================================================================
 # Link Checking
 # =============================================================================
+
+
+_LINK_PATTERN = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+_SKIP_URL_PREFIXES = ("http://", "https://", "mailto:", "#")
+
+
+def _resolve_link_path(url: str, file_path: str, project_folder: str) -> str:
+    if url.startswith("/"):
+        return os.path.join(project_folder, url[1:])
+    return os.path.normpath(os.path.join(os.path.dirname(file_path), url.split("#")[0]))
+
+
+def _check_line_links(line: str, line_num: int, file_path: str, project_folder: str) -> List[DocSyncIssue]:
+    issues: List[DocSyncIssue] = []
+    for match in _LINK_PATTERN.finditer(line):
+        url = match.group(RegexCaptureGroups.SECOND)
+        if url.startswith(_SKIP_URL_PREFIXES):
+            continue
+        full_path = _resolve_link_path(url, file_path, project_folder)
+        if not os.path.exists(full_path):
+            issues.append(DocSyncIssue(
+                issue_type="broken_link",
+                file_path=file_path,
+                line_number=line_num,
+                description=f"Broken link to '{url}'",
+                suggested_fix=f"Update or remove link to '{url}'",
+                severity="warning",
+            ))
+    return issues
 
 
 def _check_markdown_links(file_path: str, project_folder: str) -> List[DocSyncIssue]:
@@ -241,56 +219,53 @@ def _check_markdown_links(file_path: str, project_folder: str) -> List[DocSyncIs
     Returns:
         List of broken link issues
     """
-    issues: list[DocSyncIssue] = []
-
     try:
         with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
-            lines = content.split("\n")
+            lines = f.read().split("\n")
     except OSError:
-        return issues
+        return []
 
-    # Pattern for markdown links: [text](url)
-    link_pattern = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
-
+    issues: List[DocSyncIssue] = []
     for i, line in enumerate(lines):
-        for match in link_pattern.finditer(line):
-            _text = match.group(RegexCaptureGroups.FIRST)  # noqa: F841
-            url = match.group(RegexCaptureGroups.SECOND)
-
-            # Skip external URLs
-            if url.startswith(("http://", "https://", "mailto:")):
-                continue
-
-            # Skip anchors
-            if url.startswith("#"):
-                continue
-
-            # Check relative file paths
-            if url.startswith("/"):
-                full_path = os.path.join(project_folder, url[1:])
-            else:
-                base_dir = os.path.dirname(file_path)
-                full_path = os.path.normpath(os.path.join(base_dir, url.split("#")[0]))
-
-            if not os.path.exists(full_path):
-                issues.append(
-                    DocSyncIssue(
-                        issue_type="broken_link",
-                        file_path=file_path,
-                        line_number=i + 1,
-                        description=f"Broken link to '{url}'",
-                        suggested_fix=f"Update or remove link to '{url}'",
-                        severity="warning",
-                    )
-                )
-
+        issues.extend(_check_line_links(line, i + 1, file_path, project_folder))
     return issues
 
 
 # =============================================================================
 # Main Sync Check
 # =============================================================================
+
+
+_DEFAULT_SOURCE_PATTERNS: Dict[str, List[str]] = {
+    "python": ["**/*.py"],
+    "typescript": ["**/*.ts", "**/*.tsx"],
+    "javascript": ["**/*.js", "**/*.jsx"],
+    "java": ["**/*.java"],
+}
+
+_DEFAULT_EXCLUDE_PATTERNS = [
+    "**/node_modules/**",
+    "**/__pycache__/**",
+    "**/venv/**",
+    "**/.venv/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.git/**",
+]
+
+
+def _resolve_include_patterns(language: str, include_patterns: List[str]) -> List[str]:
+    if not include_patterns or include_patterns == ["all"]:
+        return _DEFAULT_SOURCE_PATTERNS.get(language, ["**/*"])
+    return include_patterns
+
+
+def _is_excluded(path: str, project_folder: str, exclude_patterns: List[str]) -> bool:
+    rel_path = os.path.relpath(path, project_folder)
+    return any(
+        pattern.replace("**/", "").replace("/**", "") in rel_path
+        for pattern in exclude_patterns
+    )
 
 
 def _find_source_files(
@@ -312,53 +287,16 @@ def _find_source_files(
     """
     import glob
 
-    files = []
-
-    # Default patterns by language
-    if not include_patterns or include_patterns == ["all"]:
-        default_patterns = {
-            "python": ["**/*.py"],
-            "typescript": ["**/*.ts", "**/*.tsx"],
-            "javascript": ["**/*.js", "**/*.jsx"],
-            "java": ["**/*.java"],
-        }
-        include_patterns = default_patterns.get(language, ["**/*"])
-
-    # Default excludes
+    include_patterns = _resolve_include_patterns(language, include_patterns)
     if not exclude_patterns:
-        exclude_patterns = [
-            "**/node_modules/**",
-            "**/__pycache__/**",
-            "**/venv/**",
-            "**/.venv/**",
-            "**/dist/**",
-            "**/build/**",
-            "**/.git/**",
-        ]
+        exclude_patterns = _DEFAULT_EXCLUDE_PATTERNS
     exclude_patterns = FilePatterns.merge_with_venv_excludes(exclude_patterns)
 
-    # Find files matching include patterns
+    files: List[str] = []
     for pattern in include_patterns:
-        full_pattern = os.path.join(project_folder, pattern)
-        matched = glob.glob(full_pattern, recursive=True)
-        files.extend(matched)
+        files.extend(glob.glob(os.path.join(project_folder, pattern), recursive=True))
 
-    # Remove duplicates
-    files = list(set(files))
-
-    # Filter out excluded patterns
-    def is_excluded(path: str) -> bool:
-        rel_path = os.path.relpath(path, project_folder)
-        for pattern in exclude_patterns:
-            # Simple pattern matching
-            pattern_clean = pattern.replace("**/", "").replace("/**", "")
-            if pattern_clean in rel_path:
-                return True
-        return False
-
-    files = [f for f in files if not is_excluded(f)]
-
-    return files
+    return [f for f in set(files) if not _is_excluded(f, project_folder, exclude_patterns)]
 
 
 def _find_markdown_files(project_folder: str) -> List[str]:
@@ -420,6 +358,43 @@ def _check_function_docstring(
     return issues, is_documented, is_stale, suggestion
 
 
+def _accumulate_func_result(
+    issues: List[DocSyncIssue],
+    is_documented: bool,
+    is_stale: bool,
+    suggestion: Optional[Dict[str, Any]],
+    all_issues: List[DocSyncIssue],
+    suggestions: List[Dict[str, Any]],
+) -> Tuple[int, int, int]:
+    all_issues.extend(issues)
+    if is_documented:
+        return 1, 0, 1 if is_stale else 0
+    if suggestion:
+        suggestions.append(suggestion)
+        return 0, 1, 0
+    return 0, 0, 0
+
+
+def _process_file_docstrings(
+    file_path: str,
+    language: str,
+    parser: Any,
+    all_issues: List[DocSyncIssue],
+    suggestions: List[Dict[str, Any]],
+) -> Tuple[int, int, int, int]:
+    functions = parser.parse_file(file_path)
+    total = len(functions)
+    documented = undocumented = stale = 0
+    for func in functions:
+        doc_delta, undoc_delta, stale_delta = _accumulate_func_result(
+            *_check_function_docstring(func, language), all_issues, suggestions
+        )
+        documented += doc_delta
+        undocumented += undoc_delta
+        stale += stale_delta
+    return total, documented, undocumented, stale
+
+
 def _check_docstrings_in_files(
     project_folder: str,
     language: str,
@@ -435,29 +410,16 @@ def _check_docstrings_in_files(
     parser = FunctionSignatureParser(language)
 
     all_issues: List[DocSyncIssue] = []
-    total_functions = 0
-    documented_functions = 0
-    undocumented_functions = 0
-    stale_docstrings = 0
+    total_functions = documented_functions = undocumented_functions = stale_docstrings = 0
     suggestions: List[Dict[str, Any]] = []
 
     for file_path in source_files:
         try:
-            functions = parser.parse_file(file_path)
-            total_functions += len(functions)
-
-            for func in functions:
-                issues, is_documented, is_stale, suggestion = _check_function_docstring(func, language)
-                all_issues.extend(issues)
-
-                if is_documented:
-                    documented_functions += 1
-                    if is_stale:
-                        stale_docstrings += 1
-                elif suggestion:  # Only count non-private undocumented functions
-                    undocumented_functions += 1
-                    suggestions.append(suggestion)
-
+            total, doc, undoc, stale = _process_file_docstrings(file_path, language, parser, all_issues, suggestions)
+            total_functions += total
+            documented_functions += doc
+            undocumented_functions += undoc
+            stale_docstrings += stale
         except Exception as e:
             logger.warning("file_parse_error", file=file_path, error=str(e))
             sentry_sdk.capture_exception(e)
@@ -488,6 +450,31 @@ def _check_markdown_link_issues(project_folder: str) -> List[DocSyncIssue]:
     return all_issues
 
 
+def _collect_issues(
+    project_folder: str,
+    language: str,
+    doc_types: List[str],
+    include_patterns: List[str],
+    exclude_patterns: List[str],
+) -> Tuple[List[DocSyncIssue], int, int, int, int, List[Dict[str, Any]]]:
+    all_issues: List[DocSyncIssue] = []
+    total_functions = documented_functions = undocumented_functions = stale_docstrings = 0
+    suggestions: List[Dict[str, Any]] = []
+
+    if "all" in doc_types or "docstrings" in doc_types:
+        issues, total_functions, documented_functions, undocumented_functions, stale_docstrings, suggestions = (
+            _check_docstrings_in_files(project_folder, language, include_patterns, exclude_patterns)
+        )
+        all_issues.extend(issues)
+
+    if "all" in doc_types or "links" in doc_types:
+        all_issues.extend(_check_markdown_link_issues(project_folder))
+
+    severity_order = SeverityRankingDefaults.DOC_SYNC_SORT_ORDER
+    all_issues.sort(key=lambda i: (severity_order.get(i.severity, SeverityRankingDefaults.FALLBACK_RANK), i.file_path, i.line_number))
+    return all_issues, total_functions, documented_functions, undocumented_functions, stale_docstrings, suggestions
+
+
 def sync_documentation_impl(
     project_folder: str,
     language: str,
@@ -510,63 +497,18 @@ def sync_documentation_impl(
         DocSyncResult with sync status
     """
     start_time = time.time()
-
     doc_types = doc_types or ["all"]
     include_patterns = include_patterns or ["all"]
     exclude_patterns = exclude_patterns or []
 
-    logger.info(
-        "sync_documentation_started",
-        project_folder=project_folder,
-        language=language,
-        doc_types=doc_types,
-        check_only=check_only,
-    )
+    logger.info("sync_documentation_started", project_folder=project_folder, language=language, doc_types=doc_types, check_only=check_only)
 
-    all_issues: List[DocSyncIssue] = []
-    total_functions = 0
-    documented_functions = 0
-    undocumented_functions = 0
-    stale_docstrings = 0
-    suggestions: List[Dict[str, Any]] = []
-
-    # Check docstrings
-    if "all" in doc_types or "docstrings" in doc_types:
-        issues, total, documented, undocumented, stale, suggs = _check_docstrings_in_files(
-            project_folder, language, include_patterns, exclude_patterns
-        )
-        all_issues.extend(issues)
-        total_functions = total
-        documented_functions = documented
-        undocumented_functions = undocumented
-        stale_docstrings = stale
-        suggestions = suggs
-
-    # Check markdown links
-    if "all" in doc_types or "links" in doc_types:
-        all_issues.extend(_check_markdown_link_issues(project_folder))
-
-    # Sort issues by severity
-    severity_order = SeverityRankingDefaults.DOC_SYNC_SORT_ORDER
-    all_issues.sort(
-        key=lambda i: (
-            severity_order.get(i.severity, SeverityRankingDefaults.FALLBACK_RANK),
-            i.file_path,
-            i.line_number,
-        )
+    all_issues, total_functions, documented_functions, undocumented_functions, stale_docstrings, suggestions = _collect_issues(
+        project_folder, language, doc_types, include_patterns, exclude_patterns
     )
 
     execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
-
-    logger.info(
-        "sync_documentation_completed",
-        total_functions=total_functions,
-        documented=documented_functions,
-        undocumented=undocumented_functions,
-        stale=stale_docstrings,
-        issues_found=len(all_issues),
-        execution_time_ms=execution_time,
-    )
+    logger.info("sync_documentation_completed", total_functions=total_functions, documented=documented_functions, undocumented=undocumented_functions, stale=stale_docstrings, issues_found=len(all_issues), execution_time_ms=execution_time)
 
     return DocSyncResult(
         total_functions=total_functions,

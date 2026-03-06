@@ -246,6 +246,28 @@ def load_rule_set(rule_set_name: str, project_folder: str, language: str) -> Rul
 # =============================================================================
 
 
+def _extract_single_meta_vars(meta_data: Dict[str, Any]) -> Dict[str, Any]:
+    single = meta_data.get("single", {})
+    if not isinstance(single, dict):
+        return {}
+    return {k: v["text"] for k, v in single.items() if isinstance(v, dict) and "text" in v}
+
+
+def _extract_multi_meta_vars(meta_data: Dict[str, Any]) -> Dict[str, Any]:
+    multi = meta_data.get("multi", {})
+    if not isinstance(multi, dict):
+        return {}
+    return {k: [v.get("text", "") for v in vl if isinstance(v, dict)] for k, vl in multi.items() if isinstance(vl, list)}
+
+
+def _extract_meta_vars(match: Dict[str, Any]) -> Any:
+    """Extract metavariables from ast-grep match."""
+    if "metaVariables" not in match:
+        return None
+    meta_data = match["metaVariables"]
+    return {**_extract_single_meta_vars(meta_data), **_extract_multi_meta_vars(meta_data)}
+
+
 def parse_match_to_violation(match: Dict[str, Any], rule: LintingRule) -> RuleViolation:
     """Parse ast-grep JSON match into RuleViolation.
 
@@ -256,29 +278,9 @@ def parse_match_to_violation(match: Dict[str, Any], rule: LintingRule) -> RuleVi
     Returns:
         RuleViolation object
     """
-    # Extract range information
     range_info = match.get("range", {})
     start = range_info.get("start", {})
     end = range_info.get("end", {})
-
-    # Extract metavariables if present
-    # ast-grep returns format: {"single": {"NAME": {"text": "..."}}, "multi": {...}}
-    meta_vars = None
-    if "metaVariables" in match:
-        meta_vars = {}
-        meta_data = match["metaVariables"]
-        # Handle "single" metavariables (single captures like $NAME)
-        if "single" in meta_data and isinstance(meta_data["single"], dict):
-            for var_name, var_info in meta_data["single"].items():
-                if isinstance(var_info, dict) and "text" in var_info:
-                    meta_vars[var_name] = var_info["text"]
-        # Handle "multi" metavariables (multiple captures like $$$ARGS)
-        if "multi" in meta_data and isinstance(meta_data["multi"], dict):
-            for var_name, var_list in meta_data["multi"].items():
-                if isinstance(var_list, list):
-                    meta_vars[var_name] = [v.get("text", "") for v in var_list if isinstance(v, dict)]
-
-    # ast-grep returns 0-indexed lines and columns; RuleViolation expects 1-indexed
     return RuleViolation(
         file=match.get("file", ""),
         line=start.get("line", 0) + 1,
@@ -290,8 +292,16 @@ def parse_match_to_violation(match: Dict[str, Any], rule: LintingRule) -> RuleVi
         message=rule.message,
         code_snippet=match.get("text", ""),
         fix_suggestion=rule.fix,
-        meta_vars=meta_vars,
+        meta_vars=_extract_meta_vars(match),
     )
+
+
+def _matches_glob_pattern(file_path: str, pattern: str) -> bool:
+    """Check if file_path matches a single glob pattern."""
+    if "**" in pattern:
+        parts = [p.strip("/") for p in pattern.split("**") if p.strip("/")]
+        return any(part in file_path for part in parts)
+    return fnmatch(file_path, pattern) or fnmatch(str(Path(file_path).name), pattern)
 
 
 def should_exclude_file(file_path: str, exclude_patterns: List[str]) -> bool:
@@ -304,17 +314,35 @@ def should_exclude_file(file_path: str, exclude_patterns: List[str]) -> bool:
     Returns:
         True if file should be excluded
     """
-    for pattern in exclude_patterns:
-        # Handle recursive patterns like **/node_modules/**
-        if "**" in pattern:
-            pattern_parts = pattern.split("**")
-            # Check if any non-empty part is in the file path
-            if any(part.strip("/") and part.strip("/") in file_path for part in pattern_parts if part):
-                return True
-        elif fnmatch(file_path, pattern) or fnmatch(str(Path(file_path).name), pattern):
-            return True
+    return any(_matches_glob_pattern(file_path, pattern) for pattern in exclude_patterns)
 
-    return False
+
+def _is_excluded(file_path: str, context_patterns: List[str], rule_patterns: List[str]) -> bool:
+    if should_exclude_file(file_path, context_patterns):
+        return True
+    return bool(rule_patterns) and should_exclude_file(file_path, rule_patterns)
+
+
+def _collect_violations(matches: List[Dict[str, Any]], rule: LintingRule, context: RuleExecutionContext) -> List[RuleViolation]:
+    """Filter and collect violations from matches, applying exclude patterns and limit."""
+    violations: List[RuleViolation] = []
+    rule_excludes = rule.exclude_files or []
+    for match in matches:
+        violation = parse_match_to_violation(match, rule)
+        if _is_excluded(violation.file, context.exclude_patterns, rule_excludes):
+            continue
+        violations.append(violation)
+        if context.max_violations > 0 and len(violations) >= context.max_violations:
+            break
+    return violations
+
+
+def _run_ast_grep_scan(rule: LintingRule, context: RuleExecutionContext) -> List[Dict[str, Any]]:
+    yaml_str = yaml.safe_dump(rule.to_yaml_dict())
+    args = ["--inline-rules", yaml_str, "--json=stream", context.project_folder]
+    max_results = context.max_violations if context.max_violations > 0 else 0
+    with sentry_sdk.start_span(op="execute_rule", name=f"Rule: {rule.id}"):
+        return list(stream_ast_grep_results("scan", args, max_results=max_results, progress_interval=StreamDefaults.PROGRESS_INTERVAL))
 
 
 def execute_rule(rule: LintingRule, context: RuleExecutionContext) -> List[RuleViolation]:
@@ -328,56 +356,14 @@ def execute_rule(rule: LintingRule, context: RuleExecutionContext) -> List[RuleV
         List of RuleViolation objects found by this rule
     """
     logger = context.logger
-
     try:
-        # Build ast-grep command arguments
-        yaml_rule = rule.to_yaml_dict()
-        # Note: --inline-rules expects a single rule, not a rules array
-        yaml_str = yaml.safe_dump(yaml_rule)
-
-        args = ["--inline-rules", yaml_str, "--json=stream"]
-        # Note: --lang is not needed here as language is specified in the YAML rule itself
-
-        # Add project folder to scan
-        args.append(context.project_folder)
-
-        # Execute using streaming parser
-        violations: List[RuleViolation] = []
-
-        with sentry_sdk.start_span(op="execute_rule", name=f"Rule: {rule.id}"):
-            matches = list(
-                stream_ast_grep_results(
-                    "scan",
-                    args,
-                    max_results=context.max_violations if context.max_violations > 0 else 0,
-                    progress_interval=StreamDefaults.PROGRESS_INTERVAL,
-                )
-            )
-
-        # Parse matches into violations
-        for match in matches:
-            violation = parse_match_to_violation(match, rule)
-
-            # Apply exclude patterns (context-level and per-rule)
-            if should_exclude_file(violation.file, context.exclude_patterns):
-                continue
-            if rule.exclude_files and should_exclude_file(violation.file, rule.exclude_files):
-                continue
-
-            violations.append(violation)
-
-            # Stop if max_violations reached
-            if context.max_violations > 0 and len(violations) >= context.max_violations:
-                break
-
+        matches = _run_ast_grep_scan(rule, context)
+        violations = _collect_violations(matches, rule, context)
         logger.info("rule_executed", rule_id=rule.id, violations_found=len(violations))
-
         return violations
-
     except Exception as e:
         logger.error("rule_execution_failed", rule_id=rule.id, error=str(e))
         sentry_sdk.capture_exception(e, extras={"rule_id": rule.id})
-        # Don't fail entire scan if one rule fails
         return []
 
 
@@ -410,6 +396,12 @@ def _execute_rule_with_limit(
     return execute_rule(rule, context)
 
 
+def _cancel_pending_futures(futures: Dict[Any, LintingRule]) -> None:
+    for f in futures:
+        if not f.done():
+            f.cancel()
+
+
 def _process_rule_result(
     future: Any,
     futures: Dict[Any, LintingRule],
@@ -419,35 +411,19 @@ def _process_rule_result(
 ) -> bool:
     """Process the result from a completed rule execution future.
 
-    Args:
-        future: Completed future
-        futures: Map of all futures to their rules
-        all_violations: List to append violations to
-        violations_lock: Lock for thread-safe access
-        context: Execution context for logging and limits
-
-    Returns:
-        True if execution should continue, False if max violations reached
+    Returns True if execution should continue, False if max violations reached.
     """
     try:
         violations = future.result()
-
         with violations_lock:
             all_violations.extend(violations)
-
-            # Check if we should stop
             if _should_stop_execution(len(all_violations), context.max_violations):
-                # Cancel remaining futures
-                for f in futures:
-                    if not f.done():
-                        f.cancel()
-                return False  # Stop processing
-
+                _cancel_pending_futures(futures)
+                return False
     except Exception as e:
         rule = futures[future]
         context.logger.warning("rule_batch_execution_failed", rule_id=rule.id, error=str(e))
-
-    return True  # Continue processing
+    return True
 
 
 def execute_rules_batch(rules: List[LintingRule], context: RuleExecutionContext) -> List[RuleViolation]:
@@ -564,6 +540,30 @@ def filter_violations_by_severity(violations: List[RuleViolation], severity_thre
 # =============================================================================
 
 
+def _format_severity_section(summary: Dict[str, Any]) -> List[str]:
+    lines: List[str] = ["Violations by Severity:"]
+    for severity in ["error", "warning", "info"]:
+        count = summary["by_severity"].get(severity, 0)
+        if count > 0:
+            lines.append(f"  {severity.upper()}: {count}")
+    return lines
+
+
+def _format_file_section(violations_by_file: Dict[str, Any]) -> List[str]:
+    if not violations_by_file:
+        return ["\nNo violations found!"]
+    lines: List[str] = ["Violations by File:", "-" * FormattingDefaults.WIDE_SECTION_WIDTH]
+    for file_path, violations in sorted(violations_by_file.items()):
+        lines.append(f"\n{file_path} ({len(violations)} violations)")
+        for v in violations:
+            lines.append(f"  Line {v.line}:{v.column} [{v.severity.upper()}] {v.rule_id}")
+            lines.append(f"    {v.message}")
+            if v.fix_suggestion:
+                lines.append(f"    Fix: {v.fix_suggestion}")
+            lines.append("")
+    return lines
+
+
 def format_violation_report(result: EnforcementResult) -> str:
     """Format enforcement result as human-readable text report.
 
@@ -573,56 +573,103 @@ def format_violation_report(result: EnforcementResult) -> str:
     Returns:
         Formatted text report
     """
-    lines: List[str] = []
-
-    # Summary header
-    lines.append("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
-    lines.append("CODE STANDARDS ENFORCEMENT REPORT")
-    lines.append("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
-    lines.append("")
-
+    sep = "=" * FormattingDefaults.WIDE_SECTION_WIDTH
     summary = result.summary
-    lines.append(f"Files Scanned: {summary['files_scanned']}")
-    lines.append(f"Rules Executed: {len(result.rules_executed)}")
-    lines.append(f"Total Violations: {summary['total_violations']}")
-    lines.append(f"Execution Time: {summary['execution_time_ms']}ms")
+    lines: List[str] = [
+        sep,
+        "CODE STANDARDS ENFORCEMENT REPORT",
+        sep,
+        "",
+        f"Files Scanned: {summary['files_scanned']}",
+        f"Rules Executed: {len(result.rules_executed)}",
+        f"Total Violations: {summary['total_violations']}",
+        f"Execution Time: {summary['execution_time_ms']}ms",
+        "",
+    ]
+    lines.extend(_format_severity_section(summary))
     lines.append("")
-
-    # Severity breakdown
-    lines.append("Violations by Severity:")
-    for severity in ["error", "warning", "info"]:
-        count = summary["by_severity"].get(severity, 0)
-        if count > 0:
-            lines.append(f"  {severity.upper()}: {count}")
-
-    lines.append("")
-
-    # Group by file
-    if result.violations_by_file:
-        lines.append("Violations by File:")
-        lines.append("-" * FormattingDefaults.WIDE_SECTION_WIDTH)
-
-        for file_path, violations in sorted(result.violations_by_file.items()):
-            lines.append(f"\n{file_path} ({len(violations)} violations)")
-
-            for v in violations:
-                lines.append(f"  Line {v.line}:{v.column} [{v.severity.upper()}] {v.rule_id}")
-                lines.append(f"    {v.message}")
-                if v.fix_suggestion:
-                    lines.append(f"    Fix: {v.fix_suggestion}")
-                lines.append("")
-
-    else:
-        lines.append("\nNo violations found!")
-
-    lines.append("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
-
+    lines.extend(_format_file_section(result.violations_by_file))
+    lines.append(sep)
     return "\n".join(lines)
 
 
 # =============================================================================
 # Main Enforcement Function
 # =============================================================================
+
+
+def _load_custom_rule_set_by_ids(project_path: Path, language: str, custom_rules: List[str]) -> RuleSet:
+    """Load a custom rule set filtered to specific rule IDs."""
+    all_custom = load_custom_rules(str(project_path), language)
+    rules = [r for r in all_custom if r.id in custom_rules]
+    if not rules:
+        raise ValueError(f"No custom rules found matching IDs: {custom_rules}. Available: {[r.id for r in all_custom]}")
+    return RuleSet(name="custom", description=f"Custom rules: {', '.join(custom_rules)}", rules=rules, priority=RuleSetPriority.CUSTOM)
+
+
+def _empty_enforcement_result() -> EnforcementResult:
+    return EnforcementResult(
+        summary={"total_violations": 0, "by_severity": {"error": 0, "warning": 0, "info": 0}, "by_file": {}, "files_scanned": 0, "rules_executed": 0, "execution_time_ms": 0},
+        violations=[],
+        violations_by_file={},
+        violations_by_severity={"error": [], "warning": [], "info": []},
+        violations_by_rule={},
+        rules_executed=[],
+        execution_time_ms=0,
+        files_scanned=0,
+    )
+
+
+def _build_enforcement_result(
+    filtered_violations: List[RuleViolation],
+    rule_set_obj: RuleSet,
+    violations_by_file: Dict[str, List[RuleViolation]],
+    violations_by_severity: Dict[str, List[RuleViolation]],
+    violations_by_rule: Dict[str, List[RuleViolation]],
+    duration_ms: int,
+) -> EnforcementResult:
+    summary = {
+        "total_violations": len(filtered_violations),
+        "by_severity": {sev: len(violations_by_severity[sev]) for sev in ("error", "warning", "info")},
+        "by_file": {fp: len(vs) for fp, vs in violations_by_file.items()},
+        "files_scanned": len(violations_by_file),
+        "rules_executed": len(rule_set_obj.rules),
+        "execution_time_ms": duration_ms,
+    }
+    return EnforcementResult(
+        summary=summary,
+        violations=filtered_violations,
+        violations_by_file=violations_by_file,
+        violations_by_severity=violations_by_severity,
+        violations_by_rule=violations_by_rule,
+        rules_executed=[r.id for r in rule_set_obj.rules],
+        execution_time_ms=duration_ms,
+        files_scanned=len(violations_by_file),
+    )
+
+
+def _run_enforcement(
+    rule_set_obj: RuleSet,
+    context: RuleExecutionContext,
+    severity_threshold: str,
+    start_time: float,
+) -> EnforcementResult:
+    with sentry_sdk.start_span(op="execute_rules", name=f"Rules: {len(rule_set_obj.rules)}"):
+        all_violations = execute_rules_batch(rule_set_obj.rules, context)
+    filtered = filter_violations_by_severity(all_violations, severity_threshold)
+    by_file = group_violations_by_file(filtered)
+    by_severity = group_violations_by_severity(filtered)
+    by_rule = group_violations_by_rule(filtered)
+    execution_time = __import__("time").time() - start_time
+    duration_ms = int(execution_time * ConversionFactors.MILLISECONDS_PER_SECOND)
+    result = _build_enforcement_result(filtered, rule_set_obj, by_file, by_severity, by_rule, duration_ms)
+    context.logger.info(
+        "enforcement_completed",
+        total_violations=len(filtered),
+        files_scanned=len(by_file),
+        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+    )
+    return result
 
 
 def enforce_standards_impl(
@@ -636,74 +683,27 @@ def enforce_standards_impl(
     max_violations: int,
     max_threads: int,
 ) -> EnforcementResult:
-    """Enforce coding standards by executing linting rules against a project.
-
-    Args:
-        project_folder: Absolute path to project
-        language: Programming language
-        rule_set: Rule set name ('recommended', 'security', 'performance', 'style', 'custom', 'all')
-        custom_rules: List of custom rule IDs (used with rule_set='custom')
-        include_patterns: Glob patterns for files to include
-        exclude_patterns: Glob patterns for files to exclude
-        severity_threshold: Only report violations >= this severity
-        max_violations: Maximum violations to find (0 = unlimited)
-        max_threads: Number of parallel threads for rule execution
-
-    Returns:
-        EnforcementResult with all violations and summary statistics
-    """
+    """Enforce coding standards by executing linting rules against a project."""
     import time
 
     logger = get_logger("enforce_standards")
     start_time = time.time()
 
-    # Validate project folder exists
     project_path = Path(project_folder).resolve()
     if not project_path.exists():
         raise ValueError(f"Project folder does not exist: {project_folder}")
 
-    # Load rule set
     with sentry_sdk.start_span(op="load_rule_set", name=f"Set: {rule_set}"):
         if rule_set == "custom" and custom_rules:
-            # Load specific custom rules by ID
-            all_custom = load_custom_rules(str(project_path), language)
-            rules = [r for r in all_custom if r.id in custom_rules]
-
-            if not rules:
-                raise ValueError(f"No custom rules found matching IDs: {custom_rules}. Available: {[r.id for r in all_custom]}")
-
-            rule_set_obj = RuleSet(
-                name="custom",
-                description=f"Custom rules: {', '.join(custom_rules)}",
-                rules=rules,
-                priority=RuleSetPriority.CUSTOM,
-            )
+            rule_set_obj = _load_custom_rule_set_by_ids(project_path, language, custom_rules)
         else:
             rule_set_obj = load_rule_set(rule_set, str(project_path), language)
 
     if not rule_set_obj.rules:
-        # Return empty result if no rules
-        return EnforcementResult(
-            summary={
-                "total_violations": 0,
-                "by_severity": {"error": 0, "warning": 0, "info": 0},
-                "by_file": {},
-                "files_scanned": 0,
-                "rules_executed": 0,
-                "execution_time_ms": 0,
-            },
-            violations=[],
-            violations_by_file={},
-            violations_by_severity={"error": [], "warning": [], "info": []},
-            violations_by_rule={},
-            rules_executed=[],
-            execution_time_ms=0,
-            files_scanned=0,
-        )
+        return _empty_enforcement_result()
 
     logger.info("rules_loaded", rule_set=rule_set, rules_count=len(rule_set_obj.rules))
 
-    # Create execution context
     context = RuleExecutionContext(
         project_folder=str(project_path),
         language=language,
@@ -714,52 +714,4 @@ def enforce_standards_impl(
         logger=logger,
     )
 
-    # Execute rules in parallel
-    with sentry_sdk.start_span(op="execute_rules", name=f"Rules: {len(rule_set_obj.rules)}"):
-        all_violations = execute_rules_batch(rule_set_obj.rules, context)
-
-    # Filter by severity threshold
-    filtered_violations = filter_violations_by_severity(all_violations, severity_threshold)
-
-    # Group violations
-    violations_by_file = group_violations_by_file(filtered_violations)
-    violations_by_severity = group_violations_by_severity(filtered_violations)
-    violations_by_rule = group_violations_by_rule(filtered_violations)
-
-    # Calculate summary
-    execution_time = time.time() - start_time
-    duration_ms = int(execution_time * ConversionFactors.MILLISECONDS_PER_SECOND)
-
-    summary = {
-        "total_violations": len(filtered_violations),
-        "by_severity": {
-            "error": len(violations_by_severity["error"]),
-            "warning": len(violations_by_severity["warning"]),
-            "info": len(violations_by_severity["info"]),
-        },
-        "by_file": {file_path: len(violations) for file_path, violations in violations_by_file.items()},
-        "files_scanned": len(violations_by_file),
-        "rules_executed": len(rule_set_obj.rules),
-        "execution_time_ms": duration_ms,
-    }
-
-    # Build result
-    result = EnforcementResult(
-        summary=summary,
-        violations=filtered_violations,
-        violations_by_file=violations_by_file,
-        violations_by_severity=violations_by_severity,
-        violations_by_rule=violations_by_rule,
-        rules_executed=[r.id for r in rule_set_obj.rules],
-        execution_time_ms=duration_ms,
-        files_scanned=len(violations_by_file),
-    )
-
-    logger.info(
-        "enforcement_completed",
-        total_violations=len(filtered_violations),
-        files_scanned=len(violations_by_file),
-        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-    )
-
-    return result
+    return _run_enforcement(rule_set_obj, context, severity_threshold, start_time)

@@ -25,6 +25,48 @@ from ast_grep_mcp.utils.slicing import take_top_n
 logger = get_logger(__name__)
 
 
+def _example_from_data(lang: str, ex_data: Any) -> Optional[PatternExample]:
+    if isinstance(ex_data, dict):
+        return PatternExample(
+            language=lang,
+            code=ex_data.get("code", ""),
+            description=ex_data.get("description", ""),
+            notes=ex_data.get("notes", []),
+        )
+    if isinstance(ex_data, str):
+        return PatternExample(language=lang, code=ex_data, description="", notes=[])
+    return None
+
+
+def _build_examples(
+    pattern_data: Dict[str, Any],
+    target_languages: Optional[List[str]],
+) -> List[PatternExample]:
+    examples = []
+    for lang, ex_data in pattern_data.get("examples", {}).items():
+        if target_languages and lang not in target_languages:
+            continue
+        ex = _example_from_data(lang, ex_data)
+        if ex is not None:
+            examples.append(ex)
+    return examples
+
+
+def _complexity_label(lines: int) -> str:
+    if lines <= EquivalenceDefaults.SIMPLE_LINE_THRESHOLD:
+        return "simple"
+    if lines <= EquivalenceDefaults.MODERATE_LINE_THRESHOLD:
+        return "moderate"
+    return "complex"
+
+
+def _build_complexity_comparison(examples: List[PatternExample]) -> Dict[str, str]:
+    return {
+        ex.language: _complexity_label(len(ex.code.strip().split("\n")))
+        for ex in examples
+    }
+
+
 def _create_pattern_equivalence(
     pattern_id: str,
     pattern_data: Dict[str, Any],
@@ -40,43 +82,7 @@ def _create_pattern_equivalence(
     Returns:
         PatternEquivalence object
     """
-    examples = []
-    examples_data = pattern_data.get("examples", {})
-
-    for lang, ex_data in examples_data.items():
-        if target_languages and lang not in target_languages:
-            continue
-
-        if isinstance(ex_data, dict):
-            examples.append(
-                PatternExample(
-                    language=lang,
-                    code=ex_data.get("code", ""),
-                    description=ex_data.get("description", ""),
-                    notes=ex_data.get("notes", []),
-                )
-            )
-        elif isinstance(ex_data, str):
-            examples.append(
-                PatternExample(
-                    language=lang,
-                    code=ex_data,
-                    description="",
-                    notes=[],
-                )
-            )
-
-    # Build complexity comparison
-    complexity_comparison = {}
-    for ex in examples:
-        lines = len(ex.code.strip().split("\n"))
-        if lines <= EquivalenceDefaults.SIMPLE_LINE_THRESHOLD:
-            complexity_comparison[ex.language] = "simple"
-        elif lines <= EquivalenceDefaults.MODERATE_LINE_THRESHOLD:
-            complexity_comparison[ex.language] = "moderate"
-        else:
-            complexity_comparison[ex.language] = "complex"
-
+    examples = _build_examples(pattern_data, target_languages)
     return PatternEquivalence(
         pattern_id=pattern_id,
         concept=pattern_data.get("concept", ""),
@@ -84,8 +90,30 @@ def _create_pattern_equivalence(
         description=pattern_data.get("description", ""),
         examples=examples,
         related_patterns=pattern_data.get("related_patterns", []),
-        complexity_comparison=complexity_comparison,
+        complexity_comparison=_build_complexity_comparison(examples),
     )
+
+
+def _direct_match_patterns(query_lower: str) -> List[str]:
+    matches = []
+    for pattern_id, pattern_data in PATTERN_DATABASE.items():
+        concept = pattern_data.get("concept", "").lower()
+        description = pattern_data.get("description", "").lower()
+        if query_lower in concept or query_lower in description or query_lower in pattern_id.lower():
+            matches.append(pattern_id)
+    return matches
+
+
+def _word_match_patterns(query_lower: str) -> List[str]:
+    matches = []
+    query_words = query_lower.split()
+    for pattern_id, pattern_data in PATTERN_DATABASE.items():
+        concept = pattern_data.get("concept", "").lower()
+        description = pattern_data.get("description", "").lower()
+        searchable = f"{concept} {description} {pattern_id}".lower()
+        if any(len(w) > 2 and w in searchable for w in query_words):
+            matches.append(pattern_id)
+    return matches
 
 
 def _fuzzy_match_pattern(query: str) -> List[str]:
@@ -98,32 +126,34 @@ def _fuzzy_match_pattern(query: str) -> List[str]:
         List of matching pattern IDs
     """
     query_lower = query.lower()
-    matches = []
-
-    # Direct concept matching
-    for pattern_id, pattern_data in PATTERN_DATABASE.items():
-        concept = pattern_data.get("concept", "").lower()
-        description = pattern_data.get("description", "").lower()
-
-        # Check for match in concept, description, or pattern_id
-        if query_lower in concept or query_lower in description or query_lower in pattern_id.lower():
-            matches.append(pattern_id)
-
-    # If no matches, try word-by-word matching
+    matches = _direct_match_patterns(query_lower)
     if not matches:
-        query_words = query_lower.split()
-        for pattern_id, pattern_data in PATTERN_DATABASE.items():
-            concept = pattern_data.get("concept", "").lower()
-            description = pattern_data.get("description", "").lower()
-            searchable = f"{concept} {description} {pattern_id}".lower()
-
-            # Check if any query word matches
-            for word in query_words:
-                if len(word) > 2 and word in searchable:
-                    matches.append(pattern_id)
-                    break
-
+        matches = _word_match_patterns(query_lower)
     return list(set(matches))
+
+
+def _related_suggestions(found_patterns: List[str]) -> List[str]:
+    related: set[str] = set()
+    for pattern_id in found_patterns:
+        related.update(PATTERN_DATABASE.get(pattern_id, {}).get("related_patterns", []))
+    return [
+        f"Related: {rel_id} - {PATTERN_DATABASE[rel_id].get('concept', '')}"
+        for rel_id in related
+        if rel_id not in found_patterns and rel_id in PATTERN_DATABASE
+    ]
+
+
+def _category_suggestions(found_patterns: List[str], category: Optional[str]) -> List[str]:
+    suggestions = []
+    if category:
+        others = [pid for pid, p in PATTERN_DATABASE.items() if p.get("category") == category and pid not in found_patterns]
+        preview = take_top_n(others, PatternEquivalenceTopN.CATEGORY_RELATED_SUGGESTION)
+        if preview:
+            suggestions.append(f"More in '{category}': {', '.join(preview)}")
+    elif len(found_patterns) < PatternEquivalenceTopN.MIN_PATTERNS_FOR_CATEGORY_HINT:
+        preview = take_top_n(PATTERN_CATEGORIES, PatternEquivalenceTopN.CATEGORY_DISCOVERY)
+        suggestions.append(f"Try searching by category: {', '.join(preview)}")
+    return suggestions
 
 
 def _get_suggestions(
@@ -139,32 +169,28 @@ def _get_suggestions(
     Returns:
         List of suggestion strings
     """
-    suggestions = []
-
-    # Suggest related patterns
-    related = set()
-    for pattern_id in found_patterns:
-        pattern = PATTERN_DATABASE.get(pattern_id, {})
-        related.update(pattern.get("related_patterns", []))
-
-    for rel_id in related:
-        if rel_id not in found_patterns and rel_id in PATTERN_DATABASE:
-            rel_pattern = PATTERN_DATABASE[rel_id]
-            suggestions.append(f"Related: {rel_id} - {rel_pattern.get('concept', '')}")
-
-    # Suggest category exploration
-    if category:
-        category_patterns = [pid for pid, p in PATTERN_DATABASE.items() if p.get("category") == category and pid not in found_patterns]
-        category_preview = take_top_n(category_patterns, PatternEquivalenceTopN.CATEGORY_RELATED_SUGGESTION)
-        if category_preview:
-            suggestions.append(f"More in '{category}': {', '.join(category_preview)}")
-
-    # Suggest categories to explore
-    if not category and len(found_patterns) < PatternEquivalenceTopN.MIN_PATTERNS_FOR_CATEGORY_HINT:
-        category_preview = take_top_n(PATTERN_CATEGORIES, PatternEquivalenceTopN.CATEGORY_DISCOVERY)
-        suggestions.append(f"Try searching by category: {', '.join(category_preview)}")
-
+    suggestions = _related_suggestions(found_patterns) + _category_suggestions(found_patterns, category)
     return take_top_n(suggestions, PatternEquivalenceTopN.MAX_SUGGESTIONS)
+
+
+_DEFAULT_TARGET_LANGUAGES = ["python", "typescript", "javascript", "java", "go", "rust"]
+
+
+def _resolve_target_languages(target_languages: Optional[List[str]]) -> List[str]:
+    langs = target_languages or _DEFAULT_TARGET_LANGUAGES
+    return [lang for lang in langs if lang in SUPPORTED_LANGUAGES]
+
+
+def _build_equivalences(
+    pattern_ids: List[str],
+    target_languages: List[str],
+) -> List[PatternEquivalence]:
+    equivalences = []
+    for pattern_id in pattern_ids:
+        pattern_data = PATTERN_DATABASE.get(pattern_id)
+        if pattern_data:
+            equivalences.append(_create_pattern_equivalence(pattern_id, pattern_data, target_languages))
+    return equivalences
 
 
 def find_language_equivalents_impl(
@@ -184,7 +210,6 @@ def find_language_equivalents_impl(
     """
     start_time = time.time()
 
-    # Validate source language
     if source_language and source_language not in SUPPORTED_LANGUAGES:
         logger.warning(
             "unsupported_source_language",
@@ -192,41 +217,14 @@ def find_language_equivalents_impl(
             supported=SUPPORTED_LANGUAGES,
         )
 
-    # Default target languages
-    if not target_languages:
-        target_languages = ["python", "typescript", "javascript", "java", "go", "rust"]
-
-    # Filter to supported languages
-    target_languages = [lang for lang in target_languages if lang in SUPPORTED_LANGUAGES]
-
-    # Find matching patterns
+    target_languages = _resolve_target_languages(target_languages)
     pattern_ids = _fuzzy_match_pattern(pattern_description)
 
-    logger.info(
-        "pattern_search_results",
-        query=pattern_description,
-        found_count=len(pattern_ids),
-    )
+    logger.info("pattern_search_results", query=pattern_description, found_count=len(pattern_ids))
 
-    # Build equivalences
-    equivalences = []
-    for pattern_id in pattern_ids:
-        pattern_data = PATTERN_DATABASE.get(pattern_id)
-        if pattern_data:
-            equiv = _create_pattern_equivalence(
-                pattern_id,
-                pattern_data,
-                target_languages,
-            )
-            equivalences.append(equiv)
-
-    # Get suggestions
+    equivalences = _build_equivalences(pattern_ids, target_languages)
     categories = list(set(PATTERN_DATABASE.get(pid, {}).get("category") for pid in pattern_ids))
-    suggestions = _get_suggestions(
-        pattern_ids,
-        categories[0] if categories else None,
-    )
-
+    suggestions = _get_suggestions(pattern_ids, categories[0] if categories else None)
     execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
     return PatternEquivalenceResult(
