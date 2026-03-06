@@ -149,7 +149,7 @@ class RuleViolation:
     message: str
     code_snippet: str
     fix_suggestion: Optional[str] = None
-    meta_vars: Optional[Dict[str, str]] = None
+    meta_vars: Optional[Dict[str, "str | list[str]"]] = None
 
 
 @dataclass
