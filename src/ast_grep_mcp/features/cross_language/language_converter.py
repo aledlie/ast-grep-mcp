@@ -169,6 +169,23 @@ JAVA_TO_KOTLIN_PATTERNS: List[Tuple[str, str, str]] = [
 ]
 
 
+def _apply_single_pattern(
+    result: str,
+    pattern: str,
+    replacement: str,
+    name: str,
+    applied: List[str],
+) -> str:
+    try:
+        new_result = re.sub(pattern, replacement, result, flags=re.MULTILINE)
+        if new_result != result:
+            applied.append(name)
+            return new_result
+    except re.error as e:
+        logger.warning("pattern_error", pattern_name=name, error=str(e))
+    return result
+
+
 def _apply_patterns(
     code: str,
     patterns: List[Tuple[str, str, str]],
@@ -182,23 +199,18 @@ def _apply_patterns(
     Returns:
         Tuple of (converted_code, list_of_applied_patterns)
     """
-    applied = []
+    applied: List[str] = []
     result = code
-
     for pattern, replacement, name in patterns:
-        try:
-            new_result = re.sub(pattern, replacement, result, flags=re.MULTILINE)
-            if new_result != result:
-                applied.append(name)
-                result = new_result
-        except re.error as e:
-            logger.warning(
-                "pattern_error",
-                pattern_name=name,
-                error=str(e),
-            )
-
+        result = _apply_single_pattern(result, pattern, replacement, name, applied)
     return result, applied
+
+
+_TYPE_HINT_PATTERNS: Dict[str, str] = {
+    "python": r"(\w+):\s*(\w+(?:\[[\w,\s]+\])?)",
+    "typescript": r"(\w+):\s*(\w+(?:<[\w,\s]+>)?)",
+    "java": r"(\w+):\s*(\w+(?:<[\w,\s]+>)?)",
+}
 
 
 def _extract_type_hints(code: str, language: str) -> List[Tuple[str, str]]:
@@ -211,92 +223,91 @@ def _extract_type_hints(code: str, language: str) -> List[Tuple[str, str]]:
     Returns:
         List of (variable, type) tuples
     """
-    hints = []
+    pattern = _TYPE_HINT_PATTERNS.get(language)
+    if pattern is None:
+        return []
+    return [
+        (m.group(RegexCaptureGroups.FIRST), m.group(RegexCaptureGroups.SECOND))
+        for m in re.finditer(pattern, code)
+    ]
 
-    if language == "python":
-        # Python type hints: name: Type
-        pattern = r"(\w+):\s*(\w+(?:\[[\w,\s]+\])?)"
-        for match in re.finditer(pattern, code):
-            hints.append((match.group(RegexCaptureGroups.FIRST), match.group(RegexCaptureGroups.SECOND)))
-    elif language in ("typescript", "java"):
-        # TypeScript/Java: Type name or name: Type
-        pattern = r"(\w+):\s*(\w+(?:<[\w,\s]+>)?)"
-        for match in re.finditer(pattern, code):
-            hints.append((match.group(RegexCaptureGroups.FIRST), match.group(RegexCaptureGroups.SECOND)))
 
-    return hints
+def _try_replace_type(result: str, source_type: str, target_type: str) -> Tuple[str, bool]:
+    pattern = rf"\b{re.escape(source_type)}\b"
+    if re.search(pattern, result):
+        return re.sub(pattern, target_type, result), True
+    return result, False
 
 
 def _convert_types(
     code: str,
     type_mappings: Dict[str, str],
 ) -> Tuple[str, List[TypeMapping]]:
-    """Convert types in code using mapping.
-
-    Args:
-        code: Code with types
-        type_mappings: Source to target type mapping
-
-    Returns:
-        Tuple of (code_with_converted_types, list_of_mappings_used)
-    """
+    """Convert types in code using mapping."""
     mappings_used = []
     result = code
-
     for source_type, target_type in type_mappings.items():
-        # Match type as whole word
-        pattern = rf"\b{re.escape(source_type)}\b"
-        if re.search(pattern, result):
-            result = re.sub(pattern, target_type, result)
-            mappings_used.append(
-                TypeMapping(
-                    source_type=source_type,
-                    target_type=target_type,
-                )
-            )
-
+        result, replaced = _try_replace_type(result, source_type, target_type)
+        if replaced:
+            mappings_used.append(TypeMapping(source_type=source_type, target_type=target_type))
     return result, mappings_used
 
 
+_DEDENT_PREFIXES = ("elif", "else:", "except", "finally:", "}")
+
+
+def _indent_python_line(stripped: str, indent_level: int) -> Tuple[str, int]:
+    """Return indented line and updated indent level."""
+    if stripped.startswith(_DEDENT_PREFIXES):
+        indent_level = max(0, indent_level - 1)
+    indented = "    " * indent_level + stripped
+    if stripped.endswith(":"):
+        indent_level += 1
+    return indented, indent_level
+
+
+def _process_python_line(stripped: str, indent_level: int, result_lines: List[str]) -> int:
+    if not stripped:
+        result_lines.append("")
+        return indent_level
+    indented, indent_level = _indent_python_line(stripped, indent_level)
+    result_lines.append(indented)
+    return indent_level
+
+
+def _indent_python_lines(lines: List[str]) -> List[str]:
+    result_lines: List[str] = []
+    indent_level = 0
+    for line in lines:
+        indent_level = _process_python_line(line.strip(), indent_level, result_lines)
+    return result_lines
+
+
 def _add_indentation_fixes(code: str, to_language: str) -> str:
-    """Fix indentation for target language.
+    """Fix indentation for target language."""
+    if to_language != "python":
+        return code
+    return "\n".join(_indent_python_lines(code.split("\n")))
 
-    Args:
-        code: Code to fix
-        to_language: Target language
 
-    Returns:
-        Code with fixed indentation
-    """
-    if to_language == "python":
-        # Python needs proper indentation
-        lines = code.split("\n")
-        result_lines = []
-        indent_level = 0
+_PROBLEMATIC_PATTERNS: Dict[str, List[Tuple[str, str]]] = {
+    "python_to_typescript": [
+        (r"with\s+", "Context managers (with) don't have direct equivalent"),
+        (r"yield\s+", "Generators may need manual conversion"),
+        (r"@\w+", "Decorators need manual conversion to TypeScript"),
+        (r"__\w+__", "Magic methods need manual conversion"),
+    ],
+    "typescript_to_python": [
+        (r"interface\s+", "Interfaces should be converted to Protocol/ABC"),
+        (r"type\s+\w+\s*=", "Type aliases may need adjustment"),
+        (r"enum\s+", "Enums should be converted to Enum class"),
+        (r"<\w+>", "Generic types may need adjustment"),
+    ],
+}
 
-        for line in lines:
-            stripped = line.strip()
-            if not stripped:
-                result_lines.append("")
-                continue
 
-            # Decrease indent for certain keywords
-            if stripped.startswith(("elif", "else:", "except", "finally:", "}")):
-                indent_level = max(0, indent_level - 1)
-
-            # Add indentation
-            if indent_level > 0:
-                result_lines.append("    " * indent_level + stripped)
-            else:
-                result_lines.append(stripped)
-
-            # Increase indent after colon or opening brace
-            if stripped.endswith(":"):
-                indent_level += 1
-
-        return "\n".join(result_lines)
-
-    return code
+def _make_warning(message: str, line_num: int) -> ConversionWarning:
+    return ConversionWarning(severity="warning", message=message, line_number=line_num, suggestion=f"Review code at line {line_num}")
 
 
 def _generate_warnings(
@@ -305,129 +316,59 @@ def _generate_warnings(
     to_language: str,
     applied_patterns: List[str],
 ) -> List[ConversionWarning]:
-    """Generate warnings about conversion issues.
-
-    Args:
-        source_code: Original source code
-        from_language: Source language
-        to_language: Target language
-        applied_patterns: Patterns that were applied
-
-    Returns:
-        List of conversion warnings
-    """
+    """Generate warnings about conversion issues."""
     warnings = []
-
-    # Check for features that don't convert well
-    problematic_patterns = {
-        "python_to_typescript": [
-            (r"with\s+", "Context managers (with) don't have direct equivalent"),
-            (r"yield\s+", "Generators may need manual conversion"),
-            (r"@\w+", "Decorators need manual conversion to TypeScript"),
-            (r"__\w+__", "Magic methods need manual conversion"),
-        ],
-        "typescript_to_python": [
-            (r"interface\s+", "Interfaces should be converted to Protocol/ABC"),
-            (r"type\s+\w+\s*=", "Type aliases may need adjustment"),
-            (r"enum\s+", "Enums should be converted to Enum class"),
-            (r"<\w+>", "Generic types may need adjustment"),
-        ],
-    }
-
     key = f"{from_language}_to_{to_language}"
-    patterns_to_check = problematic_patterns.get(key, [])
-
-    for pattern, message in patterns_to_check:
-        matches = list(re.finditer(pattern, source_code))
-        if matches:
-            for match in matches:
-                # Find line number
-                line_num = source_code[: match.start()].count("\n") + 1
-                warnings.append(
-                    ConversionWarning(
-                        severity="warning",
-                        message=message,
-                        line_number=line_num,
-                        suggestion=f"Review code at line {line_num}",
-                    )
-                )
-
+    for pattern, message in _PROBLEMATIC_PATTERNS.get(key, []):
+        for match in re.finditer(pattern, source_code):
+            line_num = source_code[: match.start()].count("\n") + 1
+            warnings.append(_make_warning(message, line_num))
     return warnings
 
 
-def convert_code_language_impl(
+_PAIR_PATTERNS: Dict[Tuple[str, str], List[Tuple[str, str, str]]] = {
+    ("python", "typescript"): PYTHON_TO_TS_PATTERNS,
+    ("python", "javascript"): PYTHON_TO_TS_PATTERNS,
+    ("typescript", "python"): TS_TO_PYTHON_PATTERNS,
+    ("javascript", "python"): TS_TO_PYTHON_PATTERNS,
+    ("javascript", "typescript"): [],
+    ("java", "kotlin"): JAVA_TO_KOTLIN_PATTERNS,
+}
+
+_BRACE_LANG_COMMENT = {"typescript", "javascript", "java", "kotlin"}
+
+
+def _select_patterns(pair: Tuple[str, str]) -> List[Tuple[str, str, str]]:
+    return _PAIR_PATTERNS.get(pair, [])
+
+
+def _collect_imports(to_language: str, converted_code: str) -> List[str]:
+    if to_language == "python" and "async" in converted_code:
+        return ["import asyncio"]
+    return []
+
+
+def _add_conversion_header(code: str, from_language: str, to_language: str) -> str:
+    prefix = "//" if to_language in _BRACE_LANG_COMMENT else "#"
+    return f"{prefix} Converted from {from_language} to {to_language}\n" + code
+
+
+def _build_converted_code(
     code_snippet: str,
     from_language: str,
     to_language: str,
-    conversion_style: str = "idiomatic",
-    include_comments: bool = True,
-) -> ConversionResult:
-    """Convert code from one language to another.
-
-    Args:
-        code_snippet: Code to convert
-        from_language: Source language
-        to_language: Target language
-        conversion_style: Conversion style (literal, idiomatic, compatible)
-        include_comments: Whether to include conversion comments
-
-    Returns:
-        ConversionResult with converted code
-    """
-    start_time = time.time()
-
-    # Validate conversion pair
+    style: ConversionStyle,
+    include_comments: bool,
+) -> Tuple[ConvertedCode, List[str]]:
     pair = (from_language.lower(), to_language.lower())
-    if pair not in SUPPORTED_CONVERSION_PAIRS:
-        raise ValueError(f"Unsupported conversion pair: {from_language} -> {to_language}. Supported pairs: {SUPPORTED_CONVERSION_PAIRS}")
-
-    # Parse conversion style
-    style = ConversionStyle(conversion_style)
-
-    # Select patterns based on language pair
-    patterns: List[Tuple[str, str, str]] = []
-    if pair == ("python", "typescript") or pair == ("python", "javascript"):
-        patterns = PYTHON_TO_TS_PATTERNS
-    elif pair == ("typescript", "python") or pair == ("javascript", "python"):
-        patterns = TS_TO_PYTHON_PATTERNS
-    elif pair == ("javascript", "typescript"):
-        patterns = []  # JS to TS is mostly adding types
-    elif pair == ("java", "kotlin"):
-        patterns = JAVA_TO_KOTLIN_PATTERNS
-
-    # Apply conversion patterns
-    converted_code, applied_patterns = _apply_patterns(code_snippet, patterns)
-
-    # Convert types
-    type_map = get_type_mapping(from_language, to_language)
-    converted_code, type_mappings = _convert_types(converted_code, type_map)
-
-    # Fix indentation
+    converted_code, applied_patterns = _apply_patterns(code_snippet, _select_patterns(pair))
+    converted_code, type_mappings = _convert_types(converted_code, get_type_mapping(from_language, to_language))
     converted_code = _add_indentation_fixes(converted_code, to_language)
-
-    # Generate warnings
-    warnings = _generate_warnings(
-        code_snippet,
-        from_language,
-        to_language,
-        applied_patterns,
-    )
-
-    # Determine imports needed (simplified)
-    imports_needed = []
-    if to_language == "typescript" and "Promise" in converted_code:
-        pass  # Promise is built-in
-    if to_language == "python" and "async" in converted_code:
-        imports_needed.append("import asyncio")
-
-    # Add conversion comment if requested
+    warnings = _generate_warnings(code_snippet, from_language, to_language, applied_patterns)
+    imports_needed = _collect_imports(to_language, converted_code)
     if include_comments:
-        comment_prefix = "//" if to_language in ("typescript", "javascript", "java", "kotlin") else "#"
-        header = f"{comment_prefix} Converted from {from_language} to {to_language}\n"
-        converted_code = header + converted_code
-
-    # Create result
-    converted = ConvertedCode(
+        converted_code = _add_conversion_header(converted_code, from_language, to_language)
+    return ConvertedCode(
         source_code=code_snippet,
         converted_code=converted_code,
         from_language=from_language,
@@ -437,10 +378,24 @@ def convert_code_language_impl(
         warnings=warnings,
         imports_needed=imports_needed,
         success=True,
-    )
+    ), imports_needed
 
+
+def convert_code_language_impl(
+    code_snippet: str,
+    from_language: str,
+    to_language: str,
+    conversion_style: str = "idiomatic",
+    include_comments: bool = True,
+) -> ConversionResult:
+    """Convert code from one language to another."""
+    start_time = time.time()
+    pair = (from_language.lower(), to_language.lower())
+    if pair not in SUPPORTED_CONVERSION_PAIRS:
+        raise ValueError(f"Unsupported conversion pair: {from_language} -> {to_language}. Supported pairs: {SUPPORTED_CONVERSION_PAIRS}")
+    style = ConversionStyle(conversion_style)
+    converted, _ = _build_converted_code(code_snippet, from_language, to_language, style, include_comments)
     execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
-
     return ConversionResult(
         conversions=[converted],
         total_functions=1,
