@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Set
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import RegexCaptureGroups, SemanticVolumeDefaults, SEODefaults
+from ast_grep_mcp.constants import ConversionFactors, RegexCaptureGroups, SemanticVolumeDefaults, SEODefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.schema.client import SchemaOrgClient, get_schema_org_client
 from ast_grep_mcp.features.schema.enhancement_rules import (
@@ -500,10 +500,10 @@ def _generate_example_entity(entity_type: str, base_url: str = "https://example.
 def _calculate_entity_seo_score(entity_enhancement: EntityEnhancement) -> float:
     """Calculate SEO completeness score for a single entity."""
     PRIORITY_WEIGHTS = {
-        EnhancementPriority.CRITICAL: -20,
-        EnhancementPriority.HIGH: -10,
-        EnhancementPriority.MEDIUM: -5,
-        EnhancementPriority.LOW: -2,
+        EnhancementPriority.CRITICAL: SEODefaults.ENTITY_PENALTY_CRITICAL,
+        EnhancementPriority.HIGH: SEODefaults.ENTITY_PENALTY_HIGH,
+        EnhancementPriority.MEDIUM: SEODefaults.ENTITY_PENALTY_MEDIUM,
+        EnhancementPriority.LOW: SEODefaults.ENTITY_PENALTY_LOW,
     }
 
     score = SEODefaults.BASE_SCORE
@@ -522,10 +522,10 @@ def _calculate_overall_seo_score(
 ) -> float:
     """Calculate overall SEO completeness score for the entire graph."""
     MISSING_ENTITY_PENALTIES = {
-        EnhancementPriority.CRITICAL: -15,
-        EnhancementPriority.HIGH: -10,
-        EnhancementPriority.MEDIUM: -5,
-        EnhancementPriority.LOW: -2,
+        EnhancementPriority.CRITICAL: SEODefaults.MISSING_PENALTY_CRITICAL,
+        EnhancementPriority.HIGH: SEODefaults.MISSING_PENALTY_HIGH,
+        EnhancementPriority.MEDIUM: SEODefaults.MISSING_PENALTY_MEDIUM,
+        EnhancementPriority.LOW: SEODefaults.MISSING_PENALTY_LOW,
     }
 
     if entity_enhancements:
@@ -721,7 +721,7 @@ async def analyze_entity_graph(input_source: str, input_type: str = "file", outp
                     global_issues=["No entities found in input source"],
                     overall_seo_score=0.0,
                     priority_summary={"critical": 0, "high": 0, "medium": 0, "low": 0},
-                    execution_time_ms=int((time.time() - start_time) * 1000),
+                    execution_time_ms=int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND),
                 ),
                 output_mode,
             )
@@ -761,7 +761,7 @@ async def analyze_entity_graph(input_source: str, input_type: str = "file", outp
         elif output_mode == "diff":
             diff = _generate_diff(entities, entity_enhancements, missing_entities)
 
-        execution_time_ms = int((time.time() - start_time) * 1000)
+        execution_time_ms = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
         result = GraphEnhancementResult(
             original_graph=entities,

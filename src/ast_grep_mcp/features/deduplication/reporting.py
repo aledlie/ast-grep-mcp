@@ -160,7 +160,7 @@ class DuplicationReporter:
             - score: The input score
         """
         # Clamp score to valid range
-        score = max(1, min(10, score))
+        score = max(DisplayDefaults.COMPLEXITY_SCORE_MIN, min(DisplayDefaults.COMPLEXITY_SCORE_MAX, score))
 
         # Determine description and color based on score
         if score <= DisplayDefaults.LOW_SCORE_THRESHOLD:

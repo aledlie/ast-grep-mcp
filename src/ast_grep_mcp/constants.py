@@ -7,6 +7,13 @@ to improve maintainability and reduce code duplication.
 import os
 
 
+class ConversionFactors:
+    """Unit conversion constants."""
+
+    MILLISECONDS_PER_SECOND = 1000
+    PERCENT_MULTIPLIER = 100
+
+
 class ComplexityDefaults:
     """Default thresholds for complexity analysis."""
 
@@ -67,6 +74,7 @@ class CacheDefaults:
     CLEANUP_INTERVAL_SECONDS = 300  # 5 minutes
     DEFAULT_CACHE_SIZE = 100  # Number of cached items
     CACHE_KEY_LENGTH = 16  # Length of truncated SHA256 hash for cache keys
+    RULE_ID_HASH_LENGTH = 8  # Length of truncated SHA256 hash for rule IDs
 
 
 class FilePatterns:
@@ -271,6 +279,9 @@ class SemanticSimilarityDefaults:
     # Embedding vector dimensionality for CodeBERT
     EMBEDDING_DIM = 768
 
+    # Default batch size for embedding inference
+    DEFAULT_BATCH_SIZE = 8
+
 
 class SecurityScanDefaults:
     """Defaults for security scanning."""
@@ -345,6 +356,8 @@ class FormattingDefaults:
     """Defaults for code formatting."""
 
     ROUNDING_PRECISION = 3  # Decimal places for execution times, hit rates
+    TIMESTAMP_MS_TRIM = 3  # Trim last 3 digits of microseconds for millisecond precision
+    ISO_DATE_LENGTH = 10  # Length of YYYY-MM-DD date string
     SIMILARITY_PRECISION = 4  # Decimal places for similarity scores
     BENCHMARK_PRECISION = 6  # Decimal places for benchmark timing
     DEFAULT_DIFF_CONTEXT_LINES = 3  # Context lines in unified diffs
@@ -393,6 +406,8 @@ class DisplayDefaults:
     VISUALIZATION_BAR_LENGTH = 10  # Length of ASCII score bars
     LOW_SCORE_THRESHOLD = 3  # Score <= this is "low"
     MEDIUM_SCORE_THRESHOLD = 6  # Score <= this is "medium"
+    COMPLEXITY_SCORE_MIN = 1  # Minimum complexity score
+    COMPLEXITY_SCORE_MAX = 10  # Maximum complexity score
     CONTENT_PREVIEW_LENGTH = 50  # Characters in content previews
     ERROR_OUTPUT_PREVIEW_LENGTH = 200  # Characters in error output previews
     ERROR_MESSAGE_MAX_LENGTH = 500  # Max characters for stored error messages
@@ -484,6 +499,18 @@ class SEODefaults:
     FALLBACK_AVG_ENTITY_SCORE = 50.0
     DEFAULT_PRIORITY_ORDER = 4
 
+    # Priority penalty weights for entity SEO scoring
+    ENTITY_PENALTY_CRITICAL = -20
+    ENTITY_PENALTY_HIGH = -10
+    ENTITY_PENALTY_MEDIUM = -5
+    ENTITY_PENALTY_LOW = -2
+
+    # Priority penalty weights for missing entity scoring
+    MISSING_PENALTY_CRITICAL = -15
+    MISSING_PENALTY_HIGH = -10
+    MISSING_PENALTY_MEDIUM = -5
+    MISSING_PENALTY_LOW = -2
+
 
 class SentryDefaults:
     """Defaults for Sentry monitoring configuration."""
@@ -496,6 +523,10 @@ class DocstringDefaults:
     """Defaults for docstring generation."""
 
     BASIC_INFERENCE_CONFIDENCE = 0.8
+    QUOTE_LENGTH = 3  # Length of """ or '''
+    REGULAR_FUNCTION_GROUP_COUNT = 5  # Regex capture groups for regular functions
+    ARROW_FUNCTION_GROUP_COUNT = 6  # Regex capture groups for arrow functions
+    MIN_ONELINER_LENGTH = 6  # Minimum length for a single-line docstring (quote + content + quote)
 
 
 class IndentationDefaults:
@@ -528,6 +559,15 @@ class ASTFingerprintDefaults:
     MAX_UNIQUE_CALLS = 10
     CALL_SIGNATURE_BITMASK = 0xFFFF
     CALL_SIGNATURE_HEX_WIDTH = 4
+
+
+class PriorityClassifierThresholds:
+    """Thresholds for classifying deduplication candidate priority."""
+
+    CRITICAL = 80
+    HIGH = 60
+    MEDIUM = 40
+    LOW = 20
 
 
 class RankerDefaults:
@@ -634,6 +674,7 @@ class SyntaxValidationDefaults:
     JAVAC_TIMEOUT_SECONDS = 10
     JAVAC_ERROR_PREVIEW_LENGTH = 500
     TSC_SYNTAX_ERROR_PATTERN = r"error TS1\d{3}:"
+    ERROR_SUGGESTION_PREVIEW_LENGTH = 100  # Characters in error suggestion messages
 
 
 class SubprocessDefaults:
@@ -641,6 +682,7 @@ class SubprocessDefaults:
 
     GREP_TIMEOUT_SECONDS = 10
     AST_GREP_TIMEOUT_SECONDS = 30
+    ZSTD_TRAIN_TIMEOUT_SECONDS = 60  # Timeout for zstd dictionary training
 
 
 class LogBucketThresholds:

@@ -11,7 +11,7 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from ast_grep_mcp.constants import ChangelogDefaults, RegexCaptureGroups
+from ast_grep_mcp.constants import ChangelogDefaults, ConversionFactors, FormattingDefaults, RegexCaptureGroups
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
     ChangelogEntry,
@@ -302,7 +302,7 @@ def _group_commits_by_version(
         # Try to get tag date
         success, tag_date = _run_git_command(project_folder, ["log", "-1", "--format=%aI", f"v{to_version}"])
         if success and tag_date:
-            date_str = tag_date[:10]  # YYYY-MM-DD
+            date_str = tag_date[:FormattingDefaults.ISO_DATE_LENGTH]  # YYYY-MM-DD
         else:
             date_str = datetime.now().strftime("%Y-%m-%d")
         is_unreleased = False
@@ -590,7 +590,7 @@ def generate_changelog_impl(
             markdown="# Changelog\n\nNot a git repository.",
             commits_processed=0,
             commits_skipped=0,
-            execution_time_ms=int((time.time() - start_time) * 1000),
+            execution_time_ms=int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND),
         )
 
     # Determine commit range
@@ -616,7 +616,7 @@ def generate_changelog_impl(
     else:  # json format handled by tool layer
         markdown = _format_keepachangelog(versions, project_name)
 
-    execution_time = int((time.time() - start_time) * 1000)
+    execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
     logger.info(
         "generate_changelog_completed",

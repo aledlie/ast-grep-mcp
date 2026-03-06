@@ -9,12 +9,15 @@ import sentry_sdk
 import yaml
 
 from ast_grep_mcp.constants import (
+    CacheDefaults,
     CodeAnalysisDefaults,
+    ConversionFactors,
     DisplayDefaults,
     FormattingDefaults,
     PatternSuggestionConfidence,
     RegexCaptureGroups,
     SemanticVolumeDefaults,
+    StreamDefaults,
 )
 from ast_grep_mcp.core.cache import get_query_cache
 from ast_grep_mcp.core.config import CACHE_ENABLED
@@ -269,7 +272,7 @@ def _check_cache(
 
 def _execute_search(stream_args: List[str], max_results: int, cache: Any, project_folder: str, logger: Any) -> List[Dict[str, Any]]:
     """Execute the search and optionally cache results."""
-    matches = list(stream_ast_grep_results("run", stream_args, max_results=max_results, progress_interval=100))
+    matches = list(stream_ast_grep_results("run", stream_args, max_results=max_results, progress_interval=StreamDefaults.PROGRESS_INTERVAL))
 
     # Store in cache if available
     if cache and max_results == 0:
@@ -810,7 +813,7 @@ def build_rule_impl(
     # Generate rule ID if not provided
     if not rule_id:
         hash_input = f"{pattern}{language}{inside}{has}"
-        rule_id = f"rule-{hashlib.sha256(hash_input.encode()).hexdigest()[:8]}"
+        rule_id = f"rule-{hashlib.sha256(hash_input.encode()).hexdigest()[:CacheDefaults.RULE_ID_HASH_LENGTH]}"
 
     # Build the rule object
     rule_obj: Dict[str, Any] = {"pattern": pattern}
@@ -1422,7 +1425,7 @@ def debug_pattern_impl(
             issues=issues,
             suggestions=suggestions,
             match_attempt=match_attempt,
-            execution_time_ms=int(execution_time * 1000),
+            execution_time_ms=int(execution_time * ConversionFactors.MILLISECONDS_PER_SECOND),
         )
 
         logger.info(
@@ -2107,7 +2110,7 @@ def develop_pattern_impl(
             refinement_steps=refinement_steps,
             yaml_rule_template=yaml_template,
             next_steps=next_steps,
-            execution_time_ms=int(execution_time * 1000),
+            execution_time_ms=int(execution_time * ConversionFactors.MILLISECONDS_PER_SECOND),
         )
 
         logger.info(

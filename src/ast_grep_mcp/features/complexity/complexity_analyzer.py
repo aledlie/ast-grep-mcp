@@ -7,6 +7,7 @@ complexity metrics for all functions.
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List
 
+from ...constants import ParallelProcessing
 from ...core.logging import get_logger
 from ...models.complexity import ComplexityThresholds, FunctionComplexity
 from .analyzer import analyze_file_complexity
@@ -20,7 +21,7 @@ class ParallelComplexityAnalyzer:
         self.logger = get_logger("complexity.parallel_analyzer")
 
     def analyze_files(
-        self, files: List[str], language: str, thresholds: ComplexityThresholds, max_threads: int = 4
+        self, files: List[str], language: str, thresholds: ComplexityThresholds, max_threads: int = ParallelProcessing.DEFAULT_WORKERS
     ) -> List[FunctionComplexity]:
         """Analyze multiple files in parallel.
 

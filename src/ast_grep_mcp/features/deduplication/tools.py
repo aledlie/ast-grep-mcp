@@ -241,7 +241,7 @@ def register_deduplication_tools(mcp: FastMCP) -> None:
         project_folder: str = Field(description="Path to the project folder"),
         language: str = Field(description="Programming language"),
         min_similarity: float = Field(default=DeduplicationDefaults.MIN_SIMILARITY, description="Minimum similarity threshold (0-1)"),
-        min_lines: int = Field(default=5, description="Minimum lines to consider"),
+        min_lines: int = Field(default=DeduplicationDefaults.MIN_LINES, description="Minimum lines to consider"),
         exclude_patterns: Optional[List[str]] = Field(default=None, description="Path patterns to exclude"),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone find_duplication_tool function."""
@@ -259,8 +259,8 @@ def register_deduplication_tools(mcp: FastMCP) -> None:
         language: str = Field(description="The target language"),
         min_similarity: float = Field(default=DeduplicationDefaults.MIN_SIMILARITY, description="Minimum similarity threshold (0.0-1.0)"),
         include_test_coverage: bool = Field(default=True, description="Whether to check test coverage for prioritization"),
-        min_lines: int = Field(default=5, description="Minimum number of lines to consider for duplication"),
-        max_candidates: int = Field(default=100, description="Maximum number of candidates to return"),
+        min_lines: int = Field(default=DeduplicationDefaults.MIN_LINES, description="Minimum number of lines to consider for duplication"),
+        max_candidates: int = Field(default=DeduplicationDefaults.MAX_CANDIDATES, description="Maximum number of candidates to return"),
         exclude_patterns: Optional[List[str]] = Field(default=None, description="Path patterns to exclude from analysis"),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone analyze_deduplication_candidates_tool function."""

@@ -17,6 +17,7 @@ from ast_grep_mcp.constants import (
     CodeQualityDefaults,
     ComplexityDefaults,
     ComplexityStorageDefaults,
+    ConversionFactors,
     DisplayDefaults,
     FilePatterns,
     FormattingDefaults,
@@ -560,7 +561,7 @@ def _process_smell_detection_result(result: Dict[str, Any], start_time: float, l
         Result dictionary with execution_time_ms added
     """
     execution_time = time.time() - start_time
-    result["execution_time_ms"] = round(execution_time * 1000)
+    result["execution_time_ms"] = round(execution_time * ConversionFactors.MILLISECONDS_PER_SECOND)
 
     logger.info(
         "tool_completed",

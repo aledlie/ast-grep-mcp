@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from ...constants import (
     CondenseDefaults,
     CondenseFileRouting,
+    ConversionFactors,
     IndentationDefaults,
 )
 from ...core.logging import get_logger
@@ -130,7 +131,11 @@ def extract_surface_impl(
         output_parts.append(f"# {fp}\n{condensed}")  # # is valid comment in most langs
 
     condensed_source = "\n\n".join(output_parts)
-    reduction_pct = max(0.0, round((1.0 - total_condensed / total_original) * 100, 1)) if total_original > 0 else 0.0
+    reduction_pct = (
+        max(0.0, round((1.0 - total_condensed / total_original) * ConversionFactors.PERCENT_MULTIPLIER, 1))
+        if total_original > 0
+        else 0.0
+    )
 
     logger.info(
         "extract_surface_complete",
@@ -406,7 +411,11 @@ def condense_pack_impl(
         stats.original_bytes += file_result["original_bytes"]
         stats.condensed_bytes += file_result["condensed_bytes"]
 
-    reduction_pct = max(0.0, round((1.0 - total_condensed_bytes / total_original_bytes) * 100, 1)) if total_original_bytes > 0 else 0.0
+    reduction_pct = (
+        max(0.0, round((1.0 - total_condensed_bytes / total_original_bytes) * ConversionFactors.PERCENT_MULTIPLIER, 1))
+        if total_original_bytes > 0
+        else 0.0
+    )
     original_tokens = int(total_original_bytes * CondenseDefaults.AVG_TOKENS_PER_BYTE)
     condensed_tokens = int(total_condensed_bytes * CondenseDefaults.AVG_TOKENS_PER_BYTE)
 
@@ -437,7 +446,11 @@ def condense_pack_impl(
                 "condensed_lines": s.condensed_lines,
                 "original_bytes": s.original_bytes,
                 "condensed_bytes": s.condensed_bytes,
-                "reduction_pct": round((1.0 - s.condensed_bytes / s.original_bytes) * 100, 1) if s.original_bytes > 0 else 0.0,
+                "reduction_pct": (
+                    round((1.0 - s.condensed_bytes / s.original_bytes) * ConversionFactors.PERCENT_MULTIPLIER, 1)
+                    if s.original_bytes > 0
+                    else 0.0
+                ),
             }
             for lang, s in per_language.items()
         },

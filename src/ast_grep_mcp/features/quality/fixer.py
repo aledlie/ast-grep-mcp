@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import PatternSuggestionConfidence, SecurityScanDefaults
+from ast_grep_mcp.constants import ConversionFactors, PatternSuggestionConfidence, SecurityScanDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.rewrite.backup import create_backup
 from ast_grep_mcp.features.rewrite.service import validate_syntax
@@ -427,7 +427,7 @@ def _execute_dry_run(fixable_violations: List[RuleViolation], start_time: float)
             )
         )
 
-    execution_time = int((time.time() - start_time) * 1000)
+    execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
     return FixBatchResult(
         total_violations=len(fixable_violations),
@@ -707,7 +707,7 @@ def _build_batch_result(
     Returns:
         FixBatchResult with complete batch information
     """
-    execution_time = int((time.time() - start_time) * 1000)
+    execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
     return FixBatchResult(
         total_violations=len(fixable_violations),

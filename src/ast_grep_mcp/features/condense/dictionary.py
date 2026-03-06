@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ...constants import CondenseDefaults, CondenseDictionaryDefaults
+from ...constants import CondenseDefaults, CondenseDictionaryDefaults, SubprocessDefaults
 from ...core.logging import get_logger
 from .estimator import _collect_files
 
@@ -146,7 +146,7 @@ def _write_training_result(
             cmd,
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=SubprocessDefaults.ZSTD_TRAIN_TIMEOUT_SECONDS,
         )
 
         if result.returncode != 0:

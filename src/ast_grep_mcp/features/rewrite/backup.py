@@ -7,6 +7,7 @@ import shutil
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
 
 
@@ -22,7 +23,7 @@ def create_backup(files_to_backup: List[str], project_folder: str) -> str:
     """
     logger = get_logger("rewrite.backup")
 
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-FormattingDefaults.TIMESTAMP_MS_TRIM]
     backup_id = f"backup-{timestamp}"
     backup_base_dir = os.path.join(project_folder, ".ast-grep-backups")
     backup_dir = os.path.join(backup_base_dir, backup_id)
@@ -82,7 +83,7 @@ def create_deduplication_backup(
     """
     logger = get_logger("rewrite.backup")
 
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-FormattingDefaults.TIMESTAMP_MS_TRIM]
     backup_id = f"dedup-backup-{timestamp}"
     backup_base_dir = os.path.join(project_folder, ".ast-grep-backups")
     backup_dir = os.path.join(backup_base_dir, backup_id)

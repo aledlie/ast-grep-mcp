@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from ast_grep_mcp.constants import DisplayDefaults
+from ast_grep_mcp.constants import ConversionFactors, DisplayDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.cross_language import (
     SUPPORTED_LANGUAGES,
@@ -405,5 +405,5 @@ def refactor_polyglot_impl(
         files_modified=files_modified,
         validation_passed=validation_passed,
         validation_errors=validation_errors,
-        execution_time_ms=int((time.time() - start_time) * 1000),
+        execution_time_ms=int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND),
     )

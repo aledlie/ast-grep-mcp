@@ -7,7 +7,7 @@ retrieving trends, and formatting the final response.
 import subprocess
 from typing import Any, Dict, List, Optional
 
-from ...constants import ComplexityStorageDefaults, FormattingDefaults, ValidationDefaults
+from ...constants import ComplexityStorageDefaults, ConversionFactors, FormattingDefaults, ValidationDefaults
 from ...core.logging import get_logger
 from ...models.complexity import FunctionComplexity
 from .storage import ComplexityStorage
@@ -129,7 +129,7 @@ class ComplexityStatisticsAggregator:
                 "max_cognitive": summary["max_cognitive"],
                 "max_nesting": summary["max_nesting"],
                 "violation_count": summary["exceeding_threshold"],
-                "duration_ms": int(summary["analysis_time_seconds"] * 1000),
+                "duration_ms": int(summary["analysis_time_seconds"] * ConversionFactors.MILLISECONDS_PER_SECOND),
             }
 
             run_id = storage.store_analysis_run(project_folder, results_data, all_functions, commit_hash, branch_name)

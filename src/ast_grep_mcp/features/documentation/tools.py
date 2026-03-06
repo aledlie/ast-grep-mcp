@@ -15,7 +15,7 @@ import sentry_sdk
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults
+from ast_grep_mcp.constants import ConversionFactors, DisplayDefaults, FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.documentation.api_docs_generator import generate_api_docs_impl
 from ast_grep_mcp.features.documentation.changelog_generator import generate_changelog_impl
@@ -653,7 +653,11 @@ def sync_documentation_tool(
                 "undocumented_functions": result.undocumented_functions,
                 "stale_docstrings": result.stale_docstrings,
                 "documentation_coverage": (
-                    round(result.documented_functions / result.total_functions * 100, 1) if result.total_functions > 0 else 0
+                    round(
+                        result.documented_functions / result.total_functions * ConversionFactors.PERCENT_MULTIPLIER, 1
+                    )
+                    if result.total_functions > 0
+                    else 0
                 ),
             },
             "issues": [

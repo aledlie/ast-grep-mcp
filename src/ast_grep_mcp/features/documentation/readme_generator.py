@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Tuple, cast
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import ReadmeDefaults, ReadmeSectionOrder
+from ast_grep_mcp.constants import ConversionFactors, ReadmeDefaults, ReadmeSectionOrder
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
     ProjectInfo,
@@ -426,7 +426,7 @@ def _get_project_description(project_folder: str) -> Optional[str]:
     return None
 
 
-def _get_js_dependencies(project_folder: str, max_deps: int = 10) -> List[str]:
+def _get_js_dependencies(project_folder: str, max_deps: int = ReadmeDefaults.MAX_DEPENDENCIES) -> List[str]:
     """Get JavaScript dependencies from package.json.
 
     Args:
@@ -449,7 +449,7 @@ def _get_js_dependencies(project_folder: str, max_deps: int = 10) -> List[str]:
         return []
 
 
-def _get_python_dependencies(project_folder: str, max_deps: int = 10) -> List[str]:
+def _get_python_dependencies(project_folder: str, max_deps: int = ReadmeDefaults.MAX_DEPENDENCIES) -> List[str]:
     """Get Python dependencies from requirements.txt.
 
     Args:
@@ -967,7 +967,7 @@ def generate_readme_sections_impl(
 
     full_readme = "\n".join(full_readme_parts)
 
-    execution_time = int((time.time() - start_time) * 1000)
+    execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
     logger.info(
         "generate_readme_completed",

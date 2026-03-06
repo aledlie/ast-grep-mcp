@@ -18,7 +18,7 @@ from typing import Any, Dict, List, cast
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import PatternSuggestionConfidence, SecurityScanDefaults, SeverityRankingDefaults
+from ast_grep_mcp.constants import ConversionFactors, PatternSuggestionConfidence, SecurityScanDefaults, SeverityRankingDefaults
 from ast_grep_mcp.core.executor import stream_ast_grep_results
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.standards import SecurityIssue, SecurityScanResult
@@ -647,7 +647,7 @@ def detect_security_issues_impl(
     summary = _build_summary(by_severity=by_severity, by_type=by_type, total_count=len(filtered_issues))
 
     # Calculate execution time
-    execution_time = int((time.time() - start_time) * 1000)
+    execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
     # Return complete scan results
     return SecurityScanResult(

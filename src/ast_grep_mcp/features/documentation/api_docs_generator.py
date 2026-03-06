@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import RegexCaptureGroups
+from ast_grep_mcp.constants import ConversionFactors, RegexCaptureGroups
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
     ApiDocsResult,
@@ -651,7 +651,7 @@ def generate_api_docs_impl(
             routes=[],
             markdown="# API Documentation\n\nNo web framework detected.",
             framework=None,
-            execution_time_ms=int((time.time() - start_time) * 1000),
+            execution_time_ms=int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND),
         )
 
     # Select parser based on framework
@@ -670,7 +670,7 @@ def generate_api_docs_impl(
             routes=[],
             markdown=f"# API Documentation\n\nFramework '{framework}' is not yet supported.",
             framework=framework,
-            execution_time_ms=int((time.time() - start_time) * 1000),
+            execution_time_ms=int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND),
         )
 
     # Find route files
@@ -694,7 +694,7 @@ def generate_api_docs_impl(
         project_name = os.path.basename(project_folder)
         openapi_spec = _generate_openapi_spec(all_routes, project_name)
 
-    execution_time = int((time.time() - start_time) * 1000)
+    execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
     logger.info(
         "generate_api_docs_completed",

@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Tuple
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import DocstringDefaults
+from ast_grep_mcp.constants import ConversionFactors, DocstringDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
     DocstringGenerationResult,
@@ -652,13 +652,13 @@ class FunctionSignatureParser:
 
         # Check for docstring start
         if next_line.startswith('"""') or next_line.startswith("'''"):
-            quote = next_line[:3]
-            if next_line.endswith(quote) and len(next_line) > 6:
+            quote = next_line[:DocstringDefaults.QUOTE_LENGTH]
+            if next_line.endswith(quote) and len(next_line) > DocstringDefaults.MIN_ONELINER_LENGTH:
                 # Single-line docstring
-                return next_line[3:-3]
+                return next_line[DocstringDefaults.QUOTE_LENGTH:-DocstringDefaults.QUOTE_LENGTH]
 
             # Multi-line docstring
-            docstring_lines = [next_line[3:]]
+            docstring_lines = [next_line[DocstringDefaults.QUOTE_LENGTH:]]
             next_idx += 1
             while next_idx < len(lines):
                 line = lines[next_idx]
@@ -717,9 +717,9 @@ class FunctionSignatureParser:
                     groups = match.groups()
 
                     # Parse based on pattern type
-                    if len(groups) == 5:  # Regular function
+                    if len(groups) == DocstringDefaults.REGULAR_FUNCTION_GROUP_COUNT:  # Regular function
                         _, is_async, name, params_str, return_type = groups
-                    elif len(groups) == 6:  # Arrow function
+                    elif len(groups) == DocstringDefaults.ARROW_FUNCTION_GROUP_COUNT:  # Arrow function
                         _, _, name, is_async, params_str, return_type = groups
                     else:  # Method
                         is_async, name, params_str, return_type = groups
@@ -1365,7 +1365,7 @@ def generate_docstrings_impl(
     # Apply docstrings if not dry run
     files_modified = _apply_docstrings_to_files(docstrings_by_file, language) if not dry_run else []
 
-    execution_time = int((time.time() - start_time) * 1000)
+    execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
     logger.info(
         "generate_docstrings_completed",
