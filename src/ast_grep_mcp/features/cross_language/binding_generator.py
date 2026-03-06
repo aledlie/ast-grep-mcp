@@ -272,6 +272,28 @@ def _python_method_body(
     return lines
 
 
+def _python_type_converter(t: str) -> str:
+    return OPENAPI_TO_PYTHON.get(t, "Any")
+
+
+def _python_endpoint_lines(endpoint: ApiEndpoint) -> List[str]:
+    """Generate lines for a single Python endpoint method."""
+    method_name = _to_camel_case(endpoint.operation_id)
+    params, path_params, query_params = _classify_parameters(endpoint.parameters, _python_type_converter)
+    params_str = _python_param_string(params, bool(endpoint.request_body))
+    lines = [
+        f"    def {method_name}({params_str}) -> Dict[str, Any]:",
+        '        """',
+        f"        {endpoint.summary or endpoint.description or endpoint.operation_id}",
+        "",
+        f"        {endpoint.method} {endpoint.path}",
+        '        """',
+    ]
+    lines.extend(_python_method_body(endpoint, path_params, query_params))
+    lines.append("")
+    return lines
+
+
 def _generate_python_binding(
     api_name: str,
     base_url: str,
@@ -300,29 +322,9 @@ def _generate_python_binding(
         "",
     ]
 
-    types_generated = []
-
-    def type_converter(t: str) -> str:
-        return OPENAPI_TO_PYTHON.get(t, "Any")
-
+    types_generated = [_to_camel_case(ep.operation_id) for ep in endpoints]
     for endpoint in endpoints:
-        method_name = _to_camel_case(endpoint.operation_id)
-        params, path_params, query_params = _classify_parameters(endpoint.parameters, type_converter)
-        params_str = _python_param_string(params, bool(endpoint.request_body))
-
-        lines.extend(
-            [
-                f"    def {method_name}({params_str}) -> Dict[str, Any]:",
-                '        """',
-                f"        {endpoint.summary or endpoint.description or endpoint.operation_id}",
-                "",
-                f"        {endpoint.method} {endpoint.path}",
-                '        """',
-            ]
-        )
-        lines.extend(_python_method_body(endpoint, path_params, query_params))
-        lines.append("")
-        types_generated.append(method_name)
+        lines.extend(_python_endpoint_lines(endpoint))
 
     return GeneratedBinding(
         language="python",
@@ -385,16 +387,32 @@ def _ts_method_body(
     return lines
 
 
-def _generate_typescript_binding(
-    api_name: str,
-    base_url: str,
-    endpoints: List[ApiEndpoint],
-    style: BindingStyle,
-) -> GeneratedBinding:
-    """Generate TypeScript API client binding."""
-    class_name = _to_pascal_case(api_name) + "Client"
+def _ts_type_converter(t: str) -> str:
+    return OPENAPI_TO_TYPESCRIPT.get(t, "unknown")
 
+
+def _ts_endpoint_lines(endpoint: ApiEndpoint) -> List[str]:
+    """Generate lines for a single TypeScript endpoint method."""
+    method_name = _to_camel_case(endpoint.operation_id)
+    params, path_params_raw, query_params = _classify_parameters(endpoint.parameters, _ts_type_converter)
+    path_params = [(p, _to_camel_case(p)) for p in path_params_raw]
+    params_str = _ts_param_string(params, bool(endpoint.request_body))
     lines = [
+        "  /**",
+        f"   * {endpoint.summary or endpoint.description or endpoint.operation_id}",
+        f"   * {endpoint.method} {endpoint.path}",
+        "   */",
+        f"  async {method_name}({params_str}): Promise<unknown> {{",
+    ]
+    lines.extend(_ts_method_body(endpoint, path_params, query_params))
+    lines.extend(["  }", ""])
+    return lines
+
+
+def _ts_class_header(api_name: str, base_url: str) -> List[str]:
+    """Return the TypeScript class boilerplate header lines."""
+    class_name = _to_pascal_case(api_name) + "Client"
+    return [
         "/**",
         f" * Auto-generated API client for {api_name}",
         " */",
@@ -427,31 +445,18 @@ def _generate_typescript_binding(
         "",
     ]
 
-    types_generated = []
 
-    def type_converter(t: str) -> str:
-        return OPENAPI_TO_TYPESCRIPT.get(t, "unknown")
-
+def _generate_typescript_binding(
+    api_name: str,
+    base_url: str,
+    endpoints: List[ApiEndpoint],
+    style: BindingStyle,
+) -> GeneratedBinding:
+    """Generate TypeScript API client binding."""
+    lines = _ts_class_header(api_name, base_url)
+    types_generated = [_to_camel_case(ep.operation_id) for ep in endpoints]
     for endpoint in endpoints:
-        method_name = _to_camel_case(endpoint.operation_id)
-        params, path_params_raw, query_params = _classify_parameters(endpoint.parameters, type_converter)
-        # Convert path_params to tuples with camel names
-        path_params = [(p, _to_camel_case(p)) for p in path_params_raw]
-        params_str = _ts_param_string(params, bool(endpoint.request_body))
-
-        lines.extend(
-            [
-                "  /**",
-                f"   * {endpoint.summary or endpoint.description or endpoint.operation_id}",
-                f"   * {endpoint.method} {endpoint.path}",
-                "   */",
-                f"  async {method_name}({params_str}): Promise<unknown> {{",
-            ]
-        )
-        lines.extend(_ts_method_body(endpoint, path_params, query_params))
-        lines.extend(["  }", ""])
-        types_generated.append(method_name)
-
+        lines.extend(_ts_endpoint_lines(endpoint))
     lines.append("}")
 
     return GeneratedBinding(
@@ -475,6 +480,28 @@ def _js_param_string(params: List[Tuple[str, str, bool]], has_body: bool) -> str
     if has_body:
         names.append("body")
     return ", ".join(names)
+
+
+def _js_type_converter(t: str) -> str:
+    return t
+
+
+def _js_endpoint_lines(endpoint: ApiEndpoint) -> List[str]:
+    """Generate lines for a single JavaScript endpoint method."""
+    method_name = _to_camel_case(endpoint.operation_id)
+    params, path_params_raw, query_params = _classify_parameters(endpoint.parameters, _js_type_converter)
+    path_params = [(p, _to_camel_case(p)) for p in path_params_raw]
+    params_str = _js_param_string(params, bool(endpoint.request_body))
+    lines = [
+        "  /**",
+        f"   * {endpoint.summary or endpoint.description or endpoint.operation_id}",
+        f"   * {endpoint.method} {endpoint.path}",
+        "   */",
+        f"  async {method_name}({params_str}) {{",
+    ]
+    lines.extend(_ts_method_body(endpoint, path_params, query_params))
+    lines.extend(["  }", ""])
+    return lines
 
 
 def _generate_javascript_binding(
@@ -511,39 +538,10 @@ def _generate_javascript_binding(
         "",
     ]
 
-    types_generated = []
-
-    # JavaScript doesn't need types but we reuse the classification
-    def type_converter(t: str) -> str:
-        return t
-
+    types_generated = [_to_camel_case(ep.operation_id) for ep in endpoints]
     for endpoint in endpoints:
-        method_name = _to_camel_case(endpoint.operation_id)
-        params, path_params_raw, query_params = _classify_parameters(endpoint.parameters, type_converter)
-        path_params = [(p, _to_camel_case(p)) for p in path_params_raw]
-        params_str = _js_param_string(params, bool(endpoint.request_body))
-
-        lines.extend(
-            [
-                "  /**",
-                f"   * {endpoint.summary or endpoint.description or endpoint.operation_id}",
-                f"   * {endpoint.method} {endpoint.path}",
-                "   */",
-                f"  async {method_name}({params_str}) {{",
-            ]
-        )
-        # Reuse TS method body generation (same structure)
-        lines.extend(_ts_method_body(endpoint, path_params, query_params))
-        lines.extend(["  }", ""])
-        types_generated.append(method_name)
-
-    lines.extend(
-        [
-            "}",
-            "",
-            f"module.exports = {{ {class_name} }};",
-        ]
-    )
+        lines.extend(_js_endpoint_lines(endpoint))
+    lines.extend(["}", "", f"module.exports = {{ {class_name} }};"])
 
     return GeneratedBinding(
         language="javascript",

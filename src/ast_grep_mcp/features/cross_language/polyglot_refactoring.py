@@ -240,6 +240,15 @@ def _analyze_risks(
 CONFIG_PATTERNS = ["README.md", "CHANGELOG.md", "*.yaml", "*.yml", "*.json", "*.toml"]
 
 
+def _check_config_file(file_path: Path, symbol: str) -> Optional[str]:
+    """Return file path string if symbol found in file, else None."""
+    try:
+        content = file_path.read_text(encoding="utf-8", errors="ignore")
+        return str(file_path) if symbol in content else None
+    except Exception:
+        return None
+
+
 def _identify_manual_review(
     project_folder: str,
     symbol: str,
@@ -251,12 +260,9 @@ def _identify_manual_review(
 
     for pattern in CONFIG_PATTERNS:
         for file_path in project_path.rglob(pattern):
-            try:
-                content = file_path.read_text(encoding="utf-8", errors="ignore")
-                if symbol in content:
-                    manual_review.append(str(file_path))
-            except Exception:
-                pass
+            result = _check_config_file(file_path, symbol)
+            if result:
+                manual_review.append(result)
 
     return manual_review[:10]
 

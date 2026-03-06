@@ -151,6 +151,14 @@ def validate_java_syntax(code: str) -> Tuple[bool, str]:
     return True, ""
 
 
+_JS_LIKE_LANGUAGES = frozenset(["javascript", "typescript", "jsx", "tsx"])
+
+_LANGUAGE_VALIDATORS = {
+    "python": validate_python_syntax,
+    "java": validate_java_syntax,
+}
+
+
 def validate_code_for_language(code: str, language: str) -> Tuple[bool, str]:
     """Validate code syntax for specific language.
 
@@ -169,13 +177,11 @@ def validate_code_for_language(code: str, language: str) -> Tuple[bool, str]:
 
     lang_lower = language.lower()
 
-    if lang_lower == "python":
-        return validate_python_syntax(code)
-    elif lang_lower in ["javascript", "typescript", "jsx", "tsx"]:
+    if lang_lower in _JS_LIKE_LANGUAGES:
         return validate_javascript_syntax(code)
-    elif lang_lower == "java":
-        return validate_java_syntax(code)
-    else:
-        # For unsupported languages, do basic checks
-        # Note: Logger would be passed in if needed for warnings
-        return True, ""
+
+    validator = _LANGUAGE_VALIDATORS.get(lang_lower)
+    if validator:
+        return validator(code)
+
+    return True, ""

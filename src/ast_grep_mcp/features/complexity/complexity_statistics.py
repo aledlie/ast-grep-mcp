@@ -39,16 +39,9 @@ class ComplexityStatisticsAggregator:
             Summary statistics dictionary
         """
         total_functions = len(all_functions)
-
-        if total_functions > 0:
-            avg_cyclomatic = sum(f.metrics.cyclomatic for f in all_functions) / total_functions
-            avg_cognitive = sum(f.metrics.cognitive for f in all_functions) / total_functions
-            max_cyclomatic = max(f.metrics.cyclomatic for f in all_functions)
-            max_cognitive = max(f.metrics.cognitive for f in all_functions)
-            max_nesting = max(f.metrics.nesting_depth for f in all_functions)
-        else:
-            avg_cyclomatic = avg_cognitive = 0
-            max_cyclomatic = max_cognitive = max_nesting = 0
+        avg_cyclomatic, avg_cognitive, max_cyclomatic, max_cognitive, max_nesting = self._compute_metrics(
+            all_functions, total_functions
+        )
 
         return {
             "total_functions": total_functions,
@@ -62,6 +55,34 @@ class ComplexityStatisticsAggregator:
             "analysis_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
         }
 
+    def _compute_metrics(
+        self, all_functions: List[FunctionComplexity], total_functions: int
+    ) -> tuple[float, float, int, int, int]:
+        """Return (avg_cyc, avg_cog, max_cyc, max_cog, max_nest) or zeros if empty."""
+        if not total_functions:
+            return 0.0, 0.0, 0, 0, 0
+        cyclomatic_vals = [f.metrics.cyclomatic for f in all_functions]
+        cognitive_vals = [f.metrics.cognitive for f in all_functions]
+        nesting_vals = [f.metrics.nesting_depth for f in all_functions]
+        return (
+            sum(cyclomatic_vals) / total_functions,
+            sum(cognitive_vals) / total_functions,
+            max(cyclomatic_vals),
+            max(cognitive_vals),
+            max(nesting_vals),
+        )
+
+    def _run_git_command(self, args: list[str], cwd: str) -> Optional[str]:
+        """Run a git command and return stdout stripped, or None on failure."""
+        result = subprocess.run(
+            args,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=ValidationDefaults.SYNTAX_CHECK_TIMEOUT_SECONDS,
+        )
+        return result.stdout.strip() or None if result.returncode == 0 else None
+
     def get_git_info(self, project_folder: str) -> tuple[Optional[str], Optional[str]]:
         """Get current git commit and branch information.
 
@@ -71,34 +92,12 @@ class ComplexityStatisticsAggregator:
         Returns:
             Tuple of (commit_hash, branch_name) or (None, None) if not a git repo
         """
-        commit_hash = None
-        branch_name = None
-
         try:
-            # Get commit hash
-            commit_result = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                cwd=project_folder,
-                capture_output=True,
-                text=True,
-                timeout=ValidationDefaults.SYNTAX_CHECK_TIMEOUT_SECONDS,
-            )
-            if commit_result.returncode == 0:
-                commit_hash = commit_result.stdout.strip() or None
-
-            # Get branch name
-            branch_result = subprocess.run(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                cwd=project_folder,
-                capture_output=True,
-                text=True,
-                timeout=ValidationDefaults.SYNTAX_CHECK_TIMEOUT_SECONDS,
-            )
-            if branch_result.returncode == 0:
-                branch_name = branch_result.stdout.strip() or None
-
+            commit_hash = self._run_git_command(["git", "rev-parse", "HEAD"], project_folder)
+            branch_name = self._run_git_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], project_folder)
         except Exception as e:
             self.logger.debug("git_info_failed", error=str(e))
+            return None, None
 
         return commit_hash, branch_name
 
@@ -160,6 +159,19 @@ class ComplexityStatisticsAggregator:
             self.logger.warning("trends_failed", error=str(e))
             return None
 
+    @staticmethod
+    def _function_to_dict(f: FunctionComplexity) -> Dict[str, Any]:
+        return {
+            "name": f.function_name,
+            "file": f.file_path,
+            "lines": f"{f.start_line}-{f.end_line}",
+            "cyclomatic": f.metrics.cyclomatic,
+            "cognitive": f.metrics.cognitive,
+            "nesting_depth": f.metrics.nesting_depth,
+            "length": f.metrics.lines,
+            "exceeds": f.exceeds,
+        }
+
     def format_response(
         self,
         summary: Dict[str, Any],
@@ -169,41 +181,16 @@ class ComplexityStatisticsAggregator:
         stored_at: Optional[str] = None,
         trends: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Format final analysis response.
-
-        Args:
-            summary: Summary statistics
-            thresholds: Complexity thresholds used
-            exceeding_functions: Functions exceeding thresholds
-            run_id: Storage run ID (optional)
-            stored_at: Storage location (optional)
-            trends: Trend data (optional)
-
-        Returns:
-            Formatted response dictionary
-        """
+        """Format final analysis response."""
         response: Dict[str, Any] = {
             "summary": summary,
             "thresholds": thresholds,
-            "functions": [
-                {
-                    "name": f.function_name,
-                    "file": f.file_path,
-                    "lines": f"{f.start_line}-{f.end_line}",
-                    "cyclomatic": f.metrics.cyclomatic,
-                    "cognitive": f.metrics.cognitive,
-                    "nesting_depth": f.metrics.nesting_depth,
-                    "length": f.metrics.lines,
-                    "exceeds": f.exceeds,
-                }
-                for f in exceeding_functions
-            ],
+            "functions": [self._function_to_dict(f) for f in exceeding_functions],
             "message": (f"Found {len(exceeding_functions)} function(s) exceeding thresholds out of {summary['total_functions']} total"),
         }
 
         if run_id:
             response["storage"] = {"run_id": run_id, "stored_at": stored_at}
-
         if trends:
             response["trends"] = trends
 

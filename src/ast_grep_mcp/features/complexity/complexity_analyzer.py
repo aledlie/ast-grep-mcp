@@ -5,7 +5,7 @@ complexity metrics for all functions.
 """
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List
+from typing import Any, List
 
 from ...constants import ParallelProcessing
 from ...core.logging import get_logger
@@ -37,26 +37,26 @@ class ParallelComplexityAnalyzer:
         self.logger.info("analyze_files_start", file_count=len(files), language=language, max_threads=max_threads)
 
         all_functions: List[FunctionComplexity] = []
+        lang = language.lower()
 
-        def analyze_single_file(file_path: str) -> List[FunctionComplexity]:
-            """Analyze a single file for complexity."""
-            return analyze_file_complexity(file_path, language.lower(), thresholds)
-
-        # Execute in parallel
         with ThreadPoolExecutor(max_workers=max_threads) as executor:
-            futures = {executor.submit(analyze_single_file, f): f for f in files}
-
+            futures = {executor.submit(analyze_file_complexity, f, lang, thresholds): f for f in files}
             for future in as_completed(futures):
-                try:
-                    result = future.result()
-                    all_functions.extend(result)
-                except Exception as e:
-                    file_path = futures[future]
-                    self.logger.warning("file_analysis_failed", file=file_path, error=str(e))
+                self._collect_future_result(future, futures[future], all_functions)
 
         self.logger.info("analyze_files_complete", total_functions=len(all_functions))
 
         return all_functions
+
+    def _collect_future_result(
+        self, future: Any, file_path: str, all_functions: List[FunctionComplexity]
+    ) -> None:
+        """Collect result from a completed future into all_functions."""
+        try:
+            result = future.result()
+            all_functions.extend(result)
+        except Exception as e:
+            self.logger.warning("file_analysis_failed", file=file_path, error=str(e))
 
     def filter_exceeding_functions(self, functions: List[FunctionComplexity]) -> List[FunctionComplexity]:
         """Filter to only functions exceeding thresholds.

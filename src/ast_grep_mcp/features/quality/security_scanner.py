@@ -288,6 +288,24 @@ CRYPTO_PATTERNS = {
 # =============================================================================
 
 
+def _match_to_issue(match: Dict[str, Any], pattern_def: Dict[str, Any]) -> SecurityIssue:
+    return SecurityIssue(
+        file=match.get("file", ""),
+        line=match.get("line", 1),
+        column=match.get("column", 1),
+        end_line=match.get("end_line", match.get("line", 1)),
+        end_column=match.get("end_column", 1),
+        issue_type=pattern_def.get("issue_type", "unknown"),
+        severity=pattern_def["severity"],
+        title=pattern_def["title"],
+        description=pattern_def["description"],
+        code_snippet=match.get("text", ""),
+        remediation=pattern_def["remediation"],
+        cwe_id=pattern_def.get("cwe"),
+        confidence=pattern_def.get("confidence", SecurityScanDefaults.DEFAULT_CONFIDENCE),
+    )
+
+
 def scan_for_vulnerability(project_folder: str, language: str, patterns: List[Dict[str, Any]]) -> List[SecurityIssue]:
     """Scan for vulnerabilities using ast-grep patterns.
 
@@ -303,34 +321,10 @@ def scan_for_vulnerability(project_folder: str, language: str, patterns: List[Di
 
     for pattern_def in patterns:
         try:
-            # Build ast-grep command arguments
             args = ["-p", pattern_def["pattern"], "-l", language, "--json=stream", project_folder]
-
-            # Execute ast-grep with pattern
-            results = stream_ast_grep_results(
-                "run",
-                args,
-                max_results=0,  # No limit
-            )
-
+            results = stream_ast_grep_results("run", args, max_results=0)
             for match in results:
-                issue = SecurityIssue(
-                    file=match.get("file", ""),
-                    line=match.get("line", 1),
-                    column=match.get("column", 1),
-                    end_line=match.get("end_line", match.get("line", 1)),
-                    end_column=match.get("end_column", 1),
-                    issue_type=pattern_def.get("issue_type", "unknown"),
-                    severity=pattern_def["severity"],
-                    title=pattern_def["title"],
-                    description=pattern_def["description"],
-                    code_snippet=match.get("text", ""),
-                    remediation=pattern_def["remediation"],
-                    cwe_id=pattern_def.get("cwe"),
-                    confidence=pattern_def.get("confidence", SecurityScanDefaults.DEFAULT_CONFIDENCE),
-                )
-                issues.append(issue)
-
+                issues.append(_match_to_issue(match, pattern_def))
         except Exception as e:
             logger.warning(f"Pattern scan failed: {pattern_def.get('title')}: {e}")
             sentry_sdk.capture_exception(e)
@@ -600,6 +594,22 @@ def _build_summary(
     }
 
 
+def _collect_issues(project_folder: str, language: str, issue_types: List[str]) -> List[SecurityIssue]:
+    scan_all = "all" in issue_types
+    types_to_scan = list(SCAN_CONFIG.keys()) if scan_all else issue_types
+    all_issues: List[SecurityIssue] = []
+    for issue_type in types_to_scan:
+        if issue_type in SCAN_CONFIG:
+            issues = _scan_for_issue_type(
+                issue_type=issue_type,
+                config=cast(Dict[str, Any], SCAN_CONFIG[issue_type]),
+                project_folder=project_folder,
+                language=language,
+            )
+            all_issues.extend(issues)
+    return all_issues
+
+
 def detect_security_issues_impl(
     project_folder: str,
     language: str,
@@ -620,36 +630,11 @@ def detect_security_issues_impl(
         SecurityScanResult with all findings
     """
     start_time = time.time()
-
-    # Determine which issue types to scan
-    scan_all = "all" in issue_types
-    types_to_scan = SCAN_CONFIG.keys() if scan_all else issue_types
-
-    # Run scans for each configured issue type
-    all_issues: List[SecurityIssue] = []
-    for issue_type in types_to_scan:
-        if issue_type in SCAN_CONFIG:
-            issues = _scan_for_issue_type(
-                issue_type=issue_type,
-                config=cast(Dict[str, Any], SCAN_CONFIG[issue_type]),
-                project_folder=project_folder,
-                language=language,
-            )
-            all_issues.extend(issues)
-
-    # Filter and limit results
+    all_issues = _collect_issues(project_folder, language, issue_types)
     filtered_issues = _filter_by_severity(issues=all_issues, severity_threshold=severity_threshold, max_issues=max_issues)
-
-    # Group issues for reporting
     by_severity, by_type = _group_issues(filtered_issues)
-
-    # Build summary statistics
     summary = _build_summary(by_severity=by_severity, by_type=by_type, total_count=len(filtered_issues))
-
-    # Calculate execution time
     execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
-
-    # Return complete scan results
     return SecurityScanResult(
         summary=summary,
         issues=filtered_issues,

@@ -10,6 +10,16 @@ from typing import Any, Callable, List, Optional
 from ...constants import DeduplicationDefaults, ParallelProcessing
 
 
+def _require_positive(value: int, name: str) -> None:
+    if value < 1:
+        raise ValueError(f"{name} must be a positive integer, got {value}")
+
+
+def _require_positive_workers(value: int) -> None:
+    if value < 1:
+        raise ValueError(f"max_workers must be positive, got {value}")
+
+
 @dataclass
 class AnalysisConfig:
     """Configuration for deduplication candidate analysis.
@@ -83,22 +93,15 @@ class AnalysisConfig:
         Raises:
             ValueError: If any configuration value is invalid
         """
-        # Normalize exclude_patterns to empty list if None
         if self.exclude_patterns is None:
             self.exclude_patterns = []
 
-        # Validate ranges (detailed validation happens in orchestrator)
         if not 0.0 <= self.min_similarity <= 1.0:
             raise ValueError(f"min_similarity must be between 0.0 and 1.0, got {self.min_similarity}")
 
-        if self.min_lines < 1:
-            raise ValueError(f"min_lines must be a positive integer, got {self.min_lines}")
-
-        if self.max_candidates < 1:
-            raise ValueError(f"max_candidates must be a positive integer, got {self.max_candidates}")
-
-        if self.max_workers < 1:
-            raise ValueError(f"max_workers must be positive, got {self.max_workers}")
+        _require_positive(self.min_lines, "min_lines")
+        _require_positive(self.max_candidates, "max_candidates")
+        _require_positive_workers(self.max_workers)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert config to dictionary for logging/serialization.

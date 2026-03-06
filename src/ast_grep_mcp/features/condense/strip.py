@@ -65,22 +65,19 @@ def _strip_js_ts(lines: List[str]) -> Tuple[List[str], int]:
     return kept, removed
 
 
+_PY_DEBUG_PATTERNS = [_PY_PRINT, _PY_BREAKPOINT, _PY_IMPORT_PDB]
+
+
 def _strip_python(lines: List[str]) -> Tuple[List[str], int]:
     """Strip Python debug statements and import pdb."""
+    if not CondenseDefaults.STRIP_DEBUG_STATEMENTS:
+        return lines, 0
+
     kept: List[str] = []
     removed = 0
-
     for line in lines:
-        if CondenseDefaults.STRIP_DEBUG_STATEMENTS:
-            if _PY_PRINT.match(line):
-                removed += 1
-                continue
-            if _PY_BREAKPOINT.match(line):
-                removed += 1
-                continue
-            if _PY_IMPORT_PDB.match(line):
-                removed += 1
-                continue
-        kept.append(line)
-
+        if any(p.match(line) for p in _PY_DEBUG_PATTERNS):
+            removed += 1
+        else:
+            kept.append(line)
     return kept, removed

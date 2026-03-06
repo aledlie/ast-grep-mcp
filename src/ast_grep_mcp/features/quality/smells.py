@@ -30,6 +30,21 @@ from ast_grep_mcp.features.quality.smells_helpers import (
 )
 
 
+def _run_parallel_analysis(
+    analyzer: SmellAnalyzer,
+    files_to_analyze: List[str],
+    normalized_language: str,
+    project_path: Any,
+    max_threads: int,
+) -> List[Dict[str, Any]]:
+    """Run smell analysis in parallel over files and return aggregated smells."""
+    with ThreadPoolExecutor(max_workers=max_threads) as executor:
+        file_results = list(
+            executor.map(lambda f: analyzer.analyze_file(f, normalized_language, project_path), files_to_analyze)
+        )
+    return aggregate_smell_results(file_results)
+
+
 def detect_code_smells_impl(
     project_folder: str,
     language: str,
@@ -44,36 +59,12 @@ def detect_code_smells_impl(
     severity_filter: str,
     max_threads: int,
 ) -> Dict[str, Any]:
-    """Detect common code smells in a project.
-
-    This function orchestrates smell detection using modular detector classes.
-
-    Args:
-        project_folder: Absolute path to project
-        language: Programming language (python, typescript, javascript, java)
-        include_patterns: Glob patterns for files to include
-        exclude_patterns: Glob patterns for files to exclude
-        long_function_lines: Line count threshold for long function smell
-        parameter_count: Parameter count threshold for parameter bloat
-        nesting_depth: Nesting depth threshold for deep nesting smell
-        class_lines: Line count threshold for large class smell
-        class_methods: Method count threshold for large class smell
-        detect_magic_numbers: Whether to detect magic number smells
-        severity_filter: Filter by severity: 'all', 'high', 'medium', 'low'
-        max_threads: Number of parallel threads for analysis
-
-    Returns:
-        Dictionary containing smell detection results with summary and details
-    """
-    _logger = get_logger("detect_code_smells")  # noqa: F841
-
+    """Detect common code smells in a project."""
     try:
-        # Step 1: Validate inputs and get normalized values
         project_path, file_ext, normalized_language = validate_smell_detection_inputs(project_folder, language, severity_filter)
     except ValueError as e:
         return {"error": str(e)}
 
-    # Step 2: Find files to analyze
     files_to_analyze = find_smell_analysis_files(project_path, file_ext, include_patterns, exclude_patterns)
 
     if not files_to_analyze:
@@ -84,24 +75,10 @@ def detect_code_smells_impl(
             "exclude_patterns": exclude_patterns,
         }
 
-    # Step 3: Initialize smell detectors with thresholds
     detectors = _create_detectors(long_function_lines, parameter_count, nesting_depth, class_lines, class_methods, detect_magic_numbers)
-
-    # Step 4: Create analyzer and analyze files in parallel
     analyzer = SmellAnalyzer(detectors)
+    all_smells = _run_parallel_analysis(analyzer, files_to_analyze, normalized_language, project_path, max_threads)
 
-    def analyze_file_wrapper(file_path: str) -> List[Dict[str, Any]]:
-        """Wrapper for parallel execution."""
-        return analyzer.analyze_file(file_path, normalized_language, project_path)
-
-    # Execute analysis in parallel
-    with ThreadPoolExecutor(max_workers=max_threads) as executor:
-        file_results = list(executor.map(analyze_file_wrapper, files_to_analyze))
-
-    # Step 5: Aggregate results from all files
-    all_smells = aggregate_smell_results(file_results)
-
-    # Step 6: Format and return response
     thresholds = {
         "long_function_lines": long_function_lines,
         "parameter_count": parameter_count,
@@ -109,7 +86,6 @@ def detect_code_smells_impl(
         "class_lines": class_lines,
         "class_methods": class_methods,
     }
-
     return format_smell_detection_response(project_folder, language, len(files_to_analyze), all_smells, thresholds, severity_filter)
 
 

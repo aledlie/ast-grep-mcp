@@ -59,6 +59,14 @@ def calculate_similarity(code1: str, code2: str, language: str | None = None) ->
     return matcher.ratio()
 
 
+def _trim_surrounding_blanks(lines: list[str]) -> list[str]:
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    while lines and not lines[-1].strip():
+        lines.pop()
+    return lines
+
+
 def clean_template_whitespace(template: str) -> str:
     """Clean and normalize whitespace in code templates.
 
@@ -73,33 +81,22 @@ def clean_template_whitespace(template: str) -> str:
     """
     if not template:
         return ""
+    lines = [line.rstrip() for line in template.split("\n")]
+    lines = _trim_surrounding_blanks(lines)
+    return "\n".join(_collapse_blank_lines(lines))
 
-    # Split into lines
-    lines = template.split("\n")
 
-    # Remove trailing whitespace from each line
-    lines = [line.rstrip() for line in lines]
-
-    # Remove leading/trailing blank lines
-    while lines and not lines[0].strip():
-        lines.pop(0)
-    while lines and not lines[-1].strip():
-        lines.pop()
-
-    # Collapse multiple consecutive blank lines into single blank line
-    result_lines: list[str] = []
+def _collapse_blank_lines(lines: list[str]) -> list[str]:
+    result: list[str] = []
     prev_blank = False
     for line in lines:
         is_blank = not line.strip()
-        if is_blank:
-            if not prev_blank:
-                result_lines.append("")
-            prev_blank = True
-        else:
-            result_lines.append(line)
-            prev_blank = False
-
-    return "\n".join(result_lines)
+        if is_blank and not prev_blank:
+            result.append("")
+        elif not is_blank:
+            result.append(line)
+        prev_blank = is_blank
+    return result
 
 
 # Alias for backward compatibility

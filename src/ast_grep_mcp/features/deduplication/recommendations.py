@@ -106,57 +106,29 @@ STRATEGY_CONFIG = {
 class RecommendationEngine:
     """Generates actionable recommendations for deduplication candidates."""
 
+    def _calc_effort_value_ratio(self, complexity: int, lines_saved: int, has_tests: bool, affected_files: int) -> float:
+        base_effort = complexity * RecommendationDefaults.EFFORT_COMPLEXITY_WEIGHT + affected_files * RecommendationDefaults.EFFORT_FILES_WEIGHT
+        if not has_tests:
+            base_effort *= RecommendationDefaults.NO_TESTS_EFFORT_MULTIPLIER
+        value = lines_saved * RecommendationDefaults.VALUE_LINES_WEIGHT + affected_files * RecommendationDefaults.VALUE_FILES_BONUS
+        return value / max(base_effort, 1)
+
+    def _score_to_priority(self, score: float) -> tuple[str, str]:
+        if score > RecommendationDefaults.HIGH_PRIORITY_SCORE_THRESHOLD:
+            return "High Value: Extract to shared utility", "high"
+        if score >= RecommendationDefaults.MEDIUM_PRIORITY_SCORE_THRESHOLD:
+            return "Medium Value: Consider refactoring", "medium"
+        return "Low Value: May not be worth refactoring", "low"
+
     def generate_deduplication_recommendation(
         self, score: float, complexity: int, lines_saved: int, has_tests: bool, affected_files: int
     ) -> Dict[str, Any]:
-        """Generate actionable recommendations for deduplication candidates.
-
-        Combines scoring factors to produce prioritized recommendations with
-        multiple refactoring strategy options ranked by effort/value ratio.
-
-        Args:
-            score: Overall deduplication score (0-100)
-            complexity: Cyclomatic complexity of the duplicated code
-            lines_saved: Number of lines that would be saved by deduplication
-            has_tests: Whether the duplicated code has test coverage
-            affected_files: Number of files containing the duplicate
-
-        Returns:
-            Dictionary containing:
-            - recommendation_text: Human-readable recommendation
-            - strategies: List of refactoring strategies with details
-            - priority: Priority level (high/medium/low)
-            - effort_value_ratio: Numeric ratio (higher = better value)
-        """
-        # Calculate effort estimate based on complexity and affected files
-        base_effort = (
-            complexity * RecommendationDefaults.EFFORT_COMPLEXITY_WEIGHT + affected_files * RecommendationDefaults.EFFORT_FILES_WEIGHT
-        )
-        if not has_tests:
-            base_effort *= RecommendationDefaults.NO_TESTS_EFFORT_MULTIPLIER
-
-        # Calculate value based on lines saved and affected files
-        value = lines_saved * RecommendationDefaults.VALUE_LINES_WEIGHT + affected_files * RecommendationDefaults.VALUE_FILES_BONUS
-
-        # Avoid division by zero
-        effort_value_ratio = value / max(base_effort, 1)
-
-        # Generate recommendation text based on score
-        if score > RecommendationDefaults.HIGH_PRIORITY_SCORE_THRESHOLD:
-            recommendation_text = "High Value: Extract to shared utility"
-            priority = "high"
-        elif score >= RecommendationDefaults.MEDIUM_PRIORITY_SCORE_THRESHOLD:
-            recommendation_text = "Medium Value: Consider refactoring"
-            priority = "medium"
-        else:
-            recommendation_text = "Low Value: May not be worth refactoring"
-            priority = "low"
-
-        # Generate strategy options ranked by suitability
+        """Generate actionable recommendations for deduplication candidates."""
+        effort_value_ratio = self._calc_effort_value_ratio(complexity, lines_saved, has_tests, affected_files)
+        recommendation_text, priority = self._score_to_priority(score)
         strategies = self._generate_dedup_refactoring_strategies(
             complexity=complexity, lines_saved=lines_saved, has_tests=has_tests, affected_files=affected_files, score=score
         )
-
         return {
             "recommendation_text": recommendation_text,
             "strategies": strategies,
@@ -281,80 +253,43 @@ class RecommendationEngine:
         return strategies
 
 
+_LANGUAGE_SUGGESTIONS: Dict[str, Dict[str, str]] = {
+    "python": {"type": "decorator_pattern", "description": "Consider using a decorator pattern in python for cross-cutting concerns"},
+    "ruby": {"type": "decorator_pattern", "description": "Consider using a decorator pattern in ruby for cross-cutting concerns"},
+    "javascript": {"type": "higher_order_function", "description": "Consider using higher-order functions for functional composition"},
+    "typescript": {"type": "higher_order_function", "description": "Consider using higher-order functions for functional composition"},
+}
+
+
+def _extra_suggestions(num_duplicates: int, line_count: int, language: str) -> List[Dict[str, Any]]:
+    extras: List[Dict[str, Any]] = []
+    if num_duplicates > RecommendationDefaults.MODULE_EXTRACTION_DUPLICATE_THRESHOLD:
+        extras.append({"type": "extract_module", "description": "Consider extracting to a dedicated module for reuse across files", "priority": "medium"})
+    if line_count > RecommendationDefaults.CLASS_EXTRACTION_LINE_THRESHOLD:
+        extras.append({"type": "extract_class", "description": "Extract to a class if the code has shared state or multiple related operations", "priority": "low"})
+    lang_hint = _LANGUAGE_SUGGESTIONS.get(language)
+    if lang_hint:
+        extras.append({**lang_hint, "priority": "low"})
+    return extras
+
+
 def generate_refactoring_suggestions(duplicates: List[Dict[str, Any]], language: str) -> List[Dict[str, Any]]:
-    """Generate refactoring suggestions for duplicate code instances.
-
-    Analyzes duplicate code snippets and generates appropriate refactoring
-    suggestions based on the code characteristics and language.
-
-    Args:
-        duplicates: List of duplicate code instances, each containing:
-            - code: The duplicate code snippet
-            - file: Source file path
-            - similarity: Similarity score (0-1)
-        language: Programming language of the code
-
-    Returns:
-        List of refactoring suggestions with type and description
-    """
+    """Generate refactoring suggestions for duplicate code instances."""
     if not duplicates:
         return []
 
-    suggestions: List[Dict[str, Any]] = []
-
-    # Analyze the duplicates to determine best refactoring strategy
     num_duplicates = len(duplicates)
     avg_similarity = sum(d.get("similarity", RecommendationDefaults.DEFAULT_SIMILARITY) for d in duplicates) / max(num_duplicates, 1)
-
-    # Get code characteristics from first duplicate
-    first_code = duplicates[0].get("code", "") if duplicates else ""
+    first_code = duplicates[0].get("code", "")
     line_count = len(first_code.split("\n"))
 
-    # Primary suggestion: extract to shared function
-    suggestions.append(
+    suggestions: List[Dict[str, Any]] = [
         {
             "type": "extract_function",
             "description": "Extract duplicate code into a shared utility function",
             "priority": "high" if avg_similarity > RecommendationDefaults.HIGH_SIMILARITY_THRESHOLD else "medium",
             "estimated_savings": f"{line_count * (num_duplicates - 1)} lines",
         }
-    )
-
-    # Additional suggestions based on characteristics
-    if num_duplicates > RecommendationDefaults.MODULE_EXTRACTION_DUPLICATE_THRESHOLD:
-        suggestions.append(
-            {
-                "type": "extract_module",
-                "description": "Consider extracting to a dedicated module for reuse across files",
-                "priority": "medium",
-            }
-        )
-
-    if line_count > RecommendationDefaults.CLASS_EXTRACTION_LINE_THRESHOLD:
-        suggestions.append(
-            {
-                "type": "extract_class",
-                "description": "Extract to a class if the code has shared state or multiple related operations",
-                "priority": "low",
-            }
-        )
-
-    # Language-specific suggestions
-    if language in ("python", "ruby"):
-        suggestions.append(
-            {
-                "type": "decorator_pattern",
-                "description": f"Consider using a decorator pattern in {language} for cross-cutting concerns",
-                "priority": "low",
-            }
-        )
-    elif language in ("javascript", "typescript"):
-        suggestions.append(
-            {
-                "type": "higher_order_function",
-                "description": "Consider using higher-order functions for functional composition",
-                "priority": "low",
-            }
-        )
-
+    ]
+    suggestions.extend(_extra_suggestions(num_duplicates, line_count, language))
     return suggestions
