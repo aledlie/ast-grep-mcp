@@ -242,117 +242,115 @@ class DuplicationReporter:
         """
         enhanced_candidates = []
         total_lines_saveable = 0
-        complexity_distribution = {"low": 0, "medium": 0, "high": 0}
+        distribution: Dict[str, int] = {"low": 0, "medium": 0, "high": 0}
 
         for idx, candidate in enumerate(candidates):
-            # Generate before/after example
-            before_after = self.generate_before_after_example(
-                original_code=candidate.get("code", ""),
-                replacement_code=candidate.get("replacement", ""),
-                function_name=candidate.get("function_name", f"extracted_function_{idx}"),
-            )
+            ec = self._build_enhanced_candidate(candidate, idx, include_diffs, include_colors)
+            enhanced_candidates.append(ec)
+            total_lines_saveable += ec["before_after"]["lines_saved"] * len(ec["files"])
+            self._update_distribution(distribution, ec["complexity_score"])
 
-            # Generate complexity visualization
-            complexity = candidate.get("complexity", CodeAnalysisDefaults.DEFAULT_COMPLEXITY_SCORE)
-            complexity_viz = self.visualize_complexity(complexity)
-
-            # Track complexity distribution
-            if complexity <= DisplayDefaults.LOW_SCORE_THRESHOLD:
-                complexity_distribution["low"] += 1
-            elif complexity <= DisplayDefaults.MEDIUM_SCORE_THRESHOLD:
-                complexity_distribution["medium"] += 1
-            else:
-                complexity_distribution["high"] += 1
-
-            # Generate diff preview if requested
-            diff_preview = None
-            if include_diffs and "files" in candidate:
-                file_changes = []
-                original_code = candidate.get("code", "")
-                replacement = candidate.get("replacement", "")
-
-                for file_path in candidate.get("files", []):
-                    # For demonstration, create a simple diff
-                    # In real usage, this would read actual file contents
-                    file_changes.append({"file_path": file_path, "original_content": original_code, "new_content": replacement})
-
-                if file_changes:
-                    preview = generate_multi_file_diff(file_changes, context_lines=3)
-                    diff_text = preview.combined_diff
-                    if include_colors:
-                        diff_text = self.format_diff_with_colors(diff_text)
-                    diff_preview = diff_text
-
-            # Calculate priority based on multiple factors
-            occurrences = len(candidate.get("files", []))
-            lines = before_after["original_lines"]
-            priority = (
-                (occurrences * PriorityWeights.OCCURRENCE_WEIGHT)
-                + (lines * PriorityWeights.LINE_WEIGHT)
-                - (complexity * PriorityWeights.COMPLEXITY_PENALTY)
-            )
-
-            # Track total saveable lines
-            total_lines_saveable += before_after["lines_saved"] * occurrences
-
-            # Get function name with fallback
-            function_name = candidate.get("function_name", "") or f"extracted_function_{idx}"
-
-            enhanced_candidate = {
-                "id": f"DUP-{idx + 1:03d}",
-                "files": candidate.get("files", []),
-                "locations": candidate.get("locations", []),
-                "original_code": candidate.get("code", ""),
-                "suggested_function_name": function_name,
-                "replacement_code": candidate.get("replacement", ""),
-                "similarity_score": candidate.get("similarity", float(RankerDefaults.MAX_NORMALIZED_SCORE)),
-                "complexity_score": complexity,
-                "before_after": before_after,
-                "complexity_viz": complexity_viz,
-                "diff_preview": diff_preview,
-                "priority": priority,
-            }
-
-            enhanced_candidates.append(enhanced_candidate)
-
-        # Sort by priority (highest first)
         enhanced_candidates.sort(key=lambda x: x["priority"], reverse=True)
-
-        # Generate global recommendations
-        global_recommendations = []
-
-        if complexity_distribution["high"] > 0:
-            global_recommendations.append(
-                f"Found {complexity_distribution['high']} high-complexity duplicates. Consider adding tests before refactoring these."
-            )
-
-        if total_lines_saveable > ReportingDefaults.SIGNIFICANT_LINES_SAVED_THRESHOLD:
-            global_recommendations.append(
-                f"Potential to save {total_lines_saveable} total lines of code. Prioritize candidates by their priority score."
-            )
-
-        if len(enhanced_candidates) > ReportingDefaults.MANY_DUPLICATES_THRESHOLD:
-            global_recommendations.append(
-                "Many duplicates found. Consider addressing high-priority items first to maximize impact with minimal effort."
-            )
-
-        # Build summary
-        summary = {
-            "total_candidates": len(enhanced_candidates),
-            "total_files_affected": len(set(f for c in candidates for f in c.get("files", []))),
-            "total_lines_saveable": total_lines_saveable,
-            "complexity_distribution": complexity_distribution,
-            "highest_priority_id": enhanced_candidates[0]["id"] if enhanced_candidates else None,
-        }
+        recommendations = self._build_global_recommendations(distribution, total_lines_saveable, len(enhanced_candidates))
+        summary = self._build_summary(candidates, enhanced_candidates, total_lines_saveable, distribution)
 
         return {
             "candidates": enhanced_candidates,
             "summary": summary,
-            "recommendations": global_recommendations,
+            "recommendations": recommendations,
             "metadata": {
                 "version": "5.0",
                 "includes_diffs": include_diffs,
                 "includes_colors": include_colors,
                 "generated_at": datetime.now().isoformat(),
             },
+        }
+
+    def _build_enhanced_candidate(
+        self, candidate: Dict[str, Any], idx: int, include_diffs: bool, include_colors: bool
+    ) -> Dict[str, Any]:
+        """Enrich a single raw candidate with computed fields."""
+        function_name = candidate.get("function_name", "") or f"extracted_function_{idx}"
+        before_after = self.generate_before_after_example(
+            original_code=candidate.get("code", ""),
+            replacement_code=candidate.get("replacement", ""),
+            function_name=function_name,
+        )
+        complexity = candidate.get("complexity", CodeAnalysisDefaults.DEFAULT_COMPLEXITY_SCORE)
+        occurrences = len(candidate.get("files", []))
+        priority = (
+            (occurrences * PriorityWeights.OCCURRENCE_WEIGHT)
+            + (before_after["original_lines"] * PriorityWeights.LINE_WEIGHT)
+            - (complexity * PriorityWeights.COMPLEXITY_PENALTY)
+        )
+        return {
+            "id": f"DUP-{idx + 1:03d}",
+            "files": candidate.get("files", []),
+            "locations": candidate.get("locations", []),
+            "original_code": candidate.get("code", ""),
+            "suggested_function_name": function_name,
+            "replacement_code": candidate.get("replacement", ""),
+            "similarity_score": candidate.get("similarity", float(RankerDefaults.MAX_NORMALIZED_SCORE)),
+            "complexity_score": complexity,
+            "before_after": before_after,
+            "complexity_viz": self.visualize_complexity(complexity),
+            "diff_preview": self._generate_candidate_diff_preview(candidate, include_diffs, include_colors),
+            "priority": priority,
+        }
+
+    def _generate_candidate_diff_preview(
+        self, candidate: Dict[str, Any], include_diffs: bool, include_colors: bool
+    ) -> Optional[str]:
+        """Generate a diff preview for the candidate, or None if not requested."""
+        if not include_diffs or "files" not in candidate:
+            return None
+        original_code = candidate.get("code", "")
+        replacement = candidate.get("replacement", "")
+        file_changes = [
+            {"file_path": fp, "original_content": original_code, "new_content": replacement}
+            for fp in candidate.get("files", [])
+        ]
+        if not file_changes:
+            return None
+        diff_text = generate_multi_file_diff(file_changes, context_lines=3).combined_diff
+        return self.format_diff_with_colors(diff_text) if include_colors else diff_text
+
+    @staticmethod
+    def _update_distribution(distribution: Dict[str, int], complexity: float) -> None:
+        """Increment the appropriate complexity bucket."""
+        if complexity <= DisplayDefaults.LOW_SCORE_THRESHOLD:
+            distribution["low"] += 1
+        elif complexity <= DisplayDefaults.MEDIUM_SCORE_THRESHOLD:
+            distribution["medium"] += 1
+        else:
+            distribution["high"] += 1
+
+    @staticmethod
+    def _build_global_recommendations(
+        distribution: Dict[str, int], total_lines_saveable: int, candidate_count: int
+    ) -> List[str]:
+        """Build prioritized global recommendations list."""
+        recs: List[str] = []
+        if distribution["high"] > 0:
+            recs.append(f"Found {distribution['high']} high-complexity duplicates. Consider adding tests before refactoring these.")
+        if total_lines_saveable > ReportingDefaults.SIGNIFICANT_LINES_SAVED_THRESHOLD:
+            recs.append(f"Potential to save {total_lines_saveable} total lines of code. Prioritize candidates by their priority score.")
+        if candidate_count > ReportingDefaults.MANY_DUPLICATES_THRESHOLD:
+            recs.append("Many duplicates found. Consider addressing high-priority items first to maximize impact with minimal effort.")
+        return recs
+
+    @staticmethod
+    def _build_summary(
+        raw_candidates: List[Dict[str, Any]],
+        enhanced: List[Dict[str, Any]],
+        total_lines_saveable: int,
+        distribution: Dict[str, int],
+    ) -> Dict[str, Any]:
+        """Assemble the summary statistics dict."""
+        return {
+            "total_candidates": len(enhanced),
+            "total_files_affected": len(set(f for c in raw_candidates for f in c.get("files", []))),
+            "total_lines_saveable": total_lines_saveable,
+            "complexity_distribution": distribution,
+            "highest_priority_id": enhanced[0]["id"] if enhanced else None,
         }
