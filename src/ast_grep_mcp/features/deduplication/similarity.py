@@ -165,8 +165,12 @@ class HybridSimilarityConfig:
 
     def __post_init__(self) -> None:
         """Validate configuration values."""
-        # Backward-compatible rebalance: enabling semantic with legacy two-stage
-        # defaults should automatically switch to the semantic weight profile.
+        self._apply_semantic_rebalance_if_needed()
+        self._validate_weight_bounds()
+        self._validate_weight_sum()
+
+    def _apply_semantic_rebalance_if_needed(self) -> None:
+        """Rebalance to semantic weight profile when enabling semantic on legacy defaults."""
         uses_legacy_two_stage_defaults = (
             abs(self.minhash_weight - HybridSimilarityDefaults.MINHASH_WEIGHT) <= HybridSimilarityDefaults.WEIGHT_SUM_TOLERANCE
             and abs(self.ast_weight - HybridSimilarityDefaults.AST_WEIGHT) <= HybridSimilarityDefaults.WEIGHT_SUM_TOLERANCE
@@ -176,18 +180,21 @@ class HybridSimilarityConfig:
             self.minhash_weight = SemanticSimilarityDefaults.MINHASH_WEIGHT_WITH_SEMANTIC
             self.ast_weight = SemanticSimilarityDefaults.AST_WEIGHT_WITH_SEMANTIC
 
-        if not (0.0 <= self.minhash_early_exit_threshold <= 1.0):
-            raise ValueError("minhash_early_exit_threshold must be between 0.0 and 1.0")
-        if not (0.0 <= self.minhash_weight <= 1.0):
-            raise ValueError("minhash_weight must be between 0.0 and 1.0")
-        if not (0.0 <= self.ast_weight <= 1.0):
-            raise ValueError("ast_weight must be between 0.0 and 1.0")
-        if not (0.0 <= self.semantic_weight <= 1.0):
-            raise ValueError("semantic_weight must be between 0.0 and 1.0")
-        if not (0.0 <= self.semantic_stage_threshold <= 1.0):
-            raise ValueError("semantic_stage_threshold must be between 0.0 and 1.0")
+    def _validate_weight_bounds(self) -> None:
+        """Raise ValueError if any weight is outside [0.0, 1.0]."""
+        bounds: list[tuple[str, float]] = [
+            ("minhash_early_exit_threshold", self.minhash_early_exit_threshold),
+            ("minhash_weight", self.minhash_weight),
+            ("ast_weight", self.ast_weight),
+            ("semantic_weight", self.semantic_weight),
+            ("semantic_stage_threshold", self.semantic_stage_threshold),
+        ]
+        for name, value in bounds:
+            if not (0.0 <= value <= 1.0):
+                raise ValueError(f"{name} must be between 0.0 and 1.0")
 
-        # Validate weight sum based on whether semantic is enabled
+    def _validate_weight_sum(self) -> None:
+        """Raise ValueError if active weights do not sum to 1.0."""
         if self.enable_semantic:
             total_weight = self.minhash_weight + self.ast_weight + self.semantic_weight
             if abs(total_weight - HybridSimilarityDefaults.WEIGHT_SUM_TARGET) > HybridSimilarityDefaults.WEIGHT_SUM_TOLERANCE:
