@@ -7,7 +7,7 @@ from function signatures and names across multiple languages.
 import os
 import re
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import sentry_sdk
 
@@ -561,7 +561,7 @@ class FunctionSignatureParser:
         return decorators
 
     def _build_python_sig(
-        self, lines: List[str], func_idx: int, match: re.Match, file_path: str
+        self, lines: List[str], func_idx: int, match: re.Match[str], file_path: str
     ) -> FunctionSignature:
         indent, is_async, name, params_str, return_type = match.groups()
         return FunctionSignature(
@@ -680,7 +680,7 @@ class FunctionSignatureParser:
         4:                                               (0, 1, 2, 3),   # async, name, params, ret
     }
 
-    def _unpack_js_ts_groups(self, groups: tuple) -> tuple:
+    def _unpack_js_ts_groups(self, groups: tuple[Any, ...]) -> tuple[Any, ...]:
         """Unpack match groups based on pattern type."""
         indices = self._JS_TS_GROUP_INDICES.get(len(groups), (0, 1, 2, 3))
         ai, ni, pi, ri = indices
@@ -794,7 +794,7 @@ class FunctionSignatureParser:
     )
     _JAVA_CONTROL_KEYWORDS = frozenset({"if", "for", "while", "switch", "catch", "try"})
 
-    def _build_java_sig(self, lines: List[str], i: int, match: re.Match, file_path: str) -> Optional[FunctionSignature]:
+    def _build_java_sig(self, lines: List[str], i: int, match: re.Match[str], file_path: str) -> Optional[FunctionSignature]:
         _, _, return_type, name, params_str, _ = match.groups()
         if name in self._JAVA_CONTROL_KEYWORDS:
             return None

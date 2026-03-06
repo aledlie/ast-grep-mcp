@@ -228,7 +228,7 @@ class ImpactAnalyzer:
 
     def _filter_extracted_names(self, names: List[str]) -> List[str]:
         """Filter and deduplicate extracted function/class names."""
-        seen: set = set()
+        seen: set[str] = set()
         result = []
         for name in names:
             if name and name not in seen and name.lower() not in _FILTER_COMMON_WORDS:

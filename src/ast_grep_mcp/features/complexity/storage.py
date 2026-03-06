@@ -79,7 +79,7 @@ def _build_run_params(
     commit_hash: Optional[str],
     branch_name: Optional[str],
     results: Dict[str, Any],
-) -> tuple:
+) -> tuple[Any, ...]:
     return (
         project_id,
         commit_hash,
@@ -96,7 +96,7 @@ def _build_run_params(
     )
 
 
-def _build_function_rows(functions: List[FunctionComplexity]) -> List[tuple]:
+def _build_function_rows(functions: List[FunctionComplexity]) -> List[tuple[Any, ...]]:
     return [
         (
             f.file_path,
@@ -153,12 +153,12 @@ _SELECT_TRENDS_SQL = """
 """
 
 
-def _insert_run(conn: sqlite3.Connection, run_params: tuple) -> int:
+def _insert_run(conn: sqlite3.Connection, run_params: tuple[Any, ...]) -> int:
     cursor = conn.execute(_INSERT_RUN_SQL, run_params)
     return cursor.lastrowid or 0
 
 
-def _insert_function_metrics(conn: sqlite3.Connection, run_id: int, function_rows: List[tuple]) -> None:
+def _insert_function_metrics(conn: sqlite3.Connection, run_id: int, function_rows: List[tuple[Any, ...]]) -> None:
     if function_rows:
         rows_with_id = [(run_id,) + row for row in function_rows]
         conn.executemany(_INSERT_METRICS_SQL, rows_with_id)
