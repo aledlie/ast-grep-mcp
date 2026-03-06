@@ -88,6 +88,30 @@ class BenchmarkExecutor:
 
         return result
 
+    def _make_scoring_test_cases(self) -> List[Dict[str, Any]]:
+        high_instances = [
+            {"file": "a.py", "line": BENCHMARK_SCORING_HIGH_LINE_A},
+            {"file": "b.py", "line": BENCHMARK_SCORING_HIGH_LINE_B},
+            {"file": "a.py", "line": BENCHMARK_SCORING_HIGH_LINE_C},
+        ]
+        low_instances = [
+            {"file": f"file{i}.py", "line": i * BENCHMARK_SCORING_HIGH_LINE_A}
+            for i in range(BENCHMARK_SCORING_LOW_INSTANCE_COUNT)
+        ]
+        med_instances = [
+            {"file": f"module{i % BENCHMARK_SCORING_MODULE_BUCKET_COUNT}.py", "line": i * BENCHMARK_LOW_LINES_SAVED}
+            for i in range(BENCHMARK_SCORING_MEDIUM_INSTANCE_COUNT)
+        ]
+        return [
+            {"potential_line_savings": BENCHMARK_HIGH_LINES_SAVED, "instances": high_instances},
+            {"potential_line_savings": 10, "instances": low_instances},
+            {"potential_line_savings": ReportingDefaults.SIGNIFICANT_LINES_SAVED_THRESHOLD, "instances": med_instances},
+        ]
+
+    def _run_scoring_cases(self, ranker: DuplicationRanker, test_cases: List[Dict[str, Any]]) -> None:
+        for duplicate_group in test_cases:
+            ranker.calculate_deduplication_score(duplicate_group)
+
     def benchmark_scoring(self, iterations: int) -> Dict[str, Any]:
         """Benchmark the scoring function.
 
@@ -98,33 +122,10 @@ class BenchmarkExecutor:
             Benchmark result dictionary
         """
         ranker = DuplicationRanker()
-        test_cases = [
-            {  # High value candidate
-                "potential_line_savings": BENCHMARK_HIGH_LINES_SAVED,
-                "instances": [
-                    {"file": "a.py", "line": BENCHMARK_SCORING_HIGH_LINE_A},
-                    {"file": "b.py", "line": BENCHMARK_SCORING_HIGH_LINE_B},
-                    {"file": "a.py", "line": BENCHMARK_SCORING_HIGH_LINE_C},
-                ],
-            },
-            {  # Low value candidate
-                "potential_line_savings": 10,
-                "instances": [
-                    {"file": f"file{i}.py", "line": i * BENCHMARK_SCORING_HIGH_LINE_A} for i in range(BENCHMARK_SCORING_LOW_INSTANCE_COUNT)
-                ],
-            },
-            {  # Medium value candidate
-                "potential_line_savings": ReportingDefaults.SIGNIFICANT_LINES_SAVED_THRESHOLD,
-                "instances": [
-                    {"file": f"module{i % BENCHMARK_SCORING_MODULE_BUCKET_COUNT}.py", "line": i * BENCHMARK_LOW_LINES_SAVED}
-                    for i in range(BENCHMARK_SCORING_MEDIUM_INSTANCE_COUNT)
-                ],
-            },
-        ]
+        test_cases = self._make_scoring_test_cases()
 
         def run_scoring() -> None:
-            for duplicate_group in test_cases:
-                ranker.calculate_deduplication_score(duplicate_group)
+            self._run_scoring_cases(ranker, test_cases)
 
         return self.run_timed_benchmark("scoring", run_scoring, iterations)
 
@@ -370,6 +371,17 @@ class RegressionDetector:
         self.logger = get_logger("deduplication.regression_detector")
         self.thresholds = thresholds if thresholds is not None else self.DEFAULT_THRESHOLDS.copy()
 
+    def _collect_regression_errors(self, results: List[Dict[str, Any]], baseline_map: Dict[str, Dict[str, Any]]) -> List[str]:
+        errors: List[str] = []
+        for result in results:
+            name = result["name"]
+            if name not in baseline_map:
+                continue
+            regression_info = self._check_single_regression(name, result, baseline_map[name])
+            if regression_info:
+                errors.append(regression_info)
+        return errors
+
     def check_regressions(self, results: List[Dict[str, Any]], baseline_map: Dict[str, Dict[str, Any]]) -> tuple[bool, List[str]]:
         """Check for performance regressions against baseline.
 
@@ -384,17 +396,8 @@ class RegressionDetector:
             self.logger.info("no_baseline_available")
             return False, []
 
-        regression_detected = False
-        regression_errors: List[str] = []
-
-        for result in results:
-            name = result["name"]
-            if name in baseline_map:
-                regression_info = self._check_single_regression(name, result, baseline_map[name])
-
-                if regression_info:
-                    regression_detected = True
-                    regression_errors.append(regression_info)
+        regression_errors = self._collect_regression_errors(results, baseline_map)
+        regression_detected = len(regression_errors) > 0
 
         self.logger.info("regression_check_complete", regression_detected=regression_detected, regression_count=len(regression_errors))
 
@@ -475,6 +478,12 @@ class DeduplicationBenchmark:
         self.thresholds = self.detector.thresholds
         self.baseline_file = self.reporter.baseline_file
 
+    def _check_regressions_if_requested(self, results: List[Dict[str, Any]], check_regression: bool) -> tuple[bool, List[str]]:
+        if not check_regression:
+            return False, []
+        baseline_map = self.reporter.load_baseline()
+        return self.detector.check_regressions(results, baseline_map)
+
     def benchmark_deduplication(self, iterations: int = 10, save_baseline: bool = False, check_regression: bool = True) -> Dict[str, Any]:
         """Run performance benchmarks for deduplication functions.
 
@@ -496,22 +505,12 @@ class DeduplicationBenchmark:
 
         self.logger.info("benchmark_start", iterations=iterations, save_baseline=save_baseline, check_regression=check_regression)
 
-        # Step 1: Run all benchmarks
         results = self.executor.run_all_benchmarks(iterations)
+        regression_detected, regression_errors = self._check_regressions_if_requested(results, check_regression)
 
-        # Step 2: Check for regressions if requested
-        regression_detected = False
-        regression_errors: List[str] = []
-
-        if check_regression:
-            baseline_map = self.reporter.load_baseline()
-            regression_detected, regression_errors = self.detector.check_regressions(results, baseline_map)
-
-        # Step 3: Save baseline if requested
         if save_baseline:
             self.reporter.save_baseline(results)
 
-        # Step 4: Format final report
         execution_time = time.time() - start_time
 
         self.logger.info(

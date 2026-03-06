@@ -407,6 +407,56 @@ class DuplicationRanker:
 
         return total_score
 
+    def _score_candidate(self, candidate: Dict[str, Any]) -> Tuple[float, Dict[str, float], int, int]:
+        """Score a single candidate, using cache if enabled. Returns (total_score, components, hits, misses)."""
+        if not self.enable_cache:
+            total_score, score_components = self.score_calculator.calculate_total_score(
+                candidate,
+                complexity=candidate.get("complexity_analysis"),
+                test_coverage=candidate.get("test_coverage"),
+                impact_analysis=candidate.get("impact_analysis"),
+            )
+            return total_score, score_components, 0, 0
+
+        cache_key = self._generate_cache_key(candidate)
+        if cache_key in self._score_cache:
+            total_score, score_components = self._score_cache[cache_key]
+            return total_score, score_components, 1, 0
+
+        total_score, score_components = self.score_calculator.calculate_total_score(
+            candidate,
+            complexity=candidate.get("complexity_analysis"),
+            test_coverage=candidate.get("test_coverage"),
+            impact_analysis=candidate.get("impact_analysis"),
+        )
+        self._score_cache[cache_key] = (total_score, score_components)
+        return total_score, score_components, 0, 1
+
+    def _build_ranked_candidate(self, candidate: Dict[str, Any], total_score: float, score_components: Dict[str, float], include_analysis: bool) -> Dict[str, Any]:
+        """Build a ranked candidate dict with optional breakdown."""
+        priority = self.priority_classifier.get_priority_label(total_score)
+        ranked_candidate = {**candidate, "score": total_score, "priority": priority}
+        if include_analysis:
+            ranked_candidate["score_breakdown"] = self.priority_classifier.get_score_breakdown(candidate, total_score, score_components)
+        return ranked_candidate
+
+    def _build_log_data(self, ranked: List[Dict[str, Any]], cache_hits: int, cache_misses: int) -> Dict[str, Any]:
+        """Build log data dict for ranking results."""
+        log_data: Dict[str, Any] = {
+            "total_candidates": len(ranked),
+            "top_score": ranked[0]["score"] if ranked else 0,
+            "average_score": sum(c["score"] for c in ranked) / len(ranked) if ranked else 0,
+        }
+        if self.enable_cache:
+            total = cache_hits + cache_misses
+            log_data.update({
+                "cache_hits": cache_hits,
+                "cache_misses": cache_misses,
+                "cache_hit_rate": cache_hits / total if total > 0 else 0,
+                "cache_size": len(self._score_cache),
+            })
+        return log_data
+
     def rank_deduplication_candidates(
         self, candidates: List[Dict[str, Any]], include_analysis: bool = True, max_results: Optional[int] = None
     ) -> List[Dict[str, Any]]:
@@ -426,73 +476,19 @@ class DuplicationRanker:
         cache_misses = 0
 
         for candidate in candidates:
-            # Try to get score from cache
-            cache_key = None
-            if self.enable_cache:
-                cache_key = self._generate_cache_key(candidate)
-                if cache_key in self._score_cache:
-                    total_score, score_components = self._score_cache[cache_key]
-                    cache_hits += 1
-                else:
-                    cache_misses += 1
-                    total_score, score_components = self.score_calculator.calculate_total_score(
-                        candidate,
-                        complexity=candidate.get("complexity_analysis"),
-                        test_coverage=candidate.get("test_coverage"),
-                        impact_analysis=candidate.get("impact_analysis"),
-                    )
-                    # Store in cache
-                    self._score_cache[cache_key] = (total_score, score_components)
-            else:
-                # No caching
-                total_score, score_components = self.score_calculator.calculate_total_score(
-                    candidate,
-                    complexity=candidate.get("complexity_analysis"),
-                    test_coverage=candidate.get("test_coverage"),
-                    impact_analysis=candidate.get("impact_analysis"),
-                )
+            total_score, score_components, hits, misses = self._score_candidate(candidate)
+            cache_hits += hits
+            cache_misses += misses
+            ranked.append(self._build_ranked_candidate(candidate, total_score, score_components, include_analysis))
 
-            # Get priority label
-            priority = self.priority_classifier.get_priority_label(total_score)
-
-            # Build ranked candidate
-            ranked_candidate = {**candidate, "score": total_score, "priority": priority}
-
-            # Add detailed breakdown if requested
-            if include_analysis:
-                ranked_candidate["score_breakdown"] = self.priority_classifier.get_score_breakdown(candidate, total_score, score_components)
-
-            ranked.append(ranked_candidate)
-
-        # Sort by score (highest first)
         ranked.sort(key=lambda x: x["score"], reverse=True)
 
-        # Early exit if max_results specified - only process top N candidates
         if max_results is not None and max_results > 0:
             ranked = ranked[:max_results]
 
-        # Add rank numbers only to returned candidates
         for i, candidate in enumerate(ranked):
             candidate["rank"] = i + 1
 
-        # Log ranking results with cache statistics
-        log_data = {
-            "total_candidates": len(ranked),
-            "top_score": ranked[0]["score"] if ranked else 0,
-            "average_score": sum(c["score"] for c in ranked) / len(ranked) if ranked else 0,
-        }
-
-        # Add cache statistics if caching is enabled
-        if self.enable_cache:
-            log_data.update(
-                {
-                    "cache_hits": cache_hits,
-                    "cache_misses": cache_misses,
-                    "cache_hit_rate": cache_hits / (cache_hits + cache_misses) if (cache_hits + cache_misses) > 0 else 0,
-                    "cache_size": len(self._score_cache),
-                }
-            )
-
-        self.logger.info("candidates_ranked", **log_data)
+        self.logger.info("candidates_ranked", **self._build_log_data(ranked, cache_hits, cache_misses))
 
         return ranked

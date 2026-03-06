@@ -1932,6 +1932,58 @@ PATTERN_CATEGORIES = [
 PATTERN_LANGUAGES = list(PATTERN_EXAMPLES.keys())
 
 
+_LANGUAGE_ALIASES = {
+    "js": "javascript",
+    "ts": "typescript",
+    "py": "python",
+    "golang": "go",
+    "c++": "cpp",
+}
+
+
+def _resolve_language(language: str) -> str:
+    return _LANGUAGE_ALIASES.get(language, language)
+
+
+def _resolve_categories(
+    lang_patterns: Dict[str, List[Dict[str, str]]],
+    category: Optional[str],
+) -> str | List[str]:
+    """Return list of categories or an error string."""
+    if category is None or category == "all":
+        return list(lang_patterns.keys())
+    category = category.lower()
+    if category not in lang_patterns:
+        available = ", ".join(sorted(lang_patterns.keys()))
+        return f"Unknown category: '{category}'. Available: {available}, all"
+    return [category]
+
+
+def _format_pattern_entry(p: Dict[str, str]) -> List[str]:
+    lines = [f"### {p['description']}", "```", p["pattern"], "```"]
+    if "notes" in p:
+        lines.append(f"*{p['notes']}*")
+    lines.append("")
+    return lines
+
+
+def _build_pattern_output(
+    language: str,
+    lang_patterns: Dict[str, List[Dict[str, str]]],
+    categories: List[str],
+) -> str:
+    lines: List[str] = [f"# {language.title()} Pattern Examples", ""]
+    for cat in categories:
+        patterns = lang_patterns.get(cat, [])
+        if not patterns:
+            continue
+        lines.append(f"## {cat.replace('_', ' ').title()}")
+        lines.append("")
+        for p in patterns:
+            lines.extend(_format_pattern_entry(p))
+    return "\n".join(lines)
+
+
 def get_pattern_examples(
     language: str,
     category: Optional[str] = None,
@@ -1947,52 +1999,15 @@ def get_pattern_examples(
     Returns:
         Formatted string with pattern examples
     """
-    language = language.lower()
-
-    # Handle language aliases
-    language_aliases = {
-        "js": "javascript",
-        "ts": "typescript",
-        "py": "python",
-        "golang": "go",
-        "c++": "cpp",
-    }
-    language = language_aliases.get(language, language)
+    language = _resolve_language(language.lower())
 
     if language not in PATTERN_EXAMPLES:
         available = ", ".join(sorted(PATTERN_EXAMPLES.keys()))
         return f"Unknown language: '{language}'. Available: {available}"
 
     lang_patterns = PATTERN_EXAMPLES[language]
+    categories = _resolve_categories(lang_patterns, category)
+    if isinstance(categories, str):
+        return categories
 
-    # Determine which categories to show
-    if category is None or category == "all":
-        categories_to_show = list(lang_patterns.keys())
-    else:
-        category = category.lower()
-        if category not in lang_patterns:
-            available = ", ".join(sorted(lang_patterns.keys()))
-            return f"Unknown category: '{category}'. Available: {available}, all"
-        categories_to_show = [category]
-
-    # Build output
-    lines = [f"# {language.title()} Pattern Examples", ""]
-
-    for cat in categories_to_show:
-        patterns = lang_patterns.get(cat, [])
-        if not patterns:
-            continue
-
-        lines.append(f"## {cat.replace('_', ' ').title()}")
-        lines.append("")
-
-        for p in patterns:
-            lines.append(f"### {p['description']}")
-            lines.append("```")
-            lines.append(p["pattern"])
-            lines.append("```")
-            if "notes" in p:
-                lines.append(f"*{p['notes']}*")
-            lines.append("")
-
-    return "\n".join(lines)
+    return _build_pattern_output(language, lang_patterns, categories)
