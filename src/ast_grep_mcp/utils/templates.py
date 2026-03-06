@@ -22,6 +22,12 @@ PYTHON_CLASS_TEMPLATE: str = """{decorators}class {name}{bases}:
 {docstring}{class_vars}{methods}"""
 
 
+def _ensure_python_indent(methods: str) -> str:
+    if not methods or methods.startswith("    "):
+        return methods
+    return "\n".join(f"    {line}" if line.strip() else line for line in methods.split("\n"))
+
+
 def format_python_class(
     name: str,
     methods: str,
@@ -43,29 +49,13 @@ def format_python_class(
     Returns:
         Formatted Python class string
     """
-    # Format decorators
-    decorator_str = f"{decorators}\n" if decorators else ""
-
-    # Format base classes
-    bases_str = f"({', '.join(bases)})" if bases else ""
-
-    # Format docstring with proper indentation
-    docstring_str = f'    """{docstring}"""\n\n' if docstring else ""
-
-    # Format class variables with proper indentation
-    class_vars_str = f"{class_vars}\n\n" if class_vars else ""
-
-    # Ensure methods are properly indented (4 spaces)
-    if methods and not methods.startswith("    "):
-        methods = "\n".join(f"    {line}" if line.strip() else line for line in methods.split("\n"))
-
     return PYTHON_CLASS_TEMPLATE.format(
-        decorators=decorator_str,
+        decorators=f"{decorators}\n" if decorators else "",
         name=name,
-        bases=bases_str,
-        docstring=docstring_str,
-        class_vars=class_vars_str,
-        methods=methods,
+        bases=f"({', '.join(bases)})" if bases else "",
+        docstring=f'    """{docstring}"""\n\n' if docstring else "",
+        class_vars=f"{class_vars}\n\n" if class_vars else "",
+        methods=_ensure_python_indent(methods),
     )
 
 
@@ -117,6 +107,36 @@ def _try_google_java_format(code: str) -> Optional[str]:
     return None
 
 
+def _java_import_sort_key(imp: str) -> tuple[int, str]:
+    name = imp.replace("import ", "").replace("static ", "").strip().rstrip(";")
+    if name.startswith("java."):
+        return (0, name)
+    if name.startswith("javax."):
+        return (1, name)
+    return (2, name)
+
+
+def _classify_java_line(
+    line: str,
+    in_imports: bool,
+    import_lines: list[str],
+    non_import_lines: list[str],
+) -> bool:
+    stripped = line.strip()
+    if stripped.startswith("import "):
+        import_lines.append(stripped)
+        return True
+    if stripped.startswith("package "):
+        non_import_lines.append(stripped)
+        return in_imports
+    if stripped:
+        non_import_lines.append(stripped)
+        return False
+    if not in_imports:
+        non_import_lines.append("")
+    return in_imports
+
+
 def _process_java_imports(lines: list[str]) -> tuple[list[str], list[str]]:
     """Separate and sort Java import statements.
 
@@ -130,33 +150,10 @@ def _process_java_imports(lines: list[str]) -> tuple[list[str], list[str]]:
     non_import_lines: list[str] = []
     in_imports = False
 
-    # Separate imports from other code
     for line in lines:
-        stripped = line.strip()
-        if stripped.startswith("import "):
-            import_lines.append(stripped)
-            in_imports = True
-        elif stripped.startswith("package "):
-            non_import_lines.append(stripped)
-        elif stripped:
-            if in_imports and import_lines:
-                in_imports = False
-            non_import_lines.append(stripped)
-        elif not in_imports:
-            non_import_lines.append("")
+        in_imports = _classify_java_line(line, in_imports, import_lines, non_import_lines)
 
-    # Sort imports: java.* first, then javax.*, then others
-    def import_sort_key(imp: str) -> tuple[int, str]:
-        name = imp.replace("import ", "").replace("static ", "").strip().rstrip(";")
-        if name.startswith("java."):
-            return (0, name)
-        elif name.startswith("javax."):
-            return (1, name)
-        else:
-            return (2, name)
-
-    import_lines.sort(key=import_sort_key)
-
+    import_lines.sort(key=_java_import_sort_key)
     return import_lines, non_import_lines
 
 
@@ -190,6 +187,17 @@ def _merge_package_imports_code(import_lines: list[str], non_import_lines: list[
     return all_lines
 
 
+def _compute_java_indent(stripped: str, indent_level: int) -> tuple[int, int]:
+    """Return (display_indent, new_indent_level) for a Java line."""
+    closes = stripped.startswith("}") or stripped.startswith(")")
+    if closes:
+        indent_level = max(0, indent_level - 1)
+    display = indent_level
+    open_braces = stripped.count("{") - stripped.count("}")
+    new_level = max(0, indent_level + open_braces)
+    return display, new_level
+
+
 def _apply_java_indentation(lines: list[str]) -> str:
     """Apply consistent indentation and brace formatting.
 
@@ -208,26 +216,9 @@ def _apply_java_indentation(lines: list[str]) -> str:
             formatted_lines.append("")
             continue
 
-        # Decrease indent for closing braces
-        if stripped.startswith("}") or stripped.startswith(")"):
-            indent_level = max(0, indent_level - 1)
-
-        # Handle lines that both close and open (e.g., "} else {")
-        temp_indent = indent_level
-        if stripped.startswith("}") and "{" in stripped:
-            temp_indent = max(0, indent_level)
-
-        # Apply indentation (4 spaces)
-        formatted_line = "    " * temp_indent + stripped
-
-        # Ensure space before opening brace
-        formatted_line = re.sub(r"(\S)\{", r"\1 {", formatted_line)
-
+        display, indent_level = _compute_java_indent(stripped, indent_level)
+        formatted_line = re.sub(r"(\S)\{", r"\1 {", "    " * display + stripped)
         formatted_lines.append(formatted_line)
-
-        # Increase indent for opening braces
-        open_braces = stripped.count("{") - stripped.count("}")
-        indent_level = max(0, indent_level + open_braces)
 
     return "\n".join(formatted_lines)
 
@@ -260,6 +251,18 @@ def format_java_code(code: str) -> str:
     return _apply_java_indentation(all_lines)
 
 
+def _format_javadoc(javadoc: Optional[str]) -> str:
+    if not javadoc:
+        return ""
+    lines = javadoc.strip().split("\n")
+    body = "".join(f" * {line}\n" for line in lines)
+    return f"/**\n{body} */\n"
+
+
+def _indent_java_body(body: str) -> str:
+    return "\n".join("    " + line if line.strip() else "" for line in body.strip().split("\n"))
+
+
 def format_java_method(
     name: str,
     params: str,
@@ -287,49 +290,16 @@ def format_java_method(
     Returns:
         Formatted Java method string
     """
-    # Format annotations (each on its own line)
-    annotations_str = ""
-    if annotations:
-        annotations_str = "\n".join(annotations) + "\n"
-
-    # Format modifiers (space-separated)
-    modifiers_str = ""
-    if modifiers:
-        modifiers_str = " ".join(modifiers) + " "
-
-    # Format type parameters
-    type_params_str = ""
-    if type_params:
-        type_params_str = type_params + " "
-
-    # Format throws clause
-    throws_str = ""
-    if throws:
-        throws_str = " throws " + ", ".join(throws)
-
-    # Format Javadoc
-    javadoc_str = ""
-    if javadoc:
-        javadoc_lines = javadoc.strip().split("\n")
-        javadoc_str = "/**\n"
-        for line in javadoc_lines:
-            javadoc_str += f" * {line}\n"
-        javadoc_str += " */\n"
-
-    # Indent body with 4 spaces
-    body_lines = body.strip().split("\n")
-    indented_body = "\n".join("    " + line if line.strip() else "" for line in body_lines)
-
     return JAVA_METHOD_TEMPLATE.format(
-        javadoc=javadoc_str,
-        annotations=annotations_str,
-        modifiers=modifiers_str,
-        type_params=type_params_str,
+        javadoc=_format_javadoc(javadoc),
+        annotations="\n".join(annotations) + "\n" if annotations else "",
+        modifiers=" ".join(modifiers) + " " if modifiers else "",
+        type_params=type_params + " " if type_params else "",
         return_type=return_type,
         name=name,
         params=params,
-        throws=throws_str,
-        body=indented_body,
+        throws=" throws " + ", ".join(throws) if throws else "",
+        body=_indent_java_body(body),
     )
 
 
@@ -352,6 +322,32 @@ TYPESCRIPT_ASYNC_FUNCTION_TEMPLATE: str = """{jsdoc}{export}async function {name
 TYPESCRIPT_ARROW_FUNCTION_TEMPLATE: str = """{jsdoc}{export}const {name} = {async}{type_params}({params}){return_type} => {{
 {body}
 }};"""
+
+
+def _build_typescript_class_args(
+    name: str,
+    export: bool,
+    abstract: bool,
+    type_params: Optional[str],
+    extends: Optional[str],
+    implements: Optional[List[str]],
+    jsdoc: Optional[str],
+    properties: Optional[List[str]],
+    constructor: Optional[str],
+    methods: Optional[List[str]],
+) -> dict:
+    return {
+        "jsdoc": f"{jsdoc}\n" if jsdoc else "",
+        "export": "export " if export else "",
+        "abstract": "abstract " if abstract else "",
+        "name": name,
+        "type_params": type_params or "",
+        "extends": f" extends {extends}" if extends else "",
+        "implements": f" implements {', '.join(implements)}" if implements else "",
+        "properties": "\n".join(properties) + "\n\n" if properties else "",
+        "constructor": constructor + "\n\n" if constructor else "",
+        "methods": "\n\n".join(methods) + "\n" if methods else "",
+    }
 
 
 def format_typescript_class(
@@ -385,16 +381,9 @@ def format_typescript_class(
         Formatted TypeScript class code
     """
     return TYPESCRIPT_CLASS_TEMPLATE.format(
-        jsdoc=f"{jsdoc}\n" if jsdoc else "",
-        export="export " if export else "",
-        abstract="abstract " if abstract else "",
-        name=name,
-        type_params=type_params if type_params else "",
-        extends=f" extends {extends}" if extends else "",
-        implements=f" implements {', '.join(implements)}" if implements else "",
-        properties="\n".join(properties) + "\n\n" if properties else "",
-        constructor=constructor + "\n\n" if constructor else "",
-        methods="\n\n".join(methods) + "\n" if methods else "",
+        **_build_typescript_class_args(
+            name, export, abstract, type_params, extends, implements, jsdoc, properties, constructor, methods
+        )
     )
 
 
@@ -485,36 +474,18 @@ def format_typescript_function(
     Returns:
         Formatted TypeScript function string
     """
-    # Format placeholders
-    export_str = "export " if export else ""
-    async_str = "async " if is_async else ""
-    type_params_str = f"<{', '.join(type_params)}>" if type_params else ""
-    jsdoc_str = f"{jsdoc}\n" if jsdoc else ""
-
-    # Format parameters and return type
-    params_str = _format_typescript_params(params)
-    return_type_str = _format_typescript_return_type(return_type, is_async)
-    indented_body = _indent_function_body(body)
-
-    # Select template
-    template = _select_typescript_template(use_arrow, is_async)
-
-    # Format with appropriate template
     format_args = {
-        "jsdoc": jsdoc_str,
-        "export": export_str,
+        "jsdoc": f"{jsdoc}\n" if jsdoc else "",
+        "export": "export " if export else "",
         "name": name,
-        "type_params": type_params_str,
-        "params": params_str,
-        "return_type": return_type_str,
-        "body": indented_body,
+        "type_params": f"<{', '.join(type_params)}>" if type_params else "",
+        "params": _format_typescript_params(params),
+        "return_type": _format_typescript_return_type(return_type, is_async),
+        "body": _indent_function_body(body),
     }
-
-    # Arrow functions need the async keyword differently
     if use_arrow:
-        format_args["async"] = async_str
-
-    return template.format(**format_args)
+        format_args["async"] = "async " if is_async else ""
+    return _select_typescript_template(use_arrow, is_async).format(**format_args)
 
 
 # =============================================================================

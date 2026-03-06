@@ -27,6 +27,84 @@ class _RiskLevelConfig(TypedDict):
     recommendations: List[str]
 
 
+_LANGUAGE_NAME_PATTERNS: Dict[str, List[str]] = {
+    "python": [
+        r"\bdef\s+(\w+)\s*\(",
+        r"\bclass\s+(\w+)",
+    ],
+    "javascript": [
+        r"\bfunction\s+(\w+)\s*\(",
+        r"\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>",
+        r"^\s*(\w+)\s*\([^)]*\)\s*\{",
+    ],
+    "typescript": [
+        r"\bfunction\s+(\w+)\s*\(",
+        r"\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>",
+        r"^\s*(\w+)\s*\([^)]*\)\s*\{",
+    ],
+    "jsx": [
+        r"\bfunction\s+(\w+)\s*\(",
+        r"\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>",
+        r"^\s*(\w+)\s*\([^)]*\)\s*\{",
+    ],
+    "tsx": [
+        r"\bfunction\s+(\w+)\s*\(",
+        r"\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>",
+        r"^\s*(\w+)\s*\([^)]*\)\s*\{",
+    ],
+    "java": [
+        r"\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{",
+        r"\bclass\s+(\w+)",
+    ],
+    "csharp": [
+        r"\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{",
+        r"\bclass\s+(\w+)",
+    ],
+    "cpp": [
+        r"\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{",
+        r"\bclass\s+(\w+)",
+    ],
+    "c": [
+        r"\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{",
+        r"\bclass\s+(\w+)",
+    ],
+    "go": [
+        r"\bfunc\s+(?:\([^)]*\)\s+)?(\w+)\s*\(",
+    ],
+    "rust": [
+        r"\bfn\s+(\w+)\s*[<(]",
+        r"\bstruct\s+(\w+)",
+    ],
+}
+
+_RISK_LEVEL_CONFIG: Dict[str, _RiskLevelConfig] = {
+    "low": {
+        "max_score": 1,
+        "recommendations": ["Safe to proceed with standard review", "Run tests after applying changes"],
+    },
+    "medium": {
+        "max_score": MEDIUM_RISK_MAX_SCORE,
+        "recommendations": [
+            "Review external call sites before applying",
+            "Consider updating call sites in the same commit",
+            "Run comprehensive test suite after changes",
+        ],
+    },
+    "high": {
+        "max_score": float("inf"),
+        "recommendations": [
+            "Carefully review all external references",
+            "Consider deprecating old functions instead of removing",
+            "Update external call sites first",
+            "May require coordinated changes across modules",
+            "Consider feature flag for gradual rollout",
+        ],
+    },
+}
+
+_FILTER_COMMON_WORDS = {"new", "get", "set", "if", "for", "while", "return", "main", "init", "test"}
+
+
 class ImpactAnalyzer:
     """Analyzes the impact of applying deduplication to code."""
 
@@ -35,41 +113,13 @@ class ImpactAnalyzer:
         self.logger = get_logger("deduplication.impact_analysis")
 
     def analyze_deduplication_impact(self, duplicate_group: Dict[str, Any], project_root: str, language: str) -> Dict[str, Any]:
-        """Analyze the impact of applying deduplication to a duplicate group.
-
-        Uses ast-grep to find external references to the duplicated code and
-        assesses breaking change risks.
-
-        Args:
-            duplicate_group: A duplication group from find_duplication results containing:
-                - locations: List of file:line-range strings
-                - sample_code: Representative code sample
-                - duplicate_count: Number of instances
-                - lines_per_duplicate: Lines in each instance
-            project_root: Absolute path to project root
-            language: Programming language
-
-        Returns:
-            Impact analysis with:
-            - files_affected: Number of files that would be modified
-            - lines_changed: Dict with additions and deletions estimates
-            - external_call_sites: List of locations calling the duplicated code
-            - breaking_change_risk: Dict with risk level and factors
-        """
+        """Analyze the impact of applying deduplication to a duplicate group."""
         locations = duplicate_group.get("locations", [])
         sample_code = duplicate_group.get("sample_code", "")
         duplicate_count = duplicate_group.get("duplicate_count", 0)
         lines_per_duplicate = duplicate_group.get("lines_per_duplicate", 0)
 
-        # Parse locations to get file paths and line ranges
-        files_in_group = []
-        for loc in locations:
-            if ":" in loc:
-                file_path = loc.split(":")[0]
-                if file_path not in files_in_group:
-                    files_in_group.append(file_path)
-
-        # Extract function/class names from sample code
+        files_in_group = self._parse_files_from_locations(locations)
         function_names = self._extract_function_names_from_code(sample_code, language)
 
         self.logger.info(
@@ -79,25 +129,11 @@ class ImpactAnalyzer:
             function_names=function_names[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT] if function_names else [],
         )
 
-        # Find external call sites using ast-grep
-        external_call_sites = self._find_external_call_sites(
-            function_names=function_names, project_root=project_root, language=language, exclude_files=files_in_group
-        )
+        all_external_refs = self._find_all_external_refs(function_names, project_root, language, files_in_group)
 
-        # Find imports of the duplicated code
-        import_sites = self._find_import_references(
-            function_names=function_names, project_root=project_root, language=language, exclude_files=files_in_group
-        )
-
-        # Combine call sites and imports
-        all_external_refs = external_call_sites + import_sites
-
-        # Estimate lines changed
         lines_changed = self._estimate_lines_changed(
             duplicate_count=duplicate_count, lines_per_duplicate=lines_per_duplicate, external_call_sites=len(all_external_refs)
         )
-
-        # Assess breaking change risk
         breaking_change_risk = self._assess_breaking_change_risk(
             function_names=function_names,
             files_in_group=files_in_group,
@@ -105,14 +141,7 @@ class ImpactAnalyzer:
             project_root=project_root,
             language=language,
         )
-
-        # Calculate files affected
-        files_affected = len(files_in_group)
-        external_files = set()
-        for site in all_external_refs:
-            if "file" in site:
-                external_files.add(site["file"])
-        files_affected += len(external_files)
+        files_affected = len(files_in_group) + len({s["file"] for s in all_external_refs if "file" in s})
 
         result = {
             "files_affected": files_affected,
@@ -129,6 +158,29 @@ class ImpactAnalyzer:
         )
 
         return result
+
+    def _parse_files_from_locations(self, locations: List[str]) -> List[str]:
+        """Extract unique file paths from location strings."""
+        files: List[str] = []
+        for loc in locations:
+            if ":" not in loc:
+                continue
+            file_path = loc.split(":")[0]
+            if file_path not in files:
+                files.append(file_path)
+        return files
+
+    def _find_all_external_refs(
+        self, function_names: List[str], project_root: str, language: str, exclude_files: List[str]
+    ) -> List[Dict[str, Any]]:
+        """Find all external call sites and import references combined."""
+        call_sites = self._find_external_call_sites(
+            function_names=function_names, project_root=project_root, language=language, exclude_files=exclude_files
+        )
+        import_sites = self._find_import_references(
+            function_names=function_names, project_root=project_root, language=language, exclude_files=exclude_files
+        )
+        return call_sites + import_sites
 
     def _extract_function_names_from_code(self, code: str, language: str) -> List[str]:
         """Extract function/method/class names from code sample.
@@ -151,66 +203,8 @@ class ImpactAnalyzer:
         return self._filter_extracted_names(names)
 
     def _get_language_patterns(self, language: str) -> List[str]:
-        """Get regex patterns for extracting names from code in a specific language.
-
-        Args:
-            language: Programming language (lowercase)
-
-        Returns:
-            List of regex patterns to apply
-        """
-        # Configuration-driven pattern mapping
-        pattern_config = {
-            "python": [
-                r"\bdef\s+(\w+)\s*\(",  # def function_name(
-                r"\bclass\s+(\w+)",  # class ClassName
-            ],
-            "javascript": [
-                r"\bfunction\s+(\w+)\s*\(",  # function name(
-                r"\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>",  # arrow functions
-                r"^\s*(\w+)\s*\([^)]*\)\s*\{",  # methods
-            ],
-            "typescript": [
-                r"\bfunction\s+(\w+)\s*\(",
-                r"\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>",
-                r"^\s*(\w+)\s*\([^)]*\)\s*\{",
-            ],
-            "jsx": [
-                r"\bfunction\s+(\w+)\s*\(",
-                r"\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>",
-                r"^\s*(\w+)\s*\([^)]*\)\s*\{",
-            ],
-            "tsx": [
-                r"\bfunction\s+(\w+)\s*\(",
-                r"\b(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])*=>",
-                r"^\s*(\w+)\s*\([^)]*\)\s*\{",
-            ],
-            "java": [
-                r"\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{",  # methods
-                r"\bclass\s+(\w+)",  # classes
-            ],
-            "csharp": [
-                r"\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{",
-                r"\bclass\s+(\w+)",
-            ],
-            "cpp": [
-                r"\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{",
-                r"\bclass\s+(\w+)",
-            ],
-            "c": [
-                r"\b(?:public|private|protected|static|\w+)\s+(\w+)\s*\([^)]*\)\s*\{",
-                r"\bclass\s+(\w+)",
-            ],
-            "go": [
-                r"\bfunc\s+(?:\([^)]*\)\s+)?(\w+)\s*\(",  # func FunctionName( or func (r *Receiver) MethodName(
-            ],
-            "rust": [
-                r"\bfn\s+(\w+)\s*[<(]",  # fn function_name( or fn function_name<
-                r"\bstruct\s+(\w+)",  # struct StructName
-            ],
-        }
-
-        return pattern_config.get(language, [])
+        """Get regex patterns for extracting names from code in a specific language."""
+        return _LANGUAGE_NAME_PATTERNS.get(language, [])
 
     def _apply_extraction_patterns(self, code: str, patterns: List[str]) -> List[str]:
         """Apply regex patterns to extract names from code.
@@ -233,33 +227,14 @@ class ImpactAnalyzer:
         return names
 
     def _filter_extracted_names(self, names: List[str]) -> List[str]:
-        """Filter and deduplicate extracted function/class names.
-
-        Removes common keywords and duplicates while preserving order.
-
-        Args:
-            names: List of extracted names (may contain duplicates)
-
-        Returns:
-            Filtered and deduplicated list of names
-        """
-        common_words = {"new", "get", "set", "if", "for", "while", "return", "main", "init", "test"}
-        filtered_names = []
-        seen = set()
-
+        """Filter and deduplicate extracted function/class names."""
+        seen: set = set()
+        result = []
         for name in names:
-            # Skip empty names, duplicates, and common words
-            if not name:
-                continue
-            if name in seen:
-                continue
-            if name.lower() in common_words:
-                continue
-
-            seen.add(name)
-            filtered_names.append(name)
-
-        return filtered_names
+            if name and name not in seen and name.lower() not in _FILTER_COMMON_WORDS:
+                seen.add(name)
+                result.append(name)
+        return result
 
     def _find_external_call_sites(
         self, function_names: List[str], project_root: str, language: str, exclude_files: List[str]
@@ -304,18 +279,7 @@ class ImpactAnalyzer:
     def _find_import_references(
         self, function_names: List[str], project_root: str, language: str, exclude_files: List[str]
     ) -> List[Dict[str, Any]]:
-        """Find import statements that reference the duplicated code.
-
-        Args:
-            function_names: Names to search for in imports
-            project_root: Project root path
-            language: Programming language
-            exclude_files: Files to exclude
-
-        Returns:
-            List of import reference info dicts
-        """
-        # Early return for empty input
+        """Find import statements that reference the duplicated code."""
         if not function_names:
             return []
 
@@ -513,18 +477,7 @@ class ImpactAnalyzer:
         project_root: str,
         language: str,
     ) -> Dict[str, Any]:
-        """Assess the risk of breaking changes from deduplication.
-
-        Args:
-            function_names: Names of functions being deduplicated
-            files_in_group: Files containing the duplicates
-            external_call_sites: External references found
-            project_root: Project root path
-            language: Programming language
-
-        Returns:
-            Risk assessment with level, factors, and recommendations
-        """
+        """Assess the risk of breaking changes from deduplication."""
         risk_factors = []
         risk_score = 0
 
@@ -638,32 +591,7 @@ class ImpactAnalyzer:
 
     def _determine_risk_level(self, risk_score: int) -> Tuple[str, List[str]]:
         """Determine risk level and recommendations based on score."""
-        # Configuration-driven risk levels
-        risk_levels: Dict[str, _RiskLevelConfig] = {
-            "low": {"max_score": 1, "recommendations": ["Safe to proceed with standard review", "Run tests after applying changes"]},
-            "medium": {
-                "max_score": MEDIUM_RISK_MAX_SCORE,
-                "recommendations": [
-                    "Review external call sites before applying",
-                    "Consider updating call sites in the same commit",
-                    "Run comprehensive test suite after changes",
-                ],
-            },
-            "high": {
-                "max_score": float("inf"),
-                "recommendations": [
-                    "Carefully review all external references",
-                    "Consider deprecating old functions instead of removing",
-                    "Update external call sites first",
-                    "May require coordinated changes across modules",
-                    "Consider feature flag for gradual rollout",
-                ],
-            },
-        }
-
-        for level_name, config in risk_levels.items():
+        for level_name, config in _RISK_LEVEL_CONFIG.items():
             if risk_score <= config["max_score"]:
                 return level_name, config["recommendations"]
-
-        # Should never reach here, but return high as failsafe
-        return "high", risk_levels["high"]["recommendations"]
+        return "high", _RISK_LEVEL_CONFIG["high"]["recommendations"]

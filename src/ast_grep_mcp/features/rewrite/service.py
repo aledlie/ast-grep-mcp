@@ -42,6 +42,28 @@ def _validate_python_syntax(content: str, file_path: str) -> Dict[str, Any]:
         return {"valid": False, "error": f"Line {e.lineno}: {e.msg}"}
 
 
+def _parse_node_error(stderr: str) -> str:
+    if stderr:
+        return stderr.strip().split("\n")[0]
+    return "Syntax error"
+
+
+def _run_node_check(tmp_path: str) -> Dict[str, Any]:
+    """Run node --check on a temp file and return validity result."""
+    try:
+        result = subprocess.run(
+            ["node", "--check", tmp_path],
+            capture_output=True,
+            text=True,
+            timeout=SyntaxValidationDefaults.NODE_TIMEOUT_SECONDS,
+        )
+        if result.returncode != 0:
+            return {"valid": False, "error": _parse_node_error(result.stderr)}
+        return {"valid": True, "error": None}
+    finally:
+        os.unlink(tmp_path)
+
+
 def _validate_javascript_syntax(content: str) -> Dict[str, Any]:
     """Validate JavaScript syntax using Node.js with ESM support.
 
@@ -58,21 +80,17 @@ def _validate_javascript_syntax(content: str) -> Dict[str, Any]:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".mjs", delete=False, encoding="utf-8") as f:
             f.write(content)
             tmp_path = f.name
-        try:
-            result = subprocess.run(
-                ["node", "--check", tmp_path],
-                capture_output=True,
-                text=True,
-                timeout=SyntaxValidationDefaults.NODE_TIMEOUT_SECONDS,
-            )
-            if result.returncode != 0:
-                error_msg = result.stderr.strip().split("\n")[0] if result.stderr else "Syntax error"
-                return {"valid": False, "error": error_msg}
-            return {"valid": True, "error": None}
-        finally:
-            os.unlink(tmp_path)
+        return _run_node_check(tmp_path)
     except (subprocess.SubprocessError, FileNotFoundError):
         return {"valid": True, "error": "JavaScript validation skipped (node not available)"}
+
+
+def _extract_tsc_syntax_error(combined: str) -> Optional[str]:
+    """Return the first TS1xxx syntax error line from tsc output, or None."""
+    for line in combined.split("\n"):
+        if re.search(SyntaxValidationDefaults.TSC_SYNTAX_ERROR_PATTERN, line):
+            return line.strip()
+    return None
 
 
 def _validate_typescript_syntax(file_path: str) -> Dict[str, Any]:
@@ -107,14 +125,10 @@ def _validate_typescript_syntax(file_path: str) -> Dict[str, Any]:
             text=True,
             timeout=SyntaxValidationDefaults.TSC_TIMEOUT_SECONDS,
         )
-        # Filter for syntax errors only (TS1xxx), ignore type errors (TS2xxx+)
         combined = result.stdout + result.stderr
-        syntax_errors = re.findall(SyntaxValidationDefaults.TSC_SYNTAX_ERROR_PATTERN, combined)
-        if syntax_errors:
-            # Extract first syntax error line for the message
-            for line in combined.split("\n"):
-                if re.search(SyntaxValidationDefaults.TSC_SYNTAX_ERROR_PATTERN, line):
-                    return {"valid": False, "error": line.strip()}
+        error_line = _extract_tsc_syntax_error(combined)
+        if error_line:
+            return {"valid": False, "error": error_line}
         return {"valid": True, "error": None}
     except FileNotFoundError:
         return {"valid": True, "error": "TypeScript validation skipped (tsc not available)"}
@@ -303,6 +317,32 @@ def _build_command_args(
     return args, search_targets
 
 
+def _match_to_change_entry(match: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "file": match.get("file", "unknown"),
+        "line": match.get("range", {}).get("start", {}).get("line", 0),
+        "original": match.get("text", ""),
+        "replacement": match["replacement"],
+        "rule_id": match.get("ruleId", "unknown"),
+    }
+
+
+def _format_dry_run_changes(matches: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Extract change preview entries from stream matches."""
+    return [_match_to_change_entry(m) for m in matches if "replacement" in m]
+
+
+def _log_dry_run_completed(logger: Any, start_time: float, changes_found: int) -> None:
+    execution_time = time.time() - start_time
+    logger.info(
+        "rewrite_code_completed",
+        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        dry_run=True,
+        changes_found=changes_found,
+        status="success",
+    )
+
+
 def _perform_dry_run(args: List[str], search_targets: List[str], logger: Any, start_time: float) -> Dict[str, Any]:
     """Perform dry run to preview changes.
 
@@ -322,40 +362,76 @@ def _perform_dry_run(args: List[str], search_targets: List[str], logger: Any, st
     matches = list(stream_ast_grep_results("scan", full_args, max_results=0))
 
     if not matches:
-        execution_time = time.time() - start_time
-        logger.info(
-            "rewrite_code_completed",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            dry_run=True,
-            changes_found=0,
-            status="success",
-        )
+        _log_dry_run_completed(logger, start_time, 0)
         return {"dry_run": True, "message": "No matches found - no changes would be applied", "changes": []}
 
-    # Format changes for preview
-    changes = []
-    for match in matches:
-        if "replacement" in match:
-            changes.append(
-                {
-                    "file": match.get("file", "unknown"),
-                    "line": match.get("range", {}).get("start", {}).get("line", 0),
-                    "original": match.get("text", ""),
-                    "replacement": match["replacement"],
-                    "rule_id": match.get("ruleId", "unknown"),
-                }
-            )
+    changes = _format_dry_run_changes(matches)
+    _log_dry_run_completed(logger, start_time, len(changes))
+    return {"dry_run": True, "message": f"Found {len(changes)} change(s) - set dry_run=false to apply", "changes": changes}
 
+
+def _maybe_create_backup(files_to_modify: List[str], project_folder: str, backup: bool, logger: Any) -> Optional[str]:
+    if not backup:
+        return None
+    backup_id = create_backup(files_to_modify, project_folder)
+    logger.info("backup_created", backup_id=backup_id, file_count=len(files_to_modify))
+    return backup_id
+
+
+def _run_rewrite_command(rule_file: str, search_targets: List[str], workers: int) -> Any:
+    rewrite_args = ["--rule", rule_file, "--update-all"] + search_targets
+    if workers > 0:
+        rewrite_args.insert(0, "--threads")
+        rewrite_args.insert(1, str(workers))
+    return run_ast_grep("scan", rewrite_args)
+
+
+def _build_rewrite_response(
+    files_to_modify: List[str],
+    backup_id: Optional[str],
+    result: Any,
+    validation_summary: Dict[str, Any],
+) -> Dict[str, Any]:
+    response: Dict[str, Any] = {
+        "dry_run": False,
+        "message": f"Applied changes to {len(files_to_modify)} file(s)",
+        "modified_files": files_to_modify,
+        "backup_id": backup_id,
+        "output": result.stdout,
+        "validation": validation_summary,
+    }
+    if validation_summary["failed"] > 0:
+        response["warning"] = (
+            f"{validation_summary['failed']} file(s) failed syntax validation. "
+            f"Use rollback_rewrite(backup_id='{backup_id}') to restore if needed."
+        )
+    return response
+
+
+def _log_rewrite_completed(
+    logger: Any,
+    start_time: float,
+    files_to_modify: List[str],
+    backup_id: Optional[str],
+    validation_summary: Dict[str, Any],
+) -> None:
+    logger.info(
+        "syntax_validation",
+        validated=validation_summary["validated"],
+        passed=validation_summary["passed"],
+        failed=validation_summary["failed"],
+        skipped=validation_summary["skipped"],
+    )
     execution_time = time.time() - start_time
     logger.info(
         "rewrite_code_completed",
         execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-        dry_run=True,
-        changes_found=len(changes),
+        dry_run=False,
+        modified_files=len(files_to_modify),
+        backup_id=backup_id,
+        validation_failed=validation_summary["failed"],
         status="success",
     )
-
-    return {"dry_run": True, "message": f"Found {len(changes)} change(s) - set dry_run=false to apply", "changes": changes}
 
 
 def _apply_rewrites(
@@ -388,7 +464,6 @@ def _apply_rewrites(
     if not search_targets:
         return {"dry_run": False, "message": "No files to rewrite (all exceeded size limit)", "modified_files": [], "backup_id": None}
 
-    # Get list of files that will be modified
     preview_args = args + ["--json=stream"] + search_targets
     preview_matches = list(stream_ast_grep_results("scan", preview_args, max_results=0))
     files_to_modify: List[str] = [f for f in set(m.get("file") for m in preview_matches if m.get("file")) if f is not None]
@@ -396,59 +471,46 @@ def _apply_rewrites(
     if not files_to_modify:
         return {"dry_run": False, "message": "No changes applied - no matches found", "modified_files": [], "backup_id": None}
 
-    # Create backup if requested
-    backup_id: Optional[str] = None
-    if backup:
-        backup_id = create_backup(files_to_modify, project_folder)
-        logger.info("backup_created", backup_id=backup_id, file_count=len(files_to_modify))
-
-    # Apply rewrite with --update-all
-    rewrite_args = ["--rule", rule_file, "--update-all"] + search_targets
-    if workers > 0:
-        rewrite_args.insert(0, "--threads")
-        rewrite_args.insert(1, str(workers))
-
-    result = run_ast_grep("scan", rewrite_args)
-
-    # Validate syntax of rewritten files
+    backup_id = _maybe_create_backup(files_to_modify, project_folder, backup, logger)
+    result = _run_rewrite_command(rule_file, search_targets, workers)
     validation_summary = validate_rewrites(files_to_modify, language)
+    _log_rewrite_completed(logger, start_time, files_to_modify, backup_id, validation_summary)
+    return _build_rewrite_response(files_to_modify, backup_id, result, validation_summary)
 
-    logger.info(
-        "syntax_validation",
-        validated=validation_summary["validated"],
-        passed=validation_summary["passed"],
-        failed=validation_summary["failed"],
-        skipped=validation_summary["skipped"],
-    )
 
+def _handle_rewrite_error(
+    e: Exception, logger: Any, start_time: float, project_folder: str, dry_run: bool
+) -> None:
     execution_time = time.time() - start_time
-    logger.info(
-        "rewrite_code_completed",
+    logger.error(
+        "rewrite_code_failed",
         execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-        dry_run=False,
-        modified_files=len(files_to_modify),
-        backup_id=backup_id,
-        validation_failed=validation_summary["failed"],
-        status="success",
+        error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+        status="failed",
+    )
+    sentry_sdk.capture_exception(
+        e,
+        extras={
+            "function": "rewrite_code_impl",
+            "project_folder": project_folder,
+            "dry_run": dry_run,
+            "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        },
     )
 
-    response = {
-        "dry_run": False,
-        "message": f"Applied changes to {len(files_to_modify)} file(s)",
-        "modified_files": files_to_modify,
-        "backup_id": backup_id,
-        "output": result.stdout,
-        "validation": validation_summary,
-    }
 
-    # Add warning if validation failed
-    if validation_summary["failed"] > 0:
-        response["warning"] = (
-            f"{validation_summary['failed']} file(s) failed syntax validation. "
-            f"Use rollback_rewrite(backup_id='{backup_id}') to restore if needed."
-        )
-
-    return response
+def _execute_rewrite(
+    project_folder: str, yaml_rule: str, dry_run: bool, backup: bool, max_file_size_mb: int, workers: int,
+    logger: Any, start_time: float,
+) -> Tuple[Optional[str], Dict[str, Any]]:
+    """Validate, prepare, and dispatch rewrite. Returns (rule_file, result)."""
+    rule_data = _validate_yaml_rule(yaml_rule)
+    language = rule_data.get("language", "unknown")
+    rule_file = _create_temp_rule_file(yaml_rule)
+    args, search_targets = _build_command_args(rule_file, project_folder, max_file_size_mb, workers, language)
+    if dry_run:
+        return rule_file, _perform_dry_run(args, search_targets, logger, start_time)
+    return rule_file, _apply_rewrites(args, search_targets, rule_file, project_folder, backup, workers, language, logger, start_time)
 
 
 def rewrite_code_impl(
@@ -481,44 +543,29 @@ def rewrite_code_impl(
     logger.info("rewrite_code_started", project_folder=project_folder, dry_run=dry_run, backup=backup, workers=workers)
 
     try:
-        # Step 1: Validate YAML rule
-        rule_data = _validate_yaml_rule(yaml_rule)
-        language = rule_data.get("language", "unknown")
-
-        # Step 2: Create temporary rule file
-        rule_file = _create_temp_rule_file(yaml_rule)
-
-        # Step 3: Build command arguments
-        args, search_targets = _build_command_args(rule_file, project_folder, max_file_size_mb, workers, language)
-
-        # Step 4: Execute based on mode
-        if dry_run:
-            return _perform_dry_run(args, search_targets, logger, start_time)
-        else:
-            return _apply_rewrites(args, search_targets, rule_file, project_folder, backup, workers, language, logger, start_time)
-
+        rule_file, result = _execute_rewrite(project_folder, yaml_rule, dry_run, backup, max_file_size_mb, workers, logger, start_time)
+        return result
     except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "rewrite_code_failed",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-            status="failed",
-        )
-        sentry_sdk.capture_exception(
-            e,
-            extras={
-                "function": "rewrite_code_impl",
-                "project_folder": project_folder,
-                "dry_run": dry_run,
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            },
-        )
+        _handle_rewrite_error(e, logger, start_time, project_folder, dry_run)
         raise
     finally:
-        # Clean up temporary rule file
         if rule_file and os.path.exists(rule_file):
             os.unlink(rule_file)
+
+
+def _build_rollback_response(result: Dict[str, Any]) -> Dict[str, Any]:
+    if result["success"]:
+        return {
+            "success": True,
+            "message": f"Successfully restored {len(result['restored_files'])} file(s)",
+            "restored_files": result["restored_files"],
+        }
+    return {
+        "success": False,
+        "message": "Rollback encountered errors",
+        "restored_files": result["restored_files"],
+        "errors": result["errors"],
+    }
 
 
 def rollback_rewrite_impl(backup_id: str, project_folder: str) -> Dict[str, Any]:
@@ -551,19 +598,7 @@ def rollback_rewrite_impl(backup_id: str, project_folder: str) -> Dict[str, Any]
             status="success" if result["success"] else "partial",
         )
 
-        if result["success"]:
-            return {
-                "success": True,
-                "message": f"Successfully restored {len(result['restored_files'])} file(s)",
-                "restored_files": result["restored_files"],
-            }
-        else:
-            return {
-                "success": False,
-                "message": "Rollback encountered errors",
-                "restored_files": result["restored_files"],
-                "errors": result["errors"],
-            }
+        return _build_rollback_response(result)
 
     except Exception as e:
         execution_time = time.time() - start_time
