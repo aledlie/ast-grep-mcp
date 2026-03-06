@@ -37,7 +37,7 @@ from ast_grep_mcp.models.cross_language import (
 # =============================================================================
 
 
-def _run_tool(tool_name: str, fn: Callable[[], Any], start_time: float, log_kwargs: Dict[str, Any]) -> Any:
+def _run_tool(tool_name: str, fn: Callable[[], Dict[str, Any]], start_time: float, log_kwargs: Dict[str, Any]) -> Dict[str, Any]:
     logger = get_logger(f"tool.{tool_name}")
     logger.info("tool_invoked", tool=tool_name, **log_kwargs)
     try:

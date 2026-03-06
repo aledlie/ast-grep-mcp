@@ -371,7 +371,7 @@ class DuplicationDetector:
         return self._structure_hash.calculate(code)
 
     def _collect_similar_items(
-        self, anchor: Dict[str, Any], candidates: List[Dict[str, Any]], candidate_indices: List[int], used: set, min_similarity: float
+        self, anchor: Dict[str, Any], candidates: List[Dict[str, Any]], candidate_indices: List[int], used: set[int], min_similarity: float
     ) -> List[int]:
         """Return indices (into candidates) that are similar to anchor and not yet used."""
         matches = []
@@ -386,7 +386,7 @@ class DuplicationDetector:
     def _find_similar_in_bucket(self, bucket: List[Dict[str, Any]], min_similarity: float) -> List[List[Dict[str, Any]]]:
         """Find similar items within a bucket."""
         groups = []
-        used: set = set()
+        used: set[int] = set()
 
         for i, item1 in enumerate(bucket):
             if i in used:
@@ -450,7 +450,7 @@ class DuplicationDetector:
             self._add_unique_items(merged_group, groups[connected_idx])
 
     def _expand_connected_group(
-        self, start_idx: int, groups: List[List[Dict[str, Any]]], item_to_groups: Dict[str, List[int]], used_groups: set
+        self, start_idx: int, groups: List[List[Dict[str, Any]]], item_to_groups: Dict[str, List[int]], used_groups: set[int]
     ) -> List[Dict[str, Any]]:
         """BFS-expand all groups connected to start_idx, returning merged items."""
         merged_group = groups[start_idx].copy()
@@ -466,7 +466,7 @@ class DuplicationDetector:
             return []
         item_to_groups = self._build_item_to_groups_map(groups)
         merged = []
-        used_groups: set = set()
+        used_groups: set[int] = set()
         for idx in range(len(groups)):
             if idx in used_groups:
                 continue

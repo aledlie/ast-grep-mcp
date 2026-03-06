@@ -3,7 +3,7 @@
 import argparse
 import os
 import sys
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import yaml
 
@@ -24,7 +24,7 @@ CACHE_TTL: int = CacheDefaults.TTL_SECONDS
 _query_cache: Optional[Any] = None
 
 
-def _load_yaml_config(config_path: str) -> dict:
+def _load_yaml_config(config_path: str) -> dict[str, Any]:
     if not os.path.exists(config_path):
         raise ConfigurationError(config_path, "File does not exist")
     if not os.path.isfile(config_path):
@@ -151,7 +151,7 @@ def _resolve_and_validate_config_path(args: argparse.Namespace) -> Optional[str]
     """
     if args.config:
         _try_validate_config(args.config)
-        return args.config
+        return cast(str, args.config)
     if env_config := os.environ.get("AST_GREP_CONFIG"):
         _try_validate_config(env_config)
         return env_config

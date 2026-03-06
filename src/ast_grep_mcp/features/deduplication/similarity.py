@@ -1113,7 +1113,7 @@ class HybridSimilarity:
 
         return intersection / union if union > 0 else 0.0
 
-    _STRUCTURAL_KEYWORDS: frozenset = frozenset({
+    _STRUCTURAL_KEYWORDS: frozenset[str] = frozenset({
         "def", "class", "if", "elif", "else", "for", "while",
         "try", "except", "finally", "with", "return", "yield",
         "async", "await", "function", "const", "let", "var",
@@ -1346,7 +1346,7 @@ class EnhancedStructureHash:
         complexity += sum(1 for n in nodes if n in decision_nodes)
         return complexity
 
-    _CALL_EXCLUDED: frozenset = frozenset({
+    _CALL_EXCLUDED: frozenset[str] = frozenset({
         "if", "for", "while", "with", "elif", "match", "case",
         "except", "try", "catch", "finally",
         "print", "return", "assert", "raise", "yield", "pass",
@@ -1371,7 +1371,7 @@ class EnhancedStructureHash:
                 return m.group(1) if m else None
         return None
 
-    def _collect_defined_names(self, code: str) -> set:
+    def _collect_defined_names(self, code: str) -> set[str]:
         names = (self._defined_name_from_line(line.strip()) for line in code.split("\n"))
         return {n for n in names if n is not None}
 

@@ -267,7 +267,7 @@ _INSERT_USAGE_SQL = """
 """
 
 
-def _entry_to_params(entry: UsageLogEntry) -> tuple:
+def _entry_to_params(entry: UsageLogEntry) -> tuple[Any, ...]:
     return (
         entry.id,
         entry.timestamp.isoformat(),
@@ -315,7 +315,7 @@ _STATS_AGGREGATE_SQL = """
 """
 
 
-def _parse_stats_row(row: sqlite3.Row, start_time: datetime, end_time: datetime) -> dict:
+def _parse_stats_row(row: sqlite3.Row, start_time: datetime, end_time: datetime) -> dict[str, Any]:
     total_calls = row["total_calls"] or 0
     successful_calls = row["successful_calls"] or 0
     rate = (successful_calls / total_calls * ConversionFactors.PERCENT_MULTIPLIER) if total_calls > 0 else 0.0

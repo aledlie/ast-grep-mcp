@@ -20,7 +20,7 @@ from .scoring_scales import VariationScoreCutoff, VariationScoreScale
 
 IDENTIFIER_CONTEXT_WINDOW_CHARS = 20
 
-_LANGUAGE_KEYWORDS: Dict[str, set] = {
+_LANGUAGE_KEYWORDS: Dict[str, set[str]] = {
     "python": {
         "def", "class", "if", "else", "elif", "for", "while", "return", "import", "from",
         "as", "try", "except", "finally", "with", "lambda", "yield", "raise", "pass",
@@ -179,22 +179,22 @@ class PatternAnalyzer:
         formatted_variations, suggested_parameters = self._format_literal_variations(all_variations)
         return {"total_variations": len(formatted_variations), "variations": formatted_variations, "suggested_parameters": suggested_parameters}
 
-    def _accumulate_one_item(self, base_code: str, code: str, all_variations: Dict[tuple, List[str]], language: str) -> None:
+    def _accumulate_one_item(self, base_code: str, code: str, all_variations: Dict[tuple[Any, ...], List[str]], language: str) -> None:
         for var in self.identify_varying_literals(base_code, code, language):
             key = (var["position"], var.get("column", 0), var["literal_type"])
             vals = all_variations.setdefault(key, [var["value1"]])
             if var["value2"] not in vals:
                 vals.append(var["value2"])
 
-    def _accumulate_literal_variations(self, base_code: str, items: List[Dict[str, Any]], language: str) -> Dict[tuple, List[str]]:
-        all_variations: Dict[tuple, List[str]] = {}
+    def _accumulate_literal_variations(self, base_code: str, items: List[Dict[str, Any]], language: str) -> Dict[tuple[Any, ...], List[str]]:
+        all_variations: Dict[tuple[Any, ...], List[str]] = {}
         for item in items:
             code = item.get("text", "")
             if code != base_code:
                 self._accumulate_one_item(base_code, code, all_variations, language)
         return all_variations
 
-    def _format_literal_variations(self, all_variations: Dict[tuple, List[str]]) -> tuple[List[Dict[str, Any]], List[str]]:
+    def _format_literal_variations(self, all_variations: Dict[tuple[Any, ...], List[str]]) -> tuple[List[Dict[str, Any]], List[str]]:
         formatted_variations: List[Dict[str, Any]] = []
         suggested_parameters: List[str] = []
         for (line, col, lit_type), values in sorted(all_variations.items()):
@@ -311,7 +311,7 @@ class PatternAnalyzer:
     _CONTROL_KEYWORDS = frozenset({"if", "else", "elif", "for", "while", "switch", "case", "try", "catch", "except"})
     _EXPRESSION_INDICATORS = frozenset({"(", ")", "+", "-", "*", "/", "==", "!=", "&&", "||", "and", "or"})
 
-    def _matches_any_keyword(self, old_low: str, new_low: str, keywords: frozenset) -> bool:
+    def _matches_any_keyword(self, old_low: str, new_low: str, keywords: frozenset[str]) -> bool:
         return any(kw in old_low or kw in new_low for kw in keywords)
 
     def _infer_category_from_content(self, old_value: str, new_value: str) -> str:
@@ -380,7 +380,7 @@ class PatternAnalyzer:
 
     def _determine_severity(self, category: str, old_value: str, new_value: str) -> str:
         """Determine the severity of a variation."""
-        severity_fns = {
+        severity_fns: Dict[str, Callable[[], str]] = {
             VariationCategory.LITERAL: lambda: VariationSeverity.LOW,
             VariationCategory.IDENTIFIER: lambda: self._severity_identifier(old_value, new_value),
             VariationCategory.TYPE: lambda: self._severity_type(old_value, new_value),
@@ -739,7 +739,7 @@ class PatternAnalyzer:
     def _find_operator(self, cond: str) -> Optional[str]:
         return next((op for op in self._COMPARISON_OPERATORS if op in cond), None)
 
-    def _extract_cond_vars(self, cond: str) -> set:
+    def _extract_cond_vars(self, cond: str) -> set[str]:
         import re
         for op in self._COMPARISON_OPERATORS:
             cond = cond.replace(op, " ")

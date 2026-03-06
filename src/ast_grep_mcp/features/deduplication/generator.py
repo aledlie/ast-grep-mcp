@@ -401,17 +401,17 @@ class CodeGenerator:
             return f"import {module_path}.{import_names[0]};"
         return f"// Import {', '.join(import_names)} from {module_path}"
 
-    def _collect_variation_params(self, code_variations: List[Dict[str, Any]], seen_names: set) -> List[Dict[str, str]]:
+    def _collect_variation_params(self, code_variations: List[Dict[str, Any]], seen_names: set[str]) -> List[Dict[str, str]]:
         """Collect parameters from code variations, deduplicating by name."""
         params: List[Dict[str, str]] = []
         for variation in code_variations:
             param_name = variation.get("suggested_param_name")
             if param_name and param_name not in seen_names:
-                params.append({"name": param_name, "type": self._infer_parameter_type(variation)})
+                params.append({"name": param_name, "type": self._infer_parameter_type(variation) or "Any"})
                 seen_names.add(param_name)
         return params
 
-    def _collect_external_params(self, base_code: str, seen_names: set) -> List[Dict[str, str]]:
+    def _collect_external_params(self, base_code: str, seen_names: set[str]) -> List[Dict[str, str]]:
         """Collect parameters from external dependencies not already seen."""
         params: List[Dict[str, str]] = []
         for dep in self._find_external_dependencies(base_code):
@@ -431,7 +431,7 @@ class CodeGenerator:
         Returns:
             List of inferred parameters
         """
-        seen_names: set = set()
+        seen_names: set[str] = set()
         parameters = self._collect_variation_params(code_variations, seen_names)
         parameters.extend(self._collect_external_params(base_code, seen_names))
         return parameters

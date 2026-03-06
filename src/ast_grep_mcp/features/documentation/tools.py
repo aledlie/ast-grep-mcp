@@ -106,9 +106,9 @@ def _format_changelog_version(v: Any) -> Dict[str, Any]:
 
 def _format_sync_doc_coverage(result: Any) -> int | float:
     if result.total_functions > 0:
-        return round(
+        return float(round(
             result.documented_functions / result.total_functions * ConversionFactors.PERCENT_MULTIPLIER, 1
-        )
+        ))
     return 0
 
 

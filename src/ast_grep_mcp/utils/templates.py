@@ -10,7 +10,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from ast_grep_mcp.constants import SubprocessDefaults
 
@@ -335,7 +335,7 @@ def _build_typescript_class_args(
     properties: Optional[List[str]],
     constructor: Optional[str],
     methods: Optional[List[str]],
-) -> dict:
+) -> dict[str, Any]:
     return {
         "jsdoc": f"{jsdoc}\n" if jsdoc else "",
         "export": "export " if export else "",
