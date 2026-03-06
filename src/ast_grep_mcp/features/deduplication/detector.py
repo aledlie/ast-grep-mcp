@@ -48,19 +48,7 @@ class DuplicationDetector:
         similarity_config: Optional[SimilarityConfig] = None,
         hybrid_config: Optional[HybridSimilarityConfig] = None,
     ) -> None:
-        """Initialize the duplication detector.
-
-        Args:
-            language: Programming language to analyze
-            use_minhash: Legacy parameter - use similarity_mode instead.
-                        If False, overrides similarity_mode to 'sequence_matcher'.
-            similarity_mode: Similarity calculation mode:
-                - 'hybrid': Two-stage pipeline (recommended) - fast MinHash filter + AST verification
-                - 'minhash': Fast MinHash only (O(n)) - good for large codebases
-                - 'sequence_matcher': Precise but slow (O(n²)) - for small codebases
-            similarity_config: Configuration for MinHash similarity calculation
-            hybrid_config: Configuration for hybrid pipeline behavior
-        """
+        """Initialize the duplication detector."""
         self.language = language
         self.logger = get_logger("deduplication.detector")
 
@@ -80,6 +68,37 @@ class DuplicationDetector:
             language=language,
             similarity_mode=similarity_mode,
         )
+
+    def _build_exclude_patterns(self, exclude_patterns: Optional[List[str]]) -> List[str]:
+        """Merge user-supplied and mandatory exclusion patterns."""
+        result = ["site-packages", "node_modules", ".venv", "venv", "vendor"] if exclude_patterns is None else list(exclude_patterns)
+        for pattern in _MANDATORY_ENV_EXCLUDE_PATTERNS:
+            if pattern not in result:
+                result.append(pattern)
+        return result
+
+    def _run_detection(
+        self,
+        project_folder: str,
+        construct_type: str,
+        min_similarity: float,
+        min_lines: int,
+        max_constructs: int,
+        exclude_patterns: List[str],
+        start_time: float,
+    ) -> Dict[str, Any]:
+        """Inner detection logic, separated from tracking/error handling."""
+        self._validate_parameters(min_similarity, min_lines, max_constructs)
+        pattern = self._get_construct_pattern(construct_type)
+        all_matches = self._find_constructs(project_folder, pattern, max_constructs, exclude_patterns)
+
+        if not all_matches:
+            return self._empty_result(construct_type, time.time() - start_time)
+
+        duplication_groups = self.group_duplicates(all_matches, min_similarity, min_lines)
+        suggestions = self.generate_refactoring_suggestions(duplication_groups, construct_type)
+        stats = self._calculate_statistics(all_matches, duplication_groups, suggestions)
+        return self._format_result(all_matches, duplication_groups, suggestions, stats, time.time() - start_time)
 
     def find_duplication(
         self,
@@ -105,14 +124,7 @@ class DuplicationDetector:
             Dict containing duplication analysis results
         """
         start_time = time.time()
-
-        if exclude_patterns is None:
-            exclude_patterns = ["site-packages", "node_modules", ".venv", "venv", "vendor"]
-        else:
-            exclude_patterns = list(exclude_patterns)
-        for pattern in _MANDATORY_ENV_EXCLUDE_PATTERNS:
-            if pattern not in exclude_patterns:
-                exclude_patterns.append(pattern)
+        exclude_patterns = self._build_exclude_patterns(exclude_patterns)
 
         self.logger.info(
             "find_duplication_started",
@@ -125,60 +137,43 @@ class DuplicationDetector:
             exclude_patterns=exclude_patterns,
         )
 
-        # Track usage for cost monitoring
         with track_operation(
             "find_duplication", OperationType.FIND_DUPLICATION, metadata={"language": self.language, "construct_type": construct_type}
         ) as tracker:
-            try:
-                # Validate parameters
-                self._validate_parameters(min_similarity, min_lines, max_constructs)
+            return self._tracked_detection(project_folder, construct_type, min_similarity, min_lines, max_constructs, exclude_patterns, start_time, tracker)
 
-                # Get pattern for the construct type
-                pattern = self._get_construct_pattern(construct_type)
-
-                # Find all instances of the construct
-                all_matches = self._find_constructs(project_folder, pattern, max_constructs, exclude_patterns)
-
-                # Update tracker with metrics
-                tracker.files_processed = len(set(m.get("file", "") for m in all_matches))
-                tracker.lines_analyzed = sum(len(m.get("text", "").split("\n")) for m in all_matches)
-
-                if not all_matches:
-                    execution_time = time.time() - start_time
-                    return self._empty_result(construct_type, execution_time)
-
-                # Group duplicates by similarity
-                duplication_groups = self.group_duplicates(all_matches, min_similarity, min_lines)
-
-                # Generate refactoring suggestions
-                suggestions = self.generate_refactoring_suggestions(duplication_groups, construct_type)
-
-                # Calculate statistics
-                stats = self._calculate_statistics(all_matches, duplication_groups, suggestions)
-
-                # Update tracker with match count
-                tracker.matches_found = len(duplication_groups)
-
-                execution_time = time.time() - start_time
-                self.logger.info(
-                    "find_duplication_completed",
-                    execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-                    total_constructs=len(all_matches),
-                    duplicate_groups=len(duplication_groups),
-                    status="success",
-                )
-
-                return self._format_result(all_matches, duplication_groups, suggestions, stats, execution_time)
-
-            except Exception as e:
-                execution_time = time.time() - start_time
-                self.logger.error(
-                    "find_duplication_failed",
-                    execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-                    error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-                    status="failed",
-                )
-                raise
+    def _tracked_detection(
+        self,
+        project_folder: str,
+        construct_type: str,
+        min_similarity: float,
+        min_lines: int,
+        max_constructs: int,
+        exclude_patterns: List[str],
+        start_time: float,
+        tracker: Any,
+    ) -> Dict[str, Any]:
+        """Run detection inside a tracking context with error logging."""
+        try:
+            result = self._run_detection(project_folder, construct_type, min_similarity, min_lines, max_constructs, exclude_patterns, start_time)
+            summary = result.get("summary", {})
+            tracker.lines_analyzed = summary.get("total_constructs", 0)
+            tracker.matches_found = summary.get("duplicate_groups", 0)
+            self.logger.info(
+                "find_duplication_completed",
+                execution_time_seconds=round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION),
+                duplicate_groups=tracker.matches_found,
+                status="success",
+            )
+            return result
+        except Exception as e:
+            self.logger.error(
+                "find_duplication_failed",
+                execution_time_seconds=round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION),
+                error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+                status="failed",
+            )
+            raise
 
     def _validate_parameters(self, min_similarity: float, min_lines: int, max_constructs: int) -> None:
         """Validate input parameters."""
@@ -189,54 +184,52 @@ class DuplicationDetector:
         if max_constructs < 0:
             raise ValueError("max_constructs must be 0 (unlimited) or positive")
 
+    _JS_TS_PATTERNS: Dict[str, str] = {
+        "function_definition": "const $NAME = $$$",
+        "arrow_function": "const $NAME = ($$$) => $$$",
+        "traditional_function": "function $NAME($$$) { $$$ }",
+        "method_definition": "$NAME($$$) { $$$ }",
+    }
+    _C_LIKE_PATTERNS: Dict[str, str] = {
+        "function_definition": "$TYPE $NAME($$$) { $$$ }",
+        "method_definition": "$TYPE $NAME($$$) { $$$ }",
+    }
+    _DEFAULT_PATTERNS: Dict[str, str] = {
+        "function_definition": "def $NAME($$$)",
+        "class_definition": "class $NAME",
+        "method_definition": "def $NAME($$$)",
+    }
+    _JS_TS_LANGS = frozenset(["javascript", "typescript", "jsx", "tsx"])
+    _C_LIKE_LANGS = frozenset(["java", "csharp", "cpp", "c"])
+
     def _get_construct_pattern(self, construct_type: str) -> str:
         """Get ast-grep pattern for the construct type and language."""
-        construct_patterns = {
-            "function_definition": "def $NAME($$$)",  # Python/general
-            "class_definition": "class $NAME",
-            "method_definition": "def $NAME($$$)",
-        }
+        lang = self.language.lower()
+        patterns = dict(self._DEFAULT_PATTERNS)
 
-        # Language-specific patterns
-        if self.language.lower() in ["javascript", "typescript", "jsx", "tsx"]:
-            # For JS/TS, we need to support multiple patterns:
-            # 1. Traditional function declarations
-            # 2. Arrow functions (const NAME = (...) => {...})
-            # 3. Const functions (const NAME = function(...) {...})
-            # 4. Object methods
+        if lang in self._JS_TS_LANGS:
+            js_pattern = self._JS_TS_PATTERNS.get(construct_type, "const $NAME = $$$")
+            patterns[construct_type] = js_pattern
+        elif lang in self._C_LIKE_LANGS:
+            patterns.update(self._C_LIKE_PATTERNS)
 
-            # Use pattern that matches arrow functions and const functions
-            # This is the most common pattern in modern JS/TS
-            if construct_type == "function_definition":
-                # Match: const NAME = (...) => { ... }
-                # Match: const NAME = function(...) { ... }
-                construct_patterns["function_definition"] = "const $NAME = $$$"
-            elif construct_type == "arrow_function":
-                # Specifically for arrow functions
-                construct_patterns["arrow_function"] = "const $NAME = ($$$) => $$$"
-            elif construct_type == "traditional_function":
-                # Traditional function declarations
-                construct_patterns["traditional_function"] = "function $NAME($$$) { $$$ }"
-            elif construct_type == "method_definition":
-                # Object methods: methodName() { ... }
-                construct_patterns["method_definition"] = "$NAME($$$) { $$$ }"
-            else:
-                # Default to const assignments for modern JS/TS
-                construct_patterns[construct_type] = "const $NAME = $$$"
+        return patterns.get(construct_type, patterns["function_definition"])
 
-        elif self.language.lower() in ["java", "csharp", "cpp", "c"]:
-            construct_patterns["function_definition"] = "$TYPE $NAME($$$) { $$$ }"
-            construct_patterns["method_definition"] = "$TYPE $NAME($$$) { $$$ }"
-
-        return construct_patterns.get(construct_type, construct_patterns["function_definition"])
+    def _apply_exclude_patterns(self, all_matches: List[Dict[str, Any]], exclude_patterns: List[str]) -> List[Dict[str, Any]]:
+        """Filter matches by excluded path patterns, logging if any were removed."""
+        if not exclude_patterns:
+            return all_matches
+        before = len(all_matches)
+        filtered = [m for m in all_matches if not any(p in m.get("file", "") for p in exclude_patterns)]
+        if before > len(filtered):
+            self.logger.info("excluded_matches", total_before=before, total_after=len(filtered), excluded_count=before - len(filtered))
+        return filtered
 
     def _find_constructs(self, project_folder: str, pattern: str, max_constructs: int, exclude_patterns: List[str]) -> List[Dict[str, Any]]:
         """Find all constructs matching the pattern."""
         args = ["--pattern", pattern, "--lang", self.language]
-
         self.logger.info("searching_constructs", pattern=pattern, language=self.language)
 
-        # Use streaming to get matches
         stream_limit = max_constructs if max_constructs > 0 else 0
         all_matches = list(
             stream_ast_grep_results(
@@ -247,19 +240,8 @@ class DuplicationDetector:
             )
         )
 
-        # Filter out excluded paths
-        if exclude_patterns:
-            matches_before = len(all_matches)
-            all_matches = [match for match in all_matches if not any(pattern in match.get("file", "") for pattern in exclude_patterns)]
-            if matches_before > len(all_matches):
-                self.logger.info(
-                    "excluded_matches",
-                    total_before=matches_before,
-                    total_after=len(all_matches),
-                    excluded_count=matches_before - len(all_matches),
-                )
+        all_matches = self._apply_exclude_patterns(all_matches, exclude_patterns)
 
-        # Log if we hit the limit
         if max_constructs > 0 and len(all_matches) >= max_constructs:
             self.logger.info("construct_limit_reached", total_found=len(all_matches), max_constructs=max_constructs)
 
@@ -282,19 +264,11 @@ class DuplicationDetector:
         """
         if not code1 or not code2:
             return 0.0
-
         if self.similarity_mode == "hybrid":
-            # Two-stage hybrid pipeline - optimal precision/recall
             return self._hybrid.estimate_similarity(code1, code2)
-        elif self.similarity_mode == "minhash":
-            # Fast MinHash estimation - O(n) complexity
+        if self.similarity_mode == "minhash":
             return self._minhash.estimate_similarity(code1, code2)
-        else:
-            # Fallback to SequenceMatcher - O(n²) complexity
-            norm1 = self._normalize_code(code1)
-            norm2 = self._normalize_code(code2)
-            matcher = SequenceMatcher(None, norm1, norm2)
-            return matcher.ratio()
+        return self.calculate_similarity_precise(code1, code2)
 
     def calculate_similarity_detailed(
         self,
@@ -354,13 +328,7 @@ class DuplicationDetector:
         if not matches:
             return []
 
-        # Filter by minimum line count
-        filtered_matches = []
-        for match in matches:
-            text = match.get("text", "")
-            line_count = len(text.split("\n"))
-            if line_count >= min_lines:
-                filtered_matches.append(match)
+        filtered_matches = [m for m in matches if len(m.get("text", "").split("\n")) >= min_lines]
 
         if not filtered_matches:
             return []
@@ -383,16 +351,9 @@ class DuplicationDetector:
     def _create_hash_buckets(self, matches: List[Dict[str, Any]]) -> Dict[int, List[Dict[str, Any]]]:
         """Create hash buckets for initial grouping (reduces O(n²) comparisons)."""
         buckets: Dict[int, List[Dict[str, Any]]] = {}
-
         for match in matches:
-            text = match.get("text", "")
-            # Create a simple hash based on code structure
-            hash_val = self._calculate_structure_hash(text)
-
-            if hash_val not in buckets:
-                buckets[hash_val] = []
-            buckets[hash_val].append(match)
-
+            hash_val = self._calculate_structure_hash(match.get("text", ""))
+            buckets.setdefault(hash_val, []).append(match)
         return buckets
 
     def _calculate_structure_hash(self, code: str) -> int:
@@ -409,30 +370,39 @@ class DuplicationDetector:
         """
         return self._structure_hash.calculate(code)
 
+    def _collect_similar_items(
+        self, anchor: Dict[str, Any], candidates: List[Dict[str, Any]], candidate_indices: List[int], used: set, min_similarity: float
+    ) -> List[int]:
+        """Return indices (into candidates) that are similar to anchor and not yet used."""
+        matches = []
+        for offset, item in enumerate(candidates):
+            j = candidate_indices[offset]
+            if j in used:
+                continue
+            if self.calculate_similarity(anchor.get("text", ""), item.get("text", "")) >= min_similarity:
+                matches.append(offset)
+        return matches
+
     def _find_similar_in_bucket(self, bucket: List[Dict[str, Any]], min_similarity: float) -> List[List[Dict[str, Any]]]:
         """Find similar items within a bucket."""
         groups = []
-        used = set()
+        used: set = set()
 
         for i, item1 in enumerate(bucket):
             if i in used:
                 continue
-
-            group = [item1]
             used.add(i)
-
-            for j, item2 in enumerate(bucket[i + 1 :], i + 1):
-                if j in used:
-                    continue
-
-                similarity = self.calculate_similarity(item1.get("text", ""), item2.get("text", ""))
-
-                if similarity >= min_similarity:
-                    group.append(item2)
-                    used.add(j)
-
-            if len(group) > 1:
-                groups.append(group)
+            rest = bucket[i + 1 :]
+            rest_indices = list(range(i + 1, len(bucket)))
+            similar_offsets = self._collect_similar_items(item1, rest, rest_indices, used, min_similarity)
+            if not similar_offsets:
+                continue
+            group = [item1]
+            for offset in similar_offsets:
+                j = rest_indices[offset]
+                used.add(j)
+                group.append(rest[offset])
+            groups.append(group)
 
         return groups
 
@@ -448,9 +418,7 @@ class DuplicationDetector:
         for idx, group in enumerate(groups):
             for item in group:
                 key = self._get_item_key(item)
-                if key not in item_to_groups:
-                    item_to_groups[key] = []
-                item_to_groups[key].append(idx)
+                item_to_groups.setdefault(key, []).append(idx)
         return item_to_groups
 
     def _add_unique_items(self, target: List[Dict[str, Any]], source: List[Dict[str, Any]]) -> None:
@@ -458,6 +426,13 @@ class DuplicationDetector:
         for item in source:
             if not any(self._items_equal(item, existing) for existing in target):
                 target.append(item)
+
+    def _connected_group_indices(self, current_idx: int, groups: List[List[Dict[str, Any]]], item_to_groups: Dict[str, List[int]], used_groups: set[int]) -> List[int]:
+        """Return group indices connected to current_idx that haven't been visited."""
+        candidates: List[int] = []
+        for item in groups[current_idx]:
+            candidates.extend(item_to_groups.get(self._get_item_key(item), []))
+        return [ci for ci in candidates if ci not in used_groups]
 
     def _process_group_connections(
         self,
@@ -469,41 +444,34 @@ class DuplicationDetector:
         merged_group: list[Dict[str, Any]],
     ) -> None:
         """Process connections for a single group."""
-        for item in groups[current_idx]:
-            key = self._get_item_key(item)
-            for connected_idx in item_to_groups.get(key, []):
-                if connected_idx not in used_groups:
-                    to_merge.append(connected_idx)
-                    used_groups.add(connected_idx)
-                    self._add_unique_items(merged_group, groups[connected_idx])
+        for connected_idx in self._connected_group_indices(current_idx, groups, item_to_groups, used_groups):
+            to_merge.append(connected_idx)
+            used_groups.add(connected_idx)
+            self._add_unique_items(merged_group, groups[connected_idx])
+
+    def _expand_connected_group(
+        self, start_idx: int, groups: List[List[Dict[str, Any]]], item_to_groups: Dict[str, List[int]], used_groups: set
+    ) -> List[Dict[str, Any]]:
+        """BFS-expand all groups connected to start_idx, returning merged items."""
+        merged_group = groups[start_idx].copy()
+        to_merge = [start_idx]
+        while to_merge:
+            current_idx = to_merge.pop()
+            self._process_group_connections(current_idx, groups, item_to_groups, used_groups, to_merge, merged_group)
+        return merged_group
 
     def _merge_overlapping_groups(self, groups: List[List[Dict[str, Any]]]) -> List[List[Dict[str, Any]]]:
         """Merge groups that share common members."""
         if not groups:
             return []
-
-        # Build mapping of items to groups
         item_to_groups = self._build_item_to_groups_map(groups)
-
-        # Merge connected groups
         merged = []
-        used_groups = set()
-
-        for idx, group in enumerate(groups):
+        used_groups: set = set()
+        for idx in range(len(groups)):
             if idx in used_groups:
                 continue
-
-            merged_group = group.copy()
             used_groups.add(idx)
-
-            # Process all connected groups
-            to_merge = [idx]
-            while to_merge:
-                current_idx = to_merge.pop()
-                self._process_group_connections(current_idx, groups, item_to_groups, used_groups, to_merge, merged_group)
-
-            merged.append(merged_group)
-
+            merged.append(self._expand_connected_group(idx, groups, item_to_groups, used_groups))
         return merged
 
     def _items_equal(self, item1: Dict[str, Any], item2: Dict[str, Any]) -> bool:
@@ -512,40 +480,27 @@ class DuplicationDetector:
             "start", {}
         ).get("line")
 
+    def _group_locations(self, group: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Extract file/line location entries from a group."""
+        return [{"file": item.get("file", ""), "line": item.get("range", {}).get("start", {}).get("line", 0) + 1} for item in group]
+
+    def _build_suggestion(self, idx: int, group: List[Dict[str, Any]], construct_type: str) -> Dict[str, Any]:
+        """Build a single refactoring suggestion for a duplication group."""
+        lines = len(group[0].get("text", "").split("\n"))
+        total_lines = lines * len(group)
+        return {
+            "group_id": idx + 1,
+            "duplicate_count": len(group),
+            "lines_per_duplicate": lines,
+            "total_duplicated_lines": total_lines,
+            "potential_line_savings": total_lines - lines,
+            "refactoring_strategy": self._determine_refactoring_strategy(group, construct_type),
+            "locations": self._group_locations(group),
+        }
+
     def generate_refactoring_suggestions(self, duplication_groups: List[List[Dict[str, Any]]], construct_type: str) -> List[Dict[str, Any]]:
         """Generate refactoring suggestions for duplication groups."""
-        suggestions = []
-
-        for idx, group in enumerate(duplication_groups):
-            if len(group) < 2:
-                continue
-
-            # Calculate metrics for the group
-            first_item = group[0]
-            text = first_item.get("text", "")
-            lines = len(text.split("\n"))
-
-            total_lines = lines * len(group)
-            potential_savings = total_lines - lines  # Keep one instance
-
-            # Determine refactoring strategy
-            strategy = self._determine_refactoring_strategy(group, construct_type)
-
-            suggestions.append(
-                {
-                    "group_id": idx + 1,
-                    "duplicate_count": len(group),
-                    "lines_per_duplicate": lines,
-                    "total_duplicated_lines": total_lines,
-                    "potential_line_savings": potential_savings,
-                    "refactoring_strategy": strategy,
-                    "locations": [
-                        {"file": item.get("file", ""), "line": item.get("range", {}).get("start", {}).get("line", 0) + 1} for item in group
-                    ],
-                }
-            )
-
-        return suggestions
+        return [self._build_suggestion(idx, group, construct_type) for idx, group in enumerate(duplication_groups) if len(group) >= 2]
 
     def _determine_refactoring_strategy(self, group: List[Dict[str, Any]], construct_type: str) -> Dict[str, str]:
         """Determine the best refactoring strategy for a duplication group."""
@@ -593,6 +548,28 @@ class DuplicationDetector:
             "message": f"No {construct_type} instances found in the project",
         }
 
+    def _format_group_instances(self, group: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Format match instances within a duplication group."""
+        instances = []
+        for match in group:
+            start_line = match.get("range", {}).get("start", {}).get("line", 0) + 1
+            end_line = match.get("range", {}).get("end", {}).get("line", 0) + 1
+            instances.append({
+                "file": match.get("file", ""),
+                "lines": f"{start_line}-{end_line}",
+                "code_preview": match.get("text", "")[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+            })
+        return instances
+
+    def _format_group(self, idx: int, group: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Format a single duplication group for output."""
+        similarity = (
+            round(self.calculate_similarity(group[0].get("text", ""), group[1].get("text", "")), FormattingDefaults.ROUNDING_PRECISION)
+            if len(group) >= 2
+            else 1.0
+        )
+        return {"group_id": idx + 1, "similarity_score": similarity, "instances": self._format_group_instances(group)}
+
     def _format_result(
         self,
         all_matches: List[Dict[str, Any]],
@@ -602,40 +579,10 @@ class DuplicationDetector:
         execution_time: float,
     ) -> Dict[str, Any]:
         """Format the final result."""
-        # Format duplication groups for output
-        formatted_groups = []
-        for idx, group in enumerate(duplication_groups):
-            instances = []
-            for match in group:
-                file_path = match.get("file", "")
-                start_line = match.get("range", {}).get("start", {}).get("line", 0) + 1
-                end_line = match.get("range", {}).get("end", {}).get("line", 0) + 1
-                instances.append(
-                    {
-                        "file": file_path,
-                        "lines": f"{start_line}-{end_line}",
-                        "code_preview": match.get("text", "")[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],  # Truncated preview
-                    }
-                )
-
-            formatted_groups.append(
-                {
-                    "group_id": idx + 1,
-                    "similarity_score": round(
-                        self.calculate_similarity(group[0].get("text", ""), group[1].get("text", "")),
-                        FormattingDefaults.ROUNDING_PRECISION,
-                    )
-                    if len(group) >= 2
-                    else 1.0,
-                    "instances": instances,
-                }
-            )
-
+        formatted_groups = [self._format_group(idx, group) for idx, group in enumerate(duplication_groups)]
         return {
             "summary": {**stats, "analysis_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION)},
             "duplication_groups": formatted_groups,
             "refactoring_suggestions": suggestions,
-            "message": (
-                f"Found {stats['duplicate_groups']} duplication group(s) with potential to save {stats['potential_line_savings']} lines"
-            ),
+            "message": f"Found {stats['duplicate_groups']} duplication group(s) with potential to save {stats['potential_line_savings']} lines",
         }

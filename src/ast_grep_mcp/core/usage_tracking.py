@@ -258,6 +258,130 @@ class AlertThresholds(BaseModel):
 # =============================================================================
 
 
+_INSERT_USAGE_SQL = """
+    INSERT INTO usage_logs (
+        id, timestamp, tool_name, operation_type, success,
+        error_message, response_time_ms, estimated_cost,
+        files_processed, lines_analyzed, matches_found, metadata
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+"""
+
+
+def _entry_to_params(entry: UsageLogEntry) -> tuple:
+    return (
+        entry.id,
+        entry.timestamp.isoformat(),
+        entry.tool_name,
+        entry.operation_type.value,
+        1 if entry.success else 0,
+        entry.error_message,
+        entry.response_time_ms,
+        entry.estimated_cost,
+        entry.files_processed,
+        entry.lines_analyzed,
+        entry.matches_found,
+        json.dumps(entry.metadata) if entry.metadata else None,
+    )
+
+
+def _row_to_log_entry(row: sqlite3.Row) -> UsageLogEntry:
+    return UsageLogEntry(
+        id=row["id"],
+        timestamp=datetime.fromisoformat(row["timestamp"]),
+        tool_name=row["tool_name"],
+        operation_type=OperationType(row["operation_type"]),
+        success=bool(row["success"]),
+        error_message=row["error_message"],
+        response_time_ms=row["response_time_ms"],
+        estimated_cost=row["estimated_cost"],
+        files_processed=row["files_processed"],
+        lines_analyzed=row["lines_analyzed"],
+        matches_found=row["matches_found"],
+        metadata=json.loads(row["metadata"]) if row["metadata"] else {},
+    )
+
+
+_STATS_AGGREGATE_SQL = """
+    SELECT
+        COUNT(*) as total_calls,
+        SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful_calls,
+        SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed_calls,
+        SUM(estimated_cost) as total_cost,
+        AVG(estimated_cost) as avg_cost,
+        SUM(response_time_ms) as total_response_time,
+        AVG(response_time_ms) as avg_response_time
+    FROM usage_logs
+    WHERE timestamp >= ? AND timestamp <= ?
+"""
+
+
+def _parse_stats_row(row: sqlite3.Row, start_time: datetime, end_time: datetime) -> dict:
+    total_calls = row["total_calls"] or 0
+    successful_calls = row["successful_calls"] or 0
+    rate = (successful_calls / total_calls * ConversionFactors.PERCENT_MULTIPLIER) if total_calls > 0 else 0.0
+    return {
+        "period_start": start_time,
+        "period_end": end_time,
+        "total_calls": total_calls,
+        "successful_calls": successful_calls,
+        "failed_calls": row["failed_calls"] or 0,
+        "success_rate": rate,
+        "total_cost": row["total_cost"] or 0.0,
+        "average_cost": row["avg_cost"] or 0.0,
+        "total_response_time_ms": row["total_response_time"] or 0,
+        "average_response_time_ms": row["avg_response_time"] or 0.0,
+    }
+
+
+def _db_calls_by_tool(conn: sqlite3.Connection, start_iso: str, end_iso: str) -> Dict[str, int]:
+    rows = conn.execute(
+        "SELECT tool_name, COUNT(*) as count FROM usage_logs WHERE timestamp >= ? AND timestamp <= ? GROUP BY tool_name",
+        (start_iso, end_iso),
+    )
+    return {r["tool_name"]: r["count"] for r in rows}
+
+
+def _db_calls_by_operation(conn: sqlite3.Connection, start_iso: str, end_iso: str) -> Dict[str, int]:
+    rows = conn.execute(
+        "SELECT operation_type, COUNT(*) as count FROM usage_logs WHERE timestamp >= ? AND timestamp <= ? GROUP BY operation_type",
+        (start_iso, end_iso),
+    )
+    return {r["operation_type"]: r["count"] for r in rows}
+
+
+def _db_cost_by_tool(conn: sqlite3.Connection, start_iso: str, end_iso: str) -> Dict[str, float]:
+    rows = conn.execute(
+        "SELECT tool_name, SUM(estimated_cost) as total_cost FROM usage_logs WHERE timestamp >= ? AND timestamp <= ? GROUP BY tool_name",
+        (start_iso, end_iso),
+    )
+    return {r["tool_name"]: r["total_cost"] or 0.0 for r in rows}
+
+
+def _make_alert(level: str, metric: str, value: float, threshold: float, fmt: str = "") -> UsageAlert:
+    formatted = f"{value:{fmt}}" if fmt else str(int(value))
+    return UsageAlert(
+        level=level,
+        message=f"{metric.replace('_', ' ').title()} ({formatted}) exceeded {level} threshold",
+        metric=metric,
+        current_value=value,
+        threshold=threshold,
+    )
+
+
+def _threshold_alert(
+    alerts: List[UsageAlert],
+    metric: str,
+    value: float,
+    warning: float,
+    critical: float,
+    fmt: str = "",
+) -> None:
+    if value >= critical:
+        alerts.append(_make_alert("critical", metric, value, critical, fmt))
+    elif value >= warning:
+        alerts.append(_make_alert("warning", metric, value, warning, fmt))
+
+
 class UsageDatabase:
     """SQLite-based usage tracking database."""
 
@@ -320,29 +444,8 @@ class UsageDatabase:
         """
         try:
             conn = self._get_connection()
-            conn.execute(
-                """
-                INSERT INTO usage_logs (
-                    id, timestamp, tool_name, operation_type, success,
-                    error_message, response_time_ms, estimated_cost,
-                    files_processed, lines_analyzed, matches_found, metadata
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    entry.id,
-                    entry.timestamp.isoformat(),
-                    entry.tool_name,
-                    entry.operation_type.value,
-                    1 if entry.success else 0,
-                    entry.error_message,
-                    entry.response_time_ms,
-                    entry.estimated_cost,
-                    entry.files_processed,
-                    entry.lines_analyzed,
-                    entry.matches_found,
-                    json.dumps(entry.metadata) if entry.metadata else None,
-                ),
-            )
+            params = _entry_to_params(entry)
+            conn.execute(_INSERT_USAGE_SQL, params)
             conn.commit()
             logger.debug(
                 "usage_logged",
@@ -351,7 +454,6 @@ class UsageDatabase:
                 response_time_ms=entry.response_time_ms,
             )
         except Exception as e:
-            # Never fail the main operation due to logging
             logger.error("usage_log_failed", error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
 
     def get_stats(
@@ -374,80 +476,15 @@ class UsageDatabase:
             end_time = datetime.now(UTC)
 
         conn = self._get_connection()
+        start_iso, end_iso = start_time.isoformat(), end_time.isoformat()
 
-        # Get basic aggregates
-        row = conn.execute(
-            """
-            SELECT
-                COUNT(*) as total_calls,
-                SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful_calls,
-                SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed_calls,
-                SUM(estimated_cost) as total_cost,
-                AVG(estimated_cost) as avg_cost,
-                SUM(response_time_ms) as total_response_time,
-                AVG(response_time_ms) as avg_response_time
-            FROM usage_logs
-            WHERE timestamp >= ? AND timestamp <= ?
-            """,
-            (start_time.isoformat(), end_time.isoformat()),
-        ).fetchone()
-
-        total_calls = row["total_calls"] or 0
-        successful_calls = row["successful_calls"] or 0
-
-        # Get calls by tool
-        calls_by_tool: Dict[str, int] = {}
-        for tool_row in conn.execute(
-            """
-            SELECT tool_name, COUNT(*) as count
-            FROM usage_logs
-            WHERE timestamp >= ? AND timestamp <= ?
-            GROUP BY tool_name
-            """,
-            (start_time.isoformat(), end_time.isoformat()),
-        ):
-            calls_by_tool[tool_row["tool_name"]] = tool_row["count"]
-
-        # Get calls by operation
-        calls_by_operation: Dict[str, int] = {}
-        for op_row in conn.execute(
-            """
-            SELECT operation_type, COUNT(*) as count
-            FROM usage_logs
-            WHERE timestamp >= ? AND timestamp <= ?
-            GROUP BY operation_type
-            """,
-            (start_time.isoformat(), end_time.isoformat()),
-        ):
-            calls_by_operation[op_row["operation_type"]] = op_row["count"]
-
-        # Get cost by tool
-        cost_by_tool: Dict[str, float] = {}
-        for cost_row in conn.execute(
-            """
-            SELECT tool_name, SUM(estimated_cost) as total_cost
-            FROM usage_logs
-            WHERE timestamp >= ? AND timestamp <= ?
-            GROUP BY tool_name
-            """,
-            (start_time.isoformat(), end_time.isoformat()),
-        ):
-            cost_by_tool[cost_row["tool_name"]] = cost_row["total_cost"] or 0.0
-
+        row = conn.execute(_STATS_AGGREGATE_SQL, (start_iso, end_iso)).fetchone()
+        fields = _parse_stats_row(row, start_time, end_time)
         return UsageStats(
-            period_start=start_time,
-            period_end=end_time,
-            total_calls=total_calls,
-            successful_calls=successful_calls,
-            failed_calls=row["failed_calls"] or 0,
-            success_rate=(successful_calls / total_calls * ConversionFactors.PERCENT_MULTIPLIER) if total_calls > 0 else 0.0,
-            total_cost=row["total_cost"] or 0.0,
-            average_cost=row["avg_cost"] or 0.0,
-            total_response_time_ms=row["total_response_time"] or 0,
-            average_response_time_ms=row["avg_response_time"] or 0.0,
-            calls_by_tool=calls_by_tool,
-            calls_by_operation=calls_by_operation,
-            cost_by_tool=cost_by_tool,
+            **fields,
+            calls_by_tool=_db_calls_by_tool(conn, start_iso, end_iso),
+            calls_by_operation=_db_calls_by_operation(conn, start_iso, end_iso),
+            cost_by_tool=_db_cost_by_tool(conn, start_iso, end_iso),
         )
 
     def get_alerts(
@@ -469,121 +506,33 @@ class UsageDatabase:
         now = datetime.now(UTC)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         hour_ago = now - timedelta(hours=1)
-
         conn = self._get_connection()
 
-        # Check daily calls
         daily_calls = conn.execute(
             "SELECT COUNT(*) FROM usage_logs WHERE timestamp >= ?",
             (today_start.isoformat(),),
         ).fetchone()[0]
+        _threshold_alert(alerts, "daily_calls", daily_calls, thresholds.daily_calls_warning, thresholds.daily_calls_critical)
 
-        if daily_calls >= thresholds.daily_calls_critical:
-            alerts.append(
-                UsageAlert(
-                    level="critical",
-                    message=f"Daily calls ({daily_calls}) exceeded critical threshold",
-                    metric="daily_calls",
-                    current_value=daily_calls,
-                    threshold=thresholds.daily_calls_critical,
-                )
-            )
-        elif daily_calls >= thresholds.daily_calls_warning:
-            alerts.append(
-                UsageAlert(
-                    level="warning",
-                    message=f"Daily calls ({daily_calls}) exceeded warning threshold",
-                    metric="daily_calls",
-                    current_value=daily_calls,
-                    threshold=thresholds.daily_calls_warning,
-                )
-            )
+        daily_cost = conn.execute(
+            "SELECT SUM(estimated_cost) FROM usage_logs WHERE timestamp >= ?",
+            (today_start.isoformat(),),
+        ).fetchone()[0] or 0.0
+        _threshold_alert(alerts, "daily_cost", daily_cost, thresholds.daily_cost_warning, thresholds.daily_cost_critical, ".4f")
 
-        # Check daily cost
-        daily_cost = (
-            conn.execute(
-                "SELECT SUM(estimated_cost) FROM usage_logs WHERE timestamp >= ?",
-                (today_start.isoformat(),),
-            ).fetchone()[0]
-            or 0.0
-        )
-
-        if daily_cost >= thresholds.daily_cost_critical:
-            alerts.append(
-                UsageAlert(
-                    level="critical",
-                    message=f"Daily cost ({daily_cost:.4f}) exceeded critical threshold",
-                    metric="daily_cost",
-                    current_value=daily_cost,
-                    threshold=thresholds.daily_cost_critical,
-                )
-            )
-        elif daily_cost >= thresholds.daily_cost_warning:
-            alerts.append(
-                UsageAlert(
-                    level="warning",
-                    message=f"Daily cost ({daily_cost:.4f}) exceeded warning threshold",
-                    metric="daily_cost",
-                    current_value=daily_cost,
-                    threshold=thresholds.daily_cost_warning,
-                )
-            )
-
-        # Check hourly failures
         hourly_failures = conn.execute(
             "SELECT COUNT(*) FROM usage_logs WHERE timestamp >= ? AND success = 0",
             (hour_ago.isoformat(),),
         ).fetchone()[0]
+        _threshold_alert(alerts, "hourly_failures", hourly_failures, thresholds.hourly_failures_warning, thresholds.hourly_failures_critical)
 
-        if hourly_failures >= thresholds.hourly_failures_critical:
-            alerts.append(
-                UsageAlert(
-                    level="critical",
-                    message=f"Hourly failures ({hourly_failures}) exceeded critical threshold",
-                    metric="hourly_failures",
-                    current_value=hourly_failures,
-                    threshold=thresholds.hourly_failures_critical,
-                )
-            )
-        elif hourly_failures >= thresholds.hourly_failures_warning:
-            alerts.append(
-                UsageAlert(
-                    level="warning",
-                    message=f"Hourly failures ({hourly_failures}) exceeded warning threshold",
-                    metric="hourly_failures",
-                    current_value=hourly_failures,
-                    threshold=thresholds.hourly_failures_warning,
-                )
-            )
-
-        # Check failure rate (last hour)
         hourly_total = conn.execute(
             "SELECT COUNT(*) FROM usage_logs WHERE timestamp >= ?",
             (hour_ago.isoformat(),),
         ).fetchone()[0]
-
         if hourly_total > 0:
             failure_rate = hourly_failures / hourly_total
-            if failure_rate >= thresholds.failure_rate_critical:
-                alerts.append(
-                    UsageAlert(
-                        level="critical",
-                        message=f"Failure rate ({failure_rate:.1%}) exceeded critical threshold",
-                        metric="failure_rate",
-                        current_value=failure_rate,
-                        threshold=thresholds.failure_rate_critical,
-                    )
-                )
-            elif failure_rate >= thresholds.failure_rate_warning:
-                alerts.append(
-                    UsageAlert(
-                        level="warning",
-                        message=f"Failure rate ({failure_rate:.1%}) exceeded warning threshold",
-                        metric="failure_rate",
-                        current_value=failure_rate,
-                        threshold=thresholds.failure_rate_warning,
-                    )
-                )
+            _threshold_alert(alerts, "failure_rate", failure_rate, thresholds.failure_rate_warning, thresholds.failure_rate_critical, ".1%")
 
         return alerts
 
@@ -619,26 +568,7 @@ class UsageDatabase:
         query += " ORDER BY timestamp DESC LIMIT ?"
         params.append(limit)
 
-        entries = []
-        for row in conn.execute(query, params):
-            entries.append(
-                UsageLogEntry(
-                    id=row["id"],
-                    timestamp=datetime.fromisoformat(row["timestamp"]),
-                    tool_name=row["tool_name"],
-                    operation_type=OperationType(row["operation_type"]),
-                    success=bool(row["success"]),
-                    error_message=row["error_message"],
-                    response_time_ms=row["response_time_ms"],
-                    estimated_cost=row["estimated_cost"],
-                    files_processed=row["files_processed"],
-                    lines_analyzed=row["lines_analyzed"],
-                    matches_found=row["matches_found"],
-                    metadata=json.loads(row["metadata"]) if row["metadata"] else {},
-                )
-            )
-
-        return entries
+        return [_row_to_log_entry(row) for row in conn.execute(query, params)]
 
 
 # =============================================================================
@@ -667,6 +597,84 @@ def get_usage_database() -> UsageDatabase:
 F = TypeVar("F", bound=Callable[..., Any])
 
 
+def _extract_result_metrics(result: Any) -> tuple[int, int, int]:
+    """Extract (files_processed, lines_analyzed, matches_found) from a dict result."""
+    if not isinstance(result, dict):
+        return 0, 0, 0
+    files = result.get("files_processed", 0)
+    lines = result.get("lines_analyzed", 0)
+    matches = result.get("matches_found", len(result.get("matches", [])))
+    summary = result.get("summary", {})
+    if summary:
+        files = summary.get("total_files", files)
+        matches = summary.get("total_matches", matches)
+    return files, lines, matches
+
+
+def _log_usage_entry(
+    tool_name: str,
+    operation_type: OperationType,
+    success: bool,
+    error_message: Optional[str],
+    response_time_ms: int,
+    files_processed: int,
+    lines_analyzed: int,
+    matches_found: int,
+) -> None:
+    estimated_cost = calculate_operation_cost(
+        operation_type,
+        files_processed=files_processed,
+        lines_analyzed=lines_analyzed,
+        matches_found=matches_found,
+    )
+    entry = UsageLogEntry(
+        tool_name=tool_name,
+        operation_type=operation_type,
+        success=success,
+        error_message=error_message,
+        response_time_ms=response_time_ms,
+        estimated_cost=estimated_cost,
+        files_processed=files_processed,
+        lines_analyzed=lines_analyzed,
+        matches_found=matches_found,
+    )
+    try:
+        get_usage_database().log_usage(entry)
+    except Exception as log_error:
+        logger.error("usage_tracking_failed", error=str(log_error)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
+
+
+class _TrackedWrapper:
+    """Callable wrapper that tracks usage metrics for a function."""
+
+    def __init__(self, func: Callable[..., Any], tool_name: str, operation_type: OperationType) -> None:
+        self._func = func
+        self._tool_name = tool_name
+        self._operation_type = operation_type
+        wraps(func)(self)
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        start_time = time.perf_counter()
+        success = True
+        error_message: Optional[str] = None
+        result: Any = None
+        try:
+            result = self._func(*args, **kwargs)
+            return result
+        except Exception as e:
+            success = False
+            error_message = str(e)[: DisplayDefaults.ERROR_MESSAGE_MAX_LENGTH]
+            raise
+        finally:
+            ms = int((time.perf_counter() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
+            files, lines, matches = _extract_result_metrics(result)
+            _log_usage_entry(self._tool_name, self._operation_type, success, error_message, ms, files, lines, matches)
+
+
+def _make_tracked_wrapper(func: F, tool_name: str, operation_type: OperationType) -> F:
+    return cast(F, _TrackedWrapper(func, tool_name, operation_type))
+
+
 def track_usage(
     tool_name: str,
     operation_type: OperationType = OperationType.UNKNOWN,
@@ -682,67 +690,7 @@ def track_usage(
     """
 
     def decorator(func: F) -> F:
-        @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            start_time = time.perf_counter()
-            success = True
-            error_message: Optional[str] = None
-            result: Any = None
-
-            try:
-                result = func(*args, **kwargs)
-                return result
-            except Exception as e:
-                success = False
-                error_message = str(e)[: DisplayDefaults.ERROR_MESSAGE_MAX_LENGTH]
-                raise
-            finally:
-                response_time_ms = int((time.perf_counter() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
-
-                # Extract metrics from result if available
-                files_processed = 0
-                lines_analyzed = 0
-                matches_found = 0
-
-                if isinstance(result, dict):
-                    files_processed = result.get("files_processed", 0)
-                    lines_analyzed = result.get("lines_analyzed", 0)
-                    matches_found = result.get("matches_found", len(result.get("matches", [])))
-
-                    # Check for summary stats
-                    summary = result.get("summary", {})
-                    if summary:
-                        files_processed = summary.get("total_files", files_processed)
-                        matches_found = summary.get("total_matches", matches_found)
-
-                # Calculate cost
-                estimated_cost = calculate_operation_cost(
-                    operation_type,
-                    files_processed=files_processed,
-                    lines_analyzed=lines_analyzed,
-                    matches_found=matches_found,
-                )
-
-                # Log usage
-                entry = UsageLogEntry(
-                    tool_name=tool_name,
-                    operation_type=operation_type,
-                    success=success,
-                    error_message=error_message,
-                    response_time_ms=response_time_ms,
-                    estimated_cost=estimated_cost,
-                    files_processed=files_processed,
-                    lines_analyzed=lines_analyzed,
-                    matches_found=matches_found,
-                )
-
-                try:
-                    get_usage_database().log_usage(entry)
-                except Exception as log_error:
-                    # Never fail the main operation
-                    logger.error("usage_tracking_failed", error=str(log_error)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH])
-
-        return cast(F, wrapper)
+        return _make_tracked_wrapper(func, tool_name, operation_type)
 
     return decorator
 
@@ -879,23 +827,14 @@ def get_recent_usage(
     )
 
 
-def format_usage_report(stats: UsageStats) -> str:
-    """Format usage statistics as a human-readable report.
-
-    Args:
-        stats: Usage statistics to format
-
-    Returns:
-        Formatted report string
-    """
-    lines = [
-        "=" * FormattingDefaults.USAGE_REPORT_WIDTH,
-        "USAGE STATISTICS REPORT",
-        "=" * FormattingDefaults.USAGE_REPORT_WIDTH,
-        f"Period: {stats.period_start.strftime('%Y-%m-%d %H:%M')} to {stats.period_end.strftime('%Y-%m-%d %H:%M')}",
-        "",
-        "SUMMARY",
-        "-" * FormattingDefaults.SECTION_DIVIDER_WIDTH,
+def _format_report_header(stats: UsageStats) -> List[str]:
+    sep = "=" * FormattingDefaults.USAGE_REPORT_WIDTH
+    div = "-" * FormattingDefaults.SECTION_DIVIDER_WIDTH
+    period = f"{stats.period_start.strftime('%Y-%m-%d %H:%M')} to {stats.period_end.strftime('%Y-%m-%d %H:%M')}"
+    return [
+        sep, "USAGE STATISTICS REPORT", sep,
+        f"Period: {period}", "",
+        "SUMMARY", div,
         f"Total Calls:      {stats.total_calls:,}",
         f"Successful:       {stats.successful_calls:,}",
         f"Failed:           {stats.failed_calls:,}",
@@ -906,25 +845,28 @@ def format_usage_report(stats: UsageStats) -> str:
         "",
     ]
 
+
+def format_usage_report(stats: UsageStats) -> str:
+    """Format usage statistics as a human-readable report.
+
+    Args:
+        stats: Usage statistics to format
+
+    Returns:
+        Formatted report string
+    """
+    div = "-" * FormattingDefaults.SECTION_DIVIDER_WIDTH
+    lines = _format_report_header(stats)
+
     if stats.calls_by_tool:
-        lines.extend(
-            [
-                "CALLS BY TOOL",
-                "-" * FormattingDefaults.SECTION_DIVIDER_WIDTH,
-            ]
-        )
+        lines.extend(["CALLS BY TOOL", div])
         for tool, count in sorted(stats.calls_by_tool.items(), key=lambda x: -x[1]):
             cost = stats.cost_by_tool.get(tool, 0.0)
             lines.append(f"  {tool}: {count:,} calls ({cost:.6f} units)")
         lines.append("")
 
     if stats.calls_by_operation:
-        lines.extend(
-            [
-                "CALLS BY OPERATION",
-                "-" * FormattingDefaults.SECTION_DIVIDER_WIDTH,
-            ]
-        )
+        lines.extend(["CALLS BY OPERATION", div])
         for op, count in sorted(stats.calls_by_operation.items(), key=lambda x: -x[1]):
             lines.append(f"  {op}: {count:,}")
         lines.append("")
