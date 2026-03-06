@@ -670,14 +670,16 @@ def _plan_file_modification_order(
 ) -> Dict[str, Any]:
     """Module-level wrapper for _plan_file_modification_order."""
     result = _get_applicator()._plan_file_modification_order(files_to_modify, generated_code, extract_to_file, project_folder, language)
-    assert isinstance(result, dict)
+    if not isinstance(result, dict):
+        raise TypeError(f"Expected dict from _plan_file_modification_order, got {type(result).__name__}")
     return result
 
 
 def _add_import_to_content(content: str, import_statement: str, language: str) -> str:
     """Module-level wrapper for _add_import_to_content."""
     result = _get_applicator()._add_import_to_content(content, import_statement, language)
-    assert isinstance(result, str)
+    if not isinstance(result, str):
+        raise TypeError(f"Expected str from _add_import_to_content, got {type(result).__name__}")
     return result
 
 
@@ -686,5 +688,6 @@ def _generate_import_for_extracted_function(
 ) -> str:
     """Module-level wrapper for _generate_import_for_extracted_function."""
     result = _get_applicator()._generate_import_for_extracted_function(source_file, target_file, function_name, language, project_folder)
-    assert isinstance(result, str)
+    if not isinstance(result, str):
+        raise TypeError(f"Expected str from _generate_import_for_extracted_function, got {type(result).__name__}")
     return result

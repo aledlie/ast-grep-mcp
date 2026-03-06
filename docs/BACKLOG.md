@@ -136,3 +136,9 @@ Each call to `configure_logging` opens a new file descriptor inline with no clos
 #### BR8: Add timeout to `kill()` + `wait()` in process cleanup (FIXED)
 **Priority**: P1 | **Source**: 2026-03-06 code review | **Status**: Fixed in 99dec84
 Bare `process.wait()` after `kill()` has no timeout, can block indefinitely on unkillable processes (D-state Linux, network filesystems). Both `_terminate_process` and `_cleanup_process` fixed to add 5s timeout. -- `src/ast_grep_mcp/core/executor.py:402-404` (fixed) + `:468-471` (fixed)
+
+## Standards Enforcement Fixes (2026-03-06)
+
+#### SE1: Replace `assert isinstance()` with explicit type checks — **Done**
+**Priority**: P2 | **Source**: `enforce_standards` run (2026-03-06) | **Rule**: `no-assert-production`
+4 `assert isinstance()` calls in production code — asserts are stripped under `-O` flag. `benchmark.py:82`: removed redundant assert (value provably float from `round(statistics.mean(...))`). `applicator.py:673,680,689`: replaced with `if not isinstance: raise TypeError`. -- `src/ast_grep_mcp/features/deduplication/benchmark.py` + `src/ast_grep_mcp/features/deduplication/applicator.py`

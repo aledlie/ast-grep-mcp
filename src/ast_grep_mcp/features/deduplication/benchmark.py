@@ -79,7 +79,6 @@ class BenchmarkExecutor:
         }
 
         mean_seconds = result["mean_seconds"]
-        assert isinstance(mean_seconds, (int, float))
         self.logger.info(
             "benchmark_complete",
             name=name,
