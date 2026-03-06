@@ -9,7 +9,7 @@ This module registers MCP tools for:
 """
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import sentry_sdk
 from mcp.server.fastmcp import FastMCP
@@ -31,6 +31,31 @@ from ast_grep_mcp.models.cross_language import (
     PatternExample,
     TypeMapping,
 )
+
+# =============================================================================
+# Shared Execution Helper
+# =============================================================================
+
+
+def _run_tool(tool_name: str, fn: Callable[[], Any], start_time: float, log_kwargs: Dict[str, Any]) -> Any:
+    logger = get_logger(f"tool.{tool_name}")
+    logger.info("tool_invoked", tool=tool_name, **log_kwargs)
+    try:
+        result = fn()
+        elapsed = round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION)
+        logger.info("tool_completed", tool=tool_name, execution_time_seconds=elapsed)
+        return result
+    except Exception as e:
+        elapsed = round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION)
+        logger.error(
+            "tool_failed",
+            tool=tool_name,
+            execution_time_seconds=elapsed,
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+        )
+        sentry_sdk.capture_exception(e)
+        raise
+
 
 # =============================================================================
 # Response Formatting Helpers
@@ -118,6 +143,28 @@ def _format_conversion_result(result: ConversionResult) -> Dict[str, Any]:
 # =============================================================================
 
 
+def _format_search_result(result: Any) -> Dict[str, Any]:
+    return {
+        "query": result.query,
+        "languages_searched": result.languages_searched,
+        "matches": [
+            {
+                "language": m.language,
+                "file_path": m.file_path,
+                "line_number": m.line_number,
+                "code_snippet": m.code_snippet,
+                "semantic_group": m.semantic_group,
+                "confidence": m.confidence,
+            }
+            for m in result.matches
+        ],
+        "total_matches": result.total_matches,
+        "matches_by_language": result.matches_by_language,
+        "semantic_groups": result.semantic_groups,
+        "execution_time_ms": result.execution_time_ms,
+    }
+
+
 def search_multi_language_tool(
     project_folder: str,
     semantic_pattern: str,
@@ -125,118 +172,22 @@ def search_multi_language_tool(
     group_by: str = "semantic",
     max_results_per_language: int = CrossLanguageDefaults.MAX_RESULTS_PER_LANGUAGE,
 ) -> Dict[str, Any]:
-    """
-    Search across multiple programming languages for semantically equivalent patterns.
-
-    This tool enables polyglot search by finding similar code patterns across different
-    programming languages simultaneously. It supports semantic grouping to cluster
-    related results together.
-
-    **Semantic Patterns:**
-    - "async function" - Find async functions across languages
-    - "try catch" - Find error handling patterns
-    - "class" - Find class definitions
-    - "function" - Find function definitions
-    - "import" - Find import/require statements
-    - "for loop" - Find iteration patterns
-
-    **Supported Languages:**
-    Python, TypeScript, JavaScript, Java, Kotlin, Go, Rust, C, C++, C#, Ruby, PHP, Swift
-
-    Args:
-        project_folder: Root folder of the project (absolute path)
-        semantic_pattern: Semantic pattern to search for (e.g., "async function")
-        languages: Languages to search (["auto"] for auto-detection)
-        group_by: Grouping strategy ("semantic", "language", "file")
-        max_results_per_language: Maximum results per language
-
-    Returns:
-        Dictionary containing:
-        - query: The semantic query used
-        - languages_searched: Languages that were searched
-        - matches: List of matches with file, line, code
-        - total_matches: Total number of matches
-        - matches_by_language: Count per language
-        - semantic_groups: Distinct semantic groups found
-
-    Example usage:
-        # Search for async functions across all languages
-        result = search_multi_language(
-            project_folder="/path/to/project",
-            semantic_pattern="async function",
-            languages=["auto"]
-        )
-
-        # Search specific languages
-        result = search_multi_language(
-            project_folder="/path/to/project",
-            semantic_pattern="try catch",
-            languages=["python", "typescript", "java"]
-        )
-    """
-    logger = get_logger("tool.search_multi_language")
-    start_time = time.time()
-
     if languages is None:
         languages = ["auto"]
-
-    logger.info(
-        "tool_invoked",
-        tool="search_multi_language",
-        project_folder=project_folder,
-        semantic_pattern=semantic_pattern,
-        languages=languages,
+    return _run_tool(
+        "search_multi_language",
+        lambda: _format_search_result(
+            search_multi_language_impl(
+                project_folder=project_folder,
+                semantic_pattern=semantic_pattern,
+                languages=languages,
+                group_by=group_by,
+                max_results_per_language=max_results_per_language,
+            )
+        ),
+        time.time(),
+        {"project_folder": project_folder, "semantic_pattern": semantic_pattern, "languages": languages},
     )
-
-    try:
-        result = search_multi_language_impl(
-            project_folder=project_folder,
-            semantic_pattern=semantic_pattern,
-            languages=languages,
-            group_by=group_by,
-            max_results_per_language=max_results_per_language,
-        )
-
-        execution_time = time.time() - start_time
-
-        logger.info(
-            "tool_completed",
-            tool="search_multi_language",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            total_matches=result.total_matches,
-            languages_searched=result.languages_searched,
-        )
-
-        return {
-            "query": result.query,
-            "languages_searched": result.languages_searched,
-            "matches": [
-                {
-                    "language": m.language,
-                    "file_path": m.file_path,
-                    "line_number": m.line_number,
-                    "code_snippet": m.code_snippet,
-                    "semantic_group": m.semantic_group,
-                    "confidence": m.confidence,
-                }
-                for m in result.matches
-            ],
-            "total_matches": result.total_matches,
-            "matches_by_language": result.matches_by_language,
-            "semantic_groups": result.semantic_groups,
-            "execution_time_ms": result.execution_time_ms,
-        }
-
-    except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="search_multi_language",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-        )
-        sentry_sdk.capture_exception(e)
-        raise
 
 
 def find_language_equivalents_tool(
@@ -244,91 +195,18 @@ def find_language_equivalents_tool(
     source_language: Optional[str] = None,
     target_languages: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
-    """
-    Find equivalent patterns across programming languages.
-
-    This tool provides a knowledge base of equivalent programming patterns
-    across different languages. It helps developers understand how to
-    express the same concept in different languages.
-
-    **Pattern Categories:**
-    - control_flow: if/else, switch, loops
-    - functions: function definitions, lambdas, async
-    - data_structures: lists, dictionaries, comprehensions
-    - error_handling: try/catch, error propagation
-    - async: async/await, promises
-    - classes: class definitions, interfaces
-
-    **Example Patterns:**
-    - "list comprehension" - Array transformation patterns
-    - "async await" - Asynchronous programming
-    - "try catch" - Exception handling
-    - "destructuring" - Value extraction
-    - "arrow function" - Lambda expressions
-
-    Args:
-        pattern_description: Description of the pattern to find
-        source_language: Optional source language to highlight
-        target_languages: Languages to include in results
-
-    Returns:
-        Dictionary containing:
-        - pattern_description: The input query
-        - equivalences: List of pattern equivalences
-        - suggestions: Related pattern suggestions
-
-    Example usage:
-        # Find list comprehension equivalents
-        result = find_language_equivalents(
-            pattern_description="list comprehension",
-            target_languages=["python", "typescript", "java"]
-        )
-
-        # Find async patterns from Python perspective
-        result = find_language_equivalents(
-            pattern_description="async await",
-            source_language="python",
-            target_languages=["typescript", "javascript", "rust"]
-        )
-    """
-    logger = get_logger("tool.find_language_equivalents")
-    start_time = time.time()
-
-    logger.info(
-        "tool_invoked",
-        tool="find_language_equivalents",
-        pattern_description=pattern_description,
-        source_language=source_language,
+    return _run_tool(
+        "find_language_equivalents",
+        lambda: _format_equivalents_result(
+            find_language_equivalents_impl(
+                pattern_description=pattern_description,
+                source_language=source_language,
+                target_languages=target_languages,
+            )
+        ),
+        time.time(),
+        {"pattern_description": pattern_description, "source_language": source_language},
     )
-
-    try:
-        result = find_language_equivalents_impl(
-            pattern_description=pattern_description,
-            source_language=source_language,
-            target_languages=target_languages,
-        )
-
-        execution_time = time.time() - start_time
-
-        logger.info(
-            "tool_completed",
-            tool="find_language_equivalents",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            equivalences_found=len(result.equivalences),
-        )
-
-        return _format_equivalents_result(result)
-
-    except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="find_language_equivalents",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-        )
-        sentry_sdk.capture_exception(e)
-        raise
 
 
 def convert_code_language_tool(
@@ -338,108 +216,51 @@ def convert_code_language_tool(
     conversion_style: str = "idiomatic",
     include_comments: bool = True,
 ) -> Dict[str, Any]:
-    """
-        Convert code from one programming language to another.
-
-        This tool converts code snippets between supported language pairs,
-        handling syntax transformation, type conversion, and idiomatic patterns.
-
-        **Supported Conversions:**
-        - Python <-> TypeScript
-        - Python <-> JavaScript
-        - JavaScript -> TypeScript
-        - Java -> Kotlin
-
-        **Conversion Styles:**
-        - literal: Direct translation preserving structure
-        - idiomatic: Use target language idioms and best practices
-        - compatible: Maximum cross-platform compatibility
-
-        **Features:**
-        - Syntax transformation (control flow, functions, classes)
-        - Type mapping (Python types -> TypeScript types)
-        - Idiom conversion (list comprehensions -> map/filter)
-        - Warnings for features that don't convert cleanly
-
-        Args:
-            code_snippet: Code to convert
-            from_language: Source language
-            to_language: Target language
-            conversion_style: Conversion style (literal, idiomatic, compatible)
-            include_comments: Whether to include conversion comments
-
-        Returns:
-            Dictionary containing:
-            - conversions: List of converted code blocks
-            - successful_conversions: Number of successful conversions
-            - warnings: Any conversion warnings
-
-        Example usage:
-            # Convert Python to TypeScript
-            result = convert_code_language(
-                code_snippet=\"\"\"
-    def calculate_total(items: List[float], tax_rate: float = 0.08) -> float:
-        subtotal = sum(items)
-        return subtotal * (1 + tax_rate)
-    \"\"\",
-                from_language="python",
-                to_language="typescript",
-                conversion_style="idiomatic"
+    return _run_tool(
+        "convert_code_language",
+        lambda: _format_conversion_result(
+            convert_code_language_impl(
+                code_snippet=code_snippet,
+                from_language=from_language,
+                to_language=to_language,
+                conversion_style=conversion_style,
+                include_comments=include_comments,
             )
-
-            # Convert JavaScript to Python
-            result = convert_code_language(
-                code_snippet=\"\"\"
-    const fetchData = async (url) => {
-        const response = await fetch(url);
-        return response.json();
-    };
-    \"\"\",
-                from_language="javascript",
-                to_language="python"
-            )
-    """
-    logger = get_logger("tool.convert_code_language")
-    start_time = time.time()
-
-    logger.info(
-        "tool_invoked",
-        tool="convert_code_language",
-        from_language=from_language,
-        to_language=to_language,
-        conversion_style=conversion_style,
+        ),
+        time.time(),
+        {"from_language": from_language, "to_language": to_language, "conversion_style": conversion_style},
     )
 
-    try:
-        result = convert_code_language_impl(
-            code_snippet=code_snippet,
-            from_language=from_language,
-            to_language=to_language,
-            conversion_style=conversion_style,
-            include_comments=include_comments,
-        )
 
-        execution_time = time.time() - start_time
-
-        logger.info(
-            "tool_completed",
-            tool="convert_code_language",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            successful=result.successful_conversions,
-        )
-
-        return _format_conversion_result(result)
-
-    except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="convert_code_language",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-        )
-        sentry_sdk.capture_exception(e)
-        raise
+def _format_polyglot_result(result: Any) -> Dict[str, Any]:
+    changes_source = result.changes_made if not result.dry_run else result.plan.changes
+    return {
+        "plan": {
+            "refactoring_type": result.plan.refactoring_type.value,
+            "symbol_name": result.plan.symbol_name,
+            "new_name": result.plan.new_name,
+            "affected_languages": result.plan.affected_languages,
+            "changes_count": len(result.plan.changes),
+            "risks": result.plan.risks,
+            "requires_manual_review": result.plan.requires_manual_review,
+        },
+        "changes": [
+            {
+                "language": c.language,
+                "file_path": c.file_path,
+                "line_number": c.line_number,
+                "original_code": c.original_code,
+                "new_code": c.new_code,
+                "change_type": c.change_type,
+            }
+            for c in changes_source
+        ],
+        "dry_run": result.dry_run,
+        "files_modified": result.files_modified,
+        "validation_passed": result.validation_passed,
+        "validation_errors": result.validation_errors,
+        "execution_time_ms": result.execution_time_ms,
+    }
 
 
 def refactor_polyglot_tool(
@@ -450,133 +271,45 @@ def refactor_polyglot_tool(
     affected_languages: Optional[List[str]] = None,
     dry_run: bool = True,
 ) -> Dict[str, Any]:
-    """
-    Refactor across multiple programming languages atomically.
-
-    This tool enables refactoring operations that span multiple languages,
-    such as renaming an API endpoint that exists in both backend and frontend code.
-
-    **Refactoring Types:**
-    - rename_api: Rename API endpoint/symbol across all languages
-    - extract_constant: Extract to shared configuration
-    - update_contract: Update API contract signature
-
-    **Features:**
-    - Cross-language symbol tracking
-    - Atomic multi-file changes
-    - Risk analysis
-    - Manual review identification
-    - Validation before applying
-
-    Args:
-        project_folder: Root folder of the project
-        refactoring_type: Type of refactoring (rename_api, extract_constant, update_contract)
-        symbol_name: Symbol being refactored
-        new_name: New name (required for rename operations)
-        affected_languages: Languages to include (["all"] for all)
-        dry_run: If True, only preview changes
-
-    Returns:
-        Dictionary containing:
-        - plan: The refactoring plan
-        - changes: List of changes (made or preview)
-        - files_modified: Files that were modified
-        - risks: Identified risks
-        - requires_manual_review: Files needing manual review
-
-    Example usage:
-        # Preview renaming an API endpoint
-        result = refactor_polyglot(
-            project_folder="/path/to/project",
-            refactoring_type="rename_api",
-            symbol_name="getUserProfile",
-            new_name="fetchUserProfile",
-            dry_run=True
-        )
-
-        # Apply the rename
-        result = refactor_polyglot(
-            project_folder="/path/to/project",
-            refactoring_type="rename_api",
-            symbol_name="getUserProfile",
-            new_name="fetchUserProfile",
-            affected_languages=["python", "typescript"],
-            dry_run=False
-        )
-    """
-    logger = get_logger("tool.refactor_polyglot")
-    start_time = time.time()
-
     if affected_languages is None:
         affected_languages = ["all"]
-
-    logger.info(
-        "tool_invoked",
-        tool="refactor_polyglot",
-        project_folder=project_folder,
-        refactoring_type=refactoring_type,
-        symbol_name=symbol_name,
-        dry_run=dry_run,
+    return _run_tool(
+        "refactor_polyglot",
+        lambda: _format_polyglot_result(
+            refactor_polyglot_impl(
+                project_folder=project_folder,
+                refactoring_type=refactoring_type,
+                symbol_name=symbol_name,
+                new_name=new_name,
+                affected_languages=affected_languages,
+                dry_run=dry_run,
+            )
+        ),
+        time.time(),
+        {"project_folder": project_folder, "refactoring_type": refactoring_type, "symbol_name": symbol_name, "dry_run": dry_run},
     )
 
-    try:
-        result = refactor_polyglot_impl(
-            project_folder=project_folder,
-            refactoring_type=refactoring_type,
-            symbol_name=symbol_name,
-            new_name=new_name,
-            affected_languages=affected_languages,
-            dry_run=dry_run,
-        )
 
-        execution_time = time.time() - start_time
-
-        logger.info(
-            "tool_completed",
-            tool="refactor_polyglot",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            changes_count=len(result.plan.changes),
-            dry_run=result.dry_run,
-        )
-
-        return {
-            "plan": {
-                "refactoring_type": result.plan.refactoring_type.value,
-                "symbol_name": result.plan.symbol_name,
-                "new_name": result.plan.new_name,
-                "affected_languages": result.plan.affected_languages,
-                "changes_count": len(result.plan.changes),
-                "risks": result.plan.risks,
-                "requires_manual_review": result.plan.requires_manual_review,
-            },
-            "changes": [
-                {
-                    "language": c.language,
-                    "file_path": c.file_path,
-                    "line_number": c.line_number,
-                    "original_code": c.original_code,
-                    "new_code": c.new_code,
-                    "change_type": c.change_type,
-                }
-                for c in (result.changes_made if not result.dry_run else result.plan.changes)
-            ],
-            "dry_run": result.dry_run,
-            "files_modified": result.files_modified,
-            "validation_passed": result.validation_passed,
-            "validation_errors": result.validation_errors,
-            "execution_time_ms": result.execution_time_ms,
-        }
-
-    except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="refactor_polyglot",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-        )
-        sentry_sdk.capture_exception(e)
-        raise
+def _format_bindings_result(result: Any) -> Dict[str, Any]:
+    return {
+        "api_name": result.api_name,
+        "api_version": result.api_version,
+        "base_url": result.base_url,
+        "endpoints_count": result.endpoints_count,
+        "bindings": [
+            {
+                "language": b.language,
+                "file_name": b.file_name,
+                "code": b.code,
+                "imports": b.imports,
+                "dependencies": b.dependencies,
+                "types_generated": b.types_generated,
+            }
+            for b in result.bindings
+        ],
+        "warnings": result.warnings,
+        "execution_time_ms": result.execution_time_ms,
+    }
 
 
 def generate_language_bindings_tool(
@@ -585,122 +318,21 @@ def generate_language_bindings_tool(
     binding_style: str = "native",
     include_types: bool = True,
 ) -> Dict[str, Any]:
-    """
-    Generate API client bindings for multiple languages from specifications.
-
-    This tool parses API specifications (OpenAPI/Swagger) and generates
-    client code in multiple programming languages.
-
-    **Supported Input Formats:**
-    - OpenAPI 3.0 (JSON or YAML)
-    - Swagger 2.0 (JSON or YAML)
-
-    **Supported Output Languages:**
-    - Python (using requests)
-    - TypeScript (using fetch)
-    - JavaScript (using fetch)
-    - Java (planned)
-    - Go (planned)
-
-    **Binding Styles:**
-    - native: Use native language HTTP libraries
-    - sdk: Full SDK with utilities and types
-    - minimal: Minimal implementation
-
-    **Generated Features:**
-    - Type-safe method signatures
-    - Request/response type definitions
-    - Authentication handling
-    - Error handling
-
-    Args:
-        api_definition_file: Path to API spec file (OpenAPI/Swagger)
-        target_languages: Languages to generate bindings for
-        binding_style: Binding style (native, sdk, minimal)
-        include_types: Whether to include type definitions
-
-    Returns:
-        Dictionary containing:
-        - api_name: Name of the API
-        - api_version: API version
-        - endpoints_count: Number of endpoints
-        - bindings: Generated bindings per language
-        - warnings: Generation warnings
-
-    Example usage:
-        # Generate Python and TypeScript clients
-        result = generate_language_bindings(
-            api_definition_file="/path/to/openapi.json",
-            target_languages=["python", "typescript"],
-            binding_style="native"
-        )
-
-        # Save generated code
-        for binding in result["bindings"]:
-            with open(binding["file_name"], "w") as f:
-                f.write(binding["code"])
-    """
-    logger = get_logger("tool.generate_language_bindings")
-    start_time = time.time()
-
     if target_languages is None:
         target_languages = ["python", "typescript", "javascript"]
-
-    logger.info(
-        "tool_invoked",
-        tool="generate_language_bindings",
-        api_definition_file=api_definition_file,
-        target_languages=target_languages,
-        binding_style=binding_style,
+    return _run_tool(
+        "generate_language_bindings",
+        lambda: _format_bindings_result(
+            generate_language_bindings_impl(
+                api_definition_file=api_definition_file,
+                target_languages=target_languages,
+                binding_style=binding_style,
+                include_types=include_types,
+            )
+        ),
+        time.time(),
+        {"api_definition_file": api_definition_file, "target_languages": target_languages, "binding_style": binding_style},
     )
-
-    try:
-        result = generate_language_bindings_impl(
-            api_definition_file=api_definition_file,
-            target_languages=target_languages,
-            binding_style=binding_style,
-            include_types=include_types,
-        )
-
-        execution_time = time.time() - start_time
-
-        logger.info(
-            "tool_completed",
-            tool="generate_language_bindings",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            bindings_generated=len(result.bindings),
-        )
-
-        return {
-            "api_name": result.api_name,
-            "api_version": result.api_version,
-            "base_url": result.base_url,
-            "endpoints_count": result.endpoints_count,
-            "bindings": [
-                {
-                    "language": b.language,
-                    "file_name": b.file_name,
-                    "code": b.code,
-                    "imports": b.imports,
-                    "dependencies": b.dependencies,
-                    "types_generated": b.types_generated,
-                }
-                for b in result.bindings
-            ],
-            "warnings": result.warnings,
-            "execution_time_ms": result.execution_time_ms,
-        }
-
-    except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="generate_language_bindings",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-        )
-        sentry_sdk.capture_exception(e)
-        raise
 
 
 # =============================================================================
@@ -750,91 +382,74 @@ def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
     }
 
 
-def register_cross_language_tools(mcp: FastMCP) -> None:
-    """Register all cross-language feature tools with MCP server.
-
-    Args:
-        mcp: FastMCP server instance
-    """
-    fields = _create_mcp_field_definitions()
-
+def _register_search_multi_language(mcp: FastMCP, f: Dict[str, Any]) -> None:
     @mcp.tool()
     def search_multi_language(
-        project_folder: str = fields["search_multi_language"]["project_folder"],
-        semantic_pattern: str = fields["search_multi_language"]["semantic_pattern"],
-        languages: Optional[List[str]] = fields["search_multi_language"]["languages"],
-        group_by: str = fields["search_multi_language"]["group_by"],
-        max_results_per_language: int = fields["search_multi_language"]["max_results_per_language"],
+        project_folder: str = f["project_folder"],
+        semantic_pattern: str = f["semantic_pattern"],
+        languages: Optional[List[str]] = f["languages"],
+        group_by: str = f["group_by"],
+        max_results_per_language: int = f["max_results_per_language"],
     ) -> Dict[str, Any]:
         """Search across multiple programming languages for semantically equivalent patterns."""
-        return search_multi_language_tool(
-            project_folder=project_folder,
-            semantic_pattern=semantic_pattern,
-            languages=languages,
-            group_by=group_by,
-            max_results_per_language=max_results_per_language,
-        )
+        return search_multi_language_tool(project_folder, semantic_pattern, languages, group_by, max_results_per_language)
 
+
+def _register_find_language_equivalents(mcp: FastMCP, f: Dict[str, Any]) -> None:
     @mcp.tool()
     def find_language_equivalents(
-        pattern_description: str = fields["find_language_equivalents"]["pattern_description"],
-        source_language: Optional[str] = fields["find_language_equivalents"]["source_language"],
-        target_languages: Optional[List[str]] = fields["find_language_equivalents"]["target_languages"],
+        pattern_description: str = f["pattern_description"],
+        source_language: Optional[str] = f["source_language"],
+        target_languages: Optional[List[str]] = f["target_languages"],
     ) -> Dict[str, Any]:
         """Find equivalent patterns across programming languages."""
-        return find_language_equivalents_tool(
-            pattern_description=pattern_description,
-            source_language=source_language,
-            target_languages=target_languages,
-        )
+        return find_language_equivalents_tool(pattern_description, source_language, target_languages)
 
+
+def _register_convert_code_language(mcp: FastMCP, f: Dict[str, Any]) -> None:
     @mcp.tool()
     def convert_code_language(
-        code_snippet: str = fields["convert_code_language"]["code_snippet"],
-        from_language: str = fields["convert_code_language"]["from_language"],
-        to_language: str = fields["convert_code_language"]["to_language"],
-        conversion_style: str = fields["convert_code_language"]["conversion_style"],
-        include_comments: bool = fields["convert_code_language"]["include_comments"],
+        code_snippet: str = f["code_snippet"],
+        from_language: str = f["from_language"],
+        to_language: str = f["to_language"],
+        conversion_style: str = f["conversion_style"],
+        include_comments: bool = f["include_comments"],
     ) -> Dict[str, Any]:
         """Convert code from one programming language to another."""
-        return convert_code_language_tool(
-            code_snippet=code_snippet,
-            from_language=from_language,
-            to_language=to_language,
-            conversion_style=conversion_style,
-            include_comments=include_comments,
-        )
+        return convert_code_language_tool(code_snippet, from_language, to_language, conversion_style, include_comments)
 
+
+def _register_refactor_polyglot(mcp: FastMCP, f: Dict[str, Any]) -> None:
     @mcp.tool()
     def refactor_polyglot(
-        project_folder: str = fields["refactor_polyglot"]["project_folder"],
-        refactoring_type: str = fields["refactor_polyglot"]["refactoring_type"],
-        symbol_name: str = fields["refactor_polyglot"]["symbol_name"],
-        new_name: Optional[str] = fields["refactor_polyglot"]["new_name"],
-        affected_languages: Optional[List[str]] = fields["refactor_polyglot"]["affected_languages"],
-        dry_run: bool = fields["refactor_polyglot"]["dry_run"],
+        project_folder: str = f["project_folder"],
+        refactoring_type: str = f["refactoring_type"],
+        symbol_name: str = f["symbol_name"],
+        new_name: Optional[str] = f["new_name"],
+        affected_languages: Optional[List[str]] = f["affected_languages"],
+        dry_run: bool = f["dry_run"],
     ) -> Dict[str, Any]:
         """Refactor across multiple programming languages atomically."""
-        return refactor_polyglot_tool(
-            project_folder=project_folder,
-            refactoring_type=refactoring_type,
-            symbol_name=symbol_name,
-            new_name=new_name,
-            affected_languages=affected_languages,
-            dry_run=dry_run,
-        )
+        return refactor_polyglot_tool(project_folder, refactoring_type, symbol_name, new_name, affected_languages, dry_run)
 
+
+def _register_generate_language_bindings(mcp: FastMCP, f: Dict[str, Any]) -> None:
     @mcp.tool()
     def generate_language_bindings(
-        api_definition_file: str = fields["generate_language_bindings"]["api_definition_file"],
-        target_languages: Optional[List[str]] = fields["generate_language_bindings"]["target_languages"],
-        binding_style: str = fields["generate_language_bindings"]["binding_style"],
-        include_types: bool = fields["generate_language_bindings"]["include_types"],
+        api_definition_file: str = f["api_definition_file"],
+        target_languages: Optional[List[str]] = f["target_languages"],
+        binding_style: str = f["binding_style"],
+        include_types: bool = f["include_types"],
     ) -> Dict[str, Any]:
         """Generate API client bindings for multiple languages from specifications."""
-        return generate_language_bindings_tool(
-            api_definition_file=api_definition_file,
-            target_languages=target_languages,
-            binding_style=binding_style,
-            include_types=include_types,
-        )
+        return generate_language_bindings_tool(api_definition_file, target_languages, binding_style, include_types)
+
+
+def register_cross_language_tools(mcp: FastMCP) -> None:
+    """Register all cross-language feature tools with MCP server."""
+    fields = _create_mcp_field_definitions()
+    _register_search_multi_language(mcp, fields["search_multi_language"])
+    _register_find_language_equivalents(mcp, fields["find_language_equivalents"])
+    _register_convert_code_language(mcp, fields["convert_code_language"])
+    _register_refactor_polyglot(mcp, fields["refactor_polyglot"])
+    _register_generate_language_bindings(mcp, fields["generate_language_bindings"])

@@ -71,21 +71,40 @@ class RefactoringPlanValidator:
         Returns:
             List of error dictionaries
         """
-        errors = []
         required_fields = ["generated_code", "files_affected", "language"]
+        return [
+            {
+                "type": "missing_field",
+                "field": field,
+                "error": f"Missing required field: {field}",
+                "suggestion": f"Add '{field}' to the refactoring plan",
+            }
+            for field in required_fields
+            if field not in plan
+        ]
 
-        for field in required_fields:
-            if field not in plan:
-                errors.append(
-                    {
-                        "type": "missing_field",
-                        "field": field,
-                        "error": f"Missing required field: {field}",
-                        "suggestion": f"Add '{field}' to the refactoring plan",
-                    }
-                )
+    def _resolve_file_path(self, file_path: str, project_folder: str) -> Path:
+        full_path = Path(file_path)
+        if not full_path.is_absolute():
+            full_path = Path(project_folder) / file_path
+        return full_path
 
-        return errors
+    def _check_file_error(self, file_path: str, full_path: Path) -> Dict[str, Any] | None:
+        if not full_path.exists():
+            return {
+                "type": "file_not_found",
+                "file": str(file_path),
+                "error": f"File not found: {file_path}",
+                "suggestion": "Verify the file path is correct",
+            }
+        if not full_path.is_file():
+            return {
+                "type": "not_a_file",
+                "file": str(file_path),
+                "error": f"Path is not a file: {file_path}",
+                "suggestion": "Ensure the path points to a file, not a directory",
+            }
+        return None
 
     def _validate_files_exist(self, plan: Dict[str, Any], project_folder: str) -> List[Dict[str, Any]]:
         """Verify all affected files exist.
@@ -98,39 +117,52 @@ class RefactoringPlanValidator:
             List of error dictionaries
         """
         errors = []
-        files_affected = plan.get("files_affected", [])
-
-        for file_info in files_affected:
+        for file_info in plan.get("files_affected", []):
             file_path = file_info if isinstance(file_info, str) else file_info.get("file", "")
-
             if not file_path:
                 continue
+            full_path = self._resolve_file_path(file_path, project_folder)
+            error = self._check_file_error(file_path, full_path)
+            if error:
+                errors.append(error)
+        return errors
 
-            # Try as absolute path first
-            full_path = Path(file_path)
-            if not full_path.is_absolute():
-                # Try relative to project folder
-                full_path = Path(project_folder) / file_path
+    def _check_extracted_function(self, code: str, language: str) -> List[Dict[str, Any]]:
+        if not code:
+            return []
+        is_valid, error_msg = validate_code_for_language(code, language)
+        if is_valid:
+            return []
+        return [
+            {
+                "type": "extracted_function",
+                "file": "extracted function",
+                "error": error_msg,
+                "code_preview": code[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+                "suggestion": suggest_syntax_fix(error_msg, language, context="code"),
+            }
+        ]
 
-            if not full_path.exists():
-                errors.append(
-                    {
-                        "type": "file_not_found",
-                        "file": str(file_path),
-                        "error": f"File not found: {file_path}",
-                        "suggestion": "Verify the file path is correct",
-                    }
-                )
-            elif not full_path.is_file():
-                errors.append(
-                    {
-                        "type": "not_a_file",
-                        "file": str(file_path),
-                        "error": f"Path is not a file: {file_path}",
-                        "suggestion": "Ensure the path points to a file, not a directory",
-                    }
-                )
+    def _check_replacement_syntax(self, file_path: str, new_content: str, language: str) -> Dict[str, Any] | None:
+        is_valid, error_msg = validate_code_for_language(new_content, language)
+        if is_valid:
+            return None
+        return {
+            "type": "replacement_code",
+            "file": file_path,
+            "error": error_msg,
+            "suggestion": suggest_syntax_fix(error_msg, language, context="code"),
+        }
 
+    def _check_replacements(self, replacements: Dict[str, Any], language: str) -> List[Dict[str, Any]]:
+        errors = []
+        for file_path, replacement in replacements.items():
+            new_content = replacement.get("new_content", "")
+            if not new_content:
+                continue
+            error = self._check_replacement_syntax(file_path, new_content, language)
+            if error:
+                errors.append(error)
         return errors
 
     def _validate_code_syntax(self, plan: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -142,39 +174,8 @@ class RefactoringPlanValidator:
         Returns:
             List of error dictionaries
         """
-        errors = []
         language = plan.get("language", "python")
         generated_code = plan.get("generated_code", {})
-
-        # Validate extracted function
-        extracted_function = generated_code.get("extracted_function", "")
-        if extracted_function:
-            is_valid, error_msg = validate_code_for_language(extracted_function, language)
-            if not is_valid:
-                errors.append(
-                    {
-                        "type": "extracted_function",
-                        "file": "extracted function",
-                        "error": error_msg,
-                        "code_preview": extracted_function[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-                        "suggestion": suggest_syntax_fix(error_msg, language, context="code"),
-                    }
-                )
-
-        # Validate replacements
-        replacements = generated_code.get("replacements", {})
-        for file_path, replacement in replacements.items():
-            new_content = replacement.get("new_content", "")
-            if new_content:
-                is_valid, error_msg = validate_code_for_language(new_content, language)
-                if not is_valid:
-                    errors.append(
-                        {
-                            "type": "replacement_code",
-                            "file": file_path,
-                            "error": error_msg,
-                            "suggestion": suggest_syntax_fix(error_msg, language, context="code"),
-                        }
-                    )
-
+        errors = self._check_extracted_function(generated_code.get("extracted_function", ""), language)
+        errors.extend(self._check_replacements(generated_code.get("replacements", {}), language))
         return errors
