@@ -49,23 +49,7 @@ from ast_grep_mcp.utils.formatters import format_matches_as_text
 
 
 def dump_syntax_tree_impl(code: str, language: str, format: DumpFormat = "cst") -> str:
-    """
-    Implementation of dump_syntax_tree.
-
-    Dump code's syntax structure or dump a query's pattern structure.
-    This is useful to discover correct syntax kind and syntax tree structure.
-
-    Args:
-        code: The code to dump
-        language: The language of the code
-        format: Code dump format (pattern, ast, or cst)
-
-    Returns:
-        The syntax tree structure as a string
-
-    Raises:
-        AstGrepError: If ast-grep command fails
-    """
+    """Dump code's syntax structure. format: pattern|ast|cst."""
     logger = get_logger("search.dump_syntax_tree")
     start_time = time.time()
 
@@ -105,54 +89,11 @@ def dump_syntax_tree_impl(code: str, language: str, format: DumpFormat = "cst") 
         raise
 
 
-def test_match_code_rule_impl(code: str, yaml_rule: str) -> List[Dict[str, Any]]:
-    """
-    Implementation of test_match_code_rule.
-
-    Test a code against an ast-grep YAML rule.
-    This is useful to test a rule before using it in a project.
-
-    Args:
-        code: The code to test against the rule
-        yaml_rule: The ast-grep YAML rule to search
-
-    Returns:
-        List of matches
-
-    Raises:
-        InvalidYAMLError: If YAML is invalid
-        NoMatchesError: If no matches are found
-        AstGrepError: If ast-grep command fails
-    """
-    logger = get_logger("search.test_match_code_rule")
-    start_time = time.time()
-
-    # Validate YAML before passing to ast-grep
-    try:
-        parsed_yaml = yaml.safe_load(yaml_rule)
-        if not isinstance(parsed_yaml, dict):
-            raise InvalidYAMLError("YAML must be a dictionary", yaml_rule)
-        if "id" not in parsed_yaml:
-            raise InvalidYAMLError("Missing required field 'id'", yaml_rule)
-        if "language" not in parsed_yaml:
-            raise InvalidYAMLError("Missing required field 'language'", yaml_rule)
-        if "rule" not in parsed_yaml:
-            raise InvalidYAMLError("Missing required field 'rule'", yaml_rule)
-    except yaml.YAMLError as e:
-        raise InvalidYAMLError(f"YAML parsing failed: {e}", yaml_rule) from e
-
-    logger.info(
-        "test_match_code_rule_started",
-        rule_id=parsed_yaml.get("id"),
-        language=parsed_yaml.get("language"),
-        code_length=len(code),
-        yaml_length=len(yaml_rule),
-    )
-
+def _run_scan_against_code(code: str, yaml_rule: str, start_time: float, logger: Any, parsed_yaml: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Execute ast-grep scan and return matches, raising on failure."""
     try:
         result = run_ast_grep("scan", ["--inline-rules", yaml_rule, "--json", "--stdin"], input_text=code)
         matches = cast(List[Dict[str, Any]], json.loads(result.stdout.strip()))
-
         execution_time = time.time() - start_time
         logger.info(
             "test_match_code_rule_completed",
@@ -160,13 +101,12 @@ def test_match_code_rule_impl(code: str, yaml_rule: str) -> List[Dict[str, Any]]
             match_count=len(matches),
             status="success",
         )
-
         if not matches:
             raise NoMatchesError("No matches found for the given code and rule")
         return matches
+    except (InvalidYAMLError, NoMatchesError):
+        raise
     except Exception as e:
-        if isinstance(e, (InvalidYAMLError, NoMatchesError)):
-            raise
         execution_time = time.time() - start_time
         logger.error(
             "test_match_code_rule_failed",
@@ -178,13 +118,31 @@ def test_match_code_rule_impl(code: str, yaml_rule: str) -> List[Dict[str, Any]]
             e,
             extras={
                 "function": "test_match_code_rule_impl",
-                "rule_id": parsed_yaml.get("id") if "parsed_yaml" in locals() else None,
-                "language": parsed_yaml.get("language") if "parsed_yaml" in locals() else None,
+                "rule_id": parsed_yaml.get("id"),
+                "language": parsed_yaml.get("language"),
                 "code_length": len(code),
                 "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
+
+
+def test_match_code_rule_impl(code: str, yaml_rule: str) -> List[Dict[str, Any]]:
+    """Test code against an ast-grep YAML rule. Returns list of matches."""
+    logger = get_logger("search.test_match_code_rule")
+    start_time = time.time()
+
+    parsed_yaml = _validate_yaml_rule(yaml_rule)
+
+    logger.info(
+        "test_match_code_rule_started",
+        rule_id=parsed_yaml.get("id"),
+        language=parsed_yaml.get("language"),
+        code_length=len(code),
+        yaml_length=len(yaml_rule),
+    )
+
+    return _run_scan_against_code(code, yaml_rule, start_time, logger, parsed_yaml)
 
 
 def _prepare_search_targets(project_folder: str, max_file_size_mb: int, language: str, logger: Any) -> List[str]:
@@ -356,6 +314,59 @@ def _validate_and_prepare_search(
     return search_targets
 
 
+def _run_find_code_search(
+    project_folder: str,
+    pattern: str,
+    language: str,
+    max_results: int,
+    output_format: str,
+    workers: int,
+    search_targets: List[str],
+    logger: Any,
+    start_time: float,
+) -> Union[str, List[Dict[str, Any]]]:
+    """Execute find_code search with pre-validated targets."""
+    stream_args = _build_search_args(pattern, language, workers, search_targets)
+    cache = get_query_cache()
+    cached_result = _check_cache(cache, stream_args, project_folder, max_results, output_format, logger)
+    if cached_result is not None:
+        return cached_result
+
+    matches = _execute_search(stream_args, max_results, cache, project_folder, logger)
+    result = _format_search_results(matches, output_format)
+    execution_time = time.time() - start_time
+    logger.info(
+        "find_code_completed",
+        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        match_count=len(matches),
+        status="success",
+    )
+    return result
+
+
+def _log_find_code_error(
+    e: Exception, project_folder: str, pattern: str, language: str, start_time: float, logger: Any
+) -> None:
+    """Log error and capture in Sentry for find_code_impl."""
+    execution_time = time.time() - start_time
+    logger.error(
+        "find_code_failed",
+        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+        status="failed",
+    )
+    sentry_sdk.capture_exception(
+        e,
+        extras={
+            "function": "find_code_impl",
+            "project_folder": project_folder,
+            "pattern": pattern[:100],
+            "language": language,
+            "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        },
+    )
+
+
 def find_code_impl(
     project_folder: str,
     pattern: str,
@@ -365,30 +376,11 @@ def find_code_impl(
     max_file_size_mb: int = 0,
     workers: int = 0,
 ) -> Union[str, List[Dict[str, Any]]]:
-    """
-    Implementation of find_code.
-
-    Find code in a project folder using a pattern.
-    Uses caching when enabled and supports streaming for large results.
-
-    Args:
-        project_folder: The absolute path to the project folder
-        pattern: The ast-grep pattern to search for
-        language: The language of the code (auto-detected if not specified)
-        max_results: Maximum results to return (0 for no limit)
-        output_format: Output format ('text' or 'json')
-        max_file_size_mb: Maximum file size in MB to search (0 for no limit)
-        workers: Number of worker threads (0 for auto)
-
-    Returns:
-        String (text format) or list of matches (json format)
-
-    Raises:
-        AstGrepError: If ast-grep command fails
-    """
+    """Find code in a project folder using a pattern."""
     logger = get_logger("search.find_code")
     start_time = time.time()
-
+    size_display: Union[int, str] = max_file_size_mb if max_file_size_mb > 0 else "unlimited"
+    workers_display: Union[int, str] = workers if workers > 0 else "auto"
     logger.info(
         "find_code_started",
         project_folder=project_folder,
@@ -396,61 +388,20 @@ def find_code_impl(
         language=language or "auto",
         max_results=max_results,
         output_format=output_format,
-        max_file_size_mb=max_file_size_mb if max_file_size_mb > 0 else "unlimited",
-        workers=workers if workers > 0 else "auto",
+        max_file_size_mb=size_display,
+        workers=workers_display,
     )
-
     try:
-        # Validate and prepare search
-        search_targets = _validate_and_prepare_search(project_folder, pattern, language, max_file_size_mb, output_format, logger)
-
-        # Handle early return (empty results)
-        if _is_early_return_value(search_targets):
-            return search_targets  # type: ignore[return-value]
-
-        # Build ast-grep arguments
-        stream_args = _build_search_args(pattern, language, workers, search_targets)  # type: ignore[arg-type]
-
-        # Check cache first
-        cache = get_query_cache()
-        cached_result = _check_cache(cache, stream_args, project_folder, max_results, output_format, logger)
-        if cached_result is not None:
-            return cached_result
-
-        # Execute search if not cached
-        matches = _execute_search(stream_args, max_results, cache, project_folder, logger)
-
-        # Format and return results
-        result = _format_search_results(matches, output_format)
-
-        execution_time = time.time() - start_time
-        logger.info(
-            "find_code_completed",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            match_count=len(matches),
-            status="success",
+        _validate_output_format(output_format)
+        search_targets = _prepare_search_targets(project_folder, max_file_size_mb, language, logger)
+        empty_result = _handle_empty_search_targets(search_targets, output_format)
+        if empty_result is not None:
+            return empty_result
+        return _run_find_code_search(
+            project_folder, pattern, language, max_results, output_format, workers, search_targets, logger, start_time
         )
-
-        return result
-
     except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "find_code_failed",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-            status="failed",
-        )
-        sentry_sdk.capture_exception(
-            e,
-            extras={
-                "function": "find_code_impl",
-                "project_folder": project_folder,
-                "pattern": pattern[:100],
-                "language": language,
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            },
-        )
+        _log_find_code_error(e, project_folder, pattern, language, start_time, logger)
         raise
 
 
@@ -483,6 +434,36 @@ def _validate_yaml_rule(yaml_rule: str) -> Dict[str, Any]:
 RELATIONAL_RULES = ["inside", "has", "follows", "precedes"]
 
 
+def _check_relational_entry(rule_obj: Dict[str, Any], rel_rule: str, path: str) -> List[str]:
+    """Check a single relational rule entry for missing stopBy."""
+    warnings: List[str] = []
+    if rel_rule not in rule_obj:
+        return warnings
+    rel_content = rule_obj[rel_rule]
+    if not isinstance(rel_content, dict):
+        return warnings
+    if "stopBy" not in rel_content:
+        warnings.append(
+            f"⚠️  Missing 'stopBy' in '{rel_rule}' at {path}.{rel_rule}. "
+            f"Default is 'neighbor' (immediate parent only). "
+            f"Add 'stopBy: end' to search the entire tree."
+        )
+    warnings.extend(_check_relational_rule_for_stopby(rel_content, f"{path}.{rel_rule}"))
+    return warnings
+
+
+def _check_composite_entries(rule_obj: Dict[str, Any], path: str) -> List[str]:
+    """Check composite rule entries (all, any, not) recursively."""
+    warnings: List[str] = []
+    for composite in ["all", "any"]:
+        if composite in rule_obj and isinstance(rule_obj[composite], list):
+            for i, sub_rule in enumerate(rule_obj[composite]):
+                warnings.extend(_check_relational_rule_for_stopby(sub_rule, f"{path}.{composite}[{i}]"))
+    if "not" in rule_obj and isinstance(rule_obj["not"], dict):
+        warnings.extend(_check_relational_rule_for_stopby(rule_obj["not"], f"{path}.not"))
+    return warnings
+
+
 def _check_relational_rule_for_stopby(rule_obj: Any, path: str = "rule") -> List[str]:
     """
     Recursively check a rule object for relational rules missing stopBy.
@@ -494,33 +475,12 @@ def _check_relational_rule_for_stopby(rule_obj: Any, path: str = "rule") -> List
     Returns:
         List of warning messages
     """
-    warnings: List[str] = []
-
     if not isinstance(rule_obj, dict):
-        return warnings
-
+        return []
+    warnings: List[str] = []
     for rel_rule in RELATIONAL_RULES:
-        if rel_rule in rule_obj:
-            rel_content = rule_obj[rel_rule]
-            if isinstance(rel_content, dict):
-                if "stopBy" not in rel_content:
-                    warnings.append(
-                        f"⚠️  Missing 'stopBy' in '{rel_rule}' at {path}.{rel_rule}. "
-                        f"Default is 'neighbor' (immediate parent only). "
-                        f"Add 'stopBy: end' to search the entire tree."
-                    )
-                # Recursively check nested rules
-                warnings.extend(_check_relational_rule_for_stopby(rel_content, f"{path}.{rel_rule}"))
-
-    # Check composite rules (all, any, not)
-    for composite in ["all", "any"]:
-        if composite in rule_obj and isinstance(rule_obj[composite], list):
-            for i, sub_rule in enumerate(rule_obj[composite]):
-                warnings.extend(_check_relational_rule_for_stopby(sub_rule, f"{path}.{composite}[{i}]"))
-
-    if "not" in rule_obj and isinstance(rule_obj["not"], dict):
-        warnings.extend(_check_relational_rule_for_stopby(rule_obj["not"], f"{path}.not"))
-
+        warnings.extend(_check_relational_entry(rule_obj, rel_rule, path))
+    warnings.extend(_check_composite_entries(rule_obj, path))
     return warnings
 
 
@@ -633,33 +593,45 @@ def _log_rule_warnings(warnings: List[str], parsed_yaml: Dict[str, Any], logger:
         )
 
 
+def _run_rule_search_with_cache(
+    project_folder: str,
+    yaml_rule: str,
+    max_results: int,
+    output_format: str,
+    warnings: List[str],
+    parsed_yaml: Dict[str, Any],
+    logger: Any,
+    start_time: float,
+) -> Union[str, List[Dict[str, Any]], Dict[str, Any]]:
+    """Execute rule search, using/updating cache, and prepend warnings."""
+    cache = get_query_cache()
+    cache_key_parts = ["scan", yaml_rule, output_format, project_folder]
+
+    cached_result = _check_rule_cache(cache, cache_key_parts, project_folder, max_results, logger, parsed_yaml.get("id"))
+    if cached_result is not None:
+        return _prepend_warnings_to_result(cached_result, warnings, output_format)
+
+    result = _execute_rule_search(project_folder, yaml_rule, max_results, output_format, cache, logger)
+    _store_rule_result_in_cache(cache, cache_key_parts, project_folder, result, max_results)
+
+    execution_time = time.time() - start_time
+    match_count = len(result) if isinstance(result, list) else result.count("\n")
+    logger.info(
+        "find_code_by_rule_completed",
+        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        match_count=match_count,
+        status="success",
+    )
+    return _prepend_warnings_to_result(result, warnings, output_format)
+
+
 def find_code_by_rule_impl(
     project_folder: str, yaml_rule: str, max_results: int = 0, output_format: Literal["text", "json"] = "text"
 ) -> Union[str, List[Dict[str, Any]], Dict[str, Any]]:
-    """
-    Implementation of find_code_by_rule (includes scan_project functionality).
-
-    Find code in a project folder using a YAML rule.
-    This combines the functionality of find_code_by_rule and scan_project.
-
-    Args:
-        project_folder: The absolute path to the project folder
-        yaml_rule: The ast-grep YAML rule to search
-        max_results: Maximum results to return (0 for no limit)
-        output_format: Output format ('text' or 'json')
-
-    Returns:
-        String (text format) or list of matches (json format)
-        If warnings are present in JSON format, returns dict with 'warnings' and 'matches' keys
-
-    Raises:
-        InvalidYAMLError: If YAML is invalid
-        AstGrepError: If ast-grep command fails
-    """
+    """Find code using a YAML rule. Returns str, list, or dict with warnings."""
     logger = get_logger("search.find_code_by_rule")
     start_time = time.time()
 
-    # Validate YAML and check for common mistakes
     parsed_yaml = _validate_yaml_rule(yaml_rule)
     warnings = _check_yaml_rule_for_common_mistakes(parsed_yaml)
     _log_rule_warnings(warnings, parsed_yaml, logger)
@@ -674,32 +646,9 @@ def find_code_by_rule_impl(
     )
 
     try:
-        cache = get_query_cache()
-        cache_key_parts = ["scan", yaml_rule, output_format, project_folder]
-
-        # Check cache first
-        cached_result = _check_rule_cache(cache, cache_key_parts, project_folder, max_results, logger, parsed_yaml.get("id"))
-        if cached_result is not None:
-            return _prepend_warnings_to_result(cached_result, warnings, output_format)
-
-        # Execute the search
-        result = _execute_rule_search(project_folder, yaml_rule, max_results, output_format, cache, logger)
-
-        # Cache the result
-        _store_rule_result_in_cache(cache, cache_key_parts, project_folder, result, max_results)
-
-        execution_time = time.time() - start_time
-        match_count = len(result) if isinstance(result, list) else result.count("\n")
-
-        logger.info(
-            "find_code_by_rule_completed",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            match_count=match_count,
-            status="success",
+        return _run_rule_search_with_cache(
+            project_folder, yaml_rule, max_results, output_format, warnings, parsed_yaml, logger, start_time
         )
-
-        return _prepend_warnings_to_result(result, warnings, output_format)
-
     except Exception as e:
         if isinstance(e, InvalidYAMLError):
             raise
@@ -767,6 +716,55 @@ def _add_relational_to_rule(
         rule_obj[relational_type] = _build_relational_rule(value, stop_by)
 
 
+def _generate_rule_id(pattern: str, language: str, inside: Optional[str], has: Optional[str]) -> str:
+    """Generate a deterministic rule ID from pattern components."""
+    import hashlib
+    hash_input = f"{pattern}{language}{inside}{has}"
+    return f"rule-{hashlib.sha256(hash_input.encode()).hexdigest()[:CacheDefaults.RULE_ID_HASH_LENGTH]}"
+
+
+def _build_rule_object(
+    pattern: str,
+    inside: Optional[str],
+    has: Optional[str],
+    follows: Optional[str],
+    precedes: Optional[str],
+    inside_kind: Optional[str],
+    has_kind: Optional[str],
+    stop_by: str,
+) -> Dict[str, Any]:
+    """Build the rule object with relational constraints."""
+    rule_obj: Dict[str, Any] = {"pattern": pattern}
+    _add_relational_to_rule(rule_obj, "inside", inside, stop_by)
+    _add_relational_to_rule(rule_obj, "has", has, stop_by)
+    _add_relational_to_rule(rule_obj, "follows", follows, stop_by)
+    _add_relational_to_rule(rule_obj, "precedes", precedes, stop_by)
+    if inside_kind:
+        rule_obj["inside"] = _build_relational_rule(inside_kind, stop_by, is_kind=True)
+    if has_kind:
+        rule_obj["has"] = _build_relational_rule(has_kind, stop_by, is_kind=True)
+    return rule_obj
+
+
+def _build_yaml_object(
+    rule_id: str,
+    language: str,
+    rule_obj: Dict[str, Any],
+    message: Optional[str],
+    severity: Optional[str],
+    fix: Optional[str],
+) -> Dict[str, Any]:
+    """Build the full YAML structure with optional fields."""
+    yaml_obj: Dict[str, Any] = {"id": rule_id, "language": language, "rule": rule_obj}
+    if message:
+        yaml_obj["message"] = message
+    if severity:
+        yaml_obj["severity"] = severity
+    if fix is not None:
+        yaml_obj["fix"] = fix
+    return yaml_obj
+
+
 def build_rule_impl(
     pattern: str,
     language: str,
@@ -782,72 +780,12 @@ def build_rule_impl(
     severity: Optional[str] = None,
     fix: Optional[str] = None,
 ) -> str:
-    """
-    Build a properly structured YAML rule from components.
-
-    This helper ensures:
-    - All required fields are present (id, language, rule)
-    - stopBy is correctly set on all relational rules
-    - YAML is properly formatted
-
-    Args:
-        pattern: The main pattern to match
-        language: Target language (python, javascript, etc.)
-        rule_id: Unique rule identifier (auto-generated if not provided)
-        inside: Pattern that must contain the match
-        has: Pattern that must be inside the match
-        follows: Pattern that must precede the match
-        precedes: Pattern that must follow the match
-        inside_kind: Node kind that must contain the match (alternative to inside pattern)
-        has_kind: Node kind that must be inside the match (alternative to has pattern)
-        stop_by: stopBy value for relational rules ('neighbor', 'end', or custom)
-        message: Human-readable description of what the rule finds
-        severity: Rule severity (error, warning, info, hint)
-        fix: Auto-fix replacement template
-
-    Returns:
-        YAML rule string ready for use with find_code_by_rule
-    """
-    import hashlib
-
-    # Generate rule ID if not provided
+    """Build a YAML rule from components. Returns YAML string."""
     if not rule_id:
-        hash_input = f"{pattern}{language}{inside}{has}"
-        rule_id = f"rule-{hashlib.sha256(hash_input.encode()).hexdigest()[:CacheDefaults.RULE_ID_HASH_LENGTH]}"
-
-    # Build the rule object
-    rule_obj: Dict[str, Any] = {"pattern": pattern}
-
-    # Add relational rules with patterns
-    _add_relational_to_rule(rule_obj, "inside", inside, stop_by)
-    _add_relational_to_rule(rule_obj, "has", has, stop_by)
-    _add_relational_to_rule(rule_obj, "follows", follows, stop_by)
-    _add_relational_to_rule(rule_obj, "precedes", precedes, stop_by)
-
-    # Add kind-based relational rules (override pattern if both provided)
-    if inside_kind:
-        rule_obj["inside"] = _build_relational_rule(inside_kind, stop_by, is_kind=True)
-    if has_kind:
-        rule_obj["has"] = _build_relational_rule(has_kind, stop_by, is_kind=True)
-
-    # Build the full YAML structure
-    yaml_obj: Dict[str, Any] = {
-        "id": rule_id,
-        "language": language,
-        "rule": rule_obj,
-    }
-
-    # Add optional fields
-    if message:
-        yaml_obj["message"] = message
-    if severity:
-        yaml_obj["severity"] = severity
-    if fix is not None:  # Allow empty string for deletion fix
-        yaml_obj["fix"] = fix
-
-    # Convert to YAML string
-    result: str = yaml.dump(yaml_obj, default_flow_style=False, sort_keys=False, allow_unicode=True)
-    return result
+        rule_id = _generate_rule_id(pattern, language, inside, has)
+    rule_obj = _build_rule_object(pattern, inside, has, follows, precedes, inside_kind, has_kind, stop_by)
+    yaml_obj = _build_yaml_object(rule_id, language, rule_obj, message, severity, fix)
+    return yaml.dump(yaml_obj, default_flow_style=False, sort_keys=False, allow_unicode=True)
 
 
 # =============================================================================
@@ -868,34 +806,22 @@ INVALID_METAVAR_PATTERNS = [
 ]
 
 
+def _invalid_metavar_issue(match: re.Match[str], error_type: str, base_message: str) -> MetavariableInfo:
+    """Build a MetavariableInfo for an invalid metavariable match."""
+    name = f"${match.group(1)}"
+    if error_type == "lowercase":
+        issue = f"{base_message}: '{name}' should be '${match.group(1).upper()}'"
+    else:
+        issue = f"{base_message}: '{name}'"
+    return MetavariableInfo(name=name, type="invalid", valid=False, occurrences=1, issue=issue)
+
+
 def _extract_invalid_metavariables(pattern: str) -> List[MetavariableInfo]:
-    """Extract invalid metavariables from pattern.
-
-    Args:
-        pattern: The ast-grep pattern
-
-    Returns:
-        List of invalid MetavariableInfo objects
-    """
+    """Extract invalid metavariables from pattern."""
     metavars: List[MetavariableInfo] = []
-
     for regex, error_type, base_message in INVALID_METAVAR_PATTERNS:
         for match in regex.finditer(pattern):
-            name = f"${match.group(1)}"
-            if error_type == "lowercase":
-                issue = f"{base_message}: '{name}' should be '${match.group(1).upper()}'"
-            else:
-                issue = f"{base_message}: '{name}'"
-            metavars.append(
-                MetavariableInfo(
-                    name=name,
-                    type="invalid",
-                    valid=False,
-                    occurrences=1,
-                    issue=issue,
-                )
-            )
-
+            metavars.append(_invalid_metavar_issue(match, error_type, base_message))
     return metavars
 
 
@@ -1003,92 +929,66 @@ FRAGMENT_INDICATORS = [
 ]
 
 
+def _metavar_suggestion(mv: MetavariableInfo) -> str:
+    """Build suggestion text for an invalid metavariable."""
+    if "lowercase" in (mv.issue or "").lower():
+        return f"Use uppercase letters: ${mv.name[1:].upper()}"
+    return "Fix the metavariable syntax"
+
+
 def _check_invalid_metavar_issues(metavars: List[MetavariableInfo]) -> List[PatternIssue]:
-    """Check for invalid metavariable issues.
+    """Check for invalid metavariable issues."""
+    return [
+        PatternIssue(
+            severity=IssueSeverity.ERROR,
+            category=IssueCategory.METAVARIABLE,
+            message=mv.issue,
+            suggestion=_metavar_suggestion(mv),
+            location=mv.name,
+        )
+        for mv in metavars
+        if not mv.valid and mv.issue
+    ]
 
-    Args:
-        metavars: Extracted metavariables
 
-    Returns:
-        List of PatternIssue objects for invalid metavariables
-    """
-    issues: List[PatternIssue] = []
-
-    for mv in metavars:
-        if not mv.valid and mv.issue:
-            if "lowercase" in (mv.issue or "").lower():
-                suggestion = f"Use uppercase letters: ${mv.name[1:].upper()}"
-            else:
-                suggestion = "Fix the metavariable syntax"
-            issues.append(
-                PatternIssue(
-                    severity=IssueSeverity.ERROR,
-                    category=IssueCategory.METAVARIABLE,
-                    message=mv.issue,
-                    suggestion=suggestion,
-                    location=mv.name,
-                )
-            )
-
-    return issues
+def _single_arg_issue(content: str) -> PatternIssue:
+    """Build a PatternIssue for a single metavar in function args."""
+    return PatternIssue(
+        severity=IssueSeverity.INFO,
+        category=IssueCategory.BEST_PRACTICE,
+        message=f"Single metavariable '{content}' in function arguments may not match multiple arguments",
+        suggestion=f"Use '$$$ARGS' or '$$${content[1:]}' to match zero or more arguments",
+        location=content,
+    )
 
 
 def _check_single_arg_metavar_issues(pattern: str) -> List[PatternIssue]:
-    """Check for single metavar in function arguments that may need $$$.
-
-    Args:
-        pattern: The ast-grep pattern
-
-    Returns:
-        List of PatternIssue objects
-    """
-    issues: List[PatternIssue] = []
-
+    """Check for single metavar in function arguments that may need $$$."""
     if "(" not in pattern or ")" not in pattern:
-        return issues
-
+        return []
     paren_content = re.findall(r"\(([^)]+)\)", pattern)
-    for content in paren_content:
-        content = content.strip()
-        if re.match(r"^\$[A-Z][A-Z0-9_]*$", content):
-            issues.append(
-                PatternIssue(
-                    severity=IssueSeverity.INFO,
-                    category=IssueCategory.BEST_PRACTICE,
-                    message=f"Single metavariable '{content}' in function arguments may not match multiple arguments",
-                    suggestion=f"Use '$$$ARGS' or '$$${content[1:]}' to match zero or more arguments",
-                    location=content,
-                )
-            )
+    return [
+        _single_arg_issue(content.strip())
+        for content in paren_content
+        if re.match(r"^\$[A-Z][A-Z0-9_]*$", content.strip())
+    ]
 
-    return issues
+
+_FRAGMENT_SUGGESTION = "Patterns must be valid, parseable code. Wrap in full expression or use YAML rule with 'context' and 'selector'"
 
 
 def _check_fragment_issues(pattern: str) -> List[PatternIssue]:
-    """Check for incomplete code fragment patterns.
-
-    Args:
-        pattern: The ast-grep pattern
-
-    Returns:
-        List of PatternIssue objects
-    """
-    issues: List[PatternIssue] = []
-
-    for indicator_pattern, message in FRAGMENT_INDICATORS:
-        if re.match(indicator_pattern, pattern):
-            issues.append(
-                PatternIssue(
-                    severity=IssueSeverity.WARNING,
-                    category=IssueCategory.SYNTAX,
-                    message=message,
-                    suggestion=(
-                        "Patterns must be valid, parseable code. Wrap in full expression or use YAML rule with 'context' and 'selector'"
-                    ),
-                )
-            )
-
-    return issues
+    """Check for incomplete code fragment patterns."""
+    return [
+        PatternIssue(
+            severity=IssueSeverity.WARNING,
+            category=IssueCategory.SYNTAX,
+            message=message,
+            suggestion=_FRAGMENT_SUGGESTION,
+        )
+        for indicator_pattern, message in FRAGMENT_INDICATORS
+        if re.match(indicator_pattern, pattern)
+    ]
 
 
 def _check_pattern_issues(pattern: str, metavars: List[MetavariableInfo]) -> List[PatternIssue]:
@@ -1119,16 +1019,10 @@ def _extract_root_kind(ast_output: str) -> Optional[str]:
     Returns:
         Root node kind or None if not found
     """
-    # AST output format varies, try to extract first node kind
-    # Pattern output: kind: identifier, text: ...
-    # CST output: (identifier) or identifier [...]
-
-    # Try pattern format first
     kind_match = re.search(r"kind:\s*(\w+)", ast_output)
     if kind_match:
         return kind_match.group(1)
 
-    # Try CST format - look for first node type in parentheses or brackets
     cst_match = re.search(r"\((\w+)\)|\[(\w+)\]|^(\w+)\s", ast_output)
     if cst_match:
         return (
@@ -1137,13 +1031,28 @@ def _extract_root_kind(ast_output: str) -> Optional[str]:
             or cst_match.group(RegexCaptureGroups.THIRD)
         )
 
-    # Try to find first word that looks like a node kind
     first_line = ast_output.split("\n")[0] if ast_output else ""
     word_match = re.search(r"^(\w+)", first_line.strip())
-    if word_match:
-        return word_match.group(1)
+    return word_match.group(1) if word_match else None
 
-    return None
+
+def _truncate_ast(ast_output: str) -> str:
+    """Truncate AST output to display limit."""
+    if len(ast_output) > DisplayDefaults.AST_TRUNCATION_LENGTH:
+        return ast_output[: DisplayDefaults.AST_TRUNCATION_LENGTH]
+    return ast_output
+
+
+def _collect_ast_differences(pattern_root: Optional[str], code_root: Optional[str], pattern_ast: str, code_ast: str) -> List[str]:
+    """Collect structural differences between two ASTs."""
+    differences: List[str] = []
+    if pattern_root and code_root and pattern_root != code_root:
+        differences.append(f"Root node mismatch: pattern has '{pattern_root}', code has '{code_root}'")
+    if "ERROR" in pattern_ast.upper():
+        differences.append("Pattern contains parse errors - pattern may not be valid code")
+    if "ERROR" in code_ast.upper():
+        differences.append("Code contains parse errors - code may have syntax issues")
+    return differences
 
 
 def _compare_asts(pattern_ast: str, code_ast: str) -> AstComparison:
@@ -1158,31 +1067,15 @@ def _compare_asts(pattern_ast: str, code_ast: str) -> AstComparison:
     """
     pattern_root = _extract_root_kind(pattern_ast)
     code_root = _extract_root_kind(code_ast)
-
-    kinds_match = pattern_root == code_root if pattern_root and code_root else False
-
-    differences: List[str] = []
-
-    if pattern_root and code_root and not kinds_match:
-        differences.append(f"Root node mismatch: pattern has '{pattern_root}', code has '{code_root}'")
-
-    # Look for structural hints in the ASTs
-    if "ERROR" in pattern_ast.upper():
-        differences.append("Pattern contains parse errors - pattern may not be valid code")
-
-    if "ERROR" in code_ast.upper():
-        differences.append("Code contains parse errors - code may have syntax issues")
+    kinds_match = pattern_root == code_root if (pattern_root and code_root) else False
+    differences = _collect_ast_differences(pattern_root, code_root, pattern_ast, code_ast)
 
     return AstComparison(
         pattern_root_kind=pattern_root,
         code_root_kind=code_root,
         kinds_match=kinds_match,
-        pattern_structure=pattern_ast[: DisplayDefaults.AST_TRUNCATION_LENGTH]
-        if len(pattern_ast) > DisplayDefaults.AST_TRUNCATION_LENGTH
-        else pattern_ast,
-        code_structure=code_ast[: DisplayDefaults.AST_TRUNCATION_LENGTH]
-        if len(code_ast) > DisplayDefaults.AST_TRUNCATION_LENGTH
-        else code_ast,
+        pattern_structure=_truncate_ast(pattern_ast),
+        code_structure=_truncate_ast(code_ast),
         structural_differences=differences,
     )
 
@@ -1332,113 +1225,72 @@ def _generate_suggestions(
     return suggestions
 
 
+def _get_pattern_ast(pattern: str, language: str, issues: List[PatternIssue]) -> tuple[str, bool]:
+    """Try to get pattern AST, return (ast_text, is_valid)."""
+    try:
+        return dump_syntax_tree_impl(pattern, language, "pattern"), True
+    except Exception as e:
+        issues.append(PatternIssue(
+            severity=IssueSeverity.ERROR,
+            category=IssueCategory.SYNTAX,
+            message=f"Pattern failed to parse: {str(e)[:100]}",
+            suggestion="Ensure pattern is valid, parseable code for the target language",
+        ))
+        return f"Error parsing pattern: {str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH]}", False
+
+
+def _get_code_ast(code: str, language: str, issues: List[PatternIssue]) -> str:
+    """Try to get code AST, return ast_text."""
+    try:
+        return dump_syntax_tree_impl(code, language, "cst")
+    except Exception as e:
+        issues.append(PatternIssue(
+            severity=IssueSeverity.WARNING,
+            category=IssueCategory.SYNTAX,
+            message=f"Code failed to parse: {str(e)[:100]}",
+            suggestion="Check that the code is valid syntax",
+        ))
+        return f"Error parsing code: {str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH]}"
+
+
+def _run_debug_analysis(
+    pattern: str, code: str, language: str, start_time: float, logger: Any
+) -> PatternDebugResult:
+    """Execute the pattern debug analysis and build result."""
+    metavars = _extract_metavariables(pattern)
+    issues = _check_pattern_issues(pattern, metavars)
+    pattern_ast, pattern_valid = _get_pattern_ast(pattern, language, issues)
+    code_ast = _get_code_ast(code, language, issues)
+    ast_comparison = _compare_asts(pattern_ast, code_ast)
+    match_attempt = _attempt_match(pattern, code, language)
+    suggestions = _generate_suggestions(pattern, code, language, issues, ast_comparison, match_attempt)
+    execution_time = time.time() - start_time
+    result = PatternDebugResult(
+        pattern=pattern, code=code, language=language, pattern_valid=pattern_valid,
+        pattern_ast=pattern_ast, code_ast=code_ast, ast_comparison=ast_comparison,
+        metavariables=metavars, issues=issues, suggestions=suggestions,
+        match_attempt=match_attempt,
+        execution_time_ms=int(execution_time * ConversionFactors.MILLISECONDS_PER_SECOND),
+    )
+    logger.info(
+        "debug_pattern_completed",
+        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        pattern_valid=pattern_valid, issues_found=len(issues), matched=match_attempt.matched, status="success",
+    )
+    return result
+
+
 def debug_pattern_impl(
     pattern: str,
     code: str,
     language: str,
 ) -> PatternDebugResult:
-    """Debug why a pattern doesn't match code.
-
-    This tool provides comprehensive analysis of pattern matching issues:
-    - Validates metavariable syntax
-    - Compares pattern and code AST structures
-    - Identifies common mistakes and provides suggestions
-    - Attempts to match and reports results
-
-    Args:
-        pattern: The ast-grep pattern to debug
-        code: The code to match against
-        language: The programming language
-
-    Returns:
-        PatternDebugResult with detailed debugging information
-    """
+    """Debug why a pattern doesn't match code. Returns PatternDebugResult."""
     logger = get_logger("search.debug_pattern")
     start_time = time.time()
-
-    logger.info(
-        "debug_pattern_started",
-        language=language,
-        pattern_length=len(pattern),
-        code_length=len(code),
-    )
-
+    logger.info("debug_pattern_started", language=language, pattern_length=len(pattern), code_length=len(code))
     try:
-        # Extract and validate metavariables
-        metavars = _extract_metavariables(pattern)
-
-        # Check for pattern issues
-        issues = _check_pattern_issues(pattern, metavars)
-
-        # Get AST dumps for comparison
-        pattern_valid = True
-        pattern_ast = ""
-        code_ast = ""
-
-        try:
-            pattern_ast = dump_syntax_tree_impl(pattern, language, "pattern")
-        except Exception as e:
-            pattern_valid = False
-            pattern_ast = f"Error parsing pattern: {str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH]}"
-            issues.append(
-                PatternIssue(
-                    severity=IssueSeverity.ERROR,
-                    category=IssueCategory.SYNTAX,
-                    message=f"Pattern failed to parse: {str(e)[:100]}",
-                    suggestion="Ensure pattern is valid, parseable code for the target language",
-                )
-            )
-
-        try:
-            code_ast = dump_syntax_tree_impl(code, language, "cst")
-        except Exception as e:
-            code_ast = f"Error parsing code: {str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH]}"
-            issues.append(
-                PatternIssue(
-                    severity=IssueSeverity.WARNING,
-                    category=IssueCategory.SYNTAX,
-                    message=f"Code failed to parse: {str(e)[:100]}",
-                    suggestion="Check that the code is valid syntax",
-                )
-            )
-
-        # Compare ASTs
-        ast_comparison = _compare_asts(pattern_ast, code_ast)
-
-        # Attempt to match
-        match_attempt = _attempt_match(pattern, code, language)
-
-        # Generate prioritized suggestions
-        suggestions = _generate_suggestions(pattern, code, language, issues, ast_comparison, match_attempt)
-
-        execution_time = time.time() - start_time
-
-        result = PatternDebugResult(
-            pattern=pattern,
-            code=code,
-            language=language,
-            pattern_valid=pattern_valid,
-            pattern_ast=pattern_ast,
-            code_ast=code_ast,
-            ast_comparison=ast_comparison,
-            metavariables=metavars,
-            issues=issues,
-            suggestions=suggestions,
-            match_attempt=match_attempt,
-            execution_time_ms=int(execution_time * ConversionFactors.MILLISECONDS_PER_SECOND),
-        )
-
-        logger.info(
-            "debug_pattern_completed",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            pattern_valid=pattern_valid,
-            issues_found=len(issues),
-            matched=match_attempt.matched,
-            status="success",
-        )
-
-        return result
-
+        return _run_debug_analysis(pattern, code, language, start_time, logger)
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
@@ -1806,37 +1658,36 @@ def _analyze_code(code: str, language: str, ast_output: str) -> CodeAnalysis:
     )
 
 
+_COMMON_IDENTS = {"name", "id", "value", "result", "data", "item", "obj"}
+
+
+def _pick_metavar_name(ident: str, used_names: set[str]) -> str:
+    """Pick a unique metavariable name for an identifier."""
+    if ident.lower() in _COMMON_IDENTS or len(ident) <= DisplayDefaults.SHORT_IDENTIFIER_THRESHOLD:
+        base = f"${ident.upper()}"
+    else:
+        base = f"${ident[:3].upper()}"
+    metavar = base
+    while metavar in used_names:
+        metavar += "1"
+    return metavar
+
+
 def _generate_generalized_pattern(code: str, identifiers: List[str], literals: List[str]) -> str:
     """Generate pattern by replacing identifiers and literals with metavariables."""
     pattern = code
 
-    # Replace literals first (before identifiers to avoid conflicts)
     for i, lit in enumerate(literals[: DisplayDefaults.MAX_PATTERN_REPLACEMENTS]):
-        # Escape special regex characters in literal
         escaped = re.escape(lit)
         metavar = f"$LITERAL{i + 1}" if i > 0 else "$LITERAL"
         pattern = re.sub(escaped, metavar, pattern, count=1)
 
-    # Replace identifiers with metavariables
     used_names: set[str] = set()
     for ident in identifiers[: DisplayDefaults.MAX_PATTERN_IDENTIFIERS]:
         if ident in used_names:
             continue
-        # Choose a meaningful metavariable name
-        if ident.lower() in ["name", "id", "value", "result", "data", "item", "obj"]:
-            metavar = f"${ident.upper()}"
-        elif len(ident) <= DisplayDefaults.SHORT_IDENTIFIER_THRESHOLD:
-            metavar = f"${ident.upper()}"
-        else:
-            # Create abbreviation
-            metavar = f"${ident[:3].upper()}"
-
-        # Make unique if needed
-        while metavar in used_names:
-            metavar += "1"
+        metavar = _pick_metavar_name(ident, used_names)
         used_names.add(metavar)
-
-        # Replace whole word only
         pattern = re.sub(rf"\b{re.escape(ident)}\b", metavar, pattern)
 
     return pattern
@@ -1848,42 +1699,49 @@ def _generate_structural_pattern(root_kind: str, language: str) -> str:
     return f"kind: {root_kind}  # Use in YAML rule"
 
 
+def _exact_confidence(analysis: CodeAnalysis) -> float:
+    """Return confidence level for exact pattern based on code complexity."""
+    if analysis.complexity == "simple":
+        return PatternSuggestionConfidence.EXACT_SIMPLE
+    return PatternSuggestionConfidence.EXACT_COMPLEX
+
+
+def _generalized_suggestion(code: str, analysis: CodeAnalysis) -> Optional[PatternSuggestion]:
+    """Build a generalized pattern suggestion, or None if unchanged."""
+    if not (analysis.identifiers or analysis.literals):
+        return None
+    generalized = _generate_generalized_pattern(code.strip(), analysis.identifiers, analysis.literals)
+    if generalized == code.strip():
+        return None
+    return PatternSuggestion(
+        pattern=generalized,
+        description="Generalized - matches similar code with different names/values",
+        type=SuggestionType.GENERALIZED,
+        confidence=PatternSuggestionConfidence.GENERALIZED,
+        notes="Metavariables ($NAME) match any identifier. Use $$$ARGS for multiple items.",
+    )
+
+
 def _generate_pattern_suggestions(
     code: str,
     language: str,
     analysis: CodeAnalysis,
 ) -> List[PatternSuggestion]:
     """Generate pattern suggestions with varying generalization levels."""
-    suggestions: List[PatternSuggestion] = []
-
-    # 1. Exact pattern (the code itself)
-    suggestions.append(
+    suggestions: List[PatternSuggestion] = [
         PatternSuggestion(
             pattern=code.strip(),
             description="Exact match - matches this specific code only",
             type=SuggestionType.EXACT,
-            confidence=(
-                PatternSuggestionConfidence.EXACT_SIMPLE if analysis.complexity == "simple" else PatternSuggestionConfidence.EXACT_COMPLEX
-            ),
+            confidence=_exact_confidence(analysis),
             notes="Good for finding exact duplicates",
         )
-    )
+    ]
 
-    # 2. Generalized pattern with metavariables
-    if analysis.identifiers or analysis.literals:
-        generalized = _generate_generalized_pattern(code.strip(), analysis.identifiers, analysis.literals)
-        if generalized != code.strip():
-            suggestions.append(
-                PatternSuggestion(
-                    pattern=generalized,
-                    description="Generalized - matches similar code with different names/values",
-                    type=SuggestionType.GENERALIZED,
-                    confidence=PatternSuggestionConfidence.GENERALIZED,
-                    notes="Metavariables ($NAME) match any identifier. Use $$$ARGS for multiple items.",
-                )
-            )
+    gen = _generalized_suggestion(code, analysis)
+    if gen is not None:
+        suggestions.append(gen)
 
-    # 3. Structural pattern (kind-based)
     if analysis.root_kind and analysis.root_kind != "unknown":
         suggestions.append(
             PatternSuggestion(
@@ -1898,6 +1756,53 @@ def _generate_pattern_suggestions(
     return suggestions
 
 
+def _matched_refinement_steps(analysis: CodeAnalysis) -> List[RefinementStep]:
+    """Return refinement steps when pattern already matches."""
+    steps: List[RefinementStep] = []
+    priority = 1
+    if analysis.complexity != "simple":
+        steps.append(RefinementStep(
+            action="Simplify pattern",
+            pattern="Focus on the key structural element you want to match",
+            explanation="Complex patterns may miss variations. Start simple, add constraints.",
+            priority=priority,
+        ))
+        priority += 1
+    steps.append(RefinementStep(
+        action="Add constraints with YAML rule",
+        pattern="Use 'inside' with stopBy: end to limit scope",
+        explanation="Wrap in YAML rule to add context (e.g., only inside functions)",
+        priority=priority,
+    ))
+    return steps
+
+
+def _unmatched_refinement_steps(code: str, language: str, analysis: CodeAnalysis) -> List[RefinementStep]:
+    """Return refinement steps when pattern doesn't match."""
+    code_preview = code[: DisplayDefaults.CONTENT_PREVIEW_LENGTH]
+    dump_cmd = f'dump_syntax_tree(code="{code_preview}...", language="{language}", format="cst")'
+    return [
+        RefinementStep(
+            action="Check metavariable syntax",
+            pattern="Ensure $NAME uses UPPERCASE, use $$$ARGS for multiple items",
+            explanation="Common mistake: lowercase metavariables don't work",
+            priority=1,
+        ),
+        RefinementStep(
+            action="Use dump_syntax_tree",
+            pattern=dump_cmd,
+            explanation="Compare pattern AST with code AST to find structural mismatches",
+            priority=2,
+        ),
+        RefinementStep(
+            action="Try kind-based matching",
+            pattern=f"rule:\n  kind: {analysis.root_kind}",
+            explanation="Match by node type instead of exact syntax",
+            priority=3,
+        ),
+    ]
+
+
 def _generate_refinement_steps(
     code: str,
     language: str,
@@ -1905,67 +1810,9 @@ def _generate_refinement_steps(
     pattern_matches: bool,
 ) -> List[RefinementStep]:
     """Generate steps to refine the pattern."""
-    steps: List[RefinementStep] = []
-    priority = 1
-
     if pattern_matches:
-        # Pattern works, suggest ways to make it more specific or general
-        if analysis.complexity != "simple":
-            steps.append(
-                RefinementStep(
-                    action="Simplify pattern",
-                    pattern="Focus on the key structural element you want to match",
-                    explanation="Complex patterns may miss variations. Start simple, add constraints.",
-                    priority=priority,
-                )
-            )
-            priority += 1
-
-        steps.append(
-            RefinementStep(
-                action="Add constraints with YAML rule",
-                pattern="Use 'inside' with stopBy: end to limit scope",
-                explanation="Wrap in YAML rule to add context (e.g., only inside functions)",
-                priority=priority,
-            )
-        )
-        priority += 1
-
-    else:
-        # Pattern doesn't match, suggest fixes
-        steps.append(
-            RefinementStep(
-                action="Check metavariable syntax",
-                pattern="Ensure $NAME uses UPPERCASE, use $$$ARGS for multiple items",
-                explanation="Common mistake: lowercase metavariables don't work",
-                priority=priority,
-            )
-        )
-        priority += 1
-
-        code_preview = code[: DisplayDefaults.CONTENT_PREVIEW_LENGTH]
-        dump_syntax_tree_command = f'dump_syntax_tree(code="{code_preview}...", language="{language}", format="cst")'
-        steps.append(
-            RefinementStep(
-                action="Use dump_syntax_tree",
-                pattern=dump_syntax_tree_command,
-                explanation="Compare pattern AST with code AST to find structural mismatches",
-                priority=priority,
-            )
-        )
-        priority += 1
-
-        steps.append(
-            RefinementStep(
-                action="Try kind-based matching",
-                pattern=f"rule:\n  kind: {analysis.root_kind}",
-                explanation="Match by node type instead of exact syntax",
-                priority=priority,
-            )
-        )
-        priority += 1
-
-    return steps
+        return _matched_refinement_steps(analysis)
+    return _unmatched_refinement_steps(code, language, analysis)
 
 
 def _generate_yaml_template(pattern: str, language: str, analysis: CodeAnalysis) -> str:
@@ -1993,24 +1840,29 @@ rule:
     return template
 
 
+_NEXT_STEPS_MATCH = [
+    "1. Pattern matches! Use find_code() with this pattern to search your project",
+    "2. Consider using build_rule() to add constraints (inside, has, follows)",
+    "3. Test with test_match_code_rule() on edge cases before deploying",
+]
+
+_NEXT_STEPS_NO_MATCH = [
+    "1. Use debug_pattern() to diagnose why the pattern doesn't match",
+    "2. Check if pattern is valid parseable code for the target language",
+    "3. Use dump_syntax_tree() to compare pattern and code AST structures",
+    "4. Try the generalized pattern suggestion with metavariables",
+]
+
+_NEXT_STEPS_COMMON = [
+    "5. For complex matching, use find_code_by_rule() with the YAML template provided",
+    "6. See get_ast_grep_docs(topic='workflow') for the full development workflow",
+]
+
+
 def _generate_next_steps(pattern_matches: bool, analysis: CodeAnalysis) -> List[str]:
     """Generate guidance for next steps."""
-    steps: List[str] = []
-
-    if pattern_matches:
-        steps.append("1. Pattern matches! Use find_code() with this pattern to search your project")
-        steps.append("2. Consider using build_rule() to add constraints (inside, has, follows)")
-        steps.append("3. Test with test_match_code_rule() on edge cases before deploying")
-    else:
-        steps.append("1. Use debug_pattern() to diagnose why the pattern doesn't match")
-        steps.append("2. Check if pattern is valid parseable code for the target language")
-        steps.append("3. Use dump_syntax_tree() to compare pattern and code AST structures")
-        steps.append("4. Try the generalized pattern suggestion with metavariables")
-
-    steps.append("5. For complex matching, use find_code_by_rule() with the YAML template provided")
-    steps.append("6. See get_ast_grep_docs(topic='workflow') for the full development workflow")
-
-    return steps
+    base = _NEXT_STEPS_MATCH if pattern_matches else _NEXT_STEPS_NO_MATCH
+    return list(base) + _NEXT_STEPS_COMMON
 
 
 def _test_pattern_match(pattern: str, code: str, language: str) -> tuple[bool, int]:
@@ -2030,99 +1882,80 @@ rule:
         return False, 0
 
 
+def _select_best_pattern(suggestions: List[PatternSuggestion], code: str, language: str) -> tuple[str, bool, int]:
+    """Select and test the best pattern from suggestions. Returns (best_pattern, matches, count)."""
+    if len(suggestions) >= 2 and suggestions[1].type == SuggestionType.GENERALIZED:
+        best_pattern = suggestions[1].pattern
+    else:
+        best_pattern = suggestions[0].pattern
+
+    pattern_matches, match_count = _test_pattern_match(best_pattern, code, language)
+    if not pattern_matches and suggestions:
+        exact_pattern = suggestions[0].pattern
+        exact_matches, exact_count = _test_pattern_match(exact_pattern, code, language)
+        if exact_matches:
+            return exact_pattern, exact_matches, exact_count
+
+    return best_pattern, pattern_matches, match_count
+
+
+def _build_develop_result(
+    code: str,
+    language: str,
+    analysis: CodeAnalysis,
+    suggestions: List[PatternSuggestion],
+    best_pattern: str,
+    pattern_matches: bool,
+    match_count: int,
+    execution_time: float,
+) -> PatternDevelopResult:
+    """Build the PatternDevelopResult."""
+    return PatternDevelopResult(
+        code=code,
+        language=language,
+        code_analysis=analysis,
+        suggested_patterns=suggestions,
+        best_pattern=best_pattern,
+        pattern_matches=pattern_matches,
+        match_count=match_count,
+        refinement_steps=_generate_refinement_steps(code, language, analysis, pattern_matches),
+        yaml_rule_template=_generate_yaml_template(best_pattern, language, analysis),
+        next_steps=_generate_next_steps(pattern_matches, analysis),
+        execution_time_ms=int(execution_time * ConversionFactors.MILLISECONDS_PER_SECOND),
+    )
+
+
+def _run_develop_analysis(code: str, language: str, start_time: float, logger: Any) -> PatternDevelopResult:
+    """Execute pattern development analysis and return result."""
+    code_ast = dump_syntax_tree_impl(code, language, "cst")
+    analysis = _analyze_code(code, language, code_ast)
+    suggestions = _generate_pattern_suggestions(code, language, analysis)
+    best_pattern, pattern_matches, match_count = _select_best_pattern(suggestions, code, language)
+    execution_time = time.time() - start_time
+    result = _build_develop_result(
+        code, language, analysis, suggestions, best_pattern, pattern_matches, match_count, execution_time
+    )
+    logger.info(
+        "develop_pattern_completed",
+        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        pattern_matches=pattern_matches,
+        suggestion_count=len(suggestions),
+        status="success",
+    )
+    return result
+
+
 def develop_pattern_impl(
     code: str,
     language: str,
     goal: Optional[str] = None,
 ) -> PatternDevelopResult:
-    """Help develop a pattern to match the given code.
-
-    This is a higher-level workflow tool that guides users through the
-    pattern development process:
-    1. Analyzes the code's AST structure
-    2. Suggests starting patterns with metavariables
-    3. Tests if patterns match
-    4. Provides refinement guidance
-
-    Args:
-        code: Sample code you want to match
-        language: The programming language
-        goal: Optional description of what you're trying to find (for context)
-
-    Returns:
-        PatternDevelopResult with analysis, suggestions, and next steps
-    """
+    """Analyze code and develop ast-grep patterns to match it."""
     logger = get_logger("search.develop_pattern")
     start_time = time.time()
-
-    logger.info(
-        "develop_pattern_started",
-        language=language,
-        code_length=len(code),
-        has_goal=goal is not None,
-    )
-
+    logger.info("develop_pattern_started", language=language, code_length=len(code), has_goal=goal is not None)
     try:
-        # 1. Get the code's AST structure
-        code_ast = dump_syntax_tree_impl(code, language, "cst")
-
-        # 2. Analyze the code
-        analysis = _analyze_code(code, language, code_ast)
-
-        # 3. Generate pattern suggestions
-        suggestions = _generate_pattern_suggestions(code, language, analysis)
-
-        # 4. Pick the best pattern (prefer generalized if available)
-        if len(suggestions) >= 2 and suggestions[1].type == SuggestionType.GENERALIZED:
-            best_pattern = suggestions[1].pattern
-        else:
-            best_pattern = suggestions[0].pattern
-
-        # 5. Test if the best pattern matches
-        pattern_matches, match_count = _test_pattern_match(best_pattern, code, language)
-
-        # If generalized doesn't work, try exact
-        if not pattern_matches and len(suggestions) > 0:
-            exact_pattern = suggestions[0].pattern
-            pattern_matches, match_count = _test_pattern_match(exact_pattern, code, language)
-            if pattern_matches:
-                best_pattern = exact_pattern
-
-        # 6. Generate refinement steps
-        refinement_steps = _generate_refinement_steps(code, language, analysis, pattern_matches)
-
-        # 7. Generate YAML template
-        yaml_template = _generate_yaml_template(best_pattern, language, analysis)
-
-        # 8. Generate next steps
-        next_steps = _generate_next_steps(pattern_matches, analysis)
-
-        execution_time = time.time() - start_time
-
-        result = PatternDevelopResult(
-            code=code,
-            language=language,
-            code_analysis=analysis,
-            suggested_patterns=suggestions,
-            best_pattern=best_pattern,
-            pattern_matches=pattern_matches,
-            match_count=match_count,
-            refinement_steps=refinement_steps,
-            yaml_rule_template=yaml_template,
-            next_steps=next_steps,
-            execution_time_ms=int(execution_time * ConversionFactors.MILLISECONDS_PER_SECOND),
-        )
-
-        logger.info(
-            "develop_pattern_completed",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            pattern_matches=pattern_matches,
-            suggestion_count=len(suggestions),
-            status="success",
-        )
-
-        return result
-
+        return _run_develop_analysis(code, language, start_time, logger)
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(

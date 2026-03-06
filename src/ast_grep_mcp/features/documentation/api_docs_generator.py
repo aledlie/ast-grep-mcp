@@ -71,6 +71,15 @@ def _detect_js_api_framework(project_folder: str) -> Optional[str]:
     return None
 
 
+def _read_file_lower(filepath: str) -> str:
+    """Return lowercased file contents, or empty string on error."""
+    try:
+        with open(filepath, "r") as f:
+            return f.read().lower()
+    except OSError:
+        return ""
+
+
 def _detect_python_api_framework(project_folder: str) -> Optional[str]:
     """Detect Python API framework from dependency files.
 
@@ -80,19 +89,12 @@ def _detect_python_api_framework(project_folder: str) -> Optional[str]:
     Returns:
         Framework name or None
     """
-    deps_content = ""
-    for filename in ["requirements.txt", "pyproject.toml"]:
-        filepath = os.path.join(project_folder, filename)
-        if os.path.exists(filepath):
-            try:
-                with open(filepath, "r") as f:
-                    deps_content += f.read().lower()
-            except OSError:
-                pass
-
+    deps_content = "".join(
+        _read_file_lower(os.path.join(project_folder, fn))
+        for fn in ("requirements.txt", "pyproject.toml")
+    )
     if not deps_content:
         return None
-
     for pattern, framework_name in _PYTHON_API_FRAMEWORKS:
         if pattern in deps_content:
             return framework_name
@@ -148,155 +150,115 @@ class ExpressRouteParser:
 
         for i, line in enumerate(lines):
             match = route_pattern.search(line)
-            if match:
-                method = match.group(RegexCaptureGroups.FIRST).upper()
-                path = match.group(RegexCaptureGroups.SECOND)
-
-                # Try to find handler name
-                handler_match = re.search(r",\s*(\w+)\s*\)", line)
-                handler_name = handler_match.group(RegexCaptureGroups.FIRST) if handler_match else "anonymous"
-
-                # Extract path parameters
-                params = self._extract_path_params(path)
-
-                route = ApiRoute(
-                    path=path,
-                    method=method,
-                    handler_name=handler_name,
-                    file_path=file_path,
-                    line_number=i + 1,
-                    parameters=params,
-                )
-                routes.append(route)
+            if not match:
+                continue
+            method = match.group(RegexCaptureGroups.FIRST).upper()
+            path = match.group(RegexCaptureGroups.SECOND)
+            handler_match = re.search(r",\s*(\w+)\s*\)", line)
+            handler_name = handler_match.group(RegexCaptureGroups.FIRST) if handler_match else "anonymous"
+            routes.append(ApiRoute(
+                path=path,
+                method=method,
+                handler_name=handler_name,
+                file_path=file_path,
+                line_number=i + 1,
+                parameters=self._extract_path_params(path),
+            ))
 
         return routes
 
     def _extract_path_params(self, path: str) -> List[RouteParameter]:
         """Extract path parameters from route path."""
-        params = []
-        # Match :param syntax
-        for match in re.finditer(r":(\w+)", path):
-            params.append(
-                RouteParameter(
-                    name=match.group(RegexCaptureGroups.FIRST),
-                    location="path",
-                    required=True,
-                )
-            )
-        return params
+        return [
+            RouteParameter(name=m.group(RegexCaptureGroups.FIRST), location="path", required=True)
+            for m in re.finditer(r":(\w+)", path)
+        ]
 
 
 class FastAPIRouteParser:
     """Parse FastAPI routes."""
 
+    _DECORATOR_RE = re.compile(r'@(?:app|router)\.(get|post|put|delete|patch|options|head)\s*\(\s*[\'"`]([^\'"`]+)[\'"`]')
+    _DEF_RE = re.compile(r"(?:async\s+)?def\s+(\w+)")
+
+    def _find_func_line(self, lines: List[str], start: int) -> Optional[str]:
+        """Return the first def/async def line after start, or None."""
+        for line in lines[start:]:
+            stripped = line.strip()
+            if stripped.startswith("def ") or stripped.startswith("async def "):
+                return line
+        return None
+
+    def _parse_handler(self, lines: List[str], decorator_idx: int) -> "tuple[str, List[RouteParameter]]":
+        """Return (handler_name, params) from the function following decorator_idx."""
+        func_line = self._find_func_line(lines, decorator_idx + 1)
+        if not func_line:
+            return "unknown", []
+        name_match = self._DEF_RE.search(func_line)
+        handler_name = name_match.group(RegexCaptureGroups.FIRST) if name_match else "unknown"
+        return handler_name, self._extract_params(func_line)
+
     def parse_file(self, file_path: str) -> List[ApiRoute]:
         """Parse routes from a FastAPI file."""
         routes = []
-
         with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
-            lines = content.split("\n")
+            lines = f.read().split("\n")
 
-        # Pattern for @app.get/post/etc. or @router.get/post/etc.
-        decorator_pattern = re.compile(r'@(?:app|router)\.(get|post|put|delete|patch|options|head)\s*\(\s*[\'"`]([^\'"`]+)[\'"`]')
-
-        i = 0
-        while i < len(lines):
-            line = lines[i]
-            match = decorator_pattern.search(line)
-
-            if match:
-                method = match.group(RegexCaptureGroups.FIRST).upper()
-                path = match.group(RegexCaptureGroups.SECOND)
-
-                # Look for function definition on next line(s)
-                j = i + 1
-                while j < len(lines) and not lines[j].strip().startswith("def ") and not lines[j].strip().startswith("async def "):
-                    j += 1
-
-                handler_name = "unknown"
-                params: List[RouteParameter] = []
-
-                if j < len(lines):
-                    func_line = lines[j]
-                    # Extract function name
-                    name_match = re.search(r"(?:async\s+)?def\s+(\w+)", func_line)
-                    if name_match:
-                        handler_name = name_match.group(RegexCaptureGroups.FIRST)
-
-                    # Extract parameters
-                    params = self._extract_params(func_line)
-
-                # Add path params
-                path_params = self._extract_path_params(path)
-
-                route = ApiRoute(
-                    path=path,
-                    method=method,
-                    handler_name=handler_name,
-                    file_path=file_path,
-                    line_number=i + 1,
-                    parameters=path_params + params,
-                )
-                routes.append(route)
-
-            i += 1
+        for i, line in enumerate(lines):
+            match = self._DECORATOR_RE.search(line)
+            if not match:
+                continue
+            method = match.group(RegexCaptureGroups.FIRST).upper()
+            path = match.group(RegexCaptureGroups.SECOND)
+            handler_name, params = self._parse_handler(lines, i)
+            routes.append(ApiRoute(
+                path=path,
+                method=method,
+                handler_name=handler_name,
+                file_path=file_path,
+                line_number=i + 1,
+                parameters=self._extract_path_params(path) + params,
+            ))
 
         return routes
 
     def _extract_path_params(self, path: str) -> List[RouteParameter]:
         """Extract path parameters from route path."""
-        params = []
-        # Match {param} syntax
-        for match in re.finditer(r"\{(\w+)\}", path):
-            params.append(
-                RouteParameter(
-                    name=match.group(RegexCaptureGroups.FIRST),
-                    location="path",
-                    required=True,
-                )
-            )
-        return params
+        return [
+            RouteParameter(name=m.group(RegexCaptureGroups.FIRST), location="path", required=True)
+            for m in re.finditer(r"\{(\w+)\}", path)
+        ]
+
+    def _param_from_part(self, part: str) -> Optional[RouteParameter]:
+        """Return a RouteParameter for a Query/Body annotated param part, or None."""
+        if "Query" in part:
+            location = "query"
+        elif "Body" in part:
+            location = "body"
+        else:
+            return None
+        name_match = re.match(r"(\w+)\s*:", part)
+        if not name_match:
+            return None
+        return RouteParameter(
+            name=name_match.group(RegexCaptureGroups.FIRST),
+            location=location,
+            required="..." not in part,
+        )
 
     def _extract_params(self, func_line: str) -> List[RouteParameter]:
         """Extract query/body parameters from function signature."""
-        params: list[RouteParameter] = []
-
-        # Find params section
         param_match = re.search(r"\((.*)\)", func_line)
         if not param_match:
-            return params
-
-        params_str = param_match.group(RegexCaptureGroups.FIRST)
-
-        # Parse each parameter
-        for part in params_str.split(","):
-            part = part.strip()
+            return []
+        parts = [p.strip() for p in param_match.group(RegexCaptureGroups.FIRST).split(",")]
+        params = []
+        for part in parts:
             if not part or part in ("self", "cls"):
                 continue
-
-            # Check for Query/Body annotations
-            if "Query" in part:
-                name_match = re.match(r"(\w+)\s*:", part)
-                if name_match:
-                    params.append(
-                        RouteParameter(
-                            name=name_match.group(RegexCaptureGroups.FIRST),
-                            location="query",
-                            required="..." not in part,
-                        )
-                    )
-            elif "Body" in part:
-                name_match = re.match(r"(\w+)\s*:", part)
-                if name_match:
-                    params.append(
-                        RouteParameter(
-                            name=name_match.group(RegexCaptureGroups.FIRST),
-                            location="body",
-                            required="..." not in part,
-                        )
-                    )
-
+            p = self._param_from_part(part)
+            if p:
+                params.append(p)
         return params
 
 
@@ -331,13 +293,11 @@ class FlaskRouteParser:
     def _find_next_handler_name(self, lines: List[str], decorator_idx: int) -> str:
         """Return the function name on the next `def` line after decorator_idx."""
         for line in lines[decorator_idx + 1 :]:
-            if line.strip().startswith("def "):
-                name_match = re.search(r"def\s+(\w+)", line)
-                if name_match:
-                    return name_match.group(RegexCaptureGroups.FIRST)
-            # Stop if we hit a non-decorator, non-blank statement before a def
             stripped = line.strip()
-            if stripped and not stripped.startswith(("@", "#", "def ")):
+            if stripped.startswith("def "):
+                name_match = re.search(r"def\s+(\w+)", line)
+                return name_match.group(RegexCaptureGroups.FIRST) if name_match else "unknown"
+            if stripped and not stripped.startswith(("@", "#")):
                 break
         return "unknown"
 
@@ -360,25 +320,62 @@ class FlaskRouteParser:
 
     def _extract_path_params(self, path: str) -> List[RouteParameter]:
         """Extract path parameters from route path."""
-        params = []
-        # Match <param> or <type:param> syntax
-        for match in re.finditer(r"<(?:(\w+):)?(\w+)>", path):
-            type_hint = match.group(RegexCaptureGroups.FIRST)
-            name = match.group(RegexCaptureGroups.SECOND)
-            params.append(
-                RouteParameter(
-                    name=name,
-                    location="path",
-                    type_hint=type_hint,
-                    required=True,
-                )
+        return [
+            RouteParameter(
+                name=m.group(RegexCaptureGroups.SECOND),
+                location="path",
+                type_hint=m.group(RegexCaptureGroups.FIRST),
+                required=True,
             )
-        return params
+            for m in re.finditer(r"<(?:(\w+):)?(\w+)>", path)
+        ]
 
 
 # =============================================================================
 # Documentation Generators
 # =============================================================================
+
+
+def _group_routes_by_prefix(routes: List[ApiRoute]) -> Dict[str, List[ApiRoute]]:
+    groups: Dict[str, List[ApiRoute]] = {}
+    for route in routes:
+        parts = route.path.strip("/").split("/")
+        group = parts[0] if parts else "root"
+        groups.setdefault(group, []).append(route)
+    return groups
+
+
+def _markdown_param_table(route: ApiRoute) -> List[str]:
+    if not route.parameters:
+        return []
+    lines = ["**Parameters:**", "", "| Name | Location | Type | Required | Description |", "|------|----------|------|----------|-------------|"]
+    for param in route.parameters:
+        required = "Yes" if param.required else "No"
+        lines.append(f"| `{param.name}` | {param.location} | {param.type_hint or 'string'} | {required} | {param.description or '-'} |")
+    lines.append("")
+    return lines
+
+
+def _markdown_default_responses() -> List[str]:
+    return [
+        "**Responses:**", "",
+        "| Status | Description |", "|--------|-------------|",
+        "| 200 | Success |", "| 400 | Bad Request |",
+        "| 404 | Not Found |", "| 500 | Internal Server Error |", "",
+    ]
+
+
+def _markdown_route_section(route: ApiRoute) -> List[str]:
+    lines: List[str] = [f"### `{route.method}` {route.path}", ""]
+    if route.description:
+        lines += [route.description, ""]
+    lines.append(f"**Handler:** `{route.handler_name}` ({route.file_path}:{route.line_number})")
+    lines.append("")
+    lines += _markdown_param_table(route)
+    if not route.responses:
+        lines += _markdown_default_responses()
+    lines += ["---", ""]
+    return lines
 
 
 def _generate_markdown_docs(routes: List[ApiRoute], framework: str) -> str:
@@ -391,65 +388,11 @@ def _generate_markdown_docs(routes: List[ApiRoute], framework: str) -> str:
     Returns:
         Markdown string
     """
-    lines = ["# API Documentation", ""]
-    lines.append(f"Generated from {framework} routes.")
-    lines.append("")
-
-    # Group routes by path prefix
-    route_groups: Dict[str, List[ApiRoute]] = {}
-    for route in routes:
-        # Get first path segment as group
-        parts = route.path.strip("/").split("/")
-        group = parts[0] if parts else "root"
-        if group not in route_groups:
-            route_groups[group] = []
-        route_groups[group].append(route)
-
-    # Generate documentation for each group
-    for group, group_routes in sorted(route_groups.items()):
-        lines.append(f"## {group.title()} Endpoints")
-        lines.append("")
-
+    lines: List[str] = ["# API Documentation", "", f"Generated from {framework} routes.", ""]
+    for group, group_routes in sorted(_group_routes_by_prefix(routes).items()):
+        lines += [f"## {group.title()} Endpoints", ""]
         for route in sorted(group_routes, key=lambda r: (r.path, r.method)):
-            lines.append(f"### `{route.method}` {route.path}")
-            lines.append("")
-
-            if route.description:
-                lines.append(route.description)
-                lines.append("")
-
-            # Handler info
-            lines.append(f"**Handler:** `{route.handler_name}` ({route.file_path}:{route.line_number})")
-            lines.append("")
-
-            # Parameters
-            if route.parameters:
-                lines.append("**Parameters:**")
-                lines.append("")
-                lines.append("| Name | Location | Type | Required | Description |")
-                lines.append("|------|----------|------|----------|-------------|")
-                for param in route.parameters:
-                    required = "Yes" if param.required else "No"
-                    type_hint = param.type_hint or "string"
-                    desc = param.description or "-"
-                    lines.append(f"| `{param.name}` | {param.location} | {type_hint} | {required} | {desc} |")
-                lines.append("")
-
-            # Responses (default)
-            if not route.responses:
-                lines.append("**Responses:**")
-                lines.append("")
-                lines.append("| Status | Description |")
-                lines.append("|--------|-------------|")
-                lines.append("| 200 | Success |")
-                lines.append("| 400 | Bad Request |")
-                lines.append("| 404 | Not Found |")
-                lines.append("| 500 | Internal Server Error |")
-                lines.append("")
-
-            lines.append("---")
-            lines.append("")
-
+            lines += _markdown_route_section(route)
     return "\n".join(lines)
 
 
@@ -483,16 +426,9 @@ def _build_openapi_request_body(body_params: List[RouteParameter]) -> Dict[str, 
         OpenAPI requestBody object
     """
     properties = {p.name: {"type": p.type_hint or "string"} for p in body_params}
-    return {
-        "content": {
-            "application/json": {
-                "schema": {
-                    "type": "object",
-                    "properties": properties,
-                }
-            }
-        }
-    }
+    schema: Dict[str, Any] = {"type": "object", "properties": properties}
+    json_content: Dict[str, Any] = {"application/json": {"schema": schema}}
+    return {"content": json_content}
 
 
 def _build_openapi_operation(route: ApiRoute) -> Dict[str, Any]:
@@ -554,6 +490,30 @@ def _generate_openapi_spec(routes: List[ApiRoute], project_name: str = "API") ->
 # =============================================================================
 
 
+_ROUTE_PATTERNS: Dict[str, List[str]] = {
+    "express": ["routes", "router", "api", "controllers"],
+    "fastapi": ["routes", "router", "api", "endpoints", "views"],
+    "flask": ["routes", "views", "api", "blueprints"],
+    "fastify": ["routes", "router", "api"],
+    "nestjs": ["controller", "routes"],
+}
+
+_LANGUAGE_EXTENSIONS: Dict[str, List[str]] = {
+    "python": [".py"],
+    "typescript": [".ts"],
+    "javascript": [".js"],
+}
+
+_SKIP_DIRS = {"node_modules", ".git", "venv", "__pycache__", "dist", "build"}
+
+
+def _is_route_file(full_path: str, file: str, project_folder: str, patterns: List[str], exts: List[str]) -> bool:
+    if not any(file.endswith(ext) for ext in exts):
+        return False
+    rel_path = os.path.relpath(full_path, project_folder).lower()
+    return any(p in rel_path for p in patterns) or any(p in file.lower() for p in patterns)
+
+
 def _find_route_files(project_folder: str, language: str, framework: str) -> List[str]:
     """Find files likely to contain route definitions.
 
@@ -565,49 +525,60 @@ def _find_route_files(project_folder: str, language: str, framework: str) -> Lis
     Returns:
         List of file paths
     """
+    patterns = _ROUTE_PATTERNS.get(framework, ["routes", "api", "controllers"])
+    exts = _LANGUAGE_EXTENSIONS.get(language, [".py", ".js", ".ts"])
     route_files = []
-
-    # Common patterns for route files
-    route_patterns = {
-        "express": ["routes", "router", "api", "controllers"],
-        "fastapi": ["routes", "router", "api", "endpoints", "views"],
-        "flask": ["routes", "views", "api", "blueprints"],
-        "fastify": ["routes", "router", "api"],
-        "nestjs": ["controller", "routes"],
-    }
-
-    patterns = route_patterns.get(framework, ["routes", "api", "controllers"])
-
-    # File extensions
-    extensions = {
-        "python": [".py"],
-        "typescript": [".ts"],
-        "javascript": [".js"],
-    }
-
-    exts = extensions.get(language, [".py", ".js", ".ts"])
-
-    # Walk directory
     for root, _dirs, files in os.walk(project_folder):
-        # Skip common non-source directories
-        if any(skip in root for skip in ["node_modules", ".git", "venv", "__pycache__", "dist", "build"]):
+        if any(skip in root for skip in _SKIP_DIRS):
             continue
-
         for file in files:
-            # Check extension
-            if not any(file.endswith(ext) for ext in exts):
-                continue
-
-            # Check if file/path matches route patterns
             full_path = os.path.join(root, file)
-            rel_path = os.path.relpath(full_path, project_folder).lower()
-
-            if any(pattern in rel_path for pattern in patterns):
+            if _is_route_file(full_path, file, project_folder, patterns, exts):
                 route_files.append(full_path)
-            elif any(pattern in file.lower() for pattern in patterns):
-                route_files.append(full_path)
-
     return route_files
+
+
+_PARSERS: Dict[str, RouteParser] = {
+    "express": ExpressRouteParser(),
+    "fastapi": FastAPIRouteParser(),
+    "flask": FlaskRouteParser(),
+    "fastify": ExpressRouteParser(),
+    "starlette": FastAPIRouteParser(),
+}
+
+
+def _parse_all_routes(parser: RouteParser, route_files: List[str]) -> List[ApiRoute]:
+    all_routes: List[ApiRoute] = []
+    for file_path in route_files:
+        try:
+            all_routes.extend(parser.parse_file(file_path))
+        except Exception as e:
+            logger.warning("file_parse_error", file=file_path, error=str(e))
+            sentry_sdk.capture_exception(e)
+    return all_routes
+
+
+def _elapsed_ms(start_time: float) -> int:
+    return int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
+
+
+def _build_docs_result(
+    project_folder: str,
+    framework: str,
+    parser: RouteParser,
+    language: str,
+    output_format: str,
+    start_time: float,
+) -> ApiDocsResult:
+    route_files = _find_route_files(project_folder, language, framework)
+    all_routes = _parse_all_routes(parser, route_files)
+    markdown = _generate_markdown_docs(all_routes, framework)
+    openapi_spec = None
+    if output_format in ("openapi", "both"):
+        openapi_spec = _generate_openapi_spec(all_routes, os.path.basename(project_folder))
+    execution_time = _elapsed_ms(start_time)
+    logger.info("generate_api_docs_completed", routes_found=len(all_routes), framework=framework, execution_time_ms=execution_time)
+    return ApiDocsResult(routes=all_routes, markdown=markdown, openapi_spec=openapi_spec, framework=framework, execution_time_ms=execution_time)
 
 
 def generate_api_docs_impl(
@@ -630,81 +601,18 @@ def generate_api_docs_impl(
         ApiDocsResult with generated documentation
     """
     start_time = time.time()
+    logger.info("generate_api_docs_started", project_folder=project_folder, language=language, framework=framework, output_format=output_format)
 
-    logger.info(
-        "generate_api_docs_started",
-        project_folder=project_folder,
-        language=language,
-        framework=framework,
-        output_format=output_format,
-    )
-
-    # Detect framework if not specified
     if not framework:
         framework = _detect_framework(project_folder, language)
 
     if not framework:
         logger.warning("no_framework_detected")
-        return ApiDocsResult(
-            routes=[],
-            markdown="# API Documentation\n\nNo web framework detected.",
-            framework=None,
-            execution_time_ms=int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND),
-        )
+        return ApiDocsResult(routes=[], markdown="# API Documentation\n\nNo web framework detected.", framework=None, execution_time_ms=_elapsed_ms(start_time))
 
-    # Select parser based on framework
-    parsers: Dict[str, RouteParser] = {
-        "express": ExpressRouteParser(),
-        "fastapi": FastAPIRouteParser(),
-        "flask": FlaskRouteParser(),
-        "fastify": ExpressRouteParser(),  # Similar syntax
-        "starlette": FastAPIRouteParser(),  # Similar syntax
-    }
-
-    parser = parsers.get(framework)
+    parser = _PARSERS.get(framework)
     if not parser:
         logger.warning("unsupported_framework", framework=framework)
-        return ApiDocsResult(
-            routes=[],
-            markdown=f"# API Documentation\n\nFramework '{framework}' is not yet supported.",
-            framework=framework,
-            execution_time_ms=int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND),
-        )
+        return ApiDocsResult(routes=[], markdown=f"# API Documentation\n\nFramework '{framework}' is not yet supported.", framework=framework, execution_time_ms=_elapsed_ms(start_time))
 
-    # Find route files
-    route_files = _find_route_files(project_folder, language, framework)
-
-    # Parse all route files
-    all_routes: List[ApiRoute] = []
-    for file_path in route_files:
-        try:
-            routes = parser.parse_file(file_path)
-            all_routes.extend(routes)
-        except Exception as e:
-            logger.warning("file_parse_error", file=file_path, error=str(e))
-            sentry_sdk.capture_exception(e)
-
-    # Generate documentation
-    markdown = _generate_markdown_docs(all_routes, framework)
-
-    openapi_spec = None
-    if output_format in ("openapi", "both"):
-        project_name = os.path.basename(project_folder)
-        openapi_spec = _generate_openapi_spec(all_routes, project_name)
-
-    execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
-
-    logger.info(
-        "generate_api_docs_completed",
-        routes_found=len(all_routes),
-        framework=framework,
-        execution_time_ms=execution_time,
-    )
-
-    return ApiDocsResult(
-        routes=all_routes,
-        markdown=markdown,
-        openapi_spec=openapi_spec,
-        framework=framework,
-        execution_time_ms=execution_time,
-    )
+    return _build_docs_result(project_folder, framework, parser, language, output_format, start_time)
