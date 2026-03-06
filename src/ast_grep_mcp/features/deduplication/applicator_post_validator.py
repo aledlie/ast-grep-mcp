@@ -5,12 +5,32 @@ have been applied to ensure code correctness.
 """
 
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 
 from ...constants import DisplayDefaults
 from ...core.logging import get_logger
 from ...utils.syntax_validation import suggest_syntax_fix
 from .applicator_validator import ValidationResult
+
+_JS_DELIMITER_CHECKS: List[Tuple[str, str, str, str, str]] = [
+    ("{", "}", "unbalanced_braces", "Unbalanced curly braces", "Check for missing { or }"),
+    ("[", "]", "unbalanced_brackets", "Unbalanced square brackets", "Check for missing [ or ]"),
+    ("(", ")", "unbalanced_parentheses", "Unbalanced parentheses", "Check for missing ( or )"),
+]
+
+_JS_LANGS = ("javascript", "typescript", "jsx", "tsx")
+
+
+def _make_error(error_type: str, file_path: str, error: str, suggestion: str) -> Dict[str, Any]:
+    return {"type": error_type, "file": file_path, "error": error, "suggestion": suggestion}
+
+
+def _file_not_found_error(file_path: str) -> Dict[str, Any]:
+    return _make_error(
+        "file_not_found", file_path,
+        f"Modified file not found: {file_path}",
+        "File may have been deleted during operation",
+    )
 
 
 class RefactoringPostValidator:
@@ -34,22 +54,11 @@ class RefactoringPostValidator:
 
         errors: List[Dict[str, Any]] = []
 
-        # Validate each modified file
         for file_path in modified_files:
             if not os.path.exists(file_path):
-                errors.append(
-                    {
-                        "type": "file_not_found",
-                        "file": file_path,
-                        "error": f"Modified file not found: {file_path}",
-                        "suggestion": "File may have been deleted during operation",
-                    }
-                )
+                errors.append(_file_not_found_error(file_path))
                 continue
-
-            # Validate syntax only (matching original behavior)
-            syntax_errors = self._validate_file_syntax(file_path, language)
-            errors.extend(syntax_errors)
+            errors.extend(self._validate_file_syntax(file_path, language))
 
         is_valid = len(errors) == 0
         self.logger.info("post_validation_complete", is_valid=is_valid, error_count=len(errors))
@@ -66,40 +75,41 @@ class RefactoringPostValidator:
         Returns:
             List of validation error dictionaries
         """
-        errors = []
-
         try:
-            # Import here to avoid circular dependency
             from ..rewrite.service import validate_syntax
-
             result = validate_syntax(file_path, language)
-            if not result["valid"]:
-                errors.append(
-                    {
-                        "type": "syntax_error",
-                        "file": file_path,
-                        "error": result.get("error", "Unknown syntax error"),
-                        "suggestion": suggest_syntax_fix(result.get("error"), language, context="file"),
-                    }
-                )
-                self.logger.warning(
-                    "syntax_validation_failed",
-                    file=file_path,
-                    error=result.get("error", "")[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-                )
-
         except Exception as e:
-            errors.append(
-                {
-                    "type": "validation_exception",
-                    "file": file_path,
-                    "error": f"Failed to validate syntax: {str(e)}",
-                    "suggestion": "Check if the file is readable and well-formed",
-                }
-            )
             self.logger.error("syntax_validation_exception", file=file_path, error=str(e))
+            return [_make_error(
+                "validation_exception", file_path,
+                f"Failed to validate syntax: {str(e)}",
+                "Check if the file is readable and well-formed",
+            )]
 
-        return errors
+        if result["valid"]:
+            return []
+
+        self.logger.warning(
+            "syntax_validation_failed",
+            file=file_path,
+            error=result.get("error", "")[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+        )
+        return [_make_error(
+            "syntax_error", file_path,
+            result.get("error", "Unknown syntax error"),
+            suggest_syntax_fix(result.get("error"), language, context="file"),
+        )]
+
+    def _read_file_content(self, file_path: str) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+        try:
+            with open(file_path, "r") as f:
+                return f.read(), None
+        except Exception as e:
+            return None, _make_error(
+                "structure_check_failed", file_path,
+                f"Failed to check file structure: {str(e)}",
+                "Verify file is readable",
+            )
 
     def _validate_file_structure(self, file_path: str, language: str) -> List[Dict[str, Any]]:
         """Validate basic file structure.
@@ -111,42 +121,29 @@ class RefactoringPostValidator:
         Returns:
             List of validation error dictionaries
         """
-        errors = []
+        content, read_error = self._read_file_content(file_path)
+        if read_error is not None:
+            return [read_error]
 
-        try:
-            with open(file_path, "r") as f:
-                content = f.read()
+        assert content is not None
+        errors: List[Dict[str, Any]] = []
 
-            lang = language.lower()
+        if not content.strip():
+            errors.append(_make_error(
+                "empty_file", file_path,
+                "File is empty after modifications",
+                "Verify that content was written correctly",
+            ))
 
-            # Basic structural checks
-            if not content.strip():
-                errors.append(
-                    {
-                        "type": "empty_file",
-                        "file": file_path,
-                        "error": "File is empty after modifications",
-                        "suggestion": "Verify that content was written correctly",
-                    }
-                )
-
-            # Language-specific checks
-            if lang == "python":
-                errors.extend(self._validate_python_structure(file_path, content))
-            elif lang in ("javascript", "typescript", "jsx", "tsx"):
-                errors.extend(self._validate_js_structure(file_path, content))
-            elif lang == "java":
-                errors.extend(self._validate_java_structure(file_path, content))
-
-        except Exception as e:
-            errors.append(
-                {
-                    "type": "structure_check_failed",
-                    "file": file_path,
-                    "error": f"Failed to check file structure: {str(e)}",
-                    "suggestion": "Verify file is readable",
-                }
-            )
+        lang = language.lower()
+        dispatch = {
+            "python": self._validate_python_structure,
+            **{k: self._validate_js_structure for k in _JS_LANGS},
+            "java": self._validate_java_structure,
+        }
+        validator = dispatch.get(lang)
+        if validator:
+            errors.extend(validator(file_path, content))
 
         return errors
 
@@ -160,45 +157,34 @@ class RefactoringPostValidator:
         Returns:
             List of validation errors
         """
-        errors = []
+        errors: List[Dict[str, Any]] = []
 
-        # Check for balanced quotes
         single_quotes = content.count("'") - content.count("\\'")
         double_quotes = content.count('"') - content.count('\\"')
 
         if single_quotes % 2 != 0:
-            errors.append(
-                {
-                    "type": "unbalanced_quotes",
-                    "file": file_path,
-                    "error": "Unbalanced single quotes in file",
-                    "suggestion": "Check for unclosed string literals",
-                }
-            )
+            errors.append(_make_error(
+                "unbalanced_quotes", file_path,
+                "Unbalanced single quotes in file",
+                "Check for unclosed string literals",
+            ))
 
         if double_quotes % 2 != 0:
-            errors.append(
-                {
-                    "type": "unbalanced_quotes",
-                    "file": file_path,
-                    "error": "Unbalanced double quotes in file",
-                    "suggestion": "Check for unclosed string literals",
-                }
-            )
+            errors.append(_make_error(
+                "unbalanced_quotes", file_path,
+                "Unbalanced double quotes in file",
+                "Check for unclosed string literals",
+            ))
 
-        # Check for basic Python structure markers
         lines = content.split("\n")
         has_content = any(line.strip() and not line.strip().startswith("#") for line in lines)
 
         if not has_content:
-            errors.append(
-                {
-                    "type": "no_code_content",
-                    "file": file_path,
-                    "error": "File contains only comments or whitespace",
-                    "suggestion": "Verify code was written correctly",
-                }
-            )
+            errors.append(_make_error(
+                "no_code_content", file_path,
+                "File contains only comments or whitespace",
+                "Verify code was written correctly",
+            ))
 
         return errors
 
@@ -212,38 +198,11 @@ class RefactoringPostValidator:
         Returns:
             List of validation errors
         """
-        errors = []
+        errors: List[Dict[str, Any]] = []
 
-        # Check for balanced braces, brackets, parentheses
-        if content.count("{") != content.count("}"):
-            errors.append(
-                {
-                    "type": "unbalanced_braces",
-                    "file": file_path,
-                    "error": "Unbalanced curly braces",
-                    "suggestion": "Check for missing { or }",
-                }
-            )
-
-        if content.count("[") != content.count("]"):
-            errors.append(
-                {
-                    "type": "unbalanced_brackets",
-                    "file": file_path,
-                    "error": "Unbalanced square brackets",
-                    "suggestion": "Check for missing [ or ]",
-                }
-            )
-
-        if content.count("(") != content.count(")"):
-            errors.append(
-                {
-                    "type": "unbalanced_parentheses",
-                    "file": file_path,
-                    "error": "Unbalanced parentheses",
-                    "suggestion": "Check for missing ( or )",
-                }
-            )
+        for open_d, close_d, err_type, msg, suggestion in _JS_DELIMITER_CHECKS:
+            if content.count(open_d) != content.count(close_d):
+                errors.append(_make_error(err_type, file_path, msg, suggestion))
 
         return errors
 
@@ -257,28 +216,20 @@ class RefactoringPostValidator:
         Returns:
             List of validation errors
         """
-        errors = []
+        errors: List[Dict[str, Any]] = []
 
-        # Check for balanced braces
         if content.count("{") != content.count("}"):
-            errors.append(
-                {
-                    "type": "unbalanced_braces",
-                    "file": file_path,
-                    "error": "Unbalanced curly braces",
-                    "suggestion": "Check for missing { or }",
-                }
-            )
+            errors.append(_make_error(
+                "unbalanced_braces", file_path,
+                "Unbalanced curly braces",
+                "Check for missing { or }",
+            ))
 
-        # Check for class definition
         if "class " not in content and "interface " not in content:
-            errors.append(
-                {
-                    "type": "no_class_definition",
-                    "file": file_path,
-                    "error": "No class or interface definition found",
-                    "suggestion": "Java files should contain at least one class or interface",
-                }
-            )
+            errors.append(_make_error(
+                "no_class_definition", file_path,
+                "No class or interface definition found",
+                "Java files should contain at least one class or interface",
+            ))
 
         return errors

@@ -49,6 +49,24 @@ def validate_smell_detection_inputs(project_folder: str, language: str, severity
     return project_path, file_ext, normalized_language
 
 
+def _adjust_include_pattern(pattern: str, file_ext: str) -> str:
+    if pattern.endswith(file_ext):
+        return pattern
+    if not pattern.endswith("*"):
+        return pattern.rstrip("/") + f"/**/*{file_ext}"
+    if pattern.endswith("*/"):
+        return pattern + file_ext
+    return pattern.rstrip("*") + f"*{file_ext}"
+
+
+def _is_file_excluded(file_path: str, project_path: Path, exclude_patterns: List[str]) -> bool:
+    try:
+        rel_path = str(Path(file_path).relative_to(project_path))
+    except ValueError:
+        return True
+    return any(fnmatch(rel_path, exc.lstrip("/")) for exc in exclude_patterns)
+
+
 def find_smell_analysis_files(project_path: Path, file_ext: str, include_patterns: List[str], exclude_patterns: List[str]) -> List[str]:
     """Find files to analyze for code smells.
 
@@ -63,40 +81,42 @@ def find_smell_analysis_files(project_path: Path, file_ext: str, include_pattern
     """
     logger = get_logger("smell_detection.find_files")
 
-    # Find all matching files
-    all_files = []
+    all_files: List[str] = []
     for pattern in include_patterns:
-        # Adjust pattern to ensure it matches the file extension
-        if not pattern.endswith(file_ext) and not pattern.endswith("*"):
-            pattern = pattern.rstrip("/") + f"/**/*{file_ext}"
-        elif pattern.endswith("*") and not pattern.endswith(file_ext):
-            pattern = pattern + file_ext if pattern.endswith("*/") else pattern.rstrip("*") + f"*{file_ext}"
-
-        matches = list(project_path.glob(pattern.lstrip("/")))
-        all_files.extend([str(f) for f in matches if f.is_file()])
-
-    # Remove duplicates
+        adjusted = _adjust_include_pattern(pattern, file_ext)
+        matches = list(project_path.glob(adjusted.lstrip("/")))
+        all_files.extend(str(f) for f in matches if f.is_file())
     all_files = list(set(all_files))
 
-    # Filter by exclude patterns
-    filtered_files = []
-    for file_path in all_files:
-        excluded = False
-        try:
-            rel_path = str(Path(file_path).relative_to(project_path))
-            for exc_pattern in exclude_patterns:
-                if fnmatch(rel_path, exc_pattern.lstrip("/")):
-                    excluded = True
-                    break
-        except ValueError:
-            # File is outside project path, exclude it
-            excluded = True
-
-        if not excluded:
-            filtered_files.append(file_path)
+    filtered_files = [f for f in all_files if not _is_file_excluded(f, project_path, exclude_patterns)]
 
     logger.info("files_found", total=len(all_files), filtered=len(filtered_files))
     return filtered_files
+
+
+def _severity_for_ratio(ratio: float) -> str:
+    if ratio > SmellSeverityDefaults.HIGH_RATIO_THRESHOLD:
+        return "high"
+    if ratio > SmellSeverityDefaults.MEDIUM_RATIO_THRESHOLD:
+        return "medium"
+    return "low"
+
+
+def _severity_for_parameter_bloat(metric: float, threshold: float) -> str:
+    if metric > threshold * 2:
+        return "high"
+    if metric > threshold + 2:
+        return "medium"
+    return "low"
+
+
+def _severity_for_deep_nesting(metric: float, threshold: float) -> str:
+    excess = metric - threshold
+    if excess > 2:
+        return "high"
+    if excess > 1:
+        return "medium"
+    return "low"
 
 
 def calculate_smell_severity(metric: float, threshold: float, smell_type: str) -> str:
@@ -110,33 +130,14 @@ def calculate_smell_severity(metric: float, threshold: float, smell_type: str) -
     Returns:
         Severity level: "high", "medium", or "low"
     """
-    ratio = metric / threshold if threshold > 0 else float("inf")
-
-    # Different smell types may have different severity mappings
-    if smell_type in ["long_function", "large_class"]:
-        if ratio > SmellSeverityDefaults.HIGH_RATIO_THRESHOLD:
-            return "high"
-        elif ratio > SmellSeverityDefaults.MEDIUM_RATIO_THRESHOLD:
-            return "medium"
-        else:
-            return "low"
-    elif smell_type == "parameter_bloat":
-        if metric > threshold * 2:
-            return "high"
-        elif metric > threshold + 2:
-            return "medium"
-        else:
-            return "low"
-    elif smell_type == "deep_nesting":
-        excess = metric - threshold
-        if excess > 2:
-            return "high"
-        elif excess > 1:
-            return "medium"
-        else:
-            return "low"
-    else:  # magic_number and others
-        return "low"
+    if smell_type in ("long_function", "large_class"):
+        ratio = metric / threshold if threshold > 0 else float("inf")
+        return _severity_for_ratio(ratio)
+    if smell_type == "parameter_bloat":
+        return _severity_for_parameter_bloat(metric, threshold)
+    if smell_type == "deep_nesting":
+        return _severity_for_deep_nesting(metric, threshold)
+    return "low"
 
 
 def format_smell_detection_response(

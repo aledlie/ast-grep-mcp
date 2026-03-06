@@ -132,35 +132,29 @@ class DiffTree:
             "divergent_lines": self.alignment_result.divergent_lines,
         }
 
-    def serialize_for_display(self, node: Optional[DiffTreeNode] = None, depth: int = 0) -> List[str]:
-        """Serialize the tree for human-readable display."""
-        if node is None:
-            node = self.root
+    _NODE_SYMBOLS = {"aligned": "=", "divergent": "≠", "inserted": "+", "deleted": "-", "container": "◊"}
 
-        lines = []
-        indent = "  " * depth
-
-        # Add node information
-        symbol = {"aligned": "=", "divergent": "≠", "inserted": "+", "deleted": "-", "container": "◊"}.get(node.node_type, "?")
-
-        lines.append(f"{indent}{symbol} {node.node_type.upper()}")
-
-        # Add metadata if significant
+    def _serialize_node_lines(self, node: DiffTreeNode, indent: str) -> List[str]:
+        symbol = self._NODE_SYMBOLS.get(node.node_type, "?")
+        lines = [f"{indent}{symbol} {node.node_type.upper()}"]
         if "line_nums" in node.metadata:
             lines.append(f"{indent}  Lines: {node.metadata['line_nums']}")
         if "similarity" in node.metadata:
             lines.append(f"{indent}  Similarity: {node.metadata['similarity']:.1%}")
-
-        # Add content preview (first line only for brevity)
         if node.content:
             preview = node.content.strip().split("\n")[0][: DisplayDefaults.CONTENT_PREVIEW_LENGTH]
             if preview:
                 lines.append(f"{indent}  > {preview}...")
+        return lines
 
-        # Process children
+    def serialize_for_display(self, node: Optional[DiffTreeNode] = None, depth: int = 0) -> List[str]:
+        """Serialize the tree for human-readable display."""
+        if node is None:
+            node = self.root
+        indent = "  " * depth
+        lines = self._serialize_node_lines(node, indent)
         for child in node.children:
             lines.extend(self.serialize_for_display(child, depth + 1))
-
         return lines
 
 
@@ -236,6 +230,12 @@ class FunctionTemplate:
             return f" -> {self.return_type}"
         return ""
 
+    def _indented_body_lines(self) -> List[str]:
+        result = []
+        for line in self.body.split("\n"):
+            result.append(f"    {line}" if line.strip() else "")
+        return result
+
     def generate(self) -> str:
         """Generate the complete function code from the template.
 
@@ -243,33 +243,14 @@ class FunctionTemplate:
             Formatted Python function code
         """
         lines = []
-
-        # Add decorators
         if self.decorators:
             lines.append(self.format_decorators().rstrip())
-
-        # Add function signature
         params = self.format_params()
         return_annotation = self.format_return_type()
         lines.append(f"def {self.name}({params}){return_annotation}:")
-
-        # Add docstring
         if self.docstring:
-            if "\n" in self.docstring:
-                # Multi-line docstring
-                lines.append(f'    """{self.docstring}"""')
-            else:
-                # Single-line docstring
-                lines.append(f'    """{self.docstring}"""')
-
-        # Add body (ensure proper indentation)
-        body_lines = self.body.split("\n")
-        for line in body_lines:
-            if line.strip():  # Only indent non-empty lines
-                lines.append(f"    {line}")
-            else:
-                lines.append("")
-
+            lines.append(f'    """{self.docstring}"""')
+        lines.extend(self._indented_body_lines())
         return "\n".join(lines)
 
 
@@ -354,6 +335,14 @@ class ParameterInfo:
         self.param_type = param_type
         self.default_value = default_value
 
+    def _sig_with_type_and_default(self, include_type: bool) -> str:
+        sig = self.name
+        if include_type and self.param_type:
+            sig += f": {self.param_type.get_type_annotation()}"
+        if self.default_value:
+            sig += f" = {self.default_value}"
+        return sig
+
     def to_signature(self, language: str = "python") -> str:
         """Generate parameter signature for function declaration.
 
@@ -363,26 +352,16 @@ class ParameterInfo:
         Returns:
             Parameter signature string
         """
-        if language.lower() == "python":
-            sig = self.name
-            if self.param_type:
-                sig += f": {self.param_type.get_type_annotation()}"
-            if self.default_value:
-                sig += f" = {self.default_value}"
-            return sig
-        elif language.lower() in ["typescript", "javascript"]:
-            sig = self.name
-            if self.param_type and language.lower() == "typescript":
-                sig += f": {self.param_type.get_type_annotation()}"
-            if self.default_value:
-                sig += f" = {self.default_value}"
-            return sig
-        elif language.lower() == "java":
+        lang = language.lower()
+        if lang == "python":
+            return self._sig_with_type_and_default(include_type=True)
+        if lang in ("typescript", "javascript"):
+            return self._sig_with_type_and_default(include_type=(lang == "typescript"))
+        if lang == "java":
             if self.param_type:
                 return f"{self.param_type.get_type_annotation()} {self.name}"
             return f"Object {self.name}"
-        else:
-            return self.name
+        return self.name
 
 
 @dataclass
@@ -430,19 +409,20 @@ class DiffPreview:
     summary: str
     colorized_output: str
 
+    @staticmethod
+    def _file_diff_to_dict(fd: "FileDiff") -> Dict[str, Any]:
+        return {
+            "file_path": fd.file_path,
+            "additions": fd.additions,
+            "deletions": fd.deletions,
+            "unified_diff": fd.unified_diff,
+            "formatted_diff": fd.formatted_diff,
+        }
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation."""
         return {
-            "file_diffs": [
-                {
-                    "file_path": fd.file_path,
-                    "additions": fd.additions,
-                    "deletions": fd.deletions,
-                    "unified_diff": fd.unified_diff,
-                    "formatted_diff": fd.formatted_diff,
-                }
-                for fd in self.file_diffs
-            ],
+            "file_diffs": [self._file_diff_to_dict(fd) for fd in self.file_diffs],
             "total_additions": self.total_additions,
             "total_deletions": self.total_deletions,
             "affected_files": self.affected_files,
