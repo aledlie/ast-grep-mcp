@@ -355,14 +355,31 @@ class CodeGenerator:
         call = f"{function_name}({', '.join(arguments)})"
 
         if assign_to:
-            if self.language in ["javascript", "typescript"]:
-                return f"const {assign_to} = {call};"
-            elif self.language == "python":
-                return f"{assign_to} = {call}"
-            else:
-                return f"{assign_to} = {call};"
+            assign_formats = {
+                "javascript": f"const {assign_to} = {call};",
+                "typescript": f"const {assign_to} = {call};",
+                "python": f"{assign_to} = {call}",
+            }
+            return assign_formats.get(self.language, f"{assign_to} = {call};")
 
         return call if self.language == "python" else f"{call};"
+
+    def _generate_python_import(self, module_path: str, import_names: List[str], is_relative: bool) -> str:
+        """Generate Python import statement."""
+        names = ', '.join(import_names)
+        if is_relative:
+            prefix = "." if module_path else ""
+            return f"from {prefix}{module_path} import {names}"
+        if module_path:
+            return f"from {module_path} import {names}"
+        return f"import {names}"
+
+    def _generate_js_import(self, module_path: str, import_names: List[str], is_relative: bool) -> str:
+        """Generate JavaScript/TypeScript import statement."""
+        names = "{" + ", ".join(import_names) + "}"
+        extension = ".js" if self.language == "javascript" else ""
+        path = f"./{module_path}" if is_relative else module_path
+        return f"import {names} from '{path}{extension}';"
 
     def generate_import_statement(self, module_path: str, import_names: List[str], is_relative: bool = False) -> str:
         """
@@ -377,26 +394,31 @@ class CodeGenerator:
             Generated import statement
         """
         if self.language == "python":
-            if is_relative:
-                prefix = "." if module_path else ""
-                return f"from {prefix}{module_path} import {', '.join(import_names)}"
-            else:
-                if module_path:
-                    return f"from {module_path} import {', '.join(import_names)}"
-                else:
-                    return f"import {', '.join(import_names)}"
-
-        elif self.language in ["javascript", "typescript"]:
-            names = "{" + ", ".join(import_names) + "}"
-            extension = ".js" if self.language == "javascript" else ""
-            path = f"./{module_path}" if is_relative else module_path
-            return f"import {names} from '{path}{extension}';"
-
-        elif self.language == "java":
+            return self._generate_python_import(module_path, import_names, is_relative)
+        if self.language in ["javascript", "typescript"]:
+            return self._generate_js_import(module_path, import_names, is_relative)
+        if self.language == "java":
             return f"import {module_path}.{import_names[0]};"
+        return f"// Import {', '.join(import_names)} from {module_path}"
 
-        else:
-            return f"// Import {', '.join(import_names)} from {module_path}"
+    def _collect_variation_params(self, code_variations: List[Dict[str, Any]], seen_names: set) -> List[Dict[str, str]]:
+        """Collect parameters from code variations, deduplicating by name."""
+        params: List[Dict[str, str]] = []
+        for variation in code_variations:
+            param_name = variation.get("suggested_param_name")
+            if param_name and param_name not in seen_names:
+                params.append({"name": param_name, "type": self._infer_parameter_type(variation)})
+                seen_names.add(param_name)
+        return params
+
+    def _collect_external_params(self, base_code: str, seen_names: set) -> List[Dict[str, str]]:
+        """Collect parameters from external dependencies not already seen."""
+        params: List[Dict[str, str]] = []
+        for dep in self._find_external_dependencies(base_code):
+            if dep not in seen_names:
+                params.append({"name": dep, "type": "Any"})
+                seen_names.add(dep)
+        return params
 
     def infer_function_parameters(self, code_variations: List[Dict[str, Any]], base_code: str) -> List[Dict[str, str]]:
         """
@@ -409,29 +431,9 @@ class CodeGenerator:
         Returns:
             List of inferred parameters
         """
-        parameters = []
-        seen_names = set()
-
-        # Extract unique varying values
-        for variation in code_variations:
-            param_name = variation.get("suggested_param_name")
-            if param_name and param_name not in seen_names:
-                param_type = self._infer_parameter_type(variation)
-                parameters.append({"name": param_name, "type": param_type})
-                seen_names.add(param_name)
-
-        # Add any identifiers that appear to be external dependencies
-        external_deps = self._find_external_dependencies(base_code)
-        for dep in external_deps:
-            if dep not in seen_names:
-                parameters.append(
-                    {
-                        "name": dep,
-                        "type": "Any",  # Type will be inferred from usage
-                    }
-                )
-                seen_names.add(dep)
-
+        seen_names: set = set()
+        parameters = self._collect_variation_params(code_variations, seen_names)
+        parameters.extend(self._collect_external_params(base_code, seen_names))
         return parameters
 
     def _format_python_parameters(self, parameters: List[Dict[str, str]]) -> str:
@@ -444,33 +446,45 @@ class CodeGenerator:
                 formatted.append(param["name"])
         return ", ".join(formatted)
 
+    def _format_ts_param(self, param: Dict[str, str]) -> str:
+        """Format a single TypeScript parameter with optional type annotation."""
+        if "type" in param and param["type"]:
+            return f"{param['name']}: {param['type']}"
+        return param["name"]
+
     def _format_js_parameters(self, parameters: List[Dict[str, str]]) -> str:
         """Format parameters for JavaScript/TypeScript function signature."""
         if self.language == "typescript":
-            formatted = []
-            for param in parameters:
-                if "type" in param and param["type"]:
-                    formatted.append(f"{param['name']}: {param['type']}")
-                else:
-                    formatted.append(param["name"])
-            return ", ".join(formatted)
-        else:
-            return ", ".join(p["name"] for p in parameters)
+            return ", ".join(self._format_ts_param(p) for p in parameters)
+        return ", ".join(p["name"] for p in parameters)
+
+    def _get_python_number_type(self, value: str, lang_config: Dict[str, Any]) -> Optional[str]:
+        """Get Python-specific number type (int vs float)."""
+        if "." not in value:
+            return cast(Optional[str], lang_config.get("number_int", "int"))
+        return cast(Optional[str], lang_config.get("number_float", "float"))
 
     def _get_literal_type(self, literal_type: str, value: str, lang_config: Dict[str, Any]) -> Optional[str]:
         """Get type mapping for literal values."""
         if literal_type == "string":
             return cast(Optional[str], lang_config.get("string"))
-        elif literal_type == "number":
-            # For Python, distinguish int from float
-            if self.language == "python" and "." not in value:
-                return cast(Optional[str], lang_config.get("number_int", "int"))
-            elif self.language == "python":
-                return cast(Optional[str], lang_config.get("number_float", "float"))
-            else:
-                return cast(Optional[str], lang_config.get("number"))
-        elif literal_type == "boolean":
+        if literal_type == "boolean":
             return cast(Optional[str], lang_config.get("boolean"))
+        if literal_type == "number":
+            if self.language == "python":
+                return self._get_python_number_type(value, lang_config)
+            return cast(Optional[str], lang_config.get("number"))
+        return None
+
+    def _infer_literal_type(self, variation: Dict[str, Any], value: str, category_config: Dict[str, Any]) -> Optional[str]:
+        """Infer type for a literal variation."""
+        literal_type = variation.get("literal_type", "")
+        return self._get_literal_type(literal_type, value, category_config)
+
+    def _infer_type_category(self, value: str, category_config: Dict[str, Any]) -> Optional[str]:
+        """Infer type for a 'type' category variation."""
+        if category_config.get("use_value"):
+            return str(value) if value else None
         return None
 
     def _infer_parameter_type(self, variation: Dict[str, Any]) -> Optional[str]:
@@ -478,28 +492,20 @@ class CodeGenerator:
         category = variation.get("category", "")
         value = variation.get("old_value", "")
 
-        # Get language configuration
         lang_config = TYPE_INFERENCE_CONFIG.get(self.language, {})
         if not lang_config:
             return None
 
-        # Get category configuration
         category_config = lang_config.get(category, {})
         if not category_config:
             return None
 
-        # Handle different categories
         if category == "literal":
-            literal_type = variation.get("literal_type", "")
-            return self._get_literal_type(literal_type, value, category_config)
-        elif category == "identifier":
+            return self._infer_literal_type(variation, value, category_config)
+        if category == "identifier":
             return cast(Optional[str], category_config.get("default"))
-        elif category == "type":
-            # Use value directly for type category if configured
-            if category_config.get("use_value"):
-                return str(value) if value else None
-            return None
-
+        if category == "type":
+            return self._infer_type_category(value, category_config)
         return None
 
     def _find_external_dependencies(self, code: str) -> List[str]:
@@ -520,6 +526,15 @@ class CodeGenerator:
 
         return list(set(dependencies))[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]  # Limit to top dependencies
 
+    def _module_docstring_lines(self, module_name: str) -> List[str]:
+        """Generate language-specific module docstring lines."""
+        desc = f"{module_name} - Extracted common functionality"
+        if self.language == "python":
+            return ['"""', desc, '"""', ""]
+        if self.language in ["javascript", "typescript"]:
+            return ["/**", f" * {desc}", " */", ""]
+        return []
+
     def generate_module_structure(self, module_name: str, functions: List[Dict[str, str]], imports: Optional[List[str]] = None) -> str:
         """
         Generate a complete module with extracted functions.
@@ -532,39 +547,38 @@ class CodeGenerator:
         Returns:
             Complete module code
         """
-        module_code = []
+        module_code: List[str] = self._module_docstring_lines(module_name)
 
-        # Add module docstring
-        if self.language == "python":
-            module_code.append('"""')
-            module_code.append(f"{module_name} - Extracted common functionality")
-            module_code.append('"""')
-            module_code.append("")
-
-        elif self.language in ["javascript", "typescript"]:
-            module_code.append("/**")
-            module_code.append(f" * {module_name} - Extracted common functionality")
-            module_code.append(" */")
-            module_code.append("")
-
-        # Add imports
         if imports:
-            for imp in imports:
-                module_code.append(imp)
+            module_code.extend(imports)
             module_code.append("")
 
-        # Add functions
         for func in functions:
             module_code.append(func.get("code", ""))
             module_code.append("")
 
-        # Add exports for JS/TS
         if self.language in ["javascript", "typescript"]:
             export_names = [f.get("name", "") for f in functions]
             if export_names:
                 module_code.append(f"export {{ {', '.join(export_names)} }};")
 
         return "\n".join(module_code)
+
+    def _validate_python_code(self, code: str) -> Tuple[bool, Optional[str]]:
+        """Validate Python code syntax."""
+        try:
+            compile(code, "<string>", "exec")
+            return True, None
+        except SyntaxError as e:
+            return False, str(e)
+
+    def _validate_js_ts_code(self, code: str) -> Tuple[bool, Optional[str]]:
+        """Validate JavaScript/TypeScript code via bracket matching."""
+        if code.count("{") != code.count("}"):
+            return False, "Mismatched braces"
+        if code.count("(") != code.count(")"):
+            return False, "Mismatched parentheses"
+        return True, None
 
     def validate_generated_code(self, code: str) -> Tuple[bool, Optional[str]]:
         """
@@ -577,23 +591,26 @@ class CodeGenerator:
             Tuple of (is_valid, error_message)
         """
         if self.language == "python":
-            try:
-                compile(code, "<string>", "exec")
-                return True, None
-            except SyntaxError as e:
-                return False, str(e)
-
-        elif self.language in ["javascript", "typescript"]:
-            # Would need external tool like eslint or tsc
-            # For now, basic validation
-            if code.count("{") != code.count("}"):
-                return False, "Mismatched braces"
-            if code.count("(") != code.count(")"):
-                return False, "Mismatched parentheses"
-            return True, None
-
-        # Default: assume valid
+            return self._validate_python_code(code)
+        if self.language in ["javascript", "typescript"]:
+            return self._validate_js_ts_code(code)
         return True, None
+
+    def _reindent_body(self, body: str) -> List[str]:
+        """Re-indent body lines to 4-space base indent, preserving relative indentation."""
+        body_lines = body.split("\n")
+        base_indent = len(body_lines[0]) - len(body_lines[0].lstrip()) if body_lines else 0
+        result = []
+        for line in body_lines:
+            stripped = line.lstrip()
+            if stripped:
+                original_indent = len(line) - len(stripped)
+                relative_indent = original_indent - base_indent
+                indent = "    " + " " * max(0, relative_indent)
+                result.append(indent + stripped)
+            else:
+                result.append("")
+        return result
 
     def render_python_function(
         self,
@@ -618,36 +635,18 @@ class CodeGenerator:
         Returns:
             Complete Python function code
         """
-        lines = []
+        lines: List[str] = []
 
-        # Add decorators
         if decorators:
-            for decorator in decorators:
-                lines.append(f"@{decorator}")
+            lines.extend(f"@{d}" for d in decorators)
 
-        # Add function signature
         return_annotation = f" -> {return_type}" if return_type else ""
         lines.append(f"def {name}({params}){return_annotation}:")
 
-        # Add docstring
         if docstring:
-            if "\n" in docstring:
-                lines.append(f'    """{docstring}"""')
-            else:
-                lines.append(f'    """{docstring}"""')
+            lines.append(f'    """{docstring}"""')
 
-        # Add body (strip existing indentation and re-indent)
-        body_lines = body.split("\n")
-        for line in body_lines:
-            stripped = line.lstrip()
-            if stripped:
-                # Preserve relative indentation
-                original_indent = len(line) - len(stripped)
-                relative_indent = original_indent - (len(body_lines[0]) - len(body_lines[0].lstrip()))
-                indent = "    " + " " * max(0, relative_indent)
-                lines.append(indent + stripped)
-            else:
-                lines.append("")
+        lines.extend(self._reindent_body(body))
 
         return "\n".join(lines)
 
@@ -798,57 +797,38 @@ class CodeGenerator:
 
         return last_import_line + 1
 
+    def _get_triple_quotes(self, line: str) -> Optional[str]:
+        """Return the triple-quote delimiter if line starts with one, else None."""
+        if line.startswith('"""') or line.startswith("'''"):
+            return line[:3]
+        return None
+
+    def _process_docstring_scan_line(self, line: str, i: int, docstring_quotes: Optional[str]) -> Tuple[Optional[int], Optional[str]]:
+        """Process one line of docstring scanning. Returns (result_pos_or_None, updated_docstring_quotes)."""
+        quotes = self._get_triple_quotes(line)
+        if docstring_quotes is None:
+            if quotes is None:
+                return i, None
+            if line.count(quotes) >= 2:
+                return i + 1, None
+            return None, quotes
+        if quotes == docstring_quotes:
+            return i + 1, None
+        return None, docstring_quotes
+
     def _skip_python_module_docstring(self, lines: List[str], start: int) -> int:
-        """Skip module-level docstring and return position after it.
+        """Skip module-level docstring and return position after it."""
+        docstring_quotes: Optional[str] = None
 
-        Args:
-            lines: List of file lines
-            start: Starting position
-
-        Returns:
-            Position after docstring (or start if no docstring found)
-        """
-        position = start
-        in_docstring = False
-        docstring_quotes = None
-
-        while position < len(lines):
-            line = lines[position].strip()
-
-            # Skip empty lines and comments
+        for i, raw_line in enumerate(lines[start:], start=start):
+            line = raw_line.strip()
             if not line or line.startswith("#"):
-                position += 1
                 continue
+            result, docstring_quotes = self._process_docstring_scan_line(line, i, docstring_quotes)
+            if result is not None:
+                return result
 
-            # Check for docstring start/end
-            if line.startswith('"""') or line.startswith("'''"):
-                quotes = line[:3]
-
-                if not in_docstring:
-                    # Starting a docstring
-                    docstring_quotes = quotes
-                    in_docstring = True
-
-                    # Check if docstring closes on same line
-                    if line.count(quotes) >= 2:
-                        return position + 1
-
-                elif docstring_quotes and quotes == docstring_quotes:
-                    # Closing the docstring
-                    return position + 1
-
-                position += 1
-                continue
-
-            # If we're in a docstring, keep skipping
-            if in_docstring:
-                position += 1
-                continue
-
-            # Found non-docstring content
-            break
-
-        return position
+        return len(lines)
 
     def _skip_python_comments(self, lines: List[str], start: int) -> int:
         """Skip comment lines and return position after comments.
@@ -903,34 +883,37 @@ class CodeGenerator:
         """
         return line.startswith("import ") or line.startswith("from ")
 
-    def _detect_js_import_point(self, lines: List[str]) -> int:
-        """Find import insertion point for JavaScript/TypeScript files."""
-        i = 0
+    _USE_STRICT_DIRECTIVES = ('"use strict";', "'use strict';")
 
-        # Skip 'use strict' directive
+    def _skip_use_strict(self, lines: List[str], start: int) -> int:
+        """Skip 'use strict' directive and following blank line. Returns new position."""
+        i = start
         while i < len(lines):
             line = lines[i].strip()
-            if line in ('"use strict";', "'use strict';"):
+            if line in self._USE_STRICT_DIRECTIVES:
                 i += 1
-                # Skip blank line after directive
-                if i < len(lines) and not lines[i].strip():
-                    i += 1
-                break
+                return self._skip_blank_lines(lines, i)
             if line:
-                break
+                return i
             i += 1
+        return i
 
-        # Skip existing imports
+    def _is_js_import_line(self, line: str) -> bool:
+        """Check if line is a JS/TS import or require statement."""
+        return (
+            line.startswith("import ")
+            or (line.startswith("const ") and "require(" in line)
+            or (line.startswith("var ") and "require(" in line)
+        )
+
+    def _detect_js_import_point(self, lines: List[str]) -> int:
+        """Find import insertion point for JavaScript/TypeScript files."""
+        i = self._skip_use_strict(lines, 0)
+
         last_import = i
         while i < len(lines):
             line = lines[i].strip()
-            if (
-                line.startswith("import ")
-                or line.startswith("const ")
-                and "require(" in line
-                or line.startswith("var ")
-                and "require(" in line
-            ):
+            if self._is_js_import_line(line):
                 last_import = i + 1
             elif line and not line.startswith("//"):
                 break
@@ -938,24 +921,29 @@ class CodeGenerator:
 
         return last_import + 1
 
-    def _detect_java_import_point(self, lines: List[str]) -> int:
-        """Find import insertion point for Java files."""
-        i = 0
+    def _skip_blank_lines(self, lines: List[str], start: int) -> int:
+        """Skip blank lines and return new position."""
+        i = start
+        while i < len(lines) and not lines[i].strip():
+            i += 1
+        return i
 
-        # Skip package declaration
+    def _skip_java_package(self, lines: List[str], start: int) -> int:
+        """Skip Java package declaration and blank lines after it. Returns new position."""
+        i = start
         while i < len(lines):
             line = lines[i].strip()
             if line.startswith("package "):
-                i += 1
-                # Skip blank lines after package
-                while i < len(lines) and not lines[i].strip():
-                    i += 1
-                break
+                return self._skip_blank_lines(lines, i + 1)
             if line and not line.startswith("//"):
-                break
+                return i
             i += 1
+        return i
 
-        # Skip existing imports
+    def _detect_java_import_point(self, lines: List[str]) -> int:
+        """Find import insertion point for Java files."""
+        i = self._skip_java_package(lines, 0)
+
         last_import = i
         while i < len(lines):
             line = lines[i].strip()
@@ -966,6 +954,24 @@ class CodeGenerator:
             i += 1
 
         return last_import + 1
+
+
+_PARAM_PREFIXES_TO_STRIP = ["get_", "set_", "is_", "has_", "_"]
+
+
+def _strip_param_prefix(name: str) -> str:
+    """Strip common prefixes from an identifier to form a base parameter name."""
+    for prefix in _PARAM_PREFIXES_TO_STRIP:
+        if name.startswith(prefix) and len(name) > len(prefix):
+            return name[len(prefix):]
+    return name
+
+
+def _build_param_candidates(base_name: str) -> List[str]:
+    """Build ordered list of candidate parameter names from a base name."""
+    candidates = [base_name, f"{base_name}_value", f"{base_name}_param", f"new_{base_name}"]
+    candidates.extend(f"{base_name}_{i}" for i in range(1, 10))
+    return candidates
 
 
 def generate_parameter_name(identifier: str, all_identifiers: List[str]) -> str:
@@ -982,41 +988,13 @@ def generate_parameter_name(identifier: str, all_identifiers: List[str]) -> str:
     Returns:
         A unique parameter name
     """
-    # Clean up the identifier
-    base_name = identifier.lower().strip()
-
-    # Remove common prefixes/suffixes
-    prefixes_to_remove = ["get_", "set_", "is_", "has_", "_"]
-    for prefix in prefixes_to_remove:
-        if base_name.startswith(prefix) and len(base_name) > len(prefix):
-            base_name = base_name[len(prefix) :]
-            break
-
-    # Convert to parameter style (snake_case for Python-like, camelCase detected)
-    if not base_name:
-        base_name = "param"
-
-    # Generate candidate names
-    candidates = [
-        base_name,
-        f"{base_name}_value",
-        f"{base_name}_param",
-        f"new_{base_name}",
-    ]
-
-    # Add numbered variants if needed
-    for i in range(1, 10):
-        candidates.append(f"{base_name}_{i}")
-
-    # Find first non-conflicting name
+    base_name = _strip_param_prefix(identifier.lower().strip()) or "param"
     existing_lower = {ident.lower() for ident in all_identifiers}
-    for candidate in candidates:
+    for candidate in _build_param_candidates(base_name):
         if candidate not in existing_lower:
             return candidate
 
-    # Fallback with timestamp-like suffix
     import time
-
     return f"{base_name}_{int(time.time()) % 1000}"
 
 
