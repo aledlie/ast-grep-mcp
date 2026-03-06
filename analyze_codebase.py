@@ -27,6 +27,7 @@ from ast_grep_mcp.features.quality.tools import apply_standards_fixes_tool, enfo
 from ast_grep_mcp.models.complexity import ComplexityThresholds
 from ast_grep_mcp.utils.console_logger import console
 from ast_grep_mcp.utils.slicing import take_top_n
+from scripts.analysis_output_helpers import log_count_breakdown, print_section_header
 
 DEFAULT_PROJECT_FOLDER = "src/ast_grep_mcp"
 DEFAULT_LANGUAGE = "python"
@@ -51,9 +52,7 @@ def out(message: object = "") -> None:
 
 def print_section(title: str):
     """Print a formatted section header."""
-    out(f"\n{'=' * FormattingDefaults.WIDE_SECTION_WIDTH}")
-    out(f" {title}")
-    out("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
+    print_section_header(out, title, width=FormattingDefaults.WIDE_SECTION_WIDTH)
 
 
 def _discover_source_files(project_folder: str, language: str) -> list[Path]:
@@ -197,9 +196,7 @@ def detect_code_smells(project_folder: str, language: str):
 
             by_severity = summary.get("by_severity", {})
             out("\nBy severity:")
-            out(f"  High: {by_severity.get('high', 0)}")
-            out(f"  Medium: {by_severity.get('medium', 0)}")
-            out(f"  Low: {by_severity.get('low', 0)}")
+            log_count_breakdown(out, by_severity, order=["high", "medium", "low"], indent="  ", capitalize_labels=True)
 
             smells = result.get("smells", [])
             if smells:
@@ -233,10 +230,13 @@ def detect_security_issues(project_folder: str, language: str):
 
         by_severity = summary.get("by_severity", {})
         out("\nBy severity:")
-        out(f"  Critical: {by_severity.get('critical', 0)}")
-        out(f"  High: {by_severity.get('high', 0)}")
-        out(f"  Medium: {by_severity.get('medium', 0)}")
-        out(f"  Low: {by_severity.get('low', 0)}")
+        log_count_breakdown(
+            out,
+            by_severity,
+            order=["critical", "high", "medium", "low"],
+            indent="  ",
+            capitalize_labels=True,
+        )
 
         by_category = summary.get("by_category", {})
         if by_category:
@@ -314,48 +314,60 @@ def analyze_duplication(project_folder: str, language: str):
         traceback.print_exc()
 
 
+def _run_enforcement(project_folder: str, language: str) -> dict:  # type: ignore[type-arg]
+    """Run standards enforcement and return the result dict."""
+    return enforce_standards_tool(
+        project_folder=project_folder,
+        language=language,
+        include_patterns=[f"**/*.{LANGUAGE_EXTENSIONS.get(language, language)}"],
+        exclude_patterns=EXCLUDE_PATTERNS,
+    )
+
+
+def _generate_markdown_report(enforcement_result: dict) -> dict:  # type: ignore[type-arg]
+    """Generate and save markdown quality report, return result dict."""
+    return generate_quality_report_tool(
+        enforcement_result=enforcement_result,
+        project_name="ast-grep-mcp",
+        output_format="markdown",
+        save_to_file="QUALITY_REPORT.md",
+    )
+
+
+def _print_report_summary(result: dict) -> None:  # type: ignore[type-arg]
+    """Print success/failure message and summary section from report result."""
+    if not result.get("success"):
+        out(f"Error: {result.get('error')}")
+        return
+
+    out("\nQuality report generated successfully!")
+    report_path = result.get("file_path")
+    if report_path:
+        out(f"Report saved to: {report_path}")
+
+    report_content = result.get("report", "")
+    if report_content:
+        out("\nReport Summary:")
+        lines = report_content.split("\n")
+        in_summary = False
+        for line in lines[: SemanticVolumeDefaults.SUMMARY_PREVIEW_LIMIT]:
+            if "## Summary" in line or "## Executive Summary" in line:
+                in_summary = True
+            if in_summary:
+                out(line)
+                if line.startswith("##") and "Summary" not in line:
+                    break
+
+
 def generate_summary_report(project_folder: str, language: str, apply_fixes: bool = False):
     """Generate comprehensive quality report and optionally apply fixes."""
     print_section("PHASE 6: Generate Comprehensive Quality Report")
 
     try:
-        # First run enforcement to get the result needed by the report generator
-        enforcement_result = enforce_standards_tool(
-            project_folder=project_folder,
-            language=language,
-            include_patterns=[f"**/*.{LANGUAGE_EXTENSIONS.get(language, language)}"],
-            exclude_patterns=EXCLUDE_PATTERNS,
-        )
+        enforcement_result = _run_enforcement(project_folder, language)
+        result = _generate_markdown_report(enforcement_result)
+        _print_report_summary(result)
 
-        result = generate_quality_report_tool(
-            enforcement_result=enforcement_result,
-            project_name="ast-grep-mcp",
-            output_format="markdown",
-            save_to_file="QUALITY_REPORT.md",
-        )
-
-        if result.get("success"):
-            out("\nQuality report generated successfully!")
-            report_path = result.get("file_path")
-            if report_path:
-                out(f"Report saved to: {report_path}")
-
-            report_content = result.get("report", "")
-            if report_content:
-                out("\nReport Summary:")
-                lines = report_content.split("\n")
-                in_summary = False
-                for line in lines[: SemanticVolumeDefaults.SUMMARY_PREVIEW_LIMIT]:
-                    if "## Summary" in line or "## Executive Summary" in line:
-                        in_summary = True
-                    if in_summary:
-                        out(line)
-                        if line.startswith("##") and "Summary" not in line:
-                            break
-        else:
-            out(f"Error: {result.get('error')}")
-
-        # Apply fixes if requested
         if apply_fixes:
             _apply_fixes(enforcement_result, language, project_folder=project_folder)
 
