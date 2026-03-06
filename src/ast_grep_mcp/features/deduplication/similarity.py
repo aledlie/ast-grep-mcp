@@ -1116,9 +1116,14 @@ class HybridSimilarity:
                 if comment_pos > 0:
                     line = line[:comment_pos].rstrip()
 
-            # Normalize indentation to 4-space units
+            # Normalize indentation: detect 4-space vs 2-space adaptively
             indent_count = len(line) - len(line.lstrip())
-            indent_level = indent_count // IndentationDefaults.NORMALIZATION_DIVISOR
+            divisor = (
+                IndentationDefaults.SPACES_PER_LEVEL
+                if indent_count % IndentationDefaults.SPACES_PER_LEVEL == 0
+                else IndentationDefaults.ALT_SPACES_PER_LEVEL
+            )
+            indent_level = indent_count // divisor
             normalized_line = "    " * indent_level + line.lstrip()
 
             if normalized_line.strip():
