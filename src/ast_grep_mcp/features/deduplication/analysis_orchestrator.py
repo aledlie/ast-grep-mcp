@@ -90,34 +90,12 @@ class DeduplicationAnalysisOrchestrator:
     ) -> Dict[str, Any]:
         """Analyze a project for deduplication candidates (legacy interface).
 
-        This method provides backward compatibility by converting individual
-        parameters to AnalysisConfig. New code should use analyze_candidates_with_config().
-
-        This orchestrates a 4-step workflow:
-        1. Find duplicates
-        2. Rank candidates by refactoring value
-        3. Check test coverage (if requested)
-        4. Generate recommendations
-
-        Args:
-            project_path: Project folder path
-            language: Programming language
-            min_similarity: Minimum similarity threshold (0.0-1.0)
-            include_test_coverage: Whether to check test coverage
-            min_lines: Minimum lines to consider
-            max_candidates: Maximum candidates to return
-            exclude_patterns: Path patterns to exclude
-            progress_callback: Optional callback for progress reporting.
-                Signature: (stage_name: str, progress_percent: float) -> None
-                Example: lambda stage, pct: print(f"[{pct*100:.0f}%] {stage}")
-
-        Returns:
-            Analysis results with ranked candidates and metadata
+        Converts individual parameters to AnalysisConfig and delegates to
+        analyze_candidates_with_config(). New code should use that method directly.
 
         Raises:
             ValueError: If input parameters are invalid
         """
-        # Convert to AnalysisConfig (validation happens in AnalysisConfig.__post_init__)
         config = AnalysisConfig(
             project_path=project_path,
             language=language,
@@ -133,35 +111,15 @@ class DeduplicationAnalysisOrchestrator:
     def analyze_candidates_with_config(self, config: AnalysisConfig) -> Dict[str, Any]:
         """Analyze a project for deduplication candidates (recommended interface).
 
-        This is the modern, cleaner API that accepts an AnalysisConfig object
-        instead of 8 separate parameters.
-
-        This orchestrates a 4-step workflow:
-        1. Find duplicates
-        2. Rank candidates by refactoring value
-        3. Check test coverage (if requested)
-        4. Generate recommendations
+        Orchestrates a 4-step workflow: find duplicates, rank candidates,
+        check test coverage, generate recommendations.
 
         Args:
             config: Analysis configuration object
 
-        Returns:
-            Analysis results with ranked candidates and metadata
-
         Raises:
             ValueError: If configuration is invalid
-
-        Example:
-            >>> config = AnalysisConfig(
-            ...     project_path="/path/to/project",
-            ...     language="python",
-            ...     min_similarity=0.9,
-            ...     max_candidates=50
-            ... )
-            >>> orchestrator = DeduplicationAnalysisOrchestrator()
-            >>> results = orchestrator.analyze_candidates_with_config(config)
         """
-        # Validate inputs early (fail-fast)
         self._validate_analysis_inputs(config.project_path, config.language, config.min_similarity, config.min_lines, config.max_candidates)
 
         # Helper function for progress reporting
@@ -198,47 +156,35 @@ class DeduplicationAnalysisOrchestrator:
         report_progress("Analysis complete", 1.0)
         return result
 
+    _SUPPORTED_LANGUAGES = ["python", "javascript", "typescript", "java", "go", "rust", "cpp", "c", "ruby"]
+
     def _validate_analysis_inputs(
         self, project_path: str, language: str, min_similarity: float, min_lines: int, max_candidates: int
     ) -> None:
-        """Validate analysis inputs with clear error messages.
+        """Validate analysis inputs. Raises ValueError on invalid parameters."""
+        self._validate_project_path(project_path)
+        if not 0.0 <= min_similarity <= 1.0:
+            raise ValueError(f"min_similarity must be between 0.0 and 1.0, got {min_similarity}")
+        if min_lines < 1:
+            raise ValueError(f"min_lines must be a positive integer, got {min_lines}")
+        if max_candidates < 1:
+            raise ValueError(f"max_candidates must be a positive integer, got {max_candidates}")
+        self._warn_unsupported_language(language)
 
-        Args:
-            project_path: Project folder path
-            language: Programming language
-            min_similarity: Minimum similarity threshold
-            min_lines: Minimum lines to consider
-            max_candidates: Maximum candidates to return
-
-        Raises:
-            ValueError: If any input parameter is invalid
-        """
-        # Validate project path exists
+    def _validate_project_path(self, project_path: str) -> None:
+        """Raise ValueError if project_path is missing or not a directory."""
         if not os.path.exists(project_path):
             raise ValueError(f"Project path does not exist: {project_path}")
-
         if not os.path.isdir(project_path):
             raise ValueError(f"Project path is not a directory: {project_path}")
 
-        # Validate min_similarity range
-        if not 0.0 <= min_similarity <= 1.0:
-            raise ValueError(f"min_similarity must be between 0.0 and 1.0, got {min_similarity}")
-
-        # Validate min_lines is positive
-        if min_lines < 1:
-            raise ValueError(f"min_lines must be a positive integer, got {min_lines}")
-
-        # Validate max_candidates is positive
-        if max_candidates < 1:
-            raise ValueError(f"max_candidates must be a positive integer, got {max_candidates}")
-
-        # Log warning for unsupported languages (but don't fail)
-        supported_languages = ["python", "javascript", "typescript", "java", "go", "rust", "cpp", "c", "ruby"]
-        if language.lower() not in supported_languages:
+    def _warn_unsupported_language(self, language: str) -> None:
+        """Log a warning if language is not in the supported list."""
+        if language.lower() not in self._SUPPORTED_LANGUAGES:
             self.logger.warning(
                 "unsupported_language",
                 language=language,
-                supported=supported_languages,
+                supported=self._SUPPORTED_LANGUAGES,
                 message=f"Language '{language}' may not be fully supported",
             )
 
@@ -338,47 +284,53 @@ class DeduplicationAnalysisOrchestrator:
         )
         return self._enrich_and_summarize_with_config(ranked_candidates, config, progress_callback=progress_callback)
 
+    def _empty_enrich_result(self, config: AnalysisConfig) -> Dict[str, Any]:
+        """Return an empty analysis result when there are no candidates."""
+        return {
+            "candidates": [],
+            "total_groups_analyzed": 0,
+            "top_candidates_count": 0,
+            "top_candidates_savings_potential": 0,
+            "analysis_metadata": self._build_analysis_metadata_from_config(config),
+        }
+
+    def _build_enrich_result(
+        self, top_candidates: List[Dict[str, Any]], ranked_candidates: List[Dict[str, Any]], config: AnalysisConfig
+    ) -> Dict[str, Any]:
+        """Build the final enrichment result dict."""
+        savings = self._calculate_total_savings(top_candidates)
+        self.logger.info(
+            "analysis_complete",
+            total_groups_analyzed=len(ranked_candidates),
+            top_candidates_count=len(top_candidates),
+            top_candidates_savings_potential=savings,
+        )
+        return {
+            "candidates": top_candidates,
+            "total_groups_analyzed": len(ranked_candidates),
+            "top_candidates_count": len(top_candidates),
+            "top_candidates_savings_potential": savings,
+            "analysis_metadata": self._build_analysis_metadata_from_config(config),
+        }
+
     def _enrich_and_summarize_with_config(
         self,
         ranked_candidates: List[Dict[str, Any]],
         config: AnalysisConfig,
         progress_callback: Optional[Callable[[str, float], None]] = None,
     ) -> Dict[str, Any]:
-        """Enrich top candidates and generate summary using config object.
-
-        This is the modern, cleaner API that accepts an AnalysisConfig object
-        instead of 8 separate parameters.
-
-        Args:
-            ranked_candidates: All ranked candidates
-            config: Analysis configuration object
-            progress_callback: Optional progress reporting callback
-
-        Returns:
-            Analysis results with enriched candidates and metadata
-        """
-
-        # Helper for progress reporting
+        """Enrich top candidates and generate summary using config object."""
         def report(stage: str, percent: float) -> None:
             if progress_callback:
                 progress_callback(stage, percent)
 
-        # Early return for empty candidate list
         if not ranked_candidates:
             self.logger.warning("no_candidates_to_enrich")
-            return {
-                "candidates": [],
-                "total_groups_analyzed": 0,
-                "top_candidates_count": 0,
-                "top_candidates_savings_potential": 0,
-                "analysis_metadata": self._build_analysis_metadata_from_config(config),
-            }
+            return self._empty_enrich_result(config)
 
-        # Get top candidates (40% -> 50%)
         report("Selecting top candidates", DeduplicationDefaults.PROGRESS_SELECTION)
         top_candidates = self._get_top_candidates(ranked_candidates, config.max_candidates)
 
-        # Step 3: Check test coverage if requested (50% -> 75%)
         if config.include_test_coverage:
             report("Checking test coverage", DeduplicationDefaults.PROGRESS_COVERAGE_CHECK)
             self._add_test_coverage_batch(
@@ -386,28 +338,11 @@ class DeduplicationAnalysisOrchestrator:
             )
             report("Test coverage complete", DeduplicationDefaults.PROGRESS_COVERAGE_COMPLETE)
 
-        # Step 4: Generate recommendations (75% -> 90%)
         report("Generating recommendations", DeduplicationDefaults.PROGRESS_RECOMMENDATIONS)
         self._add_recommendations(top_candidates, parallel=config.parallel, max_workers=config.max_workers)
 
-        # Step 5: Calculate summary statistics (90% -> 95%)
         report("Calculating statistics", DeduplicationDefaults.PROGRESS_STATISTICS)
-        top_candidates_savings = self._calculate_total_savings(top_candidates)
-
-        self.logger.info(
-            "analysis_complete",
-            total_groups_analyzed=len(ranked_candidates),
-            top_candidates_count=len(top_candidates),
-            top_candidates_savings_potential=top_candidates_savings,
-        )
-
-        return {
-            "candidates": top_candidates,
-            "total_groups_analyzed": len(ranked_candidates),
-            "top_candidates_count": len(top_candidates),
-            "top_candidates_savings_potential": top_candidates_savings,
-            "analysis_metadata": self._build_analysis_metadata_from_config(config),
-        }
+        return self._build_enrich_result(top_candidates, ranked_candidates, config)
 
     def _enrich_with_test_coverage(self, candidate: Dict[str, Any], language: str, project_path: str) -> None:
         """Enrich a single candidate with test coverage data.
@@ -542,12 +477,10 @@ class DeduplicationAnalysisOrchestrator:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {executor.submit(enrich_func, candidate, **kwargs): candidate for candidate in candidates}
 
-            # Process futures as they complete
             for future in as_completed(futures):
                 candidate = futures[future]
-                self._process_completed_future(
-                    future, candidate, timeout_seconds, operation_name, error_field, default_error_value, failed_candidates
-                )
+                args = (future, candidate, timeout_seconds, operation_name, error_field, default_error_value, failed_candidates)
+                self._process_completed_future(*args)
 
         return failed_candidates
 
@@ -584,6 +517,12 @@ class DeduplicationAnalysisOrchestrator:
 
         return failed_candidates
 
+    def _resolve_timeout(self, timeout_per_candidate: Optional[int]) -> int:
+        """Return timeout_per_candidate, defaulting to ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS."""
+        if timeout_per_candidate is not None:
+            return timeout_per_candidate
+        return ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS
+
     def _parallel_enrich(
         self,
         candidates: List[Dict[str, Any]],
@@ -596,44 +535,23 @@ class DeduplicationAnalysisOrchestrator:
         timeout_per_candidate: Optional[int] = None,
         **kwargs: Any,
     ) -> List[Dict[str, Any]]:
-        """Generic parallel enrichment helper to reduce code duplication.
-
-        This method consolidates the duplicate ThreadPoolExecutor pattern used
-        in _add_test_coverage and _add_recommendations, improving maintainability
-        and reducing the codebase by ~40 lines.
+        """Generic parallel enrichment helper.
 
         Args:
-            candidates: List of candidates to enrich
-            enrich_func: Function to call for each candidate (signature: func(candidate, **kwargs))
-            operation_name: Name of operation for logging (e.g., "test_coverage", "recommendation")
-            error_field: Field name to store error message (e.g., "test_coverage_error")
-            default_error_value: Default value to set on error (e.g., {}, False)
-            parallel: Whether to use parallel execution (default: True)
-            max_workers: Maximum number of threads for parallel execution
-            timeout_per_candidate: Timeout in seconds for each candidate operation (default: 30s)
-            **kwargs: Additional keyword arguments to pass to enrich_func
+            candidates: Candidates to enrich
+            enrich_func: Called per candidate as func(candidate, **kwargs)
+            operation_name: Name used in log keys
+            error_field: Field to store error message on failure
+            default_error_value: Value(s) set on candidate when enrichment fails
+            parallel: Use parallel execution when True and len(candidates) > 1
+            max_workers: Thread pool size
+            timeout_per_candidate: Per-candidate timeout in seconds (default 30s)
+            **kwargs: Forwarded to enrich_func
 
         Returns:
-            List of candidates that failed enrichment (for monitoring)
-
-        Example:
-            failed = self._parallel_enrich(
-                candidates,
-                self._enrich_with_test_coverage,
-                "test_coverage",
-                "test_coverage_error",
-                {},
-                timeout_per_candidate=ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS,
-                language=language,
-                project_path=project_path
-            )
+            List of candidates that failed enrichment
         """
-        # Use default timeout if not specified
-        timeout_seconds = (
-            timeout_per_candidate if timeout_per_candidate is not None else ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS
-        )
-
-        # Choose processing strategy based on parallel flag and candidate count
+        timeout_seconds = self._resolve_timeout(timeout_per_candidate)
         if parallel and len(candidates) > 1:
             failed_candidates = self._process_parallel_enrichment(
                 candidates, enrich_func, operation_name, error_field, default_error_value, max_workers, timeout_seconds, kwargs
@@ -642,66 +560,18 @@ class DeduplicationAnalysisOrchestrator:
             failed_candidates = self._process_sequential_enrichment(
                 candidates, enrich_func, operation_name, error_field, default_error_value, kwargs
             )
-
-        # Log summary
         self.logger.info(f"{operation_name}_added", candidate_count=len(candidates), failed_count=len(failed_candidates), parallel=parallel)
-
         return failed_candidates
 
-    def _add_test_coverage_batch(
-        self,
-        candidates: List[Dict[str, Any]],
-        language: str,
-        project_path: str,
-        parallel: bool = True,
-        max_workers: int = ParallelProcessing.DEFAULT_WORKERS,
-        timeout_per_candidate: Optional[int] = None,
-    ) -> None:
-        """Add test coverage information using optimized batch processing.
-
-        This method provides 60-80% performance improvement over the legacy
-        _add_test_coverage() method by:
-        1. Collecting all unique files from all candidates
-        2. Running batch test coverage detection once
-        3. Distributing results back to candidates
-
-        Args:
-            candidates: List of candidates to enrich
-            language: Programming language
-            project_path: Project folder path
-            parallel: Whether to use parallel execution (default: True)
-            max_workers: Maximum number of threads for parallel execution
-            timeout_per_candidate: Timeout in seconds for each candidate (default: 30s)
-        """
-        if not candidates:
-            return
-
-        # Collect all unique files from all candidates
+    def _collect_unique_files(self, candidates: List[Dict[str, Any]]) -> List[str]:
+        """Collect all unique file paths referenced across candidates, preserving order."""
         all_files: List[str] = []
         for candidate in candidates:
             all_files.extend(candidate.get("files", []))
+        return list(dict.fromkeys(all_files))
 
-        # Remove duplicates while preserving order
-        unique_files = list(dict.fromkeys(all_files))
-
-        if not unique_files:
-            self.logger.debug("no_files_for_coverage_check")
-            return
-
-        self.logger.debug(
-            "batch_coverage_start",
-            candidate_count=len(candidates),
-            unique_file_count=len(unique_files),
-            total_file_refs=len(all_files),
-            parallel=parallel,
-        )
-
-        # Run optimized batch test coverage detection
-        coverage_map = self.coverage_detector.get_test_coverage_for_files_batch(
-            unique_files, language, project_path, parallel=parallel, max_workers=max_workers
-        )
-
-        # Distribute coverage results to candidates
+    def _distribute_coverage(self, candidates: List[Dict[str, Any]], coverage_map: Dict[str, Any]) -> None:
+        """Apply a pre-computed coverage_map to each candidate in-place."""
         for candidate in candidates:
             files = candidate.get("files", [])
             if files:
@@ -712,6 +582,38 @@ class DeduplicationAnalysisOrchestrator:
                 candidate["test_coverage"] = {}
                 candidate["has_tests"] = False
 
+    def _add_test_coverage_batch(
+        self,
+        candidates: List[Dict[str, Any]],
+        language: str,
+        project_path: str,
+        parallel: bool = True,
+        max_workers: int = ParallelProcessing.DEFAULT_WORKERS,
+        timeout_per_candidate: Optional[int] = None,
+    ) -> None:
+        """Add test coverage via optimized batch processing (60-80% faster than per-candidate).
+
+        Collects all unique files once, runs batch detection, then distributes results.
+        """
+        if not candidates:
+            return
+
+        unique_files = self._collect_unique_files(candidates)
+        if not unique_files:
+            self.logger.debug("no_files_for_coverage_check")
+            return
+
+        self.logger.debug(
+            "batch_coverage_start",
+            candidate_count=len(candidates),
+            unique_file_count=len(unique_files),
+            parallel=parallel,
+        )
+
+        coverage_map = self.coverage_detector.get_test_coverage_for_files_batch(
+            unique_files, language, project_path, parallel=parallel, max_workers=max_workers
+        )
+        self._distribute_coverage(candidates, coverage_map)
         self.logger.info("batch_coverage_added", candidate_count=len(candidates), unique_files_checked=len(unique_files), parallel=parallel)
 
     def _add_test_coverage(
