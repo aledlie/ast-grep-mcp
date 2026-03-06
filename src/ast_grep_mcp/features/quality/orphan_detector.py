@@ -44,30 +44,20 @@ class OrphanDetector:
         """
         start_time = time.time()
         base_path = Path(project_folder)
-
         self.logger.info("orphan_analysis_started", project=project_folder)
 
-        # Phase 1: Build dependency graph
         graph = self._build_dependency_graph(base_path)
-
-        # Phase 2: Identify entry points
         self._identify_entry_points(base_path, graph)
-
-        # Phase 3: Find orphan files
         orphan_files = self._find_orphan_files(base_path, graph)
-
-        # Phase 4: Verify orphans with grep
         if self.config.verify_with_grep:
             orphan_files = self._verify_orphans_with_grep(base_path, orphan_files)
 
-        # Phase 5: Analyze function-level orphans (optional)
         orphan_functions: List[OrphanFunction] = []
         total_functions = 0
         if self.config.analyze_functions:
             orphan_functions, total_functions = self._find_orphan_functions(base_path, graph)
 
         elapsed_ms = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
-
         result = OrphanAnalysisResult(
             orphan_files=orphan_files,
             orphan_functions=orphan_functions,
@@ -77,7 +67,6 @@ class OrphanDetector:
             analysis_time_ms=elapsed_ms,
             config=self.config,
         )
-
         self.logger.info(
             "orphan_analysis_complete",
             orphan_files=len(orphan_files),
@@ -85,73 +74,66 @@ class OrphanDetector:
             total_files=len(graph.files),
             elapsed_ms=elapsed_ms,
         )
-
         return result
 
     def _build_dependency_graph(self, base_path: Path) -> DependencyGraph:
         """Build the import dependency graph for the project."""
         graph = DependencyGraph()
 
-        # Collect all source files
         for pattern in self.config.include_patterns:
-            # Handle glob patterns properly - extract just the file pattern
-            # **/*.py -> *.py, src/**/*.py -> *.py
-            if "**/" in pattern:
-                glob_pattern = pattern.split("**/")[-1]
-            else:
-                glob_pattern = pattern
-
+            glob_pattern = pattern.split("**/")[-1] if "**/" in pattern else pattern
             for file_path in base_path.rglob(glob_pattern):
-                if self._should_exclude(file_path, base_path):
-                    continue
-                if not file_path.is_file():
-                    continue
-
-                rel_path = str(file_path.relative_to(base_path))
-                graph.files.add(rel_path)
-
-                # Extract imports based on file type
-                if file_path.suffix == ".py":
-                    self._extract_python_imports(file_path, rel_path, base_path, graph)
-                elif file_path.suffix in (".ts", ".js", ".tsx", ".jsx"):
-                    self._extract_js_imports(file_path, rel_path, base_path, graph)
+                self._add_file_to_graph(file_path, base_path, graph)
 
         self.logger.debug("dependency_graph_built", files=len(graph.files), edges=len(graph.edges))
         return graph
 
+    def _add_file_to_graph(self, file_path: Path, base_path: Path, graph: DependencyGraph) -> None:
+        """Add a single file and its imports to the dependency graph."""
+        if self._should_exclude(file_path, base_path) or not file_path.is_file():
+            return
+        rel_path = str(file_path.relative_to(base_path))
+        graph.files.add(rel_path)
+        if file_path.suffix == ".py":
+            self._extract_python_imports(file_path, rel_path, base_path, graph)
+        elif file_path.suffix in (".ts", ".js", ".tsx", ".jsx"):
+            self._extract_js_imports(file_path, rel_path, base_path, graph)
+
     def _should_exclude(self, file_path: Path, base_path: Path) -> bool:
         """Check if a file should be excluded from analysis."""
         rel_path = str(file_path.relative_to(base_path))
-        for pattern in self.config.exclude_patterns:
-            if fnmatch.fnmatch(rel_path, pattern.lstrip("**/")):
-                return True
-            if fnmatch.fnmatch(str(file_path), pattern):
-                return True
-            # Check path parts
-            for part in file_path.parts:
-                if fnmatch.fnmatch(part, pattern.replace("**/", "").replace("/**", "")):
-                    return True
-        return False
+        return any(self._matches_exclude_pattern(file_path, rel_path, p) for p in self.config.exclude_patterns)
+
+    def _matches_exclude_pattern(self, file_path: Path, rel_path: str, pattern: str) -> bool:
+        """Return True if the file matches a single exclude pattern."""
+        if fnmatch.fnmatch(rel_path, pattern.lstrip("**/")):
+            return True
+        if fnmatch.fnmatch(str(file_path), pattern):
+            return True
+        clean = pattern.replace("**/", "").replace("/**", "")
+        return any(fnmatch.fnmatch(part, clean) for part in file_path.parts)
 
     def _extract_python_imports(self, file_path: Path, rel_path: str, base_path: Path, graph: DependencyGraph) -> None:
         """Extract imports from a Python file."""
-        try:
-            content = file_path.read_text(encoding="utf-8")
-            tree = ast.parse(content)
-        except Exception as e:
-            self.logger.debug("parse_failed", file=rel_path, error=str(e))
+        tree = self._parse_python_file(file_path, rel_path)
+        if tree is None:
             return
-
         external_imports: Set[str] = set()
-
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 self._process_import_node(node, rel_path, base_path, graph, external_imports)
             elif isinstance(node, ast.ImportFrom):
                 self._process_import_from_node(node, file_path, rel_path, base_path, graph, external_imports)
-
         if external_imports:
             graph.external_imports[rel_path] = external_imports
+
+    def _parse_python_file(self, file_path: Path, rel_path: str) -> Optional[ast.AST]:
+        """Parse a Python file, returning None on failure."""
+        try:
+            return ast.parse(file_path.read_text(encoding="utf-8"))
+        except Exception as e:
+            self.logger.debug("parse_failed", file=rel_path, error=str(e))
+            return None
 
     def _process_import_node(
         self,
@@ -163,18 +145,24 @@ class OrphanDetector:
     ) -> None:
         """Process an ast.Import node."""
         for alias in node.names:
-            target = self._resolve_python_import(alias.name, base_path)
-            if target and target in graph.files:
-                graph.edges.append(
-                    DependencyEdge(
-                        source=rel_path,
-                        target=target,
-                        import_type="absolute",
-                        import_statement=f"import {alias.name}",
-                    )
-                )
-            else:
-                external_imports.add(alias.name.split(".")[0])
+            self._register_import(alias.name, rel_path, f"import {alias.name}", "absolute", base_path, graph, external_imports)
+
+    def _register_import(
+        self,
+        module_name: str,
+        rel_path: str,
+        import_stmt: str,
+        import_type: str,
+        base_path: Path,
+        graph: DependencyGraph,
+        external_imports: Set[str],
+    ) -> None:
+        """Add a resolved import edge or record it as external."""
+        target = self._resolve_python_import(module_name, base_path)
+        if target and target in graph.files:
+            graph.edges.append(DependencyEdge(source=rel_path, target=target, import_type=import_type, import_statement=import_stmt))
+        else:
+            external_imports.add(module_name.split(".")[0])
 
     def _process_import_from_node(
         self,
@@ -188,74 +176,76 @@ class OrphanDetector:
         """Process an ast.ImportFrom node."""
         if not node.module:
             return
-
-        # Resolve import target
-        if node.level > 0:
-            target = self._resolve_relative_import(file_path, node.module, node.level, base_path)
-        else:
-            target = self._resolve_python_import(node.module, base_path)
-
+        import_type = "relative" if node.level > 0 else "absolute"
+        target = self._resolve_import_from_target(node, file_path, base_path)
         if target and target in graph.files:
-            graph.edges.append(
-                DependencyEdge(
-                    source=rel_path,
-                    target=target,
-                    import_type="relative" if node.level > 0 else "absolute",
-                    import_statement=f"from {node.module} import ...",
-                )
-            )
+            graph.edges.append(DependencyEdge(source=rel_path, target=target, import_type=import_type, import_statement=f"from {node.module} import ..."))
         elif node.module:
             external_imports.add(node.module.split(".")[0])
+
+    def _resolve_import_from_target(self, node: ast.ImportFrom, file_path: Path, base_path: Path) -> Optional[str]:
+        """Resolve the target file for an ImportFrom node."""
+        if node.level > 0:
+            return self._resolve_relative_import(file_path, node.module or "", node.level, base_path)
+        return self._resolve_python_import(node.module or "", base_path)
 
     def _resolve_python_import(self, module_name: str, base_path: Path) -> Optional[str]:
         """Resolve a Python module name to a file path."""
         parts = module_name.split(".")
 
-        # Try as package (directory with __init__.py)
         pkg_path = base_path / "/".join(parts) / "__init__.py"
         if pkg_path.exists():
             return str(pkg_path.relative_to(base_path))
 
-        # Try as module file directly
         mod_path = base_path / "/".join(parts[:-1]) / f"{parts[-1]}.py" if len(parts) > 1 else base_path / f"{parts[0]}.py"
         if mod_path.exists():
             return str(mod_path.relative_to(base_path))
 
-        # Try with src/ prefix
+        return self._resolve_python_import_with_prefix(parts, base_path)
+
+    def _resolve_python_import_with_prefix(self, parts: List[str], base_path: Path) -> Optional[str]:
+        """Try resolving a Python module under src/ and root prefixes."""
         for prefix in ["src/", ""]:
-            pkg_path = base_path / prefix / "/".join(parts) / "__init__.py"
-            if pkg_path.exists():
-                return str(pkg_path.relative_to(base_path))
+            result = self._resolve_module_with_one_prefix(parts, base_path, prefix)
+            if result:
+                return result
+        return None
 
-            mod_path = base_path / prefix / "/".join(parts)
-            mod_path = mod_path.with_suffix(".py")
-            if mod_path.exists():
-                return str(mod_path.relative_to(base_path))
-
+    def _resolve_module_with_one_prefix(self, parts: List[str], base_path: Path, prefix: str) -> Optional[str]:
+        """Try package then module resolution under a single prefix."""
+        pkg_path = base_path / prefix / "/".join(parts) / "__init__.py"
+        if pkg_path.exists():
+            return str(pkg_path.relative_to(base_path))
+        mod_path = (base_path / prefix / "/".join(parts)).with_suffix(".py")
+        if mod_path.exists():
+            return str(mod_path.relative_to(base_path))
         return None
 
     def _resolve_relative_import(self, file_path: Path, module: str, level: int, base_path: Path) -> Optional[str]:
         """Resolve a relative Python import."""
-        # Go up 'level' directories from the current file
-        current_dir = file_path.parent
-        for _ in range(level - 1):
-            current_dir = current_dir.parent
-
-        # Resolve the module path
         parts = module.split(".") if module else []
+        if not parts:
+            return None
+        return self._resolve_relative_parts(parts, self._ascend_dirs(file_path.parent, level - 1), base_path)
 
-        # Try as module file
-        if parts:
-            mod_path = current_dir / "/".join(parts[:-1]) / f"{parts[-1]}.py" if len(parts) > 1 else current_dir / f"{parts[0]}.py"
-            if mod_path.exists():
-                return str(mod_path.relative_to(base_path))
-
-            # Try as package
-            pkg_path = current_dir / "/".join(parts) / "__init__.py"
-            if pkg_path.exists():
-                return str(pkg_path.relative_to(base_path))
-
+    @staticmethod
+    def _resolve_relative_parts(parts: List[str], current_dir: Path, base_path: Path) -> Optional[str]:
+        """Try module file then package path relative to current_dir."""
+        joined = "/".join(parts)
+        mod_path = current_dir / "/".join(parts[:-1]) / f"{parts[-1]}.py" if len(parts) > 1 else current_dir / f"{parts[0]}.py"
+        if mod_path.exists():
+            return str(mod_path.relative_to(base_path))
+        pkg_path = current_dir / joined / "__init__.py"
+        if pkg_path.exists():
+            return str(pkg_path.relative_to(base_path))
         return None
+
+    @staticmethod
+    def _ascend_dirs(directory: Path, levels: int) -> Path:
+        """Walk up `levels` parent directories."""
+        for _ in range(levels):
+            directory = directory.parent
+        return directory
 
     def _extract_js_imports(self, file_path: Path, rel_path: str, base_path: Path, graph: DependencyGraph) -> None:
         """Extract imports from a JavaScript/TypeScript file."""
@@ -308,137 +298,111 @@ class OrphanDetector:
         if not import_path.startswith("."):
             external_imports.add(import_path.split("/")[0])
             return
-
         target = self._resolve_js_relative_import(file_path, import_path, base_path)
         if target and target in graph.files:
-            graph.edges.append(
-                DependencyEdge(
-                    source=rel_path,
-                    target=target,
-                    import_type="relative",
-                    import_statement=import_statement,
-                )
-            )
+            graph.edges.append(DependencyEdge(source=rel_path, target=target, import_type="relative", import_statement=import_statement))
+
+    _JS_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", "/index.ts", "/index.js"]
 
     def _resolve_js_relative_import(self, file_path: Path, import_path: str, base_path: Path) -> Optional[str]:
         """Resolve a relative JavaScript/TypeScript import."""
-        current_dir = file_path.parent
-        target_path = (current_dir / import_path).resolve()
+        target_path = (file_path.parent / import_path).resolve()
+        candidates = [Path(str(target_path) + ext) for ext in self._JS_EXTENSIONS] + [target_path]
+        return self._first_relative_path(candidates, base_path)
 
-        # Try various extensions
-        extensions = [".ts", ".tsx", ".js", ".jsx", "/index.ts", "/index.js"]
-
-        for ext in extensions:
-            test_path = Path(str(target_path) + ext)
-            if test_path.exists():
-                try:
-                    return str(test_path.relative_to(base_path))
-                except ValueError:
-                    continue
-
-        # Try without extension (might already have it)
-        if target_path.exists():
-            try:
-                return str(target_path.relative_to(base_path))
-            except ValueError:
-                pass
-
+    def _first_relative_path(self, candidates: List[Path], base_path: Path) -> Optional[str]:
+        """Return the relative path string for the first existing candidate."""
+        for path in candidates:
+            rel = self._safe_relative(path, base_path)
+            if rel is not None:
+                return rel
         return None
+
+    @staticmethod
+    def _safe_relative(path: Path, base_path: Path) -> Optional[str]:
+        """Return path relative to base_path, or None if outside base or non-existent."""
+        if not path.exists():
+            return None
+        try:
+            return str(path.relative_to(base_path))
+        except ValueError:
+            return None
 
     def _identify_entry_points(self, base_path: Path, graph: DependencyGraph) -> None:
         """Identify entry point files in the project."""
         for file_path in graph.files:
             full_path = base_path / file_path
-
-            # Check against entry point patterns
-            for pattern in self.config.entry_point_patterns:
-                if fnmatch.fnmatch(file_path, pattern.lstrip("**/")):
-                    graph.entry_points.add(file_path)
-                    break
-                if fnmatch.fnmatch(full_path.name, pattern.lstrip("**/").split("/")[-1]):
-                    graph.entry_points.add(file_path)
-                    break
-
-            # __init__.py files are always entry points (they can be imported as packages)
-            if full_path.name == "__init__.py":
+            if full_path.name == "__init__.py" or self._matches_entry_point_pattern(file_path, full_path):
                 graph.entry_points.add(file_path)
-
         self.logger.debug("entry_points_identified", count=len(graph.entry_points))
+
+    def _matches_entry_point_pattern(self, file_path: str, full_path: Path) -> bool:
+        """Return True if the file matches any configured entry point pattern."""
+        return any(self._file_matches_ep(file_path, full_path, p) for p in self.config.entry_point_patterns)
+
+    @staticmethod
+    def _file_matches_ep(file_path: str, full_path: Path, pattern: str) -> bool:
+        """Check one entry-point pattern against a file."""
+        stripped = pattern.lstrip("**/")
+        return fnmatch.fnmatch(file_path, stripped) or fnmatch.fnmatch(full_path.name, stripped.split("/")[-1])
+
+    _LANGUAGE_MAP: Dict[str, str] = {".py": "python", ".js": "javascript", ".ts": "typescript", ".tsx": "typescript", ".jsx": "javascript"}
 
     def _find_orphan_files(self, base_path: Path, graph: DependencyGraph) -> List[OrphanFile]:
         """Find files with no incoming imports."""
         orphans: List[OrphanFile] = []
-
         for file_path in graph.files:
-            # Skip entry points
-            if file_path in graph.entry_points:
+            if file_path in graph.entry_points or Path(file_path).name == "__init__.py":
                 continue
-
-            # Skip __init__.py files
-            if Path(file_path).name == "__init__.py":
-                continue
-
-            # Check for importers
-            importers = graph.get_importers(file_path)
-
-            if not importers:
-                full_path = base_path / file_path
-                lines = len(full_path.read_text(encoding="utf-8").split("\n"))
-
-                language = "python" if file_path.endswith(".py") else "typescript"
-                if file_path.endswith(".js"):
-                    language = "javascript"
-
-                orphan = OrphanFile(
-                    file_path=file_path,
-                    absolute_path=str(full_path),
-                    lines=lines,
-                    language=language,
-                    status=VerificationStatus.LIKELY,
-                    reason="No direct imports found",
-                )
-                orphans.append(orphan)
-
+            if not graph.get_importers(file_path):
+                orphans.append(self._make_orphan_file(file_path, base_path))
         return orphans
+
+    def _make_orphan_file(self, file_path: str, base_path: Path) -> OrphanFile:
+        """Construct an OrphanFile record for an un-imported file."""
+        full_path = base_path / file_path
+        lines = len(full_path.read_text(encoding="utf-8").split("\n"))
+        suffix = Path(file_path).suffix
+        language = self._LANGUAGE_MAP.get(suffix, "typescript")
+        return OrphanFile(
+            file_path=file_path,
+            absolute_path=str(full_path),
+            lines=lines,
+            language=language,
+            status=VerificationStatus.LIKELY,
+            reason="No direct imports found",
+        )
 
     def _verify_orphans_with_grep(self, base_path: Path, orphans: List[OrphanFile]) -> List[OrphanFile]:
         """Verify orphan candidates using grep for string references."""
-        verified_orphans: List[OrphanFile] = []
+        return [self._verify_single_orphan(base_path, orphan) for orphan in orphans]
 
-        for orphan in orphans:
-            module_basename = Path(orphan.file_path).stem
+    def _verify_single_orphan(self, base_path: Path, orphan: OrphanFile) -> OrphanFile:
+        """Run grep verification for one orphan and update its status."""
+        try:
+            result = subprocess.run(
+                ["grep", "-r", "-l", Path(orphan.file_path).stem, str(base_path)],
+                capture_output=True, text=True, timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
+            )
+            refs = [ln for ln in result.stdout.strip().split("\n") if ln and not ln.endswith(orphan.file_path)]
+            self._apply_grep_refs(orphan, refs)
+        except subprocess.TimeoutExpired:
+            orphan.status = VerificationStatus.UNCERTAIN
+            orphan.reason = "Verification timed out"
+        except Exception as e:
+            self.logger.debug("grep_failed", file=orphan.file_path, error=str(e))
+        return orphan
 
-            # Search for string references to this module
-            try:
-                result = subprocess.run(
-                    ["grep", "-r", "-l", module_basename, str(base_path)],
-                    capture_output=True,
-                    text=True,
-                    timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
-                )
-
-                references = [line for line in result.stdout.strip().split("\n") if line and not line.endswith(orphan.file_path)]
-
-                if not references:
-                    orphan.status = VerificationStatus.CONFIRMED
-                    orphan.reason = "No imports or string references found"
-                    verified_orphans.append(orphan)
-                else:
-                    # Has some references, mark as uncertain
-                    orphan.status = VerificationStatus.UNCERTAIN
-                    orphan.reason = f"Found {len(references)} possible string references"
-                    orphan.importers = references[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]  # Store top references
-                    verified_orphans.append(orphan)
-
-            except subprocess.TimeoutExpired:
-                orphan.status = VerificationStatus.UNCERTAIN
-                orphan.reason = "Verification timed out"
-                verified_orphans.append(orphan)
-            except Exception as e:
-                self.logger.debug("grep_failed", file=orphan.file_path, error=str(e))
-                verified_orphans.append(orphan)
-
-        return verified_orphans
+    @staticmethod
+    def _apply_grep_refs(orphan: OrphanFile, references: List[str]) -> None:
+        """Update orphan status based on grep reference results."""
+        if not references:
+            orphan.status = VerificationStatus.CONFIRMED
+            orphan.reason = "No imports or string references found"
+        else:
+            orphan.status = VerificationStatus.UNCERTAIN
+            orphan.reason = f"Found {len(references)} possible string references"
+            orphan.importers = references[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]
 
     def _find_orphan_functions(self, base_path: Path, graph: DependencyGraph) -> Tuple[List[OrphanFunction], int]:
         """Find functions with no call sites."""
@@ -458,77 +422,71 @@ class OrphanDetector:
 
     def _analyze_python_functions(self, file_path: Path, rel_path: str, base_path: Path) -> Tuple[int, List[OrphanFunction]]:
         """Analyze Python file for orphan functions."""
-        orphans: List[OrphanFunction] = []
-        function_count = 0
-
         try:
-            content = file_path.read_text(encoding="utf-8")
-            tree = ast.parse(content)
+            tree = ast.parse(file_path.read_text(encoding="utf-8"))
         except Exception:
             return 0, []
 
-        # Collect all function definitions
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef):
-                function_count += 1
+        func_nodes = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
+        orphans = [
+            o for n in func_nodes
+            if (o := self._check_function_orphan(n, rel_path, base_path)) is not None
+        ]
+        return len(func_nodes), orphans
 
-                # Skip special methods
-                if node.name.startswith("__") and node.name.endswith("__"):
-                    continue
-
-                # Skip test functions
-                if node.name.startswith("test_"):
-                    continue
-
-                is_private = node.name.startswith("_")
-
-                # Check if function is called anywhere in the codebase
-                if not self._is_function_called(node.name, base_path, rel_path):
-                    orphan = OrphanFunction(
-                        name=node.name,
-                        file_path=rel_path,
-                        line_start=node.lineno,
-                        line_end=node.end_lineno or node.lineno,
-                        status=VerificationStatus.LIKELY,
-                        reason="No call sites found in codebase",
-                        is_private=is_private,
-                    )
-                    orphans.append(orphan)
-
-        return function_count, orphans
+    def _check_function_orphan(self, node: ast.FunctionDef, rel_path: str, base_path: Path) -> Optional[OrphanFunction]:
+        """Return an OrphanFunction if the function has no call sites, else None."""
+        if (node.name.startswith("__") and node.name.endswith("__")) or node.name.startswith("test_"):
+            return None
+        if self._is_function_called(node.name, base_path, rel_path):
+            return None
+        return OrphanFunction(
+            name=node.name,
+            file_path=rel_path,
+            line_start=node.lineno,
+            line_end=node.end_lineno or node.lineno,
+            status=VerificationStatus.LIKELY,
+            reason="No call sites found in codebase",
+            is_private=node.name.startswith("_"),
+        )
 
     def _is_function_called(self, func_name: str, base_path: Path, source_file: str) -> bool:
         """Check if a function is called anywhere in the codebase."""
-        # Use grep to search for function calls
         try:
-            # Search for function name followed by opening paren
-            pattern = rf"{func_name}\s*\("
-
             result = subprocess.run(
-                ["grep", "-r", "-E", pattern, str(base_path / "src")],
+                ["grep", "-r", "-E", rf"{func_name}\s*\(", str(base_path / "src")],
                 capture_output=True,
                 text=True,
                 timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
             )
-
-            # Filter out the definition itself and comments
-            for line in result.stdout.strip().split("\n"):
-                if not line:
-                    continue
-                # Skip the source file itself (definition)
-                if source_file in line:
-                    continue
-                # Skip comments
-                if line.strip().startswith("#"):
-                    continue
-                # Found a call site
-                return True
-
-            return False
-
+            return self._has_external_call_site(result.stdout, source_file)
         except Exception:
-            # On error, assume it might be called
             return True
+
+    def _has_external_call_site(self, grep_output: str, source_file: str) -> bool:
+        """Return True if grep output contains a call site outside the definition file."""
+        for line in grep_output.strip().split("\n"):
+            if not line or source_file in line or line.strip().startswith("#"):
+                continue
+            return True
+        return False
+
+
+def _build_orphan_config(
+    include_patterns: Optional[List[str]],
+    exclude_patterns: Optional[List[str]],
+    analyze_functions: bool,
+    verify_with_grep: bool,
+) -> OrphanAnalysisConfig:
+    config = OrphanAnalysisConfig(analyze_functions=analyze_functions, verify_with_grep=verify_with_grep)
+    if include_patterns:
+        config.include_patterns = include_patterns
+    if exclude_patterns:
+        merged = list(config.exclude_patterns)
+        merged.extend(exclude_patterns)
+        config.exclude_patterns = list(dict.fromkeys(merged))
+    config.exclude_patterns = FilePatterns.merge_with_venv_excludes(config.exclude_patterns)
+    return config
 
 
 def detect_orphans_impl(
@@ -550,23 +508,5 @@ def detect_orphans_impl(
     Returns:
         Dictionary with orphan analysis results
     """
-    config = OrphanAnalysisConfig(
-        analyze_functions=analyze_functions,
-        verify_with_grep=verify_with_grep,
-    )
-
-    if include_patterns:
-        config.include_patterns = include_patterns
-    if exclude_patterns:
-        # Merge user patterns with defaults; do not allow custom lists to drop
-        # environment exclusions like venv/.venv/site-packages.
-        merged_patterns = list(config.exclude_patterns)
-        merged_patterns.extend(exclude_patterns)
-        config.exclude_patterns = list(dict.fromkeys(merged_patterns))
-
-    config.exclude_patterns = FilePatterns.merge_with_venv_excludes(config.exclude_patterns)
-
-    detector = OrphanDetector(config)
-    result = detector.analyze(project_folder)
-
-    return result.to_dict()
+    config = _build_orphan_config(include_patterns, exclude_patterns, analyze_functions, verify_with_grep)
+    return OrphanDetector(config).analyze(project_folder).to_dict()

@@ -20,6 +20,26 @@ from .scoring_scales import VariationScoreCutoff, VariationScoreScale
 
 IDENTIFIER_CONTEXT_WINDOW_CHARS = 20
 
+_LANGUAGE_KEYWORDS: Dict[str, set] = {
+    "python": {
+        "def", "class", "if", "else", "elif", "for", "while", "return", "import", "from",
+        "as", "try", "except", "finally", "with", "lambda", "yield", "raise", "pass",
+        "break", "continue", "and", "or", "not", "in", "is", "None", "True", "False",
+        "async", "await", "global", "nonlocal", "assert",
+    },
+    "javascript": {
+        "function", "const", "let", "var", "if", "else", "for", "while", "return",
+        "import", "export", "from", "class", "new", "this", "try", "catch", "finally",
+        "throw", "async", "await", "true", "false", "null", "undefined",
+    },
+    "typescript": {
+        "function", "const", "let", "var", "if", "else", "for", "while", "return",
+        "import", "export", "from", "class", "new", "this", "try", "catch", "finally",
+        "throw", "async", "await", "true", "false", "null", "undefined",
+        "interface", "type", "enum", "implements", "extends",
+    },
+}
+
 
 class PatternAnalyzer:
     """Analyzes patterns and variations in duplicate code."""
@@ -27,6 +47,20 @@ class PatternAnalyzer:
     def __init__(self) -> None:
         """Initialize the pattern analyzer."""
         self.logger = get_logger("deduplication.analyzer")
+
+    def _compare_literal_maps(
+        self,
+        pos_map1: Dict[Tuple[int, int], Dict[str, Any]],
+        pos_map2: Dict[Tuple[int, int], Dict[str, Any]],
+        literal_type: str,
+    ) -> List[Dict[str, Any]]:
+        all_positions = set(pos_map1.keys()) | set(pos_map2.keys())
+        result = []
+        for pos in sorted(all_positions):
+            lit1, lit2 = pos_map1.get(pos), pos_map2.get(pos)
+            if lit1 and lit2 and lit1["value"] != lit2["value"]:
+                result.append({"position": pos[0] + 1, "column": pos[1], "value1": lit1["value"], "value2": lit2["value"], "literal_type": literal_type})
+        return result
 
     def identify_varying_literals(self, code1: str, code2: str, language: str = "python") -> List[Dict[str, Any]]:
         """
@@ -44,110 +78,87 @@ class PatternAnalyzer:
 
         varying_literals = []
 
-        # Extract literals from both code blocks
         for literal_type in ["string", "number", "boolean"]:
             literals1 = self._extract_literals_with_ast_grep(code1, literal_type, language)
             literals2 = self._extract_literals_with_ast_grep(code2, literal_type, language)
-
-            # Match literals by position
             pos_map1 = {(lit["line"], lit["column"]): lit for lit in literals1}
             pos_map2 = {(lit["line"], lit["column"]): lit for lit in literals2}
+            varying_literals.extend(self._compare_literal_maps(pos_map1, pos_map2, literal_type))
 
-            # Compare literals at same positions
-            all_positions = set(pos_map1.keys()) | set(pos_map2.keys())
-            for pos in sorted(all_positions):
-                lit1 = pos_map1.get(pos)
-                lit2 = pos_map2.get(pos)
-
-                if lit1 and lit2 and lit1["value"] != lit2["value"]:
-                    varying_literals.append(
-                        {
-                            "position": pos[0] + 1,  # 1-based line number
-                            "column": pos[1],
-                            "value1": lit1["value"],
-                            "value2": lit2["value"],
-                            "literal_type": literal_type,
-                        }
-                    )
-
-        # Sort by position
         varying_literals.sort(key=lambda x: (x["position"], x.get("column", 0)))
-
-        self.logger.info(
-            "varying_literals_found",
-            count=len(varying_literals),
-            by_type={t: len([v for v in varying_literals if v["literal_type"] == t]) for t in ["string", "number", "boolean"]},
-        )
-
+        self.logger.info("varying_literals_found", count=len(varying_literals))
         return varying_literals
 
-    def _extract_literals_with_ast_grep(self, code: str, literal_type: str, language: str) -> List[Dict[str, Any]]:
-        """Extract literals from code using ast-grep."""
-        literals: List[Dict[str, Any]] = []
+    _LITERAL_EXT_MAP: Dict[str, str] = {
+        "python": ".py",
+        "javascript": ".js",
+        "typescript": ".ts",
+        "jsx": ".jsx",
+        "tsx": ".tsx",
+        "java": ".java",
+        "csharp": ".cs",
+        "cpp": ".cpp",
+        "c": ".c",
+    }
 
-        # Language file extensions
-        ext_map = {
-            "python": ".py",
-            "javascript": ".js",
-            "typescript": ".ts",
-            "jsx": ".jsx",
-            "tsx": ".tsx",
-            "java": ".java",
-            "csharp": ".cs",
-            "cpp": ".cpp",
-            "c": ".c",
-        }
-        ext = ext_map.get(language, ".py")
+    _LITERAL_RULES: Dict[str, Dict[str, Any]] = {
+        "number": {"rule": {"any": [{"kind": "integer"}, {"kind": "float"}, {"kind": "number"}]}},
+        "string": {"rule": {"any": [{"kind": "string"}, {"kind": "string_literal"}]}},
+        "boolean": {"rule": {"any": [{"kind": "true"}, {"kind": "false"}, {"kind": "none"}, {"kind": "null"}]}},
+    }
 
-        # Write code to temp file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=ext, delete=False) as f:
-            f.write(code)
-            temp_path = f.name
-
+    def _parse_literal_matches(self, stdout: str, literal_type: str) -> List[Dict[str, Any]]:
+        """Parse ast-grep JSON output into literal match dicts."""
         try:
-            # Define ast-grep rules for literal types
-            if literal_type == "number":
-                rule = {"rule": {"any": [{"kind": "integer"}, {"kind": "float"}, {"kind": "number"}]}}
-            elif literal_type == "string":
-                rule = {"rule": {"any": [{"kind": "string"}, {"kind": "string_literal"}]}}
-            elif literal_type == "boolean":
-                rule = {"rule": {"any": [{"kind": "true"}, {"kind": "false"}, {"kind": "none"}, {"kind": "null"}]}}
-            else:
-                return literals
+            matches = json.loads(stdout)
+        except json.JSONDecodeError:
+            self.logger.warning("literal_parse_error", literal_type=literal_type)
+            return []
+        return [
+            {
+                "line": m.get("range", {}).get("start", {}).get("line", 0),
+                "column": m.get("range", {}).get("start", {}).get("column", 0),
+                "value": m.get("text", ""),
+                "type": literal_type,
+            }
+            for m in matches
+        ]
 
-            rule_yaml = yaml.dump(rule)
-
+    def _run_literal_scan(self, temp_path: str, rule: Dict[str, Any], literal_type: str) -> List[Dict[str, Any]]:
+        try:
             result = subprocess.run(
                 ["ast-grep", "scan", "--rule", "-", "--json", temp_path],
-                input=rule_yaml,
+                input=yaml.dump(rule),
                 capture_output=True,
                 text=True,
                 timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
             )
-
             if result.returncode == 0 and result.stdout.strip():
-                try:
-                    matches = json.loads(result.stdout)
-                    for match in matches:
-                        line = match.get("range", {}).get("start", {}).get("line", 0)
-                        col = match.get("range", {}).get("start", {}).get("column", 0)
-                        text = match.get("text", "")
-                        literals.append({"line": line, "column": col, "value": text, "type": literal_type})
-                except json.JSONDecodeError:
-                    self.logger.warning("literal_parse_error", literal_type=literal_type)
-
+                return self._parse_literal_matches(result.stdout, literal_type)
+            return []
         except subprocess.TimeoutExpired:
             self.logger.warning("literal_extraction_timeout", literal_type=literal_type)
+            return []
         except Exception as e:
             self.logger.error("literal_extraction_error", error=str(e), literal_type=literal_type)
+            return []
+
+    def _extract_literals_with_ast_grep(self, code: str, literal_type: str, language: str) -> List[Dict[str, Any]]:
+        """Extract literals from code using ast-grep."""
+        rule = self._LITERAL_RULES.get(literal_type)
+        if rule is None:
+            return []
+        ext = self._LITERAL_EXT_MAP.get(language, ".py")
+        with tempfile.NamedTemporaryFile(mode="w", suffix=ext, delete=False) as f:
+            f.write(code)
+            temp_path = f.name
+        try:
+            return self._run_literal_scan(temp_path, rule, literal_type)
         finally:
-            # Clean up temp file
             try:
                 os.unlink(temp_path)
             except Exception:
                 pass
-
-        return literals
 
     def analyze_duplicate_group_literals(self, group: List[Dict[str, Any]], language: str = "python") -> Dict[str, Any]:
         """
@@ -163,41 +174,35 @@ class PatternAnalyzer:
         if len(group) < 2:
             return {"total_variations": 0, "variations": [], "suggested_parameters": []}
 
-        # Compare first item against all others
         base_code = group[0].get("text", "")
-        all_variations = {}  # (line, col, type) -> [values]
+        all_variations = self._accumulate_literal_variations(base_code, group[1:], language)
+        formatted_variations, suggested_parameters = self._format_literal_variations(all_variations)
+        return {"total_variations": len(formatted_variations), "variations": formatted_variations, "suggested_parameters": suggested_parameters}
 
-        for item in group[1:]:
+    def _accumulate_one_item(self, base_code: str, code: str, all_variations: Dict[tuple, List[str]], language: str) -> None:
+        for var in self.identify_varying_literals(base_code, code, language):
+            key = (var["position"], var.get("column", 0), var["literal_type"])
+            vals = all_variations.setdefault(key, [var["value1"]])
+            if var["value2"] not in vals:
+                vals.append(var["value2"])
+
+    def _accumulate_literal_variations(self, base_code: str, items: List[Dict[str, Any]], language: str) -> Dict[tuple, List[str]]:
+        all_variations: Dict[tuple, List[str]] = {}
+        for item in items:
             code = item.get("text", "")
-            if code == base_code:
-                continue
+            if code != base_code:
+                self._accumulate_one_item(base_code, code, all_variations, language)
+        return all_variations
 
-            variations = self.identify_varying_literals(base_code, code, language)
-            for var in variations:
-                key = (var["position"], var.get("column", 0), var["literal_type"])
-                if key not in all_variations:
-                    all_variations[key] = [var["value1"]]
-                if var["value2"] not in all_variations[key]:
-                    all_variations[key].append(var["value2"])
-
-        # Format variations
-        formatted_variations = []
-        suggested_parameters = []
-
+    def _format_literal_variations(self, all_variations: Dict[tuple, List[str]]) -> tuple[List[Dict[str, Any]], List[str]]:
+        formatted_variations: List[Dict[str, Any]] = []
+        suggested_parameters: List[str] = []
         for (line, col, lit_type), values in sorted(all_variations.items()):
-            variation = {"position": {"line": line, "column": col}, "type": lit_type, "values": values, "unique_count": len(set(values))}
-            formatted_variations.append(variation)
-
-            # Suggest parameter name
+            formatted_variations.append({"position": {"line": line, "column": col}, "type": lit_type, "values": values, "unique_count": len(set(values))})
             param_name = self._suggest_parameter_name(lit_type, values[0])
             if param_name and param_name not in suggested_parameters:
                 suggested_parameters.append(param_name)
-
-        return {
-            "total_variations": len(formatted_variations),
-            "variations": formatted_variations,
-            "suggested_parameters": suggested_parameters,
-        }
+        return formatted_variations, suggested_parameters
 
     def classify_variation(self, variation_type: str, old_value: str, new_value: str, context: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -227,6 +232,35 @@ class PatternAnalyzer:
             "complexity": complexity,
         }
 
+    def _classify_difficulty(self, avg_complexity: float) -> str:
+        if avg_complexity <= 2:
+            return "trivial"
+        if avg_complexity <= DifficultyThresholds.SIMPLE:
+            return "simple"
+        if avg_complexity <= DifficultyThresholds.MODERATE:
+            return "moderate"
+        if avg_complexity <= DifficultyThresholds.COMPLEX:
+            return "complex"
+        return "very_complex"
+
+    def _aggregate_classifications(self, variations: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], int, int, List[str]]:
+        classifications: List[Dict[str, Any]] = []
+        total_complexity = 0
+        parameterizable_count = 0
+        param_suggestions: List[str] = []
+        for var in variations:
+            c = self.classify_variation(
+                var.get("type", "unknown"), var.get("old_value", ""), var.get("new_value", ""), var.get("context")
+            )
+            classifications.append(c)
+            total_complexity += c["complexity"]["score"]
+            if c["parameterizable"]:
+                parameterizable_count += 1
+            name = c["suggested_param_name"]
+            if name and name not in param_suggestions:
+                param_suggestions.append(name)
+        return classifications, total_complexity, parameterizable_count, param_suggestions
+
     def classify_variations(self, variations: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Classify multiple variations and determine overall complexity.
@@ -247,115 +281,66 @@ class PatternAnalyzer:
                 "parameter_suggestions": [],
             }
 
-        classifications = []
-        total_complexity = 0
-        parameterizable_count = 0
-        param_suggestions = []
-
-        for var in variations:
-            classification = self.classify_variation(
-                var.get("type", "unknown"), var.get("old_value", ""), var.get("new_value", ""), var.get("context")
-            )
-            classifications.append(classification)
-
-            # Aggregate metrics
-            total_complexity += classification["complexity"]["score"]
-            if classification["parameterizable"]:
-                parameterizable_count += 1
-            if classification["suggested_param_name"]:
-                if classification["suggested_param_name"] not in param_suggestions:
-                    param_suggestions.append(classification["suggested_param_name"])
-
-        # Calculate overall complexity
-        avg_complexity = total_complexity / len(variations) if variations else 0
-
-        # Determine refactoring difficulty
-        if avg_complexity <= 2:
-            difficulty = "trivial"
-        elif avg_complexity <= DifficultyThresholds.SIMPLE:
-            difficulty = "simple"
-        elif avg_complexity <= DifficultyThresholds.MODERATE:
-            difficulty = "moderate"
-        elif avg_complexity <= DifficultyThresholds.COMPLEX:
-            difficulty = "complex"
-        else:
-            difficulty = "very_complex"
+        classifications, total_complexity, parameterizable_count, param_suggestions = self._aggregate_classifications(variations)
+        avg_complexity = total_complexity / len(variations)
 
         return {
             "total_variations": len(variations),
             "complexity_score": round(avg_complexity, 2),
-            "refactoring_difficulty": difficulty,
+            "refactoring_difficulty": self._classify_difficulty(avg_complexity),
             "classifications": classifications,
             "parameterizable_count": parameterizable_count,
-            "parameter_suggestions": param_suggestions[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT],  # Top suggestions
+            "parameter_suggestions": param_suggestions[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT],
         }
+
+    _VARIATION_TYPE_MAP: Dict[str, str] = {
+        **{k: VariationCategory.LITERAL for k in ("literal", "string", "number", "boolean")},
+        **{k: VariationCategory.IDENTIFIER for k in ("identifier", "name", "variable", "function", "class")},
+        **{k: VariationCategory.TYPE for k in ("type", "annotation", "type_hint")},
+        **{k: VariationCategory.EXPRESSION for k in ("expression", "operator", "call")},
+        **{k: VariationCategory.LOGIC for k in ("logic", "control", "flow", "condition")},
+    }
 
     def _determine_category(self, variation_type: str, old_value: str, new_value: str) -> str:
         """Determine the category of a variation."""
-        variation_type_lower = variation_type.lower()
-
-        # Direct mapping from detector hints
-        if variation_type_lower in ["literal", "string", "number", "boolean"]:
-            return VariationCategory.LITERAL
-
-        if variation_type_lower in ["identifier", "name", "variable", "function", "class"]:
-            return VariationCategory.IDENTIFIER
-
-        if variation_type_lower in ["type", "annotation", "type_hint"]:
-            return VariationCategory.TYPE
-
-        if variation_type_lower in ["expression", "operator", "call"]:
-            return VariationCategory.EXPRESSION
-
-        if variation_type_lower in ["logic", "control", "flow", "condition"]:
-            return VariationCategory.LOGIC
-
-        # Content-based inference
+        category = self._VARIATION_TYPE_MAP.get(variation_type.lower())
+        if category is not None:
+            return category
         return self._infer_category_from_content(old_value, new_value)
+
+    _CONTROL_KEYWORDS = frozenset({"if", "else", "elif", "for", "while", "switch", "case", "try", "catch", "except"})
+    _EXPRESSION_INDICATORS = frozenset({"(", ")", "+", "-", "*", "/", "==", "!=", "&&", "||", "and", "or"})
+
+    def _matches_any_keyword(self, old_low: str, new_low: str, keywords: frozenset) -> bool:
+        return any(kw in old_low or kw in new_low for kw in keywords)
 
     def _infer_category_from_content(self, old_value: str, new_value: str) -> str:
         """Infer category from content when type hint is unavailable."""
-        # Check for literal patterns
         if self._is_literal(old_value) and self._is_literal(new_value):
             return VariationCategory.LITERAL
-
-        # Check for type annotations
         if self._is_type_annotation(old_value) or self._is_type_annotation(new_value):
             return VariationCategory.TYPE
-
-        # Check for control flow keywords
-        control_keywords = {"if", "else", "elif", "for", "while", "switch", "case", "try", "catch", "except"}
-        if any(kw in old_value.lower() or kw in new_value.lower() for kw in control_keywords):
+        old_low, new_low = old_value.lower(), new_value.lower()
+        if self._matches_any_keyword(old_low, new_low, self._CONTROL_KEYWORDS):
             return VariationCategory.LOGIC
-
-        # Check for expression patterns
-        expression_indicators = ["(", ")", "+", "-", "*", "/", "==", "!=", "&&", "||", "and", "or"]
-        if any(ind in old_value or ind in new_value for ind in expression_indicators):
+        if self._matches_any_keyword(old_value, new_value, self._EXPRESSION_INDICATORS):
             return VariationCategory.EXPRESSION
-
-        # Default to identifier
         return VariationCategory.IDENTIFIER
+
+    _BOOLEAN_LITERALS = frozenset({"true", "false", "none", "null", "nil"})
 
     def _is_literal(self, value: str) -> bool:
         """Check if a value appears to be a literal."""
         value = value.strip()
-
-        # String literals
         if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
             return True
-
-        # Numeric literals
+        if value.lower() in self._BOOLEAN_LITERALS:
+            return True
         try:
             float(value)
             return True
         except ValueError:
-            pass
-
-        # Boolean literals
-        if value.lower() in ["true", "false", "none", "null", "nil"]:
-            return True
-
-        return False
+            return False
 
     def _is_type_annotation(self, value: str) -> bool:
         """Check if a value appears to be a type annotation."""
@@ -379,62 +364,54 @@ class PatternAnalyzer:
         ]
         return any(ind in value for ind in type_indicators)
 
+    def _severity_identifier(self, old_value: str, new_value: str) -> str:
+        old_words = len(old_value.split("_")) + len(old_value.split())
+        new_words = len(new_value.split("_")) + len(new_value.split())
+        return VariationSeverity.MEDIUM if abs(old_words - new_words) > 2 else VariationSeverity.LOW
+
+    def _severity_expression(self, old_value: str, new_value: str) -> str:
+        if "(" in old_value and "(" in new_value:
+            different_fn = old_value.split("(")[0] != new_value.split("(")[0]
+            return VariationSeverity.HIGH if different_fn else VariationSeverity.MEDIUM
+        return VariationSeverity.MEDIUM
+
+    def _severity_type(self, old_value: str, new_value: str) -> str:
+        return VariationSeverity.MEDIUM if "[" in old_value or "[" in new_value else VariationSeverity.LOW
+
     def _determine_severity(self, category: str, old_value: str, new_value: str) -> str:
         """Determine the severity of a variation."""
-        # Literal variations are typically easy
-        if category == VariationCategory.LITERAL:
-            return VariationSeverity.LOW
+        severity_fns = {
+            VariationCategory.LITERAL: lambda: VariationSeverity.LOW,
+            VariationCategory.IDENTIFIER: lambda: self._severity_identifier(old_value, new_value),
+            VariationCategory.TYPE: lambda: self._severity_type(old_value, new_value),
+            VariationCategory.EXPRESSION: lambda: self._severity_expression(old_value, new_value),
+            VariationCategory.LOGIC: lambda: VariationSeverity.HIGH,
+        }
+        fn = severity_fns.get(category)
+        return fn() if fn else VariationSeverity.MEDIUM
 
-        # Identifier variations depend on scope
-        if category == VariationCategory.IDENTIFIER:
-            old_words = len(old_value.split("_")) + len(old_value.split())
-            new_words = len(new_value.split("_")) + len(new_value.split())
-            if abs(old_words - new_words) > 2:
-                return VariationSeverity.MEDIUM
-            return VariationSeverity.LOW
+    _PARAM_NAME_CATEGORY_MAP: Dict[str, Optional[str]] = {
+        VariationCategory.IDENTIFIER: "name",
+        VariationCategory.TYPE: "type_param",
+        VariationCategory.EXPRESSION: "expression",
+        VariationCategory.LOGIC: None,
+    }
 
-        # Type variations require careful handling
-        if category == VariationCategory.TYPE:
-            if "[" in old_value or "[" in new_value:
-                return VariationSeverity.MEDIUM
-            return VariationSeverity.LOW
-
-        # Expression variations need analysis
-        if category == VariationCategory.EXPRESSION:
-            if "(" in old_value and "(" in new_value:
-                return VariationSeverity.HIGH if old_value.split("(")[0] != new_value.split("(")[0] else VariationSeverity.MEDIUM
-            return VariationSeverity.MEDIUM
-
-        # Logic variations are complex
-        if category == VariationCategory.LOGIC:
-            return VariationSeverity.HIGH
-
-        return VariationSeverity.MEDIUM
+    def _suggest_literal_param_name(self, value: str) -> str:
+        val_low = value.lower()
+        if any(kw in val_low for kw in ("url", "path", "file")):
+            return "target_path"
+        if any(kw in val_low for kw in ("name", "id", "key")):
+            return "identifier"
+        if any(char.isdigit() for char in value):
+            return "value"
+        return "text_value"
 
     def _suggest_parameter_name(self, category: str, value: str) -> Optional[str]:
         """Suggest a parameter name for a variation."""
         if category == VariationCategory.LITERAL:
-            if any(kw in value.lower() for kw in ["url", "path", "file"]):
-                return "target_path"
-            if any(kw in value.lower() for kw in ["name", "id", "key"]):
-                return "identifier"
-            if any(char.isdigit() for char in value):
-                return "value"
-            return "text_value"
-
-        if category == VariationCategory.IDENTIFIER:
-            return "name"
-
-        if category == VariationCategory.TYPE:
-            return "type_param"
-
-        if category == VariationCategory.EXPRESSION:
-            return "expression"
-
-        if category == VariationCategory.LOGIC:
-            return None  # Logic variations typically can't be parameterized simply
-
-        return None
+            return self._suggest_literal_param_name(value)
+        return self._PARAM_NAME_CATEGORY_MAP.get(category)
 
     def _score_literal_variation(self) -> tuple[int, str]:
         """Score literal category variation."""
@@ -509,6 +486,23 @@ class PatternAnalyzer:
 
         return {"score": score, "level": level, "reasoning": reasoning}
 
+    def _compare_conditional_pair(self, i: int, cond1: Optional[Dict[str, Any]], cond2: Optional[Dict[str, Any]], language: str) -> Optional[Dict[str, Any]]:
+        if cond1 and cond2:
+            if cond1["text"] == cond2["text"]:
+                return None
+            v: Dict[str, Any] = {
+                "position": i + 1, "type": "modified",
+                "condition1": cond1["text"], "condition2": cond2["text"],
+                "line1": cond1.get("line", 0), "line2": cond2.get("line", 0),
+            }
+            v["details"] = self._analyze_conditional_difference(cond1["text"], cond2["text"], language)
+            return v
+        if cond1:
+            return {"position": i + 1, "type": "removed", "condition1": cond1["text"], "condition2": None, "line1": cond1.get("line", 0)}
+        if cond2:
+            return {"position": i + 1, "type": "added", "condition1": None, "condition2": cond2["text"], "line2": cond2.get("line", 0)}
+        return None
+
     def detect_conditional_variations(self, code1: str, code2: str, language: str = "python") -> List[Dict[str, Any]]:
         """
         Detect variations in conditional statements between two code blocks.
@@ -526,139 +520,60 @@ class PatternAnalyzer:
         """
         self.logger.info("detecting_conditional_variations", language=language)
 
-        variations: List[Dict[str, Any]] = []
-
-        # Extract conditionals from both code blocks using ast-grep
         conditionals1 = self._extract_conditionals(code1, language)
         conditionals2 = self._extract_conditionals(code2, language)
+        max_len = max(len(conditionals1), len(conditionals2), 0)
 
-        # Compare conditionals by position
-        max_len = max(len(conditionals1), len(conditionals2))
-
+        variations: List[Dict[str, Any]] = []
         for i in range(max_len):
-            cond1 = conditionals1[i] if i < len(conditionals1) else None
-            cond2 = conditionals2[i] if i < len(conditionals2) else None
+            c1 = conditionals1[i] if i < len(conditionals1) else None
+            c2 = conditionals2[i] if i < len(conditionals2) else None
+            v = self._compare_conditional_pair(i, c1, c2, language)
+            if v is not None:
+                variations.append(v)
 
-            if cond1 and cond2:
-                # Both exist - check for differences
-                if cond1["text"] != cond2["text"]:
-                    variation = {
-                        "position": i + 1,
-                        "type": "modified",
-                        "condition1": cond1["text"],
-                        "condition2": cond2["text"],
-                        "line1": cond1.get("line", 0),
-                        "line2": cond2.get("line", 0),
-                    }
-                    # Analyze the specific variation
-                    variation["details"] = self._analyze_conditional_difference(cond1["text"], cond2["text"], language)
-                    variations.append(variation)
-            elif cond1:
-                # Only in first code block
-                variations.append(
-                    {
-                        "position": i + 1,
-                        "type": "removed",
-                        "condition1": cond1["text"],
-                        "condition2": None,
-                        "line1": cond1.get("line", 0),
-                    }
-                )
-            elif cond2:
-                # Only in second code block
-                variations.append(
-                    {
-                        "position": i + 1,
-                        "type": "added",
-                        "condition1": None,
-                        "condition2": cond2["text"],
-                        "line2": cond2.get("line", 0),
-                    }
-                )
-
-        self.logger.info(
-            "conditional_variations_found",
-            count=len(variations),
-            by_type={
-                "modified": len([v for v in variations if v["type"] == "modified"]),
-                "added": len([v for v in variations if v["type"] == "added"]),
-                "removed": len([v for v in variations if v["type"] == "removed"]),
-            },
-        )
-
+        self.logger.info("conditional_variations_found", count=len(variations))
         return variations
 
-    def _extract_conditionals(self, code: str, language: str) -> List[Dict[str, Any]]:
-        """Extract conditional statements from code using ast-grep."""
-        conditionals: List[Dict[str, Any]] = []
+    _CONDITIONAL_RULE_PYTHON = {"rule": {"any": [{"kind": "if_statement"}, {"kind": "elif_clause"}, {"kind": "comparison_operator"}]}}
+    _CONDITIONAL_RULE_OTHER = {"rule": {"any": [{"kind": "if_statement"}, {"kind": "binary_expression"}, {"kind": "ternary_expression"}]}}
+    _CONDITIONAL_EXT_MAP = {"python": ".py", "javascript": ".js", "typescript": ".ts", "java": ".java"}
 
-        # Language file extensions
-        ext_map = {
-            "python": ".py",
-            "javascript": ".js",
-            "typescript": ".ts",
-            "java": ".java",
-        }
-        ext = ext_map.get(language, ".py")
-
-        # Write code to temp file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=ext, delete=False) as f:
-            f.write(code)
-            temp_path = f.name
-
+    def _run_conditional_scan(self, temp_path: str, rule: Dict[str, Any], code: str, language: str) -> List[Dict[str, Any]]:
         try:
-            # Define ast-grep rule for conditionals based on language
-            if language == "python":
-                rule = {
-                    "rule": {
-                        "any": [
-                            {"kind": "if_statement"},
-                            {"kind": "elif_clause"},
-                            {"kind": "comparison_operator"},
-                        ]
-                    }
-                }
-            else:
-                # JavaScript/TypeScript/Java
-                rule = {
-                    "rule": {
-                        "any": [
-                            {"kind": "if_statement"},
-                            {"kind": "binary_expression"},
-                            {"kind": "ternary_expression"},
-                        ]
-                    }
-                }
-
-            rule_yaml = yaml.dump(rule)
-
             result = subprocess.run(
                 ["ast-grep", "scan", "--rule", "-", "--json", temp_path],
-                input=rule_yaml,
+                input=yaml.dump(rule),
                 capture_output=True,
                 text=True,
                 timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
             )
-
             if result.returncode == 0 and result.stdout.strip():
-                conditionals.extend(self._parse_conditional_matches(result.stdout, language))
-
+                return self._parse_conditional_matches(result.stdout, language)
+            return []
         except subprocess.TimeoutExpired:
             self.logger.warning("conditional_extraction_timeout", language=language)
+            return []
         except FileNotFoundError:
-            # ast-grep not installed - fall back to regex
-            conditionals = self._extract_conditionals_regex(code, language)
+            return self._extract_conditionals_regex(code, language)
         except Exception as e:
             self.logger.error("conditional_extraction_error", error=str(e))
-            # Fall back to regex extraction
-            conditionals = self._extract_conditionals_regex(code, language)
+            return self._extract_conditionals_regex(code, language)
+
+    def _extract_conditionals(self, code: str, language: str) -> List[Dict[str, Any]]:
+        """Extract conditional statements from code using ast-grep."""
+        ext = self._CONDITIONAL_EXT_MAP.get(language, ".py")
+        rule = self._CONDITIONAL_RULE_PYTHON if language == "python" else self._CONDITIONAL_RULE_OTHER
+        with tempfile.NamedTemporaryFile(mode="w", suffix=ext, delete=False) as f:
+            f.write(code)
+            temp_path = f.name
+        try:
+            return self._run_conditional_scan(temp_path, rule, code, language)
         finally:
             try:
                 os.unlink(temp_path)
             except Exception:
                 pass
-
-        return conditionals
 
     def _parse_conditional_matches(self, stdout: str, language: str) -> List[Dict[str, Any]]:
         """Parse ast-grep JSON output into conditional match dicts."""
@@ -679,27 +594,13 @@ class PatternAnalyzer:
     def _extract_conditionals_regex(self, code: str, language: str) -> List[Dict[str, Any]]:
         """Fallback regex-based extraction for conditionals."""
         import re
-
-        conditionals: List[Dict[str, Any]] = []
-
-        # Pattern for if/elif conditions
-        if language == "python":
-            pattern = r"(?:if|elif)\s+(.+?):"
-        else:
-            pattern = r"(?:if|else\s+if)\s*\((.+?)\)"
-
-        for i, line in enumerate(code.split("\n"), 1):
-            match = re.search(pattern, line)
-            if match:
-                conditionals.append(
-                    {
-                        "line": i,
-                        "text": match.group(0).strip(),
-                        "kind": "if_statement",
-                    }
-                )
-
-        return conditionals
+        pattern = r"(?:if|elif)\s+(.+?):" if language == "python" else r"(?:if|else\s+if)\s*\((.+?)\)"
+        return [
+            {"line": i, "text": m.group(0).strip(), "kind": "if_statement"}
+            for i, line in enumerate(code.split("\n"), 1)
+            for m in [re.search(pattern, line)]
+            if m
+        ]
 
     def _get_language_extension(self, language: str) -> str:
         """Get file extension for a programming language."""
@@ -717,20 +618,23 @@ class PatternAnalyzer:
             return {"rule": {"kind": "call"}}
         return {"rule": {"kind": "call_expression"}}
 
+    def _build_nested_call_result(self, match: Dict[str, Any], identifier: str, nesting_depth: int) -> Dict[str, Any]:
+        return {
+            "identifier": identifier,
+            "nesting_depth": nesting_depth,
+            "call_expression": match.get("text", ""),
+            "line": match.get("range", {}).get("start", {}).get("line", 0) + 1,
+        }
+
     def _find_nested_call_in_matches(self, matches: List[Dict[str, Any]], identifier: str) -> Optional[Dict[str, Any]]:
         """Find nested function call containing identifier in ast-grep matches."""
         for match in matches:
             text = match.get("text", "")
             if identifier not in text:
                 continue
-            nesting_depth = self._calculate_call_nesting_depth(text, identifier)
-            if nesting_depth > 1:
-                return {
-                    "identifier": identifier,
-                    "nesting_depth": nesting_depth,
-                    "call_expression": text,
-                    "line": match.get("range", {}).get("start", {}).get("line", 0) + 1,
-                }
+            depth = self._calculate_call_nesting_depth(text, identifier)
+            if depth > 1:
+                return self._build_nested_call_result(match, identifier, depth)
         return None
 
     def _run_ast_grep_for_calls(self, temp_path: str, language: str, identifier: str) -> Optional[Dict[str, Any]]:
@@ -756,6 +660,18 @@ class PatternAnalyzer:
             self.logger.warning("nested_call_parse_error", language=language)
             return None
 
+    def _run_nested_call_detection(self, temp_path: str, code: str, identifier: str, language: str) -> Optional[Dict[str, Any]]:
+        try:
+            return self._run_ast_grep_for_calls(temp_path, language, identifier)
+        except subprocess.TimeoutExpired:
+            self.logger.warning("nested_call_detection_timeout", language=language)
+            return None
+        except FileNotFoundError:
+            return self._detect_nested_call_regex(code, identifier)
+        except Exception as e:
+            self.logger.error("nested_call_detection_error", error=str(e))
+            return None
+
     def detect_nested_function_call(self, code: str, identifier: str, language: str = "python") -> Optional[Dict[str, Any]]:
         """
         Detect if an identifier is used within nested function calls.
@@ -769,28 +685,17 @@ class PatternAnalyzer:
             Dict with nesting info if found, None otherwise
         """
         self.logger.info("detecting_nested_function_call", identifier=identifier, language=language)
-
         ext = self._get_language_extension(language)
-
         with tempfile.NamedTemporaryFile(mode="w", suffix=ext, delete=False) as f:
             f.write(code)
             temp_path = f.name
-
         try:
-            return self._run_ast_grep_for_calls(temp_path, language, identifier)
-        except subprocess.TimeoutExpired:
-            self.logger.warning("nested_call_detection_timeout", language=language)
-        except FileNotFoundError:
-            return self._detect_nested_call_regex(code, identifier)
-        except Exception as e:
-            self.logger.error("nested_call_detection_error", error=str(e))
+            return self._run_nested_call_detection(temp_path, code, identifier, language)
         finally:
             try:
                 os.unlink(temp_path)
             except Exception:
                 pass
-
-        return None
 
     def _calculate_call_nesting_depth(self, expression: str, identifier: str) -> int:
         """Calculate the nesting depth of function calls around an identifier."""
@@ -813,79 +718,53 @@ class PatternAnalyzer:
     def _detect_nested_call_regex(self, code: str, identifier: str) -> Optional[Dict[str, Any]]:
         """Fallback regex-based detection for nested function calls."""
         import re
-
-        # Pattern for nested function calls: func(func(...identifier...))
-        # Look for identifier within parentheses that are inside other parentheses
         pattern = r"(\w+)\s*\(\s*(\w+)\s*\([^)]*" + re.escape(identifier) + r"[^)]*\)"
+        hit = next(
+            ((i, m) for i, line in enumerate(code.split("\n"), 1) for m in [re.search(pattern, line)] if m),
+            None,
+        )
+        if hit is None:
+            return None
+        i, m = hit
+        return {
+            "identifier": identifier, "nesting_depth": 2,
+            "call_expression": m.group(0), "line": i,
+            "outer_function": m.group(RegexCaptureGroups.FIRST),
+            "inner_function": m.group(RegexCaptureGroups.SECOND),
+        }
 
-        for i, line in enumerate(code.split("\n"), 1):
-            match = re.search(pattern, line)
-            if match:
-                return {
-                    "identifier": identifier,
-                    "nesting_depth": 2,
-                    "call_expression": match.group(0),
-                    "line": i,
-                    "outer_function": match.group(RegexCaptureGroups.FIRST),
-                    "inner_function": match.group(RegexCaptureGroups.SECOND),
-                }
+    _COMPARISON_OPERATORS = (">=", "<=", "!=", "==", ">", "<", "in", "not in", "is not", "is")
+    _COND_KEYWORD_EXCLUSIONS = frozenset({"if", "elif", "else"})
 
-        return None
+    def _find_operator(self, cond: str) -> Optional[str]:
+        return next((op for op in self._COMPARISON_OPERATORS if op in cond), None)
+
+    def _extract_cond_vars(self, cond: str) -> set:
+        import re
+        for op in self._COMPARISON_OPERATORS:
+            cond = cond.replace(op, " ")
+        return set(re.findall(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b", cond)) - self._COND_KEYWORD_EXCLUSIONS
 
     def _analyze_conditional_difference(self, cond1: str, cond2: str, language: str) -> Dict[str, Any]:
         """Analyze the specific differences between two conditional expressions."""
         import re
+        details: Dict[str, Any] = {"operator_changed": False, "value_changed": False, "variable_changed": False, "comparison_values": {}}
 
-        details: Dict[str, Any] = {
-            "operator_changed": False,
-            "value_changed": False,
-            "variable_changed": False,
-            "comparison_values": {},
-        }
-
-        # Extract comparison operators
-        operators = [">=", "<=", "!=", "==", ">", "<", "in", "not in", "is not", "is"]
-        op1 = op2 = None
-
-        for op in operators:
-            if op in cond1:
-                op1 = op
-                break
-        for op in operators:
-            if op in cond2:
-                op2 = op
-                break
-
+        op1, op2 = self._find_operator(cond1), self._find_operator(cond2)
         if op1 and op2 and op1 != op2:
             details["operator_changed"] = True
             details["operators"] = {"from": op1, "to": op2}
 
-        # Extract numeric values
         nums1 = re.findall(r"\b\d+(?:\.\d+)?\b", cond1)
         nums2 = re.findall(r"\b\d+(?:\.\d+)?\b", cond2)
-
         if nums1 != nums2:
             details["value_changed"] = True
-            details["comparison_values"] = {
-                "from": nums1,
-                "to": nums2,
-            }
+            details["comparison_values"] = {"from": nums1, "to": nums2}
 
-        # Extract identifiers (simple check)
-        # Remove operators and numbers to find variable names
-        for op in operators:
-            cond1 = cond1.replace(op, " ")
-            cond2 = cond2.replace(op, " ")
-
-        vars1 = set(re.findall(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b", cond1)) - {"if", "elif", "else"}
-        vars2 = set(re.findall(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b", cond2)) - {"if", "elif", "else"}
-
+        vars1, vars2 = self._extract_cond_vars(cond1), self._extract_cond_vars(cond2)
         if vars1 != vars2:
             details["variable_changed"] = True
-            details["variables"] = {
-                "from": list(vars1),
-                "to": list(vars2),
-            }
+            details["variables"] = {"from": list(vars1), "to": list(vars2)}
 
         return details
 
@@ -929,6 +808,28 @@ def _detect_nested_function_call(code: str, identifier: str, language: str = "py
     return analyzer.detect_nested_function_call(code, identifier, language)
 
 
+def _collect_all_variations(analyzer: "PatternAnalyzer", code1: str, code2: str, language: str) -> List[Dict[str, Any]]:
+    literal_variations = analyzer.identify_varying_literals(code1, code2, language)
+    cond_variations = analyzer.detect_conditional_variations(code1, code2, language)
+    identifier_variations = identify_varying_identifiers(code1, code2, language)
+    return (
+        [{"type": "literal", "old_value": v.get("value1", ""), "new_value": v.get("value2", ""), "context": v.get("context", "")} for v in literal_variations]
+        + [{"type": "conditional", "old_value": v.get("condition1", ""), "new_value": v.get("condition2", ""), "context": f"line {v.get('line1', 0)}"} for v in cond_variations]
+        + [{"type": "identifier", "old_value": v.get("identifier1", ""), "new_value": v.get("identifier2", ""), "context": v.get("context", "")} for v in identifier_variations]
+    )
+
+
+def _determine_overall_severity(classification: Dict[str, Any], variation_count: int) -> str:
+    classes = classification.get("classifications", [])
+    high_count = sum(1 for v in classes if v.get("severity") == VariationSeverity.HIGH)
+    medium_count = sum(1 for v in classes if v.get("severity") == VariationSeverity.MEDIUM)
+    if high_count > 0:
+        return VariationSeverity.HIGH
+    if medium_count > variation_count // 2:
+        return VariationSeverity.MEDIUM
+    return VariationSeverity.LOW
+
+
 def classify_variations(code1: str, code2: str, language: str = "python") -> Dict[str, Any]:
     """
     Classify variations between two code snippets.
@@ -949,77 +850,20 @@ def classify_variations(code1: str, code2: str, language: str = "python") -> Dic
         - suggested_refactoring: Recommended refactoring approach
     """
     analyzer = PatternAnalyzer()
+    variations = _collect_all_variations(analyzer, code1, code2, language)
 
-    # Find variations between the code snippets
-    variations = []
+    if not variations:
+        return {"severity": VariationSeverity.LOW, "variations": [], "parameterizable": True, "suggested_refactoring": "extract_function", "complexity_score": 0, "parameter_suggestions": []}
 
-    # Identify varying literals
-    literal_variations = analyzer.identify_varying_literals(code1, code2, language)
-    for lit_var in literal_variations:
-        variations.append(
-            {
-                "type": "literal",
-                "old_value": lit_var.get("value1", ""),
-                "new_value": lit_var.get("value2", ""),
-                "context": lit_var.get("context", ""),
-            }
-        )
-
-    # Identify conditional variations
-    cond_variations = analyzer.detect_conditional_variations(code1, code2, language)
-    for cond_var in cond_variations:
-        variations.append(
-            {
-                "type": "conditional",
-                "old_value": cond_var.get("condition1", ""),
-                "new_value": cond_var.get("condition2", ""),
-                "context": f"line {cond_var.get('line1', 0)}",
-            }
-        )
-
-    # Identify varying identifiers
-    identifier_variations = identify_varying_identifiers(code1, code2, language)
-    for ident_var in identifier_variations:
-        variations.append(
-            {
-                "type": "identifier",
-                "old_value": ident_var.get("identifier1", ""),
-                "new_value": ident_var.get("identifier2", ""),
-                "context": ident_var.get("context", ""),
-            }
-        )
-
-    # Classify all variations
-    if variations:
-        classification = analyzer.classify_variations(variations)
-        # Determine overall severity based on variation types
-        high_count = sum(1 for v in classification.get("classifications", []) if v.get("severity") == VariationSeverity.HIGH)
-        medium_count = sum(1 for v in classification.get("classifications", []) if v.get("severity") == VariationSeverity.MEDIUM)
-
-        if high_count > 0:
-            overall_severity = VariationSeverity.HIGH
-        elif medium_count > len(variations) // 2:
-            overall_severity = VariationSeverity.MEDIUM
-        else:
-            overall_severity = VariationSeverity.LOW
-
-        return {
-            "severity": overall_severity,
-            "variations": variations,
-            "parameterizable": classification.get("parameterizable_count", 0) > 0,
-            "suggested_refactoring": "extract_function" if overall_severity != VariationSeverity.HIGH else "manual_review",
-            "complexity_score": classification.get("complexity_score", 0),
-            "parameter_suggestions": classification.get("parameter_suggestions", []),
-        }
-
-    # No variations found - code is identical or nearly identical
+    classification = analyzer.classify_variations(variations)
+    overall_severity = _determine_overall_severity(classification, len(variations))
     return {
-        "severity": VariationSeverity.LOW,
-        "variations": [],
-        "parameterizable": True,
-        "suggested_refactoring": "extract_function",
-        "complexity_score": 0,
-        "parameter_suggestions": [],
+        "severity": overall_severity,
+        "variations": variations,
+        "parameterizable": classification.get("parameterizable_count", 0) > 0,
+        "suggested_refactoring": "extract_function" if overall_severity != VariationSeverity.HIGH else "manual_review",
+        "complexity_score": classification.get("complexity_score", 0),
+        "parameter_suggestions": classification.get("parameter_suggestions", []),
     }
 
 
@@ -1044,23 +888,29 @@ def identify_varying_identifiers(code1: str, code2: str, language: str = "python
     identifiers1 = _extract_identifiers_from_code(code1, language)
     identifiers2 = _extract_identifiers_from_code(code2, language)
 
-    # Compare identifiers by position/context
-    # Find identifiers that appear in similar positions but with different names
-    for pos, ident1 in identifiers1.items():
-        if pos in identifiers2:
-            ident2 = identifiers2[pos]
-            if ident1["name"] != ident2["name"]:
-                varying_identifiers.append(
-                    {
-                        "identifier1": ident1["name"],
-                        "identifier2": ident2["name"],
-                        "position": pos,
-                        "context": ident1.get("context", ""),
-                        "usage_type": ident1.get("usage_type", "unknown"),
-                    }
-                )
+    varying_identifiers = [
+        {
+            "identifier1": ident1["name"],
+            "identifier2": identifiers2[pos]["name"],
+            "position": pos,
+            "context": ident1.get("context", ""),
+            "usage_type": ident1.get("usage_type", "unknown"),
+        }
+        for pos, ident1 in identifiers1.items()
+        if pos in identifiers2 and ident1["name"] != identifiers2[pos]["name"]
+    ]
 
     return varying_identifiers
+
+
+def _get_usage_type(context: str, name: str) -> str:
+    if "def " in context or "function " in context:
+        return "function"
+    if "class " in context:
+        return "class"
+    if "(" in context[context.find(name): context.find(name) + len(name) + 2]:
+        return "function_call"
+    return "variable"
 
 
 def _extract_identifiers_from_code(code: str, language: str) -> Dict[int, Dict[str, Any]]:
@@ -1074,138 +924,23 @@ def _extract_identifiers_from_code(code: str, language: str) -> Dict[int, Dict[s
     Returns:
         Dictionary mapping position to identifier info
     """
-    identifiers: Dict[int, Dict[str, Any]] = {}
-
-    # Simple regex-based extraction for common patterns
-    # This handles most common identifier patterns across languages
     import re
-
-    # Pattern for identifiers (variable names, function names, etc.)
+    excluded = _LANGUAGE_KEYWORDS.get(language, _LANGUAGE_KEYWORDS["python"])
     identifier_pattern = r"\b([a-zA-Z_][a-zA-Z0-9_]*)\b"
-
-    # Keywords to exclude (common across languages)
-    keywords = {
-        "python": {
-            "def",
-            "class",
-            "if",
-            "else",
-            "elif",
-            "for",
-            "while",
-            "return",
-            "import",
-            "from",
-            "as",
-            "try",
-            "except",
-            "finally",
-            "with",
-            "lambda",
-            "yield",
-            "raise",
-            "pass",
-            "break",
-            "continue",
-            "and",
-            "or",
-            "not",
-            "in",
-            "is",
-            "None",
-            "True",
-            "False",
-            "async",
-            "await",
-            "global",
-            "nonlocal",
-            "assert",
-        },
-        "javascript": {
-            "function",
-            "const",
-            "let",
-            "var",
-            "if",
-            "else",
-            "for",
-            "while",
-            "return",
-            "import",
-            "export",
-            "from",
-            "class",
-            "new",
-            "this",
-            "try",
-            "catch",
-            "finally",
-            "throw",
-            "async",
-            "await",
-            "true",
-            "false",
-            "null",
-            "undefined",
-        },
-        "typescript": {
-            "function",
-            "const",
-            "let",
-            "var",
-            "if",
-            "else",
-            "for",
-            "while",
-            "return",
-            "import",
-            "export",
-            "from",
-            "class",
-            "new",
-            "this",
-            "try",
-            "catch",
-            "finally",
-            "throw",
-            "async",
-            "await",
-            "true",
-            "false",
-            "null",
-            "undefined",
-            "interface",
-            "type",
-            "enum",
-            "implements",
-            "extends",
-        },
-    }
-
-    excluded = keywords.get(language, keywords["python"])
+    identifiers: Dict[int, Dict[str, Any]] = {}
 
     for idx, match in enumerate(re.finditer(identifier_pattern, code)):
         name = match.group(RegexCaptureGroups.FIRST)
-        if name not in excluded and not name.isupper():  # Exclude constants
-            # Get surrounding context
-            start = max(0, match.start() - IDENTIFIER_CONTEXT_WINDOW_CHARS)
-            end = min(len(code), match.end() + IDENTIFIER_CONTEXT_WINDOW_CHARS)
-            context = code[start:end].strip()
-
-            # Determine usage type based on context
-            usage_type = "variable"
-            if "def " in context or "function " in context:
-                usage_type = "function"
-            elif "class " in context:
-                usage_type = "class"
-            elif "(" in context[context.find(name) : context.find(name) + len(name) + 2]:
-                usage_type = "function_call"
-
-            identifiers[idx] = {
-                "name": name,
-                "position": match.start(),
-                "context": context,
-                "usage_type": usage_type,
-            }
+        if name in excluded or name.isupper():
+            continue
+        start = max(0, match.start() - IDENTIFIER_CONTEXT_WINDOW_CHARS)
+        end = min(len(code), match.end() + IDENTIFIER_CONTEXT_WINDOW_CHARS)
+        context = code[start:end].strip()
+        identifiers[idx] = {
+            "name": name,
+            "position": match.start(),
+            "context": context,
+            "usage_type": _get_usage_type(context, name),
+        }
 
     return identifiers

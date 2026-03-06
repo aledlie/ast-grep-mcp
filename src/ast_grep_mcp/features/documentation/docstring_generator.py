@@ -57,6 +57,85 @@ def _split_snake_case(name: str) -> List[str]:
     return name.split("_")
 
 
+_VERB_PREFIX_MEANINGS: Dict[str, str] = {
+    "get": "Get",
+    "set": "Set",
+    "is": "Check if",
+    "has": "Check if has",
+    "can": "Check if can",
+    "should": "Determine if should",
+    "will": "Determine if will",
+    "create": "Create",
+    "make": "Create",
+    "build": "Build",
+    "generate": "Generate",
+    "compute": "Compute",
+    "calculate": "Calculate",
+    "find": "Find",
+    "search": "Search for",
+    "fetch": "Fetch",
+    "load": "Load",
+    "save": "Save",
+    "store": "Store",
+    "write": "Write",
+    "read": "Read",
+    "parse": "Parse",
+    "format": "Format",
+    "convert": "Convert",
+    "transform": "Transform",
+    "validate": "Validate",
+    "check": "Check",
+    "verify": "Verify",
+    "process": "Process",
+    "handle": "Handle",
+    "update": "Update",
+    "delete": "Delete",
+    "remove": "Remove",
+    "add": "Add",
+    "insert": "Insert",
+    "append": "Append",
+    "init": "Initialize",
+    "initialize": "Initialize",
+    "setup": "Set up",
+    "configure": "Configure",
+    "render": "Render",
+    "display": "Display",
+    "show": "Show",
+    "hide": "Hide",
+    "enable": "Enable",
+    "disable": "Disable",
+    "start": "Start",
+    "stop": "Stop",
+    "begin": "Begin",
+    "end": "End",
+    "open": "Open",
+    "close": "Close",
+    "connect": "Connect to",
+    "disconnect": "Disconnect from",
+    "send": "Send",
+    "receive": "Receive",
+    "emit": "Emit",
+    "dispatch": "Dispatch",
+    "trigger": "Trigger",
+    "fire": "Fire",
+    "on": "Handle",
+    "do": "Perform",
+    "run": "Run",
+    "execute": "Execute",
+    "apply": "Apply",
+    "merge": "Merge",
+    "split": "Split",
+    "join": "Join",
+    "sort": "Sort",
+    "filter": "Filter",
+    "map": "Map",
+    "reduce": "Reduce",
+    "extract": "Extract",
+    "export": "Export",
+    "import": "Import",
+}
+
+
 def _infer_description_from_name(name: str) -> str:
     """Infer a description from a function name.
 
@@ -68,112 +147,26 @@ def _infer_description_from_name(name: str) -> str:
     Returns:
         Inferred description
     """
-    # Split name into words
-    if "_" in name:
-        words = _split_snake_case(name)
-    else:
-        words = _split_camel_case(name)
-
-    words = [w.lower() for w in words if w]
-
+    words = _function_name_words(name)
     if not words:
         return "Perform operation."
-
-    # Common prefixes and their meanings
-    prefix_meanings = {
-        "get": "Get",
-        "set": "Set",
-        "is": "Check if",
-        "has": "Check if has",
-        "can": "Check if can",
-        "should": "Determine if should",
-        "will": "Determine if will",
-        "create": "Create",
-        "make": "Create",
-        "build": "Build",
-        "generate": "Generate",
-        "compute": "Compute",
-        "calculate": "Calculate",
-        "find": "Find",
-        "search": "Search for",
-        "fetch": "Fetch",
-        "load": "Load",
-        "save": "Save",
-        "store": "Store",
-        "write": "Write",
-        "read": "Read",
-        "parse": "Parse",
-        "format": "Format",
-        "convert": "Convert",
-        "transform": "Transform",
-        "validate": "Validate",
-        "check": "Check",
-        "verify": "Verify",
-        "process": "Process",
-        "handle": "Handle",
-        "update": "Update",
-        "delete": "Delete",
-        "remove": "Remove",
-        "add": "Add",
-        "insert": "Insert",
-        "append": "Append",
-        "init": "Initialize",
-        "initialize": "Initialize",
-        "setup": "Set up",
-        "configure": "Configure",
-        "render": "Render",
-        "display": "Display",
-        "show": "Show",
-        "hide": "Hide",
-        "enable": "Enable",
-        "disable": "Disable",
-        "start": "Start",
-        "stop": "Stop",
-        "begin": "Begin",
-        "end": "End",
-        "open": "Open",
-        "close": "Close",
-        "connect": "Connect to",
-        "disconnect": "Disconnect from",
-        "send": "Send",
-        "receive": "Receive",
-        "emit": "Emit",
-        "dispatch": "Dispatch",
-        "trigger": "Trigger",
-        "fire": "Fire",
-        "on": "Handle",
-        "do": "Perform",
-        "run": "Run",
-        "execute": "Execute",
-        "apply": "Apply",
-        "merge": "Merge",
-        "split": "Split",
-        "join": "Join",
-        "sort": "Sort",
-        "filter": "Filter",
-        "map": "Map",
-        "reduce": "Reduce",
-        "extract": "Extract",
-        "export": "Export",
-        "import": "Import",
-    }
-
     first_word = words[0]
-    rest_words = words[1:]
+    if first_word in _VERB_PREFIX_MEANINGS:
+        return _build_prefix_description(first_word, words[1:], _VERB_PREFIX_MEANINGS)
+    return f"{' '.join(words).capitalize()}."
 
-    if first_word in prefix_meanings:
-        verb = prefix_meanings[first_word]
-        if rest_words:
-            noun = " ".join(rest_words)
-            # Add article if appropriate
-            if first_word in ("get", "find", "fetch", "load", "read", "create", "make", "build", "generate"):
-                return f"{verb} the {noun}."
-            return f"{verb} {noun}."
+
+_ARTICLE_VERBS = frozenset({"get", "find", "fetch", "load", "read", "create", "make", "build", "generate"})
+
+
+def _build_prefix_description(first_word: str, rest_words: List[str], prefix_meanings: Dict[str, str]) -> str:
+    verb = prefix_meanings[first_word]
+    if not rest_words:
         return f"{verb}."
-
-    # Default: capitalize and make sentence
-    description = " ".join(words)
-    return f"{description.capitalize()}."
+    noun = " ".join(rest_words)
+    if first_word in _ARTICLE_VERBS:
+        return f"{verb} the {noun}."
+    return f"{verb} {noun}."
 
 
 # Configuration for parameter name inference
@@ -368,24 +361,14 @@ def _infer_parameter_description(param: ParameterInfo, function_context: str = "
         Inferred description
     """
     name = param.name.lower()
-
-    # Check exact match first
-    if name in _COMMON_PARAMS:
-        return _COMMON_PARAMS[name]
-
-    # Check suffix patterns
-    suffix_result = _check_suffix_pattern(name)
-    if suffix_result:
-        return suffix_result
-
-    # Check prefix patterns
-    prefix_result = _check_prefix_pattern(name)
-    if prefix_result:
-        return prefix_result
-
-    # Default: use parameter name as description
-    readable = param.name.replace("_", " ")
-    return f"The {readable}"
+    result = (
+        _COMMON_PARAMS.get(name)
+        or _check_suffix_pattern(name)
+        or _check_prefix_pattern(name)
+    )
+    if result:
+        return result
+    return f"The {param.name.replace('_', ' ')}"
 
 
 # Return description patterns based on function prefix
@@ -428,6 +411,19 @@ def _get_return_from_type(return_type: str) -> str:
     return f"The {return_type}"
 
 
+def _apply_return_prefix_handler(template: str, rest: str, return_type: Optional[str]) -> str:
+    """Apply a return prefix template with best available rest value."""
+    if rest:
+        return template.format(rest=rest)
+    return template.format(rest=return_type.lower() if return_type else "result")
+
+
+def _function_name_words(function_name: str) -> List[str]:
+    """Split a function name into lowercase words."""
+    splitter = _split_snake_case if "_" in function_name else _split_camel_case
+    return [w.lower() for w in splitter(function_name) if w]
+
+
 def _infer_return_description(return_type: Optional[str], function_name: str) -> str:
     """Infer return value description.
 
@@ -438,33 +434,81 @@ def _infer_return_description(return_type: Optional[str], function_name: str) ->
     Returns:
         Inferred return description
     """
-    # Get function words
-    words = _split_snake_case(function_name) if "_" in function_name else _split_camel_case(function_name)
-    words = [w.lower() for w in words if w]
+    words = _function_name_words(function_name)
     if not words:
         return "The result"
-
-    first_word = words[0]
-    rest = " ".join(words[1:]) if len(words) > 1 else ""
-
-    # Handle boolean prefixes
+    first_word, rest = words[0], " ".join(words[1:])
     if first_word in _BOOLEAN_PREFIXES:
         return f"True if {rest}, False otherwise" if rest else "Boolean result"
+    template = _RETURN_PREFIX_HANDLERS.get(first_word)
+    if template:
+        return _apply_return_prefix_handler(template, rest, return_type)
+    return _get_return_from_type(return_type) if return_type else "The result"
 
-    # Handle other prefixes with configuration
-    if first_word in _RETURN_PREFIX_HANDLERS:
-        template = _RETURN_PREFIX_HANDLERS[first_word]
-        if rest:
-            return template.format(rest=rest)
-        if return_type:
-            return template.format(rest=return_type.lower())
-        return template.format(rest="result")
 
-    # Default based on return type
-    if return_type:
-        return _get_return_from_type(return_type)
+def _parse_single_python_param(part: str) -> Optional[ParameterInfo]:
+    """Parse a single Python parameter string into a ParameterInfo."""
+    if part.startswith("**"):
+        return ParameterInfo(name=part[2:], type_hint="Dict[str, Any]")
+    if part.startswith("*"):
+        return ParameterInfo(name=part[1:], type_hint="Tuple[Any, ...]")
+    name_type, default = (part.rsplit("=", 1)[0], part.rsplit("=", 1)[1].strip()) if "=" in part else (part, None)
+    if ":" in name_type:
+        name, type_hint = name_type.split(":", 1)
+        name, type_hint = name.strip(), type_hint.strip()
+    else:
+        name, type_hint = name_type.strip(), None
+    if not name:
+        return None
+    return ParameterInfo(name=name, type_hint=type_hint, default_value=default)
 
-    return "The result"
+
+def _split_python_params(params_str: str) -> List[str]:
+    """Split Python params string by comma, respecting nested brackets."""
+    parts: list[str] = []
+    depth = 0
+    current: list[str] = []
+    for char in params_str:
+        if char in "([{":
+            depth += 1
+            current.append(char)
+            continue
+        if char in ")]}":
+            depth = max(0, depth - 1)
+            current.append(char)
+            continue
+        if char == "," and depth == 0:
+            parts.append("".join(current).strip())
+            current = []
+            continue
+        current.append(char)
+    if current:
+        parts.append("".join(current).strip())
+    return parts
+
+
+def _split_js_ts_params(params_str: str) -> List[str]:
+    """Split JS/TS params string by commas, respecting angle brackets, braces, and parens."""
+    parts: list[str] = []
+    depth = 0
+    current: list[str] = []
+    for char in params_str:
+        if char in ("<", "{", "("):
+            depth += 1
+            current.append(char)
+            continue
+        if char in (">", "}", ")"):
+            depth = max(0, depth - 1)
+            current.append(char)
+            continue
+        if char == "," and depth == 0:
+            parts.append("".join(current))
+            current = []
+            continue
+        current.append(char)
+    if current:
+        parts.append("".join(current))
+    return parts
 
 
 # =============================================================================
@@ -474,6 +518,8 @@ def _infer_return_description(return_type: Optional[str], function_name: str) ->
 
 class FunctionSignatureParser:
     """Parse function signatures from source code."""
+
+    _split_params = staticmethod(_split_js_ts_params)
 
     def __init__(self, language: str) -> None:
         """Initialize parser for specific language.
@@ -504,173 +550,98 @@ class FunctionSignatureParser:
 
         return []
 
+    def _collect_decorators(self, lines: List[str], func_idx: int) -> List[str]:
+        """Collect decorator names above a function definition."""
+        decorators: list[str] = []
+        j = func_idx - 1
+        while j >= 0 and lines[j].strip().startswith("@"):
+            decorator = lines[j].strip()[1:].split("(")[0]
+            decorators.insert(0, decorator)
+            j -= 1
+        return decorators
+
+    def _build_python_sig(
+        self, lines: List[str], func_idx: int, match: re.Match, file_path: str
+    ) -> FunctionSignature:
+        indent, is_async, name, params_str, return_type = match.groups()
+        return FunctionSignature(
+            name=name,
+            parameters=self._parse_python_params(params_str),
+            return_type=return_type.strip() if return_type else None,
+            is_async=bool(is_async),
+            is_method=bool(indent),
+            decorators=self._collect_decorators(lines, func_idx),
+            file_path=file_path,
+            start_line=func_idx + 1,
+            end_line=self._find_python_function_end(lines, func_idx, indent),
+            existing_docstring=self._find_python_docstring(lines, func_idx + 1),
+        )
+
     def _parse_python_functions(self, content: str, file_path: str) -> List[FunctionSignature]:
         """Parse Python function signatures."""
         functions = []
         lines = content.split("\n")
-
-        # Pattern for function definitions
         func_pattern = re.compile(r"^(\s*)(async\s+)?def\s+(\w+)\s*\((.*?)\)\s*(?:->\s*(.+?))?\s*:")
 
-        i = 0
-        while i < len(lines):
-            line = lines[i]
+        for i, line in enumerate(lines):
             match = func_pattern.match(line)
-
             if match:
-                indent, is_async, name, params_str, return_type = match.groups()
-                start_line = i + 1
-
-                # Check if this is a method (indented)
-                is_method = bool(indent)
-
-                # Get decorators (lines before function def)
-                decorators: list[str] = []
-                j = i - 1
-                while j >= 0 and lines[j].strip().startswith("@"):
-                    decorator = lines[j].strip()[1:].split("(")[0]
-                    decorators.insert(0, decorator)
-                    j -= 1
-
-                # Parse parameters
-                parameters = self._parse_python_params(params_str)
-
-                # Find existing docstring
-                existing_docstring = self._find_python_docstring(lines, i + 1)
-
-                # Find end of function (next function or dedent)
-                end_line = self._find_python_function_end(lines, i, indent)
-
-                func = FunctionSignature(
-                    name=name,
-                    parameters=parameters,
-                    return_type=return_type.strip() if return_type else None,
-                    is_async=bool(is_async),
-                    is_method=is_method,
-                    decorators=decorators,
-                    file_path=file_path,
-                    start_line=start_line,
-                    end_line=end_line,
-                    existing_docstring=existing_docstring,
-                )
-                functions.append(func)
-
-            i += 1
+                functions.append(self._build_python_sig(lines, i, match, file_path))
 
         return functions
 
     def _parse_python_params(self, params_str: str) -> List[ParameterInfo]:
         """Parse Python function parameters."""
-        params: list[ParameterInfo] = []
         if not params_str.strip():
-            return params
-
-        # Handle multi-line and nested brackets
+            return []
         params_str = re.sub(r"\s+", " ", params_str)
-
-        # Split by comma (careful with nested brackets)
-        parts = []
-        depth = 0
-        current = []
-
-        for char in params_str:
-            if char in "([{":
-                depth += 1
-                current.append(char)
-            elif char in ")]}":
-                depth -= 1
-                current.append(char)
-            elif char == "," and depth == 0:
-                parts.append("".join(current).strip())
-                current = []
-            else:
-                current.append(char)
-
-        if current:
-            parts.append("".join(current).strip())
-
-        for part in parts:
+        params: list[ParameterInfo] = []
+        for part in _split_python_params(params_str):
             if not part:
                 continue
-
-            # Parse parameter
             param = self._parse_single_python_param(part)
             if param:
                 params.append(param)
-
         return params
 
     def _parse_single_python_param(self, part: str) -> Optional[ParameterInfo]:
-        """Parse a single Python parameter."""
-        # Handle *args, **kwargs
-        if part.startswith("**"):
-            return ParameterInfo(name=part[2:], type_hint="Dict[str, Any]")
-        if part.startswith("*"):
-            return ParameterInfo(name=part[1:], type_hint="Tuple[Any, ...]")
+        return _parse_single_python_param(part)
 
-        # Split by default value
-        if "=" in part:
-            name_type, default = part.rsplit("=", 1)
-            default = default.strip()
-        else:
-            name_type = part
-            default = None
+    def _collect_python_multiline_docstring(self, lines: List[str], start_idx: int, quote: str, first_line: str) -> str:
+        """Collect lines of a multi-line docstring."""
+        docstring_lines = [first_line]
+        i = start_idx
+        while i < len(lines):
+            line = lines[i]
+            if quote in line:
+                docstring_lines.append(line[: line.index(quote)])
+                break
+            docstring_lines.append(line)
+            i += 1
+        return "\n".join(docstring_lines).strip()
 
-        # Split by type hint
-        if ":" in name_type:
-            name, type_hint = name_type.split(":", 1)
-            name = name.strip()
-            type_hint = type_hint.strip()
-        else:
-            name = name_type.strip()
-            type_hint = None
-
-        if not name:
-            return None
-
-        return ParameterInfo(
-            name=name,
-            type_hint=type_hint,
-            default_value=default,
-        )
+    def _find_first_nonempty(self, lines: List[str], start: int) -> int:
+        """Return index of first non-empty line at or after start, or len(lines)."""
+        for i in range(start, len(lines)):
+            if lines[i].strip():
+                return i
+        return len(lines)
 
     def _find_python_docstring(self, lines: List[str], func_line: int) -> Optional[str]:
         """Find existing docstring after function definition."""
-        # Look at the line(s) after the function def
         if func_line >= len(lines):
             return None
-
-        next_idx = func_line
-        # Skip to next non-empty line
-        while next_idx < len(lines) and not lines[next_idx].strip():
-            next_idx += 1
-
+        next_idx = self._find_first_nonempty(lines, func_line)
         if next_idx >= len(lines):
             return None
-
         next_line = lines[next_idx].strip()
-
-        # Check for docstring start
-        if next_line.startswith('"""') or next_line.startswith("'''"):
-            quote = next_line[:DocstringDefaults.QUOTE_LENGTH]
-            if next_line.endswith(quote) and len(next_line) > DocstringDefaults.MIN_ONELINER_LENGTH:
-                # Single-line docstring
-                return next_line[DocstringDefaults.QUOTE_LENGTH:-DocstringDefaults.QUOTE_LENGTH]
-
-            # Multi-line docstring
-            docstring_lines = [next_line[DocstringDefaults.QUOTE_LENGTH:]]
-            next_idx += 1
-            while next_idx < len(lines):
-                line = lines[next_idx]
-                if quote in line:
-                    docstring_lines.append(line[: line.index(quote)])
-                    break
-                docstring_lines.append(line)
-                next_idx += 1
-
-            return "\n".join(docstring_lines).strip()
-
-        return None
+        q = DocstringDefaults.QUOTE_LENGTH
+        if not (next_line.startswith('"""') or next_line.startswith("'''")):
+            return None
+        quote = next_line[:q]
+        if next_line.endswith(quote) and len(next_line) > DocstringDefaults.MIN_ONELINER_LENGTH:
+            return next_line[q:-q]
+        return self._collect_python_multiline_docstring(lines, next_idx + 1, quote, next_line[q:])
 
     def _find_python_function_end(self, lines: List[str], start: int, indent: str) -> int:
         """Find the end line of a Python function."""
@@ -695,201 +666,159 @@ class FunctionSignatureParser:
 
         return len(lines)
 
+    _JS_TS_PATTERNS = [
+        re.compile(r"^\s*(export\s+)?(async\s+)?function\s+(\w+)\s*\((.*?)\)(?:\s*:\s*(.+?))?\s*\{"),
+        re.compile(r"^\s*(export\s+)?(const|let|var)\s+(\w+)\s*=\s*(async\s+)?\((.*?)\)(?:\s*:\s*(.+?))?\s*=>"),
+        re.compile(r"^\s*(async\s+)?(\w+)\s*\((.*?)\)(?:\s*:\s*(.+?))?\s*\{"),
+    ]
+    _JS_CONTROL_KEYWORDS = frozenset({"if", "for", "while", "switch", "catch"})
+
+    # Maps group count to (is_async_idx, name_idx, params_idx, return_type_idx)
+    _JS_TS_GROUP_INDICES: Dict[int, Tuple[int, int, int, int]] = {
+        DocstringDefaults.REGULAR_FUNCTION_GROUP_COUNT: (1, 2, 3, 4),   # export, async, name, params, ret
+        DocstringDefaults.ARROW_FUNCTION_GROUP_COUNT:   (3, 2, 4, 5),   # export, kw, name, async, params, ret
+        4:                                               (0, 1, 2, 3),   # async, name, params, ret
+    }
+
+    def _unpack_js_ts_groups(self, groups: tuple) -> tuple:
+        """Unpack match groups based on pattern type."""
+        indices = self._JS_TS_GROUP_INDICES.get(len(groups), (0, 1, 2, 3))
+        ai, ni, pi, ri = indices
+        return groups[ai], groups[ni], groups[pi], groups[ri]
+
+    def _match_js_ts_line(self, line: str, lines: List[str], i: int, file_path: str) -> Optional[FunctionSignature]:
+        """Try to match a line as a JS/TS function and return its signature."""
+        for pattern in self._JS_TS_PATTERNS:
+            match = pattern.match(line)
+            if not match:
+                continue
+            is_async, name, params_str, return_type = self._unpack_js_ts_groups(match.groups())
+            if name in self._JS_CONTROL_KEYWORDS:
+                return None
+            return FunctionSignature(
+                name=name,
+                parameters=self._parse_js_ts_params(params_str or ""),
+                return_type=return_type.strip() if return_type else None,
+                is_async=bool(is_async),
+                is_method=False,
+                file_path=file_path,
+                start_line=i + 1,
+                end_line=i + 1,
+                existing_docstring=self._find_js_ts_docstring(lines, i),
+            )
+        return None
+
     def _parse_js_ts_functions(self, content: str, file_path: str) -> List[FunctionSignature]:
         """Parse JavaScript/TypeScript function signatures."""
-        functions = []
         lines = content.split("\n")
-
-        # Patterns for different function styles
-        patterns = [
-            # async function name(params): ReturnType
-            re.compile(r"^\s*(export\s+)?(async\s+)?function\s+(\w+)\s*\((.*?)\)(?:\s*:\s*(.+?))?\s*\{"),
-            # const name = (params): ReturnType =>
-            re.compile(r"^\s*(export\s+)?(const|let|var)\s+(\w+)\s*=\s*(async\s+)?\((.*?)\)(?:\s*:\s*(.+?))?\s*=>"),
-            # class method: name(params): ReturnType
-            re.compile(r"^\s*(async\s+)?(\w+)\s*\((.*?)\)(?:\s*:\s*(.+?))?\s*\{"),
-        ]
-
+        functions = []
         for i, line in enumerate(lines):
-            for pattern in patterns:
-                match = pattern.match(line)
-                if match:
-                    groups = match.groups()
-
-                    # Parse based on pattern type
-                    if len(groups) == DocstringDefaults.REGULAR_FUNCTION_GROUP_COUNT:  # Regular function
-                        _, is_async, name, params_str, return_type = groups
-                    elif len(groups) == DocstringDefaults.ARROW_FUNCTION_GROUP_COUNT:  # Arrow function
-                        _, _, name, is_async, params_str, return_type = groups
-                    else:  # Method
-                        is_async, name, params_str, return_type = groups
-
-                    if name in ("if", "for", "while", "switch", "catch"):
-                        continue
-
-                    parameters = self._parse_js_ts_params(params_str or "")
-
-                    # Find existing docstring
-                    existing_docstring = self._find_js_ts_docstring(lines, i)
-
-                    func = FunctionSignature(
-                        name=name,
-                        parameters=parameters,
-                        return_type=return_type.strip() if return_type else None,
-                        is_async=bool(is_async),
-                        is_method=False,
-                        file_path=file_path,
-                        start_line=i + 1,
-                        end_line=i + 1,
-                        existing_docstring=existing_docstring,
-                    )
-                    functions.append(func)
-                    break
-
+            func = self._match_js_ts_line(line, lines, i, file_path)
+            if func:
+                functions.append(func)
         return functions
+
+    def _collect_jsdoc_multiline(self, lines: List[str], end_idx: int, last_line: str) -> Optional[str]:
+        """Collect lines of a multi-line JSDoc comment."""
+        doc_lines = [last_line[:-2]]
+        j = end_idx - 1
+        while j >= 0:
+            curr_line = lines[j].strip()
+            if "/**" in curr_line:
+                doc_lines.append(curr_line[curr_line.find("/**") + 3:])
+                break
+            doc_lines.append(curr_line[1:].strip() if curr_line.startswith("*") else curr_line)
+            j -= 1
+        if j < 0:
+            return None
+        doc_lines.reverse()
+        return "\n".join(doc_lines).strip()
+
+    def _find_last_nonempty(self, lines: List[str], end: int) -> int:
+        """Return index of last non-empty line at or before end, or -1."""
+        for i in range(end, -1, -1):
+            if lines[i].strip():
+                return i
+        return -1
 
     def _find_js_ts_docstring(self, lines: List[str], func_idx: int) -> Optional[str]:
         """Find existing JSDoc before function definition."""
         if func_idx <= 0:
             return None
-
-        # Look at lines before function def
-        j = func_idx - 1
-        # Skip empty lines
-        while j >= 0 and not lines[j].strip():
-            j -= 1
-
+        j = self._find_last_nonempty(lines, func_idx - 1)
         if j < 0:
             return None
-
         line = lines[j].strip()
-        if line.endswith("*/"):
-            # Potential docstring end
-            doc_lines = []
-            if "/**" in line:
-                # Single-line JSDoc
-                start_idx = line.find("/**")
-                return line[start_idx + 3 : -2].strip()
+        if not line.endswith("*/"):
+            return None
+        if "/**" in line:
+            return line[line.find("/**") + 3 : -2].strip()
+        return self._collect_jsdoc_multiline(lines, j, line)
 
-            # Multi-line JSDoc
-            doc_lines.append(line[:-2])
-            j -= 1
-            while j >= 0:
-                curr_line = lines[j].strip()
-                if "/**" in curr_line:
-                    start_idx = curr_line.find("/**")
-                    doc_lines.append(curr_line[start_idx + 3 :])
-                    break
-                if curr_line.startswith("*"):
-                    doc_lines.append(curr_line[1:].strip())
-                else:
-                    doc_lines.append(curr_line)
-                j -= 1
-
-            if j >= 0:
-                doc_lines.reverse()
-                return "\n".join(doc_lines).strip()
-
-        return None
+    @staticmethod
+    def _parse_single_js_ts_param(part: str) -> Optional[ParameterInfo]:
+        """Parse a single JS/TS parameter string into a ParameterInfo."""
+        if "=" in part:
+            name_type, default = part.split("=", 1)
+            default = default.strip()
+        else:
+            name_type = part
+            default = None
+        if ":" in name_type:
+            name, type_hint = name_type.split(":", 1)
+            name = name.strip().lstrip("...")
+            type_hint = type_hint.strip()
+        else:
+            name = name_type.strip().lstrip("...")
+            type_hint = None
+        if not name:
+            return None
+        return ParameterInfo(name=name, type_hint=type_hint, default_value=default)
 
     def _parse_js_ts_params(self, params_str: str) -> List[ParameterInfo]:
         """Parse JavaScript/TypeScript function parameters."""
-        params: list[ParameterInfo] = []
         if not params_str.strip():
-            return params
-
-        # Split by comma, respecting angle brackets and braces
-        parts = self._split_params(params_str)
-
-        for part in parts:
+            return []
+        params: list[ParameterInfo] = []
+        for part in _split_js_ts_params(params_str):
             part = part.strip()
             if not part:
                 continue
-
-            # Handle default values
-            if "=" in part:
-                name_type, default = part.split("=", 1)
-                default = default.strip()
-            else:
-                name_type = part
-                default = None
-
-            # Handle type annotations
-            if ":" in name_type:
-                name, type_hint = name_type.split(":", 1)
-                name = name.strip().lstrip("...")  # Handle rest params
-                type_hint = type_hint.strip()
-            else:
-                name = name_type.strip().lstrip("...")
-                type_hint = None
-
-            if name:
-                params.append(
-                    ParameterInfo(
-                        name=name,
-                        type_hint=type_hint,
-                        default_value=default,
-                    )
-                )
-
+            param = self._parse_single_js_ts_param(part)
+            if param:
+                params.append(param)
         return params
 
-    @staticmethod
-    def _split_params(params_str: str) -> List[str]:
-        """Split parameter string by commas, respecting angle brackets, braces, and parens."""
-        parts: list[str] = []
-        depth = 0
-        current: list[str] = []
-        for char in params_str:
-            if char in ("<", "{", "("):
-                depth += 1
-            elif char in (">", "}", ")"):
-                if depth > 0:
-                    depth -= 1
-            elif char == "," and depth == 0:
-                parts.append("".join(current))
-                current = []
-                continue
-            current.append(char)
-        if current:
-            parts.append("".join(current))
-        return parts
+    _JAVA_PATTERN = re.compile(
+        r"^\s*(public|private|protected)?\s*(static\s+)?([\w<>,\s]+)\s+(\w+)\s*\((.*?)\)\s*(throws\s+[\w,\s]+)?\s*\{"
+    )
+    _JAVA_CONTROL_KEYWORDS = frozenset({"if", "for", "while", "switch", "catch", "try"})
+
+    def _build_java_sig(self, lines: List[str], i: int, match: re.Match, file_path: str) -> Optional[FunctionSignature]:
+        _, _, return_type, name, params_str, _ = match.groups()
+        if name in self._JAVA_CONTROL_KEYWORDS:
+            return None
+        return FunctionSignature(
+            name=name,
+            parameters=self._parse_java_params(params_str or ""),
+            return_type=return_type.strip() if return_type else None,
+            is_method=True,
+            file_path=file_path,
+            start_line=i + 1,
+            end_line=i + 1,
+            existing_docstring=self._find_js_ts_docstring(lines, i),
+        )
 
     def _parse_java_functions(self, content: str, file_path: str) -> List[FunctionSignature]:
         """Parse Java method signatures."""
-        functions = []
         lines = content.split("\n")
-
-        # Pattern for Java methods
-        pattern = re.compile(r"^\s*(public|private|protected)?\s*(static\s+)?([\w<>,\s]+)\s+(\w+)\s*\((.*?)\)\s*(throws\s+[\w,\s]+)?\s*\{")
-
-        for i, line in enumerate(lines):
-            match = pattern.match(line)
-            if match:
-                _, _, return_type, name, params_str, _ = match.groups()
-
-                # Skip constructors and control statements
-                if name in ("if", "for", "while", "switch", "catch", "try"):
-                    continue
-
-                parameters = self._parse_java_params(params_str or "")
-
-                # Find existing docstring
-                existing_docstring = self._find_js_ts_docstring(lines, i)
-
-                func = FunctionSignature(
-                    name=name,
-                    parameters=parameters,
-                    return_type=return_type.strip() if return_type else None,
-                    is_method=True,
-                    file_path=file_path,
-                    start_line=i + 1,
-                    end_line=i + 1,
-                    existing_docstring=existing_docstring,
-                )
-                functions.append(func)
-
-        return functions
+        matches = ((i, self._JAVA_PATTERN.match(line)) for i, line in enumerate(lines))
+        return [
+            sig for i, m in matches
+            if m
+            for sig in [self._build_java_sig(lines, i, m, file_path)]
+            if sig
+        ]
 
     def _parse_java_params(self, params_str: str) -> List[ParameterInfo]:
         """Parse Java method parameters."""
@@ -920,98 +849,77 @@ class FunctionSignatureParser:
 # =============================================================================
 
 
+_SKIP_PARAM_NAMES = frozenset({"self", "cls"})
+_SKIP_RETURN_VALUES = frozenset({"none", "void"})
+
+
+def _non_self_params(func: FunctionSignature) -> List[ParameterInfo]:
+    return [p for p in func.parameters if p.name not in _SKIP_PARAM_NAMES]
+
+
+def _has_return(func: FunctionSignature) -> bool:
+    return bool(func.return_type and func.return_type.lower() not in _SKIP_RETURN_VALUES)
+
+
+def _google_param_line(param: ParameterInfo, func_name: str) -> str:
+    desc = _infer_parameter_description(param, func_name)
+    if param.type_hint:
+        return f"    {param.name} ({param.type_hint}): {desc}"
+    return f"    {param.name}: {desc}"
+
+
 def _generate_google_docstring(func: FunctionSignature) -> str:
     """Generate Google-style docstring."""
-    lines = []
-
-    # Description
-    description = _infer_description_from_name(func.name)
-    lines.append(f'"""{description}')
-
-    # Add Args section if there are parameters
-    non_self_params = [p for p in func.parameters if p.name not in ("self", "cls")]
-    if non_self_params:
-        lines.append("")
-        lines.append("Args:")
-        for param in non_self_params:
-            desc = _infer_parameter_description(param, func.name)
-            if param.type_hint:
-                lines.append(f"    {param.name} ({param.type_hint}): {desc}")
-            else:
-                lines.append(f"    {param.name}: {desc}")
-
-    # Add Returns section if there's a return type and it's not None/void
-    if func.return_type and func.return_type.lower() not in ("none", "void"):
-        lines.append("")
-        lines.append("Returns:")
+    lines = [f'"""{_infer_description_from_name(func.name)}']
+    non_self = _non_self_params(func)
+    if non_self:
+        lines += ["", "Args:"] + [_google_param_line(p, func.name) for p in non_self]
+    if _has_return(func):
         return_desc = _infer_return_description(func.return_type, func.name)
-        lines.append(f"    {func.return_type}: {return_desc}")
-
+        lines += ["", "Returns:", f"    {func.return_type}: {return_desc}"]
     lines.append('"""')
     return "\n".join(lines)
+
+
+def _numpy_param_lines(param: ParameterInfo, func_name: str) -> List[str]:
+    desc = _infer_parameter_description(param, func_name)
+    return [f"{param.name} : {param.type_hint or 'any'}", f"    {desc}"]
 
 
 def _generate_numpy_docstring(func: FunctionSignature) -> str:
     """Generate NumPy-style docstring."""
-    lines = []
-
-    # Description
-    description = _infer_description_from_name(func.name)
-    lines.append('"""')
-    lines.append(description)
-
-    # Add Parameters section
-    non_self_params = [p for p in func.parameters if p.name not in ("self", "cls")]
-    if non_self_params:
-        lines.append("")
-        lines.append("Parameters")
-        lines.append("----------")
-        for param in non_self_params:
-            desc = _infer_parameter_description(param, func.name)
-            type_str = param.type_hint or "any"
-            lines.append(f"{param.name} : {type_str}")
-            lines.append(f"    {desc}")
-
-    # Add Returns section
-    if func.return_type and func.return_type.lower() not in ("none", "void"):
-        lines.append("")
-        lines.append("Returns")
-        lines.append("-------")
+    lines: List[str] = ['"""', _infer_description_from_name(func.name)]
+    non_self = _non_self_params(func)
+    if non_self:
+        lines += ["", "Parameters", "----------"]
+        for param in non_self:
+            lines += _numpy_param_lines(param, func.name)
+    if _has_return(func):
         return_desc = _infer_return_description(func.return_type, func.name)
-        lines.append(f"{func.return_type}")
-        lines.append(f"    {return_desc}")
-
+        lines += ["", "Returns", "-------", f"{func.return_type}", f"    {return_desc}"]
     lines.append('"""')
     return "\n".join(lines)
 
 
+def _sphinx_param_lines(param: ParameterInfo, func_name: str) -> List[str]:
+    desc = _infer_parameter_description(param, func_name)
+    entry = [f":param {param.name}: {desc}"]
+    if param.type_hint:
+        entry.append(f":type {param.name}: {param.type_hint}")
+    return entry
+
+
 def _generate_sphinx_docstring(func: FunctionSignature) -> str:
     """Generate Sphinx-style docstring."""
-    lines = []
-
-    # Description
-    description = _infer_description_from_name(func.name)
-    lines.append(f'"""{description}')
-
-    # Add :param: entries
-    non_self_params = [p for p in func.parameters if p.name not in ("self", "cls")]
-    if non_self_params:
+    lines = [f'"""{_infer_description_from_name(func.name)}']
+    non_self = _non_self_params(func)
+    if non_self:
         lines.append("")
-        for param in non_self_params:
-            desc = _infer_parameter_description(param, func.name)
-            if param.type_hint:
-                lines.append(f":param {param.name}: {desc}")
-                lines.append(f":type {param.name}: {param.type_hint}")
-            else:
-                lines.append(f":param {param.name}: {desc}")
-
-    # Add :return:
-    if func.return_type and func.return_type.lower() not in ("none", "void"):
-        lines.append("")
+        for param in non_self:
+            lines += _sphinx_param_lines(param, func.name)
+    if _has_return(func):
         return_desc = _infer_return_description(func.return_type, func.name)
-        lines.append(f":return: {return_desc}")
-        lines.append(f":rtype: {func.return_type}")
-
+        lines += ["", f":return: {return_desc}", f":rtype: {func.return_type}"]
     lines.append('"""')
     return "\n".join(lines)
 
@@ -1236,6 +1144,21 @@ def _should_skip_function(func: FunctionSignature, skip_private: bool = True) ->
     return False, ""
 
 
+def _format_docstring_block(doc: GeneratedDocstring, func_line: str, language: str) -> tuple[str, int]:
+    """Format a docstring block and return (formatted_text, insert_idx)."""
+    indent = len(func_line) - len(func_line.lstrip())
+    indent_str = func_line[:indent]
+    if language == "python":
+        body_indent = indent_str + "    "
+        insert_idx_offset = 1
+    else:
+        body_indent = indent_str
+        insert_idx_offset = 0
+    docstring_lines = doc.docstring.split("\n")
+    indented = [body_indent + ln if ln else ln for ln in docstring_lines]
+    return "\n".join(indented) + "\n", insert_idx_offset
+
+
 def _apply_docstring_to_file(
     file_path: str,
     docstrings: List[GeneratedDocstring],
@@ -1254,45 +1177,88 @@ def _apply_docstring_to_file(
     with open(file_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
 
-    # Sort by line number descending to avoid line number shifts
     sorted_docstrings = sorted(docstrings, key=lambda d: d.line_number, reverse=True)
-
     modified = False
     for doc in sorted_docstrings:
         line_idx = doc.line_number - 1
-        if line_idx < len(lines):
-            # Find indentation
-            func_line = lines[line_idx]
-            indent = len(func_line) - len(func_line.lstrip())
-            indent_str = func_line[:indent]
-
-            # For Python, add indent to each line of docstring
-            if language == "python":
-                # Add extra indent for docstring inside function
-                body_indent = indent_str + "    "
-                docstring_lines = doc.docstring.split("\n")
-                indented_lines = [body_indent + line if line else line for line in docstring_lines]
-                formatted_docstring = "\n".join(indented_lines) + "\n"
-
-                # Insert after function definition
-                insert_idx = line_idx + 1
-                lines.insert(insert_idx, formatted_docstring)
-            else:
-                # For JS/Java, add docstring before function
-                body_indent = indent_str
-                docstring_lines = doc.docstring.split("\n")
-                indented_lines = [body_indent + line if line else line for line in docstring_lines]
-                formatted_docstring = "\n".join(indented_lines) + "\n"
-
-                lines.insert(line_idx, formatted_docstring)
-
-            modified = True
+        if line_idx >= len(lines):
+            continue
+        formatted, offset = _format_docstring_block(doc, lines[line_idx], language)
+        lines.insert(line_idx + offset, formatted)
+        modified = True
 
     if modified:
         with open(file_path, "w", encoding="utf-8") as f:
             f.writelines(lines)
 
     return modified
+
+
+def _process_files_batch(
+    files: List[str],
+    parser: "FunctionSignatureParser",
+    doc_style: DocstringStyle,
+    language: str,
+    overwrite_existing: bool,
+    skip_private: bool,
+) -> Tuple[int, int, int, int, List[GeneratedDocstring], Dict[str, List[GeneratedDocstring]]]:
+    """Process a batch of files and accumulate docstring results."""
+    total_functions = 0
+    functions_documented = 0
+    functions_generated = 0
+    functions_skipped = 0
+    all_docstrings: List[GeneratedDocstring] = []
+    docstrings_by_file: Dict[str, List[GeneratedDocstring]] = {}
+
+    for file_path in files:
+        try:
+            total, documented, generated, skipped, docstrings = _process_file_for_docstrings(
+                file_path, parser, doc_style, language, overwrite_existing, skip_private
+            )
+        except Exception as e:
+            logger.warning("file_parse_error", file=file_path, error=str(e))
+            sentry_sdk.capture_exception(e)
+            continue
+        total_functions += total
+        functions_documented += documented
+        functions_generated += generated
+        functions_skipped += skipped
+        all_docstrings.extend(docstrings)
+        if docstrings:
+            docstrings_by_file[file_path] = docstrings
+
+    return total_functions, functions_documented, functions_generated, functions_skipped, all_docstrings, docstrings_by_file
+
+
+def _log_and_build_result(
+    totals: Tuple[int, int, int, int, List[GeneratedDocstring], Dict[str, List[GeneratedDocstring]]],
+    dry_run: bool,
+    language: str,
+    start_time: float,
+) -> DocstringGenerationResult:
+    """Apply docstrings, log completion, and build the result object."""
+    total_functions, functions_documented, functions_generated, functions_skipped, all_docstrings, docstrings_by_file = totals
+    files_modified = _apply_docstrings_to_files(docstrings_by_file, language) if not dry_run else []
+    execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
+    logger.info(
+        "generate_docstrings_completed",
+        total_functions=total_functions,
+        functions_generated=functions_generated,
+        functions_documented=functions_documented,
+        functions_skipped=functions_skipped,
+        files_modified=len(files_modified),
+        execution_time_ms=execution_time,
+    )
+    return DocstringGenerationResult(
+        total_functions=total_functions,
+        functions_documented=functions_documented,
+        functions_generated=functions_generated,
+        functions_skipped=functions_skipped,
+        docstrings=all_docstrings,
+        files_modified=files_modified,
+        dry_run=dry_run,
+        execution_time_ms=execution_time,
+    )
 
 
 def generate_docstrings_impl(
@@ -1321,7 +1287,6 @@ def generate_docstrings_impl(
     import glob
 
     start_time = time.time()
-
     logger.info(
         "generate_docstrings_started",
         project_folder=project_folder,
@@ -1330,61 +1295,7 @@ def generate_docstrings_impl(
         style=style,
         dry_run=dry_run,
     )
-
-    # Determine style
     doc_style = _detect_project_style(project_folder, language) if style == "auto" else DocstringStyle(style)
-
-    # Find files matching pattern
-    pattern_path = os.path.join(project_folder, file_pattern)
-    files = glob.glob(pattern_path, recursive=True)
-
-    parser = FunctionSignatureParser(language)
-    total_functions = 0
-    functions_documented = 0
-    functions_generated = 0
-    functions_skipped = 0
-    all_docstrings: List[GeneratedDocstring] = []
-    docstrings_by_file: Dict[str, List[GeneratedDocstring]] = {}
-
-    # Process each file
-    for file_path in files:
-        try:
-            total, documented, generated, skipped, docstrings = _process_file_for_docstrings(
-                file_path, parser, doc_style, language, overwrite_existing, skip_private
-            )
-            total_functions += total
-            functions_documented += documented
-            functions_generated += generated
-            functions_skipped += skipped
-            all_docstrings.extend(docstrings)
-            if docstrings:
-                docstrings_by_file[file_path] = docstrings
-        except Exception as e:
-            logger.warning("file_parse_error", file=file_path, error=str(e))
-            sentry_sdk.capture_exception(e)
-
-    # Apply docstrings if not dry run
-    files_modified = _apply_docstrings_to_files(docstrings_by_file, language) if not dry_run else []
-
-    execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
-
-    logger.info(
-        "generate_docstrings_completed",
-        total_functions=total_functions,
-        functions_generated=functions_generated,
-        functions_documented=functions_documented,
-        functions_skipped=functions_skipped,
-        files_modified=len(files_modified),
-        execution_time_ms=execution_time,
-    )
-
-    return DocstringGenerationResult(
-        total_functions=total_functions,
-        functions_documented=functions_documented,
-        functions_generated=functions_generated,
-        functions_skipped=functions_skipped,
-        docstrings=all_docstrings,
-        files_modified=files_modified,
-        dry_run=dry_run,
-        execution_time_ms=execution_time,
-    )
+    files = glob.glob(os.path.join(project_folder, file_pattern), recursive=True)
+    totals = _process_files_batch(files, FunctionSignatureParser(language), doc_style, language, overwrite_existing, skip_private)
+    return _log_and_build_result(totals, dry_run, language, start_time)
