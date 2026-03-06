@@ -78,16 +78,3 @@ class NoMatchesError(AstGrepError):
             "The pattern did not match any code.\n"
             "Check your pattern syntax and ensure it correctly matches the target code structure."
         )
-
-
-# These exceptions are for the quality/standards feature
-class RuleValidationError(Exception):
-    """Raised when a linting rule validation fails."""
-
-    pass
-
-
-class RuleStorageError(Exception):
-    """Raised when a linting rule cannot be stored."""
-
-    pass
