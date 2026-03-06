@@ -9,7 +9,7 @@ import hashlib
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
-from ...constants import CodeAnalysisDefaults, DeduplicationDefaults, RankerDefaults, RiskMultipliers
+from ...constants import CodeAnalysisDefaults, DeduplicationDefaults, PriorityClassifierThresholds, RankerDefaults, RiskMultipliers
 from ...core.logging import get_logger
 
 
@@ -192,10 +192,10 @@ class DeduplicationPriorityClassifier:
     """Classifies deduplication candidates by priority and generates recommendations."""
 
     # Priority thresholds
-    THRESHOLD_CRITICAL = 80
-    THRESHOLD_HIGH = 60
-    THRESHOLD_MEDIUM = 40
-    THRESHOLD_LOW = 20
+    THRESHOLD_CRITICAL = PriorityClassifierThresholds.CRITICAL
+    THRESHOLD_HIGH = PriorityClassifierThresholds.HIGH
+    THRESHOLD_MEDIUM = PriorityClassifierThresholds.MEDIUM
+    THRESHOLD_LOW = PriorityClassifierThresholds.LOW
 
     def __init__(self) -> None:
         """Initialize the priority classifier."""

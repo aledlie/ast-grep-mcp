@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ast_grep_mcp.constants import CrossLanguageDefaults, SubprocessDefaults
+from ast_grep_mcp.constants import ConversionFactors, CrossLanguageDefaults, SubprocessDefaults
 from ast_grep_mcp.core.executor import run_ast_grep
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.cross_language import (
@@ -296,7 +296,7 @@ def search_multi_language_impl(
             languages_searched=[],
             matches=[],
             total_matches=0,
-            execution_time_ms=int((time.time() - start_time) * 1000),
+            execution_time_ms=int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND),
         )
 
     semantic_key = _parse_semantic_query(semantic_pattern)
@@ -340,5 +340,5 @@ def search_multi_language_impl(
         total_matches=len(all_matches),
         matches_by_language=matches_by_language,
         semantic_groups=semantic_groups,
-        execution_time_ms=int((time.time() - start_time) * 1000),
+        execution_time_ms=int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND),
     )

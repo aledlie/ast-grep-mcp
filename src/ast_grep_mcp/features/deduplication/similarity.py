@@ -38,6 +38,7 @@ from datasketch import MinHash, MinHashLSH
 
 from ...constants import (
     ASTFingerprintDefaults,
+    ConversionFactors,
     DeduplicationDefaults,
     FormattingDefaults,
     HybridSimilarityDefaults,
@@ -1679,7 +1680,7 @@ class SemanticSimilarityConfig:
     device: str = "auto"
     """Device for inference: 'auto', 'cpu', 'cuda', or 'mps'."""
 
-    batch_size: int = 8
+    batch_size: int = SemanticSimilarityDefaults.DEFAULT_BATCH_SIZE
     """Batch size for embedding generation (for bulk operations)."""
 
     cache_embeddings: bool = True
@@ -2019,7 +2020,7 @@ class SemanticSimilarity:
         truncated = tokens1 > self.config.max_length or tokens2 > self.config.max_length
 
         similarity = self.calculate_similarity(code1, code2)
-        elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+        elapsed_ms = int((time.perf_counter() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
         return SemanticSimilarityResult(
             similarity=similarity,

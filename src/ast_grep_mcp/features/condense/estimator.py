@@ -7,7 +7,7 @@ without modifying any files.
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ...constants import CondenseDefaults, CondenseFileRouting
+from ...constants import CondenseDefaults, CondenseFileRouting, ConversionFactors
 from ...core.logging import get_logger
 from .strategies import STRATEGY_REDUCTION_RATIOS as _STRATEGY_REDUCTION
 
@@ -151,7 +151,7 @@ def _rank_reduction_candidates(
         {
             "file": s["file"],
             "lines": s["lines"],
-            "reducible_pct": round(s["lines"] / total_lines * 100, 1),
+            "reducible_pct": round(s["lines"] / total_lines * ConversionFactors.PERCENT_MULTIPLIER, 1),
         }
         for s in top
     ]

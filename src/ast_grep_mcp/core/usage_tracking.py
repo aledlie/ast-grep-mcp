@@ -27,7 +27,7 @@ from typing import Any, Callable, Dict, Generator, List, Optional, TypeVar, cast
 
 from pydantic import BaseModel, Field
 
-from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults, UsageTrackingDefaults
+from ast_grep_mcp.constants import ConversionFactors, DisplayDefaults, FormattingDefaults, UsageTrackingDefaults
 
 from .logging import get_logger
 
@@ -440,7 +440,7 @@ class UsageDatabase:
             total_calls=total_calls,
             successful_calls=successful_calls,
             failed_calls=row["failed_calls"] or 0,
-            success_rate=(successful_calls / total_calls * 100) if total_calls > 0 else 0.0,
+            success_rate=(successful_calls / total_calls * ConversionFactors.PERCENT_MULTIPLIER) if total_calls > 0 else 0.0,
             total_cost=row["total_cost"] or 0.0,
             average_cost=row["avg_cost"] or 0.0,
             total_response_time_ms=row["total_response_time"] or 0,
@@ -697,7 +697,7 @@ def track_usage(
                 error_message = str(e)[: DisplayDefaults.ERROR_MESSAGE_MAX_LENGTH]
                 raise
             finally:
-                response_time_ms = int((time.perf_counter() - start_time) * 1000)
+                response_time_ms = int((time.perf_counter() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
                 # Extract metrics from result if available
                 files_processed = 0
@@ -799,7 +799,7 @@ class _OperationTracker:
 
     def _finalize(self) -> None:
         """Finalize and log the operation."""
-        response_time_ms = int((time.perf_counter() - self._start_time) * 1000)
+        response_time_ms = int((time.perf_counter() - self._start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
         estimated_cost = calculate_operation_cost(
             self.operation_type,

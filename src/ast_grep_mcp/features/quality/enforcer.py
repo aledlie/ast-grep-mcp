@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Set
 import sentry_sdk
 import yaml
 
-from ast_grep_mcp.constants import FormattingDefaults, RuleSetPriority, SeverityRankingDefaults
+from ast_grep_mcp.constants import ConversionFactors, FormattingDefaults, RuleSetPriority, SeverityRankingDefaults, StreamDefaults
 from ast_grep_mcp.core.executor import stream_ast_grep_results
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.quality.rules import RULE_TEMPLATES, load_rules_from_project
@@ -347,7 +347,10 @@ def execute_rule(rule: LintingRule, context: RuleExecutionContext) -> List[RuleV
         with sentry_sdk.start_span(op="execute_rule", name=f"Rule: {rule.id}"):
             matches = list(
                 stream_ast_grep_results(
-                    "scan", args, max_results=context.max_violations if context.max_violations > 0 else 0, progress_interval=100
+                    "scan",
+                    args,
+                    max_results=context.max_violations if context.max_violations > 0 else 0,
+                    progress_interval=StreamDefaults.PROGRESS_INTERVAL,
                 )
             )
 
@@ -725,7 +728,7 @@ def enforce_standards_impl(
 
     # Calculate summary
     execution_time = time.time() - start_time
-    duration_ms = int(execution_time * 1000)
+    duration_ms = int(execution_time * ConversionFactors.MILLISECONDS_PER_SECOND)
 
     summary = {
         "total_violations": len(filtered_violations),

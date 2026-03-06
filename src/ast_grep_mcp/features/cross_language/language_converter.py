@@ -8,7 +8,7 @@ import re
 import time
 from typing import Dict, List, Tuple
 
-from ast_grep_mcp.constants import RegexCaptureGroups
+from ast_grep_mcp.constants import ConversionFactors, RegexCaptureGroups
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.cross_language.pattern_database import (
     get_type_mapping,
@@ -439,7 +439,7 @@ def convert_code_language_impl(
         success=True,
     )
 
-    execution_time = int((time.time() - start_time) * 1000)
+    execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
     return ConversionResult(
         conversions=[converted],

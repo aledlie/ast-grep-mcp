@@ -19,7 +19,7 @@ import time
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Literal, Optional
 
-from ...constants import DeduplicationDefaults, DetectorDefaults, DisplayDefaults, FormattingDefaults, IndentationDefaults
+from ...constants import DeduplicationDefaults, DetectorDefaults, DisplayDefaults, FormattingDefaults, IndentationDefaults, StreamDefaults
 from ...core.executor import stream_ast_grep_results
 from ...core.logging import get_logger
 from ...core.usage_tracking import OperationType, track_operation
@@ -239,7 +239,12 @@ class DuplicationDetector:
         # Use streaming to get matches
         stream_limit = max_constructs if max_constructs > 0 else 0
         all_matches = list(
-            stream_ast_grep_results("run", args + ["--json=stream", project_folder], max_results=stream_limit, progress_interval=100)
+            stream_ast_grep_results(
+                "run",
+                args + ["--json=stream", project_folder],
+                max_results=stream_limit,
+                progress_interval=StreamDefaults.PROGRESS_INTERVAL,
+            )
         )
 
         # Filter out excluded paths

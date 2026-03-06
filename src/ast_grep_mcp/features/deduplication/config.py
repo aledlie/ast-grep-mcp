@@ -7,7 +7,7 @@ excessive parameter passing throughout the deduplication workflow.
 from dataclasses import dataclass
 from typing import Any, Callable, List, Optional
 
-from ...constants import DeduplicationDefaults
+from ...constants import DeduplicationDefaults, ParallelProcessing
 
 
 @dataclass
@@ -72,7 +72,7 @@ class AnalysisConfig:
 
     # Parallel execution settings
     parallel: bool = True
-    max_workers: int = 4
+    max_workers: int = ParallelProcessing.DEFAULT_WORKERS
 
     # Progress tracking
     progress_callback: Optional[Callable[[str, float], None]] = None

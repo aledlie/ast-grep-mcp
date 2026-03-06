@@ -10,7 +10,7 @@ import statistics
 import time
 from typing import Any, Callable, Dict, List
 
-from ...constants import DeduplicationDefaults, FormattingDefaults, ReportingDefaults
+from ...constants import ConversionFactors, DeduplicationDefaults, FormattingDefaults, ReportingDefaults
 from ...core.logging import get_logger
 from .ranker import DuplicationRanker
 from .recommendations import RecommendationEngine
@@ -83,7 +83,7 @@ class BenchmarkExecutor:
         self.logger.info(
             "benchmark_complete",
             name=name,
-            mean_ms=round(mean_seconds * 1000, FormattingDefaults.ROUNDING_PRECISION),
+            mean_ms=round(mean_seconds * ConversionFactors.MILLISECONDS_PER_SECOND, FormattingDefaults.ROUNDING_PRECISION),
             iterations=iterations,
         )
 
@@ -431,10 +431,10 @@ class RegressionDetector:
             self.logger.warning(
                 "regression_detected",
                 name=name,
-                slowdown_percent=round(slowdown * 100, 1),
+                slowdown_percent=round(slowdown * ConversionFactors.PERCENT_MULTIPLIER, 1),
                 baseline_seconds=baseline_mean,
                 current_seconds=current_mean,
-                threshold_percent=threshold * 100,
+                threshold_percent=threshold * ConversionFactors.PERCENT_MULTIPLIER,
             )
 
             return error_msg
@@ -449,7 +449,7 @@ class RegressionDetector:
             threshold: Regression threshold (e.g., 0.15 for 15%)
         """
         self.thresholds[name] = threshold
-        self.logger.debug("threshold_updated", name=name, threshold_percent=threshold * 100)
+        self.logger.debug("threshold_updated", name=name, threshold_percent=threshold * ConversionFactors.PERCENT_MULTIPLIER)
 
     def get_thresholds(self) -> Dict[str, float]:
         """Get current regression thresholds.

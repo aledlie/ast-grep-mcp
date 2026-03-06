@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import FilePatterns, RegexCaptureGroups, SeverityRankingDefaults
+from ast_grep_mcp.constants import ConversionFactors, FilePatterns, RegexCaptureGroups, SeverityRankingDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
     DocSyncIssue,
@@ -556,7 +556,7 @@ def sync_documentation_impl(
         )
     )
 
-    execution_time = int((time.time() - start_time) * 1000)
+    execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
     logger.info(
         "sync_documentation_completed",

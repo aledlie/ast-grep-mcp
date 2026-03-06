@@ -7,7 +7,7 @@ across programming languages.
 import time
 from typing import Any, Dict, List, Optional
 
-from ast_grep_mcp.constants import EquivalenceDefaults
+from ast_grep_mcp.constants import ConversionFactors, EquivalenceDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.cross_language.pattern_database import (
     PATTERN_CATEGORIES,
@@ -227,7 +227,7 @@ def find_language_equivalents_impl(
         categories[0] if categories else None,
     )
 
-    execution_time = int((time.time() - start_time) * 1000)
+    execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
     return PatternEquivalenceResult(
         pattern_description=pattern_description,

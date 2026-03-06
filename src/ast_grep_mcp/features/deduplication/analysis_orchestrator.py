@@ -715,7 +715,12 @@ class DeduplicationAnalysisOrchestrator:
         self.logger.info("batch_coverage_added", candidate_count=len(candidates), unique_files_checked=len(unique_files), parallel=parallel)
 
     def _add_test_coverage(
-        self, candidates: List[Dict[str, Any]], language: str, project_path: str, parallel: bool = True, max_workers: int = 4
+        self,
+        candidates: List[Dict[str, Any]],
+        language: str,
+        project_path: str,
+        parallel: bool = True,
+        max_workers: int = ParallelProcessing.DEFAULT_WORKERS,
     ) -> List[Dict[str, Any]]:
         """Add test coverage information to candidates (legacy method).
 
@@ -747,7 +752,11 @@ class DeduplicationAnalysisOrchestrator:
         )
 
     def _add_recommendations(
-        self, candidates: List[Dict[str, Any]], parallel: bool = True, max_workers: int = 4, timeout_per_candidate: Optional[int] = None
+        self,
+        candidates: List[Dict[str, Any]],
+        parallel: bool = True,
+        max_workers: int = ParallelProcessing.DEFAULT_WORKERS,
+        timeout_per_candidate: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Add recommendations to candidates.
 

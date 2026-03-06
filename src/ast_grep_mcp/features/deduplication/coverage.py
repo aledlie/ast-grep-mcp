@@ -6,6 +6,7 @@ import re as regex_module
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from typing import Callable, Dict, List, Optional, Set, Tuple
 
+from ...constants import ParallelProcessing
 from ...core.logging import get_logger
 
 __all__ = [
@@ -473,7 +474,12 @@ class CoverageDetector:
         return coverage_map
 
     def get_test_coverage_for_files_batch(
-        self, file_paths: List[str], language: str, project_root: str, parallel: bool = True, max_workers: int = 4
+        self,
+        file_paths: List[str],
+        language: str,
+        project_root: str,
+        parallel: bool = True,
+        max_workers: int = ParallelProcessing.DEFAULT_WORKERS,
     ) -> Dict[str, bool]:
         """Get test coverage status for multiple files with batch optimization.
 

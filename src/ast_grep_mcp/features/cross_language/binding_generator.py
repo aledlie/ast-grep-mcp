@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 
+from ast_grep_mcp.constants import ConversionFactors
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.cross_language import (
     BINDING_LANGUAGES,
@@ -608,5 +609,5 @@ def generate_language_bindings_impl(
         endpoints_count=len(endpoints),
         bindings=bindings,
         warnings=warnings,
-        execution_time_ms=int((time.time() - start_time) * 1000),
+        execution_time_ms=int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND),
     )

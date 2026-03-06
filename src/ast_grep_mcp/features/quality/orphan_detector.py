@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from ast_grep_mcp.constants import FilePatterns, SemanticVolumeDefaults, SubprocessDefaults
+from ast_grep_mcp.constants import ConversionFactors, FilePatterns, SemanticVolumeDefaults, SubprocessDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.orphan import (
     DependencyEdge,
@@ -66,7 +66,7 @@ class OrphanDetector:
         if self.config.analyze_functions:
             orphan_functions, total_functions = self._find_orphan_functions(base_path, graph)
 
-        elapsed_ms = int((time.time() - start_time) * 1000)
+        elapsed_ms = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
         result = OrphanAnalysisResult(
             orphan_files=orphan_files,

@@ -11,12 +11,11 @@ from typing import Any, Callable, TypeVar
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import DisplayDefaults, PerformanceDefaults
+from ast_grep_mcp.constants import ConversionFactors, DisplayDefaults, PerformanceDefaults
 from ast_grep_mcp.core.logging import get_logger
 
 # Type variable for generic function decorators
 F = TypeVar("F", bound=Callable[..., Any])
-MILLISECONDS_PER_SECOND = 1000.0
 
 
 def monitor_performance(func: F) -> F:
@@ -49,7 +48,7 @@ def monitor_performance(func: F) -> F:
         with sentry_sdk.start_span(op="tool.execution", name=func.__name__) as span:
             try:
                 result = func(*args, **kwargs)
-                duration_ms = int((time.time() - start_time) * 1000)
+                duration_ms = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
                 # Log success
                 logger.info("tool_performance", tool=func.__name__, duration_ms=duration_ms, status="success")
@@ -65,7 +64,7 @@ def monitor_performance(func: F) -> F:
                 return result
 
             except Exception as e:
-                duration_ms = int((time.time() - start_time) * 1000)
+                duration_ms = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
                 # Log failure
                 logger.error(
@@ -113,7 +112,7 @@ def monitor_performance_async(func: F) -> F:
         with sentry_sdk.start_span(op="tool.execution.async", name=func.__name__) as span:
             try:
                 result = await func(*args, **kwargs)
-                duration_ms = int((time.time() - start_time) * 1000)
+                duration_ms = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
                 # Log success
                 logger.info("tool_performance", tool=func.__name__, duration_ms=duration_ms, status="success", async_execution=True)
@@ -130,7 +129,7 @@ def monitor_performance_async(func: F) -> F:
                 return result
 
             except Exception as e:
-                duration_ms = int((time.time() - start_time) * 1000)
+                duration_ms = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
                 # Log failure
                 logger.error(
@@ -196,13 +195,13 @@ class PerformanceTimer:
         """Get elapsed time in milliseconds."""
         if self.end_time == 0:
             # Timer still running
-            return int((time.time() - self.start_time) * 1000)
-        return int((self.end_time - self.start_time) * 1000)
+            return int((time.time() - self.start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
+        return int((self.end_time - self.start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
     @property
     def elapsed_seconds(self) -> float:
         """Get elapsed time in seconds."""
-        return self.elapsed_ms / MILLISECONDS_PER_SECOND
+        return self.elapsed_ms / ConversionFactors.MILLISECONDS_PER_SECOND
 
 
 def track_slow_operations(threshold_ms: int = PerformanceDefaults.DEFAULT_SLOW_THRESHOLD_MS) -> Callable[[F], F]:
@@ -228,7 +227,7 @@ def track_slow_operations(threshold_ms: int = PerformanceDefaults.DEFAULT_SLOW_T
 
             try:
                 result = func(*args, **kwargs)
-                duration_ms = int((time.time() - start_time) * 1000)
+                duration_ms = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
 
                 if duration_ms > threshold_ms:
                     logger.warning(
@@ -243,7 +242,7 @@ def track_slow_operations(threshold_ms: int = PerformanceDefaults.DEFAULT_SLOW_T
 
             except Exception:
                 # Still track duration even on error
-                duration_ms = int((time.time() - start_time) * 1000)
+                duration_ms = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
                 if duration_ms > threshold_ms:
                     logger.warning(
                         "slow_operation_detected",
