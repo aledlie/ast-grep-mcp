@@ -1116,20 +1116,27 @@ class HybridSimilarity:
                 if comment_pos > 0:
                     line = line[:comment_pos].rstrip()
 
-            # Normalize indentation: detect 4-space vs 2-space adaptively
-            indent_count = len(line) - len(line.lstrip())
-            divisor = (
-                IndentationDefaults.SPACES_PER_LEVEL
-                if indent_count % IndentationDefaults.SPACES_PER_LEVEL == 0
-                else IndentationDefaults.ALT_SPACES_PER_LEVEL
-            )
-            indent_level = indent_count // divisor
-            normalized_line = "    " * indent_level + line.lstrip()
-
+            normalized_line = self._normalize_indentation(line)
             if normalized_line.strip():
                 lines.append(normalized_line)
 
         return "\n".join(lines)
+
+    @staticmethod
+    def _normalize_indentation(line: str) -> str:
+        """Canonicalize leading whitespace to 4-space units.
+
+        Detects whether the line uses 4-space or 2-space indentation and
+        converts to a uniform 4-space-per-level representation.
+        """
+        indent_count = len(line) - len(line.lstrip())
+        divisor = (
+            IndentationDefaults.SPACES_PER_LEVEL
+            if indent_count % IndentationDefaults.SPACES_PER_LEVEL == 0
+            else IndentationDefaults.ALT_SPACES_PER_LEVEL
+        )
+        indent_level = indent_count // divisor
+        return "    " * indent_level + line.lstrip()
 
     def _calculate_simplified_ast_similarity(self, code1: str, code2: str) -> float:
         """Calculate simplified structural similarity for large code.
