@@ -244,7 +244,7 @@ def apply_pattern_fix(file_path: str, violation: RuleViolation, fix_pattern: str
         )
 
 
-def _apply_fix_pattern(code: str, fix_pattern: str, meta_vars: Dict[str, str]) -> str:
+def _apply_fix_pattern(code: str, fix_pattern: str, meta_vars: Dict[str, "str | list[str]"]) -> str:
     """Apply a fix pattern with metavariable substitution.
 
     Args:
@@ -259,6 +259,8 @@ def _apply_fix_pattern(code: str, fix_pattern: str, meta_vars: Dict[str, str]) -
 
     # Replace metavariables (e.g., $VAR, $ARGS, $$$)
     for var_name, var_value in meta_vars.items():
+        if isinstance(var_value, list):
+            var_value = " ".join(var_value)
         fixed = fixed.replace(f"${var_name}", var_value)
 
     return fixed
