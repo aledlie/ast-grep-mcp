@@ -785,7 +785,7 @@ def build_rule_impl(
         rule_id = _generate_rule_id(pattern, language, inside, has)
     rule_obj = _build_rule_object(pattern, inside, has, follows, precedes, inside_kind, has_kind, stop_by)
     yaml_obj = _build_yaml_object(rule_id, language, rule_obj, message, severity, fix)
-    return yaml.dump(yaml_obj, default_flow_style=False, sort_keys=False, allow_unicode=True)
+    return str(yaml.dump(yaml_obj, default_flow_style=False, sort_keys=False, allow_unicode=True))
 
 
 # =============================================================================
