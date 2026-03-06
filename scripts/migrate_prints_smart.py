@@ -18,7 +18,10 @@ from ast_grep_mcp.features.deduplication.scoring_scales import PrintMigrationTop
 from ast_grep_mcp.utils.console_logger import console
 from ast_grep_mcp.utils.slicing import take_top_n
 
-IMPORT_STMT = "from ast_grep_mcp.utils.console_logger import console"
+try:
+    from scripts.import_helpers import CONSOLE_IMPORT_STMT, ensure_import_present
+except ImportError:  # pragma: no cover - script execution path
+    from import_helpers import CONSOLE_IMPORT_STMT, ensure_import_present
 
 
 def smart_replace_print(line: str) -> Tuple[str, bool]:
@@ -104,43 +107,7 @@ def add_console_import(lines: List[str]) -> List[str]:
         Modified lines with import added
     """
 
-    # Check if already imported
-    for line in lines:
-        if IMPORT_STMT in line:
-            return lines
-
-    # Find where to insert import
-    insert_idx = 0
-
-    # Skip shebang
-    if lines and lines[0].startswith("#!"):
-        insert_idx = 1
-
-    # Skip module docstring
-    in_docstring = False
-    for i in range(insert_idx, min(insert_idx + 20, len(lines))):
-        line = lines[i].strip()
-        if line.startswith('"""') or line.startswith("'''"):
-            if not in_docstring:
-                in_docstring = True
-                # Check if docstring closes on same line
-                quote = '"""' if '"""' in line else "'''"
-                if line.count(quote) >= 2:
-                    insert_idx = i + 1
-                    in_docstring = False
-            else:
-                insert_idx = i + 1
-                break
-        elif in_docstring:
-            continue
-        elif line.startswith("import ") or line.startswith("from "):
-            insert_idx = i + 1
-
-    # Insert import and blank line
-    lines.insert(insert_idx, IMPORT_STMT)
-    if insert_idx < len(lines) and lines[insert_idx + 1].strip():
-        lines.insert(insert_idx + 1, "")
-
+    ensure_import_present(lines, CONSOLE_IMPORT_STMT, add_blank_line=True, blank_line_only_when_needed=True)
     return lines
 
 
