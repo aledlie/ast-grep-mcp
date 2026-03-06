@@ -8,7 +8,7 @@ import json
 import os
 import statistics
 import time
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, cast
 
 from ...constants import ConversionFactors, DeduplicationDefaults, FormattingDefaults, ReportingDefaults
 from ...core.logging import get_logger
@@ -78,7 +78,7 @@ class BenchmarkExecutor:
             "max_seconds": round(max(times), FormattingDefaults.BENCHMARK_PRECISION),
         }
 
-        mean_seconds = result["mean_seconds"]
+        mean_seconds = cast(float, result["mean_seconds"])
         self.logger.info(
             "benchmark_complete",
             name=name,
