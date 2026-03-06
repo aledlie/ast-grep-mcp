@@ -264,63 +264,42 @@ class ImpactAnalyzer:
     def _find_external_call_sites(
         self, function_names: List[str], project_root: str, language: str, exclude_files: List[str]
     ) -> List[Dict[str, Any]]:
-        """Find call sites for functions outside the duplicate locations.
-
-        Uses ast-grep to search for function calls.
-
-        Args:
-            function_names: Names of functions to search for
-            project_root: Project root path
-            language: Programming language
-            exclude_files: Files to exclude (contain the duplicates)
-
-        Returns:
-            List of call site info dicts with file, line, column, context
-        """
+        """Find call sites for functions outside the duplicate locations."""
         call_sites: List[Dict[str, Any]] = []
-
-        if not function_names:
-            return call_sites
-
         for func_name in function_names[:10]:  # Limit to prevent too many searches
-            # Build call pattern based on language
-            pattern = f"{func_name}($$$)"
-
             try:
-                # Run ast-grep to find call sites
-                args = ["--pattern", pattern, "--lang", language, "--json", project_root]
-                result = run_ast_grep("run", args)
-
-                if result.returncode == 0 and result.stdout.strip():
-                    matches = json.loads(result.stdout)
-
-                    for match in matches:
-                        file_path = match.get("file", "")
-
-                        # Skip files containing the duplicates
-                        if file_path in exclude_files:
-                            continue
-
-                        # Make path absolute if needed
-                        if not os.path.isabs(file_path):
-                            file_path = os.path.join(project_root, file_path)
-
-                        call_site = {
-                            "file": file_path,
-                            "line": match.get("range", {}).get("start", {}).get("line", 0) + 1,
-                            "column": match.get("range", {}).get("start", {}).get("column", 0),
-                            "function_called": func_name,
-                            "context": match.get("text", "")[:100],
-                            "type": "function_call",
-                        }
-                        call_sites.append(call_site)
-
+                call_sites.extend(self._search_call_sites_for_name(func_name, project_root, language, exclude_files))
             except (json.JSONDecodeError, subprocess.SubprocessError) as e:
-                # Log but continue with other function names
                 self.logger.debug("call_site_search_error", function=func_name, error=str(e))
-                continue
-
         return call_sites
+
+    def _search_call_sites_for_name(
+        self, func_name: str, project_root: str, language: str, exclude_files: List[str]
+    ) -> List[Dict[str, Any]]:
+        """Run ast-grep for one function name and return filtered call-site records."""
+        args = ["--pattern", f"{func_name}($$$)", "--lang", language, "--json", project_root]
+        result = run_ast_grep("run", args)
+        if not (result.returncode == 0 and result.stdout.strip()):
+            return []
+        return [
+            self._to_call_site_record(match, func_name, project_root)
+            for match in json.loads(result.stdout)
+            if match.get("file", "") not in exclude_files
+        ]
+
+    def _to_call_site_record(self, match: Dict[str, Any], func_name: str, project_root: str) -> Dict[str, Any]:
+        """Shape a single ast-grep match into a call-site dict."""
+        file_path = match.get("file", "")
+        if not os.path.isabs(file_path):
+            file_path = os.path.join(project_root, file_path)
+        return {
+            "file": file_path,
+            "line": match.get("range", {}).get("start", {}).get("line", 0) + 1,
+            "column": match.get("range", {}).get("start", {}).get("column", 0),
+            "function_called": func_name,
+            "context": match.get("text", "")[:100],
+            "type": "function_call",
+        }
 
     def _find_import_references(
         self, function_names: List[str], project_root: str, language: str, exclude_files: List[str]
