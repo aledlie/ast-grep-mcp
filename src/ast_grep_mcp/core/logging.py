@@ -6,6 +6,8 @@ from typing import Any, List, Optional
 
 import structlog
 
+_log_file_handle: Optional[Any] = None
+
 
 def configure_logging(log_level: str = "INFO", log_file: Optional[str] = None) -> None:
     """Configure structured logging with JSON output.
@@ -34,11 +36,17 @@ def configure_logging(log_level: str = "INFO", log_file: Optional[str] = None) -
     ]
 
     # Configure structlog
+    global _log_file_handle
+    if log_file is not None:
+        if _log_file_handle is not None:
+            _log_file_handle.close()
+        _log_file_handle = open(log_file, "a")  # noqa: SIM115
+    log_sink = _log_file_handle if log_file is not None else sys.stderr
     structlog.configure(
         processors=processors,
         wrapper_class=structlog.make_filtering_bound_logger(numeric_level),
         context_class=dict,
-        logger_factory=structlog.WriteLoggerFactory(file=sys.stderr if log_file is None else open(log_file, "a")),  # noqa: SIM115 - file must stay open for logging
+        logger_factory=structlog.WriteLoggerFactory(file=log_sink),
         cache_logger_on_first_use=True,
     )
 
