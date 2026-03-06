@@ -241,13 +241,48 @@ def _collect_docstring(lines: List[str], start: int) -> Tuple[List[str], int]:
     return doc_lines, j - start
 
 
+def _count_structural_braces(line: str) -> int:
+    """Count net structural braces on a line, skipping strings and comments.
+
+    Handles single-quoted, double-quoted, and template-literal strings.
+    Stops counting at // line comments. Does not handle multi-line strings.
+    Returns opens minus closes for structural braces only.
+    """
+    net = 0
+    i = 0
+    n = len(line)
+    while i < n:
+        c = line[i]
+        # Line comment: stop
+        if c == "/" and i + 1 < n and line[i + 1] == "/":
+            break
+        # String / template literal: skip to matching close
+        if c in ('"', "'", "`"):
+            quote = c
+            i += 1
+            while i < n:
+                ch = line[i]
+                if ch == "\\" and i + 1 < n:
+                    i += 2
+                    continue
+                if ch == quote:
+                    break
+                i += 1
+        elif c == "{":
+            net += 1
+        elif c == "}":
+            net -= 1
+        i += 1
+    return net
+
+
 def _extract_js_ts_surface(lines: List[str], include_docstrings: bool) -> List[str]:
     """Extract JS/TS surface: export declarations only.
 
-    Uses character-level brace counting, which is an approximation. Braces
-    inside string literals or template literals may cause early block close or
-    false-continuation. For production-quality extraction, prefer ast-grep
-    pattern matching over this line-scanner.
+    Uses character-level brace counting with string/comment awareness.
+    Braces inside string literals, template literals, and `//` comments
+    are skipped. Multi-line template literals spanning lines are not
+    handled; for those cases ast-grep pattern matching is preferred.
     """
     kept: List[str] = []
     brace_depth = 0
@@ -262,7 +297,7 @@ def _extract_js_ts_surface(lines: List[str], include_docstrings: bool) -> List[s
             in_export = True
             export_brace_start = brace_depth
 
-        opens = line.count("{") - line.count("}")
+        opens = _count_structural_braces(line)
         brace_depth += opens
 
         if in_export:
