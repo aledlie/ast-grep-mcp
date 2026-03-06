@@ -1078,14 +1078,8 @@ class HybridSimilarity:
     def _normalize_for_ast(self, code: str) -> str:
         """Normalize code for AST-like structural comparison.
 
-        Normalizations applied:
-        1. Remove comments
-        2. Normalize whitespace
-        3. Replace identifiers with placeholders (optional)
-        4. Standardize indentation
-
-        This creates a canonical representation that focuses on
-        code structure rather than superficial differences.
+        Pipeline: strip trailing ws → skip blanks → skip comment lines →
+        strip inline comments → normalize indentation → filter empty.
 
         Args:
             code: Source code to normalize.
@@ -1095,39 +1089,38 @@ class HybridSimilarity:
         """
         lines = []
         for line in code.split("\n"):
-            # Strip trailing whitespace
             line = line.rstrip()
-
-            # Skip empty lines
-            if not line.strip():
-                continue
-
-            # Skip comment-only lines (Python and JS/TS style)
             stripped = line.strip()
-            if stripped.startswith("#") or stripped.startswith("//"):
+            if not stripped or self._is_comment_line(stripped):
                 continue
-
-            # Remove inline comments
-            # Handle Python inline comments
-            if "#" in line:
-                # Check it's not inside a string
-                quote_count = line.count('"') + line.count("'")
-                hash_pos = line.find("#")
-                # Simple heuristic: if hash appears after content, likely comment
-                if quote_count % 2 == 0 and hash_pos > 0:
-                    line = line[:hash_pos].rstrip()
-
-            # Handle JS/TS inline comments
-            if "//" in line:
-                comment_pos = line.find("//")
-                if comment_pos > 0:
-                    line = line[:comment_pos].rstrip()
-
+            line = self._strip_inline_comments(line)
             normalized_line = self._normalize_indentation(line)
             if normalized_line.strip():
                 lines.append(normalized_line)
-
         return "\n".join(lines)
+
+    @staticmethod
+    def _is_comment_line(stripped: str) -> bool:
+        """Check if a stripped line is a comment-only line (Python # or JS //)."""
+        return stripped.startswith("#") or stripped.startswith("//")
+
+    @staticmethod
+    def _strip_inline_comments(line: str) -> str:
+        """Remove inline comments from a line (Python # and JS // style).
+
+        Uses a simple heuristic: only strips if the comment marker appears
+        after content and balanced quotes suggest it's not inside a string.
+        """
+        if "#" in line:
+            quote_count = line.count('"') + line.count("'")
+            hash_pos = line.find("#")
+            if quote_count % 2 == 0 and hash_pos > 0:
+                line = line[:hash_pos].rstrip()
+        if "//" in line:
+            comment_pos = line.find("//")
+            if comment_pos > 0:
+                line = line[:comment_pos].rstrip()
+        return line
 
     @staticmethod
     def _normalize_indentation(line: str) -> str:
