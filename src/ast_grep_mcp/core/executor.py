@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import time
 from typing import Any, Dict, Generator, List, Optional, Tuple, cast
 
@@ -401,17 +402,20 @@ def _terminate_process(process: subprocess.Popen[str], logger: Any, reason: str)
         process.wait(timeout=2)
     except subprocess.TimeoutExpired:
         process.kill()
-        process.wait()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            logger.error("process_kill_timeout", pid=process.pid)
 
 
 def _handle_stream_error(
-    returncode: int, process: subprocess.Popen[str], full_command: List[str], start_time: float, match_count: int, logger: Any
+    returncode: int, stderr_output: str, full_command: List[str], start_time: float, match_count: int, logger: Any
 ) -> None:
     """Handle non-zero return codes from the process.
 
     Args:
         returncode: Process return code
-        process: Process instance
+        stderr_output: Captured stderr text
         full_command: Command that was run
         start_time: Start time for execution
         match_count: Number of matches found
@@ -423,8 +427,6 @@ def _handle_stream_error(
     # SIGTERM from early termination is not an error
     if returncode == 0 or returncode == StreamDefaults.SIGTERM_RETURN_CODE:
         return
-
-    stderr_output = process.stderr.read() if process.stderr else ""
 
     # Exit code 1 means "scan succeeded, found error-level diagnostics" or
     # "no matches found" — neither is an execution error.
@@ -468,7 +470,17 @@ def _cleanup_process(process: Optional[subprocess.Popen[str]]) -> None:
         process.wait(timeout=2)
     except subprocess.TimeoutExpired:
         process.kill()
-        process.wait()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+
+
+def _drain_stderr_to_list(process: subprocess.Popen[str], output: List[str]) -> None:
+    """Read stderr in background to prevent pipe buffer deadlock."""
+    if process.stderr:
+        for chunk in process.stderr:
+            output.append(chunk)
 
 
 def stream_ast_grep_results(
@@ -506,10 +518,17 @@ def stream_ast_grep_results(
     process = None
     match_count = 0
     last_progress_log = 0
+    stderr_chunks: List[str] = []
 
     try:
         # Start subprocess
         process = _create_stream_process(full_command)
+
+        # Drain stderr concurrently to prevent pipe buffer deadlock
+        stderr_thread = threading.Thread(
+            target=_drain_stderr_to_list, args=(process, stderr_chunks), daemon=True
+        )
+        stderr_thread.start()
 
         # Process output lines
         if process.stdout:
@@ -538,11 +557,13 @@ def stream_ast_grep_results(
                     _terminate_process(process, logger, "early_termination")
                     break
 
-        # Wait for process completion
+        # Wait for process and stderr thread to finish
         returncode = process.wait()
+        stderr_thread.join(timeout=5)
+        stderr_output = "".join(stderr_chunks)
 
         # Handle any errors
-        _handle_stream_error(returncode, process, full_command, start_time, match_count, logger)
+        _handle_stream_error(returncode, stderr_output, full_command, start_time, match_count, logger)
 
         # Log completion
         execution_time = time.time() - start_time
