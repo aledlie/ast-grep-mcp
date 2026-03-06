@@ -84,30 +84,7 @@ def analyze_deduplication_candidates_tool(
     max_candidates: int = DeduplicationDefaults.MAX_CANDIDATES,
     exclude_patterns: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
-    """Analyze a project for deduplication candidates and return ranked results.
-
-    This tool extends find_duplication by:
-    1. Scoring duplicates by complexity, frequency, and maintainability impact
-    2. Optionally checking test coverage to prioritize well-tested code
-    3. Ranking candidates by refactoring value (highest savings + lowest risk first)
-    4. Providing actionable recommendations for each candidate group
-
-    Args:
-        project_path: The absolute path to the project folder to analyze
-        language: The target language
-        min_similarity: Minimum similarity threshold (0.0-1.0)
-        include_test_coverage: Whether to check test coverage for prioritization
-        min_lines: Minimum number of lines to consider for duplication
-        max_candidates: Maximum number of candidates to return
-        exclude_patterns: Path patterns to exclude from analysis
-
-    Returns:
-        Dictionary with:
-        - candidates: List of duplicate groups with scores and rankings
-        - total_groups: Number of duplication groups found
-        - total_savings_potential: Total lines that could be saved
-        - analysis_metadata: Timing and configuration info
-    """
+    """Analyze a project for deduplication candidates and return ranked results."""
     logger = get_logger("deduplication.tool.analyze")
 
     exclude_patterns = _normalize_exclude_patterns(exclude_patterns)
@@ -143,28 +120,7 @@ def apply_deduplication_tool(
     backup: bool = True,
     extract_to_file: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Apply automated deduplication refactoring with comprehensive syntax validation.
-
-    Phase 3.5 VALIDATION PIPELINE:
-    1. PRE-VALIDATION: Validate all generated code before applying
-    2. APPLICATION: Create backup and apply changes
-    3. POST-VALIDATION: Validate modified files
-    4. AUTO-ROLLBACK: Restore from backup if validation fails
-
-    Args:
-        project_folder: The absolute path to the project folder
-        group_id: The duplication group ID from find_duplication results
-        refactoring_plan: The refactoring plan with generated_code, files_affected, strategy, language
-        dry_run: Preview changes without applying (default: true for safety)
-        backup: Create backup before applying changes (default: true)
-        extract_to_file: Where to place extracted function (auto-detect if None)
-
-    Returns:
-        Dictionary with:
-        - status: "preview" | "success" | "failed" | "rolled_back"
-        - validation: Pre and post validation results with detailed errors
-        - errors: Detailed error info with file, line, message, and suggested fix
-    """
+    """Apply automated deduplication refactoring with pre/post validation and auto-rollback."""
     logger = get_logger("deduplication.tool.apply")
 
     applicator = DeduplicationApplicator()
@@ -224,16 +180,7 @@ def benchmark_deduplication_tool(iterations: int = 10, save_baseline: bool = Fal
     return results
 
 
-def register_deduplication_tools(mcp: FastMCP) -> None:
-    """Register all deduplication tools with the MCP server.
-
-    This function creates MCP tool wrappers that call the standalone *_tool functions.
-    The wrappers use clean names (without _tool suffix) for consistency with other
-    refactored tools (complexity, quality, schema).
-
-    Args:
-        mcp: FastMCP instance to register tools with
-    """
+def _register_find_duplication(mcp: FastMCP) -> None:
     from pydantic import Field
 
     @mcp.tool()
@@ -252,6 +199,10 @@ def register_deduplication_tools(mcp: FastMCP) -> None:
             min_lines=min_lines,
             exclude_patterns=exclude_patterns,
         )
+
+
+def _register_analyze_candidates(mcp: FastMCP) -> None:
+    from pydantic import Field
 
     @mcp.tool()
     def analyze_deduplication_candidates(
@@ -274,6 +225,10 @@ def register_deduplication_tools(mcp: FastMCP) -> None:
             exclude_patterns=exclude_patterns,
         )
 
+
+def _register_apply_deduplication(mcp: FastMCP) -> None:
+    from pydantic import Field
+
     @mcp.tool()
     def apply_deduplication(
         project_folder: str = Field(description="The absolute path to the project folder"),
@@ -295,6 +250,10 @@ def register_deduplication_tools(mcp: FastMCP) -> None:
             extract_to_file=extract_to_file,
         )
 
+
+def _register_benchmark_deduplication(mcp: FastMCP) -> None:
+    from pydantic import Field
+
     @mcp.tool()
     def benchmark_deduplication(
         iterations: int = Field(default=10, description="Number of iterations per benchmark (default: 10)"),
@@ -303,3 +262,11 @@ def register_deduplication_tools(mcp: FastMCP) -> None:
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone benchmark_deduplication_tool function."""
         return benchmark_deduplication_tool(iterations=iterations, save_baseline=save_baseline, check_regression=check_regression)
+
+
+def register_deduplication_tools(mcp: FastMCP) -> None:
+    """Register all deduplication tools with the MCP server."""
+    _register_find_duplication(mcp)
+    _register_analyze_candidates(mcp)
+    _register_apply_deduplication(mcp)
+    _register_benchmark_deduplication(mcp)

@@ -256,17 +256,11 @@ def condense_train_dictionary_tool(
 
 
 # ---------------------------------------------------------------------------
-# MCP registration
+# MCP registration helpers
 # ---------------------------------------------------------------------------
 
 
-def register_condense_tools(mcp: FastMCP) -> None:
-    """Register all condense tools with the MCP server.
-
-    Args:
-        mcp: FastMCP instance to register tools with.
-    """
-
+def _register_extract_surface(mcp: FastMCP) -> None:
     @mcp.tool()
     def condense_extract_surface(
         path: str = Field(description="Directory or file path to analyze"),
@@ -298,6 +292,8 @@ def register_condense_tools(mcp: FastMCP) -> None:
             complexity_threshold=complexity_threshold,
         )
 
+
+def _register_normalize(mcp: FastMCP) -> None:
     @mcp.tool()
     def condense_normalize(
         path: str = Field(description="Path to a single source file to normalize"),
@@ -311,6 +307,8 @@ def register_condense_tools(mcp: FastMCP) -> None:
         """
         return condense_normalize_tool(path=path, language=language)
 
+
+def _register_strip(mcp: FastMCP) -> None:
     @mcp.tool()
     def condense_strip(
         path: str = Field(description="Path to a single source file"),
@@ -323,6 +321,8 @@ def register_condense_tools(mcp: FastMCP) -> None:
         """
         return condense_strip_tool(path=path, language=language)
 
+
+def _register_pack(mcp: FastMCP) -> None:
     @mcp.tool()
     def condense_pack(
         path: str = Field(description="Directory or file path to condense"),
@@ -361,6 +361,8 @@ def register_condense_tools(mcp: FastMCP) -> None:
             exclude_patterns=exclude_patterns,
         )
 
+
+def _register_estimate(mcp: FastMCP) -> None:
     @mcp.tool()
     def condense_estimate(
         path: str = Field(description="Directory or file path to estimate"),
@@ -377,6 +379,8 @@ def register_condense_tools(mcp: FastMCP) -> None:
         """
         return condense_estimate_tool(path=path, language=language)
 
+
+def _register_train_dictionary(mcp: FastMCP) -> None:
     @mcp.tool()
     def condense_train_dictionary(
         path: str = Field(description="Root directory to collect code samples from"),
@@ -406,3 +410,22 @@ def register_condense_tools(mcp: FastMCP) -> None:
             sample_count=sample_count,
             output_dir=output_dir,
         )
+
+
+# ---------------------------------------------------------------------------
+# MCP registration
+# ---------------------------------------------------------------------------
+
+
+def register_condense_tools(mcp: FastMCP) -> None:
+    """Register all condense tools with the MCP server.
+
+    Args:
+        mcp: FastMCP instance to register tools with.
+    """
+    _register_extract_surface(mcp)
+    _register_normalize(mcp)
+    _register_strip(mcp)
+    _register_pack(mcp)
+    _register_estimate(mcp)
+    _register_train_dictionary(mcp)

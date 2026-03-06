@@ -12,13 +12,7 @@ from ast_grep_mcp.features.rewrite.service import (
 )
 
 
-def register_rewrite_tools(mcp: FastMCP) -> None:
-    """Register rewrite-related MCP tools.
-
-    Args:
-        mcp: FastMCP instance to register tools with
-    """
-
+def _register_rewrite_code(mcp: FastMCP) -> None:
     @mcp.tool()
     def rewrite_code(
         project_folder: str = Field(description="The absolute path to the project folder"),
@@ -51,6 +45,8 @@ def register_rewrite_tools(mcp: FastMCP) -> None:
         """
         return rewrite_code_impl(project_folder, yaml_rule, dry_run, backup, max_file_size_mb, workers)
 
+
+def _register_rollback_rewrite(mcp: FastMCP) -> None:
     @mcp.tool()
     def rollback_rewrite(
         backup_id: str = Field(description="The backup ID from a previous rewrite operation"),
@@ -73,6 +69,8 @@ def register_rewrite_tools(mcp: FastMCP) -> None:
         """
         return rollback_rewrite_impl(backup_id, project_folder)
 
+
+def _register_list_backups(mcp: FastMCP) -> None:
     @mcp.tool()
     def list_backups(project_folder: str = Field(description="The absolute path to the project folder")) -> List[Dict[str, Any]]:
         """
@@ -89,3 +87,14 @@ def register_rewrite_tools(mcp: FastMCP) -> None:
         - backup_type: 'standard' or 'deduplication'
         """
         return list_backups_impl(project_folder)
+
+
+def register_rewrite_tools(mcp: FastMCP) -> None:
+    """Register rewrite-related MCP tools.
+
+    Args:
+        mcp: FastMCP instance to register tools with
+    """
+    _register_rewrite_code(mcp)
+    _register_rollback_rewrite(mcp)
+    _register_list_backups(mcp)

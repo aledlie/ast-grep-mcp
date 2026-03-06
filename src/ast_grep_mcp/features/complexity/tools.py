@@ -33,6 +33,9 @@ from .complexity_statistics import ComplexityStatisticsAggregator
 # Note: detect_code_smells_impl is imported inside detect_code_smells_tool()
 # to avoid circular import (quality.smells imports from complexity.analyzer)
 
+_COMPLEXITY_EXCLUDE_DEFAULTS = ["**/node_modules/**", "**/__pycache__/**", "**/venv/**", "**/.venv/**", "**/site-packages/**"]
+_SMELLS_EXCLUDE_DEFAULTS = [*_COMPLEXITY_EXCLUDE_DEFAULTS, "**/test*/**", "**/*test*"]
+
 
 # Helper functions extracted from analyze_complexity_tool
 
@@ -213,25 +216,13 @@ def _handle_no_files_found(language: str, execution_time: float) -> Dict[str, An
     }
 
 
-def _create_thresholds_dict(
-    cyclomatic_threshold: int, cognitive_threshold: int, nesting_threshold: int, length_threshold: int
-) -> Dict[str, int]:
-    """Create thresholds dictionary for response.
 
-    Args:
-        cyclomatic_threshold: Cyclomatic complexity threshold
-        cognitive_threshold: Cognitive complexity threshold
-        nesting_threshold: Maximum nesting depth threshold
-        length_threshold: Function length threshold in lines
-
-    Returns:
-        Dictionary of threshold values
-    """
+def _thresholds_to_dict(thresholds: ComplexityThresholds) -> Dict[str, int]:
     return {
-        "cyclomatic": cyclomatic_threshold,
-        "cognitive": cognitive_threshold,
-        "nesting_depth": nesting_threshold,
-        "length": length_threshold,
+        "cyclomatic": thresholds.cyclomatic,
+        "cognitive": thresholds.cognitive,
+        "nesting_depth": thresholds.nesting_depth,
+        "length": thresholds.lines,
     }
 
 
@@ -246,34 +237,12 @@ def _execute_analysis(
     start_time: float,
     logger: Any,
 ) -> Dict[str, Any]:
-    """Execute the main analysis workflow.
-
-    Args:
-        project_folder: Project folder to analyze
-        language: Programming language
-        thresholds: Complexity thresholds
-        files_to_analyze: List of files to analyze
-        store_results: Whether to store results
-        include_trends: Whether to include trends
-        max_threads: Number of parallel threads
-        start_time: Analysis start time
-        logger: Logger instance
-
-    Returns:
-        Analysis response dictionary
-    """
-    # Analyze files in parallel
-    all_functions, exceeding_functions, analyzer = _analyze_files_parallel(files_to_analyze, language, thresholds, max_threads)
-
-    # Calculate summary statistics
+    all_functions, exceeding_functions, _ = _analyze_files_parallel(files_to_analyze, language, thresholds, max_threads)
     execution_time = time.time() - start_time
     summary, statistics = _calculate_summary_statistics(all_functions, exceeding_functions, len(files_to_analyze), execution_time)
-
-    # Store results and generate trends
     run_id, stored_at, trends = _store_and_generate_trends(
         store_results, include_trends, project_folder, summary, all_functions, statistics
     )
-
     logger.info(
         "tool_completed",
         tool="analyze_complexity",
@@ -282,17 +251,18 @@ def _execute_analysis(
         exceeding_threshold=len(exceeding_functions),
         status="success",
     )
+    return _format_response(summary, _thresholds_to_dict(thresholds), exceeding_functions, run_id, stored_at, trends, statistics)
 
-    # Create thresholds dict from the thresholds object
-    thresholds_dict = {
-        "cyclomatic": thresholds.cyclomatic,
-        "cognitive": thresholds.cognitive,
-        "nesting_depth": thresholds.nesting_depth,
-        "length": thresholds.lines,
-    }
 
-    # Format and return response
-    return _format_response(summary, thresholds_dict, exceeding_functions, run_id, stored_at, trends, statistics)
+def _log_tool_error(logger: Any, tool: str, execution_time: float, e: Exception, extras: Dict[str, Any]) -> None:
+    logger.error(
+        "tool_failed",
+        tool=tool,
+        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+        status="failed",
+    )
+    sentry_sdk.capture_exception(e, extras={"tool": tool, "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION), **extras})
 
 
 def analyze_complexity_tool(
@@ -308,99 +278,31 @@ def analyze_complexity_tool(
     include_trends: bool = False,
     max_threads: int = ParallelProcessing.DEFAULT_WORKERS,
 ) -> Dict[str, Any]:
+    """Analyze cyclomatic, cognitive, nesting, and length complexity for all functions in a project.
+
+    Returns summary with only functions exceeding configured thresholds.
     """
-    Analyze code complexity metrics for functions in a project.
-
-    Calculates cyclomatic complexity, cognitive complexity, nesting depth, and function length
-    for all functions in the specified project. Returns a summary with only functions that
-    exceed the configured thresholds.
-
-    Metrics:
-    - Cyclomatic Complexity: McCabe's cyclomatic complexity (decision points + 1)
-    - Cognitive Complexity: SonarSource cognitive complexity with nesting penalties
-    - Nesting Depth: Maximum indentation depth within a function
-    - Function Length: Number of lines in the function
-
-    Args:
-        project_folder: The absolute path to the project folder to analyze
-        language: The programming language (python, typescript, javascript, java)
-        include_patterns: Glob patterns for files to include (e.g., ['src/**/*.py'])
-        exclude_patterns: Glob patterns for files to exclude
-        cyclomatic_threshold: Cyclomatic complexity threshold (default: 10)
-        cognitive_threshold: Cognitive complexity threshold (default: 15)
-        nesting_threshold: Maximum nesting depth threshold (default: 4)
-        length_threshold: Function length threshold in lines (default: 50)
-        store_results: Store results in database for trend tracking
-        include_trends: Include historical trend data in response
-        max_threads: Number of parallel threads for analysis (default: 4)
-
-    Returns:
-        Dictionary with analysis results including summary and functions exceeding thresholds
-
-    Example usage:
-        analyze_complexity_tool(project_folder="/path/to/project", language="python")
-        analyze_complexity_tool(project_folder="/path/to/project", language="typescript", cyclomatic_threshold=15)
-    """
-    # Set defaults
     if include_patterns is None:
         include_patterns = ["**/*"]
     exclude_patterns = _normalize_complexity_exclude_patterns(exclude_patterns)
-
     logger = get_logger("tool.analyze_complexity")
     start_time = time.time()
-
-    logger.info(
-        "tool_invoked",
-        tool="analyze_complexity",
-        project_folder=project_folder,
-        language=language,
-        cyclomatic_threshold=cyclomatic_threshold,
-        cognitive_threshold=cognitive_threshold,
-        nesting_threshold=nesting_threshold,
-        length_threshold=length_threshold,
-        max_threads=max_threads,
-    )
-
+    logger.info("tool_invoked", tool="analyze_complexity", project_folder=project_folder, language=language,
+                cyclomatic_threshold=cyclomatic_threshold, cognitive_threshold=cognitive_threshold,
+                nesting_threshold=nesting_threshold, length_threshold=length_threshold, max_threads=max_threads)
     try:
-        # Validate inputs
         _validate_inputs(language)
-
-        # Set up thresholds
         thresholds = ComplexityThresholds(
             cyclomatic=cyclomatic_threshold, cognitive=cognitive_threshold, nesting_depth=nesting_threshold, lines=length_threshold
         )
-
-        # Find files to analyze
-        files_to_analyze, file_finder = _find_files_to_analyze(project_folder, language, include_patterns, exclude_patterns, logger)
-
-        # Handle no files found case
+        files_to_analyze, _ = _find_files_to_analyze(project_folder, language, include_patterns, exclude_patterns, logger)
         if not files_to_analyze:
-            execution_time = time.time() - start_time
-            return _handle_no_files_found(language, execution_time)
-
-        # Execute the main analysis workflow
+            return _handle_no_files_found(language, time.time() - start_time)
         return _execute_analysis(
             project_folder, language, thresholds, files_to_analyze, store_results, include_trends, max_threads, start_time, logger
         )
-
     except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="analyze_complexity",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-            status="failed",
-        )
-        sentry_sdk.capture_exception(
-            e,
-            extras={
-                "tool": "analyze_complexity",
-                "project_folder": project_folder,
-                "language": language,
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            },
-        )
+        _log_tool_error(logger, "analyze_complexity", time.time() - start_time, e, {"project_folder": project_folder, "language": language})
         raise
 
 
@@ -461,17 +363,7 @@ _SENTRY_TEST_HANDLERS: Dict[str, Callable[[str, Dict[str, Any]], None]] = {
 def test_sentry_integration_tool(
     test_type: Literal["error", "warning", "breadcrumb", "span"] = "breadcrumb", message: str = "Test message"
 ) -> Dict[str, Any]:
-    """
-    Test Sentry integration by triggering different event types.
-
-    Used to verify that Sentry error tracking is properly configured and working.
-    Only works when SENTRY_DSN environment variable is set.
-
-    Test Types:
-    - error: Triggers a test exception that gets captured by Sentry
-    - warning: Sends a warning message to Sentry
-    - breadcrumb: Adds test breadcrumbs (check Sentry dashboard for context)
-    - span: Creates a performance span
+    """Test Sentry integration by triggering different event types.
 
     Args:
         test_type: Type of Sentry test ('error', 'warning', 'breadcrumb', or 'span')
@@ -482,47 +374,20 @@ def test_sentry_integration_tool(
     """
     logger = get_logger("tool.test_sentry_integration")
     start_time = time.time()
-
     logger.info("tool_invoked", tool="test_sentry_integration", test_type=test_type)
-
     try:
         if not os.getenv("SENTRY_DSN"):
             return {"status": "skipped", "message": "Sentry not configured (SENTRY_DSN not set)", "test_type": test_type}
-
         result: Dict[str, Any] = {"status": "success", "test_type": test_type}
-        handler = _SENTRY_TEST_HANDLERS[test_type]
-        handler(message, result)
-
+        _SENTRY_TEST_HANDLERS[test_type](message, result)
         execution_time = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="test_sentry_integration",
-            test_type=test_type,
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            status="success",
-        )
-
-        result["execution_time_seconds"] = round(execution_time, FormattingDefaults.ROUNDING_PRECISION)
+        et = round(execution_time, FormattingDefaults.ROUNDING_PRECISION)
+        logger.info("tool_completed", tool="test_sentry_integration", test_type=test_type, execution_time_seconds=et, status="success")
+        result["execution_time_seconds"] = et
         result["sentry_configured"] = True
         return result
-
     except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="test_sentry_integration",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-            status="failed",
-        )
-        sentry_sdk.capture_exception(
-            e,
-            extras={
-                "tool": "test_sentry_integration",
-                "test_type": test_type,
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            },
-        )
+        _log_tool_error(logger, "test_sentry_integration", time.time() - start_time, e, {"test_type": test_type})
         raise
 
 
@@ -588,146 +453,57 @@ def detect_code_smells_tool(
     severity_filter: str = "all",
     max_threads: int = ParallelProcessing.DEFAULT_WORKERS,
 ) -> Dict[str, Any]:
-    """
-    Detect common code smells, anti-patterns in a project.
-
-    Identifies patterns that indicate potential design, maintainability issues:
-    - Long Functions: Functions exceeding line count threshold
-    - Parameter Bloat: Functions having too many parameters (>5)
-    - Deep Nesting: Excessive nesting depth (>4 levels)
-    - Large Classes: Classes having too many methods, lines
-    - Magic Numbers: Hard-coded literals (excludes 0, 1, -1, 2, 10, 100)
-
-    Each smell is rated by severity (high/medium/low) based on how far it exceeds thresholds,
-    includes actionable suggestions to improve code.
-
-    Args:
-        project_folder: Absolute path to the project folder to analyze
-        language: Programming language (python, typescript, javascript, java)
-        include_patterns: Glob patterns selecting files to include (e.g., ['src/**/*.py'])
-        exclude_patterns: Glob patterns selecting files to exclude
-        long_function_lines: Line count threshold detecting long function smell (default: 50)
-        parameter_count: Parameter count threshold detecting parameter bloat (default: 5)
-        nesting_depth: Nesting depth threshold detecting deep nesting smell (default: 4)
-        class_lines: Line count threshold detecting large class smell (default: 300)
-        class_methods: Method count threshold detecting large class smell (default: 20)
-        detect_magic_numbers: Whether to detect magic number smells
-        severity_filter: Filter by severity: 'all', 'high', 'medium', 'low'
-        max_threads: Number of parallel threads used in analysis (default: 4)
-
-    Returns:
-        Dictionary containing analysis results including summary, detected smells by severity
-
-    Example usage:
-        detect_code_smells_tool(project_folder="/path/to/project", language="python")
-        detect_code_smells_tool(project_folder="/path/to/project", language="typescript", severity_filter="high")
-    """
+    """Detect long functions, parameter bloat, deep nesting, large classes, and magic numbers."""
     # Import here to avoid circular import with quality.smells
     from ast_grep_mcp.features.quality.smells import detect_code_smells_impl
 
     logger = get_logger("tool.detect_code_smells")
     start_time = time.time()
-
-    # Prepare parameters with defaults
     include_patterns, exclude_patterns = _prepare_smell_detection_params(include_patterns, exclude_patterns)
-
-    logger.info(
-        "tool_invoked",
-        tool="detect_code_smells",
-        project_folder=project_folder,
-        language=language,
-    )
-
+    logger.info("tool_invoked", tool="detect_code_smells", project_folder=project_folder, language=language)
     try:
         result = detect_code_smells_impl(
-            project_folder=project_folder,
-            language=language,
-            include_patterns=include_patterns,
-            exclude_patterns=exclude_patterns,
-            long_function_lines=long_function_lines,
-            parameter_count=parameter_count,
-            nesting_depth=nesting_depth,
-            class_lines=class_lines,
-            class_methods=class_methods,
-            detect_magic_numbers=detect_magic_numbers,
-            severity_filter=severity_filter,
-            max_threads=max_threads,
+            project_folder=project_folder, language=language, include_patterns=include_patterns,
+            exclude_patterns=exclude_patterns, long_function_lines=long_function_lines,
+            parameter_count=parameter_count, nesting_depth=nesting_depth, class_lines=class_lines,
+            class_methods=class_methods, detect_magic_numbers=detect_magic_numbers,
+            severity_filter=severity_filter, max_threads=max_threads,
         )
-
-        # Process result and add execution time
         return _process_smell_detection_result(result, start_time, logger)
-
     except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="detect_code_smells",
-            error=str(e),
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-        )
-        sentry_sdk.capture_exception(
-            e,
-            extras={
-                "tool": "detect_code_smells",
-                "project_folder": project_folder,
-                "language": language,
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            },
-        )
+        _log_tool_error(logger, "detect_code_smells", time.time() - start_time, e, {"project_folder": project_folder, "language": language})
         raise
 
 
-def register_complexity_tools(mcp: FastMCP) -> None:
-    """Register complexity analysis tools with the MCP server.
-
-    Args:
-        mcp: FastMCP server instance
-    """
-
+def _register_analyze_complexity(mcp: FastMCP) -> None:
     @mcp.tool()
     def analyze_complexity(
         project_folder: str = Field(description="The absolute path to the project folder to analyze"),
         language: str = Field(description="The programming language (python, typescript, javascript, java)"),
-        include_patterns: List[str] = Field(
-            default_factory=lambda: ["**/*"], description="Glob patterns for files to include (e.g., ['src/**/*.py'])"
-        ),
+        include_patterns: List[str] = Field(default_factory=lambda: ["**/*"], description="Glob patterns for files to include"),
         exclude_patterns: List[str] = Field(
-            default_factory=lambda: ["**/node_modules/**", "**/__pycache__/**", "**/venv/**", "**/.venv/**", "**/site-packages/**"],
+            default_factory=lambda: list(_COMPLEXITY_EXCLUDE_DEFAULTS),
             description="Glob patterns for files to exclude",
         ),
-        cyclomatic_threshold: int = Field(
-            default=ComplexityDefaults.CYCLOMATIC_THRESHOLD, description="Cyclomatic complexity threshold (default: 10)"
-        ),
-        cognitive_threshold: int = Field(
-            default=ComplexityDefaults.COGNITIVE_THRESHOLD, description="Cognitive complexity threshold (default: 15)"
-        ),
-        nesting_threshold: int = Field(
-            default=ComplexityDefaults.NESTING_THRESHOLD, description="Maximum nesting depth threshold (default: 4)"
-        ),
-        length_threshold: int = Field(
-            default=ComplexityDefaults.LENGTH_THRESHOLD, description="Function length threshold in lines (default: 50)"
-        ),
+        cyclomatic_threshold: int = Field(default=ComplexityDefaults.CYCLOMATIC_THRESHOLD, description="Cyclomatic complexity threshold"),
+        cognitive_threshold: int = Field(default=ComplexityDefaults.COGNITIVE_THRESHOLD, description="Cognitive complexity threshold"),
+        nesting_threshold: int = Field(default=ComplexityDefaults.NESTING_THRESHOLD, description="Maximum nesting depth threshold"),
+        length_threshold: int = Field(default=ComplexityDefaults.LENGTH_THRESHOLD, description="Function length threshold in lines"),
         store_results: bool = Field(default=True, description="Store results in database for trend tracking"),
         include_trends: bool = Field(default=False, description="Include historical trend data in response"),
-        max_threads: int = Field(
-            default=ParallelProcessing.DEFAULT_WORKERS, description="Number of parallel threads for analysis (default: 4)"
-        ),
+        max_threads: int = Field(default=ParallelProcessing.DEFAULT_WORKERS, description="Number of parallel threads for analysis"),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone analyze_complexity_tool function."""
         return analyze_complexity_tool(
-            project_folder=project_folder,
-            language=language,
-            include_patterns=include_patterns,
-            exclude_patterns=exclude_patterns,
-            cyclomatic_threshold=cyclomatic_threshold,
-            cognitive_threshold=cognitive_threshold,
-            nesting_threshold=nesting_threshold,
-            length_threshold=length_threshold,
-            store_results=store_results,
-            include_trends=include_trends,
-            max_threads=max_threads,
+            project_folder=project_folder, language=language, include_patterns=include_patterns,
+            exclude_patterns=exclude_patterns, cyclomatic_threshold=cyclomatic_threshold,
+            cognitive_threshold=cognitive_threshold, nesting_threshold=nesting_threshold,
+            length_threshold=length_threshold, store_results=store_results,
+            include_trends=include_trends, max_threads=max_threads,
         )
 
+
+def _register_test_sentry(mcp: FastMCP) -> None:
     @mcp.tool()
     def test_sentry_integration(
         test_type: Literal["error", "warning", "breadcrumb", "span"] = Field(
@@ -739,58 +515,38 @@ def register_complexity_tools(mcp: FastMCP) -> None:
         """Wrapper that calls the standalone test_sentry_integration_tool function."""
         return test_sentry_integration_tool(test_type=test_type, message=message)
 
+
+def _register_detect_smells(mcp: FastMCP) -> None:
     @mcp.tool()
     def detect_code_smells(
         project_folder: str = Field(description="The absolute path to the project folder to analyze"),
         language: str = Field(description="The programming language (python, typescript, javascript, java)"),
-        include_patterns: List[str] = Field(
-            default_factory=lambda: ["**/*"], description="Glob patterns for files to include (e.g., ['src/**/*.py'])"
-        ),
+        include_patterns: List[str] = Field(default_factory=lambda: ["**/*"], description="Glob patterns for files to include"),
         exclude_patterns: List[str] = Field(
-            default_factory=lambda: [
-                "**/node_modules/**",
-                "**/__pycache__/**",
-                "**/venv/**",
-                "**/.venv/**",
-                "**/site-packages/**",
-                "**/test*/**",
-                "**/*test*",
-            ],
+            default_factory=lambda: list(_SMELLS_EXCLUDE_DEFAULTS),
             description="Glob patterns for files to exclude",
         ),
-        long_function_lines: int = Field(
-            default=CodeQualityDefaults.LONG_FUNCTION_LINES, description="Line count threshold for long function smell (default: 50)"
-        ),
-        parameter_count: int = Field(
-            default=CodeQualityDefaults.PARAMETER_COUNT, description="Parameter count threshold for parameter bloat (default: 5)"
-        ),
-        nesting_depth: int = Field(
-            default=CodeQualityDefaults.NESTING_DEPTH, description="Nesting depth threshold for deep nesting smell (default: 4)"
-        ),
-        class_lines: int = Field(
-            default=CodeQualityDefaults.CLASS_LINES, description="Line count threshold for large class smell (default: 300)"
-        ),
-        class_methods: int = Field(
-            default=CodeQualityDefaults.CLASS_METHODS, description="Method count threshold for large class smell (default: 20)"
-        ),
+        long_function_lines: int = Field(default=CodeQualityDefaults.LONG_FUNCTION_LINES, description="Line count threshold for long function smell"),
+        parameter_count: int = Field(default=CodeQualityDefaults.PARAMETER_COUNT, description="Parameter count threshold for parameter bloat"),
+        nesting_depth: int = Field(default=CodeQualityDefaults.NESTING_DEPTH, description="Nesting depth threshold for deep nesting smell"),
+        class_lines: int = Field(default=CodeQualityDefaults.CLASS_LINES, description="Line count threshold for large class smell"),
+        class_methods: int = Field(default=CodeQualityDefaults.CLASS_METHODS, description="Method count threshold for large class smell"),
         detect_magic_numbers: bool = Field(default=True, description="Whether to detect magic number smells"),
         severity_filter: str = Field(default="all", description="Filter by severity: 'all', 'high', 'medium', 'low'"),
-        max_threads: int = Field(
-            default=ParallelProcessing.DEFAULT_WORKERS, description="Number of parallel threads for analysis (default: 4)"
-        ),
+        max_threads: int = Field(default=ParallelProcessing.DEFAULT_WORKERS, description="Number of parallel threads for analysis"),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone detect_code_smells_tool function."""
         return detect_code_smells_tool(
-            project_folder=project_folder,
-            language=language,
-            include_patterns=include_patterns,
-            exclude_patterns=exclude_patterns,
-            long_function_lines=long_function_lines,
-            parameter_count=parameter_count,
-            nesting_depth=nesting_depth,
-            class_lines=class_lines,
-            class_methods=class_methods,
-            detect_magic_numbers=detect_magic_numbers,
-            severity_filter=severity_filter,
-            max_threads=max_threads,
+            project_folder=project_folder, language=language, include_patterns=include_patterns,
+            exclude_patterns=exclude_patterns, long_function_lines=long_function_lines,
+            parameter_count=parameter_count, nesting_depth=nesting_depth, class_lines=class_lines,
+            class_methods=class_methods, detect_magic_numbers=detect_magic_numbers,
+            severity_filter=severity_filter, max_threads=max_threads,
         )
+
+
+def register_complexity_tools(mcp: FastMCP) -> None:
+    """Register complexity analysis tools with the MCP server."""
+    _register_analyze_complexity(mcp)
+    _register_test_sentry(mcp)
+    _register_detect_smells(mcp)

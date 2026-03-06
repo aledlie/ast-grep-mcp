@@ -135,6 +135,39 @@ class PatternDebugResult:
     match_attempt: MatchAttempt
     execution_time_ms: int
 
+    def _ast_comparison_dict(self) -> Dict[str, Any]:
+        c = self.ast_comparison
+        return {
+            "pattern_root_kind": c.pattern_root_kind,
+            "code_root_kind": c.code_root_kind,
+            "kinds_match": c.kinds_match,
+            "pattern_structure": c.pattern_structure,
+            "code_structure": c.code_structure,
+            "structural_differences": c.structural_differences,
+        }
+
+    def _metavariables_list(self) -> List[Dict[str, Any]]:
+        return [
+            {"name": mv.name, "type": mv.type, "valid": mv.valid, "occurrences": mv.occurrences, "issue": mv.issue}
+            for mv in self.metavariables
+        ]
+
+    def _issues_list(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "severity": issue.severity.value,
+                "category": issue.category.value,
+                "message": issue.message,
+                "suggestion": issue.suggestion,
+                "location": issue.location,
+            }
+            for issue in self.issues
+        ]
+
+    def _match_attempt_dict(self) -> Dict[str, Any]:
+        m = self.match_attempt
+        return {"matched": m.matched, "match_count": m.match_count, "matches": m.matches, "partial_matches": m.partial_matches}
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
@@ -144,40 +177,10 @@ class PatternDebugResult:
             "pattern_valid": self.pattern_valid,
             "pattern_ast": self.pattern_ast,
             "code_ast": self.code_ast,
-            "ast_comparison": {
-                "pattern_root_kind": self.ast_comparison.pattern_root_kind,
-                "code_root_kind": self.ast_comparison.code_root_kind,
-                "kinds_match": self.ast_comparison.kinds_match,
-                "pattern_structure": self.ast_comparison.pattern_structure,
-                "code_structure": self.ast_comparison.code_structure,
-                "structural_differences": self.ast_comparison.structural_differences,
-            },
-            "metavariables": [
-                {
-                    "name": mv.name,
-                    "type": mv.type,
-                    "valid": mv.valid,
-                    "occurrences": mv.occurrences,
-                    "issue": mv.issue,
-                }
-                for mv in self.metavariables
-            ],
-            "issues": [
-                {
-                    "severity": issue.severity.value,
-                    "category": issue.category.value,
-                    "message": issue.message,
-                    "suggestion": issue.suggestion,
-                    "location": issue.location,
-                }
-                for issue in self.issues
-            ],
+            "ast_comparison": self._ast_comparison_dict(),
+            "metavariables": self._metavariables_list(),
+            "issues": self._issues_list(),
             "suggestions": self.suggestions,
-            "match_attempt": {
-                "matched": self.match_attempt.matched,
-                "match_count": self.match_attempt.match_count,
-                "matches": self.match_attempt.matches,
-                "partial_matches": self.match_attempt.partial_matches,
-            },
+            "match_attempt": self._match_attempt_dict(),
             "execution_time_ms": self.execution_time_ms,
         }
