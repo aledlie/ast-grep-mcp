@@ -24,6 +24,25 @@ CACHE_TTL: int = CacheDefaults.TTL_SECONDS
 _query_cache: Optional[Any] = None
 
 
+def _load_yaml_config(config_path: str) -> dict:
+    if not os.path.exists(config_path):
+        raise ConfigurationError(config_path, "File does not exist")
+    if not os.path.isfile(config_path):
+        raise ConfigurationError(config_path, "Path is not a file")
+    try:
+        with open(config_path, "r") as f:
+            config_data = yaml.safe_load(f)
+    except yaml.YAMLError as e:
+        raise ConfigurationError(config_path, f"YAML parsing failed: {e}") from e
+    except OSError as e:
+        raise ConfigurationError(config_path, f"Failed to read file: {e}") from e
+    if config_data is None:
+        raise ConfigurationError(config_path, "Config file is empty")
+    if not isinstance(config_data, dict):
+        raise ConfigurationError(config_path, "Config must be a YAML dictionary")
+    return config_data
+
+
 def validate_config_file(config_path: str) -> AstGrepConfig:
     """Validate sgconfig.yaml file structure.
 
@@ -36,32 +55,31 @@ def validate_config_file(config_path: str) -> AstGrepConfig:
     Raises:
         ConfigurationError: If config file is invalid
     """
-    if not os.path.exists(config_path):
-        raise ConfigurationError(config_path, "File does not exist")
-
-    if not os.path.isfile(config_path):
-        raise ConfigurationError(config_path, "Path is not a file")
-
+    config_data = _load_yaml_config(config_path)
     try:
-        with open(config_path, "r") as f:
-            config_data = yaml.safe_load(f)
-    except yaml.YAMLError as e:
-        raise ConfigurationError(config_path, f"YAML parsing failed: {e}") from e
-    except OSError as e:
-        raise ConfigurationError(config_path, f"Failed to read file: {e}") from e
-
-    if config_data is None:
-        raise ConfigurationError(config_path, "Config file is empty")
-
-    if not isinstance(config_data, dict):
-        raise ConfigurationError(config_path, "Config must be a YAML dictionary")
-
-    # Validate using Pydantic model
-    try:
-        config = AstGrepConfig(**config_data)
-        return config
+        return AstGrepConfig(**config_data)
     except Exception as e:
         raise ConfigurationError(config_path, f"Validation failed: {e}") from e
+
+
+def _add_cache_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--no-cache", action="store_true", help="Disable result caching for queries. Can also be set via CACHE_DISABLED=1 env var."
+    )
+    parser.add_argument(
+        "--cache-size",
+        type=int,
+        metavar="N",
+        default=None,
+        help=(f"Maximum cached query results (default: {CacheDefaults.DEFAULT_CACHE_SIZE}). Also settable via CACHE_SIZE env var."),
+    )
+    parser.add_argument(
+        "--cache-ttl",
+        type=int,
+        metavar="SECONDS",
+        default=None,
+        help=(f"Cache TTL in seconds (default: {CacheDefaults.TTL_SECONDS}). Also settable via CACHE_TTL env var."),
+    )
 
 
 def _create_argument_parser() -> argparse.ArgumentParser:
@@ -70,12 +88,7 @@ def _create_argument_parser() -> argparse.ArgumentParser:
     Returns:
         Configured ArgumentParser instance.
     """
-    # Determine how the script was invoked
-    prog = None
-    if sys.argv[0].endswith("main.py"):
-        # Direct execution: python main.py
-        prog = "python main.py"
-
+    prog = "python main.py" if sys.argv[0].endswith("main.py") else None
     parser = argparse.ArgumentParser(
         prog=prog,
         description="ast-grep MCP Server - Provides structural code search capabilities via Model Context Protocol",
@@ -110,24 +123,16 @@ For more information, see: https://github.com/ast-grep/ast-grep-mcp
         default=None,
         help="Path to log file (logs to stderr by default). Can also be set via LOG_FILE env var.",
     )
-    parser.add_argument(
-        "--no-cache", action="store_true", help="Disable result caching for queries. Can also be set via CACHE_DISABLED=1 env var."
-    )
-    parser.add_argument(
-        "--cache-size",
-        type=int,
-        metavar="N",
-        default=None,
-        help=(f"Maximum cached query results (default: {CacheDefaults.DEFAULT_CACHE_SIZE}). Also settable via CACHE_SIZE env var."),
-    )
-    parser.add_argument(
-        "--cache-ttl",
-        type=int,
-        metavar="SECONDS",
-        default=None,
-        help=(f"Cache TTL in seconds (default: {CacheDefaults.TTL_SECONDS}). Also settable via CACHE_TTL env var."),
-    )
+    _add_cache_arguments(parser)
     return parser
+
+
+def _try_validate_config(config_path: str) -> None:
+    try:
+        validate_config_file(config_path)
+    except ConfigurationError as e:
+        get_logger("config").error("config_validation_failed", config_path=config_path, error=str(e))
+        sys.exit(1)
 
 
 def _resolve_and_validate_config_path(args: argparse.Namespace) -> Optional[str]:
@@ -144,26 +149,13 @@ def _resolve_and_validate_config_path(args: argparse.Namespace) -> Optional[str]
     Note:
         Calls sys.exit(1) if validation fails.
     """
-    config_path = None
-
     if args.config:
-        config_path = args.config
-        try:
-            validate_config_file(config_path)
-        except ConfigurationError as e:
-            logger = get_logger("config")
-            logger.error("config_validation_failed", config_path=config_path, error=str(e))
-            sys.exit(1)
-    elif env_config := os.environ.get("AST_GREP_CONFIG"):
-        config_path = env_config
-        try:
-            validate_config_file(config_path)
-        except ConfigurationError as e:
-            logger = get_logger("config")
-            logger.error("config_validation_failed", config_path=config_path, error=str(e))
-            sys.exit(1)
-
-    return config_path
+        _try_validate_config(args.config)
+        return args.config
+    if env_config := os.environ.get("AST_GREP_CONFIG"):
+        _try_validate_config(env_config)
+        return env_config
+    return None
 
 
 def _configure_logging_from_args(args: argparse.Namespace) -> None:
@@ -184,6 +176,17 @@ def _configure_logging_from_args(args: argparse.Namespace) -> None:
     configure_logging(log_level=log_level, log_file=log_file)
 
 
+def _resolve_int_from_env(env_key: str, default: int, warn_key: str) -> int:
+    raw = os.environ.get(env_key)
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        get_logger("cache.init").warning(warn_key, using_default=default)
+        return default
+
+
 def _configure_cache_from_args(args: argparse.Namespace) -> tuple[bool, int, int]:
     """Configure cache settings from command-line arguments and environment.
 
@@ -197,36 +200,18 @@ def _configure_cache_from_args(args: argparse.Namespace) -> tuple[bool, int, int
     """
     cache_logger = get_logger("cache.init")
 
-    # Check if caching is disabled
-    cache_enabled = True
-    if args.no_cache:
-        cache_enabled = False
-    elif os.environ.get("CACHE_DISABLED"):
-        cache_enabled = False
+    cache_enabled = not (args.no_cache or bool(os.environ.get("CACHE_DISABLED")))
 
-    # Set cache size
-    cache_size = CacheDefaults.DEFAULT_CACHE_SIZE
     if args.cache_size is not None:
         cache_size = args.cache_size
-    elif os.environ.get("CACHE_SIZE"):
-        try:
-            cache_size = int(os.environ.get("CACHE_SIZE", str(CacheDefaults.DEFAULT_CACHE_SIZE)))
-        except ValueError:
-            cache_logger.warning("invalid_cache_size_env", using_default=CacheDefaults.DEFAULT_CACHE_SIZE)
-            cache_size = CacheDefaults.DEFAULT_CACHE_SIZE
+    else:
+        cache_size = _resolve_int_from_env("CACHE_SIZE", CacheDefaults.DEFAULT_CACHE_SIZE, "invalid_cache_size_env")
 
-    # Set cache TTL
-    cache_ttl = CacheDefaults.CLEANUP_INTERVAL_SECONDS
     if args.cache_ttl is not None:
         cache_ttl = args.cache_ttl
-    elif os.environ.get("CACHE_TTL"):
-        try:
-            cache_ttl = int(os.environ.get("CACHE_TTL", str(CacheDefaults.CLEANUP_INTERVAL_SECONDS)))
-        except ValueError:
-            cache_logger.warning("invalid_cache_ttl_env", using_default=CacheDefaults.CLEANUP_INTERVAL_SECONDS)
-            cache_ttl = CacheDefaults.CLEANUP_INTERVAL_SECONDS
+    else:
+        cache_ttl = _resolve_int_from_env("CACHE_TTL", CacheDefaults.CLEANUP_INTERVAL_SECONDS, "invalid_cache_ttl_env")
 
-    # Log the configuration
     cache_logger.info("cache_config", cache_enabled=cache_enabled, cache_size=cache_size, cache_ttl=cache_ttl)
 
     return cache_enabled, cache_size, cache_ttl
