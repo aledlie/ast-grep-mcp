@@ -303,62 +303,60 @@ class FastAPIRouteParser:
 class FlaskRouteParser:
     """Parse Flask routes."""
 
+    _DECORATOR_RE = re.compile(r'@(?:\w+)\.route\s*\(\s*[\'"`]([^\'"`]+)[\'"`](?:.*methods\s*=\s*\[([^\]]+)\])?')
+
     def parse_file(self, file_path: str) -> List[ApiRoute]:
         """Parse routes from a Flask file."""
-        routes = []
-
+        routes: List[ApiRoute] = []
         with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
-            lines = content.split("\n")
+            lines = f.read().split("\n")
 
-        # Pattern for @app.route or @blueprint.route
-        decorator_pattern = re.compile(r'@(?:\w+)\.route\s*\(\s*[\'"`]([^\'"`]+)[\'"`](?:.*methods\s*=\s*\[([^\]]+)\])?')
-
-        i = 0
-        while i < len(lines):
-            line = lines[i]
-            match = decorator_pattern.search(line)
-
-            if match:
-                path = match.group(RegexCaptureGroups.FIRST)
-                methods_str = match.group(RegexCaptureGroups.SECOND)
-
-                # Parse methods
-                if methods_str:
-                    methods = [m.strip().strip("'\"") for m in methods_str.split(",")]
-                else:
-                    methods = ["GET"]
-
-                # Look for function definition
-                j = i + 1
-                while j < len(lines) and not lines[j].strip().startswith("def "):
-                    j += 1
-
-                handler_name = "unknown"
-                if j < len(lines):
-                    func_line = lines[j]
-                    name_match = re.search(r"def\s+(\w+)", func_line)
-                    if name_match:
-                        handler_name = name_match.group(RegexCaptureGroups.FIRST)
-
-                # Extract path parameters
-                path_params = self._extract_path_params(path)
-
-                # Create route for each method
-                for method in methods:
-                    route = ApiRoute(
-                        path=path,
-                        method=method.upper(),
-                        handler_name=handler_name,
-                        file_path=file_path,
-                        line_number=i + 1,
-                        parameters=path_params,
-                    )
-                    routes.append(route)
-
-            i += 1
+        for i, line in enumerate(lines):
+            match = self._DECORATOR_RE.search(line)
+            if not match:
+                continue
+            path, methods = self._parse_decorator_match(match)
+            handler_name = self._find_next_handler_name(lines, i)
+            routes.extend(self._build_routes_for_methods(path, methods, handler_name, file_path, i))
 
         return routes
+
+    def _parse_decorator_match(self, match: "re.Match[str]") -> "tuple[str, list[str]]":
+        """Return (path, methods) from a @*.route decorator match."""
+        path = match.group(RegexCaptureGroups.FIRST)
+        methods_str = match.group(RegexCaptureGroups.SECOND)
+        methods = [m.strip().strip("'\"") for m in methods_str.split(",")] if methods_str else ["GET"]
+        return path, methods
+
+    def _find_next_handler_name(self, lines: List[str], decorator_idx: int) -> str:
+        """Return the function name on the next `def` line after decorator_idx."""
+        for line in lines[decorator_idx + 1 :]:
+            if line.strip().startswith("def "):
+                name_match = re.search(r"def\s+(\w+)", line)
+                if name_match:
+                    return name_match.group(RegexCaptureGroups.FIRST)
+            # Stop if we hit a non-decorator, non-blank statement before a def
+            stripped = line.strip()
+            if stripped and not stripped.startswith(("@", "#", "def ")):
+                break
+        return "unknown"
+
+    def _build_routes_for_methods(
+        self, path: str, methods: List[str], handler_name: str, file_path: str, line_idx: int
+    ) -> List[ApiRoute]:
+        """Build one ApiRoute per HTTP method."""
+        path_params = self._extract_path_params(path)
+        return [
+            ApiRoute(
+                path=path,
+                method=method.upper(),
+                handler_name=handler_name,
+                file_path=file_path,
+                line_number=line_idx + 1,
+                parameters=path_params,
+            )
+            for method in methods
+        ]
 
     def _extract_path_params(self, path: str) -> List[RouteParameter]:
         """Extract path parameters from route path."""
