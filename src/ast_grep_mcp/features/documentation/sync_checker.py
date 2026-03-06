@@ -161,7 +161,7 @@ def _check_docstring_sync(
     doc_params = set(_extract_docstring_params(func.existing_docstring, language))
 
     # Get actual params (excluding self/cls)
-    actual_params = set(p.name.rstrip("?") for p in func.parameters if p.name not in ("self", "cls"))
+    actual_params = set(p.name[:-1] if p.name.endswith("?") else p.name for p in func.parameters if p.name not in ("self", "cls"))
 
     # Check for missing params in docstring
     missing_in_doc = actual_params - doc_params

@@ -844,7 +844,8 @@ class FunctionSignatureParser:
             if char in ("<", "{", "("):
                 depth += 1
             elif char in (">", "}", ")"):
-                depth -= 1
+                if depth > 0:
+                    depth -= 1
             elif char == "," and depth == 0:
                 parts.append("".join(current))
                 current = []
