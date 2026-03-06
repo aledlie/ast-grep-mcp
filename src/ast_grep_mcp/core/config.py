@@ -154,16 +154,14 @@ def _resolve_and_validate_config_path(args: argparse.Namespace) -> Optional[str]
             logger = get_logger("config")
             logger.error("config_validation_failed", config_path=config_path, error=str(e))
             sys.exit(1)
-    elif os.environ.get("AST_GREP_CONFIG"):
-        env_config = os.environ.get("AST_GREP_CONFIG")
-        if env_config:
-            config_path = env_config
-            try:
-                validate_config_file(config_path)
-            except ConfigurationError as e:
-                logger = get_logger("config")
-                logger.error("config_validation_failed", config_path=config_path, error=str(e))
-                sys.exit(1)
+    elif env_config := os.environ.get("AST_GREP_CONFIG"):
+        config_path = env_config
+        try:
+            validate_config_file(config_path)
+        except ConfigurationError as e:
+            logger = get_logger("config")
+            logger.error("config_validation_failed", config_path=config_path, error=str(e))
+            sys.exit(1)
 
     return config_path
 
