@@ -297,6 +297,46 @@ def generate_markdown_report(
 # =============================================================================
 
 
+def _serialize_violation(v: RuleViolation, include_code_snippets: bool) -> Dict[str, Any]:
+    d: Dict[str, Any] = {
+        "file": v.file,
+        "line": v.line,
+        "column": v.column,
+        "end_line": v.end_line,
+        "end_column": v.end_column,
+        "severity": v.severity,
+        "rule_id": v.rule_id,
+        "message": v.message,
+        "fix_available": v.fix_suggestion is not None,
+    }
+    if include_code_snippets:
+        d["code_snippet"] = v.code_snippet
+        d["fix_suggestion"] = v.fix_suggestion
+    return d
+
+
+def _build_top_issues(result: EnforcementResult) -> List[Dict[str, Any]]:
+    top_rules = sorted(result.violations_by_rule.items(), key=lambda x: len(x[1]), reverse=True)[:10]
+    return [
+        {"rule_id": rule_id, "count": len(violations), "severity": violations[0].severity if violations else "unknown"}
+        for rule_id, violations in top_rules
+    ]
+
+
+def _build_most_violations_files(result: EnforcementResult) -> List[Dict[str, Any]]:
+    top_files = sorted(result.violations_by_file.items(), key=lambda x: len(x[1]), reverse=True)[:10]
+    return [
+        {
+            "file": file,
+            "violations": len(violations),
+            "errors": sum(1 for v in violations if v.severity == "error"),
+            "warnings": sum(1 for v in violations if v.severity == "warning"),
+            "info": sum(1 for v in violations if v.severity == "info"),
+        }
+        for file, violations in top_files
+    ]
+
+
 def generate_json_report(result: EnforcementResult, project_name: str = "Project", include_code_snippets: bool = False) -> Dict[str, Any]:
     """Generate a JSON-formatted quality report.
 
@@ -308,14 +348,15 @@ def generate_json_report(result: EnforcementResult, project_name: str = "Project
     Returns:
         Dictionary ready for JSON serialization
     """
+    by_severity = result.summary.get("by_severity", {})
     report: Dict[str, Any] = {
         "project": project_name,
         "generated_at": datetime.now().isoformat(),
         "summary": {
             "total_violations": result.summary["total_violations"],
-            "error_count": result.summary.get("by_severity", {}).get("error", 0),
-            "warning_count": result.summary.get("by_severity", {}).get("warning", 0),
-            "info_count": result.summary.get("by_severity", {}).get("info", 0),
+            "error_count": by_severity.get("error", 0),
+            "warning_count": by_severity.get("warning", 0),
+            "info_count": by_severity.get("info", 0),
             "files_scanned": result.files_scanned,
             "files_with_violations": result.summary.get("files_scanned", 0),
             "rules_executed": len(result.rules_executed),
@@ -329,57 +370,38 @@ def generate_json_report(result: EnforcementResult, project_name: str = "Project
         },
         "violations_by_rule": {rule_id: len(violations) for rule_id, violations in result.violations_by_rule.items()},
         "violations_by_file": {file: len(violations) for file, violations in result.violations_by_file.items()},
-        "violations": [],
+        "violations": [_serialize_violation(v, include_code_snippets) for v in result.violations],
+        "top_issues": _build_top_issues(result),
+        "most_violations_files": _build_most_violations_files(result),
     }
-
-    # Add violations
-    for v in result.violations:
-        violation_dict = {
-            "file": v.file,
-            "line": v.line,
-            "column": v.column,
-            "end_line": v.end_line,
-            "end_column": v.end_column,
-            "severity": v.severity,
-            "rule_id": v.rule_id,
-            "message": v.message,
-            "fix_available": v.fix_suggestion is not None,
-        }
-
-        if include_code_snippets:
-            violation_dict["code_snippet"] = v.code_snippet
-            violation_dict["fix_suggestion"] = v.fix_suggestion
-
-        report["violations"].append(violation_dict)
-
-    # Add top issues
-    top_rules = sorted(result.violations_by_rule.items(), key=lambda x: len(x[1]), reverse=True)[:10]
-
-    report["top_issues"] = [
-        {"rule_id": rule_id, "count": len(violations), "severity": violations[0].severity if violations else "unknown"}
-        for rule_id, violations in top_rules
-    ]
-
-    # Add most problematic files
-    top_files = sorted(result.violations_by_file.items(), key=lambda x: len(x[1]), reverse=True)[:10]
-
-    report["most_violations_files"] = [
-        {
-            "file": file,
-            "violations": len(violations),
-            "errors": sum(1 for v in violations if v.severity == "error"),
-            "warnings": sum(1 for v in violations if v.severity == "warning"),
-            "info": sum(1 for v in violations if v.severity == "info"),
-        }
-        for file, violations in top_files
-    ]
-
     return report
 
 
 # =============================================================================
 # Report Generator (Main Entry Point)
 # =============================================================================
+
+
+def _generate_markdown_response(
+    result: EnforcementResult, project_name: str, include_violations: bool, save_to_file: Optional[str]
+) -> Dict[str, Any]:
+    report_content = generate_markdown_report(result=result, project_name=project_name, include_violations=include_violations)
+    response: Dict[str, Any] = {"format": "markdown", "content": report_content, "summary": result.summary}
+    if save_to_file:
+        with open(save_to_file, "w", encoding="utf-8") as f:
+            f.write(report_content)
+        response["saved_to"] = save_to_file
+    return response
+
+
+def _generate_json_response(
+    result: EnforcementResult, project_name: str, include_code_snippets: bool, save_to_file: Optional[str]
+) -> Dict[str, Any]:
+    json_report = generate_json_report(result=result, project_name=project_name, include_code_snippets=include_code_snippets)
+    if save_to_file:
+        with open(save_to_file, "w", encoding="utf-8") as f:
+            json.dump(json_report, f, indent=2)
+    return {"format": "json", "content": json_report, "summary": result.summary, "saved_to": save_to_file}
 
 
 def generate_quality_report_impl(
@@ -404,27 +426,7 @@ def generate_quality_report_impl(
         Dictionary with report content and metadata
     """
     if output_format == "markdown":
-        report_content = generate_markdown_report(result=result, project_name=project_name, include_violations=include_violations)
-
-        response = {"format": "markdown", "content": report_content, "summary": result.summary}
-
-        # Save to file if requested
-        if save_to_file:
-            with open(save_to_file, "w", encoding="utf-8") as f:
-                f.write(report_content)
-            response["saved_to"] = save_to_file
-
-        return response
-
-    elif output_format == "json":
-        json_report = generate_json_report(result=result, project_name=project_name, include_code_snippets=include_code_snippets)
-
-        # Save to file if requested
-        if save_to_file:
-            with open(save_to_file, "w", encoding="utf-8") as f:
-                json.dump(json_report, f, indent=2)
-
-        return {"format": "json", "content": json_report, "summary": result.summary, "saved_to": save_to_file if save_to_file else None}
-
-    else:
-        raise ValueError(f"Unsupported output format: {output_format}")
+        return _generate_markdown_response(result, project_name, include_violations, save_to_file)
+    if output_format == "json":
+        return _generate_json_response(result, project_name, include_code_snippets, save_to_file)
+    raise ValueError(f"Unsupported output format: {output_format}")

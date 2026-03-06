@@ -25,6 +25,31 @@ MEDIUM_SAMPLE_IMPROVEMENT_PCT = 10.0
 LARGE_SAMPLE_IMPROVEMENT_PCT = 15.0
 
 
+def _resolve_dict_path(root: Path, language: Optional[str], output_dir: Optional[str]) -> Path:
+    dict_dir = Path(output_dir) if output_dir else root / CondenseDictionaryDefaults.DICT_OUTPUT_DIR
+    dict_dir.mkdir(parents=True, exist_ok=True)
+    return dict_dir / f"dict_{language or 'all'}.zdict"
+
+
+def _build_training_result(dict_path: Path, samples_used: int, total_bytes: int, language: Optional[str]) -> Dict[str, Any]:
+    dict_size = dict_path.stat().st_size if dict_path.exists() else 0
+    estimated_improvement = _estimate_improvement(samples_used, total_bytes)
+    logger.info(
+        "dictionary_trained",
+        dict_path=str(dict_path),
+        samples_used=samples_used,
+        dict_size_bytes=dict_size,
+    )
+    return {
+        "dict_path": str(dict_path),
+        "dict_size_bytes": dict_size,
+        "samples_used": samples_used,
+        "total_sample_bytes": total_bytes,
+        "estimated_improvement_pct": estimated_improvement,
+        "language": language,
+    }
+
+
 def train_dictionary_impl(
     path: str,
     language: Optional[str] = None,
@@ -50,45 +75,19 @@ def train_dictionary_impl(
     if not root.is_dir():
         return {"error": f"Path must be a directory: {path}"}
 
-    # Resolve output directory
-    dict_dir = Path(output_dir) if output_dir else root / CondenseDictionaryDefaults.DICT_OUTPUT_DIR
-    dict_dir.mkdir(parents=True, exist_ok=True)
-    dict_name = f"dict_{language or 'all'}.zdict"
-    dict_path = dict_dir / dict_name
-
-    # Collect samples
+    dict_path = _resolve_dict_path(root, language, output_dir)
     all_files = _collect_files(root, language)
     samples = _select_samples(all_files, sample_count)
 
     if not samples:
         return {"error": "No suitable sample files found for dictionary training"}
 
-    samples_used, total_sample_bytes = _write_training_result(
-        samples=samples,
-        dict_path=dict_path,
-    )
+    samples_used, total_sample_bytes = _write_training_result(samples=samples, dict_path=dict_path)
 
     if samples_used == 0:
         return {"error": "All sample files exceeded size limit or were unreadable"}
 
-    dict_size = dict_path.stat().st_size if dict_path.exists() else 0
-    estimated_improvement = _estimate_improvement(samples_used, total_sample_bytes)
-
-    logger.info(
-        "dictionary_trained",
-        dict_path=str(dict_path),
-        samples_used=samples_used,
-        dict_size_bytes=dict_size,
-    )
-
-    return {
-        "dict_path": str(dict_path),
-        "dict_size_bytes": dict_size,
-        "samples_used": samples_used,
-        "total_sample_bytes": total_sample_bytes,
-        "estimated_improvement_pct": estimated_improvement,
-        "language": language,
-    }
+    return _build_training_result(dict_path, samples_used, total_sample_bytes, language)
 
 
 def _select_samples(files: List[Path], sample_count: int) -> List[Path]:
@@ -106,57 +105,60 @@ def _select_samples(files: List[Path], sample_count: int) -> List[Path]:
     return selected
 
 
+def _copy_samples_to_tmpdir(samples: List[Path], tmp_dir: Path) -> tuple[int, int]:
+    """Copy samples into tmp_dir, returning (samples_used, total_bytes)."""
+    samples_used = 0
+    total_bytes = 0
+    for i, fp in enumerate(samples):
+        try:
+            content = fp.read_bytes()
+        except OSError:
+            continue
+        if len(content) > CondenseDictionaryDefaults.MAX_SAMPLE_SIZE_BYTES:
+            continue
+        dest = tmp_dir / f"sample_{i}{fp.suffix}"
+        dest.write_bytes(content)
+        total_bytes += len(content)
+        samples_used += 1
+    return samples_used, total_bytes
+
+
+def _run_zstd_train(tmp_dir: Path, dict_path: Path) -> None:
+    """Invoke zstd --train; raise RuntimeError on failure."""
+    cmd = [
+        "zstd",
+        "--train",
+        f"--maxdict={CondenseDictionaryDefaults.DICT_SIZE_BYTES}",
+        "-o",
+        str(dict_path),
+    ]
+    cmd.extend(str(p) for p in tmp_dir.iterdir())
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=SubprocessDefaults.ZSTD_TRAIN_TIMEOUT_SECONDS,
+    )
+    if result.returncode != 0:
+        logger.error(
+            "zstd_train_failed",
+            returncode=result.returncode,
+            stderr=result.stderr[: CondenseDefaults.MAX_FILE_SIZE_BYTES],
+        )
+        raise RuntimeError(f"zstd --train failed: {result.stderr.strip()}")
+
+
 def _write_training_result(
     samples: List[Path],
     dict_path: Path,
 ) -> tuple[int, int]:
     """Run zstd --train on collected samples, return (samples_used, total_bytes)."""
-    samples_used = 0
-    total_bytes = 0
-
-    # Write all sample content to a temp directory so zstd can glob them
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
-        for i, fp in enumerate(samples):
-            try:
-                content = fp.read_bytes()
-            except OSError:
-                continue
-            if len(content) > CondenseDictionaryDefaults.MAX_SAMPLE_SIZE_BYTES:
-                continue
-            dest = tmp_dir / f"sample_{i}{fp.suffix}"
-            dest.write_bytes(content)
-            total_bytes += len(content)
-            samples_used += 1
-
+        samples_used, total_bytes = _copy_samples_to_tmpdir(samples, tmp_dir)
         if samples_used == 0:
             return 0, 0
-
-        cmd = [
-            "zstd",
-            "--train",
-            f"--maxdict={CondenseDictionaryDefaults.DICT_SIZE_BYTES}",
-            "-o",
-            str(dict_path),
-        ]
-        # Add all sample files
-        cmd.extend(str(p) for p in tmp_dir.iterdir())
-
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=SubprocessDefaults.ZSTD_TRAIN_TIMEOUT_SECONDS,
-        )
-
-        if result.returncode != 0:
-            logger.error(
-                "zstd_train_failed",
-                returncode=result.returncode,
-                stderr=result.stderr[: CondenseDefaults.MAX_FILE_SIZE_BYTES],
-            )
-            raise RuntimeError(f"zstd --train failed: {result.stderr.strip()}")
-
+        _run_zstd_train(tmp_dir, dict_path)
     return samples_used, total_bytes
 
 
