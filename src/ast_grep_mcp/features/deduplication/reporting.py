@@ -7,6 +7,61 @@ from typing import Any, Dict, List, Optional, Tuple
 from ...constants import CodeAnalysisDefaults, DisplayDefaults, PriorityWeights, RankerDefaults, ReportingDefaults
 from ...utils.formatters import generate_multi_file_diff
 
+_DIFF_PREFIX_COLORS = [
+    ("+++", "\033[33m"),
+    ("---", "\033[33m"),
+    ("@@", "\033[36m"),
+    ("+", "\033[32m"),
+    ("-", "\033[31m"),
+]
+_RESET = "\033[0m"
+
+
+def _colorize_diff_line(line: str) -> str:
+    for prefix, color in _DIFF_PREFIX_COLORS:
+        if line.startswith(prefix):
+            return f"{color}{line}{_RESET}"
+    return line
+
+
+def _number_lines(lines: List[str]) -> str:
+    return "\n".join(f"{i:3d} | {line}" for i, line in enumerate(lines, 1))
+
+
+def _get_complexity_level(score: int) -> Tuple[str, str, List[str]]:
+    if score <= DisplayDefaults.LOW_SCORE_THRESHOLD:
+        return (
+            "Low",
+            "\033[32m",
+            [
+                "Good candidate for quick refactoring",
+                "Consider extracting as a simple helper function",
+                "Low risk of introducing bugs during extraction",
+            ],
+        )
+    if score <= DisplayDefaults.MEDIUM_SCORE_THRESHOLD:
+        return (
+            "Medium",
+            "\033[33m",
+            [
+                "Review the code carefully before extraction",
+                "Consider adding unit tests before refactoring",
+                "May benefit from breaking into smaller pieces",
+                "Check for hidden dependencies or side effects",
+            ],
+        )
+    return (
+        "High",
+        "\033[31m",
+        [
+            "High complexity - proceed with caution",
+            "Strongly recommend comprehensive test coverage first",
+            "Consider incremental refactoring in smaller steps",
+            "Review for cyclomatic complexity and reduce branches",
+            "May need architectural review before extraction",
+        ],
+    )
+
 
 @dataclass
 class EnhancedDuplicationCandidate:
@@ -45,99 +100,31 @@ class DuplicationReporter:
     """Creates enhanced reports for code duplication findings."""
 
     def format_diff_with_colors(self, diff: str) -> str:
-        """Add ANSI color codes to a unified diff for CLI display.
-
-        Args:
-            diff: Unified diff string
-
-        Returns:
-            Diff string with ANSI color codes:
-            - Green for additions (+)
-            - Red for deletions (-)
-            - Cyan for hunk headers (@@)
-            - Yellow for file headers (--- / +++)
-        """
+        """Add ANSI color codes to a unified diff for CLI display."""
         if not diff:
             return diff
-
-        # ANSI color codes
-        RED = "\033[31m"
-        GREEN = "\033[32m"
-        YELLOW = "\033[33m"
-        CYAN = "\033[36m"
-        RESET = "\033[0m"
-
-        colored_lines = []
-        for line in diff.split("\n"):
-            if line.startswith("+++") or line.startswith("---"):
-                colored_lines.append(f"{YELLOW}{line}{RESET}")
-            elif line.startswith("@@"):
-                colored_lines.append(f"{CYAN}{line}{RESET}")
-            elif line.startswith("+"):
-                colored_lines.append(f"{GREEN}{line}{RESET}")
-            elif line.startswith("-"):
-                colored_lines.append(f"{RED}{line}{RESET}")
-            else:
-                colored_lines.append(line)
-
-        return "\n".join(colored_lines)
+        return "\n".join(_colorize_diff_line(line) for line in diff.split("\n"))
 
     def generate_before_after_example(self, original_code: str, replacement_code: str, function_name: str) -> Dict[str, Any]:
-        """Generate before/after code examples for a duplication extraction.
-
-        Creates readable code snippets showing the original duplicate code
-        and how it looks after extraction into a reusable function.
-
-        Args:
-            original_code: The original duplicate code snippet
-            replacement_code: The replacement code (function call)
-            function_name: Name of the extracted function
-
-        Returns:
-            Dictionary containing:
-            - before: Original code snippet with context
-            - after: Code with extracted function call
-            - function_definition: The extracted function's signature
-            - explanation: Human-readable explanation of the change
-        """
-        # Clean up the code snippets
+        """Generate before/after code examples for a duplication extraction."""
         original_lines = original_code.strip().split("\n")
         replacement_lines = replacement_code.strip().split("\n")
-
-        # Calculate metrics
         original_line_count = len(original_lines)
         replacement_line_count = len(replacement_lines)
         lines_saved = original_line_count - replacement_line_count
-
-        # Format the before section with line numbers
-        before_formatted = []
-        for i, line in enumerate(original_lines, 1):
-            before_formatted.append(f"{i:3d} | {line}")
-
-        # Format the after section with line numbers
-        after_formatted = []
-        for i, line in enumerate(replacement_lines, 1):
-            after_formatted.append(f"{i:3d} | {line}")
-
-        # Generate a simple function signature based on name
-        function_definition = f"def {function_name}(...):"
-
-        # Create explanation
-        if lines_saved > 0:
-            explanation = (
-                f"Extracted {original_line_count} lines of duplicate code into "
-                f"'{function_name}', reducing to {replacement_line_count} line(s). "
-                f"This saves {lines_saved} line(s) per occurrence."
-            )
-        else:
-            explanation = f"Refactored code into '{function_name}' for better reusability and maintainability."
-
+        explanation = (
+            f"Extracted {original_line_count} lines of duplicate code into "
+            f"'{function_name}', reducing to {replacement_line_count} line(s). "
+            f"This saves {lines_saved} line(s) per occurrence."
+            if lines_saved > 0
+            else f"Refactored code into '{function_name}' for better reusability and maintainability."
+        )
         return {
-            "before": "\n".join(before_formatted),
-            "after": "\n".join(after_formatted),
+            "before": _number_lines(original_lines),
+            "after": _number_lines(replacement_lines),
             "before_raw": original_code.strip(),
             "after_raw": replacement_code.strip(),
-            "function_definition": function_definition,
+            "function_definition": f"def {function_name}(...):",
             "function_name": function_name,
             "original_lines": original_line_count,
             "replacement_lines": replacement_line_count,
@@ -146,59 +133,14 @@ class DuplicationReporter:
         }
 
     def visualize_complexity(self, score: int) -> Dict[str, Any]:
-        """Create a visual complexity indicator with recommendations.
-
-        Args:
-            score: Complexity score from 1-10
-
-        Returns:
-            Dictionary containing:
-            - bar: ASCII bar visualization
-            - description: Text description (Low/Medium/High)
-            - color_code: ANSI color code for CLI
-            - recommendations: List of actionable recommendations
-            - score: The input score
-        """
-        # Clamp score to valid range
+        """Create a visual complexity indicator with recommendations."""
         score = max(DisplayDefaults.COMPLEXITY_SCORE_MIN, min(DisplayDefaults.COMPLEXITY_SCORE_MAX, score))
-
-        # Determine description and color based on score
-        if score <= DisplayDefaults.LOW_SCORE_THRESHOLD:
-            description = "Low"
-            color_code = "\033[32m"  # Green
-            recommendations = [
-                "Good candidate for quick refactoring",
-                "Consider extracting as a simple helper function",
-                "Low risk of introducing bugs during extraction",
-            ]
-        elif score <= DisplayDefaults.MEDIUM_SCORE_THRESHOLD:
-            description = "Medium"
-            color_code = "\033[33m"  # Yellow
-            recommendations = [
-                "Review the code carefully before extraction",
-                "Consider adding unit tests before refactoring",
-                "May benefit from breaking into smaller pieces",
-                "Check for hidden dependencies or side effects",
-            ]
-        else:
-            description = "High"
-            color_code = "\033[31m"  # Red
-            recommendations = [
-                "High complexity - proceed with caution",
-                "Strongly recommend comprehensive test coverage first",
-                "Consider incremental refactoring in smaller steps",
-                "Review for cyclomatic complexity and reduce branches",
-                "May need architectural review before extraction",
-            ]
-
+        description, color_code, recommendations = _get_complexity_level(score)
         reset_code = "\033[0m"
-
-        # Create ASCII bar visualization
         filled = score
         empty = DisplayDefaults.VISUALIZATION_BAR_LENGTH - score
         bar_plain = f"[{'=' * filled}{' ' * empty}] {score}/{DisplayDefaults.VISUALIZATION_BAR_LENGTH}"
         bar_colored = f"{color_code}[{'=' * filled}{' ' * empty}]{reset_code} {score}/{DisplayDefaults.VISUALIZATION_BAR_LENGTH}"
-
         return {
             "score": score,
             "bar": bar_plain,
@@ -212,34 +154,7 @@ class DuplicationReporter:
     def create_enhanced_duplication_response(
         self, candidates: List[Dict[str, Any]], include_diffs: bool = True, include_colors: bool = False
     ) -> Dict[str, Any]:
-        """Create an enhanced duplication detection response.
-
-        This is the main entry point for Phase 5 enhanced reporting.
-        Takes raw duplication candidates and enriches them with:
-        - Before/after examples
-        - Complexity visualizations
-        - Colored diffs (optional)
-        - Actionable recommendations
-
-        Args:
-            candidates: List of raw duplication candidates with keys:
-                - files: List of file paths
-                - locations: List of (file, start, end) tuples
-                - code: The duplicate code
-                - function_name: Suggested function name
-                - replacement: Replacement code
-                - similarity: Similarity score (0-100)
-                - complexity: Complexity score (1-10)
-            include_diffs: Whether to generate diff previews
-            include_colors: Whether to include ANSI color codes
-
-        Returns:
-            Enhanced response dictionary with:
-            - candidates: List of EnhancedDuplicationCandidate as dicts
-            - summary: Overall summary statistics
-            - recommendations: Global recommendations
-            - metadata: Response metadata
-        """
+        """Create an enhanced duplication detection response with before/after, diffs, and recommendations."""
         enhanced_candidates = []
         total_lines_saveable = 0
         distribution: Dict[str, int] = {"low": 0, "medium": 0, "high": 0}
