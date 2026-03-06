@@ -278,13 +278,13 @@ def parse_match_to_violation(match: Dict[str, Any], rule: LintingRule) -> RuleVi
                 if isinstance(var_list, list):
                     meta_vars[var_name] = [v.get("text", "") for v in var_list if isinstance(v, dict)]
 
-    # ast-grep returns 0-indexed line numbers; RuleViolation expects 1-indexed
+    # ast-grep returns 0-indexed lines and columns; RuleViolation expects 1-indexed
     return RuleViolation(
         file=match.get("file", ""),
         line=start.get("line", 0) + 1,
-        column=start.get("column", 0),
+        column=start.get("column", 0) + 1,
         end_line=end.get("line", 0) + 1,
-        end_column=end.get("column", 0),
+        end_column=end.get("column", 0) + 1,
         severity=rule.severity,
         rule_id=rule.id,
         message=rule.message,
