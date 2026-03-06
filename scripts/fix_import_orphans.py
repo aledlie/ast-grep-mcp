@@ -4,62 +4,72 @@
 import subprocess
 import sys
 from pathlib import Path
+from typing import List, Tuple
 
 from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults
 from ast_grep_mcp.utils.console_logger import console
 
+try:
+    from scripts.migration_common import MIGRATION_ERROR_TEST_FILES, read_lines, remove_line_ranges, write_lines
+except ImportError:  # pragma: no cover - script execution path
+    from migration_common import MIGRATION_ERROR_TEST_FILES, read_lines, remove_line_ranges, write_lines
 
-def find_orphaned_imports(lines):
+
+_IMPORT_KEYWORDS = ("from", "import", "#", '"""', "'''", "class", "def", "@")
+_STATEMENT_STARTS = ("from", "import", "class", "def", "@", '"""', "'''")
+
+
+def _is_orphan_close_paren(line: str, prev_line: str) -> bool:
+    """Return True if line is a stray `)` immediately after a completed import."""
+    return line == ")" and prev_line.endswith(")")
+
+
+def _is_orphan_import_item_start(line: str, raw_line: str, prev_line: str) -> bool:
+    """Return True if this indented line starts an orphaned import-item block."""
+    return (
+        bool(line)
+        and not line.startswith(_IMPORT_KEYWORDS)
+        and raw_line.startswith("    ")
+        and "(" not in line
+        and "=" not in line
+        and "def " not in line
+        and "class " not in line
+        and prev_line.endswith(")")
+    )
+
+
+def _scan_orphan_item_range(lines: List[str], start: int) -> Tuple[int, int]:
+    """Scan forward from start to find the end of an orphaned import-item block."""
+    i = start
+    while i < len(lines):
+        curr = lines[i].strip()
+        if curr == ")":
+            return (start, i + 1)
+        if curr.startswith(_STATEMENT_STARTS) or not curr or curr.startswith("#"):
+            return (start, i)
+        i += 1
+    return (start, i)
+
+
+def find_orphaned_imports(lines: List[str]) -> List[Tuple[int, int]]:
     """Find lines that are orphaned from old import blocks."""
-
     orphaned_ranges = []
     i = 0
 
     while i < len(lines):
-        line = lines[i].strip()
-
-        # Look for patterns that suggest orphaned imports:
-        # 1. Lines that look like import items but aren't part of a from...import
-        # 2. Closing parens with nothing before them
-        # 3. Import names at wrong indentation
-
         if i > 0:
+            line = lines[i].strip()
             prev_line = lines[i - 1].strip()
 
-            # Pattern 1: Orphaned closing paren after complete import
-            if line == ")" and prev_line.endswith(")"):
+            if _is_orphan_close_paren(line, prev_line):
                 orphaned_ranges.append((i, i + 1))
                 i += 1
                 continue
 
-            # Pattern 2: Indented identifiers after complete import statement
-            if (
-                not line.startswith(("from", "import", "#", '"""', "'''", "class", "def", "@"))
-                and line
-                and lines[i].startswith("    ")  # Indented
-                and "(" not in line
-                and "=" not in line
-                and "def " not in line
-                and "class " not in line
-                and prev_line.endswith(")")
-            ):  # Previous line ended an import
-                # This might be an orphaned import item
-                # Look ahead to find the end
-                start = i
-                while i < len(lines):
-                    curr = lines[i].strip()
-                    if curr == ")":
-                        orphaned_ranges.append((start, i + 1))
-                        break
-                    elif curr.startswith(("from", "import", "class", "def", "@", '"""', "'''")):
-                        # Hit next statement, end here
-                        orphaned_ranges.append((start, i))
-                        break
-                    elif not curr or curr.startswith("#"):
-                        # Empty line or comment, end here
-                        orphaned_ranges.append((start, i))
-                        break
-                    i += 1
+            if _is_orphan_import_item_start(line, lines[i], prev_line):
+                start, end = _scan_orphan_item_range(lines, i)
+                orphaned_ranges.append((start, end))
+                i = end
                 continue
 
         i += 1
@@ -69,8 +79,7 @@ def find_orphaned_imports(lines):
 
 def remove_orphaned_lines(filepath: Path):
     """Remove orphaned import lines from file."""
-    with open(filepath, "r") as f:
-        lines = f.readlines()
+    lines = read_lines(filepath)
 
     orphaned = find_orphaned_imports(lines)
 
@@ -78,27 +87,10 @@ def remove_orphaned_lines(filepath: Path):
         return False
 
     console.log(f"\n  Fixing {filepath.name}:")
-    new_lines = []
-    skip_until = -1
+    for start, end in orphaned:
+        console.log(f"    Removing lines {start + 1}-{end}: {repr(lines[start].strip()[: DisplayDefaults.CONTENT_PREVIEW_LENGTH])}")
 
-    for i, line in enumerate(lines):
-        if i < skip_until:
-            continue
-
-        # Check if this line is in an orphaned range
-        is_orphaned = False
-        for start, end in orphaned:
-            if start <= i < end:
-                is_orphaned = True
-                skip_until = end
-                console.log(f"    Removing lines {start + 1}-{end}: {repr(lines[start].strip()[: DisplayDefaults.CONTENT_PREVIEW_LENGTH])}")
-                break
-
-        if not is_orphaned:
-            new_lines.append(line)
-
-    with open(filepath, "w") as f:
-        f.writelines(new_lines)
+    write_lines(filepath, remove_line_ranges(lines, orphaned))
 
     return True
 
@@ -111,26 +103,6 @@ def check_syntax(filepath: Path):
 
 def main():
     """Fix all test files with orphaned imports."""
-    error_files = [
-        "tests/unit/test_duplication.py",
-        "tests/unit/test_coverage_detection.py",
-        "tests/unit/test_import_management.py",
-        "tests/unit/test_parameter_extraction.py",
-        "tests/unit/test_enhanced_suggestions.py",
-        "tests/unit/test_function_generation.py",
-        "tests/unit/test_standards_enforcement.py",
-        "tests/unit/test_dependency_analysis.py",
-        "tests/unit/test_linting_rules.py",
-        "tests/unit/test_diff_preview.py",
-        "tests/unit/test_complexity.py",
-        "tests/unit/test_code_smells.py",
-        "tests/unit/test_ast_diff.py",
-        "tests/unit/test_variation_classification.py",
-        "tests/unit/test_impact_analysis.py",
-        "tests/unit/test_enhanced_reporting.py",
-        "tests/unit/test_call_site.py",
-    ]
-
     console.log("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
     console.log("Fixing orphaned import lines from migration")
     console.log("=" * FormattingDefaults.WIDE_SECTION_WIDTH)
@@ -138,7 +110,7 @@ def main():
     fixed_count = 0
     failed = []
 
-    for filepath_str in error_files:
+    for filepath_str in MIGRATION_ERROR_TEST_FILES:
         filepath = Path(filepath_str)
         if not filepath.exists():
             console.log(f"\n  Skipping {filepath} - not found")
