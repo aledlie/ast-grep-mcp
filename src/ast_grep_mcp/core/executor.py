@@ -248,18 +248,21 @@ def filter_files_by_size(directory: str, max_size_mb: Optional[int] = None, lang
 
     Args:
         directory: Directory to search
-        max_size_mb: Maximum file size in megabytes (None = unlimited)
+        max_size_mb: Maximum file size in megabytes. Must be > 0 to apply filtering.
+            Pass None or <= 0 only when the caller will handle the unlimited case itself
+            (returns ([], []) so callers can detect the no-op and fall back to their
+            own file-discovery logic).
         language: Optional language filter for file extensions
 
     Returns:
         Tuple of (files_to_search, skipped_files)
         - files_to_search: List of file paths under size limit
-        - skipped_files: List of file paths that were skipped
+        - skipped_files: List of file paths that exceeded the limit
+        When max_size_mb is None or <= 0 returns ([], []) as a no-op signal.
     """
     logger = get_logger("file_filter")
 
     if max_size_mb is None or max_size_mb <= 0:
-        # No filtering needed
         return ([], [])
 
     max_size_bytes = max_size_mb * FileConstants.BYTES_PER_MB
