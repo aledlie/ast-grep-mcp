@@ -8,7 +8,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from typing import Any, Callable, Dict, List, Optional
 
-from ...constants import DeduplicationDefaults, ParallelProcessing
+from ...constants import CodeAnalysisDefaults, DeduplicationDefaults, ParallelProcessing
 from ...core.logging import get_logger
 from .config import AnalysisConfig
 from .coverage import CoverageDetector
@@ -435,7 +435,7 @@ class DeduplicationAnalysisOrchestrator:
         """
         recommendation = self.recommendation_engine.generate_deduplication_recommendation(
             score=candidate.get("score", 0),
-            complexity=candidate.get("complexity_score", DeduplicationDefaults.DEFAULT_COMPLEXITY_SCORE),
+            complexity=candidate.get("complexity_score", CodeAnalysisDefaults.DEFAULT_COMPLEXITY_SCORE),
             lines_saved=candidate.get("lines_saved", 0),
             has_tests=candidate.get("has_tests", False),
             affected_files=len(candidate.get("files", [])),
