@@ -7,6 +7,7 @@ Handles:
 - Rollback on failure
 """
 
+import re
 from typing import Dict, List, Optional
 
 from ast_grep_mcp.core.logging import get_logger
@@ -65,74 +66,14 @@ class RenameCoordinator:
         )
 
         try:
-            # Step 1: Find all references
-            references = self.renamer.find_symbol_references(
+            result = self._resolve_rename(
                 project_folder=project_folder,
-                symbol_name=old_name,
+                old_name=old_name,
+                new_name=new_name,
                 file_filter=file_filter,
+                dry_run=dry_run,
             )
-
-            if not references:
-                return RenameSymbolResult(
-                    success=False,
-                    old_name=old_name,
-                    new_name=new_name,
-                    error=f"No references found for symbol '{old_name}'",
-                )
-
-            # Step 2: Build scope trees for all affected files
-            affected_files = list(set(ref.file_path for ref in references))
-            scope_trees: Dict[str, List[ScopeInfo]] = {}
-
-            for file_path in affected_files:
-                scope_trees[file_path] = self.renamer.build_scope_tree(file_path)
-
-            # Step 3: Check for naming conflicts
-            conflicts = self.renamer.check_naming_conflicts(
-                references=references,
-                new_name=new_name,
-                scopes=scope_trees,
-            )
-
-            if conflicts:
-                return RenameSymbolResult(
-                    success=False,
-                    old_name=old_name,
-                    new_name=new_name,
-                    conflicts=conflicts,
-                    error=f"Naming conflicts detected: {len(conflicts)} conflicts",
-                )
-
-            # Step 4: Generate diff preview
-            diff_preview = self._generate_diff_preview(
-                references=references,
-                old_name=old_name,
-                new_name=new_name,
-            )
-
-            # Step 5: Apply changes if not dry-run
-            backup_id = None
-            files_modified: List[str] = []
-
-            if not dry_run:
-                backup_id, files_modified = self._apply_rename(
-                    project_folder=project_folder,
-                    references=references,
-                    old_name=old_name,
-                    new_name=new_name,
-                )
-
-            return RenameSymbolResult(
-                success=True,
-                old_name=old_name,
-                new_name=new_name,
-                references_found=len(references),
-                references_updated=len(references) if not dry_run else 0,
-                files_modified=files_modified,
-                diff_preview=diff_preview,
-                backup_id=backup_id,
-            )
-
+            return result
         except Exception as e:
             logger.error("rename_symbol_failed", error=str(e))
             return RenameSymbolResult(
@@ -141,6 +82,115 @@ class RenameCoordinator:
                 new_name=new_name,
                 error=str(e),
             )
+
+    def _resolve_rename(
+        self,
+        project_folder: str,
+        old_name: str,
+        new_name: str,
+        file_filter: Optional[str],
+        dry_run: bool,
+    ) -> RenameSymbolResult:
+        references = self.renamer.find_symbol_references(
+            project_folder=project_folder,
+            symbol_name=old_name,
+            file_filter=file_filter,
+        )
+
+        if not references:
+            return RenameSymbolResult(
+                success=False,
+                old_name=old_name,
+                new_name=new_name,
+                error=f"No references found for symbol '{old_name}'",
+            )
+
+        conflict_result = self._check_conflicts(references, old_name, new_name)
+        if conflict_result is not None:
+            return conflict_result
+
+        diff_preview = self._generate_diff_preview(references, old_name, new_name)
+        backup_id, files_modified = self._maybe_apply(
+            project_folder, references, old_name, new_name, dry_run
+        )
+
+        return RenameSymbolResult(
+            success=True,
+            old_name=old_name,
+            new_name=new_name,
+            references_found=len(references),
+            references_updated=len(references) if not dry_run else 0,
+            files_modified=files_modified,
+            diff_preview=diff_preview,
+            backup_id=backup_id,
+        )
+
+    def _check_conflicts(
+        self,
+        references: List[SymbolReference],
+        old_name: str,
+        new_name: str,
+    ) -> Optional[RenameSymbolResult]:
+        scope_trees = self._build_scope_trees(references)
+        conflicts = self.renamer.check_naming_conflicts(
+            references=references,
+            new_name=new_name,
+            scopes=scope_trees,
+        )
+        if not conflicts:
+            return None
+        return RenameSymbolResult(
+            success=False,
+            old_name=old_name,
+            new_name=new_name,
+            conflicts=conflicts,
+            error=f"Naming conflicts detected: {len(conflicts)} conflicts",
+        )
+
+    def _maybe_apply(
+        self,
+        project_folder: str,
+        references: List[SymbolReference],
+        old_name: str,
+        new_name: str,
+        dry_run: bool,
+    ) -> tuple[Optional[str], List[str]]:
+        if dry_run:
+            return None, []
+        backup_id, files_modified = self._apply_rename(
+            project_folder=project_folder,
+            references=references,
+            old_name=old_name,
+            new_name=new_name,
+        )
+        return backup_id, files_modified
+
+    def _build_scope_trees(
+        self, references: List[SymbolReference]
+    ) -> Dict[str, List[ScopeInfo]]:
+        affected_files = list(set(ref.file_path for ref in references))
+        return {fp: self.renamer.build_scope_tree(fp) for fp in affected_files}
+
+    def _group_refs_by_file(
+        self, references: List[SymbolReference]
+    ) -> Dict[str, List[SymbolReference]]:
+        refs_by_file: Dict[str, List[SymbolReference]] = {}
+        for ref in references:
+            refs_by_file.setdefault(ref.file_path, []).append(ref)
+        return refs_by_file
+
+    def _format_file_diff_lines(
+        self,
+        file_path: str,
+        file_refs: List[SymbolReference],
+        old_name: str,
+        new_name: str,
+    ) -> List[str]:
+        lines = [f"--- {file_path}", f"+++ {file_path}", ""]
+        for ref in sorted(file_refs, key=lambda r: r.line):
+            new_line = ref.context.replace(old_name, new_name)
+            lines += [f"  Line {ref.line}:", f"- {ref.context}", f"+ {new_line}", ""]
+        return lines
 
     def _generate_diff_preview(
         self,
@@ -158,32 +208,23 @@ class RenameCoordinator:
         Returns:
             Unified diff string
         """
-        lines = []
-
-        # Group by file
-        refs_by_file: Dict[str, List[SymbolReference]] = {}
-        for ref in references:
-            if ref.file_path not in refs_by_file:
-                refs_by_file[ref.file_path] = []
-            refs_by_file[ref.file_path].append(ref)
-
-        # Generate diff for each file
+        refs_by_file = self._group_refs_by_file(references)
+        lines: List[str] = []
         for file_path, file_refs in sorted(refs_by_file.items()):
-            lines.append(f"--- {file_path}")
-            lines.append(f"+++ {file_path}")
-            lines.append("")
-
-            for ref in sorted(file_refs, key=lambda r: r.line):
-                # Show context with highlight
-                old_line = ref.context
-                new_line = old_line.replace(old_name, new_name)
-
-                lines.append(f"  Line {ref.line}:")
-                lines.append(f"- {old_line}")
-                lines.append(f"+ {new_line}")
-                lines.append("")
-
+            lines.extend(self._format_file_diff_lines(file_path, file_refs, old_name, new_name))
         return "\n".join(lines)
+
+    def _apply_file_renames(
+        self,
+        refs_by_file: Dict[str, List[SymbolReference]],
+        old_name: str,
+        new_name: str,
+    ) -> List[str]:
+        files_modified = []
+        for file_path, file_refs in refs_by_file.items():
+            self._rename_in_file(file_path=file_path, references=file_refs, old_name=old_name, new_name=new_name)
+            files_modified.append(file_path)
+        return files_modified
 
     def _apply_rename(
         self,
@@ -203,41 +244,14 @@ class RenameCoordinator:
         Returns:
             Tuple of (backup_id, files_modified)
         """
-        # Group references by file
-        refs_by_file: Dict[str, List[SymbolReference]] = {}
-        for ref in references:
-            if ref.file_path not in refs_by_file:
-                refs_by_file[ref.file_path] = []
-            refs_by_file[ref.file_path].append(ref)
-
-        files_to_modify = list(refs_by_file.keys())
-
-        # Create backup
-        backup_id = create_backup(files_to_modify, project_folder)
+        refs_by_file = self._group_refs_by_file(references)
+        backup_id = create_backup(list(refs_by_file.keys()), project_folder)
 
         try:
-            files_modified = []
-
-            # Modify each file
-            for file_path, file_refs in refs_by_file.items():
-                self._rename_in_file(
-                    file_path=file_path,
-                    references=file_refs,
-                    old_name=old_name,
-                    new_name=new_name,
-                )
-                files_modified.append(file_path)
-
-            logger.info(
-                "rename_applied",
-                backup_id=backup_id,
-                files_modified=len(files_modified),
-            )
-
+            files_modified = self._apply_file_renames(refs_by_file, old_name, new_name)
+            logger.info("rename_applied", backup_id=backup_id, files_modified=len(files_modified))
             return backup_id, files_modified
-
         except Exception as e:
-            # Rollback on error
             logger.error("rename_failed_rolling_back", error=str(e))
             restore_backup(backup_id, project_folder)
             raise RuntimeError(f"Rename failed and was rolled back: {e}")
@@ -257,28 +271,17 @@ class RenameCoordinator:
             old_name: Old symbol name
             new_name: New symbol name
         """
-        # Read file
         with open(file_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
-        # Sort references by line (reverse order to maintain line numbers)
+        pattern = r"\b" + re.escape(old_name) + r"\b"
         sorted_refs = sorted(references, key=lambda r: r.line, reverse=True)
 
-        # Replace each reference
         for ref in sorted_refs:
             if ref.line <= len(lines):
                 line_idx = ref.line - 1
-                line = lines[line_idx]
+                lines[line_idx] = re.sub(pattern, new_name, lines[line_idx])
 
-                # Use word boundary replacement to avoid partial matches
-                import re
-
-                pattern = r"\b" + re.escape(old_name) + r"\b"
-                new_line = re.sub(pattern, new_name, line)
-
-                lines[line_idx] = new_line
-
-        # Write file
         with open(file_path, "w", encoding="utf-8") as f:
             f.writelines(lines)
 

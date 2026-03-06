@@ -68,61 +68,30 @@ class ComplexityFileFinder:
         lang_extensions = {"python": [".py"], "typescript": [".ts", ".tsx"], "javascript": [".js", ".jsx"], "java": [".java"]}
         return lang_extensions.get(language.lower(), [".py"])
 
+    def _build_glob_pattern(self, base: str, ext: str) -> str:
+        if base.endswith(ext):
+            return base
+        if base.endswith("*"):
+            return base[:-1] + f"*{ext}"
+        return base + f"/**/*{ext}"
+
     def _find_matching_files(self, project_path: Path, include_patterns: List[str], extensions: List[str]) -> Set[str]:
-        """Find all files matching include patterns and extensions.
-
-        Args:
-            project_path: Project root path
-            include_patterns: Glob patterns to include
-            extensions: File extensions to match
-
-        Returns:
-            Set of matching file paths
-        """
+        """Find all files matching include patterns and extensions."""
         all_files: Set[str] = set()
-
         for pattern in include_patterns:
+            base = str(project_path / pattern)
             for ext in extensions:
-                glob_pattern = str(project_path / pattern)
-
-                # Adjust pattern to match extension
-                if not glob_pattern.endswith(ext):
-                    if glob_pattern.endswith("*"):
-                        glob_pattern = glob_pattern[:-1] + f"*{ext}"
-                    else:
-                        glob_pattern = glob_pattern + f"/**/*{ext}"
-
-                # Find files
-                for file_path in glob.glob(glob_pattern, recursive=True):
-                    all_files.add(file_path)
-
+                glob_pattern = self._build_glob_pattern(base, ext)
+                all_files.update(glob.glob(glob_pattern, recursive=True))
         return all_files
 
+    def _is_excluded(self, file_path: str, exclude_patterns: List[str]) -> bool:
+        for exclude_pattern in exclude_patterns:
+            parts = exclude_pattern.replace("**", "").replace("*", "").split("/")
+            if any(part in file_path for part in parts if part):
+                return True
+        return False
+
     def _filter_excluded_files(self, all_files: Set[str], exclude_patterns: List[str]) -> List[str]:
-        """Filter out files matching exclusion patterns.
-
-        Args:
-            all_files: All files found
-            exclude_patterns: Glob patterns to exclude
-
-        Returns:
-            List of files after applying exclusions
-        """
-        files_to_analyze: List[str] = []
-
-        for file_path in all_files:
-            excluded = False
-
-            for exclude_pattern in exclude_patterns:
-                # Parse exclude pattern into path components
-                pattern_parts = exclude_pattern.replace("**", "").replace("*", "").split("/")
-
-                # Check if any pattern part is in the file path
-                if any(part in file_path for part in pattern_parts if part):
-                    excluded = True
-                    break
-
-            if not excluded:
-                files_to_analyze.append(file_path)
-
-        return files_to_analyze
+        """Filter out files matching exclusion patterns."""
+        return [f for f in all_files if not self._is_excluded(f, exclude_patterns)]

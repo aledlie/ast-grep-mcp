@@ -35,23 +35,7 @@ def estimate_condensation_impl(
         return {"error": f"Path does not exist: {path}", "total_files": 0}
 
     files = _collect_files(root, language)
-
-    total_bytes = 0
-    total_lines = 0
-    file_stats: List[Dict[str, Any]] = []
-
-    for fp in files:
-        try:
-            raw = fp.read_bytes()
-        except OSError:
-            continue
-        size = len(raw)
-        if size > CondenseDefaults.MAX_FILE_SIZE_BYTES:
-            continue
-        lines = raw.count(b"\n") + 1
-        total_bytes += size
-        total_lines += lines
-        file_stats.append({"file": str(fp), "lines": lines, "bytes": size})
+    file_stats, total_bytes, total_lines = _collect_file_stats(files)
 
     estimated_condensed_bytes: Dict[str, int] = {}
     estimated_tokens: Dict[str, int] = {}
@@ -79,27 +63,38 @@ def estimate_condensation_impl(
     }
 
 
+def _collect_file_stats(
+    files: List[Path],
+) -> tuple[List[Dict[str, Any]], int, int]:
+    """Read files and accumulate byte/line stats, skipping oversized or unreadable files."""
+    file_stats: List[Dict[str, Any]] = []
+    total_bytes = 0
+    total_lines = 0
+    for fp in files:
+        try:
+            raw = fp.read_bytes()
+        except OSError:
+            continue
+        size = len(raw)
+        if size > CondenseDefaults.MAX_FILE_SIZE_BYTES:
+            continue
+        lines = raw.count(b"\n") + 1
+        total_bytes += size
+        total_lines += lines
+        file_stats.append({"file": str(fp), "lines": lines, "bytes": size})
+    return file_stats, total_bytes, total_lines
+
+
 def _collect_files(root: Path, language: Optional[str]) -> List[Path]:
     """Collect code files under root, filtered by language if given."""
-    ext_filter: Optional[frozenset[str]] = None
-    if language:
-        ext_filter = _language_to_extensions(language)
-
-    files: List[Path] = []
+    ext_filter: Optional[frozenset[str]] = _language_to_extensions(language) if language else None
     exclude: set[str] = set(CondenseFileRouting.EXCLUDE_PATTERNS)
+    files: List[Path] = []
 
     for fp in root.rglob("*"):
         if not fp.is_file():
             continue
-        rel = fp.relative_to(root)
-        if _is_excluded(rel, exclude):
-            continue
-        suffix = fp.suffix.lower()
-        if suffix in CondenseFileRouting.IMAGE_EXTENSIONS:
-            continue
-        if ext_filter is not None and suffix not in ext_filter:
-            continue
-        if ext_filter is None and suffix not in CondenseFileRouting.CODE_EXTENSIONS:
+        if not _should_include_file(fp, root, exclude, ext_filter):
             continue
         files.append(fp)
         if len(files) >= CondenseDefaults.MAX_FILES_PER_RUN:
@@ -107,6 +102,24 @@ def _collect_files(root: Path, language: Optional[str]) -> List[Path]:
             break
 
     return files
+
+
+def _should_include_file(
+    fp: Path,
+    root: Path,
+    exclude: set[str],
+    ext_filter: Optional[frozenset[str]],
+) -> bool:
+    """Return True if fp passes exclusion, image, and extension filters."""
+    rel = fp.relative_to(root)
+    if _is_excluded(rel, exclude):
+        return False
+    suffix = fp.suffix.lower()
+    if suffix in CondenseFileRouting.IMAGE_EXTENSIONS:
+        return False
+    if ext_filter is not None:
+        return suffix in ext_filter
+    return suffix in CondenseFileRouting.CODE_EXTENSIONS
 
 
 def _is_excluded(rel: Path, exclude_patterns: set[str]) -> bool:
