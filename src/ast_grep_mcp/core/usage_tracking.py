@@ -524,7 +524,10 @@ class UsageDatabase:
             "SELECT COUNT(*) FROM usage_logs WHERE timestamp >= ? AND success = 0",
             (hour_ago.isoformat(),),
         ).fetchone()[0]
-        _threshold_alert(alerts, "hourly_failures", hourly_failures, thresholds.hourly_failures_warning, thresholds.hourly_failures_critical)
+        _threshold_alert(
+            alerts, "hourly_failures", hourly_failures,
+            thresholds.hourly_failures_warning, thresholds.hourly_failures_critical,
+        )
 
         hourly_total = conn.execute(
             "SELECT COUNT(*) FROM usage_logs WHERE timestamp >= ?",

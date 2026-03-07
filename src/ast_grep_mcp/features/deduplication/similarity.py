@@ -202,7 +202,10 @@ class HybridSimilarityConfig:
         """Raise ValueError if active weights do not sum to 1.0."""
         if self.enable_semantic:
             total = self.minhash_weight + self.ast_weight + self.semantic_weight
-            self._check_weight_sum(total, f"minhash_weight + ast_weight + semantic_weight must equal 1.0 when semantic is enabled, got {total}")
+            self._check_weight_sum(
+                total,
+                f"minhash_weight + ast_weight + semantic_weight must equal 1.0 when semantic is enabled, got {total}",
+            )
         else:
             total = self.minhash_weight + self.ast_weight
             self._check_weight_sum(total, f"minhash_weight + ast_weight must equal 1.0, got {total}")

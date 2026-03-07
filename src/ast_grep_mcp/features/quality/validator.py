@@ -16,7 +16,6 @@ from ast_grep_mcp.core.executor import get_supported_languages, run_ast_grep
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.standards import LintingRule, RuleValidationResult
 
-
 _TEST_CODE_BY_LANGUAGE = {
     "python": "def test(): pass",
     "typescript": "function test() {}",

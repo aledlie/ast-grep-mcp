@@ -59,7 +59,11 @@ class PatternAnalyzer:
         for pos in sorted(all_positions):
             lit1, lit2 = pos_map1.get(pos), pos_map2.get(pos)
             if lit1 and lit2 and lit1["value"] != lit2["value"]:
-                result.append({"position": pos[0] + 1, "column": pos[1], "value1": lit1["value"], "value2": lit2["value"], "literal_type": literal_type})
+                result.append({
+                    "position": pos[0] + 1, "column": pos[1],
+                    "value1": lit1["value"], "value2": lit2["value"],
+                    "literal_type": literal_type,
+                })
         return result
 
     def identify_varying_literals(self, code1: str, code2: str, language: str = "python") -> List[Dict[str, Any]]:
@@ -177,7 +181,11 @@ class PatternAnalyzer:
         base_code = group[0].get("text", "")
         all_variations = self._accumulate_literal_variations(base_code, group[1:], language)
         formatted_variations, suggested_parameters = self._format_literal_variations(all_variations)
-        return {"total_variations": len(formatted_variations), "variations": formatted_variations, "suggested_parameters": suggested_parameters}
+        return {
+            "total_variations": len(formatted_variations),
+            "variations": formatted_variations,
+            "suggested_parameters": suggested_parameters,
+        }
 
     def _accumulate_one_item(self, base_code: str, code: str, all_variations: Dict[tuple[Any, ...], List[str]], language: str) -> None:
         for var in self.identify_varying_literals(base_code, code, language):
@@ -186,7 +194,9 @@ class PatternAnalyzer:
             if var["value2"] not in vals:
                 vals.append(var["value2"])
 
-    def _accumulate_literal_variations(self, base_code: str, items: List[Dict[str, Any]], language: str) -> Dict[tuple[Any, ...], List[str]]:
+    def _accumulate_literal_variations(
+        self, base_code: str, items: List[Dict[str, Any]], language: str
+    ) -> Dict[tuple[Any, ...], List[str]]:
         all_variations: Dict[tuple[Any, ...], List[str]] = {}
         for item in items:
             code = item.get("text", "")
@@ -198,7 +208,11 @@ class PatternAnalyzer:
         formatted_variations: List[Dict[str, Any]] = []
         suggested_parameters: List[str] = []
         for (line, col, lit_type), values in sorted(all_variations.items()):
-            formatted_variations.append({"position": {"line": line, "column": col}, "type": lit_type, "values": values, "unique_count": len(set(values))})
+            formatted_variations.append({
+                "position": {"line": line, "column": col},
+                "type": lit_type, "values": values,
+                "unique_count": len(set(values)),
+            })
             param_name = self._suggest_parameter_name(lit_type, values[0])
             if param_name and param_name not in suggested_parameters:
                 suggested_parameters.append(param_name)
@@ -486,7 +500,9 @@ class PatternAnalyzer:
 
         return {"score": score, "level": level, "reasoning": reasoning}
 
-    def _compare_conditional_pair(self, i: int, cond1: Optional[Dict[str, Any]], cond2: Optional[Dict[str, Any]], language: str) -> Optional[Dict[str, Any]]:
+    def _compare_conditional_pair(
+        self, i: int, cond1: Optional[Dict[str, Any]], cond2: Optional[Dict[str, Any]], language: str
+    ) -> Optional[Dict[str, Any]]:
         if cond1 and cond2:
             if cond1["text"] == cond2["text"]:
                 return None
@@ -813,9 +829,24 @@ def _collect_all_variations(analyzer: "PatternAnalyzer", code1: str, code2: str,
     cond_variations = analyzer.detect_conditional_variations(code1, code2, language)
     identifier_variations = identify_varying_identifiers(code1, code2, language)
     return (
-        [{"type": "literal", "old_value": v.get("value1", ""), "new_value": v.get("value2", ""), "context": v.get("context", "")} for v in literal_variations]
-        + [{"type": "conditional", "old_value": v.get("condition1", ""), "new_value": v.get("condition2", ""), "context": f"line {v.get('line1', 0)}"} for v in cond_variations]
-        + [{"type": "identifier", "old_value": v.get("identifier1", ""), "new_value": v.get("identifier2", ""), "context": v.get("context", "")} for v in identifier_variations]
+        [
+            {"type": "literal", "old_value": v.get("value1", ""), "new_value": v.get("value2", ""), "context": v.get("context", "")}
+            for v in literal_variations
+        ]
+        + [
+            {
+                "type": "conditional", "old_value": v.get("condition1", ""),
+                "new_value": v.get("condition2", ""), "context": f"line {v.get('line1', 0)}",
+            }
+            for v in cond_variations
+        ]
+        + [
+            {
+                "type": "identifier", "old_value": v.get("identifier1", ""),
+                "new_value": v.get("identifier2", ""), "context": v.get("context", ""),
+            }
+            for v in identifier_variations
+        ]
     )
 
 
@@ -853,7 +884,11 @@ def classify_variations(code1: str, code2: str, language: str = "python") -> Dic
     variations = _collect_all_variations(analyzer, code1, code2, language)
 
     if not variations:
-        return {"severity": VariationSeverity.LOW, "variations": [], "parameterizable": True, "suggested_refactoring": "extract_function", "complexity_score": 0, "parameter_suggestions": []}
+        return {
+            "severity": VariationSeverity.LOW, "variations": [],
+            "parameterizable": True, "suggested_refactoring": "extract_function",
+            "complexity_score": 0, "parameter_suggestions": [],
+        }
 
     classification = analyzer.classify_variations(variations)
     overall_severity = _determine_overall_severity(classification, len(variations))

@@ -431,7 +431,10 @@ def _generate_example_entity(entity_type: str, base_url: str = "https://example.
     base_structure: Dict[str, Any] = {"@type": entity_type, "@id": f"{base_url}#{entity_type.lower()}"}
     if entity_type == "WebSite":
         template = {**_WEBSITE_EXAMPLE_TEMPLATE, "url": base_url}
-        template["potentialAction"] = {**_WEBSITE_EXAMPLE_TEMPLATE["potentialAction"], "target": {"@type": "EntryPoint", "urlTemplate": f"{base_url}/search?q={{search_term_string}}"}}
+        template["potentialAction"] = {
+            **_WEBSITE_EXAMPLE_TEMPLATE["potentialAction"],
+            "target": {"@type": "EntryPoint", "urlTemplate": f"{base_url}/search?q={{search_term_string}}"},
+        }
     elif entity_type == "BreadcrumbList":
         tmpl = _EXAMPLE_ENTITY_TEMPLATES["BreadcrumbList"]
         items = [
@@ -440,7 +443,9 @@ def _generate_example_entity(entity_type: str, base_url: str = "https://example.
         ]
         template = {"itemListElement": items}
     else:
-        template = _EXAMPLE_ENTITY_TEMPLATES.get(entity_type, {"name": f"Example {entity_type}", "description": f"Placeholder for {entity_type} entity"})
+        template = _EXAMPLE_ENTITY_TEMPLATES.get(
+            entity_type, {"name": f"Example {entity_type}", "description": f"Placeholder for {entity_type} entity"}
+        )
     base_structure.update(template)
     return base_structure
 

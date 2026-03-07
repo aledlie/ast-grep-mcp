@@ -179,7 +179,12 @@ class OrphanDetector:
         import_type = "relative" if node.level > 0 else "absolute"
         target = self._resolve_import_from_target(node, file_path, base_path)
         if target and target in graph.files:
-            graph.edges.append(DependencyEdge(source=rel_path, target=target, import_type=import_type, import_statement=f"from {node.module} import ..."))
+            graph.edges.append(DependencyEdge(
+                source=rel_path,
+                target=target,
+                import_type=import_type,
+                import_statement=f"from {node.module} import ...",
+            ))
         elif node.module:
             external_imports.add(node.module.split(".")[0])
 

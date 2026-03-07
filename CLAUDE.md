@@ -50,6 +50,22 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 
 **Environment:** `AST_GREP_CONFIG`, `LOG_LEVEL`, `SENTRY_DSN`, `CACHE_DISABLED`/`CACHE_SIZE`/`CACHE_TTL`
 
+## Tool Response Field Names
+
+When calling tools programmatically, use these field names (NOT `line`/`file_path`):
+
+- **analyze_complexity** `functions[]`: `name`, `file`, `lines`, `cyclomatic`, `cognitive`, `nesting_depth`, `length`, `exceeds`
+- **find_duplication** top-level: `summary`, `duplication_groups[]`, `refactoring_suggestions[]`; group keys: `group_id`, `similarity_score`, `instances[]` (with `file`, `lines`, `code_preview`)
+- **enforce_standards**: `summary`, `violations[]` (with `file`, `line`, `column`, `severity`, `rule_id`, `message`, `code_snippet`)
+- **detect_security_issues**: `summary`, `issues[]` (with `file`, `line`, `severity`, `issue_type`, `title`, `cwe_id`)
+- **detect_orphans**: `summary`, `orphan_files[]` (with `file_path`, `lines`, `status`), `orphan_functions[]` (with `file`, `line`, `name`)
+- **detect_code_smells**: `smells[]` (with `file`, `line`, `severity`, `smell_type`, `message`)
+- **benchmark_deduplication**: `results[]` (with `name`, `mean_ms`, `median_ms`, `p95_ms`)
+
+## Analysis Scripts
+
+- Full analysis suite: `uv run python scripts/run_all_analysis.py [src_path]`
+
 ## Notes
 
 - YAML rules support `kind`-based matching (e.g., `kind: catch_clause` with `has`); add `stopBy: end` to relational rules

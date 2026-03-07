@@ -348,7 +348,12 @@ def _group_routes_by_prefix(routes: List[ApiRoute]) -> Dict[str, List[ApiRoute]]
 def _markdown_param_table(route: ApiRoute) -> List[str]:
     if not route.parameters:
         return []
-    lines = ["**Parameters:**", "", "| Name | Location | Type | Required | Description |", "|------|----------|------|----------|-------------|"]
+    lines = [
+        "**Parameters:**",
+        "",
+        "| Name | Location | Type | Required | Description |",
+        "|------|----------|------|----------|-------------|",
+    ]
     for param in route.parameters:
         required = "Yes" if param.required else "No"
         lines.append(f"| `{param.name}` | {param.location} | {param.type_hint or 'string'} | {required} | {param.description or '-'} |")
@@ -578,7 +583,13 @@ def _build_docs_result(
         openapi_spec = _generate_openapi_spec(all_routes, os.path.basename(project_folder))
     execution_time = _elapsed_ms(start_time)
     logger.info("generate_api_docs_completed", routes_found=len(all_routes), framework=framework, execution_time_ms=execution_time)
-    return ApiDocsResult(routes=all_routes, markdown=markdown, openapi_spec=openapi_spec, framework=framework, execution_time_ms=execution_time)
+    return ApiDocsResult(
+        routes=all_routes,
+        markdown=markdown,
+        openapi_spec=openapi_spec,
+        framework=framework,
+        execution_time_ms=execution_time,
+    )
 
 
 def generate_api_docs_impl(
@@ -601,18 +612,34 @@ def generate_api_docs_impl(
         ApiDocsResult with generated documentation
     """
     start_time = time.time()
-    logger.info("generate_api_docs_started", project_folder=project_folder, language=language, framework=framework, output_format=output_format)
+    logger.info(
+        "generate_api_docs_started",
+        project_folder=project_folder,
+        language=language,
+        framework=framework,
+        output_format=output_format,
+    )
 
     if not framework:
         framework = _detect_framework(project_folder, language)
 
     if not framework:
         logger.warning("no_framework_detected")
-        return ApiDocsResult(routes=[], markdown="# API Documentation\n\nNo web framework detected.", framework=None, execution_time_ms=_elapsed_ms(start_time))
+        return ApiDocsResult(
+            routes=[],
+            markdown="# API Documentation\n\nNo web framework detected.",
+            framework=None,
+            execution_time_ms=_elapsed_ms(start_time),
+        )
 
     parser = _PARSERS.get(framework)
     if not parser:
         logger.warning("unsupported_framework", framework=framework)
-        return ApiDocsResult(routes=[], markdown=f"# API Documentation\n\nFramework '{framework}' is not yet supported.", framework=framework, execution_time_ms=_elapsed_ms(start_time))
+        return ApiDocsResult(
+            routes=[],
+            markdown=f"# API Documentation\n\nFramework '{framework}' is not yet supported.",
+            framework=framework,
+            execution_time_ms=_elapsed_ms(start_time),
+        )
 
     return _build_docs_result(project_folder, framework, parser, language, output_format, start_time)

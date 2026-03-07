@@ -262,7 +262,11 @@ def _log_tool_error(logger: Any, tool: str, execution_time: float, e: Exception,
         error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         status="failed",
     )
-    sentry_sdk.capture_exception(e, extras={"tool": tool, "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION), **extras})
+    sentry_sdk.capture_exception(e, extras={
+        "tool": tool,
+        "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        **extras,
+    })
 
 
 def analyze_complexity_tool(
@@ -526,8 +530,14 @@ def _register_detect_smells(mcp: FastMCP) -> None:
             default_factory=lambda: list(_SMELLS_EXCLUDE_DEFAULTS),
             description="Glob patterns for files to exclude",
         ),
-        long_function_lines: int = Field(default=CodeQualityDefaults.LONG_FUNCTION_LINES, description="Line count threshold for long function smell"),
-        parameter_count: int = Field(default=CodeQualityDefaults.PARAMETER_COUNT, description="Parameter count threshold for parameter bloat"),
+        long_function_lines: int = Field(
+            default=CodeQualityDefaults.LONG_FUNCTION_LINES,
+            description="Line count threshold for long function smell",
+        ),
+        parameter_count: int = Field(
+            default=CodeQualityDefaults.PARAMETER_COUNT,
+            description="Parameter count threshold for parameter bloat",
+        ),
         nesting_depth: int = Field(default=CodeQualityDefaults.NESTING_DEPTH, description="Nesting depth threshold for deep nesting smell"),
         class_lines: int = Field(default=CodeQualityDefaults.CLASS_LINES, description="Line count threshold for large class smell"),
         class_methods: int = Field(default=CodeQualityDefaults.CLASS_METHODS, description="Method count threshold for large class smell"),
