@@ -1,5 +1,19 @@
 # Backlog
 
+## Code Review Findings from 92741ab (2026-03-06)
+
+Items from code review of the D1-D4 dedup consolidation commit.
+
+### Medium
+
+- **`_is_import` substring match false positives** — `refactoring/renamer.py:208-217`. Merged `_is_python_import`/`_is_javascript_import` uses `"import" in context` substring match, which can false-positive on identifiers like `reimport_legacy`. Pre-existing issue made more visible by consolidation. Add a docstring noting the limitation.
+- **`_log_to_stderr` kwargs passthrough** — `utils/console_logger.py:120-122`. Passing `**kwargs` to `print` alongside `file=sys.stderr` will raise `TypeError` if a caller also passes `file=`. Pre-existing, not a regression.
+- **Extra blank line in `search/service.py`** — Around line 1175, two consecutive blank lines after deleted `_add_info_suggestions`. May trigger ruff lint.
+
+### Low
+
+- **`_add_suggestions_by_severity` redundant prefix param** — `search/service.py`. Callers pass a `prefix` string that could be derived from `severity.name` (except `INFO`->`TIP`). Consider deriving it to reduce caller burden.
+
 ## Complexity Refactoring Queue (2026-03-04)
 
 Threshold baseline from `analyze_complexity` defaults: cyclomatic `>10`, cognitive `>15`, nesting `>4`, length `>50`.
