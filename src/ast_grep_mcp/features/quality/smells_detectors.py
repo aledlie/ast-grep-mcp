@@ -52,7 +52,7 @@ class SmellInfo:
 class SmellDetector(ABC):
     """Base class for smell detectors."""
 
-    def __init__(self, threshold: int, logger_name: str) -> None:
+    def __init__(self, threshold: int | None, logger_name: str) -> None:
         self.threshold = threshold
         self.logger = get_logger(logger_name)
 
@@ -74,6 +74,8 @@ class SmellDetector(ABC):
 
 class LongFunctionDetector(SmellDetector):
     """Detects functions that are too long."""
+
+    threshold: int
 
     def __init__(self, threshold: int) -> None:
         super().__init__(threshold, "smell_detector.long_function")
@@ -110,6 +112,8 @@ class LongFunctionDetector(SmellDetector):
 
 class ParameterBloatDetector(SmellDetector):
     """Detects functions with too many parameters."""
+
+    threshold: int
 
     def __init__(self, threshold: int) -> None:
         super().__init__(threshold, "smell_detector.parameter_bloat")
@@ -183,6 +187,8 @@ class ParameterBloatDetector(SmellDetector):
 class DeepNestingDetector(SmellDetector):
     """Detects excessive nesting depth in functions."""
 
+    threshold: int
+
     def __init__(self, threshold: int) -> None:
         super().__init__(threshold, "smell_detector.deep_nesting")
 
@@ -219,9 +225,10 @@ class DeepNestingDetector(SmellDetector):
 class LargeClassDetector(SmellDetector):
     """Detects classes that are too large."""
 
+    threshold: int
+
     def __init__(self, lines_threshold: int, methods_threshold: int) -> None:
         super().__init__(lines_threshold, "smell_detector.large_class")
-        self.lines_threshold = lines_threshold
         self.methods_threshold = methods_threshold
 
     def detect(self, file_path: str, content: str, language: str, project_path: Path) -> List[SmellInfo]:
@@ -236,8 +243,8 @@ class LargeClassDetector(SmellDetector):
 
     def _build_reason(self, lines_count: int, method_count: int) -> str:
         parts = []
-        if lines_count > self.lines_threshold:
-            parts.append(f"{lines_count} lines (threshold: {self.lines_threshold})")
+        if lines_count > self.threshold:
+            parts.append(f"{lines_count} lines (threshold: {self.threshold})")
         if method_count > self.methods_threshold:
             parts.append(f"{method_count} methods (threshold: {self.methods_threshold})")
         return " and ".join(parts)
@@ -247,12 +254,12 @@ class LargeClassDetector(SmellDetector):
         cls_start = cls.get("start_line", 1)
         cls_lines = cls.get("end_line", cls_start) - cls_start + 1
         method_count = cls.get("method_count", 0)
-        lines_over = cls_lines > self.lines_threshold
+        lines_over = cls_lines > self.threshold
         methods_over = method_count > self.methods_threshold
         if not lines_over and not methods_over:
             return None
         reason = self._build_reason(cls_lines, method_count)
-        severity = calculate_smell_severity(cls_lines, self.lines_threshold, "large_class")
+        severity = calculate_smell_severity(cls_lines, self.threshold, "large_class")
         return SmellInfo(
             type="large_class",
             file=rel_path,
@@ -260,7 +267,7 @@ class LargeClassDetector(SmellDetector):
             line=cls_start,
             severity=severity,
             metric={"lines": cls_lines, "methods": method_count},
-            threshold={"lines": self.lines_threshold, "methods": self.methods_threshold},
+            threshold={"lines": self.threshold, "methods": self.methods_threshold},
             message=f"Class '{cls_name}' is too large: {reason}",
             suggestion="Consider splitting into smaller classes following Single Responsibility Principle",
         )
@@ -410,7 +417,7 @@ class MagicNumberDetector(SmellDetector):
     DEFAULT_EXCLUDE_FILES = ["**/constants.py", "**/constants.ts", "**/constants/**"]
 
     def __init__(self, enabled: bool = True, exclude_files: List[str] | None = None) -> None:
-        super().__init__(0, "smell_detector.magic_number")
+        super().__init__(None, "smell_detector.magic_number")
         self.enabled = enabled
         self.exclude_files = exclude_files if exclude_files is not None else self.DEFAULT_EXCLUDE_FILES
 
