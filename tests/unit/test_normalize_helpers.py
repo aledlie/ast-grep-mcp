@@ -7,8 +7,9 @@ Covers:
 - applicator module-level wrappers: TypeError on wrong return type
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from ast_grep_mcp.features.deduplication.similarity import HybridSimilarity
 
@@ -112,10 +113,10 @@ class TestNormalizeForAstEdgeCases:
     def test_mixed_python_js_comments(self, hybrid):
         code = "# py comment\nx = 1\n// js comment\ny = 2"
         result = hybrid._normalize_for_ast(code)
-        lines = [l for l in result.split("\n") if l.strip()]
+        lines = [ln for ln in result.split("\n") if ln.strip()]
         assert len(lines) == 2
-        assert any("x" in l for l in lines)
-        assert any("y" in l for l in lines)
+        assert any("x" in ln for ln in lines)
+        assert any("y" in ln for ln in lines)
 
     def test_inline_hash_in_balanced_quotes_stripped(self, hybrid):
         """Hash in balanced-quote string is stripped (known heuristic limitation)."""
@@ -128,7 +129,7 @@ class TestNormalizeForAstEdgeCases:
         """Normalized output should preserve meaningful code lines."""
         code = "def func():\n    # setup\n    x = 1\n    return x"
         result = hybrid._normalize_for_ast(code)
-        lines = [l for l in result.split("\n") if l.strip()]
+        lines = [ln for ln in result.split("\n") if ln.strip()]
         assert len(lines) == 3  # def, x=1, return
 
     def test_trailing_whitespace_stripped(self, hybrid):
@@ -152,7 +153,6 @@ class TestApplicatorWrapperTypeGuards:
     def test_plan_file_modification_order_rejects_non_dict(self):
         from ast_grep_mcp.features.deduplication.applicator import (
             _plan_file_modification_order,
-            _get_applicator,
         )
 
         mock_applicator = MagicMock()

@@ -13,7 +13,6 @@ Each smell includes severity ratings and actionable suggestions.
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List
 
-from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.quality.smells_detectors import (
     DeepNestingDetector,
     LargeClassDetector,

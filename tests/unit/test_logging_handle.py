@@ -1,6 +1,5 @@
 """Tests for configure_logging file handle management."""
 
-import sys
 import tempfile
 from pathlib import Path
 

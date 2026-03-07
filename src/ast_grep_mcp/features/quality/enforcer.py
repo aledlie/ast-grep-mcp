@@ -609,7 +609,14 @@ def _load_custom_rule_set_by_ids(project_path: Path, language: str, custom_rules
 
 def _empty_enforcement_result() -> EnforcementResult:
     return EnforcementResult(
-        summary={"total_violations": 0, "by_severity": {"error": 0, "warning": 0, "info": 0}, "by_file": {}, "files_scanned": 0, "rules_executed": 0, "execution_time_ms": 0},
+        summary={
+            "total_violations": 0,
+            "by_severity": {"error": 0, "warning": 0, "info": 0},
+            "by_file": {},
+            "files_scanned": 0,
+            "rules_executed": 0,
+            "execution_time_ms": 0,
+        },
         violations=[],
         violations_by_file={},
         violations_by_severity={"error": [], "warning": [], "info": []},

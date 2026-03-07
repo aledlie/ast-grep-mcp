@@ -432,7 +432,10 @@ class DuplicationRanker:
         self._score_cache[cache_key] = (total_score, score_components)
         return total_score, score_components, 0, 1
 
-    def _build_ranked_candidate(self, candidate: Dict[str, Any], total_score: float, score_components: Dict[str, float], include_analysis: bool) -> Dict[str, Any]:
+    def _build_ranked_candidate(
+        self, candidate: Dict[str, Any], total_score: float,
+        score_components: Dict[str, float], include_analysis: bool,
+    ) -> Dict[str, Any]:
         """Build a ranked candidate dict with optional breakdown."""
         priority = self.priority_classifier.get_priority_label(total_score)
         ranked_candidate = {**candidate, "score": total_score, "priority": priority}

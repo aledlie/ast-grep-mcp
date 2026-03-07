@@ -117,7 +117,13 @@ def _extract_docstring_return(docstring: str, language: str) -> bool:
     return any(re.search(p, docstring) for p in _RETURN_PATTERNS.get(language, []))
 
 
-def _make_issue(func: FunctionSignature, issue_type: str, description: str, severity: str, suggested_fix: Optional[str] = None) -> DocSyncIssue:
+def _make_issue(
+    func: FunctionSignature,
+    issue_type: str,
+    description: str,
+    severity: str,
+    suggested_fix: Optional[str] = None,
+) -> DocSyncIssue:
     return DocSyncIssue(
         issue_type=issue_type,
         file_path=func.file_path,
@@ -137,11 +143,13 @@ def _check_param_sync(func: FunctionSignature, language: str) -> List[DocSyncIss
         if p.name not in ("self", "cls")
     }
     issues = [
-        _make_issue(func, "mismatch", f"Parameter '{p}' is not documented", "info", f"Add documentation for parameter '{p}'")
+        _make_issue(func, "mismatch", f"Parameter '{p}' is not documented", "info",
+                    f"Add documentation for parameter '{p}'")
         for p in (actual_params - doc_params)
     ]
     issues += [
-        _make_issue(func, "stale", f"Documented parameter '{p}' does not exist in function signature", "warning", f"Remove documentation for parameter '{p}'")
+        _make_issue(func, "stale", f"Documented parameter '{p}' does not exist in function signature",
+                    "warning", f"Remove documentation for parameter '{p}'")
         for p in (doc_params - actual_params)
     ]
     return issues
@@ -151,9 +159,12 @@ def _check_return_sync(func: FunctionSignature, language: str) -> List[DocSyncIs
     has_return = func.return_type and func.return_type.lower() not in ("none", "void")
     doc_has_return = _extract_docstring_return(func.existing_docstring, language)  # type: ignore[arg-type]
     if has_return and not doc_has_return:
-        return [_make_issue(func, "mismatch", f"Return value of type '{func.return_type}' is not documented", "info", "Add return value documentation")]
+        msg = f"Return value of type '{func.return_type}' is not documented"
+        return [_make_issue(func, "mismatch", msg, "info", "Add return value documentation")]
     if not has_return and doc_has_return:
-        return [_make_issue(func, "stale", "Documented return value but function has no return type", "info", "Remove return value documentation or add return type annotation")]
+        msg = "Documented return value but function has no return type"
+        fix = "Remove return value documentation or add return type annotation"
+        return [_make_issue(func, "stale", msg, "info", fix)]
     return []
 
 
@@ -508,7 +519,15 @@ def sync_documentation_impl(
     )
 
     execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
-    logger.info("sync_documentation_completed", total_functions=total_functions, documented=documented_functions, undocumented=undocumented_functions, stale=stale_docstrings, issues_found=len(all_issues), execution_time_ms=execution_time)
+    logger.info(
+        "sync_documentation_completed",
+        total_functions=total_functions,
+        documented=documented_functions,
+        undocumented=undocumented_functions,
+        stale=stale_docstrings,
+        issues_found=len(all_issues),
+        execution_time_ms=execution_time,
+    )
 
     return DocSyncResult(
         total_functions=total_functions,
