@@ -52,6 +52,10 @@ class SmellInfo:
 class SmellDetector(ABC):
     """Base class for smell detectors."""
 
+    def __init__(self, threshold: int, logger_name: str) -> None:
+        self.threshold = threshold
+        self.logger = get_logger(logger_name)
+
     @abstractmethod
     def detect(self, file_path: str, content: str, language: str, project_path: Path) -> List[SmellInfo]:
         """Detect smells in the given file.
@@ -72,13 +76,7 @@ class LongFunctionDetector(SmellDetector):
     """Detects functions that are too long."""
 
     def __init__(self, threshold: int) -> None:
-        """Initialize with line threshold.
-
-        Args:
-            threshold: Maximum number of lines for a function
-        """
-        self.threshold = threshold
-        self.logger = get_logger("smell_detector.long_function")
+        super().__init__(threshold, "smell_detector.long_function")
 
     def detect(self, file_path: str, content: str, language: str, project_path: Path) -> List[SmellInfo]:
         """Detect long functions in the file."""
@@ -114,13 +112,7 @@ class ParameterBloatDetector(SmellDetector):
     """Detects functions with too many parameters."""
 
     def __init__(self, threshold: int) -> None:
-        """Initialize with parameter count threshold.
-
-        Args:
-            threshold: Maximum number of parameters for a function
-        """
-        self.threshold = threshold
-        self.logger = get_logger("smell_detector.parameter_bloat")
+        super().__init__(threshold, "smell_detector.parameter_bloat")
 
     def detect(self, file_path: str, content: str, language: str, project_path: Path) -> List[SmellInfo]:
         """Detect parameter bloat in functions."""
@@ -192,13 +184,7 @@ class DeepNestingDetector(SmellDetector):
     """Detects excessive nesting depth in functions."""
 
     def __init__(self, threshold: int) -> None:
-        """Initialize with nesting depth threshold.
-
-        Args:
-            threshold: Maximum nesting depth for a function
-        """
-        self.threshold = threshold
-        self.logger = get_logger("smell_detector.deep_nesting")
+        super().__init__(threshold, "smell_detector.deep_nesting")
 
     def detect(self, file_path: str, content: str, language: str, project_path: Path) -> List[SmellInfo]:
         """Detect deep nesting in functions."""
@@ -234,15 +220,9 @@ class LargeClassDetector(SmellDetector):
     """Detects classes that are too large."""
 
     def __init__(self, lines_threshold: int, methods_threshold: int) -> None:
-        """Initialize with size thresholds.
-
-        Args:
-            lines_threshold: Maximum number of lines for a class
-            methods_threshold: Maximum number of methods for a class
-        """
+        super().__init__(lines_threshold, "smell_detector.large_class")
         self.lines_threshold = lines_threshold
         self.methods_threshold = methods_threshold
-        self.logger = get_logger("smell_detector.large_class")
 
     def detect(self, file_path: str, content: str, language: str, project_path: Path) -> List[SmellInfo]:
         """Detect large classes in the file."""
@@ -430,15 +410,9 @@ class MagicNumberDetector(SmellDetector):
     DEFAULT_EXCLUDE_FILES = ["**/constants.py", "**/constants.ts", "**/constants/**"]
 
     def __init__(self, enabled: bool = True, exclude_files: List[str] | None = None) -> None:
-        """Initialize magic number detector.
-
-        Args:
-            enabled: Whether detection is enabled
-            exclude_files: Glob patterns for files to skip (defaults to constants files)
-        """
+        super().__init__(0, "smell_detector.magic_number")
         self.enabled = enabled
         self.exclude_files = exclude_files if exclude_files is not None else self.DEFAULT_EXCLUDE_FILES
-        self.logger = get_logger("smell_detector.magic_number")
 
     def _is_excluded(self, file_path: str) -> bool:
         """Check if file matches any exclude pattern."""

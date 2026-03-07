@@ -117,6 +117,10 @@ class ConsoleLogger:
         if not self.quiet:
             print(f"✓ {message}", **kwargs)
 
+    def _log_to_stderr(self, prefix: str, message: str, **kwargs: Any) -> None:
+        """Output a prefixed message to stderr. Always shown regardless of quiet mode."""
+        print(f"{prefix}: {message}", file=sys.stderr, **kwargs)
+
     def error(self, message: str, **kwargs: Any) -> None:
         """Output an error message to stderr.
 
@@ -126,7 +130,7 @@ class ConsoleLogger:
             message: Error message to output
             **kwargs: Additional arguments passed to print()
         """
-        print(f"ERROR: {message}", file=sys.stderr, **kwargs)
+        self._log_to_stderr("ERROR", message, **kwargs)
 
     def warning(self, message: str, **kwargs: Any) -> None:
         """Output a warning message to stderr.
@@ -137,7 +141,7 @@ class ConsoleLogger:
             message: Warning message to output
             **kwargs: Additional arguments passed to print()
         """
-        print(f"WARNING: {message}", file=sys.stderr, **kwargs)
+        self._log_to_stderr("WARNING", message, **kwargs)
 
     def json(self, data: Dict[str, Any], indent: Optional[int] = 2, **kwargs: Any) -> None:
         """Output data as JSON.
