@@ -448,19 +448,26 @@ class DeduplicationApplicator:
             "strategy": strategy,
         }
 
-    def _plan_file_modification_order(
-        self, files_to_modify: List[str], generated_code: Dict[str, Any], extract_to_file: Optional[str], project_folder: str, language: str
-    ) -> Dict[str, Any]:
-        """Plan the order of file modifications for atomic deduplication."""
-        plan: Dict[str, Any] = {"create_files": [], "update_files": [], "import_additions": {}}
+    def _resolve_target_file(
+        self,
+        files_to_modify: List[str],
+        extract_to_file: Optional[str],
+        generated_code: Dict[str, Any],
+        project_folder: str,
+    ) -> Optional[str]:
+        """Resolve the target file path for extracted function placement.
 
-        extracted_function = generated_code.get("extracted_function", "")
-        function_name = generated_code.get("function_name", "extracted_function")
+        Args:
+            files_to_modify: Files being modified
+            extract_to_file: Explicit target file override
+            generated_code: Generated code dict with optional extract_to_file
+            project_folder: Project root folder
 
-        # Determine target file for extracted function
+        Returns:
+            Absolute target file path, or None if no extraction needed
+        """
         target_file = extract_to_file or generated_code.get("extract_to_file")
         if not target_file and files_to_modify:
-            # Auto-detect: create utilities module
             first_file = files_to_modify[0]
             file_dir = os.path.dirname(first_file)
             ext = os.path.splitext(first_file)[1]
@@ -469,23 +476,32 @@ class DeduplicationApplicator:
         if target_file and not os.path.isabs(target_file):
             target_file = os.path.join(project_folder, target_file)
 
-        # Plan file creation for extracted function
-        if extracted_function and target_file:
-            append_mode = os.path.exists(target_file)
-            plan["create_files"].append(
-                {
-                    "path": target_file,
-                    "content": extracted_function,
-                    "append": append_mode,
-                    "operation": "append" if append_mode else "create",
-                }
-            )
+        return target_file
 
-        # Plan updates for duplicate location files
+    def _plan_file_updates(
+        self,
+        plan: Dict[str, Any],
+        files_to_modify: List[str],
+        target_file: Optional[str],
+        extracted_function: str,
+        function_name: str,
+        project_folder: str,
+        language: str,
+    ) -> None:
+        """Populate update_files and import_additions in the plan.
+
+        Args:
+            plan: Orchestration plan dict to populate
+            files_to_modify: Files being modified
+            target_file: Target file for extracted function
+            extracted_function: Extracted function code
+            function_name: Name of extracted function
+            project_folder: Project root folder
+            language: Programming language
+        """
         for file_path in files_to_modify:
             plan["update_files"].append({"path": file_path, "operation": "replace_duplicate"})
 
-            # Generate import statement if needed
             if extracted_function and target_file and file_path != target_file:
                 import_stmt = self._generate_import_for_extracted_function(
                     source_file=file_path,
@@ -501,6 +517,32 @@ class DeduplicationApplicator:
                         "from_file": target_file,
                         "function_name": function_name,
                     }
+
+    def _plan_file_modification_order(
+        self, files_to_modify: List[str], generated_code: Dict[str, Any], extract_to_file: Optional[str], project_folder: str, language: str
+    ) -> Dict[str, Any]:
+        """Plan the order of file modifications for atomic deduplication."""
+        plan: Dict[str, Any] = {"create_files": [], "update_files": [], "import_additions": {}}
+
+        extracted_function = generated_code.get("extracted_function", "")
+        function_name = generated_code.get("function_name", "extracted_function")
+
+        target_file = self._resolve_target_file(files_to_modify, extract_to_file, generated_code, project_folder)
+
+        # Plan file creation for extracted function
+        if extracted_function and target_file:
+            append_mode = os.path.exists(target_file)
+            plan["create_files"].append(
+                {
+                    "path": target_file,
+                    "content": extracted_function,
+                    "append": append_mode,
+                    "operation": "append" if append_mode else "create",
+                }
+            )
+
+        # Plan updates for duplicate location files
+        self._plan_file_updates(plan, files_to_modify, target_file, extracted_function, function_name, project_folder, language)
 
         return plan
 
@@ -621,36 +663,6 @@ class DeduplicationApplicator:
         lines.insert(0, import_statement)
         lines.insert(1, "")
 
-    def _validate_code_for_language(self, code: str, language: str) -> tuple[bool, str]:
-        """Basic syntax validation for generated code."""
-        # This is a simplified version - in production, use proper parsers
-        lang = language.lower()
-
-        if lang == "python":
-            try:
-                compile(code, "<string>", "exec")
-                return True, ""
-            except SyntaxError as e:
-                return False, str(e)
-
-        # For other languages, do basic checks
-        return True, ""
-
-    def _suggest_syntax_fix(self, error: Optional[str], language: str) -> str:
-        """Suggest a fix for common syntax errors."""
-        if not error:
-            return "Check syntax and indentation"
-
-        lang = language.lower()
-        error_lower = error.lower()
-
-        if lang == "python":
-            if "indentation" in error_lower:
-                return "Check indentation - Python uses 4 spaces"
-            elif "invalid syntax" in error_lower:
-                return "Check for missing colons, parentheses, or quotes"
-
-        return "Review the generated code for syntax errors"
 
 
 # Module-level functions for backward compatibility with tests

@@ -147,43 +147,95 @@ class CodeSelectionAnalyzer:
         selection.variables = list(variables.values())
 
     # Python keywords set - shared across multiple methods
-    _PYTHON_KEYWORDS = {
-        "False",
-        "None",
-        "True",
-        "and",
-        "as",
-        "assert",
-        "async",
-        "await",
-        "break",
-        "class",
-        "continue",
-        "def",
-        "del",
-        "elif",
-        "else",
-        "except",
-        "finally",
-        "for",
-        "from",
-        "global",
-        "if",
-        "import",
-        "in",
-        "is",
-        "lambda",
-        "nonlocal",
-        "not",
-        "or",
-        "pass",
-        "raise",
-        "return",
-        "try",
-        "while",
-        "with",
-        "yield",
-    }
+    _PYTHON_KEYWORDS = frozenset({
+        "False", "None", "True", "and", "as", "assert", "async", "await",
+        "break", "class", "continue", "def", "del", "elif", "else", "except",
+        "finally", "for", "from", "global", "if", "import", "in", "is",
+        "lambda", "nonlocal", "not", "or", "pass", "raise", "return", "try",
+        "while", "with", "yield",
+    })
+
+    _JS_TS_KEYWORDS = frozenset({
+        "await", "break", "case", "catch", "class", "const", "continue",
+        "debugger", "default", "delete", "do", "else", "enum", "export",
+        "extends", "false", "finally", "for", "function", "if", "import",
+        "in", "instanceof", "let", "new", "null", "return", "super",
+        "switch", "this", "throw", "true", "try", "typeof", "var", "void",
+        "while", "with", "yield", "async", "of",
+    })
+
+    _JAVA_KEYWORDS = frozenset({
+        "abstract", "assert", "boolean", "break", "byte", "case", "catch",
+        "char", "class", "const", "continue", "default", "do", "double",
+        "else", "enum", "extends", "final", "finally", "float", "for",
+        "goto", "if", "implements", "import", "instanceof", "int",
+        "interface", "long", "native", "new", "package", "private",
+        "protected", "public", "return", "short", "static", "strictfp",
+        "super", "switch", "synchronized", "this", "throw", "throws",
+        "transient", "try", "void", "volatile", "while", "true", "false",
+        "null",
+    })
+
+    def _register_variable(
+        self,
+        variables: Dict[str, VariableInfo],
+        name: str,
+        start_line: int,
+        var_type: VariableType = VariableType.LOCAL,
+        *,
+        is_read: bool = False,
+        is_written: bool = False,
+    ) -> None:
+        """Register or update a variable in the variables dict.
+
+        Args:
+            variables: Dict to populate with variable info
+            name: Variable name
+            start_line: First use line number
+            var_type: Variable type classification
+            is_read: Whether variable is read
+            is_written: Whether variable is written
+        """
+        if name not in variables:
+            variables[name] = VariableInfo(
+                name=name,
+                variable_type=var_type,
+                first_use_line=start_line,
+                is_read=is_read,
+                is_written=is_written,
+            )
+        else:
+            if is_read:
+                variables[name].is_read = True
+            if is_written:
+                variables[name].is_written = True
+
+    def _scan_and_register_identifiers(
+        self,
+        content: str,
+        pattern: str,
+        keywords: frozenset[str],
+        variables: Dict[str, VariableInfo],
+        selection: CodeSelection,
+    ) -> None:
+        """Scan content with regex and register non-keyword identifiers as reads.
+
+        Shared by JS/TS and Java analyzers.
+
+        Args:
+            content: Source code content
+            pattern: Regex pattern with one capture group for identifier
+            keywords: Language keyword set to exclude
+            variables: Dict to populate with variable info
+            selection: Code selection metadata
+        """
+        for match in re.finditer(pattern, content):
+            var_name = match.group(1)
+            if var_name not in keywords:
+                self._register_variable(
+                    variables, var_name, selection.start_line,
+                    var_type=VariableType.PARAMETER, is_read=True,
+                )
 
     def _find_python_assignments(
         self,
@@ -200,16 +252,10 @@ class CodeSelectionAnalyzer:
         """
         assignment_pattern = r"\b(\w+)\s*="
         for match in re.finditer(assignment_pattern, content):
-            var_name = match.group(1)
-            if var_name not in variables:
-                variables[var_name] = VariableInfo(
-                    name=var_name,
-                    variable_type=VariableType.LOCAL,
-                    first_use_line=selection.start_line,
-                    is_written=True,
-                )
-            else:
-                variables[var_name].is_written = True
+            self._register_variable(
+                variables, match.group(1), selection.start_line,
+                var_type=VariableType.LOCAL, is_written=True,
+            )
 
     def _find_python_base_variables(
         self,
@@ -251,15 +297,10 @@ class CodeSelectionAnalyzer:
 
         # Register base variables as reads
         for var_name in base_vars_found:
-            if var_name not in variables:
-                variables[var_name] = VariableInfo(
-                    name=var_name,
-                    variable_type=VariableType.PARAMETER,
-                    first_use_line=selection.start_line,
-                    is_read=True,
-                )
-            else:
-                variables[var_name].is_read = True
+            self._register_variable(
+                variables, var_name, selection.start_line,
+                var_type=VariableType.PARAMETER, is_read=True,
+            )
 
     def _is_in_string_or_comment(self, content: str, match_pos: int) -> bool:
         """Check if a match position is inside a string literal or comment.
@@ -315,15 +356,10 @@ class CodeSelectionAnalyzer:
                 continue
 
             # Register identifier as read
-            if var_name not in variables:
-                variables[var_name] = VariableInfo(
-                    name=var_name,
-                    variable_type=VariableType.PARAMETER,
-                    first_use_line=selection.start_line,
-                    is_read=True,
-                )
-            else:
-                variables[var_name].is_read = True
+            self._register_variable(
+                variables, var_name, selection.start_line,
+                var_type=VariableType.PARAMETER, is_read=True,
+            )
 
     def _analyze_python_variables(
         self,
@@ -454,78 +490,16 @@ class CodeSelectionAnalyzer:
         # Matches: const x = ..., let y = ..., var z = ..., x = ...
         declaration_pattern = r"\b(?:const|let|var)?\s*(\w+)\s*="
         for match in re.finditer(declaration_pattern, content):
-            var_name = match.group(1)
-            if var_name not in variables:
-                variables[var_name] = VariableInfo(
-                    name=var_name,
-                    variable_type=VariableType.LOCAL,
-                    first_use_line=selection.start_line,
-                    is_written=True,
-                )
-            else:
-                variables[var_name].is_written = True
+            self._register_variable(
+                variables, match.group(1), selection.start_line,
+                var_type=VariableType.LOCAL, is_written=True,
+            )
 
         # Find variable reads
-        js_keywords = {
-            "await",
-            "break",
-            "case",
-            "catch",
-            "class",
-            "const",
-            "continue",
-            "debugger",
-            "default",
-            "delete",
-            "do",
-            "else",
-            "enum",
-            "export",
-            "extends",
-            "false",
-            "finally",
-            "for",
-            "function",
-            "if",
-            "import",
-            "in",
-            "instanceof",
-            "let",
-            "new",
-            "null",
-            "return",
-            "super",
-            "switch",
-            "this",
-            "throw",
-            "true",
-            "try",
-            "typeof",
-            "var",
-            "void",
-            "while",
-            "with",
-            "yield",
-            "async",
-            "of",
-        }
-
-        identifier_pattern = r"\b([a-zA-Z_$]\w*)\b"
-        for match in re.finditer(identifier_pattern, content):
-            var_name = match.group(1)
-
-            if var_name in js_keywords:
-                continue
-
-            if var_name not in variables:
-                variables[var_name] = VariableInfo(
-                    name=var_name,
-                    variable_type=VariableType.PARAMETER,
-                    first_use_line=selection.start_line,
-                    is_read=True,
-                )
-            else:
-                variables[var_name].is_read = True
+        self._scan_and_register_identifiers(
+            content, r"\b([a-zA-Z_$]\w*)\b", self._JS_TS_KEYWORDS,
+            variables, selection,
+        )
 
         self._classify_variable_types(selection, variables, all_lines)
 
@@ -550,90 +524,16 @@ class CodeSelectionAnalyzer:
         # Matches: Type var = ..., var = ...
         declaration_pattern = r"\b(?:\w+\s+)?(\w+)\s*="
         for match in re.finditer(declaration_pattern, content):
-            var_name = match.group(1)
-            if var_name not in variables:
-                variables[var_name] = VariableInfo(
-                    name=var_name,
-                    variable_type=VariableType.LOCAL,
-                    first_use_line=selection.start_line,
-                    is_written=True,
-                )
-            else:
-                variables[var_name].is_written = True
+            self._register_variable(
+                variables, match.group(1), selection.start_line,
+                var_type=VariableType.LOCAL, is_written=True,
+            )
 
         # Find variable reads
-        java_keywords = {
-            "abstract",
-            "assert",
-            "boolean",
-            "break",
-            "byte",
-            "case",
-            "catch",
-            "char",
-            "class",
-            "const",
-            "continue",
-            "default",
-            "do",
-            "double",
-            "else",
-            "enum",
-            "extends",
-            "final",
-            "finally",
-            "float",
-            "for",
-            "goto",
-            "if",
-            "implements",
-            "import",
-            "instanceof",
-            "int",
-            "interface",
-            "long",
-            "native",
-            "new",
-            "package",
-            "private",
-            "protected",
-            "public",
-            "return",
-            "short",
-            "static",
-            "strictfp",
-            "super",
-            "switch",
-            "synchronized",
-            "this",
-            "throw",
-            "throws",
-            "transient",
-            "try",
-            "void",
-            "volatile",
-            "while",
-            "true",
-            "false",
-            "null",
-        }
-
-        identifier_pattern = r"\b([a-zA-Z_]\w*)\b"
-        for match in re.finditer(identifier_pattern, content):
-            var_name = match.group(1)
-
-            if var_name in java_keywords:
-                continue
-
-            if var_name not in variables:
-                variables[var_name] = VariableInfo(
-                    name=var_name,
-                    variable_type=VariableType.PARAMETER,
-                    first_use_line=selection.start_line,
-                    is_read=True,
-                )
-            else:
-                variables[var_name].is_read = True
+        self._scan_and_register_identifiers(
+            content, r"\b([a-zA-Z_]\w*)\b", self._JAVA_KEYWORDS,
+            variables, selection,
+        )
 
         self._classify_variable_types(selection, variables, all_lines)
 
@@ -709,9 +609,7 @@ class CodeSelectionAnalyzer:
         """
         if self.language == "python":
             return bool(re.search(r"\b(try|except|raise)\b", content))
-        elif self.language in ("typescript", "javascript"):
-            return bool(re.search(r"\b(try|catch|throw)\b", content))
-        elif self.language == "java":
+        elif self.language in ("typescript", "javascript", "java"):
             return bool(re.search(r"\b(try|catch|throw)\b", content))
 
         return False
