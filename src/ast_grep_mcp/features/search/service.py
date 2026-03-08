@@ -1112,13 +1112,24 @@ rule:
         )
 
 
+_SEVERITY_PREFIX: Dict[IssueSeverity, str] = {
+    IssueSeverity.ERROR: "ERROR",
+    IssueSeverity.WARNING: "WARNING",
+    IssueSeverity.INFO: "TIP",
+}
+
+
 def _add_suggestions_by_severity(
     severity: IssueSeverity,
-    prefix: str,
     issues: List[PatternIssue],
     suggestions: List[str],
 ) -> None:
-    """Add suggestions filtered by severity level."""
+    """Add suggestions filtered by severity level.
+
+    The display prefix is derived from *severity* via ``_SEVERITY_PREFIX``
+    (INFO maps to "TIP" rather than "INFO").
+    """
+    prefix = _SEVERITY_PREFIX[severity]
     for issue in issues:
         if issue.severity == severity:
             suggestions.append(f"[{prefix}] {issue.suggestion}")
@@ -1199,11 +1210,11 @@ def _generate_suggestions(
     """
     suggestions: List[str] = []
 
-    _add_suggestions_by_severity(IssueSeverity.ERROR, "ERROR", issues, suggestions)
+    _add_suggestions_by_severity(IssueSeverity.ERROR, issues, suggestions)
     _add_structural_suggestions(ast_comparison, suggestions)
     _add_debug_suggestions(issues, ast_comparison, match_attempt, suggestions)
-    _add_suggestions_by_severity(IssueSeverity.WARNING, "WARNING", issues, suggestions)
-    _add_suggestions_by_severity(IssueSeverity.INFO, "TIP", issues, suggestions)
+    _add_suggestions_by_severity(IssueSeverity.WARNING, issues, suggestions)
+    _add_suggestions_by_severity(IssueSeverity.INFO, issues, suggestions)
     _add_default_suggestions(match_attempt, suggestions)
 
     return suggestions
