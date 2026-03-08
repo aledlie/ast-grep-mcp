@@ -231,10 +231,7 @@ class FunctionTemplate:
         return ""
 
     def _indented_body_lines(self) -> List[str]:
-        result = []
-        for line in self.body.split("\n"):
-            result.append(f"    {line}" if line.strip() else "")
-        return result
+        return [f"    {line}" if line.strip() else "" for line in self.body.split("\n")]
 
     def generate(self) -> str:
         """Generate the complete function code from the template.
