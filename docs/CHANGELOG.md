@@ -7,6 +7,7 @@ All notable changes to ast-grep-mcp are documented in version-dated files in the
 ## Versions
 
 - [2026-03-08: Complexity Analysis](2026-03-08-complexity-analysis.md) — 98 functions exceeding thresholds across 22 modules
+- [2026-03-08: Changelog Hardening & Test Quality](changelog/2026-03-08-changelog-hardening-test-quality.md) — 4 hardening + 5 test quality items, 1 open issue
 - [2026-03-08: Code Quality Fixes](changelog/2026-03-08-quality-fixes.md) — 2 items (magic number, assert)
 - [2026-03-08: Code Review Findings Resolution](changelog/2026-03-08-code-review-findings.md) — 4 items (M1, M2, M3, L1)
 - [2026-03-07: Type Fixes & Formatting](changelog/2026-03-07-type-fixes-formatting.md) — mypy cross-env suppression, ruff format 42 files
