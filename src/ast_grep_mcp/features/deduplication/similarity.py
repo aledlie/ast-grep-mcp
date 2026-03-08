@@ -1746,7 +1746,7 @@ class SemanticSimilarity:
         from transformers import AutoModel, AutoTokenizer
 
         self._tokenizer = AutoTokenizer.from_pretrained(self.config.model_name)  # type: ignore[no-untyped-call,unused-ignore]
-        self._model = AutoModel.from_pretrained(self.config.model_name)
+        self._model = AutoModel.from_pretrained(self.config.model_name)  # type: ignore[no-untyped-call,unused-ignore]
         self._device = self._select_device(torch_module=torch)
         self._model = self._model.to(self._device)
         self._model.eval()
