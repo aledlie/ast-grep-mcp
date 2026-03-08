@@ -424,8 +424,6 @@ class DisplayDefaults:
 class PerformanceDefaults:
     """Defaults for performance monitoring."""
 
-    SLOW_EXECUTION_THRESHOLD_MS = 5000  # 5 seconds
-    DEFAULT_SLOW_THRESHOLD_MS = 1000  # 1 second default for track_slow_operations
     DATABASE_TIMEOUT_SECONDS = 30.0  # SQLite/HTTP connection timeout
 
 
