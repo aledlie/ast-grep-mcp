@@ -625,9 +625,12 @@ class TestChangelogHelpers:
         with patch(
             "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
         ) as mock_git:
-            mock_git.return_value = (True, "v2.0.0\nv1.0.0\nv0.9.0")
+            mock_git.side_effect = [
+                (True, "v2.0.0\nv1.0.0\nv0.9.0"),  # tag list
+            ]
             result = _find_previous_tag("/fake", "v2.0.0")
             assert result == "v1.0.0"
+            mock_git.assert_called_once()  # should not reach _get_first_commit
 
     def test_find_previous_tag_returns_first_when_all_excluded(self):
         """Test fallback to first commit when only excluded tag exists."""
@@ -679,6 +682,95 @@ class TestChangelogHelpers:
             ]
             result = _find_previous_tag("/fake", "v1.0.0")
             assert result == "first-commit"
+
+    def test_resolve_version_ref_already_vprefixed(self):
+        """Test input already starting with v skips double-prefix."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _resolve_version_ref,
+        )
+        from unittest.mock import patch
+
+        with patch(
+            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
+        ) as mock_git:
+            mock_git.side_effect = [
+                (False, "not found"),  # vv1.2.0 fails
+                (True, "abc123"),      # v1.2.0 succeeds as bare ref
+            ]
+            result = _resolve_version_ref("/fake", "v1.2.0")
+            assert result == "v1.2.0"  # returned via bare-ref path
+
+    def test_get_commit_range_to_version_uses_resolve(self):
+        """Test to_version is resolved via _resolve_version_ref."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _get_commit_range,
+        )
+        from unittest.mock import patch
+
+        with patch(
+            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
+        ) as mock_git:
+            mock_git.side_effect = [
+                (True, "abc123"),          # _resolve_version_ref: rev-parse v2.0.0
+                (True, "v2.0.0\nv1.0.0"),  # _find_previous_tag: tag list
+            ]
+            from_ref, to_ref = _get_commit_range("/fake", None, "2.0.0")
+            assert to_ref == "v2.0.0"
+
+    def test_get_commit_range_from_version_asymmetry(self):
+        """Test from_version only tries v-prefix, no bare-ref fallback."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _get_commit_range,
+        )
+        from unittest.mock import patch
+
+        with patch(
+            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
+        ) as mock_git:
+            mock_git.side_effect = [
+                (True, "abc123"),      # _resolve_version_ref for to_version
+                (False, "not found"),  # from_version v-prefix fails
+            ]
+            # from_version falls back to raw string — no bare-ref validation
+            from_ref, to_ref = _get_commit_range("/fake", "bad-ref", "2.0.0")
+            assert from_ref == "bad-ref"  # raw string passthrough
+            assert to_ref == "v2.0.0"
+
+    def test_get_commit_range_from_version_vprefixed(self):
+        """Test from_version resolves to v-prefixed tag."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _get_commit_range,
+        )
+        from unittest.mock import patch
+
+        with patch(
+            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
+        ) as mock_git:
+            mock_git.side_effect = [
+                (True, "abc123"),  # _resolve_version_ref for to_version
+                (True, "def456"),  # from_version v-prefix succeeds
+            ]
+            from_ref, to_ref = _get_commit_range("/fake", "1.0.0", "2.0.0")
+            assert from_ref == "v1.0.0"
+            assert to_ref == "v2.0.0"
+
+    def test_get_commit_range_no_from_uses_previous_tag(self):
+        """Test None from_version falls back to _find_previous_tag."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _get_commit_range,
+        )
+        from unittest.mock import patch
+
+        with patch(
+            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
+        ) as mock_git:
+            mock_git.side_effect = [
+                (True, "abc123"),              # _resolve_version_ref for to_version
+                (True, "v2.0.0\nv1.0.0"),      # _find_previous_tag: tag list
+            ]
+            from_ref, to_ref = _get_commit_range("/fake", None, "2.0.0")
+            assert from_ref == "v1.0.0"  # previous tag, skipping v2.0.0
+            assert to_ref == "v2.0.0"
 
 
 class TestChangelogGenerator:
