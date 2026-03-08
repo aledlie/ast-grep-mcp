@@ -6,15 +6,17 @@ Items from code review of the D1-D4 dedup consolidation commit.
 
 ### Medium
 
-- **`_is_import` substring match false positives** — `refactoring/renamer.py:208-217`. Merged `_is_python_import`/`_is_javascript_import` uses `"import" in context` substring match, which can false-positive on identifiers like `reimport_legacy`. Pre-existing issue made more visible by consolidation. Add a docstring noting the limitation.
-- **`_log_to_stderr` kwargs passthrough** — `utils/console_logger.py:120-122`. Passing `**kwargs` to `print` alongside `file=sys.stderr` will raise `TypeError` if a caller also passes `file=`. Pre-existing, not a regression.
-- **Extra blank line in `search/service.py`** — Around line 1175, two consecutive blank lines after deleted `_add_info_suggestions`. May trigger ruff lint.
+- [x] **`_is_import` substring match false positives** — `refactoring/renamer.py:208-217`. Added docstring noting limitation (ccf5765, 2026-03-08).
+- [x] **`_log_to_stderr` kwargs passthrough** — `utils/console_logger.py:120-122`. Added docstring noting TypeError risk (ccf5765, 2026-03-08).
+- [x] **Extra blank line in `search/service.py`** — Verified no-op: `ruff check` passes; only 2 blank lines (standard Python style), not 3.
 
 ### Low
 
-- **`_add_suggestions_by_severity` redundant prefix param** — `search/service.py`. Callers pass a `prefix` string that could be derived from `severity.name` (except `INFO`->`TIP`). Consider deriving it to reduce caller burden.
+- [x] **`_add_suggestions_by_severity` redundant prefix param** — `search/service.py`. Removed prefix param; derived from `_SEVERITY_PREFIX` dict (aebd562, 2026-03-08).
 
 ## Complexity Refactoring Queue (2026-03-04)
+
+> **Note (2026-03-08):** Spot-checks of CQ1–CQ9 show the highest-priority functions (e.g. `_extract_literals_with_ast_grep`, `_determine_severity`, `_suggest_parameter_name`, `_check_relational_rule_for_stopby`, `_format_diff_with_line_numbers`) have already been refactored in prior commits. Run `uv run python scripts/run_all_analysis.py` for a fresh baseline before working on specific CQ items.
 
 Threshold baseline from `analyze_complexity` defaults: cyclomatic `>10`, cognitive `>15`, nesting `>4`, length `>50`.
 Source for all items below: full quality run on **2026-03-04** (`analyze_codebase.py` / `analyze_complexity_tool`) with **434** functions exceeding thresholds.
