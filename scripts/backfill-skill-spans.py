@@ -31,6 +31,8 @@ CLAUDE_DIR = Path.home() / ".claude"
 TELEMETRY_DIR = CLAUDE_DIR / "telemetry"
 AGENT_CACHE_DIR = CLAUDE_DIR / "agent-cache"
 TRACE_CTX_DIR = TELEMETRY_DIR / "trace-ctx"
+NS_PER_SECOND = 1_000_000_000
+PRE_TOOL_DURATION_NS = 8_000_000  # 8ms synthetic pre-tool span duration
 
 RESOURCE = {"serviceName": "claude-code-hooks", "serviceVersion": "1.0.0"}
 BACKFILL_SOURCE = "backfill:agent-span-recovery"
@@ -43,8 +45,9 @@ def new_span_id() -> str:
 def iso_to_otel_time(iso_str: str) -> list[int]:
     """Convert ISO-8601 timestamp to OTEL [epoch_s, ns]."""
     dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
-    epoch_s = int(dt.timestamp())
-    ns = int((dt.timestamp() - epoch_s) * 1_000_000_000)
+    ts = dt.timestamp()
+    epoch_s = int(ts)
+    ns = int((ts - epoch_s) * NS_PER_SECOND)
     return [epoch_s, ns]
 
 
@@ -87,8 +90,7 @@ def parse_agent_cache(agent_name: str, project_filter: str | None = None,
                         continue
                 except (json.JSONDecodeError, OSError):
                     pass
-            else:
-                continue
+            # else: no metadata — include session (cannot filter, do not drop)
 
         log_file = session_dir / "agent-invocations.log"
         if not log_file.exists():
@@ -175,7 +177,7 @@ def compute_duration(start: list[int], end: list[int]) -> list[int]:
     dns = end[1] - start[1]
     if dns < 0:
         ds -= 1
-        dns += 1_000_000_000
+        dns += NS_PER_SECOND
     return [ds, dns]
 
 
@@ -203,13 +205,13 @@ def generate_spans(invocations: list[dict[str, Any]], skill_name: str,
         trace_date = dt.strftime("%Y-%m-%d")
 
         # Pre-tool span (near-instant at start time)
-        pre_end = [start_time[0], start_time[1] + 8_000_000]
-        if pre_end[1] >= 1_000_000_000:
-            pre_end = [pre_end[0] + 1, pre_end[1] - 1_000_000_000]
+        pre_end = [start_time[0], start_time[1] + PRE_TOOL_DURATION_NS]
+        if pre_end[1] >= NS_PER_SECOND:
+            pre_end = [pre_end[0] + 1, pre_end[1] - NS_PER_SECOND]
 
         pre_span = build_span(
             "hook:plugin-pre-tool", trace_id, inv["session_id"],
-            start_time, pre_end, [0, 8_000_000],
+            start_time, pre_end, [0, PRE_TOOL_DURATION_NS],
             skill_name, agent_name, category,
             {"plugin.has_args": True},
         )
