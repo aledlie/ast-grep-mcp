@@ -50,7 +50,10 @@ from .text import (
     _clean_template_whitespace,
     calculate_similarity,
     clean_template_whitespace,
+    indent_lines,
     normalize_code,
+    read_file_lines,
+    write_file_lines,
 )
 
 # Validation utilities
@@ -92,6 +95,9 @@ __all__ = [
     "calculate_similarity",
     "clean_template_whitespace",
     "_clean_template_whitespace",
+    "indent_lines",
+    "read_file_lines",
+    "write_file_lines",
     # Validation
     "validate_config_file",
 ]

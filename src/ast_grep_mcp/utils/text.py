@@ -11,6 +11,9 @@ __all__ = [
     "calculate_similarity",
     "clean_template_whitespace",
     "_clean_template_whitespace",
+    "indent_lines",
+    "read_file_lines",
+    "write_file_lines",
 ]
 
 
@@ -97,6 +100,43 @@ def _collapse_blank_lines(lines: list[str]) -> list[str]:
             result.append(line)
         prev_blank = is_blank
     return result
+
+
+def indent_lines(text: str, prefix: str = "    ") -> list[str]:
+    """Indent non-empty lines with the given prefix, leave blank lines empty.
+
+    Args:
+        text: Text to indent
+        prefix: Indentation prefix (default 4 spaces)
+
+    Returns:
+        List of indented lines
+    """
+    return [f"{prefix}{line}" if line.strip() else "" for line in text.split("\n")]
+
+
+def read_file_lines(file_path: str) -> list[str]:
+    """Read a file and return its lines (including newlines).
+
+    Args:
+        file_path: Path to the file
+
+    Returns:
+        List of lines with trailing newlines preserved
+    """
+    with open(file_path, "r", encoding="utf-8") as f:
+        return f.readlines()
+
+
+def write_file_lines(file_path: str, lines: list[str]) -> None:
+    """Write lines to a file.
+
+    Args:
+        file_path: Path to the file
+        lines: Lines to write (should include trailing newlines)
+    """
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.writelines(lines)
 
 
 # Alias for backward compatibility

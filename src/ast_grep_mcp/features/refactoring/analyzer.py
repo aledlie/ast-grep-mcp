@@ -17,6 +17,7 @@ from ...models.refactoring import (
     VariableInfo,
     VariableType,
 )
+from ...utils.text import read_file_lines
 
 logger = get_logger(__name__)
 
@@ -60,8 +61,7 @@ class CodeSelectionAnalyzer:
         )
 
         # Read the selected code
-        with open(file_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
+        lines = read_file_lines(file_path)
 
         selection_lines = lines[start_line - 1 : end_line]
         content = "".join(selection_lines)

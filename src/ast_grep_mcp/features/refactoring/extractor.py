@@ -18,6 +18,7 @@ from ...models.refactoring import (
     FunctionSignature,
     VariableInfo,
 )
+from ...utils.text import indent_lines, read_file_lines, write_file_lines
 
 logger = get_logger(__name__)
 
@@ -258,11 +259,6 @@ class FunctionExtractor:
             return signature.to_python_signature()
         return signature.to_typescript_signature()
 
-    @staticmethod
-    def _indent_lines(text: str, prefix: str = "    ") -> List[str]:
-        """Indent non-empty lines with the given prefix."""
-        return [f"{prefix}{line}" if line.strip() else "" for line in text.split("\n")]
-
     def _generate_function_body(
         self,
         selection: CodeSelection,
@@ -272,9 +268,9 @@ class FunctionExtractor:
         lines = [self._get_signature_line(signature)]
 
         if signature.docstring:
-            lines.extend(self._indent_lines(signature.docstring))
+            lines.extend(indent_lines(signature.docstring))
 
-        lines.extend(self._indent_lines(selection.content))
+        lines.extend(indent_lines(selection.content))
 
         if selection.return_values:
             return_stmt = self._generate_return_statement(selection.return_values)
@@ -345,8 +341,7 @@ class FunctionExtractor:
             Line number after last import (1-indexed), or 1 if no imports
         """
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                lines = f.readlines()
+            lines = read_file_lines(file_path)
         except Exception as e:
             logger.warning("failed_to_read_file_for_imports", error=str(e))
             return 1
@@ -457,18 +452,6 @@ class FunctionExtractor:
 
         return "\n".join(lines)
 
-    @staticmethod
-    def _read_file_lines(file_path: str) -> List[str]:
-        """Read file and return list of lines."""
-        with open(file_path, "r", encoding="utf-8") as f:
-            return f.readlines()
-
-    @staticmethod
-    def _write_file_lines(file_path: str, lines: List[str]) -> None:
-        """Write lines back to file."""
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.writelines(lines)
-
     def _apply_extraction(
         self,
         selection: CodeSelection,
@@ -487,7 +470,7 @@ class FunctionExtractor:
         backup_id = create_backup([selection.file_path], project_folder)
 
         try:
-            lines = self._read_file_lines(selection.file_path)
+            lines = read_file_lines(selection.file_path)
 
             function_lines = [line + "\n" for line in function_body.split("\n")]
             function_lines.append("\n\n")
@@ -497,7 +480,7 @@ class FunctionExtractor:
             adjusted_end = selection.end_line + len(function_lines)
             lines[adjusted_start - 1 : adjusted_end] = [call_replacement + "\n"]
 
-            self._write_file_lines(selection.file_path, lines)
+            write_file_lines(selection.file_path, lines)
             logger.info("extraction_applied", file_path=selection.file_path, backup_id=backup_id)
             return backup_id
 

@@ -13,6 +13,7 @@ import tempfile
 from typing import Any, List, Optional, Tuple
 
 from ast_grep_mcp.constants import SubprocessDefaults
+from ast_grep_mcp.utils.text import indent_lines
 
 # =============================================================================
 # Python Templates
@@ -260,7 +261,7 @@ def _format_javadoc(javadoc: Optional[str]) -> str:
 
 
 def _indent_java_body(body: str) -> str:
-    return "\n".join("    " + line if line.strip() else "" for line in body.strip().split("\n"))
+    return "\n".join(indent_lines(body.strip()))
 
 
 def format_java_method(

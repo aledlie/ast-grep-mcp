@@ -18,6 +18,7 @@ from ...models.refactoring import (
     ScopeInfo,
     SymbolReference,
 )
+from ...utils.text import read_file_lines, write_file_lines
 from .renamer import SymbolRenamer
 
 logger = get_logger(__name__)
@@ -265,8 +266,7 @@ class RenameCoordinator:
             old_name: Old symbol name
             new_name: New symbol name
         """
-        with open(file_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
+        lines = read_file_lines(file_path)
 
         pattern = r"\b" + re.escape(old_name) + r"\b"
         sorted_refs = sorted(references, key=lambda r: r.line, reverse=True)
@@ -276,8 +276,7 @@ class RenameCoordinator:
                 line_idx = ref.line - 1
                 lines[line_idx] = re.sub(pattern, new_name, lines[line_idx])
 
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.writelines(lines)
+        write_file_lines(file_path, lines)
 
         logger.debug(
             "file_renamed",
