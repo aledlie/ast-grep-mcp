@@ -135,6 +135,22 @@ class FilePatterns:
                 merged.append(pattern)
         return merged
 
+    @staticmethod
+    def normalize_excludes(
+        exclude_patterns: list[str] | None,
+        defaults: list[str] | None = None,
+    ) -> list[str]:
+        """Default-if-None then merge venv excludes.
+
+        Args:
+            exclude_patterns: Caller-supplied patterns, or None for defaults.
+            defaults: Default patterns when exclude_patterns is None.
+                Falls back to FilePatterns.DEFAULT_EXCLUDE.
+        """
+        if exclude_patterns is None:
+            exclude_patterns = list(defaults if defaults is not None else FilePatterns.DEFAULT_EXCLUDE)
+        return FilePatterns.merge_with_venv_excludes(exclude_patterns)
+
 
 class StreamDefaults:
     """Defaults for streaming operations."""

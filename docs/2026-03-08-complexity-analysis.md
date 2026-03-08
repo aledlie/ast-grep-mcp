@@ -1,18 +1,20 @@
 # 2026-03-08: Complexity Analysis
 
-**79 functions** exceeding thresholds across **119 files** (1,771 total functions).
+**80 functions** exceeding thresholds across **120 files** (1,756 total functions).
 
 Thresholds: cyclomatic >10, cognitive >15, nesting >4, length >50.
 
-Baselines: 434 (2026-03-04) -> 407 (2026-03-06) -> 100 (2026-03-06 post-refactor) -> 98 (2026-03-08) -> **79** (2026-03-08 post-refactor).
+Baselines: 434 (2026-03-04) → 407 (2026-03-06) → 100 (2026-03-06 post-refactor) → 98 (2026-03-08) → 79 (2026-03-08 post-refactor) → **80** (2026-03-08 shared-util extraction).
+
+Note: count rose 79→80 because Field() inlining into `@mcp.tool()` wrappers added `_register_enforcement_tools` as a new length violation, while `_create_mcp_field_definitions` and `register_quality_tools` violations were eliminated.
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total functions | 1,771 |
-| Total files | 119 |
-| Exceeding threshold | 79 (4.5%) |
+| Total functions | 1,756 |
+| Total files | 120 |
+| Exceeding threshold | 80 (4.6%) |
 | Avg cyclomatic | 4.34 |
 | Avg cognitive | 4.47 |
 | Max cyclomatic | 20 |
@@ -165,16 +167,18 @@ Baselines: 434 (2026-03-04) -> 407 (2026-03-06) -> 100 (2026-03-06 post-refactor
 
 ### `features/quality/tools.py` (8 violations)
 
-| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
-|----------|-------|-----|-----|------|-----|---------|
-| `list_rule_templates_tool` | 217-280 | 15 | 17 | 5 | 44 | cyc, cog, nest |
-| `create_linting_rule_tool` | 138-214 | 13 | 18 | 4 | 47 | cyc, cog |
-| `detect_security_issues_tool` | 756-860 | 17 | 13 | 3 | 49 | cyc |
-| `enforce_standards_tool` | 351-439 | 17 | 11 | 3 | 56 | cyc, len |
-| `generate_quality_report_tool` | 606-682 | 12 | 8 | 3 | 35 | cyc |
-| `detect_orphans_tool` | 863-965 | 12 | 8 | 3 | 38 | cyc |
-| `_create_mcp_field_definitions` | 990-1034 | 11 | 3 | 4 | 44 | cyc |
-| `register_quality_tools` | 1114-1174 | 3 | 1 | 3 | 60 | len |
+| Function | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-----|-----|------|-----|---------|
+| `list_rule_templates_tool` | 15 | 17 | 5 | 64 | cyc, cog, nest, len |
+| `create_linting_rule_tool` | 13 | 18 | 4 | 77 | cyc, cog, len |
+| `detect_security_issues_tool` | 17 | 13 | 3 | 105 | cyc, len |
+| `enforce_standards_tool` | 17 | 11 | 3 | 89 | cyc, len |
+| `detect_orphans_tool` | 12 | 8 | 3 | 103 | cyc, len |
+| `apply_standards_fixes_tool` | 9 | 7 | 3 | 92 | len |
+| `generate_quality_report_tool` | 12 | 8 | 3 | 77 | cyc, len |
+| `_register_enforcement_tools` | 12 | 3 | 3 | 77 | cyc, len |
+
+Refactoring notes: `_tool_context` extracted to shared `utils/tool_context.py`. `_create_mcp_field_definitions` and field-dict indirection removed; `Field()` inlined into `@mcp.tool()` wrappers. `_normalize_exclude_patterns` replaced by `FilePatterns.normalize_excludes()`. Length violations are predominantly docstrings and MCP parameter definitions.
 
 ### `features/refactoring/analyzer.py` (4 violations)
 
@@ -296,6 +300,8 @@ Key changes:
 
 | Commit | Description |
 |--------|-------------|
+| `a353930` | Add backfill script and docs for skill span recovery (no src changes) |
+| `0123a8b` | Sync complexity queue in BACKLOG.md with live scan (no src changes) |
 | `29c756d` | Reorganize repomix scripts into `scripts/repomix/` subdirectory |
 | `5190b23` | Add review skill for diff-aware code review |
 | `9f06709` | Add `.claude/py-cache/` to `.gitignore` and `.claudeignore` |
@@ -357,7 +363,7 @@ Previously listed, now resolved or refactored:
 
 Helper functions created during complexity refactoring, organized by module. These functions were extracted from high-complexity parents to reduce cyclomatic, cognitive, and nesting metrics.
 
-**Total extracted helpers: 147** across 7 modules.
+**Total extracted helpers: 141** across 7 modules.
 
 ### `search/service.py` (72 helpers)
 
@@ -485,7 +491,7 @@ Primary decomposition targets: `generate_docstrings_impl`, `_generate_docstring_
 | `_process_files_batch` | 1186 | Process batch of files | 34 |
 | `_log_and_build_result` | 1222 | Log ops and build final result | 20 |
 
-### `quality/tools.py` (22 helpers)
+### `quality/tools.py` (16 helpers)
 
 Primary decomposition targets: `enforce_standards_tool`, `detect_security_issues_tool`, `register_quality_tools`.
 
@@ -494,25 +500,21 @@ Primary decomposition targets: `enforce_standards_tool`, `detect_security_issues
 | `_create_rule_from_params` | 40 | Create linting rule from params | 27 |
 | `_save_rule_if_requested` | 69 | Save rule to project | 15 |
 | `_format_rule_result` | 86 | Format rule creation result | 22 |
-| `_tool_context` | 109 | Context manager for error handling + timing | 80 |
-| `_get_default_exclude_patterns` | 283 | Default file scan exclude patterns | 3 |
-| `_normalize_exclude_patterns` | 288 | Normalize excludes, enforce venv | 6 |
-| `_validate_enforcement_inputs` | 295 | Validate enforce_standards inputs | 13 |
-| `_format_enforcement_output` | 312 | Format enforcement result by format | 25 |
-| `_convert_violations_to_objects` | 442 | Dict violations to RuleViolation objects | 19 |
-| `_infer_project_folder` | 463 | Infer project folder from violations | 16 |
-| `_format_fix_results` | 479 | Format fix results for output | 8 |
-| `_group_violations` | 685 | Group violations by rule and file | 18 |
-| `_dict_to_enforcement_result` | 705 | Dict to EnforcementResult conversion | 16 |
-| `_format_security_issues` | 722 | Format security issues for output | 22 |
-| `_format_issues_by_severity` | 745 | Format issues grouped by severity | 12 |
-| `_linting_field_definitions` | 968 | MCP field defs for linting tools | 20 |
-| `_enforcement_field_definitions` | 990 | MCP field defs for enforcement tools | 47 |
-| `_scanning_field_definitions` | 1037 | MCP field defs for scanning tools | 28 |
-| `_create_mcp_field_definitions` | 1066 | Top-level MCP field def dispatcher | 6 |
-| `_register_linting_tools` | 1075 | Register linting tools with MCP | 36 |
-| `_register_enforcement_tools` | 1114 | Register enforcement tools with MCP | 59 |
-| `_register_scanning_tools` | 1177 | Register scanning tools with MCP | 50 |
+| `_get_default_exclude_patterns` | 254 | Default file scan exclude patterns | 3 |
+| `_validate_enforcement_inputs` | 259 | Validate enforce_standards inputs | 13 |
+| `_format_enforcement_output` | 276 | Format enforcement result by format | 25 |
+| `_convert_violations_to_objects` | 406 | Dict violations to RuleViolation objects | 19 |
+| `_infer_project_folder` | 427 | Infer project folder from violations | 16 |
+| `_format_fix_results` | 443 | Format fix results for output | 8 |
+| `_group_violations` | 649 | Group violations by rule and file | 18 |
+| `_dict_to_enforcement_result` | 669 | Dict to EnforcementResult conversion | 16 |
+| `_format_security_issues` | 686 | Format security issues for output | 22 |
+| `_format_issues_by_severity` | 709 | Format issues grouped by severity | 12 |
+| `_register_linting_tools` | 932 | Register linting tools with inline Field() | 36 |
+| `_register_enforcement_tools` | 971 | Register enforcement tools with inline Field() | 77 |
+| `_register_scanning_tools` | 1050 | Register scanning tools with inline Field() | 47 |
+
+Removed in `166841b`: `_tool_context` (moved to `utils/tool_context.py`), `_normalize_exclude_patterns` (replaced by `FilePatterns.normalize_excludes()`), `_linting_field_definitions`, `_enforcement_field_definitions`, `_scanning_field_definitions`, `_create_mcp_field_definitions` (all replaced by inline `Field()` in `@mcp.tool()` signatures).
 
 ### `deduplication/generator.py` (10 helpers)
 
@@ -565,13 +567,13 @@ Primary decomposition target: `get_ast_grep_patterns`.
 
 | Pattern | Count | Examples |
 |---------|-------|---------|
-| Validate/check inputs | 18 | `_validate_yaml_rule`, `_validate_enforcement_inputs`, `_check_relational_entry` |
+| Validate/check inputs | 17 | `_validate_yaml_rule`, `_validate_enforcement_inputs`, `_check_relational_entry` |
 | Format/build output | 28 | `_format_cached_results`, `_format_rule_result`, `_build_develop_result` |
 | Extract/parse data | 22 | `_extract_metavariables`, `_extract_identifiers`, `_parse_single_python_param` |
 | Type inference | 10 | `_is_boolean_literal`, `_infer_single_value_type`, `_infer_from_identifier_name` |
-| Orchestrate sub-steps | 15 | `_run_find_code_search`, `_run_rule_search_with_cache`, `_run_develop_analysis` |
+| Orchestrate sub-steps | 14 | `_run_find_code_search`, `_run_rule_search_with_cache`, `_run_develop_analysis` |
 | Generate content | 19 | `_generate_google_docstring`, `_generate_yaml_template`, `_generate_suggestions` |
-| Register/configure | 7 | `_register_linting_tools`, `_linting_field_definitions`, `_create_mcp_field_definitions` |
+| Register/configure | 3 | `_register_linting_tools`, `_register_enforcement_tools`, `_register_scanning_tools` |
 | Utility/predicate | 28 | `_non_self_params`, `_has_return`, `_is_early_return_value`, `_truncate_ast` |
 
 ## Refresh Command
