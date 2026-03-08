@@ -16,6 +16,7 @@ from ...models.refactoring import (
     CodeSelection,
     ExtractFunctionResult,
     FunctionSignature,
+    VariableInfo,
 )
 
 logger = get_logger(__name__)
@@ -155,55 +156,41 @@ class FunctionExtractor:
         # Default fallback
         return "extracted_function"
 
+    def _build_parameters(self, selection: CodeSelection) -> List[Dict[str, str]]:
+        """Build parameter list from selection's needed parameters."""
+        parameters: List[Dict[str, str]] = []
+        for param_name in selection.parameters_needed:
+            var_info = self._find_variable(selection, param_name)
+            param_type = var_info.inferred_type if var_info and var_info.inferred_type else ""
+            parameters.append({"name": param_name, "type": param_type})
+        return parameters
+
+    def _find_variable(self, selection: CodeSelection, name: str) -> Optional[VariableInfo]:
+        """Find a variable by name in the selection's variable list."""
+        return next((v for v in selection.variables if v.name == name), None)
+
+    def _determine_return_type(self, selection: CodeSelection) -> Optional[str]:
+        """Determine return type from selection's return values."""
+        if len(selection.return_values) == 0:
+            return "None" if self.language == "python" else "void"
+        if len(selection.return_values) == 1:
+            var_info = self._find_variable(selection, selection.return_values[0])
+            return var_info.inferred_type if var_info else None
+        if self.language == "python":
+            return f"tuple[{', '.join(['Any'] * len(selection.return_values))}]"
+        if self.language in ("typescript", "javascript"):
+            return f"[{', '.join(['any'] * len(selection.return_values))}]"
+        return None
+
     def _generate_signature(
         self,
         selection: CodeSelection,
         function_name: str,
     ) -> FunctionSignature:
-        """Generate function signature from analyzed selection.
-
-        Args:
-            selection: Analyzed code selection
-            function_name: Name for the function
-
-        Returns:
-            FunctionSignature
-        """
-        # Build parameter list
-        parameters: List[Dict[str, str]] = []
-        for param_name in selection.parameters_needed:
-            # Find variable info for type inference
-            var_info = next((v for v in selection.variables if v.name == param_name), None)
-
-            param_type = var_info.inferred_type if var_info and var_info.inferred_type else ""
-            param: Dict[str, str] = {
-                "name": param_name,
-                "type": param_type,
-            }
-            parameters.append(param)
-
-        # Determine return type
-        return_type = None
-        if len(selection.return_values) == 0:
-            return_type = "None" if self.language == "python" else "void"
-        elif len(selection.return_values) == 1:
-            # Single return value
-            var_info = next((v for v in selection.variables if v.name == selection.return_values[0]), None)
-            return_type = var_info.inferred_type if var_info else None
-        else:
-            # Multiple return values
-            if self.language == "python":
-                return_type = f"tuple[{', '.join(['Any'] * len(selection.return_values))}]"
-            elif self.language in ("typescript", "javascript"):
-                return_type = f"[{', '.join(['any'] * len(selection.return_values))}]"
-
-        # Generate docstring
-        docstring = self._generate_docstring(
-            function_name,
-            parameters,
-            return_type,
-            selection,
-        )
+        """Generate function signature from analyzed selection."""
+        parameters = self._build_parameters(selection)
+        return_type = self._determine_return_type(selection)
+        docstring = self._generate_docstring(function_name, parameters, return_type, selection)
 
         return FunctionSignature(
             name=function_name,
@@ -219,91 +206,76 @@ class FunctionExtractor:
         return_type: Optional[str],
         selection: CodeSelection,
     ) -> str:
-        """Generate docstring for extracted function.
-
-        Args:
-            function_name: Function name
-            parameters: Parameter list
-            return_type: Return type
-            selection: Code selection
-
-        Returns:
-            Docstring text
-        """
+        """Generate docstring for extracted function."""
         if self.language == "python":
-            lines = [f'"""Extracted function from {selection.file_path}.']
-
-            if parameters:
-                lines.append("")
-                lines.append("Args:")
-                for param in parameters:
-                    param_type = f" ({param.get('type')})" if param.get("type") else ""
-                    lines.append(f"    {param['name']}{param_type}: Parameter extracted from code")
-
-            if return_type and return_type != "None":
-                lines.append("")
-                lines.append("Returns:")
-                lines.append(f"    {return_type}: Extracted return value")
-
-            lines.append('"""')
-            return "\n".join(lines)
-
-        elif self.language in ("typescript", "javascript"):
-            lines = ["/**"]
-            lines.append(f" * Extracted function from {selection.file_path}")
-
-            if parameters:
-                lines.append(" *")
-                for param in parameters:
-                    param_type = param.get("type", "any")
-                    lines.append(f" * @param {{{param_type}}} {param['name']} - Parameter extracted from code")
-
-            if return_type:
-                lines.append(f" * @returns {{{return_type}}} Extracted return value")
-
-            lines.append(" */")
-            return "\n".join(lines)
-
+            return self._generate_python_docstring(parameters, return_type, selection)
+        if self.language in ("typescript", "javascript"):
+            return self._generate_jsdoc(parameters, return_type, selection)
         return ""
+
+    def _generate_python_docstring(
+        self,
+        parameters: List[Dict[str, str]],
+        return_type: Optional[str],
+        selection: CodeSelection,
+    ) -> str:
+        """Generate Python-style docstring."""
+        lines = [f'"""Extracted function from {selection.file_path}.']
+        if parameters:
+            lines.append("")
+            lines.append("Args:")
+            for param in parameters:
+                param_type = f" ({param.get('type')})" if param.get("type") else ""
+                lines.append(f"    {param['name']}{param_type}: Parameter extracted from code")
+        if return_type and return_type != "None":
+            lines.append("")
+            lines.append("Returns:")
+            lines.append(f"    {return_type}: Extracted return value")
+        lines.append('"""')
+        return "\n".join(lines)
+
+    def _generate_jsdoc(
+        self,
+        parameters: List[Dict[str, str]],
+        return_type: Optional[str],
+        selection: CodeSelection,
+    ) -> str:
+        """Generate JSDoc-style docstring."""
+        lines = ["/**", f" * Extracted function from {selection.file_path}"]
+        if parameters:
+            lines.append(" *")
+            for param in parameters:
+                param_type = param.get("type", "any")
+                lines.append(f" * @param {{{param_type}}} {param['name']} - Parameter extracted from code")
+        if return_type:
+            lines.append(f" * @returns {{{return_type}}} Extracted return value")
+        lines.append(" */")
+        return "\n".join(lines)
+
+    def _get_signature_line(self, signature: FunctionSignature) -> str:
+        """Get the language-appropriate signature line."""
+        if self.language == "python":
+            return signature.to_python_signature()
+        return signature.to_typescript_signature()
+
+    @staticmethod
+    def _indent_lines(text: str, prefix: str = "    ") -> List[str]:
+        """Indent non-empty lines with the given prefix."""
+        return [f"{prefix}{line}" if line.strip() else "" for line in text.split("\n")]
 
     def _generate_function_body(
         self,
         selection: CodeSelection,
         signature: FunctionSignature,
     ) -> str:
-        """Generate complete function body with signature, docstring, and code.
+        """Generate complete function body with signature, docstring, and code."""
+        lines = [self._get_signature_line(signature)]
 
-        Args:
-            selection: Code selection
-            signature: Function signature
-
-        Returns:
-            Complete function code
-        """
-        lines = []
-
-        # Add signature
-        if self.language == "python":
-            lines.append(signature.to_python_signature())
-        elif self.language in ("typescript", "javascript"):
-            lines.append(signature.to_typescript_signature())
-
-        # Add docstring
         if signature.docstring:
-            docstring_lines = signature.docstring.split("\n")
-            for line in docstring_lines:
-                lines.append(f"    {line}")
+            lines.extend(self._indent_lines(signature.docstring))
 
-        # Add function body (selection content with proper indentation)
-        content_lines = selection.content.split("\n")
-        for line in content_lines:
-            # Add extra indentation for function body
-            if line.strip():
-                lines.append(f"    {line}")
-            else:
-                lines.append("")
+        lines.extend(self._indent_lines(selection.content))
 
-        # Add return statement if needed
         if selection.return_values:
             return_stmt = self._generate_return_statement(selection.return_values)
             lines.append(f"    {return_stmt}")
@@ -485,6 +457,18 @@ class FunctionExtractor:
 
         return "\n".join(lines)
 
+    @staticmethod
+    def _read_file_lines(file_path: str) -> List[str]:
+        """Read file and return list of lines."""
+        with open(file_path, "r", encoding="utf-8") as f:
+            return f.readlines()
+
+    @staticmethod
+    def _write_file_lines(file_path: str, lines: List[str]) -> None:
+        """Write lines back to file."""
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.writelines(lines)
+
     def _apply_extraction(
         self,
         selection: CodeSelection,
@@ -494,52 +478,29 @@ class FunctionExtractor:
     ) -> str:
         """Apply the function extraction to the file.
 
-        Args:
-            selection: Code selection
-            function_body: Generated function code
-            call_replacement: Call site replacement
-            insertion_line: Where to insert function
-
         Returns:
             Backup ID for rollback
         """
-        # Create backup
         import os
 
         project_folder = os.path.dirname(selection.file_path)
         backup_id = create_backup([selection.file_path], project_folder)
 
         try:
-            # Read file
-            with open(selection.file_path, "r", encoding="utf-8") as f:
-                lines = f.readlines()
+            lines = self._read_file_lines(selection.file_path)
 
-            # Insert function at insertion_line
             function_lines = [line + "\n" for line in function_body.split("\n")]
-            function_lines.append("\n\n")  # Add spacing
+            function_lines.append("\n\n")
             lines[insertion_line - 1 : insertion_line - 1] = function_lines
 
-            # Replace selection with call
-            # Adjust line numbers after insertion
             adjusted_start = selection.start_line + len(function_lines)
             adjusted_end = selection.end_line + len(function_lines)
+            lines[adjusted_start - 1 : adjusted_end] = [call_replacement + "\n"]
 
-            call_line = call_replacement + "\n"
-            lines[adjusted_start - 1 : adjusted_end] = [call_line]
-
-            # Write file
-            with open(selection.file_path, "w", encoding="utf-8") as f:
-                f.writelines(lines)
-
-            logger.info(
-                "extraction_applied",
-                file_path=selection.file_path,
-                backup_id=backup_id,
-            )
-
+            self._write_file_lines(selection.file_path, lines)
+            logger.info("extraction_applied", file_path=selection.file_path, backup_id=backup_id)
             return backup_id
 
         except Exception as e:
-            # Rollback on error
             restore_backup(backup_id, project_folder)
             raise RuntimeError(f"Failed to apply extraction: {e}")
