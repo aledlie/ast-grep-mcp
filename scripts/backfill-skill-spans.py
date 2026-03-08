@@ -6,22 +6,21 @@ historical agent invocations, so the skill auditor recognizes usage history.
 
 Usage:
     # Dry run (default) — prints spans to stdout
-    python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer
+    python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer --category review
 
     # Write spans to trace JSONL files
-    python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer --write
+    python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer --category review --write
 
     # Filter to a specific project
-    python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer --project ast-grep-mcp
+    python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer --category review --project ast-grep-mcp
 
     # Limit to specific sessions
-    python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer --sessions 7477d8dc,a3e2e2a5
+    python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer --category review --sessions 7477d8dc,a3e2e2a5
 """
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import secrets
 import sys
 from datetime import datetime, timezone
@@ -41,8 +40,8 @@ def new_span_id() -> str:
     return secrets.token_hex(8)
 
 
-def iso_to_otel_time(iso_str: str) -> tuple[list[int], list[int]]:
-    """Convert ISO-8601 timestamp to OTEL [epoch_s, ns] and epoch_ms."""
+def iso_to_otel_time(iso_str: str) -> list[int]:
+    """Convert ISO-8601 timestamp to OTEL [epoch_s, ns]."""
     dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
     epoch_s = int(dt.timestamp())
     ns = int((dt.timestamp() - epoch_s) * 1_000_000_000)
@@ -54,7 +53,8 @@ def load_trace_ctx(session_id: str) -> dict[str, Any] | None:
     # Try exact match first
     for f in TRACE_CTX_DIR.glob(f"{session_id}*.json"):
         try:
-            return json.loads(f.read_text())
+            result: dict[str, Any] = json.loads(f.read_text())
+            return result
         except (json.JSONDecodeError, OSError):
             continue
     return None
@@ -76,6 +76,19 @@ def parse_agent_cache(agent_name: str, project_filter: str | None = None,
         session_id = session_dir.name
         if session_filter and not any(session_id.startswith(s) for s in session_filter):
             continue
+
+        # Filter by project name if requested (check session metadata)
+        if project_filter:
+            meta_file = session_dir / "session-metadata.json"
+            if meta_file.exists():
+                try:
+                    meta = json.loads(meta_file.read_text())
+                    if project_filter not in meta.get("project", ""):
+                        continue
+                except (json.JSONDecodeError, OSError):
+                    pass
+            else:
+                continue
 
         log_file = session_dir / "agent-invocations.log"
         if not log_file.exists():
@@ -120,7 +133,8 @@ def parse_agent_cache(agent_name: str, project_filter: str | None = None,
 
 def build_span(name: str, trace_id: str, session_id: str, start_time: list[int],
                end_time: list[int], duration: list[int],
-               skill_name: str, agent_name: str, extra_attrs: dict[str, Any] | None = None) -> dict[str, Any]:
+               skill_name: str, agent_name: str, category: str,
+               extra_attrs: dict[str, Any] | None = None) -> dict[str, Any]:
     """Build a single OTEL-compatible span dict."""
     trigger = "PreToolUse" if "pre-tool" in name else "PostToolUse"
     attrs: dict[str, Any] = {
@@ -130,7 +144,7 @@ def build_span(name: str, trace_id: str, session_id: str, start_time: list[int],
         "hook.trigger": trigger,
         "plugin.name": skill_name,
         "plugin.full_name": skill_name,
-        "plugin.category": "review",
+        "plugin.category": category,
         "plugin.source_type": "active",
         "agent.linked_type": agent_name,
         "backfill.source": BACKFILL_SOURCE,
@@ -166,7 +180,7 @@ def compute_duration(start: list[int], end: list[int]) -> list[int]:
 
 
 def generate_spans(invocations: list[dict[str, Any]], skill_name: str,
-                   agent_name: str) -> list[tuple[str, dict[str, Any]]]:
+                   agent_name: str, category: str) -> list[tuple[str, dict[str, Any]]]:
     """Generate pre/post span pairs for each invocation.
 
     Returns list of (trace_date, span_dict) tuples for grouping by target file.
@@ -196,7 +210,7 @@ def generate_spans(invocations: list[dict[str, Any]], skill_name: str,
         pre_span = build_span(
             "hook:plugin-pre-tool", trace_id, inv["session_id"],
             start_time, pre_end, [0, 8_000_000],
-            skill_name, agent_name,
+            skill_name, agent_name, category,
             {"plugin.has_args": True},
         )
         spans.append((trace_date, pre_span))
@@ -205,7 +219,7 @@ def generate_spans(invocations: list[dict[str, Any]], skill_name: str,
         post_span = build_span(
             "hook:plugin-post-tool", trace_id, inv["session_id"],
             start_time, end_time, duration,
-            skill_name, agent_name,
+            skill_name, agent_name, category,
             {
                 "plugin.has_args": True,
                 "agent.output_bytes": inv["output_bytes"],
@@ -238,6 +252,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Backfill OTEL plugin spans for a skill")
     parser.add_argument("--skill", required=True, help="Skill name to backfill (e.g. 'review')")
     parser.add_argument("--agent", required=True, help="Source agent name (e.g. 'code-reviewer')")
+    parser.add_argument("--category", required=True, help="Skill category (e.g. 'review', 'analysis')")
     parser.add_argument("--project", default=None, help="Filter to sessions for this project name")
     parser.add_argument("--sessions", default=None, help="Comma-separated session ID prefixes")
     parser.add_argument("--write", action="store_true", help="Write spans to trace files (default: dry run)")
@@ -254,7 +269,7 @@ def main() -> None:
         print("No invocations found. Nothing to backfill.", file=sys.stderr)
         sys.exit(0)
 
-    spans = generate_spans(invocations, args.skill, args.agent)
+    spans = generate_spans(invocations, args.skill, args.agent, args.category)
     print(f"Generated {len(spans)} spans ({len(spans) // 2} invocations)", file=sys.stderr)
 
     # Group spans by target trace file
