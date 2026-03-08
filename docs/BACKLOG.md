@@ -26,3 +26,21 @@ Refresh: `uv run python scripts/run_all_analysis.py`
 
 Function names unavailable in summary output (analyzer reports `unknown`). Use per-file complexity analysis for function-level detail:
 `uv run python -c "from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool; print(analyze_complexity_tool('/path/to/file', 'python'))"`
+
+## Duplicate Detection Precision (2026-03-08)
+
+All 5 groups from latest `find_duplication` run (sim >= 0.82) are false positives or low-value. Common causes: trivial constructors, intentionally parallel APIs, thin semantic wrappers, and strategy pattern boilerplate.
+
+See [docs/duplicate-detector-misses.md](duplicate-detector-misses.md) for full investigation and recommended detector improvements:
+- Exclude short `__init__` methods
+- Discount methods delegating to shared helpers
+- Reduce weight for strategy pattern implementations
+- Add minimum line savings threshold
+- Consider excluding parallel `to_*` formatters
+
+## changelog_generator.py Hardening (2026-03-08)
+
+Low-severity items from code review of commit 8291624. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+
+- Validate `project_folder` exists in `_run_git_command` before passing as `cwd` to `subprocess.run` (currently raises unhandled `FileNotFoundError` for non-existent dirs)
+- Replace empty string sentinel in `_get_first_commit` with `Optional[str]` return type and explicit `None` checks downstream

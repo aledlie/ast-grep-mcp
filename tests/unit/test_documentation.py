@@ -522,6 +522,165 @@ async def get_item(item_id: int):
         assert "get" in spec["paths"]["/api/items/{id}"]
 
 
+class TestChangelogHelpers:
+    """Tests for changelog generator helper functions."""
+
+    def test_resolve_version_ref_head(self):
+        """Test HEAD passthrough."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _resolve_version_ref,
+        )
+        from unittest.mock import patch
+
+        # HEAD should return immediately without git calls
+        with patch(
+            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
+        ) as mock_git:
+            assert _resolve_version_ref("/fake", "HEAD") == "HEAD"
+            assert _resolve_version_ref("/fake", "head") == "HEAD"
+            mock_git.assert_not_called()
+
+    def test_resolve_version_ref_vprefixed_tag(self):
+        """Test resolution to v-prefixed tag."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _resolve_version_ref,
+        )
+        from unittest.mock import patch
+
+        with patch(
+            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
+        ) as mock_git:
+            mock_git.return_value = (True, "abc123")
+            result = _resolve_version_ref("/fake", "1.2.0")
+            assert result == "v1.2.0"
+            mock_git.assert_called_once_with("/fake", ["rev-parse", "v1.2.0"])
+
+    def test_resolve_version_ref_bare_ref(self):
+        """Test fallback to bare ref when v-prefix fails."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _resolve_version_ref,
+        )
+        from unittest.mock import patch
+
+        with patch(
+            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
+        ) as mock_git:
+            mock_git.side_effect = [
+                (False, "not found"),  # v-prefix fails
+                (True, "abc123"),      # bare ref succeeds
+            ]
+            result = _resolve_version_ref("/fake", "some-branch")
+            assert result == "some-branch"
+
+    def test_resolve_version_ref_fallback_head(self):
+        """Test fallback to HEAD when both ref attempts fail."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _resolve_version_ref,
+        )
+        from unittest.mock import patch
+
+        with patch(
+            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
+        ) as mock_git:
+            mock_git.return_value = (False, "not found")
+            result = _resolve_version_ref("/fake", "nonexistent")
+            assert result == "HEAD"
+
+    def test_get_first_commit_success(self):
+        """Test successful first commit retrieval."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _get_first_commit,
+        )
+        from unittest.mock import patch
+
+        with patch(
+            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
+        ) as mock_git:
+            mock_git.return_value = (True, "aaa111")
+            assert _get_first_commit("/fake") == "aaa111"
+            mock_git.assert_called_once_with(
+                "/fake", ["rev-list", "--max-parents=0", "HEAD"]
+            )
+
+    def test_get_first_commit_failure(self):
+        """Test empty string on failure."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _get_first_commit,
+        )
+        from unittest.mock import patch
+
+        with patch(
+            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
+        ) as mock_git:
+            mock_git.return_value = (False, "error")
+            assert _get_first_commit("/fake") == ""
+
+    def test_find_previous_tag_skips_excluded(self):
+        """Test that excluded ref is skipped."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _find_previous_tag,
+        )
+        from unittest.mock import patch
+
+        with patch(
+            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
+        ) as mock_git:
+            mock_git.return_value = (True, "v2.0.0\nv1.0.0\nv0.9.0")
+            result = _find_previous_tag("/fake", "v2.0.0")
+            assert result == "v1.0.0"
+
+    def test_find_previous_tag_returns_first_when_all_excluded(self):
+        """Test fallback to first commit when only excluded tag exists."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _find_previous_tag,
+        )
+        from unittest.mock import patch
+
+        with patch(
+            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
+        ) as mock_git:
+            mock_git.side_effect = [
+                (True, "v1.0.0"),       # tag list (only the excluded one)
+                (True, "first-commit"), # rev-list for first commit
+            ]
+            result = _find_previous_tag("/fake", "v1.0.0")
+            assert result == "first-commit"
+
+    def test_find_previous_tag_no_tags(self):
+        """Test fallback when no tags exist."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _find_previous_tag,
+        )
+        from unittest.mock import patch
+
+        with patch(
+            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
+        ) as mock_git:
+            mock_git.side_effect = [
+                (True, ""),             # empty tag list
+                (True, "first-commit"), # rev-list for first commit
+            ]
+            result = _find_previous_tag("/fake", "v2.0.0")
+            assert result == "first-commit"
+
+    def test_find_previous_tag_git_failure(self):
+        """Test fallback when git tag command fails."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _find_previous_tag,
+        )
+        from unittest.mock import patch
+
+        with patch(
+            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
+        ) as mock_git:
+            mock_git.side_effect = [
+                (False, "error"),       # tag command fails
+                (True, "first-commit"), # rev-list for first commit
+            ]
+            result = _find_previous_tag("/fake", "v1.0.0")
+            assert result == "first-commit"
+
+
 class TestChangelogGenerator:
     """Tests for changelog generation."""
 
