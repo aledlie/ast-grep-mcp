@@ -8,19 +8,19 @@ When a new skill wraps an existing agent (e.g., `/review` wraps `code-reviewer`)
 
 ## Solution
 
-`scripts/backfill-skill-spans.py` reads agent-cache logs, resolves trace context, and appends `hook:plugin-pre-tool` / `hook:plugin-post-tool` spans to the OTEL trace JSONL files. Each backfilled span links to the original agent invocation via `agent.linked_type` and `agent.linked_span_id`.
+`scripts/backfill-skill-spans.py` reads agent-cache logs, resolves trace context, and appends `hook:plugin-pre-tool` / `hook:plugin-post-tool` spans to the OTEL trace JSONL files. Each backfilled span links to the original agent invocation via `agent.linked_type`.
 
 ## Usage
 
 ```bash
 # Dry run (default) -- prints spans to stdout, writes nothing
-python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer
+python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer --category review
 
 # Write spans to trace files
-python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer --write
+python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer --category review --write
 
 # Filter to specific sessions
-python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer --sessions 7477d8dc,a3e2e2a5
+python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer --category review --sessions 7477d8dc,a3e2e2a5
 ```
 
 ## Data Sources
