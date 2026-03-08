@@ -8,7 +8,7 @@ This module analyzes selected code regions to determine:
 """
 
 import re
-from typing import Dict, List
+from typing import Dict, FrozenSet, List
 
 from ast_grep_mcp.core.logging import get_logger
 
@@ -214,7 +214,7 @@ class CodeSelectionAnalyzer:
         self,
         content: str,
         pattern: str,
-        keywords: frozenset[str],
+        keywords: FrozenSet[str],
         variables: Dict[str, VariableInfo],
         selection: CodeSelection,
     ) -> None:
