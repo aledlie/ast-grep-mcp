@@ -1,20 +1,20 @@
 # 2026-03-08: Complexity Analysis
 
-**98 functions** exceeding thresholds across **120 files** (1,766 total functions).
+**79 functions** exceeding thresholds across **119 files** (1,771 total functions).
 
 Thresholds: cyclomatic >10, cognitive >15, nesting >4, length >50.
 
-Baselines: 434 (2026-03-04) -> 407 (2026-03-06) -> 100 (2026-03-06 post-refactor) -> **98** (2026-03-08).
+Baselines: 434 (2026-03-04) -> 407 (2026-03-06) -> 100 (2026-03-06 post-refactor) -> 98 (2026-03-08) -> **79** (2026-03-08 post-refactor).
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total functions | 1,766 |
-| Total files | 120 |
-| Exceeding threshold | 98 (5.5%) |
-| Avg cyclomatic | 4.36 |
-| Avg cognitive | 4.56 |
+| Total functions | 1,771 |
+| Total files | 119 |
+| Exceeding threshold | 79 (4.5%) |
+| Avg cyclomatic | 4.34 |
+| Avg cognitive | 4.47 |
 | Max cyclomatic | 20 |
 | Max cognitive | 33 |
 | Max nesting | 6 |
@@ -25,35 +25,30 @@ Baselines: 434 (2026-03-04) -> 407 (2026-03-06) -> 100 (2026-03-06 post-refactor
 
 | Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
 |----------|-------|-----|-----|------|-----|---------|
-| `stream_ast_grep_results` | 489-589 | 16 | 29 | 6 | 101 | cyc, cog, nest, len |
-| `filter_files_by_size` | 246-297 | 19 | 18 | 4 | 52 | cyc, cog, len |
-| `run_command` | 69-159 | 10 | 11 | 4 | 91 | len |
-| `get_supported_languages` | 23-66 | 8 | 16 | 5 | 44 | cog, nest |
+| `stream_ast_grep_results` | 489-589 | 16 | 29 | 6 | 80 | cyc, cog, nest, len |
+| `filter_files_by_size` | 246-297 | 19 | 18 | 4 | 36 | cyc, cog |
+| `get_supported_languages` | 23-66 | 8 | 16 | 5 | 43 | cog, nest |
+| `run_command` | 69-159 | 10 | 11 | 4 | 77 | len |
 
-### `core/usage_tracking.py` (1 violation)
-
-| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
-|----------|-------|-----|-----|------|-----|---------|
-| `get_alerts` | 490-546 | 6 | 7 | 4 | 57 | len |
-
-### `features/complexity/analyzer.py` (4 violations)
+### `features/complexity/analyzer.py` (5 violations)
 
 | Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
 |----------|-------|-----|-----|------|-----|---------|
-| `_find_magic_numbers` | 286-346 | 13 | 25 | 5 | 61 | cyc, cog, nest, len |
-| `_count_function_parameters` | 235-283 | 18 | 18 | 3 | 49 | cyc, cog |
-| `extract_functions_from_file` | 35-75 | 12 | 23 | 5 | 41 | cyc, cog, nest |
-| `analyze_file_complexity` | 429-471 | 4 | 9 | 5 | 43 | nest |
+| `_find_magic_numbers` | 279-339 | 13 | 25 | 5 | 48 | cyc, cog, nest |
+| `_count_function_parameters` | 228-276 | 18 | 18 | 3 | 40 | cyc, cog |
+| `_calculate_halstead_metrics` | 391-418 | 11 | 21 | 4 | 24 | cyc, cog |
+| `extract_functions_from_file` | 35-68 | 10 | 15 | 5 | 25 | nest |
+| `analyze_file_complexity` | 482-524 | 4 | 9 | 5 | 33 | nest |
 
-### `features/condense/service.py` (6 violations)
+### `features/condense/service.py` (5 violations)
 
 | Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
 |----------|-------|-----|-----|------|-----|---------|
-| `condense_pack_impl` | 376-490 | 15 | 29 | 5 | 115 | cyc, cog, nest, len |
-| `_count_structural_braces` | 242-274 | 17 | 28 | 5 | 33 | cyc, cog, nest |
-| `_extract_python_surface` | 182-209 | 11 | 17 | 4 | 28 | cyc, cog |
-| `extract_surface_impl` | 78-150 | 12 | 15 | 3 | 73 | cyc, len |
-| `_extract_js_ts_surface` | 277-307 | 12 | 15 | 4 | 31 | cyc |
+| `condense_pack_impl` | 376-490 | 15 | 29 | 5 | 102 | cyc, cog, nest, len |
+| `_count_structural_braces` | 242-274 | 17 | 28 | 5 | 27 | cyc, cog, nest |
+| `_extract_python_surface` | 182-209 | 11 | 17 | 4 | 27 | cyc, cog |
+| `extract_surface_impl` | 78-150 | 12 | 15 | 3 | 58 | cyc, len |
+| `_extract_js_ts_surface` | 277-307 | 12 | 15 | 4 | 24 | cyc |
 
 ### `features/deduplication/analyzer.py` (2 violations)
 
@@ -62,16 +57,16 @@ Baselines: 434 (2026-03-04) -> 407 (2026-03-06) -> 100 (2026-03-06 post-refactor
 | `_compare_literal_maps` | 129-149 | 5 | 8 | 6 | 21 | nest |
 | `_format_literal_variations` | 289-304 | 4 | 8 | 5 | 16 | nest |
 
-### `features/deduplication/applicator.py` (7 violations)
+### `features/deduplication/applicator.py` (6 violations)
 
 | Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
 |----------|-------|-----|-----|------|-----|---------|
-| `_plan_file_modification_order` | 451-505 | 19 | 26 | 6 | 55 | cyc, cog, nest, len |
-| `_insert_python_import` | 559-582 | 13 | 24 | 4 | 24 | cyc, cog |
-| `apply_deduplication` | 33-105 | 18 | 14 | 4 | 73 | cyc, len |
-| `_extract_plan_components` | 154-207 | 8 | 14 | 4 | 54 | len |
-| `_suggest_syntax_fix` | 639-653 | 11 | 13 | 4 | 15 | cyc |
-| `_validate_and_prepare_plan` | 107-152 | 11 | 12 | 3 | 46 | cyc |
+| `_insert_python_import` | 603-626 | 13 | 24 | 4 | 23 | cyc, cog |
+| `apply_deduplication` | 33-105 | 18 | 14 | 4 | 51 | cyc, len |
+| `_validate_and_prepare_plan` | 107-152 | 11 | 12 | 3 | 29 | cyc |
+| `_plan_file_modification_order` | 451-481 | 11 | 11 | 3 | 18 | cyc |
+| `_plan_file_updates` | 483-521 | 8 | 14 | 6 | 28 | nest |
+| `_resolve_target_file` | 523-549 | 7 | 4 | 5 | 26 | nest |
 
 ### `features/deduplication/applicator_backup.py` (4 violations)
 
@@ -82,13 +77,12 @@ Baselines: 434 (2026-03-04) -> 407 (2026-03-06) -> 100 (2026-03-06 post-refactor
 | `create_backup` | 32-109 | 11 | 20 | 5 | 78 | cyc, cog, nest, len |
 | `rollback` | 111-154 | 7 | 18 | 4 | 44 | cog |
 
-### `features/deduplication/applicator_executor.py` (3 violations)
+### `features/deduplication/applicator_executor.py` (2 violations)
 
 | Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
 |----------|-------|-----|-----|------|-----|---------|
-| `_update_single_file` | 133-161 | 7 | 16 | 4 | 29 | cog |
-| `_generate_preview` | 180-200 | 7 | 16 | 4 | 21 | cog |
-| `apply_changes` | 20-76 | 5 | 6 | 4 | 57 | len |
+| `_update_single_file` | 133-161 | 7 | 16 | 4 | 28 | cog |
+| `_generate_preview` | 180-200 | 7 | 16 | 4 | 20 | cog |
 
 ### `features/deduplication/applicator_post_validator.py` (4 violations)
 
@@ -99,15 +93,15 @@ Baselines: 434 (2026-03-04) -> 407 (2026-03-06) -> 100 (2026-03-06 post-refactor
 | `_validate_java_structure` | 231-263 | 8 | 10 | 5 | 33 | nest |
 | `_validate_file_syntax` | 69-109 | 5 | 7 | 5 | 41 | nest |
 
-### `features/deduplication/coverage.py` (6 violations)
+### `features/deduplication/coverage.py` (5 violations)
 
 | Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
 |----------|-------|-----|-----|------|-----|---------|
-| `has_test_coverage` | 346-383 | 13 | 25 | 6 | 38 | cyc, cog, nest |
-| `_check_test_file_references_source` | 306-344 | 12 | 24 | 4 | 39 | cyc, cog |
-| `_process_parallel_batch` | 541-576 | 6 | 17 | 5 | 36 | cog, nest |
-| `_get_potential_test_paths` | 158-257 | 18 | 11 | 6 | 100 | cyc, nest, len |
-| `find_test_file_patterns` | 62-156 | 19 | 10 | 4 | 95 | cyc, len |
+| `has_test_coverage` | 346-383 | 13 | 25 | 6 | 28 | cyc, cog, nest |
+| `_check_test_file_references_source` | 306-344 | 12 | 24 | 4 | 29 | cyc, cog |
+| `_process_parallel_batch` | 541-576 | 6 | 17 | 5 | 24 | cog, nest |
+| `find_test_file_patterns` | 62-156 | 19 | 10 | 4 | 87 | cyc, len |
+| `_get_potential_test_paths` | 158-257 | 18 | 11 | 6 | 90 | cyc, nest, len |
 
 ### `features/deduplication/detector.py` (1 violation)
 
@@ -131,31 +125,28 @@ Baselines: 434 (2026-03-04) -> 407 (2026-03-06) -> 100 (2026-03-06 post-refactor
 |----------|-------|-----|-----|------|-----|---------|
 | `_build_log_data` | 449-466 | 7 | 3 | 5 | 18 | nest |
 
-### `features/documentation/api_docs_generator.py` (3 violations)
+### `features/documentation/api_docs_generator.py` (2 violations)
 
 | Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
 |----------|-------|-----|-----|------|-----|---------|
-| `parse_file` (Flask) | 136-167 | 7 | 10 | 5 | 32 | nest |
-| `parse_file` (Express) | 199-223 | 4 | 10 | 5 | 25 | nest |
-| `generate_api_docs_impl` | 597-647 | 6 | 7 | 3 | 51 | len |
+| `parse_file` (Flask) | 136-167 | 7 | 10 | 5 | 31 | nest |
+| `parse_file` (Express) | 199-223 | 4 | 10 | 5 | 24 | nest |
 
 ### `features/documentation/changelog_generator.py` (5 violations)
 
 | Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
 |----------|-------|-----|-----|------|-----|---------|
-| `_get_commit_range` | 57-114 | 20 | 30 | 5 | 58 | cyc, cog, nest, len |
-| `_format_conventional_section` | 484-519 | 9 | 18 | 4 | 36 | cog |
-| `_group_commits_by_version` | 274-342 | 10 | 16 | 3 | 69 | cog, len |
-| `_format_changelog_entry` | 356-388 | 11 | 12 | 2 | 33 | cyc |
-| `_get_commits` | 117-181 | 7 | 12 | 3 | 65 | len |
-| `generate_changelog_impl` | 555-635 | 12 | 7 | 3 | 81 | cyc, len |
+| `_format_conventional_section` | 517-552 | 9 | 18 | 4 | 27 | cog |
+| `_group_commits_by_version` | 307-375 | 10 | 16 | 3 | 59 | cog, len |
+| `_format_changelog_entry` | 389-421 | 11 | 12 | 2 | 25 | cyc |
+| `_get_commits` | 150-214 | 7 | 12 | 3 | 55 | len |
+| `generate_changelog_impl` | 588-668 | 12 | 7 | 3 | 69 | cyc, len |
 
-### `features/documentation/sync_checker.py` (2 violations)
+### `features/documentation/sync_checker.py` (1 violation)
 
 | Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
 |----------|-------|-----|-----|------|-----|---------|
 | `_check_line_links` | 204-222 | 5 | 9 | 5 | 19 | nest |
-| `sync_documentation_impl` | 486-539 | 6 | 3 | 2 | 54 | len |
 
 ### `features/quality/fixer.py` (4 violations)
 
@@ -172,44 +163,37 @@ Baselines: 434 (2026-03-04) -> 407 (2026-03-06) -> 100 (2026-03-06 post-refactor
 |----------|-------|-----|-----|------|-----|---------|
 | `_process_import_from_node` | 167-191 | 7 | 8 | 5 | 25 | nest |
 
-### `features/quality/tools.py` (9 violations)
+### `features/quality/tools.py` (8 violations)
 
 | Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
 |----------|-------|-----|-----|------|-----|---------|
-| `create_linting_rule_tool` | 107-209 | 14 | 18 | 4 | 103 | cyc, cog, len |
-| `list_rule_templates_tool` | 212-298 | 16 | 17 | 5 | 87 | cyc, cog, nest, len |
-| `enforce_standards_tool` | 369-483 | 17 | 11 | 4 | 115 | cyc, len |
-| `detect_security_issues_tool` | 875-1005 | 18 | 13 | 4 | 131 | cyc, len |
-| `detect_orphans_tool` | 1008-1133 | 12 | 8 | 4 | 126 | cyc, len |
-| `_create_mcp_field_definitions` | 1136-1219 | 20 | 7 | 4 | 84 | cyc, len |
-| `register_quality_tools` | 1222-1360 | 3 | 0 | 3 | 139 | len |
-| `generate_quality_report_tool` | 678-778 | 12 | 8 | 4 | 101 | cyc, len |
-| `_dict_to_enforcement_result` | 781-838 | 6 | 13 | 3 | 58 | len |
-| `apply_standards_fixes_tool` | 556-675 | 9 | 7 | 4 | 120 | len |
+| `list_rule_templates_tool` | 217-280 | 15 | 17 | 5 | 44 | cyc, cog, nest |
+| `create_linting_rule_tool` | 138-214 | 13 | 18 | 4 | 47 | cyc, cog |
+| `detect_security_issues_tool` | 756-860 | 17 | 13 | 3 | 49 | cyc |
+| `enforce_standards_tool` | 351-439 | 17 | 11 | 3 | 56 | cyc, len |
+| `generate_quality_report_tool` | 606-682 | 12 | 8 | 3 | 35 | cyc |
+| `detect_orphans_tool` | 863-965 | 12 | 8 | 3 | 38 | cyc |
+| `_create_mcp_field_definitions` | 990-1034 | 11 | 3 | 4 | 44 | cyc |
+| `register_quality_tools` | 1114-1174 | 3 | 1 | 3 | 60 | len |
 
-### `features/refactoring/analyzer.py` (8 violations)
+### `features/refactoring/analyzer.py` (4 violations)
 
 | Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
 |----------|-------|-----|-----|------|-----|---------|
-| `_find_python_base_variables` | 214-262 | 11 | 29 | 5 | 49 | cyc, cog, nest |
-| `_analyze_js_ts_variables` | 436-530 | 8 | 18 | 5 | 95 | cog, nest, len |
-| `_analyze_java_variables` | 532-638 | 8 | 18 | 5 | 107 | cog, nest, len |
-| `_find_python_standalone_identifiers` | 287-326 | 10 | 17 | 5 | 40 | cog, nest |
-| `_analyze_python_variables` | 328-394 | - | - | - | - | *(see below)* |
-| `_get_variable_classification` | 395-434 | 13 | 13 | 3 | 40 | cyc |
-| `_find_python_assignments` | 188-212 | 4 | 7 | 5 | 25 | nest |
-| `analyze_selection` | 36-99 | 7 | 3 | 3 | 64 | len |
+| `_find_python_base_variables` | 260-303 | 10 | 25 | 4 | 32 | cog |
+| `_get_variable_classification` | 431-470 | 13 | 13 | 3 | 23 | cyc |
+| `_find_python_assignments` | 213-238 | 9 | 9 | 5 | 15 | nest |
+| `analyze_selection` | 36-99 | 7 | 3 | 3 | 53 | len |
 
-### `features/refactoring/extractor.py` (6 violations)
+### `features/refactoring/extractor.py` (5 violations)
 
 | Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
 |----------|-------|-----|-----|------|-----|---------|
-| `_generate_docstring` | 215-267 | 13 | 31 | 5 | 53 | cyc, cog, nest, len |
-| `_generate_function_body` | 269-314 | 15 | 25 | 4 | 46 | cyc, cog |
-| `_generate_signature` | 158-213 | 18 | 13 | 4 | 56 | cyc, len |
-| `_scan_imports` | 385-413 | 10 | 18 | 5 | 29 | cog, nest |
-| `extract_function` | 35-113 | 9 | 12 | 5 | 79 | nest, len |
-| `_apply_extraction` | 488-545 | 7 | 11 | 4 | 58 | len |
+| `_generate_docstring` | 215-267 | 13 | 31 | 5 | 42 | cyc, cog, nest |
+| `_generate_function_body` | 269-314 | 15 | 25 | 4 | 37 | cyc, cog |
+| `_generate_signature` | 158-213 | 18 | 13 | 4 | 47 | cyc |
+| `_scan_imports` | 385-413 | 10 | 18 | 5 | 21 | cog, nest |
+| `extract_function` | 35-113 | 9 | 12 | 5 | 68 | nest, len |
 
 ### `features/refactoring/renamer.py` (5 violations)
 
@@ -227,42 +211,29 @@ Baselines: 434 (2026-03-04) -> 407 (2026-03-06) -> 100 (2026-03-06 post-refactor
 |----------|-------|-----|-----|------|-----|---------|
 | `_run_prettier` | 678-710 | 6 | 11 | 5 | 33 | nest |
 
-### `utils/performance.py` (7 violations)
-
-| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
-|----------|-------|-----|-----|------|-----|---------|
-| `monitor_performance` | 21-86 | 9 | 14 | 5 | 66 | nest, len |
-| `track_slow_operations` | 207-258 | 5 | 14 | 6 | 52 | nest, len |
-| `decorator` (track_slow_operations) | 222-256 | 4 | 14 | 6 | 35 | nest |
-| `wrapper` (track_slow_operations) | 224-254 | 4 | 14 | 6 | 31 | nest |
-| `monitor_performance_async` | 89-153 | 7 | 13 | 5 | 65 | nest, len |
-| `wrapper` (monitor_performance) | 43-84 | 5 | 12 | 5 | 42 | nest |
-| `wrapper` (monitor_performance_async) | 107-151 | 5 | 12 | 5 | 45 | nest |
-
 ## Violation Distribution by Type
 
 | Violation Type | Count |
 |----------------|-------|
-| cognitive only | 7 |
-| cyclomatic only | 10 |
-| nesting only | 22 |
-| length only | 15 |
-| multiple | 44 |
+| cognitive only | 5 |
+| cyclomatic only | 13 |
+| nesting only | 18 |
+| length only | 4 |
+| multiple | 39 |
 
 ## Hotspot Files (5+ violations)
 
 | File | Violations | Worst Cognitive |
 |------|------------|-----------------|
-| `quality/tools.py` | 9 | 18 |
-| `refactoring/analyzer.py` | 8 | 29 |
-| `deduplication/applicator.py` | 7 | 26 |
-| `utils/performance.py` | 7 | 14 |
-| `deduplication/coverage.py` | 6 | 25 |
-| `refactoring/extractor.py` | 6 | 31 |
-| `condense/service.py` | 6 | 29 |
-| `documentation/changelog_generator.py` | 5 | 30 |
-| `refactoring/renamer.py` | 5 | 20 |
+| `quality/tools.py` | 8 | 18 |
+| `deduplication/applicator.py` | 6 | 24 |
+| `complexity/analyzer.py` | 5 | 25 |
+| `condense/service.py` | 5 | 29 |
+| `deduplication/coverage.py` | 5 | 25 |
 | `deduplication/diff.py` | 5 | 29 |
+| `documentation/changelog_generator.py` | 5 | 18 |
+| `refactoring/extractor.py` | 5 | 31 |
+| `refactoring/renamer.py` | 5 | 20 |
 
 ## Top 10 by Cognitive Complexity
 
@@ -270,14 +241,14 @@ Baselines: 434 (2026-03-04) -> 407 (2026-03-06) -> 100 (2026-03-06 post-refactor
 |----------|------|-----|
 | `cleanup_old_backups` | applicator_backup.py | 33 |
 | `_generate_docstring` | extractor.py | 31 |
-| `_get_commit_range` | changelog_generator.py | 30 |
 | `stream_ast_grep_results` | executor.py | 29 |
 | `condense_pack_impl` | service.py | 29 |
 | `diff_preview_to_dict` | diff.py | 29 |
-| `_find_python_base_variables` | analyzer.py | 29 |
 | `_count_structural_braces` | service.py | 28 |
 | `_is_variable_reassigned` | fixer.py | 27 |
-| `_plan_file_modification_order` | applicator.py | 26 |
+| `_find_python_base_variables` | analyzer.py (refactoring) | 25 |
+| `_find_magic_numbers` | analyzer.py (complexity) | 25 |
+| `has_test_coverage` | coverage.py | 25 |
 
 ## Change History (from gitlog-top20.txt)
 
@@ -308,6 +279,27 @@ The 2026-03-06 batch refactors reduced violations from 434 to 100. Files with *r
 | `0a5bb3e` | `deduplication/similarity.py` | Cross-env mypy suppress for `AutoModel` |
 | `58e60a9` | `deduplication/similarity.py` | Stabilize `type: ignore` for cross-env mypy |
 
+### Complexity Refactoring (2026-03-08)
+
+The 2026-03-08 batch reduced violations from 98 to 79. Two hotspot files were refactored:
+
+| Commit | File(s) Touched (with violations) | Description |
+|--------|-----------------------------------|-------------|
+| `60caecf` | `refactoring/analyzer.py`, `deduplication/applicator.py` | Extract shared helpers and delete dead methods in hotspot files |
+| `70a4762` | `refactoring/analyzer.py`, `deduplication/applicator.py` | Align wrapper arg order and fix review findings from 60caecf |
+
+Key changes:
+- `refactoring/analyzer.py`: 8 violations -> 4 (extracted `_register_variable`, `_scan_and_register_identifiers`; hoisted keyword sets to class-level `frozenset`s; merged duplicate Java/JS/TS branches)
+- `deduplication/applicator.py`: 7 violations -> 6 (extracted `_resolve_target_file`, `_plan_file_updates`; deleted dead `_validate_code_for_language`, `_suggest_syntax_fix`)
+
+### Chore / Feature Commits (2026-03-08)
+
+| Commit | Description |
+|--------|-------------|
+| `29c756d` | Reorganize repomix scripts into `scripts/repomix/` subdirectory |
+| `5190b23` | Add review skill for diff-aware code review |
+| `9f06709` | Add `.claude/py-cache/` to `.gitignore` and `.claudeignore` |
+
 ### Style & Constants (2026-03-04 -- 2026-03-08)
 
 | Commit | File(s) Touched (with violations) | Description |
@@ -337,27 +329,29 @@ The 2026-03-06 batch refactors reduced violations from 434 to 100. Files with *r
 These violation files have no entries in gitlog-top20.txt, suggesting they haven't been refactored recently:
 
 - `core/executor.py` (4 violations, worst cog=29)
-- `core/usage_tracking.py` (1 violation)
-- `features/complexity/analyzer.py` (4 violations, worst cog=25)
-- `features/condense/service.py` (6 violations, worst cog=29)
-- `features/deduplication/applicator.py` (7 violations, worst cog=26)
+- `features/complexity/analyzer.py` (5 violations, worst cog=25)
+- `features/condense/service.py` (5 violations, worst cog=29)
 - `features/deduplication/applicator_backup.py` (4 violations, worst cog=33)
-- `features/deduplication/applicator_executor.py` (3 violations)
+- `features/deduplication/applicator_executor.py` (2 violations)
 - `features/deduplication/applicator_post_validator.py` (4 violations)
-- `features/deduplication/coverage.py` (6 violations, worst cog=25)
-- `features/deduplication/detector.py` (1 violation)
+- `features/deduplication/coverage.py` (5 violations, worst cog=25)
 - `features/deduplication/diff.py` (5 violations, worst cog=29)
 - `features/deduplication/ranker.py` (1 violation)
-- `features/documentation/api_docs_generator.py` (3 violations)
-- `features/documentation/changelog_generator.py` (5 violations, worst cog=30)
-- `features/documentation/sync_checker.py` (2 violations)
+- `features/documentation/api_docs_generator.py` (2 violations)
+- `features/documentation/changelog_generator.py` (5 violations, worst cog=18)
+- `features/documentation/sync_checker.py` (1 violation)
 - `features/quality/fixer.py` (4 violations, worst cog=27)
 - `features/quality/orphan_detector.py` (1 violation)
-- `features/refactoring/analyzer.py` (8 violations, worst cog=29)
-- `features/refactoring/extractor.py` (6 violations, worst cog=31)
+- `features/refactoring/extractor.py` (5 violations, worst cog=31)
 - `features/refactoring/renamer.py` (5 violations, worst cog=20)
 - `utils/formatters.py` (1 violation)
-- `utils/performance.py` (7 violations)
+
+Previously listed, now resolved or refactored:
+- ~~`core/usage_tracking.py`~~ (0 violations)
+- ~~`features/deduplication/detector.py`~~ (0 violations)
+- ~~`utils/performance.py`~~ (0 violations)
+- ~~`features/refactoring/analyzer.py`~~ (refactored in 60caecf/70a4762, now 4 violations)
+- ~~`features/deduplication/applicator.py`~~ (refactored in 60caecf/70a4762, now 6 violations)
 
 ## Appendix: Extracted Helper Functions
 

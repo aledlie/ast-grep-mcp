@@ -87,3 +87,4 @@ When calling tools programmatically, use these field names (NOT `line`/`file_pat
 - [docs/CODE-CONDENSE-PREP.md](docs/CODE-CONDENSE-PREP.md) - Condense feature design
 - [docs/CODE-CONDENSE-PHASE-2.md](docs/CODE-CONDENSE-PHASE-2.md) - Condense phase 2 design
 - [docs/BACKLOG.md](docs/BACKLOG.md) - Open backlog items
+- [docs/BACKFILLING.md](docs/BACKFILLING.md) - OTEL telemetry backfilling for skills
