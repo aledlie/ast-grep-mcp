@@ -395,60 +395,22 @@ def sync_documentation_tool(
 # =============================================================================
 
 
-def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
-    """Create field definitions for MCP tool registration."""
-    return {
-        "generate_docstrings": {
-            "project_folder": Field(description="Root folder of the project (absolute path)"),
-            "file_pattern": Field(description="Glob pattern for files to process (e.g., '**/*.py')"),
-            "language": Field(description="Programming language (python, typescript, javascript, java)"),
-            "style": Field(default="auto", description="Docstring style (google, numpy, sphinx, jsdoc, javadoc, auto)"),
-            "overwrite_existing": Field(default=False, description="If True, replace existing docstrings"),
-            "dry_run": Field(default=True, description="If True, only preview changes without applying"),
-            "skip_private": Field(default=True, description="If True, skip private functions (starting with _)"),
-        },
-        "generate_readme_sections": {
-            "project_folder": Field(description="Root folder of the project (absolute path)"),
-            "language": Field(default="auto", description="Programming language (or 'auto' for detection)"),
-            "sections": Field(
-                default_factory=lambda: ["all"],
-                description="Sections to generate (installation, usage, features, api, structure, contributing, license, or 'all')",
-            ),
-            "include_examples": Field(default=True, description="Whether to include code examples"),
-        },
-        "generate_api_docs": {
-            "project_folder": Field(description="Root folder of the project (absolute path)"),
-            "language": Field(description="Programming language (python, typescript, javascript)"),
-            "framework": Field(default=None, description="Framework name (express, fastapi, flask, or None for auto-detect)"),
-            "output_format": Field(default="markdown", description="Output format ('markdown', 'openapi', 'both')"),
-            "include_examples": Field(default=True, description="Whether to include request/response examples"),
-        },
-        "generate_changelog": {
-            "project_folder": Field(description="Root folder of the project (must be git repository)"),
-            "from_version": Field(default=None, description="Starting version/tag (None = last tag or first commit)"),
-            "to_version": Field(default="HEAD", description="Ending version/tag (default: HEAD)"),
-            "changelog_format": Field(default="keepachangelog", description="Output format ('keepachangelog', 'conventional', 'json')"),
-            "group_by": Field(default="type", description="Grouping strategy ('type', 'scope')"),
-        },
-        "sync_documentation": {
-            "project_folder": Field(description="Root folder of the project (absolute path)"),
-            "language": Field(description="Programming language (python, typescript, javascript, java)"),
-            "doc_types": Field(default_factory=lambda: ["all"], description="Types to check ('docstrings', 'links', 'all')"),
-            "check_only": Field(default=True, description="If True, only report issues (no changes)"),
-        },
-    }
+def register_documentation_tools(mcp: FastMCP) -> None:
+    """Register all documentation feature tools with MCP server.
 
+    Args:
+        mcp: FastMCP server instance
+    """
 
-def _register_generation_tools(mcp: FastMCP, fields: Dict[str, Dict[str, Any]]) -> None:
     @mcp.tool()
     def generate_docstrings(
-        project_folder: str = fields["generate_docstrings"]["project_folder"],
-        file_pattern: str = fields["generate_docstrings"]["file_pattern"],
-        language: str = fields["generate_docstrings"]["language"],
-        style: str = fields["generate_docstrings"]["style"],
-        overwrite_existing: bool = fields["generate_docstrings"]["overwrite_existing"],
-        dry_run: bool = fields["generate_docstrings"]["dry_run"],
-        skip_private: bool = fields["generate_docstrings"]["skip_private"],
+        project_folder: str = Field(description="Root folder of the project (absolute path)"),
+        file_pattern: str = Field(description="Glob pattern for files to process (e.g., '**/*.py')"),
+        language: str = Field(description="Programming language (python, typescript, javascript, java)"),
+        style: str = Field(default="auto", description="Docstring style (google, numpy, sphinx, jsdoc, javadoc, auto)"),
+        overwrite_existing: bool = Field(default=False, description="If True, replace existing docstrings"),
+        dry_run: bool = Field(default=True, description="If True, only preview changes without applying"),
+        skip_private: bool = Field(default=True, description="If True, skip private functions (starting with _)"),
     ) -> Dict[str, Any]:
         """Generate docstrings/JSDoc for undocumented functions."""
         return generate_docstrings_tool(
@@ -463,10 +425,13 @@ def _register_generation_tools(mcp: FastMCP, fields: Dict[str, Dict[str, Any]]) 
 
     @mcp.tool()
     def generate_readme_sections(
-        project_folder: str = fields["generate_readme_sections"]["project_folder"],
-        language: str = fields["generate_readme_sections"]["language"],
-        sections: List[str] = fields["generate_readme_sections"]["sections"],
-        include_examples: bool = fields["generate_readme_sections"]["include_examples"],
+        project_folder: str = Field(description="Root folder of the project (absolute path)"),
+        language: str = Field(default="auto", description="Programming language (or 'auto' for detection)"),
+        sections: List[str] = Field(
+            default_factory=lambda: ["all"],
+            description="Sections to generate (installation, usage, features, api, structure, contributing, license, or 'all')",
+        ),
+        include_examples: bool = Field(default=True, description="Whether to include code examples"),
     ) -> Dict[str, Any]:
         """Generate README.md sections from code analysis."""
         return generate_readme_sections_tool(
@@ -476,15 +441,13 @@ def _register_generation_tools(mcp: FastMCP, fields: Dict[str, Dict[str, Any]]) 
             include_examples=include_examples,
         )
 
-
-def _register_api_changelog_sync_tools(mcp: FastMCP, fields: Dict[str, Dict[str, Any]]) -> None:
     @mcp.tool()
     def generate_api_docs(
-        project_folder: str = fields["generate_api_docs"]["project_folder"],
-        language: str = fields["generate_api_docs"]["language"],
-        framework: Optional[str] = fields["generate_api_docs"]["framework"],
-        output_format: str = fields["generate_api_docs"]["output_format"],
-        include_examples: bool = fields["generate_api_docs"]["include_examples"],
+        project_folder: str = Field(description="Root folder of the project (absolute path)"),
+        language: str = Field(description="Programming language (python, typescript, javascript)"),
+        framework: Optional[str] = Field(default=None, description="Framework name (express, fastapi, flask, or None for auto-detect)"),
+        output_format: str = Field(default="markdown", description="Output format ('markdown', 'openapi', 'both')"),
+        include_examples: bool = Field(default=True, description="Whether to include request/response examples"),
     ) -> Dict[str, Any]:
         """Generate API documentation from route definitions."""
         return generate_api_docs_tool(
@@ -497,11 +460,11 @@ def _register_api_changelog_sync_tools(mcp: FastMCP, fields: Dict[str, Dict[str,
 
     @mcp.tool()
     def generate_changelog(
-        project_folder: str = fields["generate_changelog"]["project_folder"],
-        from_version: Optional[str] = fields["generate_changelog"]["from_version"],
-        to_version: str = fields["generate_changelog"]["to_version"],
-        changelog_format: str = fields["generate_changelog"]["changelog_format"],
-        group_by: str = fields["generate_changelog"]["group_by"],
+        project_folder: str = Field(description="Root folder of the project (must be git repository)"),
+        from_version: Optional[str] = Field(default=None, description="Starting version/tag (None = last tag or first commit)"),
+        to_version: str = Field(default="HEAD", description="Ending version/tag (default: HEAD)"),
+        changelog_format: str = Field(default="keepachangelog", description="Output format ('keepachangelog', 'conventional', 'json')"),
+        group_by: str = Field(default="type", description="Grouping strategy ('type', 'scope')"),
     ) -> Dict[str, Any]:
         """Generate changelog from git commits."""
         return generate_changelog_tool(
@@ -514,10 +477,10 @@ def _register_api_changelog_sync_tools(mcp: FastMCP, fields: Dict[str, Dict[str,
 
     @mcp.tool()
     def sync_documentation(
-        project_folder: str = fields["sync_documentation"]["project_folder"],
-        language: str = fields["sync_documentation"]["language"],
-        doc_types: List[str] = fields["sync_documentation"]["doc_types"],
-        check_only: bool = fields["sync_documentation"]["check_only"],
+        project_folder: str = Field(description="Root folder of the project (absolute path)"),
+        language: str = Field(description="Programming language (python, typescript, javascript, java)"),
+        doc_types: List[str] = Field(default_factory=lambda: ["all"], description="Types to check ('docstrings', 'links', 'all')"),
+        check_only: bool = Field(default=True, description="If True, only report issues (no changes)"),
     ) -> Dict[str, Any]:
         """Synchronize documentation with code."""
         return sync_documentation_tool(
@@ -526,14 +489,3 @@ def _register_api_changelog_sync_tools(mcp: FastMCP, fields: Dict[str, Dict[str,
             doc_types=doc_types,
             check_only=check_only,
         )
-
-
-def register_documentation_tools(mcp: FastMCP) -> None:
-    """Register all documentation feature tools with MCP server.
-
-    Args:
-        mcp: FastMCP server instance
-    """
-    fields = _create_mcp_field_definitions()
-    _register_generation_tools(mcp, fields)
-    _register_api_changelog_sync_tools(mcp, fields)

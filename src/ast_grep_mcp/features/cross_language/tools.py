@@ -340,116 +340,61 @@ def generate_language_bindings_tool(
 # =============================================================================
 
 
-def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
-    """Create field definitions for MCP tool registration."""
-    return {
-        "search_multi_language": {
-            "project_folder": Field(description="Root folder of the project (absolute path)"),
-            "semantic_pattern": Field(description="Semantic pattern to search for (e.g., 'async function', 'try catch')"),
-            "languages": Field(default=None, description="Languages to search (['auto'] for auto-detection)"),
-            "group_by": Field(default="semantic", description="Grouping strategy ('semantic', 'language', 'file')"),
-            "max_results_per_language": Field(
-                default=CrossLanguageDefaults.MAX_RESULTS_PER_LANGUAGE,
-                description="Maximum results per language",
-            ),
-        },
-        "find_language_equivalents": {
-            "pattern_description": Field(description="Description of the pattern to find (e.g., 'list comprehension')"),
-            "source_language": Field(default=None, description="Optional source language to highlight"),
-            "target_languages": Field(default=None, description="Languages to include in results"),
-        },
-        "convert_code_language": {
-            "code_snippet": Field(description="Code to convert"),
-            "from_language": Field(description="Source language (python, typescript, javascript, java)"),
-            "to_language": Field(description="Target language (python, typescript, javascript, kotlin)"),
-            "conversion_style": Field(default="idiomatic", description="Conversion style ('literal', 'idiomatic', 'compatible')"),
-            "include_comments": Field(default=True, description="Whether to include conversion comments"),
-        },
-        "refactor_polyglot": {
-            "project_folder": Field(description="Root folder of the project"),
-            "refactoring_type": Field(description="Type of refactoring ('rename_api', 'extract_constant', 'update_contract')"),
-            "symbol_name": Field(description="Symbol being refactored"),
-            "new_name": Field(default=None, description="New name (required for rename operations)"),
-            "affected_languages": Field(default=None, description="Languages to include (['all'] for all)"),
-            "dry_run": Field(default=True, description="If True, only preview changes"),
-        },
-        "generate_language_bindings": {
-            "api_definition_file": Field(description="Path to API spec file (OpenAPI/Swagger JSON or YAML)"),
-            "target_languages": Field(default=None, description="Languages to generate bindings for"),
-            "binding_style": Field(default="native", description="Binding style ('native', 'sdk', 'minimal')"),
-            "include_types": Field(default=True, description="Whether to include type definitions"),
-        },
-    }
+def register_cross_language_tools(mcp: FastMCP) -> None:
+    """Register all cross-language feature tools with MCP server."""
 
-
-def _register_search_multi_language(mcp: FastMCP, f: Dict[str, Any]) -> None:
     @mcp.tool()
     def search_multi_language(
-        project_folder: str = f["project_folder"],
-        semantic_pattern: str = f["semantic_pattern"],
-        languages: Optional[List[str]] = f["languages"],
-        group_by: str = f["group_by"],
-        max_results_per_language: int = f["max_results_per_language"],
+        project_folder: str = Field(description="Root folder of the project (absolute path)"),
+        semantic_pattern: str = Field(description="Semantic pattern to search for (e.g., 'async function', 'try catch')"),
+        languages: Optional[List[str]] = Field(default=None, description="Languages to search (['auto'] for auto-detection)"),
+        group_by: str = Field(default="semantic", description="Grouping strategy ('semantic', 'language', 'file')"),
+        max_results_per_language: int = Field(
+            default=CrossLanguageDefaults.MAX_RESULTS_PER_LANGUAGE,
+            description="Maximum results per language",
+        ),
     ) -> Dict[str, Any]:
         """Search across multiple programming languages for semantically equivalent patterns."""
         return search_multi_language_tool(project_folder, semantic_pattern, languages, group_by, max_results_per_language)
 
-
-def _register_find_language_equivalents(mcp: FastMCP, f: Dict[str, Any]) -> None:
     @mcp.tool()
     def find_language_equivalents(
-        pattern_description: str = f["pattern_description"],
-        source_language: Optional[str] = f["source_language"],
-        target_languages: Optional[List[str]] = f["target_languages"],
+        pattern_description: str = Field(description="Description of the pattern to find (e.g., 'list comprehension')"),
+        source_language: Optional[str] = Field(default=None, description="Optional source language to highlight"),
+        target_languages: Optional[List[str]] = Field(default=None, description="Languages to include in results"),
     ) -> Dict[str, Any]:
         """Find equivalent patterns across programming languages."""
         return find_language_equivalents_tool(pattern_description, source_language, target_languages)
 
-
-def _register_convert_code_language(mcp: FastMCP, f: Dict[str, Any]) -> None:
     @mcp.tool()
     def convert_code_language(
-        code_snippet: str = f["code_snippet"],
-        from_language: str = f["from_language"],
-        to_language: str = f["to_language"],
-        conversion_style: str = f["conversion_style"],
-        include_comments: bool = f["include_comments"],
+        code_snippet: str = Field(description="Code to convert"),
+        from_language: str = Field(description="Source language (python, typescript, javascript, java)"),
+        to_language: str = Field(description="Target language (python, typescript, javascript, kotlin)"),
+        conversion_style: str = Field(default="idiomatic", description="Conversion style ('literal', 'idiomatic', 'compatible')"),
+        include_comments: bool = Field(default=True, description="Whether to include conversion comments"),
     ) -> Dict[str, Any]:
         """Convert code from one programming language to another."""
         return convert_code_language_tool(code_snippet, from_language, to_language, conversion_style, include_comments)
 
-
-def _register_refactor_polyglot(mcp: FastMCP, f: Dict[str, Any]) -> None:
     @mcp.tool()
     def refactor_polyglot(
-        project_folder: str = f["project_folder"],
-        refactoring_type: str = f["refactoring_type"],
-        symbol_name: str = f["symbol_name"],
-        new_name: Optional[str] = f["new_name"],
-        affected_languages: Optional[List[str]] = f["affected_languages"],
-        dry_run: bool = f["dry_run"],
+        project_folder: str = Field(description="Root folder of the project"),
+        refactoring_type: str = Field(description="Type of refactoring ('rename_api', 'extract_constant', 'update_contract')"),
+        symbol_name: str = Field(description="Symbol being refactored"),
+        new_name: Optional[str] = Field(default=None, description="New name (required for rename operations)"),
+        affected_languages: Optional[List[str]] = Field(default=None, description="Languages to include (['all'] for all)"),
+        dry_run: bool = Field(default=True, description="If True, only preview changes"),
     ) -> Dict[str, Any]:
         """Refactor across multiple programming languages atomically."""
         return refactor_polyglot_tool(project_folder, refactoring_type, symbol_name, new_name, affected_languages, dry_run)
 
-
-def _register_generate_language_bindings(mcp: FastMCP, f: Dict[str, Any]) -> None:
     @mcp.tool()
     def generate_language_bindings(
-        api_definition_file: str = f["api_definition_file"],
-        target_languages: Optional[List[str]] = f["target_languages"],
-        binding_style: str = f["binding_style"],
-        include_types: bool = f["include_types"],
+        api_definition_file: str = Field(description="Path to API spec file (OpenAPI/Swagger JSON or YAML)"),
+        target_languages: Optional[List[str]] = Field(default=None, description="Languages to generate bindings for"),
+        binding_style: str = Field(default="native", description="Binding style ('native', 'sdk', 'minimal')"),
+        include_types: bool = Field(default=True, description="Whether to include type definitions"),
     ) -> Dict[str, Any]:
         """Generate API client bindings for multiple languages from specifications."""
         return generate_language_bindings_tool(api_definition_file, target_languages, binding_style, include_types)
-
-
-def register_cross_language_tools(mcp: FastMCP) -> None:
-    """Register all cross-language feature tools with MCP server."""
-    fields = _create_mcp_field_definitions()
-    _register_search_multi_language(mcp, fields["search_multi_language"])
-    _register_find_language_equivalents(mcp, fields["find_language_equivalents"])
-    _register_convert_code_language(mcp, fields["convert_code_language"])
-    _register_refactor_polyglot(mcp, fields["refactor_polyglot"])
-    _register_generate_language_bindings(mcp, fields["generate_language_bindings"])
