@@ -22,6 +22,10 @@ if ! git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
   exit 1
 fi
 
+# Canonicalize OUTPUT_FILE to absolute path (M3).
+OUTPUT_FILE="$(cd "$(dirname "$OUTPUT_FILE")" 2>/dev/null && pwd)/$(basename "$OUTPUT_FILE")" \
+  || { echo "Cannot resolve output file path: ${2}" >&2; exit 1; }
+
 # Validate output directory exists.
 OUTPUT_DIR="$(dirname "$OUTPUT_FILE")"
 if [[ ! -d "$OUTPUT_DIR" ]]; then
@@ -34,14 +38,11 @@ INCLUDE_DIFFS="${REPOMIX_INCLUDE_DIFFS:-true}"
 INCLUDE_LOGS="${REPOMIX_INCLUDE_LOGS:-true}"
 SORT_BY_CHANGES_MAX_COMMITS="${REPOMIX_SORT_BY_CHANGES_MAX_COMMITS:-1000}"
 TIMEOUT_SECONDS="${REPOMIX_TIMEOUT_SECONDS:-120}"
+REPOMIX_LOG_TAIL_LINES="${REPOMIX_LOG_TAIL_LINES:-20}"
 
 if ! [[ "$INCLUDE_LOGS_COUNT" =~ ^[0-9]+$ ]] || [[ "$INCLUDE_LOGS_COUNT" -lt 0 ]]; then
   echo "include_logs_count must be a non-negative integer: $INCLUDE_LOGS_COUNT" >&2
   exit 1
-fi
-
-if [[ "$INCLUDE_LOGS_COUNT" -eq 0 && "$INCLUDE_LOGS" == "true" ]]; then
-  echo "Warning: INCLUDE_LOGS=true but include_logs_count=0; no logs will be included" >&2
 fi
 
 if ! [[ "$SORT_BY_CHANGES_MAX_COMMITS" =~ ^[0-9]+$ ]] || [[ "$SORT_BY_CHANGES_MAX_COMMITS" -lt 1 ]]; then
@@ -59,7 +60,16 @@ if [[ "$INCLUDE_LOGS" != "true" && "$INCLUDE_LOGS" != "false" ]]; then
   exit 1
 fi
 
+# Cross-field warning after boolean validation (M2).
+if [[ "$INCLUDE_LOGS_COUNT" -eq 0 && "$INCLUDE_LOGS" == "true" ]]; then
+  echo "Warning: INCLUDE_LOGS=true but include_logs_count=0; no logs will be included" >&2
+fi
+
+# Create all temp files together so the trap covers them all (H2).
 TMP_CONFIG="$(mktemp "${TMPDIR:-/tmp}/repomix-git-ranked.XXXXXX.json")"
+TMP_FILES="$(mktemp "${TMPDIR:-/tmp}/repomix-git-ranked-files.XXXXXX")"
+TMP_LOG="$(mktemp "${TMPDIR:-/tmp}/repomix-run.XXXXXX.log")"
+trap 'rm -f "$TMP_CONFIG" "$TMP_FILES" "$TMP_LOG"' EXIT INT TERM
 
 # Generated bundle patterns sourced from base repomix config.
 BUNDLE_IGNORE_PATTERNS_FILE="$ROOT/repomix.config.json"
@@ -87,6 +97,8 @@ fi
 
 # Generated artifacts that should never be re-ingested into ranked bundles.
 # Override via REPOMIX_EXCLUDE_ARTIFACTS (newline-separated glob patterns).
+# Patterns are intentionally interpreted as globs by case.
+# Do not pass untrusted input in REPOMIX_EXCLUDE_ARTIFACTS.
 EXCLUDE_ARTIFACTS="${REPOMIX_EXCLUDE_ARTIFACTS:-sidequest/docs/gitlog-sidequest.txt}"
 
 is_generated_bundle_artifact() {
@@ -104,10 +116,6 @@ is_generated_bundle_artifact() {
 
 # Build include list from files touched in the selected commit window.
 # Use sort -u for deduplication (compatible with bash 3.x on macOS).
-TMP_FILES="$(mktemp "${TMPDIR:-/tmp}/repomix-git-ranked-files.XXXXXX")"
-TMP_LOG="$(mktemp "${TMPDIR:-/tmp}/repomix-run.XXXXXX.log")"
-trap 'rm -f "$TMP_CONFIG" "$TMP_FILES" "$TMP_LOG"' EXIT
-
 git -C "$ROOT" -c core.quotePath=false log --name-only --pretty=format: -n "$SORT_BY_CHANGES_MAX_COMMITS" \
   | grep -v '^$' \
   | sort -u \
@@ -162,9 +170,13 @@ jq -n \
   "include": $includeFiles
 }' > "$TMP_CONFIG"
 
-if ! FORCE_COLOR=0 NO_COLOR=1 timeout "$TIMEOUT_SECONDS" \
-  npx repomix "$ROOT" -c "$TMP_CONFIG" -o "$OUTPUT_FILE" >"$TMP_LOG" 2>&1; then
-  echo "repomix failed (exit $?). Last output:" >&2
-  tail -20 "$TMP_LOG" >&2
+# Capture exit code explicitly; $? is unreliable inside `if !` (H1).
+REPOMIX_EXIT=0
+FORCE_COLOR=0 NO_COLOR=1 timeout "$TIMEOUT_SECONDS" \
+  npx repomix "$ROOT" -c "$TMP_CONFIG" -o "$OUTPUT_FILE" >"$TMP_LOG" 2>&1 \
+  || REPOMIX_EXIT=$?
+if [[ $REPOMIX_EXIT -ne 0 ]]; then
+  echo "repomix failed (exit $REPOMIX_EXIT). Last output:" >&2
+  tail -"$REPOMIX_LOG_TAIL_LINES" "$TMP_LOG" >&2
   exit 1
 fi
