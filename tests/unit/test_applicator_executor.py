@@ -4,8 +4,7 @@ Tests cover:
 - Apply changes (dry run and actual)
 - File creation (new files, append mode, directory creation)
 - File updates (content replacement, import additions)
-- Import location finding for Python, JavaScript, Java
-- Import insertion for all supported languages
+- Import addition via shared _add_import_to_content
 - Preview generation for dry run
 - Error handling
 """
@@ -16,6 +15,9 @@ from unittest.mock import patch
 
 import pytest
 
+from ast_grep_mcp.features.deduplication.applicator import (
+    _add_import_to_content,
+)
 from ast_grep_mcp.features.deduplication.applicator_executor import (
     RefactoringExecutor,
 )
@@ -320,280 +322,69 @@ class TestUpdateFiles:
                     executor._update_files(update_list, {}, {}, "python")
 
 
-class TestFindPythonImportLocation:
-    """Tests for _find_python_import_location method."""
-
-    def test_finds_location_after_imports(self):
-        """Test finding location after existing imports."""
-        executor = RefactoringExecutor()
-
-        lines = ["import os", "import sys", "", "def main(): pass"]
-        idx = executor._find_python_import_location(lines)
-
-        assert idx == 2  # After 'import sys'
-
-    def test_finds_location_after_from_imports(self):
-        """Test finding location after from imports."""
-        executor = RefactoringExecutor()
-
-        lines = ["from os import path", "from sys import argv", "", "x = 1"]
-        idx = executor._find_python_import_location(lines)
-
-        assert idx == 2
-
-    def test_handles_no_imports(self):
-        """Test handling files with no imports."""
-        executor = RefactoringExecutor()
-
-        lines = ["# comment", "", "def main(): pass"]
-        idx = executor._find_python_import_location(lines)
-
-        assert idx == 2  # After comments/blank lines
-
-    def test_handles_shebang_and_encoding(self):
-        """Test handling shebang and encoding lines."""
-        executor = RefactoringExecutor()
-
-        lines = ["#!/usr/bin/env python", "# -*- coding: utf-8 -*-", "", "def main(): pass"]
-        idx = executor._find_python_import_location(lines)
-
-        assert idx == 3  # After shebang, encoding, and blank line
-
-    def test_handles_empty_file(self):
-        """Test handling empty file."""
-        executor = RefactoringExecutor()
-
-        lines: list[str] = []
-        idx = executor._find_python_import_location(lines)
-
-        assert idx == 0
-
-
-class TestFindJavascriptImportLocation:
-    """Tests for _find_javascript_import_location method."""
-
-    def test_finds_location_after_imports(self):
-        """Test finding location after import statements."""
-        executor = RefactoringExecutor()
-
-        lines = ["import React from 'react'", "import { useState } from 'react'", "", "function App() {}"]
-        idx = executor._find_javascript_import_location(lines)
-
-        assert idx == 2
-
-    def test_finds_location_after_require(self):
-        """Test finding location after require statements."""
-        executor = RefactoringExecutor()
-
-        lines = ["const fs = require('fs')", "const path = require('path')", "", "module.exports = {}"]
-        idx = executor._find_javascript_import_location(lines)
-
-        assert idx == 2
-
-    def test_handles_no_imports(self):
-        """Test handling files with no imports."""
-        executor = RefactoringExecutor()
-
-        lines = ["function main() {}", "main()"]
-        idx = executor._find_javascript_import_location(lines)
-
-        assert idx == 0
-
-
-class TestFindJavaImportLocation:
-    """Tests for _find_java_import_location method."""
-
-    def test_finds_location_after_imports(self):
-        """Test finding location after import statements."""
-        executor = RefactoringExecutor()
-
-        lines = ["package com.example;", "", "import java.util.List;", "import java.util.Map;", "", "public class Main {}"]
-        idx, needs_blank = executor._find_java_import_location(lines)
-
-        assert idx == 4  # After last import
-        assert needs_blank is False
-
-    def test_finds_location_after_package(self):
-        """Test finding location after package when no imports."""
-        executor = RefactoringExecutor()
-
-        lines = ["package com.example;", "", "public class Main {}"]
-        idx, needs_blank = executor._find_java_import_location(lines)
-
-        assert idx == 1  # After package
-        assert needs_blank is True
-
-    def test_handles_no_package_no_imports(self):
-        """Test handling files with no package or imports."""
-        executor = RefactoringExecutor()
-
-        lines = ["public class Main {}"]
-        idx, needs_blank = executor._find_java_import_location(lines)
-
-        assert idx == 0
-        assert needs_blank is False
-
-
-class TestInsertImportPython:
-    """Tests for _insert_import_python method."""
-
-    def test_inserts_after_existing_imports(self):
-        """Test inserting after existing imports."""
-        executor = RefactoringExecutor()
-
-        lines = ["import os", "", "def main(): pass"]
-        result = executor._insert_import_python(lines, "import sys")
-
-        assert "import sys" in result
-        assert result.index("import sys") == 1
-
-    def test_inserts_at_top_with_blank_line(self):
-        """Test inserting at top adds blank line."""
-        executor = RefactoringExecutor()
-
-        lines = ["# comment", "def main(): pass"]
-        result = executor._insert_import_python(lines, "import os")
-
-        assert "import os" in result
-
-
-class TestInsertImportJavascript:
-    """Tests for _insert_import_javascript method."""
-
-    def test_inserts_after_existing_imports(self):
-        """Test inserting after existing imports."""
-        executor = RefactoringExecutor()
-
-        lines = ["import React from 'react'", "", "function App() {}"]
-        result = executor._insert_import_javascript(lines, "import { useState } from 'react'")
-
-        assert "import { useState } from 'react'" in result
-
-    def test_inserts_at_top_with_blank_line(self):
-        """Test inserting at top adds blank line."""
-        executor = RefactoringExecutor()
-
-        lines = ["function App() {}"]
-        result = executor._insert_import_javascript(lines, "import React from 'react'")
-
-        assert result[0] == "import React from 'react'"
-        assert result[1] == ""
-
-
-class TestInsertImportJava:
-    """Tests for _insert_import_java method."""
-
-    def test_inserts_after_existing_imports(self):
-        """Test inserting after existing imports."""
-        executor = RefactoringExecutor()
-
-        lines = ["package com.example;", "", "import java.util.List;", "", "public class Main {}"]
-        result = executor._insert_import_java(lines, "import java.util.Map;")
-
-        assert "import java.util.Map;" in result
-
-    def test_inserts_after_package_with_blank(self):
-        """Test inserting after package with blank line."""
-        executor = RefactoringExecutor()
-
-        lines = ["package com.example;", "", "public class Main {}"]
-        result = executor._insert_import_java(lines, "import java.util.List;")
-
-        # Should add blank line before import
-        assert "import java.util.List;" in result
-
-    def test_inserts_at_top_with_blank_line(self):
-        """Test inserting at top adds blank line."""
-        executor = RefactoringExecutor()
-
-        lines = ["public class Main {}"]
-        result = executor._insert_import_java(lines, "import java.util.List;")
-
-        assert result[0] == "import java.util.List;"
-        assert result[1] == ""
-
-
 class TestAddImportToContent:
     """Tests for _add_import_to_content method."""
 
     def test_empty_import_returns_unchanged(self):
         """Test that empty import statement returns unchanged content."""
-        executor = RefactoringExecutor()
-
         content = "def main(): pass"
-        result = executor._add_import_to_content(content, "", "python")
+        result = _add_import_to_content(content, "", "python")
 
         assert result == content
 
     def test_existing_import_not_duplicated(self):
         """Test that existing import is not duplicated."""
-        executor = RefactoringExecutor()
-
         content = "import os\n\ndef main(): pass"
-        result = executor._add_import_to_content(content, "import os", "python")
+        result = _add_import_to_content(content, "import os", "python")
 
         assert result.count("import os") == 1
 
     def test_python_import_added(self):
         """Test adding Python import."""
-        executor = RefactoringExecutor()
-
         content = "def main(): pass"
-        result = executor._add_import_to_content(content, "import os", "python")
+        result = _add_import_to_content(content, "import os", "python")
 
         assert "import os" in result
 
     def test_javascript_import_added(self):
         """Test adding JavaScript import."""
-        executor = RefactoringExecutor()
-
         content = "function main() {}"
-        result = executor._add_import_to_content(content, "import React from 'react'", "javascript")
+        result = _add_import_to_content(content, "import React from 'react'", "javascript")
 
         assert "import React from 'react'" in result
 
     def test_typescript_import_added(self):
         """Test adding TypeScript import."""
-        executor = RefactoringExecutor()
-
         content = "function main() {}"
-        result = executor._add_import_to_content(content, "import { Component } from 'react'", "typescript")
+        result = _add_import_to_content(content, "import { Component } from 'react'", "typescript")
 
         assert "import { Component } from 'react'" in result
 
     def test_jsx_import_added(self):
         """Test adding JSX import."""
-        executor = RefactoringExecutor()
-
         content = "function App() {}"
-        result = executor._add_import_to_content(content, "import React from 'react'", "jsx")
+        result = _add_import_to_content(content, "import React from 'react'", "jsx")
 
         assert "import React from 'react'" in result
 
     def test_tsx_import_added(self):
         """Test adding TSX import."""
-        executor = RefactoringExecutor()
-
         content = "function App() {}"
-        result = executor._add_import_to_content(content, "import React from 'react'", "tsx")
+        result = _add_import_to_content(content, "import React from 'react'", "tsx")
 
         assert "import React from 'react'" in result
 
     def test_java_import_added(self):
         """Test adding Java import."""
-        executor = RefactoringExecutor()
-
         content = "public class Main {}"
-        result = executor._add_import_to_content(content, "import java.util.List;", "java")
+        result = _add_import_to_content(content, "import java.util.List;", "java")
 
         assert "import java.util.List;" in result
 
     def test_unknown_language_adds_at_top(self):
         """Test unknown language adds import at top."""
-        executor = RefactoringExecutor()
-
         content = "def main(): pass"
-        result = executor._add_import_to_content(content, "import something", "fortran")
+        result = _add_import_to_content(content, "import something", "fortran")
 
         lines = result.split("\n")
         assert lines[0] == "import something"
