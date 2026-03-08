@@ -46,15 +46,8 @@ def extract_functions_from_file(file_path: str, language: str) -> List[Dict[str,
     all_functions: List[Dict[str, Any]] = []
 
     # Get all function patterns for this language
-    function_patterns = []
-    if "function" in patterns:
-        function_patterns.append(patterns["function"])
-    if "async_function" in patterns:
-        function_patterns.append(patterns["async_function"])
-    if "arrow_function" in patterns:
-        function_patterns.append(patterns["arrow_function"])
-    if "method" in patterns:
-        function_patterns.append(patterns["method"])
+    _PATTERN_KEYS = ("function", "async_function", "arrow_function", "method")
+    function_patterns = [patterns[k] for k in _PATTERN_KEYS if k in patterns]
 
     for pattern in function_patterns:
         try:
