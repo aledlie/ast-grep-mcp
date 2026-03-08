@@ -9,28 +9,48 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 
 ### Recently Resolved
 
-Commits `52b1f3f`..`751e2bc` addressed 4 of the top 10 offenders:
+Commits `52b1f3f`..`70a4762` addressed 6 hotspot areas:
 
 - **`deduplication/applicator_executor.py`** (was cog=33) — extracted loop bodies into `_create_single_file`, `_update_single_file`, `_apply_import_addition`; removed duplicated import logic. Worst remaining: cog=16.
-- **`documentation/changelog_generator.py`** (was cog=30) — extracted `_get_commits`, `_group_commits_by_version`, `_format_changelog_entry` helpers; added unit tests. Worst remaining: `_format_conventional_section` cog=18.
-- **`quality/tools.py`** — reduced complexity across enforcement tools. Worst remaining: `create_linting_rule_tool` cog=18, `list_rule_templates_tool` cog=17.
-- **`complexity/analyzer.py`** — reduced complexity in analysis functions. `extract_functions_from_file` simplified from cog=23→15 via list comprehension (`0f48536`). Worst remaining: `_find_magic_numbers` cog=25.
+- **`documentation/changelog_generator.py`** (was cog=30) — extracted `_get_commits`, `_group_commits_by_version`, `_format_changelog_entry` helpers; added unit tests. Hardened with `str | None` types (`1b5f331`). Worst remaining: `_format_conventional_section` cog=18.
+- **`quality/tools.py`** — extracted `_tool_context` context manager, split `_create_mcp_field_definitions` and `register_quality_tools` into per-domain helpers (`d09f996`). Worst remaining: `create_linting_rule_tool` cog=18.
+- **`complexity/analyzer.py`** — `extract_functions_from_file` cog=23→15 (`0f48536`); added `_count_docstring_lines` helper (`d09f996`). Worst remaining: `_find_magic_numbers` cog=25.
+- **`refactoring/analyzer.py`** (was cog=29) — moved keyword sets to class-level frozensets; extracted `_register_variable` and `_scan_and_register_identifiers`; collapsed duplicate Java branch (`60caecf`). Worst remaining: `_find_python_base_variables` cog=25.
+- **`deduplication/detector.py`** — extracted `_match_line`, `_format_instance` helpers; moved strategy tables to class-level constants (`8415bec`).
 
-### Remaining Top Offenders
+### Remaining Top Offenders (live scan)
 
 | File | Function | Cyc | Cog | Nest | Len |
 |------|----------|-----|-----|------|-----|
-| `deduplication/applicator_backup.py` | — | 9 | 33 | 6 | 45 |
-| `refactoring/extractor.py` | — | 13 | 31 | 5 | 53 |
-| `core/executor.py` | — | 16 | 29 | 6 | 101 |
-| `condense/service.py` | — | 15 | 29 | 5 | 115 |
-| `deduplication/diff.py` | — | 14 | 29 | 5 | 53 |
-| `refactoring/analyzer.py` | — | 11 | 29 | 5 | 49 |
-| `condense/service.py` | — | 17 | 28 | 5 | 33 |
+| `deduplication/applicator_backup.py` | `cleanup_old_backups` | 9 | 33 | 6 | 45 |
+| `deduplication/applicator_backup.py` | `list_backups` | 7 | 23 | 5 | 30 |
+| `deduplication/applicator_backup.py` | `create_backup` | 11 | 20 | 5 | 78 |
+| `deduplication/applicator_backup.py` | `rollback` | 7 | 18 | 4 | 44 |
+| `refactoring/extractor.py` | `_generate_docstring` | 13 | 31 | 5 | 53 |
+| `refactoring/extractor.py` | `_generate_function_body` | 15 | 25 | 4 | 46 |
+| `refactoring/extractor.py` | `_scan_imports` | 10 | 18 | 5 | 29 |
+| `refactoring/extractor.py` | `_generate_signature` | 18 | 13 | 4 | 56 |
+| `refactoring/extractor.py` | `_apply_extraction` | 7 | 11 | 4 | 58 |
+| `core/executor.py` | `stream_ast_grep_results` | 16 | 29 | 6 | 101 |
+| `core/executor.py` | `filter_files_by_size` | 19 | 18 | 4 | 52 |
+| `core/executor.py` | `get_supported_languages` | 8 | 16 | 5 | 44 |
+| `condense/service.py` | `condense_pack_impl` | 15 | 29 | 5 | 115 |
+| `condense/service.py` | `_count_structural_braces` | 17 | 28 | 5 | 33 |
+| `condense/service.py` | `_extract_python_surface` | 11 | 17 | 4 | 28 |
+| `deduplication/diff.py` | `diff_preview_to_dict` | 14 | 29 | 5 | 53 |
+| `deduplication/diff.py` | `build_nested_diff_tree` | 20 | 25 | 6 | 96 |
+| `refactoring/analyzer.py` | `_find_python_base_variables` | 10 | 25 | 4 | 44 |
 | `complexity/analyzer.py` | `_find_magic_numbers` | 13 | 25 | 5 | 61 |
 | `complexity/analyzer.py` | `_find_docstring_extent` | 11 | 21 | 4 | 28 |
+| `complexity/analyzer.py` | `_count_function_parameters` | 18 | 18 | 3 | 49 |
 
 Refresh: `uv run python scripts/run_all_analysis.py`
+
+## Mypy Unused type:ignore Comments (2026-03-08)
+
+7 unused `type: ignore[misc]` comments flagged by mypy:
+- `complexity/tools.py` lines 632, 666, 677
+- `deduplication/tools.py` lines 220, 237, 258, 279
 
 ## Duplicate Detection Precision (2026-03-08)
 
