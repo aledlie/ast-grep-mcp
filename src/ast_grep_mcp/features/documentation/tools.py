@@ -72,10 +72,7 @@ def _format_readme_response(result: Any) -> Dict[str, Any]:
             "has_tests": result.project_info.has_tests,
             "has_docs": result.project_info.has_docs,
         },
-        "sections": [
-            {"type": s.section_type, "title": s.title, "content": s.content}
-            for s in result.sections
-        ],
+        "sections": [{"type": s.section_type, "title": s.title, "content": s.content} for s in result.sections],
         "full_readme": result.full_readme,
         "execution_time_ms": result.execution_time_ms,
     }
@@ -106,9 +103,7 @@ def _format_changelog_version(v: Any) -> Dict[str, Any]:
 
 def _format_sync_doc_coverage(result: Any) -> int | float:
     if result.total_functions > 0:
-        return float(round(
-            result.documented_functions / result.total_functions * ConversionFactors.PERCENT_MULTIPLIER, 1
-        ))
+        return float(round(result.documented_functions / result.total_functions * ConversionFactors.PERCENT_MULTIPLIER, 1))
     return 0
 
 
@@ -138,6 +133,7 @@ def _format_sync_response(result: Any) -> Dict[str, Any]:
         "check_only": result.check_only,
         "execution_time_ms": result.execution_time_ms,
     }
+
 
 # =============================================================================
 # Tool Implementations

@@ -226,10 +226,7 @@ def _extract_type_hints(code: str, language: str) -> List[Tuple[str, str]]:
     pattern = _TYPE_HINT_PATTERNS.get(language)
     if pattern is None:
         return []
-    return [
-        (m.group(RegexCaptureGroups.FIRST), m.group(RegexCaptureGroups.SECOND))
-        for m in re.finditer(pattern, code)
-    ]
+    return [(m.group(RegexCaptureGroups.FIRST), m.group(RegexCaptureGroups.SECOND)) for m in re.finditer(pattern, code)]
 
 
 def _try_replace_type(result: str, source_type: str, target_type: str) -> Tuple[str, bool]:

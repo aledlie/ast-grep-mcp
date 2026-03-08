@@ -56,6 +56,7 @@ def _format_extract_function_response(result: ExtractFunctionResult, selection: 
 def _resolve_file_path(project_folder: str, file_path: str) -> str:
     if not file_path.startswith("/"):
         import os
+
         return os.path.join(project_folder, file_path)
     return file_path
 

@@ -361,11 +361,7 @@ def _infer_parameter_description(param: ParameterInfo, function_context: str = "
         Inferred description
     """
     name = param.name.lower()
-    result = (
-        _COMMON_PARAMS.get(name)
-        or _check_suffix_pattern(name)
-        or _check_prefix_pattern(name)
-    )
+    result = _COMMON_PARAMS.get(name) or _check_suffix_pattern(name) or _check_prefix_pattern(name)
     if result:
         return result
     return f"The {param.name.replace('_', ' ')}"
@@ -560,9 +556,7 @@ class FunctionSignatureParser:
             j -= 1
         return decorators
 
-    def _build_python_sig(
-        self, lines: List[str], func_idx: int, match: re.Match[str], file_path: str
-    ) -> FunctionSignature:
+    def _build_python_sig(self, lines: List[str], func_idx: int, match: re.Match[str], file_path: str) -> FunctionSignature:
         indent, is_async, name, params_str, return_type = match.groups()
         return FunctionSignature(
             name=name,
@@ -675,9 +669,9 @@ class FunctionSignatureParser:
 
     # Maps group count to (is_async_idx, name_idx, params_idx, return_type_idx)
     _JS_TS_GROUP_INDICES: Dict[int, Tuple[int, int, int, int]] = {
-        DocstringDefaults.REGULAR_FUNCTION_GROUP_COUNT: (1, 2, 3, 4),   # export, async, name, params, ret
-        DocstringDefaults.ARROW_FUNCTION_GROUP_COUNT:   (3, 2, 4, 5),   # export, kw, name, async, params, ret
-        4:                                               (0, 1, 2, 3),   # async, name, params, ret
+        DocstringDefaults.REGULAR_FUNCTION_GROUP_COUNT: (1, 2, 3, 4),  # export, async, name, params, ret
+        DocstringDefaults.ARROW_FUNCTION_GROUP_COUNT: (3, 2, 4, 5),  # export, kw, name, async, params, ret
+        4: (0, 1, 2, 3),  # async, name, params, ret
     }
 
     def _unpack_js_ts_groups(self, groups: tuple[Any, ...]) -> tuple[Any, ...]:
@@ -725,7 +719,7 @@ class FunctionSignatureParser:
         while j >= 0:
             curr_line = lines[j].strip()
             if "/**" in curr_line:
-                doc_lines.append(curr_line[curr_line.find("/**") + 3:])
+                doc_lines.append(curr_line[curr_line.find("/**") + 3 :])
                 break
             doc_lines.append(curr_line[1:].strip() if curr_line.startswith("*") else curr_line)
             j -= 1
@@ -813,12 +807,7 @@ class FunctionSignatureParser:
         """Parse Java method signatures."""
         lines = content.split("\n")
         matches = ((i, self._JAVA_PATTERN.match(line)) for i, line in enumerate(lines))
-        return [
-            sig for i, m in matches
-            if m
-            for sig in [self._build_java_sig(lines, i, m, file_path)]
-            if sig
-        ]
+        return [sig for i, m in matches if m for sig in [self._build_java_sig(lines, i, m, file_path)] if sig]
 
     def _parse_java_params(self, params_str: str) -> List[ParameterInfo]:
         """Parse Java method parameters."""

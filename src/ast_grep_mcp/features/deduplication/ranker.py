@@ -433,8 +433,11 @@ class DuplicationRanker:
         return total_score, score_components, 0, 1
 
     def _build_ranked_candidate(
-        self, candidate: Dict[str, Any], total_score: float,
-        score_components: Dict[str, float], include_analysis: bool,
+        self,
+        candidate: Dict[str, Any],
+        total_score: float,
+        score_components: Dict[str, float],
+        include_analysis: bool,
     ) -> Dict[str, Any]:
         """Build a ranked candidate dict with optional breakdown."""
         priority = self.priority_classifier.get_priority_label(total_score)
@@ -452,12 +455,14 @@ class DuplicationRanker:
         }
         if self.enable_cache:
             total = cache_hits + cache_misses
-            log_data.update({
-                "cache_hits": cache_hits,
-                "cache_misses": cache_misses,
-                "cache_hit_rate": cache_hits / total if total > 0 else 0,
-                "cache_size": len(self._score_cache),
-            })
+            log_data.update(
+                {
+                    "cache_hits": cache_hits,
+                    "cache_misses": cache_misses,
+                    "cache_hit_rate": cache_hits / total if total > 0 else 0,
+                    "cache_size": len(self._score_cache),
+                }
+            )
         return log_data
 
     def rank_deduplication_candidates(

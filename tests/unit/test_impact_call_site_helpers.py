@@ -58,10 +58,12 @@ class TestSearchCallSitesForName:
     def test_filters_exclude_files(self, mock_run):
         mock_run.return_value = MagicMock(
             returncode=0,
-            stdout=json.dumps([
-                {"file": "a.py", "range": {"start": {"line": 0, "column": 0}}, "text": "fn()"},
-                {"file": "excluded.py", "range": {"start": {"line": 0, "column": 0}}, "text": "fn()"},
-            ]),
+            stdout=json.dumps(
+                [
+                    {"file": "a.py", "range": {"start": {"line": 0, "column": 0}}, "text": "fn()"},
+                    {"file": "excluded.py", "range": {"start": {"line": 0, "column": 0}}, "text": "fn()"},
+                ]
+            ),
         )
         analyzer = self._make_analyzer()
         results = analyzer._search_call_sites_for_name("fn", "/project", "python", ["excluded.py"])

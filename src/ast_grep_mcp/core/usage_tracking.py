@@ -514,10 +514,13 @@ class UsageDatabase:
         ).fetchone()[0]
         _threshold_alert(alerts, "daily_calls", daily_calls, thresholds.daily_calls_warning, thresholds.daily_calls_critical)
 
-        daily_cost = conn.execute(
-            "SELECT SUM(estimated_cost) FROM usage_logs WHERE timestamp >= ?",
-            (today_start.isoformat(),),
-        ).fetchone()[0] or 0.0
+        daily_cost = (
+            conn.execute(
+                "SELECT SUM(estimated_cost) FROM usage_logs WHERE timestamp >= ?",
+                (today_start.isoformat(),),
+            ).fetchone()[0]
+            or 0.0
+        )
         _threshold_alert(alerts, "daily_cost", daily_cost, thresholds.daily_cost_warning, thresholds.daily_cost_critical, ".4f")
 
         hourly_failures = conn.execute(
@@ -525,8 +528,11 @@ class UsageDatabase:
             (hour_ago.isoformat(),),
         ).fetchone()[0]
         _threshold_alert(
-            alerts, "hourly_failures", hourly_failures,
-            thresholds.hourly_failures_warning, thresholds.hourly_failures_critical,
+            alerts,
+            "hourly_failures",
+            hourly_failures,
+            thresholds.hourly_failures_warning,
+            thresholds.hourly_failures_critical,
         )
 
         hourly_total = conn.execute(
@@ -835,9 +841,13 @@ def _format_report_header(stats: UsageStats) -> List[str]:
     div = "-" * FormattingDefaults.SECTION_DIVIDER_WIDTH
     period = f"{stats.period_start.strftime('%Y-%m-%d %H:%M')} to {stats.period_end.strftime('%Y-%m-%d %H:%M')}"
     return [
-        sep, "USAGE STATISTICS REPORT", sep,
-        f"Period: {period}", "",
-        "SUMMARY", div,
+        sep,
+        "USAGE STATISTICS REPORT",
+        sep,
+        f"Period: {period}",
+        "",
+        "SUMMARY",
+        div,
         f"Total Calls:      {stats.total_calls:,}",
         f"Successful:       {stats.successful_calls:,}",
         f"Failed:           {stats.failed_calls:,}",

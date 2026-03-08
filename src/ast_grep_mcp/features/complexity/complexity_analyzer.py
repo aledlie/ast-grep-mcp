@@ -48,9 +48,7 @@ class ParallelComplexityAnalyzer:
 
         return all_functions
 
-    def _collect_future_result(
-        self, future: Any, file_path: str, all_functions: List[FunctionComplexity]
-    ) -> None:
+    def _collect_future_result(self, future: Any, file_path: str, all_functions: List[FunctionComplexity]) -> None:
         """Collect result from a completed future into all_functions."""
         try:
             result = future.result()

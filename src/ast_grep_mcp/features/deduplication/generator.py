@@ -366,7 +366,7 @@ class CodeGenerator:
 
     def _generate_python_import(self, module_path: str, import_names: List[str], is_relative: bool) -> str:
         """Generate Python import statement."""
-        names = ', '.join(import_names)
+        names = ", ".join(import_names)
         if is_relative:
             prefix = "." if module_path else ""
             return f"from {prefix}{module_path} import {names}"
@@ -963,7 +963,7 @@ def _strip_param_prefix(name: str) -> str:
     """Strip common prefixes from an identifier to form a base parameter name."""
     for prefix in _PARAM_PREFIXES_TO_STRIP:
         if name.startswith(prefix) and len(name) > len(prefix):
-            return name[len(prefix):]
+            return name[len(prefix) :]
     return name
 
 
@@ -995,6 +995,7 @@ def generate_parameter_name(identifier: str, all_identifiers: List[str]) -> str:
             return candidate
 
     import time
+
     return f"{base_name}_{int(time.time()) % 1000}"
 
 

@@ -108,8 +108,7 @@ class RecommendationEngine:
 
     def _calc_effort_value_ratio(self, complexity: int, lines_saved: int, has_tests: bool, affected_files: int) -> float:
         base_effort = (
-            complexity * RecommendationDefaults.EFFORT_COMPLEXITY_WEIGHT
-            + affected_files * RecommendationDefaults.EFFORT_FILES_WEIGHT
+            complexity * RecommendationDefaults.EFFORT_COMPLEXITY_WEIGHT + affected_files * RecommendationDefaults.EFFORT_FILES_WEIGHT
         )
         if not has_tests:
             base_effort *= RecommendationDefaults.NO_TESTS_EFFORT_MULTIPLIER
@@ -267,17 +266,21 @@ _LANGUAGE_SUGGESTIONS: Dict[str, Dict[str, str]] = {
 def _extra_suggestions(num_duplicates: int, line_count: int, language: str) -> List[Dict[str, Any]]:
     extras: List[Dict[str, Any]] = []
     if num_duplicates > RecommendationDefaults.MODULE_EXTRACTION_DUPLICATE_THRESHOLD:
-        extras.append({
-            "type": "extract_module",
-            "description": "Consider extracting to a dedicated module for reuse across files",
-            "priority": "medium",
-        })
+        extras.append(
+            {
+                "type": "extract_module",
+                "description": "Consider extracting to a dedicated module for reuse across files",
+                "priority": "medium",
+            }
+        )
     if line_count > RecommendationDefaults.CLASS_EXTRACTION_LINE_THRESHOLD:
-        extras.append({
-            "type": "extract_class",
-            "description": "Extract to a class if the code has shared state or multiple related operations",
-            "priority": "low",
-        })
+        extras.append(
+            {
+                "type": "extract_class",
+                "description": "Extract to a class if the code has shared state or multiple related operations",
+                "priority": "low",
+            }
+        )
     lang_hint = _LANGUAGE_SUGGESTIONS.get(language)
     if lang_hint:
         extras.append({**lang_hint, "priority": "low"})

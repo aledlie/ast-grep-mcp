@@ -66,7 +66,7 @@ def suggest_syntax_fix(error: Optional[str], language: str, context: str = "file
         return suggestion
 
     # Default suggestion with truncated error message
-    return f"Review {language} syntax and fix the error: {error[:SyntaxValidationDefaults.ERROR_SUGGESTION_PREVIEW_LENGTH]}"
+    return f"Review {language} syntax and fix the error: {error[: SyntaxValidationDefaults.ERROR_SUGGESTION_PREVIEW_LENGTH]}"
 
 
 def validate_bracket_balance(code: str) -> List[Tuple[str, str]]:

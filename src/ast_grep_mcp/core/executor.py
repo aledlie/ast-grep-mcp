@@ -528,9 +528,7 @@ def stream_ast_grep_results(
         process = _create_stream_process(full_command)
 
         # Drain stderr concurrently to prevent pipe buffer deadlock
-        stderr_thread = threading.Thread(
-            target=_drain_stderr_to_list, args=(process, stderr_chunks), daemon=True
-        )
+        stderr_thread = threading.Thread(target=_drain_stderr_to_list, args=(process, stderr_chunks), daemon=True)
         stderr_thread.start()
 
         # Process output lines

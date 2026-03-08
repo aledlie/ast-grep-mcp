@@ -39,9 +39,7 @@ class ComplexityStatisticsAggregator:
             Summary statistics dictionary
         """
         total_functions = len(all_functions)
-        avg_cyclomatic, avg_cognitive, max_cyclomatic, max_cognitive, max_nesting = self._compute_metrics(
-            all_functions, total_functions
-        )
+        avg_cyclomatic, avg_cognitive, max_cyclomatic, max_cognitive, max_nesting = self._compute_metrics(all_functions, total_functions)
 
         return {
             "total_functions": total_functions,
@@ -55,9 +53,7 @@ class ComplexityStatisticsAggregator:
             "analysis_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
         }
 
-    def _compute_metrics(
-        self, all_functions: List[FunctionComplexity], total_functions: int
-    ) -> tuple[float, float, int, int, int]:
+    def _compute_metrics(self, all_functions: List[FunctionComplexity], total_functions: int) -> tuple[float, float, int, int, int]:
         """Return (avg_cyc, avg_cog, max_cyc, max_cog, max_nest) or zeros if empty."""
         if not total_functions:
             return 0.0, 0.0, 0, 0, 0

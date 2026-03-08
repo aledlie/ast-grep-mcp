@@ -302,7 +302,7 @@ def _group_commits_by_version(
         # Try to get tag date
         success, tag_date = _run_git_command(project_folder, ["log", "-1", "--format=%aI", f"v{to_version}"])
         if success and tag_date:
-            date_str = tag_date[:FormattingDefaults.ISO_DATE_LENGTH]  # YYYY-MM-DD
+            date_str = tag_date[: FormattingDefaults.ISO_DATE_LENGTH]  # YYYY-MM-DD
         else:
             date_str = datetime.now().strftime("%Y-%m-%d")
         is_unreleased = False

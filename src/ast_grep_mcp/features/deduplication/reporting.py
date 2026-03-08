@@ -181,9 +181,7 @@ class DuplicationReporter:
             },
         }
 
-    def _build_enhanced_candidate(
-        self, candidate: Dict[str, Any], idx: int, include_diffs: bool, include_colors: bool
-    ) -> Dict[str, Any]:
+    def _build_enhanced_candidate(self, candidate: Dict[str, Any], idx: int, include_diffs: bool, include_colors: bool) -> Dict[str, Any]:
         """Enrich a single raw candidate with computed fields."""
         function_name = candidate.get("function_name", "") or f"extracted_function_{idx}"
         before_after = self.generate_before_after_example(
@@ -213,17 +211,14 @@ class DuplicationReporter:
             "priority": priority,
         }
 
-    def _generate_candidate_diff_preview(
-        self, candidate: Dict[str, Any], include_diffs: bool, include_colors: bool
-    ) -> Optional[str]:
+    def _generate_candidate_diff_preview(self, candidate: Dict[str, Any], include_diffs: bool, include_colors: bool) -> Optional[str]:
         """Generate a diff preview for the candidate, or None if not requested."""
         if not include_diffs or "files" not in candidate:
             return None
         original_code = candidate.get("code", "")
         replacement = candidate.get("replacement", "")
         file_changes = [
-            {"file_path": fp, "original_content": original_code, "new_content": replacement}
-            for fp in candidate.get("files", [])
+            {"file_path": fp, "original_content": original_code, "new_content": replacement} for fp in candidate.get("files", [])
         ]
         if not file_changes:
             return None
@@ -241,9 +236,7 @@ class DuplicationReporter:
             distribution["high"] += 1
 
     @staticmethod
-    def _build_global_recommendations(
-        distribution: Dict[str, int], total_lines_saveable: int, candidate_count: int
-    ) -> List[str]:
+    def _build_global_recommendations(distribution: Dict[str, int], total_lines_saveable: int, candidate_count: int) -> List[str]:
         """Build prioritized global recommendations list."""
         recs: List[str] = []
         if distribution["high"] > 0:

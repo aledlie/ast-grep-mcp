@@ -320,6 +320,7 @@ class DeduplicationAnalysisOrchestrator:
         progress_callback: Optional[Callable[[str, float], None]] = None,
     ) -> Dict[str, Any]:
         """Enrich top candidates and generate summary using config object."""
+
         def report(stage: str, percent: float) -> None:
             if progress_callback:
                 progress_callback(stage, percent)

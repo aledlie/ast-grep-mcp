@@ -137,19 +137,19 @@ def _make_issue(
 
 def _check_param_sync(func: FunctionSignature, language: str) -> List[DocSyncIssue]:
     doc_params = set(_extract_docstring_params(func.existing_docstring, language))  # type: ignore[arg-type]
-    actual_params = {
-        (p.name[:-1] if p.name.endswith("?") else p.name)
-        for p in func.parameters
-        if p.name not in ("self", "cls")
-    }
+    actual_params = {(p.name[:-1] if p.name.endswith("?") else p.name) for p in func.parameters if p.name not in ("self", "cls")}
     issues = [
-        _make_issue(func, "mismatch", f"Parameter '{p}' is not documented", "info",
-                    f"Add documentation for parameter '{p}'")
+        _make_issue(func, "mismatch", f"Parameter '{p}' is not documented", "info", f"Add documentation for parameter '{p}'")
         for p in (actual_params - doc_params)
     ]
     issues += [
-        _make_issue(func, "stale", f"Documented parameter '{p}' does not exist in function signature",
-                    "warning", f"Remove documentation for parameter '{p}'")
+        _make_issue(
+            func,
+            "stale",
+            f"Documented parameter '{p}' does not exist in function signature",
+            "warning",
+            f"Remove documentation for parameter '{p}'",
+        )
         for p in (doc_params - actual_params)
     ]
     return issues
@@ -209,14 +209,16 @@ def _check_line_links(line: str, line_num: int, file_path: str, project_folder: 
             continue
         full_path = _resolve_link_path(url, file_path, project_folder)
         if not os.path.exists(full_path):
-            issues.append(DocSyncIssue(
-                issue_type="broken_link",
-                file_path=file_path,
-                line_number=line_num,
-                description=f"Broken link to '{url}'",
-                suggested_fix=f"Update or remove link to '{url}'",
-                severity="warning",
-            ))
+            issues.append(
+                DocSyncIssue(
+                    issue_type="broken_link",
+                    file_path=file_path,
+                    line_number=line_num,
+                    description=f"Broken link to '{url}'",
+                    suggested_fix=f"Update or remove link to '{url}'",
+                    severity="warning",
+                )
+            )
     return issues
 
 
@@ -273,10 +275,7 @@ def _resolve_include_patterns(language: str, include_patterns: List[str]) -> Lis
 
 def _is_excluded(path: str, project_folder: str, exclude_patterns: List[str]) -> bool:
     rel_path = os.path.relpath(path, project_folder)
-    return any(
-        pattern.replace("**/", "").replace("/**", "") in rel_path
-        for pattern in exclude_patterns
-    )
+    return any(pattern.replace("**/", "").replace("/**", "") in rel_path for pattern in exclude_patterns)
 
 
 def _find_source_files(
@@ -397,9 +396,7 @@ def _process_file_docstrings(
     total = len(functions)
     documented = undocumented = stale = 0
     for func in functions:
-        doc_delta, undoc_delta, stale_delta = _accumulate_func_result(
-            *_check_function_docstring(func, language), all_issues, suggestions
-        )
+        doc_delta, undoc_delta, stale_delta = _accumulate_func_result(*_check_function_docstring(func, language), all_issues, suggestions)
         documented += doc_delta
         undocumented += undoc_delta
         stale += stale_delta
@@ -473,8 +470,8 @@ def _collect_issues(
     suggestions: List[Dict[str, Any]] = []
 
     if "all" in doc_types or "docstrings" in doc_types:
-        issues, total_functions, documented_functions, undocumented_functions, stale_docstrings, suggestions = (
-            _check_docstrings_in_files(project_folder, language, include_patterns, exclude_patterns)
+        issues, total_functions, documented_functions, undocumented_functions, stale_docstrings, suggestions = _check_docstrings_in_files(
+            project_folder, language, include_patterns, exclude_patterns
         )
         all_issues.extend(issues)
 

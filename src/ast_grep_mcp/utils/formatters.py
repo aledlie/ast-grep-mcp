@@ -582,6 +582,7 @@ def _process_python_lines(lines: List[str]) -> List[str]:
 def _format_with_black(code: str, line_length: int) -> Optional[str]:
     try:
         import black
+
         mode = black.Mode(
             target_versions=set(),
             line_length=line_length,
@@ -684,8 +685,19 @@ def _run_prettier(code: str, suffix: str, parser: str, line_length: int) -> Opti
             temp_path = f.name
         try:
             result = subprocess.run(
-                [prettier_path, "--parser", parser, "--print-width", str(line_length),
-                 "--single-quote", "--trailing-comma", "es5", "--arrow-parens", "always", temp_path],
+                [
+                    prettier_path,
+                    "--parser",
+                    parser,
+                    "--print-width",
+                    str(line_length),
+                    "--single-quote",
+                    "--trailing-comma",
+                    "es5",
+                    "--arrow-parens",
+                    "always",
+                    temp_path,
+                ],
                 capture_output=True,
                 text=True,
                 timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,

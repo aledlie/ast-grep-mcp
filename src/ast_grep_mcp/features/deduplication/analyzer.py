@@ -22,21 +22,99 @@ IDENTIFIER_CONTEXT_WINDOW_CHARS = 20
 
 _LANGUAGE_KEYWORDS: Dict[str, set[str]] = {
     "python": {
-        "def", "class", "if", "else", "elif", "for", "while", "return", "import", "from",
-        "as", "try", "except", "finally", "with", "lambda", "yield", "raise", "pass",
-        "break", "continue", "and", "or", "not", "in", "is", "None", "True", "False",
-        "async", "await", "global", "nonlocal", "assert",
+        "def",
+        "class",
+        "if",
+        "else",
+        "elif",
+        "for",
+        "while",
+        "return",
+        "import",
+        "from",
+        "as",
+        "try",
+        "except",
+        "finally",
+        "with",
+        "lambda",
+        "yield",
+        "raise",
+        "pass",
+        "break",
+        "continue",
+        "and",
+        "or",
+        "not",
+        "in",
+        "is",
+        "None",
+        "True",
+        "False",
+        "async",
+        "await",
+        "global",
+        "nonlocal",
+        "assert",
     },
     "javascript": {
-        "function", "const", "let", "var", "if", "else", "for", "while", "return",
-        "import", "export", "from", "class", "new", "this", "try", "catch", "finally",
-        "throw", "async", "await", "true", "false", "null", "undefined",
+        "function",
+        "const",
+        "let",
+        "var",
+        "if",
+        "else",
+        "for",
+        "while",
+        "return",
+        "import",
+        "export",
+        "from",
+        "class",
+        "new",
+        "this",
+        "try",
+        "catch",
+        "finally",
+        "throw",
+        "async",
+        "await",
+        "true",
+        "false",
+        "null",
+        "undefined",
     },
     "typescript": {
-        "function", "const", "let", "var", "if", "else", "for", "while", "return",
-        "import", "export", "from", "class", "new", "this", "try", "catch", "finally",
-        "throw", "async", "await", "true", "false", "null", "undefined",
-        "interface", "type", "enum", "implements", "extends",
+        "function",
+        "const",
+        "let",
+        "var",
+        "if",
+        "else",
+        "for",
+        "while",
+        "return",
+        "import",
+        "export",
+        "from",
+        "class",
+        "new",
+        "this",
+        "try",
+        "catch",
+        "finally",
+        "throw",
+        "async",
+        "await",
+        "true",
+        "false",
+        "null",
+        "undefined",
+        "interface",
+        "type",
+        "enum",
+        "implements",
+        "extends",
     },
 }
 
@@ -59,11 +137,15 @@ class PatternAnalyzer:
         for pos in sorted(all_positions):
             lit1, lit2 = pos_map1.get(pos), pos_map2.get(pos)
             if lit1 and lit2 and lit1["value"] != lit2["value"]:
-                result.append({
-                    "position": pos[0] + 1, "column": pos[1],
-                    "value1": lit1["value"], "value2": lit2["value"],
-                    "literal_type": literal_type,
-                })
+                result.append(
+                    {
+                        "position": pos[0] + 1,
+                        "column": pos[1],
+                        "value1": lit1["value"],
+                        "value2": lit2["value"],
+                        "literal_type": literal_type,
+                    }
+                )
         return result
 
     def identify_varying_literals(self, code1: str, code2: str, language: str = "python") -> List[Dict[str, Any]]:
@@ -208,11 +290,14 @@ class PatternAnalyzer:
         formatted_variations: List[Dict[str, Any]] = []
         suggested_parameters: List[str] = []
         for (line, col, lit_type), values in sorted(all_variations.items()):
-            formatted_variations.append({
-                "position": {"line": line, "column": col},
-                "type": lit_type, "values": values,
-                "unique_count": len(set(values)),
-            })
+            formatted_variations.append(
+                {
+                    "position": {"line": line, "column": col},
+                    "type": lit_type,
+                    "values": values,
+                    "unique_count": len(set(values)),
+                }
+            )
             param_name = self._suggest_parameter_name(lit_type, values[0])
             if param_name and param_name not in suggested_parameters:
                 suggested_parameters.append(param_name)
@@ -263,9 +348,7 @@ class PatternAnalyzer:
         parameterizable_count = 0
         param_suggestions: List[str] = []
         for var in variations:
-            c = self.classify_variation(
-                var.get("type", "unknown"), var.get("old_value", ""), var.get("new_value", ""), var.get("context")
-            )
+            c = self.classify_variation(var.get("type", "unknown"), var.get("old_value", ""), var.get("new_value", ""), var.get("context"))
             classifications.append(c)
             total_complexity += c["complexity"]["score"]
             if c["parameterizable"]:
@@ -507,9 +590,12 @@ class PatternAnalyzer:
             if cond1["text"] == cond2["text"]:
                 return None
             v: Dict[str, Any] = {
-                "position": i + 1, "type": "modified",
-                "condition1": cond1["text"], "condition2": cond2["text"],
-                "line1": cond1.get("line", 0), "line2": cond2.get("line", 0),
+                "position": i + 1,
+                "type": "modified",
+                "condition1": cond1["text"],
+                "condition2": cond2["text"],
+                "line1": cond1.get("line", 0),
+                "line2": cond2.get("line", 0),
             }
             v["details"] = self._analyze_conditional_difference(cond1["text"], cond2["text"], language)
             return v
@@ -610,6 +696,7 @@ class PatternAnalyzer:
     def _extract_conditionals_regex(self, code: str, language: str) -> List[Dict[str, Any]]:
         """Fallback regex-based extraction for conditionals."""
         import re
+
         pattern = r"(?:if|elif)\s+(.+?):" if language == "python" else r"(?:if|else\s+if)\s*\((.+?)\)"
         return [
             {"line": i, "text": m.group(0).strip(), "kind": "if_statement"}
@@ -734,6 +821,7 @@ class PatternAnalyzer:
     def _detect_nested_call_regex(self, code: str, identifier: str) -> Optional[Dict[str, Any]]:
         """Fallback regex-based detection for nested function calls."""
         import re
+
         pattern = r"(\w+)\s*\(\s*(\w+)\s*\([^)]*" + re.escape(identifier) + r"[^)]*\)"
         hit = next(
             ((i, m) for i, line in enumerate(code.split("\n"), 1) for m in [re.search(pattern, line)] if m),
@@ -743,8 +831,10 @@ class PatternAnalyzer:
             return None
         i, m = hit
         return {
-            "identifier": identifier, "nesting_depth": 2,
-            "call_expression": m.group(0), "line": i,
+            "identifier": identifier,
+            "nesting_depth": 2,
+            "call_expression": m.group(0),
+            "line": i,
             "outer_function": m.group(RegexCaptureGroups.FIRST),
             "inner_function": m.group(RegexCaptureGroups.SECOND),
         }
@@ -757,6 +847,7 @@ class PatternAnalyzer:
 
     def _extract_cond_vars(self, cond: str) -> set[str]:
         import re
+
         for op in self._COMPARISON_OPERATORS:
             cond = cond.replace(op, " ")
         return set(re.findall(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b", cond)) - self._COND_KEYWORD_EXCLUSIONS
@@ -764,6 +855,7 @@ class PatternAnalyzer:
     def _analyze_conditional_difference(self, cond1: str, cond2: str, language: str) -> Dict[str, Any]:
         """Analyze the specific differences between two conditional expressions."""
         import re
+
         details: Dict[str, Any] = {"operator_changed": False, "value_changed": False, "variable_changed": False, "comparison_values": {}}
 
         op1, op2 = self._find_operator(cond1), self._find_operator(cond2)
@@ -835,15 +927,19 @@ def _collect_all_variations(analyzer: "PatternAnalyzer", code1: str, code2: str,
         ]
         + [
             {
-                "type": "conditional", "old_value": v.get("condition1", ""),
-                "new_value": v.get("condition2", ""), "context": f"line {v.get('line1', 0)}",
+                "type": "conditional",
+                "old_value": v.get("condition1", ""),
+                "new_value": v.get("condition2", ""),
+                "context": f"line {v.get('line1', 0)}",
             }
             for v in cond_variations
         ]
         + [
             {
-                "type": "identifier", "old_value": v.get("identifier1", ""),
-                "new_value": v.get("identifier2", ""), "context": v.get("context", ""),
+                "type": "identifier",
+                "old_value": v.get("identifier1", ""),
+                "new_value": v.get("identifier2", ""),
+                "context": v.get("context", ""),
             }
             for v in identifier_variations
         ]
@@ -885,9 +981,12 @@ def classify_variations(code1: str, code2: str, language: str = "python") -> Dic
 
     if not variations:
         return {
-            "severity": VariationSeverity.LOW, "variations": [],
-            "parameterizable": True, "suggested_refactoring": "extract_function",
-            "complexity_score": 0, "parameter_suggestions": [],
+            "severity": VariationSeverity.LOW,
+            "variations": [],
+            "parameterizable": True,
+            "suggested_refactoring": "extract_function",
+            "complexity_score": 0,
+            "parameter_suggestions": [],
         }
 
     classification = analyzer.classify_variations(variations)
@@ -943,7 +1042,7 @@ def _get_usage_type(context: str, name: str) -> str:
         return "function"
     if "class " in context:
         return "class"
-    if "(" in context[context.find(name): context.find(name) + len(name) + 2]:
+    if "(" in context[context.find(name) : context.find(name) + len(name) + 2]:
         return "function_call"
     return "variable"
 
@@ -960,6 +1059,7 @@ def _extract_identifiers_from_code(code: str, language: str) -> Dict[int, Dict[s
         Dictionary mapping position to identifier info
     """
     import re
+
     excluded = _LANGUAGE_KEYWORDS.get(language, _LANGUAGE_KEYWORDS["python"])
     identifier_pattern = r"\b([a-zA-Z_][a-zA-Z0-9_]*)\b"
     identifiers: Dict[int, Dict[str, Any]] = {}

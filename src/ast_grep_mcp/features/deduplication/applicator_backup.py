@@ -42,7 +42,7 @@ class DeduplicationBackupManager:
         self.logger.info("create_backup_start", file_count=len(files))
 
         # Generate backup ID with timestamp
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-FormattingDefaults.TIMESTAMP_MS_TRIM]
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[: -FormattingDefaults.TIMESTAMP_MS_TRIM]
         backup_id = f"dedup-backup-{timestamp}"
         backup_dir = self.backup_base_dir / backup_id
 

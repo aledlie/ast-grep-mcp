@@ -48,8 +48,10 @@ async def get_schema_type_tool(type_name: str) -> Dict[str, Any]:
         result = await get_schema_org_client().get_schema_type(type_name)
         elapsed = time.time() - start_time
         logger.info(
-            "tool_completed", tool="get_schema_type",
-            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION), status="success"
+            "tool_completed",
+            tool="get_schema_type",
+            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
+            status="success",
         )
         return result
     except Exception as e:
@@ -79,9 +81,11 @@ async def search_schemas_tool(query: str, limit: int = 10) -> List[Dict[str, Any
         results = await get_schema_org_client().search_schemas(query, limit)
         elapsed = time.time() - start_time
         logger.info(
-            "tool_completed", tool="search_schemas",
+            "tool_completed",
+            tool="search_schemas",
             execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
-            result_count=len(results), status="success"
+            result_count=len(results),
+            status="success",
         )
         return results
     except Exception as e:
@@ -110,8 +114,10 @@ async def get_type_hierarchy_tool(type_name: str) -> Dict[str, Any]:
         result = await get_schema_org_client().get_type_hierarchy(type_name)
         elapsed = time.time() - start_time
         logger.info(
-            "tool_completed", tool="get_type_hierarchy",
-            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION), status="success"
+            "tool_completed",
+            tool="get_type_hierarchy",
+            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
+            status="success",
         )
         return result
     except Exception as e:
@@ -141,15 +147,16 @@ async def get_type_properties_tool(type_name: str, include_inherited: bool = Tru
         results = await get_schema_org_client().get_type_properties(type_name, include_inherited)
         elapsed = time.time() - start_time
         logger.info(
-            "tool_completed", tool="get_type_properties",
+            "tool_completed",
+            tool="get_type_properties",
             execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
-            property_count=len(results), status="success"
+            property_count=len(results),
+            status="success",
         )
         return results
     except Exception as e:
         _log_tool_error(
-            logger, "get_type_properties", e, time.time() - start_time,
-            {"type_name": type_name, "include_inherited": include_inherited}
+            logger, "get_type_properties", e, time.time() - start_time, {"type_name": type_name, "include_inherited": include_inherited}
         )
         raise
 
@@ -176,14 +183,19 @@ async def generate_schema_example_tool(type_name: str, custom_properties: Option
         result = await get_schema_org_client().generate_example(type_name, custom_properties)
         elapsed = time.time() - start_time
         logger.info(
-            "tool_completed", tool="generate_schema_example",
-            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION), status="success"
+            "tool_completed",
+            tool="generate_schema_example",
+            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
+            status="success",
         )
         return result
     except Exception as e:
         _log_tool_error(
-            logger, "generate_schema_example", e, time.time() - start_time,
-            {"type_name": type_name, "has_custom_properties": custom_properties is not None}
+            logger,
+            "generate_schema_example",
+            e,
+            time.time() - start_time,
+            {"type_name": type_name, "has_custom_properties": custom_properties is not None},
         )
         raise
 
@@ -216,15 +228,20 @@ def generate_entity_id_tool(base_url: str, entity_type: str, entity_slug: Option
         result = get_schema_org_client().generate_entity_id(base_url, entity_type, entity_slug)
         elapsed = time.time() - start_time
         logger.info(
-            "tool_completed", tool="generate_entity_id",
+            "tool_completed",
+            tool="generate_entity_id",
             execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
-            generated_id=result, status="success"
+            generated_id=result,
+            status="success",
         )
         return result
     except Exception as e:
         _log_tool_error(
-            logger, "generate_entity_id", e, time.time() - start_time,
-            {"base_url": base_url, "entity_type": entity_type, "has_slug": entity_slug is not None}
+            logger,
+            "generate_entity_id",
+            e,
+            time.time() - start_time,
+            {"base_url": base_url, "entity_type": entity_type, "has_slug": entity_slug is not None},
         )
         raise
 
@@ -257,9 +274,12 @@ def validate_entity_id_tool(entity_id: str) -> Dict[str, Any]:
         result = get_schema_org_client().validate_entity_id(entity_id)
         elapsed = time.time() - start_time
         logger.info(
-            "tool_completed", tool="validate_entity_id",
+            "tool_completed",
+            tool="validate_entity_id",
             execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
-            is_valid=result["valid"], warning_count=len(result["warnings"]), status="success"
+            is_valid=result["valid"],
+            warning_count=len(result["warnings"]),
+            status="success",
         )
         return result
     except Exception as e:
@@ -285,9 +305,11 @@ async def build_entity_graph_tool(entities: List[Dict[str, Any]], base_url: str)
         result = await get_schema_org_client().build_entity_graph(entities, base_url)
         elapsed = time.time() - start_time
         logger.info(
-            "tool_completed", tool="build_entity_graph",
+            "tool_completed",
+            tool="build_entity_graph",
             execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
-            entity_count=len(result.get("@graph", [])), status="success"
+            entity_count=len(result.get("@graph", [])),
+            status="success",
         )
         return result
     except Exception as e:
@@ -314,16 +336,21 @@ async def enhance_entity_graph_tool(input_source: str, input_type: str = "file",
         result = await analyze_entity_graph(input_source=input_source, input_type=input_type, output_mode=output_mode)
         elapsed = time.time() - start_time
         logger.info(
-            "tool_completed", tool="enhance_entity_graph",
+            "tool_completed",
+            tool="enhance_entity_graph",
             execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
             entity_count=len(result.get("entity_enhancements", [])),
-            seo_score=result.get("overall_seo_score", 0), status="success"
+            seo_score=result.get("overall_seo_score", 0),
+            status="success",
         )
         return result
     except Exception as e:
         _log_tool_error(
-            logger, "enhance_entity_graph", e, time.time() - start_time,
-            {"input_source": input_source, "input_type": input_type, "output_mode": output_mode}
+            logger,
+            "enhance_entity_graph",
+            e,
+            time.time() - start_time,
+            {"input_source": input_source, "input_type": input_type, "output_mode": output_mode},
         )
         raise
 

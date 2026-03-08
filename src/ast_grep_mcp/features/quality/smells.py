@@ -38,9 +38,7 @@ def _run_parallel_analysis(
 ) -> List[Dict[str, Any]]:
     """Run smell analysis in parallel over files and return aggregated smells."""
     with ThreadPoolExecutor(max_workers=max_threads) as executor:
-        file_results = list(
-            executor.map(lambda f: analyzer.analyze_file(f, normalized_language, project_path), files_to_analyze)
-        )
+        file_results = list(executor.map(lambda f: analyzer.analyze_file(f, normalized_language, project_path), files_to_analyze))
     return aggregate_smell_results(file_results)
 
 

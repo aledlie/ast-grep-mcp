@@ -23,10 +23,7 @@ def run_complexity(project_folder: str) -> dict:
     # Response keys: name, file, lines, cyclomatic, cognitive, nesting_depth, length, exceeds
     for f in sorted(funcs, key=lambda x: x.get("cognitive", 0), reverse=True)[:10]:
         rel = f.get("file", "").split("src/")[-1]
-        print(
-            f"  {rel} {f['name']} cyc={f['cyclomatic']} cog={f['cognitive']} "
-            f"nest={f['nesting_depth']} len={f['length']}"
-        )
+        print(f"  {rel} {f['name']} cyc={f['cyclomatic']} cog={f['cognitive']} nest={f['nesting_depth']} len={f['length']}")
     if len(funcs) > 10:
         print(f"  ... and {len(funcs) - 10} more")
     return result

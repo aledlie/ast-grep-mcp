@@ -329,9 +329,7 @@ def _run_parallel_search(
     """Execute parallel search across all languages."""
     workers = min(len(languages), MAX_LANGUAGE_SEARCH_WORKERS)
     with ThreadPoolExecutor(max_workers=workers) as executor:
-        futures = _submit_language_futures(
-            executor, project_folder, languages, semantic_key, max_results_per_language
-        )
+        futures = _submit_language_futures(executor, project_folder, languages, semantic_key, max_results_per_language)
         return _collect_future_results(futures)
 
 
@@ -359,9 +357,7 @@ def search_multi_language_impl(
         )
 
     semantic_key = _parse_semantic_query(semantic_pattern)
-    all_matches, matches_by_language = _run_parallel_search(
-        project_folder, languages, semantic_key, max_results_per_language
-    )
+    all_matches, matches_by_language = _run_parallel_search(project_folder, languages, semantic_key, max_results_per_language)
 
     if group_by == "semantic":
         all_matches = _group_by_semantic(all_matches, semantic_pattern)
