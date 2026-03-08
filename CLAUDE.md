@@ -4,7 +4,7 @@
 
 ```bash
 uv sync                          # Install dependencies
-uv run pytest                    # Run all tests (1,469 collected)
+uv run pytest                    # Run all tests (1,598 collected)
 uv run ruff check . && uv run mypy src/ # Lint and type check
 uv run main.py                   # Run MCP server locally
 doppler run -- uv run main.py    # Run with Doppler secrets
@@ -20,6 +20,14 @@ Modular MCP server (120 modules) with ast-grep structural code search, Schema.or
 
 ## Architecture
 
+### Efficiency
+- **file tree** load docs/repomix/token-tree.txt into memory before multi-file read/explore or
+refactoring tasks for context.
+- **compression** use token-tree to identify the correct section in the lossless
+  compression file at docs/repomix/repomix.xml during complex debugging or read/explore operations
+
+
+### Structure
 ```
 src/ast_grep_mcp/
 ├── core/           # Config, cache, executor, logging, sentry, usage tracking
@@ -38,13 +46,6 @@ Quality gates: Ruff + mypy + pytest + analyze_codebase.py
 ```bash
 uv run pytest tests/quality/test_complexity_regression.py -v
 ```
-
-## Recent Maintenance (2026-03-04)
-
-- Consolidated repeated scoring/confidence literals into shared constants and scales.
-- Reduced magic-number false positives by ignoring one-off constant declarations in smell detection.
-- Enforced venv and backup exclusions across analyzer/search scans.
-- Fixed unified diff hunk parsing to match shared capture-group constants.
 
 ## Config
 
@@ -77,7 +78,7 @@ When calling tools programmatically, use these field names (NOT `line`/`file_pat
 
 ## Docs
 
-- [CHANGELOG.md](CHANGELOG.md) - Version history
+- [docs/CHANGELOG.md](docs/CHANGELOG.md) - Version history (index to `docs/changelog/` entries)
 - [docs/PATTERNS.md](docs/PATTERNS.md) - Refactoring patterns
 - [docs/DEDUPLICATION-GUIDE.md](docs/DEDUPLICATION-GUIDE.md) - Deduplication workflow
 - [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Configuration options

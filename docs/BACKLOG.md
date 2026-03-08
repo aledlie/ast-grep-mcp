@@ -3,29 +3,35 @@
 
 ## Complexity Refactoring Queue (2026-03-08 refresh)
 
-100 functions exceeding thresholds across 120 files (1,770 total). Thresholds: cyc >10, cog >15, nest >4, len >50.
+Thresholds: cyc >10, cog >15, nest >4, len >50.
 
-Previous baselines: **434** (2026-03-04) -> **407** (2026-03-06) -> **100** (2026-03-08). ~75% reduction from prior refactoring commits.
+Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08).
+
+### Recently Resolved
+
+Commits `52b1f3f`..`751e2bc` addressed 4 of the top 10 offenders:
+
+- **`deduplication/applicator_executor.py`** (was cog=33) — extracted loop bodies into `_create_single_file`, `_update_single_file`, `_apply_import_addition`; removed duplicated import logic. Worst remaining: cog=16.
+- **`documentation/changelog_generator.py`** (was cog=30) — extracted `_get_commits`, `_group_commits_by_version`, `_format_changelog_entry` helpers; added unit tests. Worst remaining: `_format_conventional_section` cog=18.
+- **`quality/tools.py`** — reduced complexity across enforcement tools. Worst remaining: `create_linting_rule_tool` cog=18, `list_rule_templates_tool` cog=17.
+- **`complexity/analyzer.py`** — reduced complexity in analysis functions. Worst remaining: `_find_magic_numbers` cog=25, `extract_functions_from_file` cog=23.
+
+### Remaining Top Offenders
+
+| File | Function | Cyc | Cog | Nest | Len |
+|------|----------|-----|-----|------|-----|
+| `deduplication/applicator_backup.py` | — | 9 | 33 | 6 | 45 |
+| `refactoring/extractor.py` | — | 13 | 31 | 5 | 53 |
+| `core/executor.py` | — | 16 | 29 | 6 | 101 |
+| `condense/service.py` | — | 15 | 29 | 5 | 115 |
+| `deduplication/diff.py` | — | 14 | 29 | 5 | 53 |
+| `refactoring/analyzer.py` | — | 11 | 29 | 5 | 49 |
+| `condense/service.py` | — | 17 | 28 | 5 | 33 |
+| `complexity/analyzer.py` | `_find_magic_numbers` | 13 | 25 | 5 | 61 |
+| `complexity/analyzer.py` | `extract_functions_from_file` | 12 | 23 | 5 | 41 |
+| `complexity/analyzer.py` | `_find_docstring_extent` | 11 | 21 | 4 | 28 |
 
 Refresh: `uv run python scripts/run_all_analysis.py`
-
-### Top 10 Functions by Cognitive Complexity
-
-| File | Cyc | Cog | Nest | Len |
-|------|-----|-----|------|-----|
-| `deduplication/applicator_executor.py` | 12 | 33 | 6 | 59 |
-| `deduplication/applicator_backup.py` | 9 | 33 | 6 | 45 |
-| `refactoring/extractor.py` | 13 | 31 | 5 | 53 |
-| `documentation/changelog_generator.py` | 20 | 30 | 5 | 58 |
-| `core/executor.py` | 16 | 29 | 6 | 101 |
-| `condense/service.py` | 15 | 29 | 5 | 115 |
-| `deduplication/diff.py` | 14 | 29 | 5 | 53 |
-| `refactoring/analyzer.py` | 11 | 29 | 5 | 49 |
-| `condense/service.py` | 17 | 28 | 5 | 33 |
-| `quality/fixer.py` | 14 | 27 | 4 | 36 |
-
-Function names unavailable in summary output (analyzer reports `unknown`). Use per-file complexity analysis for function-level detail:
-`uv run python -c "from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool; print(analyze_complexity_tool('/path/to/file', 'python'))"`
 
 ## Duplicate Detection Precision (2026-03-08)
 
@@ -38,9 +44,15 @@ See [docs/duplicate-detector-misses.md](duplicate-detector-misses.md) for full i
 - Add minimum line savings threshold
 - Consider excluding parallel `to_*` formatters
 
-## changelog_generator.py Hardening (2026-03-08)
+## ~~changelog_generator.py Hardening~~ (2026-03-08, Resolved)
 
-Low-severity items from code review of commit 8291624. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+- ~~Validate `project_folder` exists in `_run_git_command`~~ — Added `os.path.isdir()` check
+- ~~Replace empty string sentinel in `_get_first_commit` with `str | None`~~ — `_get_first_commit` and `_find_previous_tag` now return `str | None`
 
-- Validate `project_folder` exists in `_run_git_command` before passing as `cwd` to `subprocess.run` (currently raises unhandled `FileNotFoundError` for non-existent dirs)
-- Replace empty string sentinel in `_get_first_commit` with `Optional[str]` return type and explicit `None` checks downstream
+## ~~Test & Documentation Quality~~ (2026-03-08, Resolved)
+
+- ~~Per-method imports in TestChangelogHelpers~~ — Moved `from unittest.mock import patch` to module level
+- ~~Add test for `_run_git_command` with invalid `cwd`~~ — Added `test_run_git_command_invalid_cwd` (passing, not xfail — bug is fixed)
+- ~~KNOWN_ISSUES.md: replace hardcoded line numbers with function names~~ — Done
+- ~~Clarify test name~~ — Renamed to `test_find_previous_tag_empty_tag_list`
+- ~~Resolve `Optional[str]` vs `str | None` terminology~~ — Standardized on `str | None` (Python 3.13+)

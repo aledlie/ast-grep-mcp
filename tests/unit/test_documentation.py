@@ -1,5 +1,7 @@
 """Tests for documentation generation feature."""
 
+from unittest.mock import patch
+
 from ast_grep_mcp.models.documentation import (
     ApiRoute,
     ChangelogEntry,
@@ -530,7 +532,6 @@ class TestChangelogHelpers:
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _resolve_version_ref,
         )
-        from unittest.mock import patch
 
         # HEAD should return immediately without git calls
         with patch(
@@ -545,7 +546,6 @@ class TestChangelogHelpers:
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _resolve_version_ref,
         )
-        from unittest.mock import patch
 
         with patch(
             "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
@@ -560,7 +560,6 @@ class TestChangelogHelpers:
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _resolve_version_ref,
         )
-        from unittest.mock import patch
 
         with patch(
             "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
@@ -577,7 +576,6 @@ class TestChangelogHelpers:
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _resolve_version_ref,
         )
-        from unittest.mock import patch
 
         with patch(
             "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
@@ -591,7 +589,6 @@ class TestChangelogHelpers:
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _get_first_commit,
         )
-        from unittest.mock import patch
 
         with patch(
             "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
@@ -603,24 +600,22 @@ class TestChangelogHelpers:
             )
 
     def test_get_first_commit_failure(self):
-        """Test empty string on failure."""
+        """Test None return on failure."""
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _get_first_commit,
         )
-        from unittest.mock import patch
 
         with patch(
             "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
         ) as mock_git:
             mock_git.return_value = (False, "error")
-            assert _get_first_commit("/fake") == ""
+            assert _get_first_commit("/fake") is None
 
     def test_find_previous_tag_skips_excluded(self):
         """Test that excluded ref is skipped."""
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _find_previous_tag,
         )
-        from unittest.mock import patch
 
         with patch(
             "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
@@ -637,7 +632,6 @@ class TestChangelogHelpers:
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _find_previous_tag,
         )
-        from unittest.mock import patch
 
         with patch(
             "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
@@ -649,12 +643,11 @@ class TestChangelogHelpers:
             result = _find_previous_tag("/fake", "v1.0.0")
             assert result == "first-commit"
 
-    def test_find_previous_tag_no_tags(self):
-        """Test fallback when no tags exist."""
+    def test_find_previous_tag_empty_tag_list(self):
+        """Test fallback when tag list is empty (success=True, tags="")."""
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _find_previous_tag,
         )
-        from unittest.mock import patch
 
         with patch(
             "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
@@ -671,7 +664,6 @@ class TestChangelogHelpers:
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _find_previous_tag,
         )
-        from unittest.mock import patch
 
         with patch(
             "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
@@ -688,7 +680,6 @@ class TestChangelogHelpers:
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _resolve_version_ref,
         )
-        from unittest.mock import patch
 
         with patch(
             "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
@@ -705,7 +696,6 @@ class TestChangelogHelpers:
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _get_commit_range,
         )
-        from unittest.mock import patch
 
         with patch(
             "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
@@ -722,7 +712,6 @@ class TestChangelogHelpers:
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _get_commit_range,
         )
-        from unittest.mock import patch
 
         with patch(
             "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
@@ -741,7 +730,6 @@ class TestChangelogHelpers:
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _get_commit_range,
         )
-        from unittest.mock import patch
 
         with patch(
             "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
@@ -759,7 +747,6 @@ class TestChangelogHelpers:
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _get_commit_range,
         )
-        from unittest.mock import patch
 
         with patch(
             "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
@@ -771,6 +758,16 @@ class TestChangelogHelpers:
             from_ref, to_ref = _get_commit_range("/fake", None, "2.0.0")
             assert from_ref == "v1.0.0"  # previous tag, skipping v2.0.0
             assert to_ref == "v2.0.0"
+
+    def test_run_git_command_invalid_cwd(self):
+        """Test _run_git_command returns failure for non-existent directory."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _run_git_command,
+        )
+
+        success, message = _run_git_command("/nonexistent/path/xyz", ["status"])
+        assert success is False
+        assert "Directory not found" in message
 
 
 class TestChangelogGenerator:

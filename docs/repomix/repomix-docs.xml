@@ -1,0 +1,4942 @@
+<repomix><directory_structure>docs/
+  changelog/
+    2026-02-25-condense-cleanup.md
+    2026-03-04-maintenance-quality.md
+    2026-03-06-complexity-review-fixes.md
+    2026-03-08-code-review-findings.md
+    2026-03-08-quality-fixes.md
+  BACKLOG.md
+  BENCHMARKING.md
+  CHANGELOG.md
+  CODE-CONDENSE-PHASE-2.md
+  CODE-CONDENSE-PREP.md
+  CONFIGURATION.md
+  DEDUPLICATION-GUIDE.md
+  magic_number_semantic_analysis_2026-03-04.tsv
+  PATTERNS.md
+  README.md
+  SENTRY-INTEGRATION.md</directory_structure><files>This section contains the contents of the repository&apos;s files.<file path="docs/changelog/2026-02-25-condense-cleanup.md"># Condense Cleanup — 2026-02-25
+
+Completed backlog items from the condense feature implementation.
+
+## L1: Clean up unused constants in CondenseDefaults
+**Priority**: P3 | **Source**: condense feature session code review | **Commit**: d97d782
+Removed 7 unused constants from CondenseDefaults (INCLUDE_TYPE_ANNOTATIONS, INCLUDE_IMPORTS, MAX_FUNCTION_BODY_LINES, NORMALIZE_ARROW_FUNCTIONS, STRIP_UNUSED_IMPORTS, STRIP_COMMENTS, COMPLEXITY_INLINE_THRESHOLD). -- `src/ast_grep_mcp/constants.py`
+
+## L2: Standardize per-language stats field naming
+**Priority**: P3 | **Source**: condense feature session (9e65f55) | **Commit**: d97d782
+Renamed `LanguageCondenseStats.files` to `files_processed` to match project-wide convention (CondenseResult, UsageStats). Updated construction and serialization in service.py. -- `src/ast_grep_mcp/models/condense.py`</file><file path="docs/BENCHMARKING.md"># Performance Benchmarking Guide
+
+This document describes the performance benchmarking suite for the ast-grep MCP server.
+
+## Overview
+
+The benchmarking suite provides:
+- **Standard query patterns** to measure performance consistently
+- **Baseline tracking** to detect performance regressions
+- **Memory profiling** to catch memory leaks
+- **CI integration** for automated regression detection
+- **Detailed reports** showing performance trends
+
+## Quick Start
+
+```bash
+# Run benchmarks
+python scripts/run_benchmarks.py
+
+# Update baseline (after performance improvements)
+python scripts/run_benchmarks.py --save-baseline
+
+# Check for regressions (for CI)
+python scripts/run_benchmarks.py --check-regression
+```
+
+## Benchmark Suite
+
+### Standard Benchmarks
+
+The suite includes these standard benchmarks:
+
+| Benchmark | Description | Measures |
+|-----------|-------------|----------|
+| **simple_pattern_search** | Simple pattern with `find_code` | Basic search performance |
+| **yaml_rule_search** | YAML rule with `find_code_by_rule` | Rule-based search |
+| **early_termination_max_10** | Search with `max_results=10` | Early termination efficiency |
+| **file_size_filtering_10mb** | Search with `max_file_size_mb=10` | File filtering overhead |
+| **cache_miss** | First search (not in cache) | Uncached performance |
+| **cache_hit** | Repeat search (cached) | Cache hit performance |
+
+### Metrics Tracked
+
+For each benchmark, we track:
+- **Execution Time** (seconds) - How long the query takes
+- **Memory Usage** (MB) - Peak memory during execution
+- **Result Count** - Number of matches found
+- **Cache Status** - Whether result was cached
+
+## Performance Targets
+
+### Expected Performance Ranges
+
+Based on codebase size:
+
+| Codebase Size | Files | Simple Search | Complex Rule | With Cache |
+|---------------|-------|---------------|--------------|------------|
+| **Small** | &lt;100 | &lt;0.5s | &lt;1.0s | &lt;0.01s |
+| **Medium** | 100-1K | &lt;2.0s | &lt;4.0s | &lt;0.05s |
+| **Large** | 1K-10K | &lt;10s | &lt;20s | &lt;0.1s |
+| **XLarge** | &gt;10K | &lt;60s | &lt;120s | &lt;0.5s |
+
+### Memory Usage Targets
+
+- **Simple patterns:** &lt;50MB
+- **Complex rules:** &lt;100MB
+- **Large result sets:** &lt;200MB (with streaming)
+- **Cache overhead:** &lt;10MB per 100 cached queries
+
+## Regression Detection
+
+### What Triggers a Regression?
+
+A regression is detected when:
+- Execution time increases by &gt;10% compared to baseline
+- Memory usage increases by &gt;20% compared to baseline
+- Cache hit rate drops below 95%
+
+### How It Works
+
+1. **Baseline Storage:** First run saves metrics to `tests/benchmark_baseline.json`
+2. **Comparison:** Subsequent runs compare against baseline
+3. **Threshold Check:** Fails if any metric exceeds threshold
+4. **CI Failure:** Returns exit code 1 to fail CI build
+
+### Updating Baseline
+
+Update the baseline after:
+- Implementing performance improvements
+- Major refactoring that changes performance characteristics
+- Upgrading ast-grep version
+
+```bash
+# Run benchmarks and save as new baseline
+python scripts/run_benchmarks.py --save-baseline
+```
+
+## Running Benchmarks
+
+### Local Development
+
+```bash
+# Run all benchmarks
+uv run python -m pytest tests/test_benchmark.py -v
+
+# Run specific benchmark
+uv run python -m pytest tests/test_benchmark.py::TestPerformanceBenchmarks::test_benchmark_simple_pattern_search -v
+
+# Run with verbose output
+uv run python -m pytest tests/test_benchmark.py -v -s
+```
+
+### CI Integration
+
+Add to your `.github/workflows/ci.yml`:
+
+```yaml
+- name: Run performance benchmarks
+  run: |
+    uv run python scripts/run_benchmarks.py --check-regression
+  env:
+    CI: true
+```
+
+The benchmarks will:
+- Run the standard benchmark suite
+- Compare results to baseline
+- Fail the build if &gt;10% regression detected
+
+### Custom Benchmarks
+
+Add custom benchmarks to `tests/test_benchmark.py`:
+
+```python
+def test_benchmark_custom_query(
+    self,
+    benchmark_runner: BenchmarkRunner,
+    benchmark_fixtures: Path
+) -&gt; None:
+    &quot;&quot;&quot;Benchmark custom query pattern.&quot;&quot;&quot;
+    tool = mcp.tools[&quot;find_code&quot;]
+
+    result = benchmark_runner.run_benchmark(
+        &quot;custom_query_name&quot;,
+        tool,
+        project_folder=str(benchmark_fixtures),
+        pattern=&quot;your $PATTERN&quot;,
+        language=&quot;python&quot;,
+        output_format=&quot;json&quot;
+    )
+
+    assert result.execution_time &lt; 5.0, &quot;Query too slow&quot;
+    assert result.memory_mb &lt; 50.0, &quot;Query uses too much memory&quot;
+```
+
+## Benchmark Reports
+
+### Report Format
+
+Reports include:
+- Execution summary (date, benchmark count)
+- Results table with all metrics
+- Comparison to baseline (% change)
+- Regression warnings (if any)
+
+### Example Report
+
+```markdown
+# Performance Benchmark Report
+
+**Date:** 2025-11-16 14:30:00
+**Benchmarks Run:** 6
+
+## Benchmark Results
+
+| Benchmark | Time (s) | Memory (MB) | Results | vs Baseline |
+|-----------|----------|-------------|---------|-------------|
+| simple_pattern_search | 0.234 | 12.45 | 42 | -5.2% 🟢 |
+| yaml_rule_search | 0.456 | 15.67 | 38 | +2.1% |
+| early_termination_max_10 | 0.123 | 8.90 | 10 | -12.3% 🟢 |
+| cache_hit | 0.008 | 2.34 | 42 | ~same |
+
+## ✅ No Performance Regressions
+```
+
+## Interpreting Results
+
+### Good Performance Indicators
+
+✅ Execution time stays within expected ranges
+✅ Memory usage remains bounded (&lt;200MB)
+✅ Cache hit performance is &gt;10x faster than miss
+✅ Early termination works (result_count = max_results)
+
+### Warning Signs
+
+⚠️ Execution time increases over time
+⚠️ Memory usage grows without bound
+⚠️ Cache hit performance degrading
+⚠️ Regressions &gt;10% without code changes
+
+## Troubleshooting
+
+### Benchmarks Are Slow
+
+Possible causes:
+- **Large test fixtures** - Reduce fixture size or add max_results
+- **Cold caches** - Warming may help but defeats benchmarking purpose
+- **Background processes** - Close other applications during benchmarks
+- **Debug mode** - Ensure running in production mode
+
+### Memory Usage Too High
+
+Possible causes:
+- **Not using streaming** - Check that streaming is enabled
+- **Large result sets** - Use max_results to limit results
+- **Memory leaks** - Profile with tracemalloc to find leaks
+- **Cache unbounded** - Check cache size limits
+
+### Regressions Without Code Changes
+
+Possible causes:
+- **System differences** - Different hardware/OS than baseline
+- **ast-grep version** - Different ast-grep version
+- **Test fixtures changed** - Fixtures modified since baseline
+- **Background load** - System under load during benchmarks
+
+**Solution:** Re-run baseline on current system/environment
+
+## Advanced Usage
+
+### Memory Profiling
+
+```python
+import tracemalloc
+
+tracemalloc.start()
+# Run your code
+current, peak = tracemalloc.get_traced_memory()
+print(f&quot;Current: {current / 1024 / 1024:.2f} MB&quot;)
+print(f&quot;Peak: {peak / 1024 / 1024:.2f} MB&quot;)
+tracemalloc.stop()
+```
+
+### Performance Comparison
+
+Compare performance across branches:
+
+```bash
+# On main branch
+git checkout main
+python scripts/run_benchmarks.py --save-baseline
+mv tests/benchmark_baseline.json tests/baseline_main.json
+
+# On feature branch
+git checkout feature-branch
+python scripts/run_benchmarks.py --save-baseline
+mv tests/benchmark_baseline.json tests/baseline_feature.json
+
+# Compare
+diff tests/baseline_main.json tests/baseline_feature.json
+```
+
+### Custom Regression Thresholds
+
+Modify threshold in `test_benchmark.py`:
+
+```python
+# Default: 10% regression threshold
+has_regression, errors = benchmark_runner.check_regression(threshold=0.10)
+
+# Stricter: 5% regression threshold
+has_regression, errors = benchmark_runner.check_regression(threshold=0.05)
+```
+
+## Best Practices
+
+### Running Benchmarks
+
+1. **Close other applications** - Minimize background noise
+2. **Use consistent hardware** - Run on same machine as baseline
+3. **Warm up if needed** - But be aware this affects cold-start measurements
+4. **Run multiple times** - Average results for more accuracy
+
+### Maintaining Baselines
+
+1. **Update after improvements** - Capture performance gains
+2. **Document changes** - Note what changed in baseline commit
+3. **Keep old baselines** - Archive for historical comparison
+4. **Review regressions** - Investigate all regressions before updating baseline
+
+### CI Integration
+
+1. **Use fixed hardware** - Consistent CI runners
+2. **Fail on regression** - Don&apos;t merge performance regressions
+3. **Track trends** - Monitor performance over time
+4. **Alert on degradation** - Set up alerts for performance drops
+
+## Future Enhancements
+
+Potential improvements to the benchmark suite:
+
+- **Historical tracking** - Store all benchmark runs for trend analysis
+- **Visualization** - Generate charts showing performance over time
+- **Parallel benchmarks** - Run benchmarks in parallel for faster results
+- **More metrics** - CPU usage, I/O metrics, network calls
+- **Automated tuning** - Suggest optimizations based on results
+- **Benchmark fixtures** - Generate realistic benchmark codebases
+
+## References
+
+- [pytest benchmarking](https://docs.pytest.org/en/stable/how-to/benchmarks.html)
+- [Python memory profiling](https://docs.python.org/3/library/tracemalloc.html)
+- [Performance testing best practices](https://martinfowler.com/articles/nonDeterminism.html)
+
+---
+
+**Last Updated:** 2025-11-16
+**Maintained by:** AST-Grep MCP Development Team</file><file path="docs/CODE-CONDENSE-PHASE-2.md"># Code Condense Phase 2: Additional Insights from Whitepaper Research
+
+&gt; Supplementary findings from the [code-condense-whitepaper](~/reports/code-condense-whitepaper/) collection that extend [CODE-CONDENSE-PREP.md](CODE-CONDENSE-PREP.md) with dictionary training, complexity-guided extraction, per-file-type routing, and archival pipeline options.
+
+### Provenance Guide
+
+This document contains two types of content, marked throughout:
+
+- **Sourced claims** cite specific sections of the whitepaper collection. All benchmark numbers, compression ratios, and tool capabilities are traceable to cited sources.
+- **Design inferences** (marked with `&gt; Design inference:` callouts) are proposed specifications derived from sourced principles but with specific thresholds or parameters chosen by the author. These should be validated during implementation.
+
+---
+
+## 1. Dictionary Training Integration
+
+**Source:** [zstd-condense-report.md](~/reports/code-condense-whitepaper/zstd-condense-report.md) Section &quot;Small Data Compression&quot;, [pipeline doc](~/reports/code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md) Section 3d
+
+Repos with consistent coding style (naming conventions, indentation, import patterns) benefit from zstd dictionary training — 10-30% better compression on small-to-medium files (&lt;100KB) vs. standard zstd.
+
+### Proposed Tool
+
+| Tool | Purpose | Input | Output |
+|---|---|---|---|
+| `condense_train_dictionary` | Generate zstd dictionary from codebase samples | `path`, `language`, `sample_count` | Dictionary bytes + training stats |
+
+### Implementation
+
+```python
+# In features/condense/dictionary.py
+import subprocess
+
+async def train_dictionary_impl(
+    path: str,
+    language: str | None = None,
+    sample_count: int = 200,
+) -&gt; DictionaryResult:
+    &quot;&quot;&quot;Train a zstd dictionary on representative code samples.&quot;&quot;&quot;
+    # 1. Collect sample files (filtered by language if specified)
+    # 2. Run: zstd --train &lt;samples&gt; -o &lt;dict_path&gt;
+    # 3. Return dict path + stats (dict size, sample count, est. improvement)
+```
+
+### Constants Addition
+
+&gt; **Design inference:** `SAMPLE_COUNT` and `MAX_SAMPLE_SIZE_BYTES` are proposed defaults. `DICT_SIZE_BYTES` (110 KB) matches the zstd CLI default. Tune `SAMPLE_COUNT` based on repo size during implementation.
+
+```python
+class CondenseDictionaryDefaults:
+    &quot;&quot;&quot;Defaults for zstd dictionary training.&quot;&quot;&quot;
+    SAMPLE_COUNT = 200
+    MAX_SAMPLE_SIZE_BYTES = 102_400  # 100 KB per sample
+    DICT_SIZE_BYTES = 112_640  # 110 KB (zstd default)
+    DICT_OUTPUT_DIR = &quot;.condense/dictionaries&quot;
+```
+
+### Best Fit
+
+- Monorepos with many similarly-structured small files
+- Microservices repos with shared patterns
+- Configuration file collections (.json, .yaml)
+
+---
+
+## 2. Complexity-Guided Extraction Depth
+
+**Source:** [pipeline doc](~/reports/code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md) Section 3b, CODE-CONDENSE-PREP Section 6b
+
+CODE-CONDENSE-PREP Section 6b states:
+- &quot;High complexity functions: Keep full body (complex = important)&quot;
+- &quot;Low complexity functions: Signature + docstring only&quot;
+- &quot;Trivial functions (≤3 lines): Inline the body&quot;
+
+This section formalizes those rules with specific thresholds.
+
+### Extraction Depth Rules
+
+&gt; **Design inference:** The specific cyclomatic/cognitive cutoffs below are proposed thresholds, not sourced from the whitepaper. They are derived from the project&apos;s existing `ComplexityDefaults` (cyclomatic ≤20, cognitive ≤30) and CODE-CONDENSE-PREP Section 6b guidance. Tune during implementation based on measured reduction vs. information loss.
+
+| Cyclomatic Complexity | Cognitive Complexity | Extraction Behavior | Source |
+|---|---|---|---|
+| ≤5 and ≤3 lines | Any | **Inline**: keep full body (trivial, costs little) | PREP Section 6b: &quot;Trivial functions (≤3 lines): Inline the body&quot; |
+| ≤10 | ≤15 | **Signature + docstring**: low complexity, strip body | PREP Section 6b: &quot;Low complexity functions: Signature + docstring only&quot; |
+| &gt;10 | &gt;15 | **Full body**: high complexity = important logic, keep it | PREP Section 6b: &quot;High complexity functions: Keep full body&quot; |
+| Any | Any (test files) | **Signature only**: test names matter, bodies don&apos;t | PREP Section 7: test files strategy |
+
+### Parameter Addition to `condense_extract_surface`
+
+```python
+async def extract_surface_impl(
+    path: str,
+    language: str,
+    include_docstrings: bool = True,
+    complexity_guided: bool = False,  # NEW: use complexity to decide depth
+    complexity_threshold: int = 10,   # NEW: cyclomatic threshold for full-body keep
+) -&gt; str:
+```
+
+### Reuse
+
+- `features/complexity/complexity_analyzer.py` provides per-function cyclomatic and cognitive scores
+- Threshold constants already exist in `CondenseDefaults.MAX_FUNCTION_BODY_LINES` (3 lines) and `ComplexityDefaults`
+
+---
+
+## 3. Per-File-Type Routing in `condense_pack`
+
+**Source:** [pipeline doc](~/reports/code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md) Section 3c (Makefile strategies)
+
+CODE-CONDENSE-PREP Section 7 describes polyglot strategy selection but the `condense_pack` tool definition does not expose file-type routing. This section formalizes it.
+
+### File-Type Strategy Map
+
+| File Type | Detection | Strategy | Reason |
+|---|---|---|---|
+| Code (.ts, .py, .rs, .go, .java) | Extension + Tree-sitter parseable | `ai_chat` or `ai_analysis` | AST extraction is the high-value step |
+| Config (.json, .yaml, .toml, .xml) | Extension | **Pass-through** (no AST extraction) | Structure must be preserved verbatim |
+| Text (.md, .txt, .rst) | Extension | Strip empty lines only | Natural language; minimal safe reduction |
+| Test files (`**/test*`, `**/spec*`) | Path pattern | Extract signatures only | Test names matter, bodies are regenerable |
+| Generated files (`dist/`, `build/`, `*.gen.*`) | Path pattern + markers | **Exclude entirely** | Regenerable from source |
+| SVG (.svg) | Extension | Pass-through + flag as high-compressibility | XML text; compresses 3-4x under zstd |
+| Images (.png, .jpg, .gif) | Extension | **Exclude** | Binary; already compressed |
+| Lock files (`*.lock`, `package-lock.json`) | Filename | **Exclude** | Regenerable, large, low information density |
+
+### Parameter Addition to `condense_pack`
+
+```python
+async def condense_pack_impl(
+    path: str,
+    language: str | None = None,
+    strategy: str = &quot;ai_analysis&quot;,
+    file_type_routing: bool = True,  # NEW: auto-select strategy per file type
+    exclude_patterns: list[str] | None = None,  # NEW: additional exclusions
+) -&gt; CondenseResult:
+```
+
+### Constants Addition
+
+&gt; **Design inference:** Extension sets and glob patterns below are proposed defaults derived from the whitepaper&apos;s per-file-type strategy table (Section 3c) and standard conventions. The whitepaper specifies categories (code, config, text, images) and strategies; the specific extensions are implementation choices.
+
+```python
+class CondenseFileRouting:
+    &quot;&quot;&quot;File-type routing for polyglot condensation.&quot;&quot;&quot;
+    CODE_EXTENSIONS = {&quot;.ts&quot;, &quot;.tsx&quot;, &quot;.js&quot;, &quot;.jsx&quot;, &quot;.py&quot;, &quot;.rs&quot;, &quot;.go&quot;, &quot;.java&quot;, &quot;.rb&quot;, &quot;.php&quot;, &quot;.swift&quot;, &quot;.kt&quot;, &quot;.cs&quot;, &quot;.cpp&quot;, &quot;.c&quot;, &quot;.h&quot;}
+    CONFIG_EXTENSIONS = {&quot;.json&quot;, &quot;.yaml&quot;, &quot;.yml&quot;, &quot;.toml&quot;, &quot;.xml&quot;, &quot;.ini&quot;, &quot;.env.example&quot;}
+    TEXT_EXTENSIONS = {&quot;.md&quot;, &quot;.txt&quot;, &quot;.rst&quot;, &quot;.adoc&quot;}
+    IMAGE_EXTENSIONS = {&quot;.png&quot;, &quot;.jpg&quot;, &quot;.jpeg&quot;, &quot;.gif&quot;, &quot;.webp&quot;, &quot;.ico&quot;, &quot;.bmp&quot;}
+    EXCLUDE_PATTERNS = [&quot;dist/**&quot;, &quot;build/**&quot;, &quot;*.lock&quot;, &quot;package-lock.json&quot;, &quot;yarn.lock&quot;, &quot;*.gen.*&quot;, &quot;*.min.js&quot;, &quot;*.min.css&quot;]
+    TEST_PATTERNS = [&quot;**/test_*&quot;, &quot;**/test/**&quot;, &quot;**/*_test.*&quot;, &quot;**/*.spec.*&quot;, &quot;**/*.test.*&quot;]
+```
+
+---
+
+## 4. Archival Pipeline Options (Downstream)
+
+**Source:** [pipeline doc](~/reports/code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md) Section 3a, [PPM doc](~/reports/code-condense-whitepaper/prediction-by-partial-matching.md)
+
+These are downstream of ast-grep-mcp&apos;s semantic extraction but relevant for users building full pipelines.
+
+### PPMd vs. zstd for Code Archives
+
+From the [Large Text Compression Benchmark](https://mattmahoney.net/dc/text.html) (enwik9, 1 GB Wikipedia XML), as cited in the pipeline doc Section 3a:
+
+| Metric | zstd --ultra -22 | PPMd (7zip, order 10) | Source |
+|---|---|---|---|
+| Compression ratio (text) | 4.6x | 5.6x | Pipeline doc Section 3a table |
+| Compress time (enwik9) | 701s | 503s | Pipeline doc Section 3a table |
+| Decompress speed | ~1500 MB/s | 5-10x slower than zstd | Pipeline doc Section 3a narrative |
+| Memory | 792 MB | 1630 MB | Pipeline doc Section 3a table |
+
+&gt; **Note on PPMd decompress speed:** The pipeline doc states &quot;5-10x slower decompression&quot; relative to zstd. Other docs in the collection report PPMd decompress at 5-20 MB/s depending on workload (OTEL doc: &quot;300x slower than zstd&quot;; SQL/KV doc: &quot;20 MB/s&quot;). The actual speed varies significantly by data type and implementation. Do not assume a specific number — benchmark on representative code samples.
+
+**Recommendation:** Use zstd for active/hot data (fast decompress for AI tools). Use PPMd for cold archival (compress once, read rarely). PPMd&apos;s 15-25% better ratio on text matters at scale but the significantly slower decompress rules it out for interactive use.
+
+### Full Pipeline with ast-grep-mcp
+
+From pipeline doc Section 4 summary table:
+
+```
+Active use:   ast-grep-mcp condense → repomix pack → zstd -9      (91-93% reduction)
+Cold archive: ast-grep-mcp condense → repomix pack → PPMd via 7z  (93-95% reduction)
+```
+
+### Documentation Note
+
+Add to `condense_pack` tool description:
+
+&gt; The condensed output is optimized for downstream compression. For active AI consumption, pipe through `zstd -9`. For archival, use `7z a -m0=PPMd -mx=9`. See the [code-condense-whitepaper](~/reports/code-condense-whitepaper/) for pipeline benchmarks.
+
+---
+
+## 5. ast-grep-mcp&apos;s Differentiator vs. Repomix
+
+**Source:** [repomix cheat sheet](~/reports/code-condense-whitepaper/repomix-command-line-cheat-sheet.md) Section &quot;Is --compress Lossless?&quot;
+
+Repomix `--compress` is all-or-nothing:
+- No per-function granularity
+- No complexity-aware depth selection
+- No selective pattern extraction
+- No normalization pre-pass
+- Single boolean toggle, no configuration
+
+ast-grep-mcp&apos;s `condense` feature provides:
+- **Pattern-based extraction** — keep specific exports, types, or API surfaces
+- **Complexity-guided depth** — keep bodies of complex functions, strip simple ones
+- **Normalization pre-pass** — canonical forms increase downstream compression
+- **Dead code elimination** — remove unused imports, debug stmts before packing
+- **Deduplication integration** — collapse clones before extraction
+- **Per-file-type routing** — different strategies for code, config, text, tests
+- **Estimation without modification** — dry-run mode for planning
+
+This surgical precision is the core value proposition. Repomix treats all code uniformly; ast-grep-mcp treats each function, file, and language according to its role.
+
+---
+
+## 6. Updated Implementation Order
+
+Extends CODE-CONDENSE-PREP Section 10 with Phase 2 additions:
+
+| Phase | Work | New in Phase 2 |
+|---|---|---|
+| **P1** | Constants + models + estimator | `CondenseDictionaryDefaults`, `CondenseFileRouting` |
+| **P2** | Surface extraction | `complexity_guided` parameter |
+| **P3** | Normalizer | — |
+| **P4** | Strip | — |
+| **P5** | Pack pipeline | `file_type_routing` parameter, per-type strategy map |
+| **P6** | Tool registration | — |
+| **P7** | Tests | Dictionary training tests, file routing tests |
+| **P8** | Polyglot strategy | — |
+| **P9** | Dictionary training tool | `condense_train_dictionary` (new) |
+
+---
+
+## References
+
+- [CODE-CONDENSE-PREP.md](CODE-CONDENSE-PREP.md) — Phase 1 implementation plan
+- [Repomix-to-Condense Pipeline](~/reports/code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md) — Core whitepaper
+- [Repomix CLI Cheat Sheet](~/reports/code-condense-whitepaper/repomix-command-line-cheat-sheet.md) — Repomix limitations
+- [Zstandard Condense Report](~/reports/code-condense-whitepaper/zstd-condense-report.md) — Dictionary training, benchmarks
+- [Prediction by Partial Matching](~/reports/code-condense-whitepaper/prediction-by-partial-matching.md) — PPMd archival option</file><file path="docs/CODE-CONDENSE-PREP.md"># Code Condense Prep Review: ast-grep-mcp
+
+&gt; Implementation plan for integrating code condensation pipeline capabilities into ast-grep-mcp, based on the [Repomix-to-Condense Pipeline analysis](~/reports/code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md).
+
+---
+
+## 1. Problem Statement
+
+Feeding entire repositories into AI tools is expensive and slow. The repomix-to-condense whitepaper demonstrates that a `code → semantic extraction → statistical compression` pipeline achieves **90–95% reduction** in token/byte count. ast-grep-mcp already has the core capability (AST-level structural search/rewrite across 27 languages) but lacks explicit condensation tooling. This document outlines how to close that gap.
+
+---
+
+## 2. What ast-grep-mcp Already Provides
+
+| Capability | Whitepaper Role | Current Location |
+|---|---|---|
+| AST parsing (Tree-sitter) | Semantic extraction engine | `core/executor.py` |
+| Structural pattern search | Selective extraction (export surfaces, API boundaries) | `features/search/service.py` |
+| Code rewriting | Pre-compression normalization (canonical forms) | `features/rewrite/service.py` |
+| Dead code detection | Pre-compression elimination pass | `features/quality/smells.py` |
+| Deduplication | Redundancy reduction before packing | `features/deduplication/` |
+| Complexity analysis | Prioritize what to keep vs. strip | `features/complexity/` |
+| Cross-language support | Polyglot pipeline coverage (27 languages) | `features/cross_language/` |
+| Documentation generation | Extract signatures/docstrings (lossy compress equivalent) | `features/documentation/` |
+
+**Key insight:** ast-grep-mcp already performs the most valuable step in the pipeline — the semantic extraction that repomix `--compress` provides via Tree-sitter. The difference is ast-grep-mcp offers *surgical precision* (pattern-based extraction) vs. repomix&apos;s *all-or-nothing* structural compression.
+
+---
+
+## 3. Proposed New Feature: `condense` (5 tools)
+
+New feature domain at `src/ast_grep_mcp/features/condense/`.
+
+### 3a. Tool Definitions
+
+| Tool | Purpose | Input | Output |
+|---|---|---|---|
+| `condense_extract_surface` | Extract public API surface (exports, signatures, types) | `path`, `language`, `include_docstrings` | Condensed source text |
+| `condense_normalize` | Rewrite code to canonical forms before compression | `path`, `language`, `normalizations[]` | Normalized source + diff stats |
+| `condense_strip` | Remove dead code, debug statements, unused imports | `path`, `language`, `strip_targets[]` | Stripped source + removal count |
+| `condense_pack` | Combine extract + normalize + strip into single pipeline | `path`, `language`, `strategy` | Packed output + compression stats |
+| `condense_estimate` | Estimate reduction ratio without modifying files | `path`, `language` | Token/byte reduction estimates |
+
+### 3b. Strategies (for `condense_pack`)
+
+Map directly to whitepaper Section 4 use cases:
+
+| Strategy | Behavior | Expected Reduction |
+|---|---|---|
+| `ai_chat` | Signatures + types + docstrings only (lossy) | ~85% tokens |
+| `ai_analysis` | Full source minus dead code and debug stmts (lossless) | ~40% tokens |
+| `archival` | Full source, normalized, deduplicated (lossless) | ~30% tokens |
+| `polyglot` | Per-language optimal strategy selection | ~60–80% tokens |
+
+### 3c. Module Structure
+
+```
+src/ast_grep_mcp/features/condense/
+├── __init__.py
+├── tools.py              # MCP tool definitions (register_condense_tools)
+├── service.py            # Core condensation logic
+├── strategies.py         # Strategy implementations (ai_chat, ai_analysis, etc.)
+├── normalizer.py         # Code normalization transforms
+└── estimator.py          # Reduction estimation without modification
+```
+
+---
+
+## 4. Constants Additions
+
+Add to `src/ast_grep_mcp/constants.py`:
+
+```python
+class CondenseDefaults:
+    &quot;&quot;&quot;Defaults for code condensation pipeline.&quot;&quot;&quot;
+    # Strategy selection
+    DEFAULT_STRATEGY = &quot;ai_analysis&quot;
+
+    # Extraction
+    INCLUDE_DOCSTRINGS = True
+    INCLUDE_TYPE_ANNOTATIONS = True
+    INCLUDE_IMPORTS = True
+    MAX_FUNCTION_BODY_LINES = 3  # For ai_chat: inline trivial bodies
+
+    # Normalization
+    NORMALIZE_ARROW_FUNCTIONS = True
+    NORMALIZE_STRING_QUOTES = True
+    NORMALIZE_TRAILING_COMMAS = True
+
+    # Strip targets
+    STRIP_CONSOLE_LOG = True
+    STRIP_DEBUG_STATEMENTS = True
+    STRIP_UNUSED_IMPORTS = True
+    STRIP_COMMENTS = False  # Preserve by default; whitepaper shows 10-25% savings
+    STRIP_EMPTY_LINES = True
+
+    # Limits
+    MAX_FILE_SIZE_BYTES = 1_048_576  # 1 MB; skip larger files
+    MAX_FILES_PER_RUN = 500
+
+    # Estimation
+    AVG_TOKENS_PER_BYTE = 0.25  # Rough approximation for token counting
+```
+
+---
+
+## 5. Implementation Details
+
+### 5a. Surface Extraction (`condense_extract_surface`)
+
+Uses existing ast-grep patterns to extract:
+
+```python
+# Per-language extraction patterns
+SURFACE_PATTERNS = {
+    &quot;typescript&quot;: [
+        &quot;export function $NAME($$$PARAMS): $RET { $$$ }&quot;,
+        &quot;export class $NAME $$$BODY&quot;,
+        &quot;export interface $NAME { $$$ }&quot;,
+        &quot;export type $NAME = $$$&quot;,
+        &quot;export const $NAME: $TYPE = $$$&quot;,
+    ],
+    &quot;python&quot;: [
+        &quot;def $NAME($$$PARAMS) -&gt; $RET: $$$&quot;,
+        &quot;class $NAME($$$BASES): $$$&quot;,
+        &quot;@$DECORATOR\ndef $NAME($$$): $$$&quot;,
+    ],
+    # ... 27 languages via cross_language/pattern_database.py
+}
+```
+
+**Reuse:** Leverage `features/search/service.py:find_code_impl()` for pattern matching and `features/cross_language/pattern_database.py` for language-specific patterns.
+
+### 5b. Normalization (`condense_normalize`)
+
+Uses existing rewrite engine for canonical transformations. From the whitepaper (Section 3b):
+
+&gt; ast-grep can rewrite code patterns to canonical forms before compression, increasing redundancy and improving compression ratios.
+
+Normalizations that improve downstream compression:
+
+| Transform | Pattern | Rewrite | Compression Benefit |
+|---|---|---|---|
+| Arrow function normalization | `function $N($A) { return $E }` | `const $N = ($A) =&gt; $E` | Reduces function keyword repetition |
+| Consistent string quotes | `&quot;$S&quot;` (where no interpolation) | `&apos;$S&apos;` | Eliminates quote-style entropy |
+| Remove trailing semicolons | `$STMT;` (in TS/JS) | `$STMT` | Reduces noise characters |
+| Collapse single-line blocks | `if ($C) {\n  $S\n}` | `if ($C) $S` | Reduces brace/whitespace entropy |
+
+**Reuse:** `features/rewrite/service.py:rewrite_code_impl()` for all transformations.
+
+### 5c. Dead Code Strip (`condense_strip`)
+
+Combines existing quality tools:
+
+1. **Unused imports** — `features/quality/smells.py` already detects these
+2. **Console/debug stmts** — Pattern: `console.log($$$)`, `print($$$)`, `debugger`
+3. **Commented-out code** — Heuristic from quality smells detectors
+4. **Empty blocks** — Pattern: `{ }`, `pass`
+
+**Reuse:** `features/quality/smells_detectors.py` for detection, `features/rewrite/service.py` for removal.
+
+### 5d. Pipeline Orchestration (`condense_pack`)
+
+Chains the above in order matching whitepaper Section 3b pipeline:
+
+```
+normalize → strip dead code → extract surface → format output
+```
+
+Output format options:
+- **xml** — Matches repomix XML format for downstream zstd compatibility
+- **markdown** — For direct AI consumption
+- **plain** — Minimal overhead, best compression ratio
+
+### 5e. Estimation (`condense_estimate`)
+
+Non-destructive analysis that runs extraction patterns in dry-run mode:
+
+```python
+# Returns structure like:
+{
+    &quot;total_files&quot;: 109,
+    &quot;total_lines&quot;: 18500,
+    &quot;total_bytes&quot;: 620000,
+    &quot;estimated_condensed_bytes&quot;: {
+        &quot;ai_chat&quot;: 93000,      # ~85% reduction
+        &quot;ai_analysis&quot;: 372000,  # ~40% reduction
+        &quot;archival&quot;: 434000,     # ~30% reduction
+    },
+    &quot;estimated_tokens&quot;: {
+        &quot;ai_chat&quot;: 23250,
+        &quot;ai_analysis&quot;: 93000,
+        &quot;archival&quot;: 108500,
+    },
+    &quot;top_reduction_candidates&quot;: [
+        {&quot;file&quot;: &quot;utils/formatters.py&quot;, &quot;lines&quot;: 850, &quot;reducible_pct&quot;: 72},
+        {&quot;file&quot;: &quot;utils/templates.py&quot;, &quot;lines&quot;: 600, &quot;reducible_pct&quot;: 68},
+    ]
+}
+```
+
+---
+
+## 6. Integration with Existing Features
+
+### 6a. Deduplication Pre-Pass
+
+Before condensation, run deduplication to identify clones. From `features/deduplication/`:
+- Use `find_duplicates_impl()` to identify redundant code blocks
+- Condense keeps one copy, references the rest
+- Expected additional reduction: 5–15% on typical codebases
+
+### 6b. Complexity-Guided Extraction
+
+Use `features/complexity/complexity_analyzer.py` to decide extraction depth:
+- **High complexity functions:** Keep full body (complex = important)
+- **Low complexity functions:** Signature + docstring only
+- **Trivial functions (≤3 lines):** Inline the body
+
+### 6c. Cross-Language Pattern Reuse
+
+`features/cross_language/pattern_database.py` already maintains equivalent patterns across languages. Extend with condensation-specific patterns:
+- API surface extraction per language
+- Debug statement patterns per language
+- Import/export patterns per language
+
+---
+
+## 7. Polyglot Pipeline Strategy
+
+From whitepaper Section 3c (Makefile per-type strategies):
+
+| File Type | ast-grep-mcp Strategy | Reason |
+|---|---|---|
+| Code (.ts, .py, .rs, .go) | `condense_pack` with `ai_chat` | AST extraction removes 70%+ |
+| Config (.json, .yaml, .toml) | Pass-through (no AST extraction) | Structure must be preserved |
+| Text (.md, .txt) | Strip empty lines only | Natural language, minimal reduction |
+| Test files | `condense_extract_surface` | Keep test names/structure, strip bodies |
+| Generated files | Exclude entirely | Regenerable from source |
+
+Implementation: `strategies.py` selects per-file strategy based on language and path patterns.
+
+---
+
+## 8. Compression Statistics &amp; Reporting
+
+New model in `src/ast_grep_mcp/models/condense.py`:
+
+```python
+@dataclass
+class CondenseResult:
+    strategy: str
+    files_processed: int
+    files_skipped: int
+    original_bytes: int
+    condensed_bytes: int
+    reduction_pct: float
+    original_tokens_est: int
+    condensed_tokens_est: int
+    normalizations_applied: int
+    dead_code_removed_lines: int
+    duplicates_collapsed: int
+    per_language_stats: dict[str, LanguageCondenseStats]
+
+@dataclass
+class LanguageCondenseStats:
+    language: str
+    files: int
+    original_lines: int
+    condensed_lines: int
+    patterns_matched: int
+```
+
+---
+
+## 9. Test Plan
+
+### Unit Tests (`tests/unit/features/condense/`)
+
+| Test File | Coverage |
+|---|---|
+| `test_surface_extraction.py` | Per-language pattern extraction accuracy |
+| `test_normalizer.py` | Each normalization transform correctness |
+| `test_strip.py` | Dead code removal (console.log, unused imports, etc.) |
+| `test_strategies.py` | Strategy selection and composition |
+| `test_estimator.py` | Estimation accuracy vs. actual condensation |
+| `test_pack_pipeline.py` | End-to-end pipeline with all strategies |
+
+### Quality Tests
+
+Add to `tests/quality/test_complexity_regression.py`:
+- All condense modules must pass existing complexity gates (cyclomatic ≤20, cognitive ≤30)
+
+### Integration Tests
+
+- Condense the ast-grep-mcp codebase itself (`dogfood test`)
+- Verify condensed output is valid, parseable text
+- Verify reduction percentages match estimates within ±10%
+
+---
+
+## 10. Implementation Order
+
+| Phase | Work | Dependencies | Est. Files |
+|---|---|---|---|
+| **P1** | Constants + models + estimator | None | 3 |
+| **P2** | Surface extraction (per-language patterns) | P1 | 2 |
+| **P3** | Normalizer (rewrite transforms) | P1 | 1 |
+| **P4** | Strip (dead code removal) | P1 | 1 |
+| **P5** | Pack pipeline (orchestration) | P2, P3, P4 | 1 |
+| **P6** | Tool registration + MCP integration | P5 | 2 |
+| **P7** | Tests (unit + integration) | P6 | 8 |
+| **P8** | Polyglot strategy refinement | P7 | 1 |
+
+Total new files: ~19 (6 source + 1 model + 1 constants update + ~8 test files + 3 supporting)
+
+---
+
+## 11. External Pipeline Integration
+
+ast-grep-mcp handles the **semantic extraction** stage. For the full pipeline described in the whitepaper:
+
+```
+ast-grep-mcp (semantic)  →  repomix (packing)  →  zstd (statistical)
+     ↓                           ↓                      ↓
+  70-85% token reduction    +5-15% overhead         3-4x byte reduction
+  (the high-value step)     (structure/metadata)    (on remaining text)
+```
+
+### CLI Integration Example
+
+```bash
+# 1. ast-grep-mcp condenses via MCP tool call
+# 2. Feed output to repomix for structured packing
+repomix --style xml -o packed.xml .condense/
+
+# 3. zstd for storage/transfer
+zstd -9 packed.xml -o packed.xml.zst
+```
+
+### Makefile Target (for ast-grep-mcp itself)
+
+```makefile
+condense:
+	uv run python -c &quot;from ast_grep_mcp.features.condense.service import condense_pack_impl; \
+		print(condense_pack_impl(&apos;src/&apos;, strategy=&apos;ai_chat&apos;))&quot; &gt; .condense/output.xml
+	zstd -9 --rm .condense/output.xml
+```
+
+---
+
+## 12. Success Criteria
+
+- [ ] 5 new MCP tools registered and functional
+- [ ] `condense_estimate` returns within 5s for 109-module codebase
+- [ ] `condense_pack` with `ai_chat` achieves ≥80% token reduction on ast-grep-mcp itself
+- [ ] `condense_pack` with `ai_analysis` achieves ≥35% token reduction (lossless)
+- [ ] All new modules pass complexity regression gates
+- [ ] ≥90% unit test coverage on new code
+- [ ] Estimation accuracy within ±10% of actual condensation
+
+---
+
+## References
+
+- [Repomix-to-Condense Pipeline Analysis](~/reports/code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md)
+- [ast-grep documentation](https://ast-grep.github.io/)
+- [Repomix Code Compression Guide](https://repomix.com/guide/code-compress)
+- [zstd benchmarks](https://facebook.github.io/zstd/#benchmarks)
+- [Large Text Compression Benchmark](https://mattmahoney.net/dc/text.html)</file><file path="docs/DEDUPLICATION-GUIDE.md"># Deduplication Guide
+
+This guide covers the enhanced code deduplication system in ast-grep-mcp, which provides intelligent detection, analysis, and automated refactoring of duplicate code.
+
+**Last Updated:** 2025-11-29
+**Architecture:** Modular (v2.0) - See [MODULE-GUIDE.md](MODULE-GUIDE.md) for implementation details
+**Code Quality:** ✅ ZERO complexity violations (all deduplication modules refactored)
+
+&gt; **Note:** This guide uses MCP tool names. For direct module imports in custom scripts, see the [Module Architecture](#module-architecture) section.
+
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Quick Start](#quick-start)
+3. [Tools Reference](#tools-reference)
+4. [Refactoring Strategies](#refactoring-strategies)
+5. [CLI Usage](#cli-usage)
+6. [Workflow Examples](#workflow-examples)
+7. [API Reference](#api-reference)
+8. [Module Architecture](#module-architecture)
+9. [Similarity Algorithm Selection](#similarity-algorithm-selection)
+10. [Troubleshooting](#troubleshooting)
+
+---
+
+## Overview
+
+The enhanced deduplication system extends beyond simple duplicate detection to provide:
+
+- **Intelligent Pattern Analysis** - Extracts parameters and identifies variations between duplicates
+- **Automated Code Generation** - Creates refactored functions/classes with proper signatures
+- **Ranked Prioritization** - Scores candidates by potential savings, complexity, and risk
+- **Safe Application** - Preview-first workflow with automatic backups and rollback
+- **Multi-file Orchestration** - Atomic changes across multiple files
+
+### Key Components
+
+1. **`find_duplication`** - Detects duplicate functions, classes, and methods
+2. **`analyze_deduplication_candidates`** - Ranks duplicates by refactoring value
+3. **`apply_deduplication`** - Applies refactoring with validation and backup
+
+### Supported Languages
+
+Python, TypeScript, JavaScript, Java, Go, Rust, C, C++, Ruby, PHP, and 20+ more via ast-grep.
+
+---
+
+## Quick Start
+
+### Basic Duplication Detection
+
+```python
+# Find duplicate functions in a Python project
+result = find_duplication(
+    project_folder=&quot;/path/to/project&quot;,
+    language=&quot;python&quot;
+)
+
+# View summary
+print(f&quot;Found {result[&apos;summary&apos;][&apos;duplicate_groups&apos;]} duplicate groups&quot;)
+print(f&quot;Potential savings: {result[&apos;summary&apos;][&apos;potential_line_savings&apos;]} lines&quot;)
+
+# Review suggestions
+for suggestion in result[&apos;refactoring_suggestions&apos;]:
+    print(f&quot;Group {suggestion[&apos;group_id&apos;]}: {suggestion[&apos;type&apos;]}&quot;)
+    print(f&quot;  {suggestion[&apos;suggestion&apos;]}&quot;)
+```
+
+### Ranked Analysis
+
+```python
+# Get prioritized candidates
+candidates = analyze_deduplication_candidates(
+    project_path=&quot;/path/to/project&quot;,
+    language=&quot;python&quot;,
+    min_similarity=0.85
+)
+
+# Top candidate
+top = candidates[&apos;candidates&apos;][0]
+print(f&quot;Rank #{top[&apos;rank&apos;]}: {top[&apos;potential_savings&apos;]} lines saved&quot;)
+print(f&quot;Priority: {top[&apos;priority_score&apos;]:.1%}&quot;)
+```
+
+### Apply Refactoring
+
+```python
+# Preview changes (dry run)
+preview = apply_deduplication(
+    project_folder=&quot;/path/to/project&quot;,
+    group_id=1,
+    refactoring_plan=refactoring_plan,
+    dry_run=True
+)
+
+# Review the diff
+for change in preview[&apos;changes_preview&apos;]:
+    print(f&quot;\n{change[&apos;file&apos;]}:&quot;)
+    print(change[&apos;diff&apos;])
+
+# Apply for real
+result = apply_deduplication(
+    project_folder=&quot;/path/to/project&quot;,
+    group_id=1,
+    refactoring_plan=refactoring_plan,
+    dry_run=False
+)
+
+# Save backup_id for potential rollback
+backup_id = result[&apos;backup_id&apos;]
+```
+
+---
+
+## Tools Reference
+
+### find_duplication
+
+Detects duplicate code constructs across a project.
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `project_folder` | str | required | Absolute path to project |
+| `language` | str | required | Programming language |
+| `construct_type` | str | `&quot;function_definition&quot;` | Type to analyze: `function_definition`, `class_definition`, `method_definition` |
+| `min_similarity` | float | `0.8` | Minimum similarity threshold (0.0-1.0) |
+| `min_lines` | int | `5` | Minimum lines to consider |
+| `max_constructs` | int | `1000` | Performance limit (0=unlimited) |
+| `exclude_patterns` | list | `[&quot;site-packages&quot;, &quot;node_modules&quot;, ...]` | Paths to exclude |
+
+**Returns:**
+
+```python
+{
+    &quot;summary&quot;: {
+        &quot;total_constructs&quot;: 150,
+        &quot;duplicate_groups&quot;: 5,
+        &quot;total_duplicated_lines&quot;: 120,
+        &quot;potential_line_savings&quot;: 80,
+        &quot;analysis_time_seconds&quot;: 1.23
+    },
+    &quot;duplication_groups&quot;: [
+        {
+            &quot;group_id&quot;: 1,
+            &quot;similarity_score&quot;: 0.92,
+            &quot;instances&quot;: [
+                {
+                    &quot;file&quot;: &quot;/path/to/file1.py&quot;,
+                    &quot;lines&quot;: &quot;10-25&quot;,
+                    &quot;code_preview&quot;: &quot;def process_data(...)...&quot;
+                },
+                ...
+            ]
+        },
+        ...
+    ],
+    &quot;refactoring_suggestions&quot;: [
+        {
+            &quot;group_id&quot;: 1,
+            &quot;type&quot;: &quot;Extract Function&quot;,
+            &quot;description&quot;: &quot;Similar logic detected&quot;,
+            &quot;duplicate_count&quot;: 3,
+            &quot;lines_per_duplicate&quot;: 15,
+            &quot;total_duplicated_lines&quot;: 45,
+            &quot;locations&quot;: [...],
+            &quot;suggestion&quot;: &quot;Extract common logic...&quot;
+        },
+        ...
+    ]
+}
+```
+
+---
+
+### analyze_deduplication_candidates
+
+Analyzes duplicates and returns ranked candidates by refactoring value.
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `project_path` | str | required | Absolute path to project |
+| `language` | str | required | Programming language |
+| `min_similarity` | float | `0.8` | Minimum similarity threshold |
+| `include_test_coverage` | bool | `True` | Check test coverage for prioritization |
+| `min_lines` | int | `5` | Minimum lines to consider |
+| `max_candidates` | int | `100` | Maximum candidates to return |
+| `exclude_patterns` | list | default patterns | Paths to exclude |
+
+**Returns:**
+
+```python
+{
+    &quot;candidates&quot;: [
+        {
+            &quot;rank&quot;: 1,
+            &quot;group_id&quot;: 3,
+            &quot;priority_score&quot;: 0.85,
+            &quot;similarity_score&quot;: 0.95,
+            &quot;instance_count&quot;: 4,
+            &quot;potential_savings&quot;: 60,
+            &quot;avg_lines_per_instance&quot;: 20,
+            &quot;files_affected&quot;: [&quot;/path/to/file1.py&quot;, ...],
+            &quot;instances&quot;: [...],
+            &quot;recommendation&quot;: &quot;High-value refactoring opportunity...&quot;
+        },
+        ...
+    ],
+    &quot;total_groups&quot;: 8,
+    &quot;total_savings_potential&quot;: 200,
+    &quot;analysis_metadata&quot;: {
+        &quot;project_path&quot;: &quot;/path/to/project&quot;,
+        &quot;language&quot;: &quot;python&quot;,
+        &quot;total_constructs_analyzed&quot;: 150,
+        &quot;analysis_time_seconds&quot;: 2.34
+    }
+}
+```
+
+**Ranking Algorithm:**
+
+Priority score is calculated from:
+- **Potential line savings** (40% weight)
+- **Refactoring ease** based on complexity (30% weight)
+- **Risk level** based on test coverage (30% weight)
+
+---
+
+### apply_deduplication
+
+Applies automated refactoring with comprehensive validation.
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `project_folder` | str | required | Absolute path to project |
+| `group_id` | int | required | Duplication group ID |
+| `refactoring_plan` | dict | required | Plan with generated_code, files_affected, strategy, language |
+| `dry_run` | bool | `True` | Preview without applying |
+| `backup` | bool | `True` | Create backup before changes |
+| `extract_to_file` | str | `None` | Target file for extracted code (auto-detect if None) |
+
+**Refactoring Plan Structure:**
+
+```python
+refactoring_plan = {
+    &quot;language&quot;: &quot;python&quot;,
+    &quot;strategy&quot;: &quot;extract_function&quot;,
+    &quot;generated_code&quot;: {
+        &quot;extracted_function&quot;: &quot;def common_logic(param1, param2):\n    ...&quot;,
+        &quot;helper_code&quot;: &quot;&quot;
+    },
+    &quot;files_affected&quot;: [
+        {
+            &quot;file&quot;: &quot;/path/to/file1.py&quot;,
+            &quot;changes&quot;: [
+                {
+                    &quot;type&quot;: &quot;replace&quot;,
+                    &quot;start_line&quot;: 10,
+                    &quot;end_line&quot;: 25,
+                    &quot;old_code&quot;: &quot;...&quot;,
+                    &quot;new_code&quot;: &quot;result = common_logic(x, y)&quot;
+                }
+            ]
+        }
+    ]
+}
+```
+
+**Returns:**
+
+```python
+{
+    &quot;status&quot;: &quot;success&quot;,  # or &quot;preview&quot;, &quot;failed&quot;, &quot;rolled_back&quot;
+    &quot;backup_id&quot;: &quot;backup-20231115-143022-123&quot;,
+    &quot;files_modified&quot;: [&quot;/path/to/file1.py&quot;, &quot;/path/to/file2.py&quot;],
+    &quot;changes_preview&quot;: [
+        {
+            &quot;file&quot;: &quot;/path/to/file1.py&quot;,
+            &quot;diff&quot;: &quot;--- before\n+++ after\n@@ -10,15 +10,1 @@\n...&quot;
+        }
+    ],
+    &quot;validation&quot;: {
+        &quot;pre_validation&quot;: {&quot;passed&quot;: True, &quot;errors&quot;: []},
+        &quot;post_validation&quot;: {&quot;passed&quot;: True, &quot;errors&quot;: []}
+    }
+}
+```
+
+**Validation Pipeline:**
+
+1. **Pre-validation** - Validates generated code before applying
+2. **Application** - Creates backup and applies changes
+3. **Post-validation** - Validates modified files
+4. **Auto-rollback** - Restores from backup if validation fails
+
+---
+
+## Refactoring Strategies
+
+### extract_function
+
+Extracts common code into a shared function.
+
+**Best for:**
+- Similar functions with minor parameter differences
+- Repeated logic blocks within functions
+- Utility operations used across files
+
+**Example:**
+
+Before:
+```python
+# file1.py
+def process_user(user):
+    if not user.email:
+        raise ValueError(&quot;Email required&quot;)
+    user.email = user.email.lower()
+    user.created_at = datetime.now()
+    return user
+
+# file2.py
+def process_admin(admin):
+    if not admin.email:
+        raise ValueError(&quot;Email required&quot;)
+    admin.email = admin.email.lower()
+    admin.created_at = datetime.now()
+    admin.is_admin = True
+    return admin
+```
+
+After:
+```python
+# utils.py
+def normalize_entity(entity):
+    if not entity.email:
+        raise ValueError(&quot;Email required&quot;)
+    entity.email = entity.email.lower()
+    entity.created_at = datetime.now()
+    return entity
+
+# file1.py
+def process_user(user):
+    return normalize_entity(user)
+
+# file2.py
+def process_admin(admin):
+    admin = normalize_entity(admin)
+    admin.is_admin = True
+    return admin
+```
+
+---
+
+### extract_class
+
+Extracts common code into a base class.
+
+**Best for:**
+- Similar classes with shared methods
+- Classes with identical initialization patterns
+- Polymorphic behavior with common base
+
+**Example:**
+
+Before:
+```python
+class FileExporter:
+    def __init__(self, path):
+        self.path = path
+        self.logger = logging.getLogger(__name__)
+
+    def validate(self):
+        if not os.path.exists(os.path.dirname(self.path)):
+            raise ValueError(&quot;Invalid path&quot;)
+
+class DatabaseExporter:
+    def __init__(self, path):
+        self.path = path
+        self.logger = logging.getLogger(__name__)
+
+    def validate(self):
+        if not os.path.exists(os.path.dirname(self.path)):
+            raise ValueError(&quot;Invalid path&quot;)
+```
+
+After:
+```python
+class BaseExporter:
+    def __init__(self, path):
+        self.path = path
+        self.logger = logging.getLogger(__name__)
+
+    def validate(self):
+        if not os.path.exists(os.path.dirname(self.path)):
+            raise ValueError(&quot;Invalid path&quot;)
+
+class FileExporter(BaseExporter):
+    pass
+
+class DatabaseExporter(BaseExporter):
+    pass
+```
+
+---
+
+### inline
+
+Inlines duplicated code into a single location (for small snippets).
+
+**Best for:**
+- Very small code snippets (2-3 lines)
+- Code that&apos;s clearer when visible at call site
+- One-time deduplication where extraction adds complexity
+
+**Note:** This strategy is rarely recommended. The system typically suggests `extract_function` or `extract_class` for most cases.
+
+---
+
+## CLI Usage
+
+The `scripts/find_duplication.py` script provides a command-line interface for duplication detection.
+
+### Basic Usage
+
+```bash
+# Analyze Python functions
+python scripts/find_duplication.py /path/to/project --language python
+
+# Analyze JavaScript classes
+python scripts/find_duplication.py /path/to/project --language javascript \
+    --construct-type class_definition
+
+# Strict similarity matching
+python scripts/find_duplication.py /path/to/project --language python \
+    --min-similarity 0.9 --min-lines 10
+```
+
+### All Flags
+
+```bash
+python scripts/find_duplication.py [project_folder] [options]
+
+Required:
+  project_folder          Absolute path to the project folder
+  --language, -l          Programming language (python, javascript, etc.)
+
+Detection Options:
+  --construct-type, -c    Type to analyze: function_definition (default),
+                          class_definition, method_definition
+  --min-similarity, -s    Minimum similarity 0.0-1.0 (default: 0.8)
+  --min-lines, -m         Minimum lines to consider (default: 5)
+  --max-constructs, -x    Max constructs to analyze, 0=unlimited (default: 1000)
+  --exclude-patterns, -e  Patterns to exclude (default: site-packages
+                          node_modules .venv venv vendor)
+
+Analysis Options:
+  --analyze, -a           Use ranked analysis with recommendations
+  --max-candidates        Max candidates with --analyze (default: 100)
+  --include-test-coverage Check test coverage (default: True)
+
+Output Options:
+  --json, -j              Output as JSON
+  --detailed, -d          Show diff previews between duplicates
+  --no-color              Disable colored output
+```
+
+### Examples
+
+```bash
+# Basic analysis
+python scripts/find_duplication.py /home/user/myproject --language python
+
+# Ranked analysis with recommendations
+python scripts/find_duplication.py /home/user/myproject --language python --analyze
+
+# Detailed output with diff previews
+python scripts/find_duplication.py /home/user/myproject --language python --detailed
+
+# Combined: ranked + detailed
+python scripts/find_duplication.py /home/user/myproject --language python --analyze --detailed
+
+# JSON output for programmatic use
+python scripts/find_duplication.py /home/user/myproject --language python --json &gt; report.json
+
+# Strict matching for critical code
+python scripts/find_duplication.py /home/user/myproject --language python \
+    --min-similarity 0.95 --min-lines 15
+
+# Exclude custom patterns
+python scripts/find_duplication.py /home/user/myproject --language python \
+    --exclude-patterns migrations fixtures test_data
+
+# Pipe to file without colors
+python scripts/find_duplication.py /home/user/myproject --language python \
+    --no-color &gt; duplication-report.txt
+```
+
+### Output Format
+
+**Standard Output:**
+```
+Analyzing: /path/to/project
+Language: python
+Construct type: function_definition
+Min similarity: 80.0%
+Min lines: 5
+Max constructs: 1000
+
+Searching for duplicates...
+
+================================================================================
+DUPLICATION ANALYSIS SUMMARY
+================================================================================
+Total constructs analyzed:    45
+Duplicate groups found:       3
+Total duplicated lines:       89
+Potential line savings:       58
+Analysis time:                0.234s
+================================================================================
+
+--------------------------------------------------------------------------------
+DUPLICATION GROUPS
+--------------------------------------------------------------------------------
+
+Group 1 (Similarity: 92.0%)
+   Found 3 duplicate instances:
+   - /path/to/file1.py:10-25
+   - /path/to/file2.py:45-60
+   - /path/to/file3.py:100-115
+
+--------------------------------------------------------------------------------
+REFACTORING SUGGESTIONS
+--------------------------------------------------------------------------------
+
+Suggestion #1: Extract Function
+   Similar function logic detected across multiple files
+   Duplicates: 3 instances
+   Lines per instance: 15
+   Total duplicated: 45 lines
+
+   Locations:
+   - /path/to/file1.py:10-25
+   - /path/to/file2.py:45-60
+   - /path/to/file3.py:100-115
+
+   Recommendation:
+   Extract the common logic into a shared function...
+```
+
+**JSON Output:**
+```json
+{
+  &quot;summary&quot;: {
+    &quot;total_constructs&quot;: 45,
+    &quot;duplicate_groups&quot;: 3,
+    &quot;total_duplicated_lines&quot;: 89,
+    &quot;potential_line_savings&quot;: 58,
+    &quot;analysis_time_seconds&quot;: 0.234
+  },
+  &quot;duplication_groups&quot;: [...],
+  &quot;refactoring_suggestions&quot;: [...]
+}
+```
+
+---
+
+## Workflow Examples
+
+### Workflow 1: Quick Scan
+
+Find duplicates and review manually.
+
+```bash
+# 1. Run detection
+python scripts/find_duplication.py /path/to/project --language python
+
+# 2. Review output and manually implement suggestions
+```
+
+### Workflow 2: Prioritized Refactoring
+
+Focus on highest-value opportunities first.
+
+```python
+# 1. Get ranked candidates
+candidates = analyze_deduplication_candidates(
+    project_path=&quot;/path/to/project&quot;,
+    language=&quot;python&quot;,
+    min_similarity=0.85,
+    max_candidates=10
+)
+
+# 2. Review top candidates
+for candidate in candidates[&apos;candidates&apos;][:5]:
+    print(f&quot;Rank #{candidate[&apos;rank&apos;]}: {candidate[&apos;potential_savings&apos;]} lines&quot;)
+    print(f&quot;  Priority: {candidate[&apos;priority_score&apos;]:.1%}&quot;)
+    print(f&quot;  Files: {len(candidate[&apos;files_affected&apos;])}&quot;)
+    print(f&quot;  Recommendation: {candidate[&apos;recommendation&apos;]}&quot;)
+    print()
+
+# 3. Apply top candidate after review
+# ... (prepare refactoring_plan based on candidate)
+```
+
+### Workflow 3: Safe Automated Refactoring
+
+Apply changes with full safety net.
+
+```python
+# 1. Detect duplicates
+duplicates = find_duplication(
+    project_folder=&quot;/path/to/project&quot;,
+    language=&quot;python&quot;
+)
+
+# 2. Select a group to refactor
+group_id = 1
+suggestion = duplicates[&apos;refactoring_suggestions&apos;][0]
+
+# 3. Build refactoring plan (simplified example)
+refactoring_plan = {
+    &quot;language&quot;: &quot;python&quot;,
+    &quot;strategy&quot;: &quot;extract_function&quot;,
+    &quot;generated_code&quot;: {
+        &quot;extracted_function&quot;: &quot;&quot;&quot;def common_logic(param1, param2):
+    # Common implementation
+    result = param1 + param2
+    return result&quot;&quot;&quot;
+    },
+    &quot;files_affected&quot;: [
+        {&quot;file&quot;: f, &quot;changes&quot;: [...]}
+        for f in suggestion[&apos;locations&apos;]
+    ]
+}
+
+# 4. Preview changes
+preview = apply_deduplication(
+    project_folder=&quot;/path/to/project&quot;,
+    group_id=group_id,
+    refactoring_plan=refactoring_plan,
+    dry_run=True
+)
+
+# 5. Review diff
+for change in preview[&apos;changes_preview&apos;]:
+    print(f&quot;\n=== {change[&apos;file&apos;]} ===&quot;)
+    print(change[&apos;diff&apos;])
+
+# 6. Apply if satisfied
+if input(&quot;Apply changes? (y/n): &quot;).lower() == &apos;y&apos;:
+    result = apply_deduplication(
+        project_folder=&quot;/path/to/project&quot;,
+        group_id=group_id,
+        refactoring_plan=refactoring_plan,
+        dry_run=False
+    )
+
+    print(f&quot;Success! Backup ID: {result[&apos;backup_id&apos;]}&quot;)
+    print(f&quot;Modified: {result[&apos;files_modified&apos;]}&quot;)
+
+    # 7. Run tests
+    # If tests fail, rollback:
+    # rollback_rewrite(project_folder=&quot;/path/to/project&quot;, backup_id=result[&apos;backup_id&apos;])
+```
+
+### Workflow 4: CI Integration
+
+Add duplication detection to CI pipeline.
+
+```yaml
+# .github/workflows/code-quality.yml
+jobs:
+  duplication-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Check for duplicates
+        run: |
+          python scripts/find_duplication.py ${{ github.workspace }} \
+            --language python \
+            --min-similarity 0.9 \
+            --json &gt; duplication-report.json
+
+          # Fail if too many duplicates
+          GROUPS=$(jq &apos;.summary.duplicate_groups&apos; duplication-report.json)
+          if [ &quot;$GROUPS&quot; -gt 10 ]; then
+            echo &quot;Too many duplicate groups: $GROUPS&quot;
+            exit 1
+          fi
+```
+
+---
+
+## API Reference
+
+### Key Functions
+
+#### Pattern Analysis
+
+```python
+def extract_parameters(instances: List[Dict]) -&gt; List[Dict]:
+    &quot;&quot;&quot;
+    Extract varying parameters from duplicate instances.
+
+    Returns:
+        List of parameter definitions with name, type hint, and values.
+    &quot;&quot;&quot;
+```
+
+```python
+def calculate_complexity_score(group: Dict) -&gt; float:
+    &quot;&quot;&quot;
+    Calculate refactoring complexity score (0.0-1.0).
+
+    Factors:
+    - Number of parameters
+    - Import changes required
+    - Conditional logic variations
+    - Nested call depth
+    - Total line count
+    &quot;&quot;&quot;
+```
+
+#### Code Generation
+
+```python
+def generate_extracted_function(
+    group: Dict,
+    language: str,
+    function_name: str
+) -&gt; str:
+    &quot;&quot;&quot;
+    Generate extracted function code from duplicate group.
+
+    Returns:
+        Complete function code with signature, docstring, and body.
+    &quot;&quot;&quot;
+```
+
+```python
+def generate_replacement_call(
+    instance: Dict,
+    function_name: str,
+    parameters: List[Dict]
+) -&gt; str:
+    &quot;&quot;&quot;
+    Generate replacement call for a duplicate instance.
+
+    Returns:
+        Call expression with proper arguments.
+    &quot;&quot;&quot;
+```
+
+#### Validation
+
+```python
+def validate_syntax(code: str, language: str) -&gt; Dict:
+    &quot;&quot;&quot;
+    Validate code syntax for given language.
+
+    Returns:
+        {&quot;valid&quot;: bool, &quot;errors&quot;: List[str]}
+    &quot;&quot;&quot;
+```
+
+---
+
+## Module Architecture
+
+The deduplication feature is implemented as a modular system under `src/ast_grep_mcp/features/deduplication/`:
+
+### Module Structure
+
+```
+features/deduplication/
+├── __init__.py          # Public API exports
+├── detector.py          # DuplicationDetector class
+├── analyzer.py          # PatternAnalyzer, variation analysis
+├── generator.py         # CodeGenerator for refactoring
+├── ranker.py            # DuplicationRanker scoring
+├── applicator.py        # Multi-file orchestration
+├── coverage.py          # Test coverage detection
+├── impact.py            # Impact analysis (refactored 2025-11-28)
+├── recommendations.py   # Recommendation engine
+├── reporting.py         # Enhanced reporting with diffs
+├── benchmark.py         # Performance benchmarking
+└── tools.py             # MCP tool definitions
+```
+
+**Recent Refactoring (2025-11-28/29):**
+- `impact.py`: `_assess_breaking_change_risk` reduced from 44→0 cognitive complexity (100%)
+- `impact.py`: `_parallel_enrich` reduced from 74→2 cognitive complexity (97%)
+- `impact.py`: `_find_import_references` reduced from 31→5 cognitive complexity (84%)
+- Shared utilities extracted to `utils/syntax_validation.py` (DRY principle)
+- See [PATTERNS.md](../PATTERNS.md) for refactoring techniques used
+
+### Direct Module Imports
+
+For custom scripts (not using MCP tools), import from modules directly:
+
+**Detector:**
+```python
+from ast_grep_mcp.features.deduplication.detector import DuplicationDetector
+
+detector = DuplicationDetector(
+    project_folder=&quot;/path/to/project&quot;,
+    language=&quot;python&quot;
+)
+duplicates = detector.find_duplicates()
+```
+
+**Analyzer:**
+```python
+from ast_grep_mcp.features.deduplication.analyzer import PatternAnalyzer
+
+analyzer = PatternAnalyzer()
+variations = analyzer.analyze_variations(duplicate_group)
+```
+
+**Ranker:**
+```python
+from ast_grep_mcp.features.deduplication.ranker import DuplicationRanker
+
+ranker = DuplicationRanker()
+candidates = ranker.rank_candidates(duplicate_groups)
+```
+
+**Applicator:**
+```python
+from ast_grep_mcp.features.deduplication.applicator import DeduplicationApplicator
+
+applicator = DeduplicationApplicator(project_folder=&quot;/path&quot;)
+result = applicator.apply_refactoring(plan, dry_run=True)
+```
+
+**Coverage Detection:**
+```python
+from ast_grep_mcp.features.deduplication.coverage import has_test_coverage
+
+covered = has_test_coverage(
+    file_path=&quot;/path/to/module.py&quot;,
+    project_folder=&quot;/path/to/project&quot;,
+    language=&quot;python&quot;
+)
+```
+
+**Impact Analysis:**
+```python
+from ast_grep_mcp.features.deduplication.impact import analyze_deduplication_impact
+
+impact = analyze_deduplication_impact(
+    duplicate_group=group,
+    project_folder=&quot;/path&quot;,
+    language=&quot;python&quot;
+)
+```
+
+### Data Models
+
+Import deduplication models from `models/deduplication.py`:
+
+```python
+from ast_grep_mcp.models.deduplication import (
+    DuplicateInstance,
+    DuplicateGroup,
+    DeduplicationCandidate,
+    RefactoringPlan,
+    ParameterMapping
+)
+```
+
+### Import Locations
+
+All deduplication functionality is available from the modular architecture:
+
+```python
+from ast_grep_mcp.features.deduplication.detector import DuplicationDetector
+from ast_grep_mcp.features.deduplication.analyzer import PatternAnalyzer
+```
+
+---
+
+## Similarity Algorithm Selection
+
+The deduplication system automatically selects the optimal similarity algorithm based on code size to balance accuracy and performance.
+
+### Small Code (&lt; 15 tokens)
+- **Algorithm:** `difflib.SequenceMatcher`
+- **Complexity:** O(n^2)
+- **Accuracy:** 100% (exact)
+- **Use Case:** Functions, small methods, code snippets
+
+MinHash accuracy depends on shingle count. Small code produces too few shingles, causing inaccurate similarity estimation. SequenceMatcher provides exact results for these cases.
+
+### Large Code (&gt;= 15 tokens)
+- **Algorithm:** MinHash with LSH
+- **Complexity:** O(n) for MinHash, O(1) amortized for LSH queries
+- **Accuracy:** ~95% (approximate)
+- **Use Case:** Classes, modules, large functions
+
+MinHash with Locality Sensitive Hashing enables scalable duplicate detection across large codebases.
+
+### Configuration
+
+```python
+from ast_grep_mcp.features.deduplication.similarity import SimilarityConfig, MinHashSimilarity
+
+config = SimilarityConfig(
+    small_code_threshold=15,        # Tokens below this use SequenceMatcher
+    use_small_code_fallback=True,   # Enable fallback (recommended)
+    num_permutations=128,           # MinHash permutations (higher = more accurate)
+    shingle_size=3,                 # Token shingle size (3 is optimal for code)
+)
+
+similarity = MinHashSimilarity(config)
+score = similarity.estimate_similarity(code1, code2)
+```
+
+### Disabling the Fallback
+
+In rare cases where you want consistent MinHash-only behavior:
+
+```python
+config = SimilarityConfig(use_small_code_fallback=False)
+similarity = MinHashSimilarity(config)
+```
+
+Note: This may produce less accurate results for small code snippets.
+
+### Performance Characteristics
+
+| Code Size | Algorithm | Time (per comparison) | Accuracy |
+|-----------|-----------|----------------------|----------|
+| &lt; 15 tokens | SequenceMatcher | ~0.1ms | 100% |
+| 15-100 tokens | MinHash | ~0.05ms | ~95% |
+| &gt; 100 tokens | MinHash + LSH | ~0.01ms | ~95% |
+
+### Hybrid Mode (Default)
+
+The default `hybrid` similarity mode in `DuplicationDetector` combines:
+1. **Stage 1:** Fast MinHash filter (O(n)) - eliminates dissimilar pairs
+2. **Stage 2:** Precise structural verification for candidates
+
+This provides both speed and accuracy for production use:
+
+```python
+from ast_grep_mcp.features.deduplication.detector import DuplicationDetector
+
+# Uses hybrid mode by default
+detector = DuplicationDetector()
+
+# Or explicitly:
+detector = DuplicationDetector(similarity_mode=&quot;hybrid&quot;)
+```
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+#### &quot;No duplicates found&quot;
+
+**Possible causes:**
+1. Similarity threshold too high
+2. Min lines too high
+3. Code is excluded by patterns
+
+**Solutions:**
+```bash
+# Lower thresholds
+python scripts/find_duplication.py /path --language python \
+    --min-similarity 0.7 --min-lines 3
+
+# Check exclude patterns
+python scripts/find_duplication.py /path --language python \
+    --exclude-patterns &quot;&quot;  # No exclusions
+```
+
+#### &quot;Too many false positives&quot;
+
+**Possible causes:**
+1. Similarity threshold too low
+2. Including library code
+
+**Solutions:**
+```bash
+# Raise thresholds
+python scripts/find_duplication.py /path --language python \
+    --min-similarity 0.9 --min-lines 10
+
+# Add exclusions
+python scripts/find_duplication.py /path --language python \
+    --exclude-patterns &quot;migrations&quot; &quot;fixtures&quot; &quot;generated&quot;
+```
+
+#### &quot;apply_deduplication validation failed&quot;
+
+**Possible causes:**
+1. Generated code has syntax errors
+2. Missing imports
+3. Incorrect indentation
+
+**Check:**
+```python
+result = apply_deduplication(..., dry_run=True)
+print(result[&apos;validation&apos;][&apos;pre_validation&apos;][&apos;errors&apos;])
+```
+
+**Solutions:**
+1. Review and fix the refactoring_plan
+2. Ensure all required imports are included
+3. Check indentation matches target file style
+
+#### &quot;Rollback failed&quot;
+
+**Possible causes:**
+1. Invalid backup_id
+2. Backup files were deleted/moved
+
+**Check:**
+```bash
+# List available backups
+ls -la /path/to/project/.ast-grep-backups/
+```
+
+**Prevention:**
+- Always save the backup_id returned from apply_deduplication
+- Don&apos;t delete .ast-grep-backups/ directory until verified
+
+#### &quot;Performance is slow&quot;
+
+**Possible causes:**
+1. Too many constructs to analyze
+2. No exclusion patterns
+
+**Solutions:**
+```bash
+# Limit constructs
+python scripts/find_duplication.py /path --language python \
+    --max-constructs 500
+
+# Add exclusions
+python scripts/find_duplication.py /path --language python \
+    --exclude-patterns &quot;node_modules&quot; &quot;dist&quot; &quot;build&quot; &quot;__pycache__&quot;
+```
+
+### Error Messages
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `min_similarity must be between 0.0 and 1.0` | Invalid threshold | Use value in 0.0-1.0 range |
+| `Project folder does not exist` | Invalid path | Check path is absolute and exists |
+| `Language not supported` | Unknown language | Use supported language from list |
+| `refactoring_plan is required` | Missing plan | Provide complete refactoring_plan dict |
+| `No valid files found` | Files don&apos;t exist | Verify files_affected paths |
+
+### Getting Help
+
+1. Check tool documentation in CLAUDE.md
+2. Review test files in `tests/` for usage examples
+3. Run with `--json` for detailed structured output
+4. Check logs for error details
+
+---
+
+## Additional Resources
+
+- [CLAUDE.md](/Users/alyshialedlie/code/ast-grep-mcp/CLAUDE.md) - Project overview and tool documentation
+- [README.md](/Users/alyshialedlie/code/ast-grep-mcp/README.md) - Quick start and installation
+- [CONFIGURATION.md](/Users/alyshialedlie/code/ast-grep-mcp/CONFIGURATION.md) - Configuration options
+- [BENCHMARKING.md](/Users/alyshialedlie/code/ast-grep-mcp/BENCHMARKING.md) - Performance benchmarks
+
+---
+
+**End of Deduplication Guide**</file><file path="docs/PATTERNS.md"># Refactoring Patterns - Proven Complexity Reduction Techniques
+
+**Effectiveness:** 80-100% complexity reduction with zero behavioral regressions
+**Last Updated:** 2025-11-28
+
+## Pattern Selection Guide
+
+Use this quick reference to choose the right pattern:
+
+| Violation Type | Threshold | Best Pattern | Expected Reduction |
+|---------------|-----------|--------------|-------------------|
+| Cognitive &gt;40 | Critical | Extract Method | 80-97% |
+| Cyclomatic &gt;30 | Critical | Configuration-Driven | 90-95% |
+| Nesting &gt;6 | Critical | Extract + Early Returns | 50-75% |
+| Lines &gt;150 | Critical | Service Layer Separation | 50-70% |
+| Duplicate Code | Any | DRY Principle | Varies |
+
+## Pattern 1: Extract Method
+
+### When to Use
+- **Best For:** High cognitive complexity (&gt;40)
+- **Indicators:** Long functions, multiple responsibilities, nested logic
+- **Effectiveness:** 80-97% complexity reduction
+
+### How It Works
+Break monolithic functions into focused, single-responsibility helper functions. Each helper should do ONE thing well.
+
+### Template
+```python
+# BEFORE: Monolithic function
+def complex_function(data):
+    # 100+ lines of mixed concerns
+    # Validation logic
+    # Business logic
+    # Error handling
+    # Response formatting
+    return result
+
+# AFTER: Orchestration with helpers
+def complex_function(data):
+    validated = _validate_input(data)
+    processed = _process_data(validated)
+    result = _format_response(processed)
+    return result
+
+def _validate_input(data):
+    # 15-20 lines, single responsibility
+    pass
+
+def _process_data(data):
+    # 20-30 lines, single responsibility
+    pass
+
+def _format_response(data):
+    # 10-15 lines, single responsibility
+    pass
+```
+
+### Real Examples
+
+#### Example 1: _parallel_enrich (97% reduction)
+**Before:** Cyclomatic=30, Cognitive=74, Nesting=7, Lines=117
+**After:** Cyclomatic=3, Cognitive=2, Nesting=1, Lines=72
+
+**Helpers Created:**
+1. `_handle_enrichment_error` - Consolidated 3x duplicate error handling
+2. `_process_completed_future` - Individual future processing
+3. `_process_parallel_enrichment` - ThreadPoolExecutor logic
+4. `_process_sequential_enrichment` - Non-parallel case
+
+**Key Insight:** Consolidating duplicate error handling (appeared 3 times) drastically reduced cognitive load.
+
+#### Example 2: _assess_breaking_change_risk (100% cognitive reduction)
+**Before:** Cyclomatic=38, Cognitive=44
+**After:** Cyclomatic=1, Cognitive=0
+
+**Helpers Created:**
+1. `_calculate_signature_change_risk` - Function signature changes
+2. `_calculate_dependency_risk` - Dependency analysis
+3. `_calculate_test_coverage_risk` - Test coverage assessment
+4. `_calculate_usage_scope_risk` - Usage scope evaluation
+5. `_calculate_import_change_risk` - Import pattern changes
+6. `_determine_risk_level` - Risk level calculation
+
+**Key Insight:** Extract one helper per risk factor. Each helper is simple and testable.
+
+#### Example 3: _extract_classes (94% reduction)
+**Before:** Cognitive=35, Nesting=7
+**After:** Cognitive=2, Nesting=2
+
+**Helpers Created:**
+1. `_get_class_pattern(language)` - Pattern lookup
+2. `_run_ast_grep_for_classes(...)` - Subprocess execution with early returns
+3. `_process_class_matches(...)` - Match iteration
+4. `_extract_class_info(...)` - Info extraction orchestration
+5. `_extract_class_name(...)` - Name extraction
+6. `_extract_line_range(...)` - Line numbers
+7. `_count_methods_in_class(...)` - Method counting
+
+**Key Insight:** Extract subprocess execution first (removes 3 nesting levels), then extract match processing.
+
+### Guidelines
+
+**Helper Function Characteristics:**
+- ✅ Single responsibility (do ONE thing)
+- ✅ 15-50 lines (sweet spot: 20-30)
+- ✅ Descriptive names (`_validate_input` not `_helper1`)
+- ✅ Maximum 2-3 levels of nesting
+- ✅ Low complexity (cyclomatic &lt;10)
+- ✅ Easily testable in isolation
+
+**Common Extraction Targets:**
+1. **Validation logic** → `_validate_*` helpers
+2. **Processing loops** → `_process_*` helpers
+3. **Error handling** → `_handle_*` helpers
+4. **Formatting/output** → `_format_*` helpers
+5. **Calculation/logic** → `_calculate_*` helpers
+
+**Avoid:**
+- ❌ Single-line helpers (over-extraction)
+- ❌ Helpers with &gt;50 lines (insufficient extraction)
+- ❌ Vague names (`_process`, `_helper`)
+- ❌ Helpers that do multiple things
+- ❌ Passing 5+ parameters (consider data classes)
+
+## Pattern 2: Configuration-Driven Design
+
+### When to Use
+- **Best For:** High cyclomatic complexity (&gt;30) from if-elif chains
+- **Indicators:** Long if-elif-else chains, repetitive conditionals, hardcoded logic
+- **Effectiveness:** 90-95% cyclomatic reduction
+
+### How It Works
+Replace imperative if-elif chains with declarative configuration dictionaries or dispatch tables.
+
+### Template
+```python
+# BEFORE: Imperative if-elif chain
+def generate_strategy(dup_type, language):
+    if dup_type == &quot;exact&quot;:
+        if language == &quot;python&quot;:
+            return create_python_exact()
+        elif language == &quot;java&quot;:
+            return create_java_exact()
+        # ... 20 more elif blocks
+    elif dup_type == &quot;similar&quot;:
+        # ... 15 more elif blocks
+    # Cyclomatic: 37
+
+# AFTER: Configuration-driven
+STRATEGY_CONFIG = {
+    (&quot;exact&quot;, &quot;python&quot;): create_python_exact,
+    (&quot;exact&quot;, &quot;java&quot;): create_java_exact,
+    (&quot;similar&quot;, &quot;python&quot;): create_python_similar,
+    # ... configuration entries
+}
+
+def generate_strategy(dup_type, language):
+    key = (dup_type, language)
+    generator = STRATEGY_CONFIG.get(key)
+    if not generator:
+        return default_strategy()
+    return generator()
+    # Cyclomatic: 2 (95% reduction!)
+```
+
+### Real Examples
+
+#### Example 1: _generate_dedup_refactoring_strategies (95% reduction)
+**Before:** Cyclomatic=37 (85% over limit)
+**After:** Cyclomatic=2 (90% under limit)
+
+**Configuration Created:**
+```python
+STRATEGY_CONFIG = {
+    (&quot;exact_duplicate&quot;, 5, &quot;python&quot;): (&quot;extract_function&quot;, 9),
+    (&quot;exact_duplicate&quot;, 5, &quot;java&quot;): (&quot;extract_method&quot;, 9),
+    # ... 30+ entries
+}
+
+def _generate_dedup_refactoring_strategies(...):
+    key = (duplication_type, min_lines, language)
+    result = STRATEGY_CONFIG.get(key, DEFAULT)
+    return _build_strategy_dict(result, ...)
+```
+
+**Key Insight:** Multi-dimensional configuration (type, lines, language) replaces massive nested if blocks.
+
+#### Example 2: TYPE_INFERENCE_CONFIG (71-96% reduction in 3 functions)
+**Before:** 3 functions with cyclomatic 22-24
+**After:** All functions cyclomatic &lt;8
+
+**Configuration Created:**
+```python
+TYPE_INFERENCE_CONFIG = {
+    (&quot;python&quot;, &quot;import&quot;): _infer_python_import_type,
+    (&quot;python&quot;, &quot;function_call&quot;): _infer_python_function_call_type,
+    (&quot;javascript&quot;, &quot;import&quot;): _infer_javascript_import_type,
+    # ... type inference handlers
+}
+
+def _infer_parameter_type(language, context, ...):
+    key = (language, context)
+    inferrer = TYPE_INFERENCE_CONFIG.get(key, _infer_generic_type)
+    return inferrer(...)
+```
+
+**Key Insight:** Dispatch table pattern makes adding new languages/contexts trivial (add entry, not code).
+
+### Guidelines
+
+**Configuration Structure Options:**
+1. **Simple Dict:** For single-dimension lookups
+   ```python
+   HANDLERS = {&quot;python&quot;: handle_python, &quot;java&quot;: handle_java}
+   ```
+
+2. **Tuple Keys:** For multi-dimension lookups
+   ```python
+   CONFIG = {(&quot;python&quot;, &quot;exact&quot;): handler1, (&quot;java&quot;, &quot;similar&quot;): handler2}
+   ```
+
+3. **Nested Dicts:** For hierarchical lookups
+   ```python
+   CONFIG = {&quot;python&quot;: {&quot;exact&quot;: handler1, &quot;similar&quot;: handler2}}
+   ```
+
+4. **Dataclasses/NamedTuples:** For complex configurations
+   ```python
+   @dataclass
+   class StrategyConfig:
+       pattern: str
+       handler: Callable
+       priority: int
+   ```
+
+**When to Use:**
+- ✅ Repetitive if-elif chains (&gt;5 branches)
+- ✅ Logic varies by parameters (type, language, mode)
+- ✅ Need to add new cases frequently
+- ✅ Branches are independent
+- ✅ Can express as lookup/dispatch
+
+**When NOT to Use:**
+- ❌ Complex conditional logic (use Extract Method)
+- ❌ Interdependent conditions
+- ❌ Stateful decision trees
+- ❌ Only 2-3 simple conditions
+
+**Benefits:**
+- Extensibility: Add new cases via data, not code
+- Testability: Test configuration separately
+- Readability: Intent clear from structure
+- Maintainability: Single location for all cases
+
+## Pattern 3: Service Layer Separation
+
+### When to Use
+- **Best For:** MCP tool wrappers, API endpoints, long functions (&gt;150 lines)
+- **Indicators:** Mixed concerns (validation + logic + formatting), hard to test
+- **Effectiveness:** 50-70% LOC reduction per function
+
+### How It Works
+Separate thin interface layer (MCP tool, API endpoint) from business logic implementation.
+
+### Template
+```python
+# BEFORE: Mixed concerns (150+ lines)
+def mcp_tool(args):
+    # Argument validation (20 lines)
+    # Business logic (80 lines)
+    # Error handling (30 lines)
+    # Response formatting (20 lines)
+    return result
+
+# AFTER: Service layer separation
+def mcp_tool(args):
+    &quot;&quot;&quot;Thin MCP wrapper - validation and formatting only.&quot;&quot;&quot;
+    validated = _validate_args(args)
+    result = service_impl(validated)  # Business logic in service
+    return _format_response(result)
+
+def service_impl(params):
+    &quot;&quot;&quot;Pure business logic - easy to test.&quot;&quot;&quot;
+    # Core logic (60 lines, no MCP coupling)
+    return result
+
+def _validate_args(args):
+    # Validation logic (15 lines)
+    pass
+
+def _format_response(result):
+    # Formatting logic (12 lines)
+    pass
+```
+
+### Real Examples
+
+#### Example 1: Tool Wrappers (5 functions refactored)
+**Functions:**
+1. `enforce_standards_tool` → Extracted `_validate_enforcement_inputs()`
+2. `detect_code_smells_tool` → Extracted `_prepare_smell_detection_params()`, `_process_smell_detection_result()`
+3. `extract_function_tool` → Extracted `_format_extract_function_response()`
+4. `register_search_tools` → Split into 4 registration functions (158→8 lines main)
+
+**Pattern Applied:**
+```python
+# Tool wrapper (thin)
+def tool_name(args):
+    validated = _validate_tool_args(args)
+    result = service_function(validated)
+    return _format_tool_response(result)
+
+# Service layer (business logic)
+def service_function(params):
+    # Pure logic, no MCP coupling
+    return business_result
+```
+
+**Key Insight:** Tool wrappers should be &lt;50 lines. Extract validation, processing, and formatting to helpers.
+
+### Guidelines
+
+**Layer Responsibilities:**
+
+**Interface Layer (MCP Tool/API Endpoint):**
+- ✅ Argument validation
+- ✅ Response formatting
+- ✅ Error translation (service errors → API errors)
+- ✅ Logging/monitoring hooks
+- ❌ NO business logic
+- ❌ NO complex processing
+
+**Service Layer (Business Logic):**
+- ✅ Core business logic
+- ✅ Data processing
+- ✅ Orchestration
+- ✅ Domain rules
+- ❌ NO MCP/API coupling
+- ❌ NO response formatting
+
+**Benefits:**
+- Testability: Service layer has no MCP dependencies
+- Reusability: Service functions can be used by multiple interfaces
+- Maintainability: Clear separation of concerns
+- Performance: Service layer can be optimized independently
+
+## Pattern 4: Early Returns / Guard Clauses
+
+### When to Use
+- **Best For:** Deep nesting (&gt;6), complex conditionals
+- **Indicators:** Nested if blocks, &quot;arrow code&quot; pattern
+- **Effectiveness:** 37-75% nesting reduction
+
+### How It Works
+Invert conditionals to fail fast, reducing nesting depth.
+
+### Template
+```python
+# BEFORE: Nested conditionals (nesting=8)
+def process(data):
+    if data:
+        if data.valid:
+            if data.items:
+                for item in data.items:
+                    if item.active:
+                        if item.ready:
+                            # Process
+                            pass
+
+# AFTER: Early returns (nesting=3)
+def process(data):
+    if not data or not data.valid or not data.items:
+        return []
+
+    return [
+        _process_item(item)
+        for item in data.items
+        if _should_process(item)
+    ]
+
+def _should_process(item):
+    return item.active and item.ready
+```
+
+### Real Examples
+
+#### Example 1: scan_for_secrets_regex (75% nesting reduction)
+**Before:** Nesting=8, Cognitive=36
+**After:** Nesting=2, Cognitive=2
+
+**Pattern Applied:**
+```python
+# Before
+def scan(...):
+    if directory:
+        for file in files:
+            if not skip_file(file):
+                if open_file:
+                    for line in file:
+                        if pattern.match(line):
+                            # Deep nesting
+
+# After
+def scan(...):
+    if not directory:
+        return []
+
+    files_to_scan = _get_scannable_files(directory)
+    return _scan_files_for_secrets(files_to_scan, patterns)
+
+def _scan_files_for_secrets(files, patterns):
+    # Flat structure with early continues
+    for file in files:
+        results.extend(_scan_single_file(file, patterns))
+```
+
+### Guidelines
+
+**When to Apply:**
+1. **Validation at start** → Fail fast
+2. **Loop filtering** → Skip items early with `continue`
+3. **Optional processing** → Return None/default early
+4. **Error cases** → Handle errors first, happy path last
+
+**Pattern:**
+```python
+# Guard clauses first
+if not precondition1:
+    return default
+
+if not precondition2:
+    return default
+
+# Happy path last (not nested)
+return main_logic()
+```
+
+**Benefits:**
+- Reduced cognitive load (flat structure)
+- Faster failure (don&apos;t compute if invalid)
+- Clearer intent (validations grouped)
+- Easier testing (each path independent)
+
+## Pattern 5: DRY Principle (Don&apos;t Repeat Yourself)
+
+### When to Use
+- **Best For:** Duplicate code blocks, copy-pasted functions
+- **Indicators:** Nearly identical functions, repeated logic patterns
+- **Effectiveness:** Varies (118 lines eliminated in one case)
+
+### How It Works
+Extract common logic to shared utility functions or modules. Create single source of truth.
+
+### Template
+```python
+# BEFORE: Duplicate functions
+# File 1
+def process_a(data):
+    # 60 lines of logic
+    # 40 lines identical to process_b
+    pass
+
+# File 2
+def process_b(data):
+    # 60 lines of logic
+    # 40 lines identical to process_a
+    pass
+
+# AFTER: Shared utility
+# utils/shared.py
+def process_common(data, mode):
+    # 40 lines of common logic
+    pass
+
+# File 1
+def process_a(data):
+    result = process_common(data, mode=&quot;a&quot;)
+    # 20 lines of A-specific logic
+    return result
+
+# File 2
+def process_b(data):
+    result = process_common(data, mode=&quot;b&quot;)
+    # 20 lines of B-specific logic
+    return result
+```
+
+### Real Example
+
+#### _suggest_syntax_fix DRY Violation (118 lines eliminated)
+**Before:**
+- `applicator_validator.py:_suggest_syntax_fix` (cyclomatic=23)
+- `applicator_post_validator.py:_suggest_syntax_fix` (cyclomatic=24)
+- Nearly identical logic, 118 lines of duplication
+
+**After:**
+```python
+# utils/syntax_validation.py (NEW)
+ERROR_SUGGESTIONS = {
+    (&quot;python&quot;, &quot;IndentationError&quot;): [
+        &quot;Check indentation (4 spaces)&quot;,
+        &quot;Verify tab vs spaces consistency&quot;
+    ],
+    (&quot;javascript&quot;, &quot;SyntaxError&quot;): [
+        &quot;Check missing semicolons&quot;,
+        &quot;Verify bracket matching&quot;
+    ],
+    # ... configuration for all languages/errors
+}
+
+def suggest_syntax_fix(language, error_type, error_msg):
+    &quot;&quot;&quot;Single source of truth for syntax fix suggestions.&quot;&quot;&quot;
+    key = (language, error_type)
+    suggestions = ERROR_SUGGESTIONS.get(key, _get_generic_suggestions(error_msg))
+    return _format_suggestions(suggestions)
+
+# applicator_validator.py
+def _suggest_syntax_fix(result):
+    return suggest_syntax_fix(result.language, result.error_type, result.error_msg)
+
+# applicator_post_validator.py
+def _suggest_syntax_fix(result):
+    return suggest_syntax_fix(result.language, result.error_type, result.error_msg)
+```
+
+**Impact:**
+- Removed 118 lines of duplicate code
+- Single source of truth for syntax validation
+- Both original functions eliminated from violations
+- Easier to add new languages/error types
+
+### Guidelines
+
+**DRY Assessment:**
+1. **Identify duplication:** Look for copy-pasted code
+2. **Extract commonality:** What&apos;s truly shared?
+3. **Preserve differences:** What&apos;s unique to each case?
+4. **Create abstraction:** Shared utility + mode/config parameter
+
+**When to Extract:**
+- ✅ &gt;20 lines of duplicate logic
+- ✅ Logic will evolve together
+- ✅ Clear abstraction exists
+- ✅ Reduces overall complexity
+
+**When NOT to Extract:**
+- ❌ Accidental similarity (will diverge)
+- ❌ Creates complex abstraction (worse than duplication)
+- ❌ &lt;10 lines of simple code
+- ❌ Coupling unrelated modules
+
+**Benefits:**
+- Single source of truth (one place to fix bugs)
+- Reduced LOC (less code to maintain)
+- Consistency (all usages behave identically)
+- Easier updates (change once, applies everywhere)
+
+## Pattern Combination Strategies
+
+### Strategy 1: High Cognitive + High Cyclomatic
+**Example:** _parallel_enrich (cognitive=74, cyclomatic=30)
+
+**Approach:**
+1. **Extract Method first** → Reduce cognitive by breaking into helpers
+2. **Configuration-Driven** → Replace any if-elif chains in helpers
+3. **Early Returns** → Flatten any remaining nesting
+
+**Result:** 97% cognitive reduction, 90% cyclomatic reduction
+
+### Strategy 2: Duplicate Complex Functions
+**Example:** Two _extract_classes functions (cognitive=35 each)
+
+**Approach:**
+1. **Refactor one first** → Establish pattern
+2. **Apply same pattern to second** → Ensure consistency
+3. **Consider shared utility** → Extract true commonality
+
+**Result:** Consistent 94% reduction in both, potential for shared helpers
+
+### Strategy 3: Tool Wrappers with Deep Logic
+**Example:** MCP tool wrappers (lines=150+, cyclomatic=22)
+
+**Approach:**
+1. **Service Layer Separation** → Extract business logic
+2. **Extract Method** → Break down validation/formatting
+3. **Configuration-Driven** → Replace hardcoded logic
+
+**Result:** 60-70% LOC reduction, &lt;20 cyclomatic in all functions
+
+## Testing Strategy
+
+### Test After Each Refactoring
+```bash
+# Module-specific tests
+uv run pytest tests/unit/test_&lt;module&gt;*.py -v
+
+# Complexity regression
+uv run pytest tests/quality/test_complexity_regression.py -v
+
+# Full suite (if time permits)
+uv run pytest tests/ -q --tb=no
+```
+
+### Verification Checklist
+- [ ] All module tests passing
+- [ ] Complexity regression test passing
+- [ ] Function no longer in violations list
+- [ ] No behavioral changes (outputs identical)
+- [ ] Type checking passes (mypy)
+- [ ] Linting passes (ruff)
+
+## Common Pitfalls &amp; Solutions
+
+### Pitfall 1: Over-Extraction
+**Problem:** Creating too many tiny helpers (1-5 lines each)
+**Solution:** Aim for 20-30 line helpers. Group related logic.
+
+### Pitfall 2: Vague Names
+**Problem:** Helpers named `_helper1`, `_process`, `_do_thing`
+**Solution:** Use descriptive action-oriented names: `_validate_input`, `_calculate_risk_score`
+
+### Pitfall 3: Configuration Complexity
+**Problem:** Configuration becomes more complex than original if-elif
+**Solution:** Only use config-driven for truly repetitive logic (&gt;5 similar branches)
+
+### Pitfall 4: Breaking Behavior
+**Problem:** Subtle changes during refactoring
+**Solution:** Run tests IMMEDIATELY after each change. Don&apos;t batch test runs.
+
+### Pitfall 5: Missing Edge Cases
+**Problem:** Edge cases handled in original but lost in refactoring
+**Solution:** Read ALL code carefully. Preserve ALL logic, even ugly edge case handling.
+
+## Tools for Refactoring
+
+### Code-Refactor-Agent
+- **Best For:** Complex refactorings (cognitive &gt;40)
+- **Model:** Use Opus for highest quality
+- **Benefits:** Autonomous, comprehensive testing, detailed documentation
+- **Usage:**
+  ```python
+  Task(
+      subagent_type=&apos;code-refactor-agent&apos;,
+      description=&apos;Refactor function_name&apos;,
+      model=&apos;opus&apos;,
+      prompt=&apos;Detailed refactoring instructions...&apos;
+  )
+  ```
+
+### Manual Refactoring
+- **Best For:** Simple refactorings (minimal violations)
+- **Tools:** Read, Edit, Write
+- **When:** Cyclomatic &lt;25, clear pattern, quick fix
+
+### Hybrid Approach
+- **Best For:** Batches of similar functions
+- **Strategy:** Use agent for first, apply pattern manually to rest
+- **Example:** Refactored _extract_classes with agent, applied same pattern to _extract_classes_from_file manually
+
+## Success Metrics
+
+### Quantitative Targets
+- Cyclomatic ≤ 20
+- Cognitive ≤ 30
+- Nesting ≤ 6
+- Lines ≤ 150
+
+### Quality Indicators
+- All tests passing
+- No behavioral regressions
+- Improved maintainability
+- Better testability
+- Enhanced readability
+
+## Quick Reference
+
+| Symptom | Pattern | Key Technique | Expected Result |
+|---------|---------|---------------|-----------------|
+| Cognitive &gt;40 | Extract Method | 4-6 focused helpers | 80-97% ↓ |
+| Cyclomatic &gt;30 | Config-Driven | Lookup dict/dispatch | 90-95% ↓ |
+| Nesting &gt;6 | Early Returns | Guard clauses | 50-75% ↓ |
+| Lines &gt;150 | Service Layer | Business logic extraction | 50-70% ↓ |
+| Duplicate Code | DRY Principle | Shared utility | Varies |
+| Tool Wrapper | Service Separation | Thin wrapper + service | 60-70% ↓ |
+
+## Conclusion
+
+These patterns, proven through 48 successful refactorings, provide a systematic approach to complexity reduction. Key principles:
+
+1. **Choose the right pattern** based on violation type
+2. **Test immediately** after each change
+3. **Combine patterns** for complex cases
+4. **Use automation** (code-refactor-agent) for difficult refactorings
+5. **Maintain zero regressions** through comprehensive testing
+
+With these patterns, achieving 80-100% complexity reduction while preserving all functionality is not just possible—it&apos;s repeatable and systematic.
+
+---
+
+**Pattern Effectiveness:** 80-100% complexity reduction
+**Success Rate:** 48/48 functions (100%)
+**Behavioral Regressions:** 0 (zero)
+**Test Coverage:** 15/15 regression tests, 278 module tests (100% pass)
+**Last Updated:** 2025-11-28</file><file path="docs/SENTRY-INTEGRATION.md"># Sentry Integration Guide
+
+This document provides comprehensive guidance on using Sentry error tracking with the ast-grep-mcp server.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Setup](#setup)
+  - [Option 1: Doppler (Recommended)](#option-1-doppler-recommended)
+  - [Option 2: Manual Configuration](#option-2-manual-configuration)
+- [What Gets Tracked](#what-gets-tracked)
+- [Configuration Options](#configuration-options)
+- [Testing Your Setup](#testing-your-setup)
+- [Viewing Events in Sentry](#viewing-events-in-sentry)
+- [Performance Monitoring](#performance-monitoring)
+- [AI Monitoring (Anthropic SDK)](#ai-monitoring-anthropic-sdk)
+- [Privacy Considerations](#privacy-considerations)
+- [Cost Management](#cost-management)
+- [Troubleshooting](#troubleshooting)
+- [Best Practices](#best-practices)
+
+## Overview
+
+The ast-grep-mcp server includes comprehensive Sentry integration for production error tracking, performance monitoring, and AI agent interaction analysis. This integration helps you:
+
+- **Debug production issues** with full context and stack traces
+- **Monitor performance** of code searches and rewrites
+- **Track AI interactions** to understand agent behavior
+- **Identify bottlenecks** in large codebase operations
+- **Prevent regressions** by catching errors early
+
+## Features
+
+### Error Tracking
+
+All 30 MCP tools include automatic error capture:
+
+- **Code Search Tools**: ast-grep subprocess failures, YAML parsing errors, pattern matching errors
+- **Code Rewrite Tools**: Backup failures, syntax validation errors, rollback failures
+- **Schema.org Tools**: HTTP fetch failures, JSON parsing errors, validation errors
+- **Batch Operations**: Parallel execution failures, query deduplication errors
+- **Security Scanner**: Vulnerability detection errors, pattern matching failures
+- **Quality Tools**: Report generation errors, auto-fix validation failures
+
+### Performance Monitoring
+
+Every tool execution is tracked as a Sentry transaction with:
+
+- **Tool name** and **parameters** as transaction tags
+- **Execution time** measurements
+- **Subprocess spans** for ast-grep CLI operations
+- **HTTP spans** for Schema.org API calls
+- **Batch operation spans** for parallel query execution
+
+### Rich Context
+
+Every error includes:
+
+- Tool name and parameters
+- Execution time before failure
+- Full stack trace
+- Environment (development/production)
+- Service tag (`service:ast-grep-mcp`)
+- Custom tags for specific error types
+
+## Setup
+
+### Option 1: Doppler (Recommended)
+
+Doppler provides secure, centralized secret management with team collaboration and audit logging.
+
+#### 1. Install Doppler CLI
+
+**macOS:**
+```bash
+brew install dopplerhq/cli/doppler
+```
+
+**Linux:**
+```bash
+curl -Ls https://cli.doppler.com/install.sh | sh
+```
+
+**Windows:**
+```powershell
+scoop install doppler
+```
+
+#### 2. Authenticate
+
+```bash
+doppler login
+```
+
+This opens a browser for authentication.
+
+#### 3. Verify Project Configuration
+
+```bash
+# List available projects
+doppler projects
+
+# Check secrets for this project
+doppler secrets --project bottleneck --config dev
+```
+
+You should see `SENTRY_DSN` and `SENTRY_ENVIRONMENT` in the output.
+
+#### 4. Configure Sentry DSN
+
+If `SENTRY_DSN` is not set:
+
+```bash
+# Get your Sentry DSN from: https://sentry.io/settings/[org]/projects/[project]/keys/
+doppler secrets set SENTRY_DSN=&quot;https://your-key@sentry.io/project-id&quot; --project bottleneck --config dev
+```
+
+#### 5. Configure MCP Client
+
+**Cursor** (`.cursor-mcp/settings.json`):
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [
+        &quot;run&quot;,
+        &quot;--project&quot;, &quot;bottleneck&quot;,
+        &quot;--config&quot;, &quot;dev&quot;,
+        &quot;--command&quot;,
+        &quot;uv --directory /absolute/path/to/ast-grep-mcp run main.py&quot;
+      ]
+    }
+  }
+}
+```
+
+**Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [
+        &quot;run&quot;,
+        &quot;--project&quot;, &quot;bottleneck&quot;,
+        &quot;--config&quot;, &quot;dev&quot;,
+        &quot;--command&quot;,
+        &quot;uv --directory /absolute/path/to/ast-grep-mcp run main.py&quot;
+      ]
+    }
+  }
+}
+```
+
+#### 6. Test the Setup
+
+```bash
+# Test Doppler can run the server
+doppler run --project bottleneck --config dev -- uv run main.py
+
+# You should see: &quot;Sentry initialized with DSN&quot; in the logs
+```
+
+### Option 2: Manual Configuration
+
+For simple setups or local development without Doppler.
+
+#### 1. Get Your Sentry DSN
+
+1. Go to [Sentry.io](https://sentry.io/)
+2. Navigate to **Settings** → **Projects** → **[Your Project]** → **Client Keys (DSN)**
+3. Copy the DSN (format: `https://key@sentry.io/project-id`)
+
+#### 2. Set Environment Variables
+
+**macOS/Linux:**
+```bash
+export SENTRY_DSN=&quot;https://your-key@sentry.io/project-id&quot;
+export SENTRY_ENVIRONMENT=&quot;production&quot;  # or &quot;development&quot;
+```
+
+**Windows (PowerShell):**
+```powershell
+$env:SENTRY_DSN = &quot;https://your-key@sentry.io/project-id&quot;
+$env:SENTRY_ENVIRONMENT = &quot;production&quot;
+```
+
+#### 3. Configure MCP Client
+
+Add environment variables to your MCP client configuration:
+
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;uv&quot;,
+      &quot;args&quot;: [&quot;--directory&quot;, &quot;/absolute/path/to/ast-grep-mcp&quot;, &quot;run&quot;, &quot;main.py&quot;],
+      &quot;env&quot;: {
+        &quot;SENTRY_DSN&quot;: &quot;https://your-key@sentry.io/project-id&quot;,
+        &quot;SENTRY_ENVIRONMENT&quot;: &quot;production&quot;
+      }
+    }
+  }
+}
+```
+
+## What Gets Tracked
+
+### Errors Captured
+
+| Error Type | Example Scenarios |
+|------------|------------------|
+| **Subprocess Errors** | ast-grep binary not found, invalid YAML rules, pattern syntax errors |
+| **File Operation Errors** | Permission denied, file not found, backup creation failures |
+| **Validation Errors** | Python syntax errors after rewrite, TypeScript compilation failures |
+| **HTTP Errors** | Schema.org API timeouts, network failures, JSON parsing errors |
+| **Cache Errors** | LRU cache eviction failures, TTL expiration issues |
+| **Batch Errors** | Parallel execution failures, query deduplication errors |
+
+### Performance Traces
+
+Every tool execution creates a transaction with these spans:
+
+```
+Transaction: find_code (2.5s)
+├─ Span: run_ast_grep (2.3s)
+│  └─ Subprocess: ast-grep --json=stream (2.2s)
+└─ Span: format_results (0.2s)
+```
+
+Example tools with performance tracking:
+
+- **find_code**: Pattern matching execution time
+- **rewrite_code**: Backup creation, ast-grep fix, syntax validation
+- **batch_search**: Parallel query execution, deduplication
+- **search_schemas**: HTTP fetch, JSON parsing, indexing
+- **detect_security_issues**: Security scan execution time, vulnerability counts
+- **apply_standards_fixes**: Auto-fix application time, validation passes
+- **generate_quality_report**: Report generation time, metric collection
+
+### AI Monitoring (If Using Anthropic SDK)
+
+When `sendDefaultPii: true` is enabled, Sentry captures:
+
+- AI prompts sent to Claude
+- Claude responses
+- Token usage (input/output tokens)
+- Model name and version
+- Conversation context
+
+**Privacy Note**: This feature captures actual user prompts and AI responses. Ensure compliance with your data privacy policies before enabling in production.
+
+## Configuration Options
+
+### Environment Variables
+
+| Variable | Description | Default | Example |
+|----------|-------------|---------|---------|
+| `SENTRY_DSN` | Sentry project DSN | None (disabled) | `https://key@sentry.io/123` |
+| `SENTRY_ENVIRONMENT` | Environment name | `&quot;development&quot;` | `&quot;production&quot;`, `&quot;staging&quot;` |
+
+### Code Configuration
+
+Located in `main.py` in the `init_sentry()` function:
+
+```python
+def init_sentry() -&gt; None:
+    &quot;&quot;&quot;Initialize Sentry error tracking with Anthropic AI integration.&quot;&quot;&quot;
+    sentry_dsn = os.environ.get(&quot;SENTRY_DSN&quot;)
+    if not sentry_dsn:
+        logger.info(&quot;Sentry DSN not configured, error tracking disabled&quot;)
+        return
+
+    environment = os.environ.get(&quot;SENTRY_ENVIRONMENT&quot;, &quot;development&quot;)
+
+    # Sampling rates
+    traces_sample_rate = 1.0 if environment == &quot;development&quot; else 0.1
+
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        environment=environment,
+        traces_sample_rate=traces_sample_rate,
+        send_default_pii=True,  # Enable AI monitoring
+        integrations=[AnthropicIntegration()],
+    )
+```
+
+### Customizing Sampling Rates
+
+To reduce costs in production, adjust `traces_sample_rate`:
+
+```python
+# Development: Track 100% of transactions
+traces_sample_rate = 1.0
+
+# Production: Track 10% of transactions
+traces_sample_rate = 0.1
+
+# High-traffic production: Track 1% of transactions
+traces_sample_rate = 0.01
+```
+
+## Testing Your Setup
+
+### Using the test_sentry_integration Tool
+
+The MCP server includes a built-in testing tool:
+
+```
+test_sentry_integration()
+```
+
+**Expected Output:**
+
+```json
+{
+  &quot;sentry_enabled&quot;: true,
+  &quot;configuration&quot;: {
+    &quot;dsn_configured&quot;: true,
+    &quot;environment&quot;: &quot;development&quot;,
+    &quot;traces_sample_rate&quot;: 1.0
+  },
+  &quot;test_result&quot;: &quot;success&quot;,
+  &quot;message&quot;: &quot;Test error captured successfully. Check your Sentry dashboard at https://sentry.io/organizations/your-org/issues/&quot;,
+  &quot;dashboard_url&quot;: &quot;https://sentry.io/organizations/your-org/issues/&quot;,
+  &quot;instructions&quot;: [
+    &quot;1. Go to your Sentry dashboard&quot;,
+    &quot;2. Look for error: &apos;Test error from ast-grep-mcp&apos;&quot;,
+    &quot;3. Verify error context includes tool name and timestamp&quot;,
+    &quot;4. Check transaction trace for performance data&quot;
+  ]
+}
+```
+
+### Manual Testing
+
+**Step 1**: Trigger a test error:
+
+```bash
+# Run a search with invalid YAML to trigger an error
+# The error will be captured and sent to Sentry
+```
+
+**Step 2**: Check Sentry dashboard:
+
+1. Go to https://sentry.io/organizations/[your-org]/issues/
+2. Look for recent errors from `service:ast-grep-mcp`
+3. Click on an error to see full details
+
+**Step 3**: Verify performance traces:
+
+1. Go to https://sentry.io/organizations/[your-org]/performance/
+2. Filter by `service:ast-grep-mcp`
+3. View transaction traces and spans
+
+## Viewing Events in Sentry
+
+### Issues Dashboard
+
+Filter errors by service:
+
+1. Go to **Issues** in Sentry
+2. Add filter: `service:ast-grep-mcp`
+3. View recent errors with full context
+
+### Performance Dashboard
+
+View transaction traces:
+
+1. Go to **Performance** in Sentry
+2. Filter by `service:ast-grep-mcp`
+3. Click on a transaction to see detailed spans
+4. Analyze slow operations
+
+### Custom Queries
+
+Create custom queries in **Discover**:
+
+```sql
+-- Find all errors from specific tools
+service:ast-grep-mcp AND tool_name:rewrite_code
+
+-- Find slow operations (&gt;5 seconds)
+service:ast-grep-mcp AND transaction.duration:&gt;5000
+
+-- Find all subprocess errors
+service:ast-grep-mcp AND error.type:SubprocessError
+```
+
+## Performance Monitoring
+
+### Transaction Structure
+
+Every tool execution creates a transaction:
+
+```
+Transaction: rewrite_code
+├─ Tags:
+│  ├─ tool_name: rewrite_code
+│  ├─ dry_run: false
+│  ├─ language: python
+│  └─ service: ast-grep-mcp
+├─ Spans:
+│  ├─ create_backup (0.5s)
+│  ├─ run_ast_grep (2.0s)
+│  │  └─ subprocess: ast-grep (1.9s)
+│  └─ validate_syntax (0.3s)
+└─ Duration: 2.8s
+```
+
+### Analyzing Slow Operations
+
+**Find bottlenecks:**
+
+1. Go to **Performance** → **Summary**
+2. Sort by **P95** (95th percentile duration)
+3. Click on slow transactions
+4. Analyze span waterfall
+
+**Common bottlenecks:**
+
+- Large codebase searches: Optimize with `max_results` or `--paths` filters
+- Parallel batch operations: Reduce worker count
+- Syntax validation: Skip validation for trusted inputs
+
+## AI Monitoring (Anthropic SDK)
+
+When `sendDefaultPii: true` is enabled, Sentry captures AI interactions.
+
+### What Gets Captured
+
+```python
+# Example AI interaction trace
+Transaction: ai_prompt
+├─ Span: anthropic_api_call
+│  ├─ Prompt: &quot;Find all console.log statements&quot;
+│  ├─ Response: &quot;Here&apos;s the ast-grep rule...&quot;
+│  ├─ Input Tokens: 150
+│  ├─ Output Tokens: 300
+│  └─ Model: claude-sonnet-4
+└─ Duration: 1.2s
+```
+
+### Viewing AI Traces
+
+1. Go to **Performance** in Sentry
+2. Filter by `service:ast-grep-mcp`
+3. Look for transactions with `anthropic_api_call` spans
+4. View full prompt/response context
+
+### Privacy Considerations
+
+**AI monitoring captures:**
+- User prompts (may contain sensitive code or data)
+- AI responses (may contain proprietary logic)
+- File paths and project structure
+
+**Recommendations:**
+- Use separate Sentry project for AI monitoring
+- Enable only in development/staging
+- Configure data scrubbing rules for sensitive patterns
+- Review captured data regularly
+
+## Privacy Considerations
+
+### Personal Identifiable Information (PII)
+
+The integration includes `send_default_pii: true` to enable AI monitoring. This means:
+
+**What gets captured:**
+- File paths (may include usernames or organization names)
+- Code snippets in error contexts
+- YAML rule definitions
+- AI prompts and responses
+
+**What does NOT get captured:**
+- File contents (unless in error context)
+- Environment variables (except those explicitly logged)
+- Credentials or API keys
+
+### Compliance Recommendations
+
+1. **Review your data privacy policies** before enabling Sentry in production
+2. **Configure data scrubbing** in Sentry project settings:
+   - Scrub API keys, tokens, passwords
+   - Redact sensitive file paths
+   - Filter proprietary code patterns
+3. **Use separate Sentry projects** for different sensitivity levels:
+   - `ast-grep-mcp-public` (scrubbed data)
+   - `ast-grep-mcp-internal` (full context)
+4. **Enable audit logging** in Doppler to track secret access
+5. **Set retention policies** to auto-delete events after 30/60/90 days
+
+## Cost Management
+
+Sentry pricing is based on events and transactions. Here&apos;s how to optimize costs:
+
+### 1. Adjust Sampling Rates
+
+**Development:**
+```python
+traces_sample_rate = 1.0  # 100% - see everything
+```
+
+**Production:**
+```python
+traces_sample_rate = 0.1  # 10% - balance cost vs visibility
+```
+
+**High-traffic production:**
+```python
+traces_sample_rate = 0.01  # 1% - minimal cost
+```
+
+### 2. Use Error Filtering
+
+Configure in Sentry project settings → **Inbound Filters**:
+
+- Ignore known errors (e.g., &quot;file not found&quot; from user input)
+- Filter by error type
+- Filter by environment
+
+### 3. Transaction Filtering
+
+Add custom filtering in `init_sentry()`:
+
+```python
+def traces_sampler(sampling_context):
+    # Sample 100% of errors
+    if sampling_context.get(&quot;parent_sampled&quot;) is False:
+        return 1.0
+
+    # Sample 10% of successful operations
+    return 0.1
+
+sentry_sdk.init(
+    dsn=sentry_dsn,
+    traces_sampler=traces_sampler,  # Instead of traces_sample_rate
+)
+```
+
+### 4. Monitor Quota Usage
+
+1. Go to **Settings** → **Subscription**
+2. View **Events** and **Transactions** usage
+3. Set up alerts for 80% quota usage
+4. Adjust sampling rates if approaching limits
+
+## Troubleshooting
+
+### Sentry Not Initializing
+
+**Symptom**: No &quot;Sentry initialized&quot; message in logs
+
+**Causes:**
+1. `SENTRY_DSN` not set
+2. Invalid DSN format
+3. Doppler not injecting environment variables
+
+**Solutions:**
+
+```bash
+# Check if DSN is set
+echo $SENTRY_DSN
+
+# Test Doppler secret injection
+doppler run --project bottleneck --config dev -- env | grep SENTRY
+
+# Verify DSN format (should be: https://key@sentry.io/project-id)
+doppler secrets get SENTRY_DSN --project bottleneck --config dev --plain
+```
+
+### Errors Not Appearing in Sentry
+
+**Symptom**: `test_sentry_integration()` succeeds but errors don&apos;t show up
+
+**Causes:**
+1. Network connectivity issues
+2. Sentry project quota exceeded
+3. Inbound filters blocking events
+4. Wrong Sentry project
+
+**Solutions:**
+
+```bash
+# Check network connectivity
+curl -I https://sentry.io
+
+# Check Sentry project settings
+# Go to: https://sentry.io/settings/[org]/projects/[project]/
+
+# Verify DSN points to correct project
+doppler secrets get SENTRY_DSN --project bottleneck --config dev --plain
+
+# Check quota usage
+# Go to: https://sentry.io/settings/[org]/subscription/
+```
+
+### Doppler Not Injecting Secrets
+
+**Symptom**: Server starts but Sentry shows &quot;DSN not configured&quot;
+
+**Causes:**
+1. Doppler not authenticated
+2. Wrong project/config specified
+3. `.doppler.yaml` missing or incorrect
+
+**Solutions:**
+
+```bash
+# Check Doppler authentication
+doppler me
+
+# Verify project configuration
+cat .doppler.yaml
+
+# Should show:
+# setup:
+#   project: bottleneck
+#   config: dev
+
+# Test secret injection manually
+doppler run --project bottleneck --config dev -- env | grep SENTRY
+
+# If empty, verify secrets exist
+doppler secrets --project bottleneck --config dev | grep SENTRY
+```
+
+### High Event Volume / Cost
+
+**Symptom**: Sentry quota exceeded or high bill
+
+**Solutions:**
+
+1. **Reduce sampling rate:**
+   ```python
+   traces_sample_rate = 0.1  # Change from 1.0 to 0.1
+   ```
+
+2. **Add inbound filters** (Sentry dashboard):
+   - Filter by error message pattern
+   - Ignore specific error types
+   - Filter by environment
+
+3. **Use dynamic sampling:**
+   ```python
+   def traces_sampler(sampling_context):
+       # High sampling for errors
+       if sampling_context.get(&quot;parent_sampled&quot;) is False:
+           return 1.0
+
+       # Low sampling for successful operations
+       operation = sampling_context.get(&quot;transaction_context&quot;, {}).get(&quot;op&quot;)
+       if operation in [&quot;find_code&quot;, &quot;batch_search&quot;]:
+           return 0.05  # 5% for high-volume operations
+
+       return 0.1  # 10% for other operations
+   ```
+
+### AI Monitoring Not Working
+
+**Symptom**: No AI interactions in Sentry
+
+**Causes:**
+1. `send_default_pii` disabled
+2. Anthropic SDK not installed
+3. No AI interactions happening
+
+**Solutions:**
+
+```bash
+# Verify Anthropic integration is installed
+uv run python -c &quot;import sentry_sdk; print(sentry_sdk.integrations.anthropic)&quot;
+
+# Check sentry-sdk version includes Anthropic
+uv run pip show sentry-sdk | grep Version
+# Should be &gt;= 2.0.0
+
+# Verify sendDefaultPii is enabled
+# Check main.py: send_default_pii=True
+```
+
+## Best Practices
+
+### 1. Use Environment-Specific Configurations
+
+```bash
+# Development: Full visibility
+doppler secrets set SENTRY_ENVIRONMENT=&quot;development&quot; --project bottleneck --config dev
+doppler secrets set SENTRY_TRACES_SAMPLE_RATE=&quot;1.0&quot; --project bottleneck --config dev
+
+# Production: Balanced cost vs visibility
+doppler secrets set SENTRY_ENVIRONMENT=&quot;production&quot; --project bottleneck --config prd
+doppler secrets set SENTRY_TRACES_SAMPLE_RATE=&quot;0.1&quot; --project bottleneck --config prd
+```
+
+### 2. Tag Errors for Better Filtering
+
+The integration already tags all events with:
+- `service:ast-grep-mcp`
+- `tool_name:[tool_name]`
+- Environment (development/production)
+
+Add custom tags in your code:
+
+```python
+with sentry_sdk.configure_scope() as scope:
+    scope.set_tag(&quot;project_type&quot;, &quot;monorepo&quot;)
+    scope.set_tag(&quot;codebase_size&quot;, &quot;large&quot;)
+```
+
+### 3. Set Up Alerts
+
+Configure in Sentry → **Alerts**:
+
+- **High error rate**: Alert when errors spike
+- **Performance regression**: Alert when P95 &gt; 5s
+- **Quota usage**: Alert at 80% of quota
+- **New error types**: Alert on first occurrence
+
+### 4. Regular Review
+
+Weekly:
+- Review top 10 errors
+- Check performance regressions
+- Analyze slow operations
+
+Monthly:
+- Review quota usage
+- Adjust sampling rates
+- Update inbound filters
+- Archive resolved issues
+
+### 5. Separate Projects for Different Use Cases
+
+Recommended Sentry projects:
+
+1. **ast-grep-mcp-dev**: Development with 100% sampling
+2. **ast-grep-mcp-prod**: Production with 10% sampling
+3. **ast-grep-mcp-ai**: AI monitoring with full PII capture (internal only)
+
+### 6. Use Source Maps for Better Stack Traces
+
+(Future enhancement - not yet implemented)
+
+### 7. Document Your Setup
+
+Keep a team wiki/doc with:
+- Sentry project URLs
+- Doppler project/config names
+- Sampling rate decisions
+- Alert escalation procedures
+- Privacy policy compliance notes
+
+## Additional Resources
+
+- [Sentry Python SDK Documentation](https://docs.sentry.io/platforms/python/)
+- [Sentry Performance Monitoring](https://docs.sentry.io/product/performance/)
+- [Doppler Documentation](https://docs.doppler.com/)
+- [Anthropic SDK Integration](https://docs.sentry.io/platforms/python/integrations/anthropic/)
+
+## Support
+
+For issues with this integration:
+1. Check this documentation
+2. Run `test_sentry_integration()` for diagnostic info
+3. Review [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+4. Open an issue on GitHub with diagnostic output</file><file path="docs/changelog/2026-03-04-maintenance-quality.md"># Maintenance + Quality Updates - 2026-03-04
+
+Summary of recent repository maintenance based on commit history.
+
+## Highlights
+
+### H1: Constants consolidation and magic-number migration
+**Source commits**: `662578b`, `5194d99`, `646364b`, `460722b`, `20f3a87`, `d94b80f`, `fe005d8`, `0cf6cd3`
+
+Consolidated repeated literals into shared constants and scoring scales, then migrated semantically matching call sites across source, scripts, and tests.
+
+### H2: Analyzer false-positive reduction for constants
+**Source commit**: `3440fc1`
+
+Updated magic-number detection logic to skip one-off constant declarations (for example, `UPPER_CASE = 123`) so constant definitions are not reported as smells.
+
+### H3: Exclusion hardening for virtual environments and backups
+**Source commits**: `7a96e4d`, `24840be`, `00f2223`, `2a6282b`
+
+Enforced consistent exclude patterns in analysis tools for `venv/.venv/virtualenv/site-packages` and `.ast-grep-backups` plus generated/build artifacts.
+
+### H4: Quality gate cleanup and parser correctness
+**Source commits**: `af1db42`, `3b9b5fc`, `f40d1f2`, `4ffabc3`
+
+- Resolved Ruff and mypy issues in MCP tool wrappers and line-length violations.
+- Cleared standards-enforcement violations in baseline quality runs.
+- Fixed unified diff hunk parsing to align regex capture groups with shared constants.
+- Current test baseline after fix: `1468 passed, 1 skipped`.</file><file path="docs/changelog/2026-03-06-complexity-review-fixes.md"># Complexity Refactoring + Code Review Fixes — 2026-03-06
+
+Batch completion of complexity reduction queue (C1-C10) and high-priority code review issues (BR1-BR8). All items committed 2026-03-06.
+
+## Complexity Refactoring (C1-C10)
+
+### C1: Split file-migration orchestration in `migrate_file`
+**Commit**: `70f78ef` | **Priority**: P1
+Split `migrate_file` (cyclomatic 26, cognitive 76, nesting 9) into focused helpers: `_load_file_lines`, `_create_backup_if_needed`, `_replace_print_statements`, `_ensure_import_present`, `_persist_changes_if_needed`. Main orchestrator now linear and branch-light.
+
+### C2: Replace brittle orphan-import repair flow in `fix_file`
+**Commit**: `63d5873` | **Priority**: P1
+Decomposed `fix_file` (cyclomatic 29, cognitive 56, nesting 6) from index/skip state mutation into explicit phases: detect candidate orphan ranges, validate, rebuild by range exclusion. No in-loop index mutation.
+
+### C3: Decompose end-to-end analytics script `analyze_project`
+**Commit**: `fb4bf17` | **Priority**: P1
+Extracted scan-specific steps from orchestrator (cyclomatic 19, cognitive 49, nesting 5): `_run_complexity_scan`, `_run_smell_scan`, `_run_security_scan`, plus `_format_*_summary` helpers. Output payload backward-compatible.
+
+### C4: Split reporting + summary extraction in `generate_summary_report`
+**Commit**: `2794f06` | **Priority**: P2
+Bundled function (cyclomatic 14, cognitive 43, nesting 7) split into: `_run_enforcement`, `_generate_markdown_report`, `_print_report_summary`. Simplified happy-path flow; summary extraction isolated.
+
+### C5: Break up enhanced dedup response builder
+**Commit**: `16a5ac1` | **Priority**: P2
+Decomposed `create_enhanced_duplication_response` (cyclomatic 23, cognitive 40, nesting 6) into `_build_enhanced_candidate`, `_generate_candidate_diff_preview`, `_update_distribution`, `_build_global_recommendations`, `_build_summary`. No regression in candidate ordering.
+
+### C6: Simplify hybrid config validation in `__post_init__`
+**Commit**: `5e6b3de` | **Priority**: P2
+Split validator (cyclomatic 19, cognitive 37, nesting 5) into `_apply_semantic_rebalance_if_needed`, `_validate_weight_bounds`, `_validate_weight_sum`. Validation semantics unchanged.
+
+### C7: Refactor Flask route parser loop in `parse_file`
+**Commit**: `6874996` | **Priority**: P2
+Extracted decorator matching, method parsing, and route creation into `_parse_decorator_match`, `_find_next_handler_name`, `_build_routes_for_methods`. No duplicate or missing routes in support of `@app.route`/`@blueprint.route`.
+
+### C8: Decompose external call-site discovery
+**Commit**: `426b938` | **Priority**: P2
+Split `_find_external_call_sites` (cyclomatic 14, cognitive 36, nesting 7) into `_search_call_sites_for_name`, `_normalize_match_file_path`, `_to_call_site_record`. Deterministic unit tests with mocked responses.
+
+### C9: Replace heuristic-heavy orphan detection monolith
+**Commit**: `e7a51e3` | **Priority**: P2
+Decomposed `find_orphaned_imports` (cyclomatic 23, cognitive 35, nesting 6) into composable predicates (`_is_orphan_close_paren`, `_is_orphan_import_item_start`) and single range scanner. Clearer predicate-focused tests.
+
+### C10: Modularize normalization pipeline in `_normalize_for_ast`
+**Commit**: `029b7b2` | **Priority**: P2
+Extracted per-line transforms (`_strip_inline_python_comment`, `_strip_inline_js_comment`, `_normalize_indentation`) from main loop. Composed in small pipeline. Normalized output unchanged; table-driven tests for edge cases.
+
+## Code Review Fixes (BR1-BR8)
+
+### BR1: Fix indentation normalization for 4-space code
+**Commit**: `590b4d1`, `029b7b2` | **Priority**: P1
+`NORMALIZATION_DIVISOR = 2` caused 4-space-indented code to normalize incorrectly. Switched to adaptive indent divisor (detects 4-space and 2-space consistently). Identical functions in different styles now compare as similar.
+
+### BR2: Fix contract mismatch in `filter_files_by_size`
+**Commit**: `18a15dd` | **Priority**: P1
+Function returned `([], [])` silently when `max_size_mb is None` despite docstring claiming &quot;None = unlimited&quot;. Fixed to walk and return all files when unlimited. Callers with guards unaffected.
+
+### BR3: Fix `meta_vars` type annotation mismatch
+**Commit**: `77e4b2d` | **Priority**: P1
+`RuleViolation.meta_vars` declared as `Optional[Dict[str, str]]` but stored `List[str]` for `$$$` multi-captures, causing `TypeError` in fixer. Widened type to `Dict[str, str | list[str]]` with guarded replacements.
+
+### BR4: Fix column 0-indexing inconsistency in RuleViolation
+**Commit**: `81cf372` | **Priority**: P1
+Columns left at 0-indexed value from ast-grep while lines applied `+1` offset. Added `+1` to column assignments to match 1-indexed docstring contract. `security_scanner` already correct; enforcer now aligned.
+
+### BR5: Fix file handle leak in `configure_logging`
+**Commit**: `682a5f5` | **Priority**: P1
+Each call opened new file descriptor with no close, leaking in long-running processes. Fixed by holding module-level reference outside function. Test suites no longer leak file descriptors.
+
+### BR6: Fix `CACHE_TTL` semantic mismatch with `CLEANUP_INTERVAL_SECONDS`
+**Commit**: `955772c` | **Priority**: P2
+`CACHE_TTL` initialized from `CLEANUP_INTERVAL_SECONDS` (300s background sweep) despite semantic difference. Introduced dedicated `DEFAULT_CACHE_TTL` (3600s); callers now get correct expiry.
+
+### BR7: Fix double `os.environ.get` call in config path resolution
+**Commit**: `abc9e0d` | **Priority**: P2
+`_resolve_and_validate_config_path` read `AST_GREP_CONFIG` env var twice on same condition with dead code between. Simplified to single read with walrus operator.
+
+### BR8: Add timeout to `kill()` + `wait()` in process cleanup
+**Commit**: `99dec84` | **Priority**: P1
+Bare `process.wait()` after `kill()` could block indefinitely on unkillable processes. Both `_terminate_process` and `_cleanup_process` fixed with 5s timeout.
+
+## Additional Fixes
+
+### CR1: Commit 565aaea Parser Fixes
+**Commit**: `6473709` | **Priority**: P1
+Fixed three critical parser issues in `sync_checker.py` identified in code review:
+- High: `_split_params` depth counter guard (goes negative on `&gt;` in `=&gt;` defaults)
+- High: `rstrip(&quot;?&quot;)` strips all trailing `?` chars (now uses `p.name[:-1] if p.name.endswith(&quot;?&quot;)`)
+- Medium: JSDoc nested brace regex only handles 2 levels (pre-existing limitation noted)
+
+### M1: Handle JS/TS brace counter edge cases
+**Commit**: `10f757c` | **Priority**: P2
+Improved brace counter for JavaScript/TypeScript to skip braces inside template strings and regex patterns. Surface extraction now ignores structural braces from escaped content.
+
+### SE1: Replace `assert isinstance()` with explicit type checks
+**Priority**: P2 | **Implementation session**: 2026-03-06
+Removed 4 `assert isinstance()` calls in production code (asserts stripped under `-O` flag):
+- `benchmark.py:82`: Removed redundant assert (value provably float)
+- `applicator.py:673,680,689`: Replaced with `if not isinstance: raise TypeError`
+
+## Duplication Consolidation (D1-D4)
+
+### D1: Consolidate `_is_python_import` / `_is_javascript_import` in renamer
+**Priority**: P2 | **Implementation session**: 2026-03-06
+Merged two identical import-checking methods (`_is_python_import` and `_is_javascript_import`) into a single `_is_import(context)` method in `renamer.py`. Updated both call sites (lines 204, 258) to use the unified method. ~10 lines saved; 37 related tests pass.
+
+### D2: Parameterize severity-suggestion helpers in search service
+**Priority**: P2 | **Implementation session**: 2026-03-06
+Replaced three identical severity-filtering helpers (`_add_error_suggestions`, `_add_warning_suggestions`, `_add_info_suggestions`) in `search/service.py` with a single parameterized `_add_suggestions_by_severity(severity, prefix, issues, suggestions)` function. Updated all call sites in `_generate_suggestions`. ~10 lines saved; 35 debug/pattern tests pass.
+
+### D3: Console logger error/warning methods
+**Priority**: P3 | **Implementation session**: 2026-03-06
+Extracted shared `_log_to_stderr(prefix, message)` helper in `console_logger.py` to consolidate identical prefix/message logging logic. `error()` and `warning()` now delegate to the shared helper. ~8 lines saved; 5 related tests pass.
+
+### D4: Smell detector `__init__` duplication
+**Priority**: P3 | **Implementation session**: 2026-03-06
+Added `__init__(self, threshold, logger_name)` to the `SmellDetector` ABC base class and refactored 5 detector subclasses (`LongFunctionDetector`, `ParameterBloatDetector`, `DeepNestingDetector`, `LargeClassDetector`, `MagicNumberDetector`) to call `super().__init__()` instead of duplicating threshold/logger initialization. ~20 lines saved; all 1,615 tests pass.
+
+## Summary
+
+- **Items migrated**: 24 (C1-C10, BR1-BR8, CR1, M1, SE1, D1-D4)
+- **Files affected**: 24 modules across core, features, utils, scripts
+- **Total cyclomatic reduction**: ~280 complexity points across refactored functions
+- **Duplication consolidated**: ~48 lines across search, refactoring, quality, utils modules
+- **Quality gates**: All items pass ruff, mypy, pytest</file><file path="docs/changelog/2026-03-08-code-review-findings.md"># 2026-03-08: Code Review Findings Resolution
+
+Migration of completed code review items from BACKLOG.md addressing issues identified in commit 92741ab (D1-D4 dedup consolidation).
+
+## Code Review Findings
+
+### Medium Priority
+
+- **`_is_import` substring match false positives** — Added docstring to `refactoring/renamer.py:208-217` documenting known limitation: substring match can false-positive on identifiers like `reimport_legacy`. (commit: ccf5765)
+
+- **`_log_to_stderr` kwargs passthrough** — Added docstring to `utils/console_logger.py:120-122` documenting TypeError risk when caller passes `file=` in `**kwargs`. Pre-existing limitation, not a regression. (commit: ccf5765)
+
+- **Extra blank line in `search/service.py`** — Verified no-op: `ruff check` passes; two blank lines is standard Python style (PEP 8), not a violation.
+
+### Low Priority
+
+- **`_add_suggestions_by_severity` redundant prefix param** — Refactored `features/search/service.py` to remove redundant `prefix` parameter. Now derives display string from `_SEVERITY_PREFIX` dict (INFO→&quot;TIP&quot; mapping preserved). Updated 3 call sites in `_generate_suggestions`. Reduces caller burden. (commit: aebd562)
+
+## Summary
+
+- **Items migrated:** 4
+- **Commits:** 2 (ccf5765, aebd562)
+- **Files modified:** 3 (renamer.py, console_logger.py, service.py)
+- **Code review score:** 8.5/10</file><file path="docs/changelog/2026-03-08-quality-fixes.md"># 2026-03-08: Code Quality Fixes
+
+Minor fixes for code quality issues identified during analysis refresh.
+
+## Code Quality Fixes
+
+- **Magic number `3` in `utils/formatters.py:229`** — Replaced hardcoded tuple indices `last[1], last[2], last[3]` with explicit tuple unpacking to destructure the `_COMPLEXITY_LEVELS` tuple. Improves clarity and aligns with existing pattern at line 225.
+
+- **Assert in `features/deduplication/applicator_post_validator.py:137`** — Replaced production-code `assert content is not None` with explicit guard `if content is None: return []`. Asserts should only be used for development checks, not runtime validation.
+
+## Summary
+
+- **Items:** 2
+- **Files modified:** 2
+- **Type:** Code quality / standards enforcement</file><file path="docs/CONFIGURATION.md"># Configuration Guide
+
+This document describes configuration options for the ast-grep MCP server, including ast-grep configuration (`sgconfig.yaml`) and Sentry/Doppler integration.
+
+## Table of Contents
+
+1. [ast-grep Configuration](#ast-grep-configuration)
+2. [Sentry Error Tracking](#sentry-error-tracking)
+3. [Doppler Secret Management](#doppler-secret-management)
+4. [Complete Configuration Examples](#complete-configuration-examples)
+
+## ast-grep Configuration
+
+The ast-grep MCP server supports custom configuration via a `sgconfig.yaml` file. This file allows you to customize ast-grep behavior, including:
+
+- Defining custom languages
+- Specifying rule directories
+- Configuring test directories
+- Setting language-to-file extension mappings
+
+## Providing the Configuration File
+
+You can provide the configuration file in two ways (in order of precedence):
+
+1. **Command-line argument**: `--config /path/to/sgconfig.yaml`
+2. **Environment variable**: `AST_GREP_CONFIG=/path/to/sgconfig.yaml`
+
+The configuration file is validated on startup. If validation fails, the server will exit with a descriptive error message.
+
+## Configuration Structure
+
+### Top-Level Fields
+
+```yaml
+# Optional: Directories containing ast-grep rules
+ruleDirs:
+  - rules
+  - custom-rules
+
+# Optional: Directories containing test files
+testDirs:
+  - tests
+
+# Optional: Custom language definitions
+customLanguages:
+  mylang:
+    extensions:
+      - .ml
+      - .mli
+    languageId: mylang
+    expandoChar: _
+
+# Optional: Language-to-glob mappings
+languageGlobs:
+  - extensions: [.proto]
+    language: protobuf
+```
+
+### Field Descriptions
+
+#### `ruleDirs` (optional)
+
+Type: `List[str]`
+
+Directories containing ast-grep rule files (`.yml` or `.yaml` files). Paths are relative to the configuration file location.
+
+**Validation:**
+- Must not be an empty list if specified
+- Each directory path should exist (not enforced by validation, but recommended)
+
+**Example:**
+```yaml
+ruleDirs:
+  - rules
+  - security-rules
+  - refactoring-rules
+```
+
+#### `testDirs` (optional)
+
+Type: `List[str]`
+
+Directories containing test files for your ast-grep rules. Used by ast-grep&apos;s testing framework.
+
+**Validation:**
+- Must not be an empty list if specified
+
+**Example:**
+```yaml
+testDirs:
+  - tests
+  - rule-tests
+```
+
+#### `customLanguages` (optional)
+
+Type: `Dict[str, CustomLanguageConfig]`
+
+Define custom languages with tree-sitter grammars. Each language has:
+
+- **`extensions`** (required): List of file extensions (must start with `.`)
+- **`languageId`** (optional): Language identifier
+- **`expandoChar`** (optional): Character used for meta-variable expansion
+
+**Validation:**
+- Dictionary must not be empty if specified
+- Each language must have at least one extension
+- All extensions must start with a dot (`.`)
+
+**Example:**
+```yaml
+customLanguages:
+  # Custom language for Protocol Buffers
+  protobuf:
+    extensions:
+      - .proto
+    languageId: proto
+
+  # Custom language for Terraform
+  terraform:
+    extensions:
+      - .tf
+      - .tfvars
+    languageId: hcl
+```
+
+#### `languageGlobs` (optional)
+
+Type: `List[Dict[str, Any]]`
+
+Map file extensions to languages. Useful for associating non-standard extensions with existing languages.
+
+**Example:**
+```yaml
+languageGlobs:
+  - extensions: [.proto]
+    language: protobuf
+  - extensions: [.mjs, .cjs]
+    language: javascript
+```
+
+## Complete Example
+
+Here&apos;s a complete example configuration:
+
+```yaml
+# sgconfig.yaml - Complete example
+
+ruleDirs:
+  - rules
+  - custom-rules
+  - security
+
+testDirs:
+  - tests
+  - rule-tests
+
+customLanguages:
+  # Add support for GraphQL
+  graphql:
+    extensions:
+      - .graphql
+      - .gql
+    languageId: graphql
+
+  # Add support for Solidity
+  solidity:
+    extensions:
+      - .sol
+    languageId: solidity
+
+languageGlobs:
+  # Map .mjs and .cjs to JavaScript
+  - extensions: [.mjs, .cjs]
+    language: javascript
+
+  # Map .tsx and .jsx to TypeScript/JavaScript
+  - extensions: [.tsx]
+    language: tsx
+  - extensions: [.jsx]
+    language: jsx
+```
+
+## Validation
+
+The server validates the configuration file on startup using Pydantic models. Common validation errors include:
+
+### Empty Lists or Dictionaries
+
+**Error:**
+```
+Configuration error in &apos;/path/to/sgconfig.yaml&apos;: Validation failed: Directory list cannot be empty if specified
+```
+
+**Fix:**
+Remove the empty field or add at least one item:
+```yaml
+# Wrong
+ruleDirs: []
+
+# Right - remove the field
+# ruleDirs not specified
+
+# Right - add items
+ruleDirs:
+  - rules
+```
+
+### Invalid File Extensions
+
+**Error:**
+```
+Configuration error in &apos;/path/to/sgconfig.yaml&apos;: Validation failed: Extension &apos;txt&apos; must start with a dot (e.g., &apos;.myext&apos;)
+```
+
+**Fix:**
+Add a dot prefix to all extensions:
+```yaml
+# Wrong
+customLanguages:
+  mylang:
+    extensions:
+      - txt
+
+# Right
+customLanguages:
+  mylang:
+    extensions:
+      - .txt
+```
+
+### Empty Extensions List
+
+**Error:**
+```
+Configuration error in &apos;/path/to/sgconfig.yaml&apos;: Validation failed: extensions list cannot be empty
+```
+
+**Fix:**
+Add at least one extension:
+```yaml
+# Wrong
+customLanguages:
+  mylang:
+    extensions: []
+
+# Right
+customLanguages:
+  mylang:
+    extensions:
+      - .ml
+```
+
+### YAML Syntax Errors
+
+**Error:**
+```
+Configuration error in &apos;/path/to/sgconfig.yaml&apos;: YAML parsing failed: ...
+```
+
+**Fix:**
+Check YAML syntax. Common issues:
+- Incorrect indentation (use spaces, not tabs)
+- Missing colons or hyphens
+- Unclosed quotes or brackets
+
+### File Not Found
+
+**Error:**
+```
+Configuration error in &apos;/path/to/sgconfig.yaml&apos;: File does not exist
+```
+
+**Fix:**
+- Verify the path is correct
+- Use absolute paths or paths relative to your working directory
+- Check file permissions
+
+## Testing Your Configuration
+
+You can test your configuration by running the server with the `--config` flag:
+
+```bash
+uv run main.py --config /path/to/sgconfig.yaml
+```
+
+If validation succeeds, the server will start normally. If validation fails, you&apos;ll see a descriptive error message.
+
+## Additional Resources
+
+- [ast-grep Configuration Documentation](https://ast-grep.github.io/guide/project/project-config.html)
+- [ast-grep Custom Language Guide](https://ast-grep.github.io/advanced/custom-language.html)
+- [tree-sitter Language Support](https://tree-sitter.github.io/tree-sitter/)
+
+## Schema Reference
+
+### CustomLanguageConfig
+
+```python
+class CustomLanguageConfig:
+    extensions: List[str]         # Required, must start with &apos;.&apos;
+    languageId: Optional[str]     # Optional language identifier
+    expandoChar: Optional[str]    # Optional expansion character
+```
+
+### AstGrepConfig
+
+```python
+class AstGrepConfig:
+    ruleDirs: Optional[List[str]]                              # Rule directories
+    testDirs: Optional[List[str]]                              # Test directories
+    customLanguages: Optional[Dict[str, CustomLanguageConfig]] # Custom languages
+    languageGlobs: Optional[List[Dict[str, Any]]]             # Language mappings
+```
+
+All fields are optional, but if provided, they must follow the validation rules described above.
+
+---
+
+## Sentry Error Tracking
+
+The MCP server supports optional Sentry integration for error tracking and performance monitoring.
+
+### Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SENTRY_DSN` | No | None | Sentry project DSN (format: `https://key@sentry.io/project-id`) |
+| `SENTRY_ENVIRONMENT` | No | `&quot;development&quot;` | Environment name (`development`, `staging`, `production`) |
+
+### Setup Methods
+
+#### Method 1: Doppler (Recommended)
+
+```bash
+# Set secrets in Doppler
+doppler secrets set SENTRY_DSN=&quot;https://your-key@sentry.io/project-id&quot; --project bottleneck --config dev
+doppler secrets set SENTRY_ENVIRONMENT=&quot;development&quot; --project bottleneck --config dev
+
+# Run server
+doppler run --project bottleneck --config dev -- uv run main.py
+```
+
+#### Method 2: Environment Variables
+
+**macOS/Linux:**
+```bash
+export SENTRY_DSN=&quot;https://your-key@sentry.io/project-id&quot;
+export SENTRY_ENVIRONMENT=&quot;production&quot;
+uv run main.py
+```
+
+**Windows (PowerShell):**
+```powershell
+$env:SENTRY_DSN = &quot;https://your-key@sentry.io/project-id&quot;
+$env:SENTRY_ENVIRONMENT = &quot;production&quot;
+uv run main.py
+```
+
+#### Method 3: MCP Client Configuration
+
+Add to `.cursor-mcp/settings.json` or Claude Desktop config:
+
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;uv&quot;,
+      &quot;args&quot;: [&quot;--directory&quot;, &quot;/path/to/ast-grep-mcp&quot;, &quot;run&quot;, &quot;main.py&quot;],
+      &quot;env&quot;: {
+        &quot;SENTRY_DSN&quot;: &quot;https://your-key@sentry.io/project-id&quot;,
+        &quot;SENTRY_ENVIRONMENT&quot;: &quot;production&quot;
+      }
+    }
+  }
+}
+```
+
+### Configuration Details
+
+Located in `main.py`:
+
+```python
+def init_sentry() -&gt; None:
+    &quot;&quot;&quot;Initialize Sentry error tracking with Anthropic AI integration.&quot;&quot;&quot;
+    sentry_dsn = os.environ.get(&quot;SENTRY_DSN&quot;)
+    if not sentry_dsn:
+        logger.info(&quot;Sentry DSN not configured, error tracking disabled&quot;)
+        return
+
+    environment = os.environ.get(&quot;SENTRY_ENVIRONMENT&quot;, &quot;development&quot;)
+
+    # Development: 100% trace sampling for full visibility
+    # Production: 10% trace sampling to balance cost vs observability
+    traces_sample_rate = 1.0 if environment == &quot;development&quot; else 0.1
+
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        environment=environment,
+        traces_sample_rate=traces_sample_rate,
+        send_default_pii=True,  # Enables AI monitoring (Anthropic SDK)
+        integrations=[AnthropicIntegration()],
+    )
+
+    logger.info(&quot;Sentry initialized&quot;, dsn_configured=True, environment=environment)
+
+    # Tag all events with service name for filtering
+    sentry_sdk.set_tag(&quot;service&quot;, &quot;ast-grep-mcp&quot;)
+```
+
+### Customizing Sampling Rates
+
+Edit `main.py` to adjust sampling per environment:
+
+```python
+# Conservative production sampling (1%)
+traces_sample_rate = 0.01 if environment == &quot;production&quot; else 1.0
+
+# Moderate production sampling (10%)
+traces_sample_rate = 0.1 if environment == &quot;production&quot; else 1.0
+
+# Aggressive production sampling (50%)
+traces_sample_rate = 0.5 if environment == &quot;production&quot; else 1.0
+```
+
+Or use environment variable (requires code change):
+
+```python
+traces_sample_rate = float(os.environ.get(&quot;SENTRY_TRACES_SAMPLE_RATE&quot;, &quot;1.0&quot; if environment == &quot;development&quot; else &quot;0.1&quot;))
+```
+
+Then set via Doppler:
+
+```bash
+doppler secrets set SENTRY_TRACES_SAMPLE_RATE=&quot;0.05&quot; --project bottleneck --config prd
+```
+
+### Testing Sentry Integration
+
+Use the built-in test tool:
+
+```python
+# Via MCP client (Cursor/Claude)
+test_sentry_integration()
+```
+
+Returns:
+
+```json
+{
+  &quot;sentry_enabled&quot;: true,
+  &quot;configuration&quot;: {
+    &quot;dsn_configured&quot;: true,
+    &quot;environment&quot;: &quot;development&quot;,
+    &quot;traces_sample_rate&quot;: 1.0
+  },
+  &quot;test_result&quot;: &quot;success&quot;,
+  &quot;message&quot;: &quot;Test error captured successfully. Check your Sentry dashboard.&quot;
+}
+```
+
+### What Gets Tracked
+
+**Errors:**
+- ast-grep subprocess failures
+- YAML parsing errors
+- File operation errors (backup/restore)
+- Schema.org API failures
+- Code validation errors
+
+**Performance:**
+- Tool execution time
+- Subprocess execution spans
+- HTTP request spans
+- Batch parallel operation spans
+
+**AI Interactions** (if using Anthropic SDK):
+- Prompts and responses
+- Token usage
+- Model information
+
+See [SENTRY-INTEGRATION.md](../SENTRY-INTEGRATION.md) for detailed documentation.
+
+---
+
+## Doppler Secret Management
+
+Doppler provides centralized, secure secret management with team collaboration and audit logging.
+
+### Project Structure
+
+This project is configured with:
+
+- **Project**: `bottleneck`
+- **Default Config**: `dev`
+- **Configuration File**: `.doppler.yaml`
+
+### Installation
+
+**macOS:**
+```bash
+brew install dopplerhq/cli/doppler
+```
+
+**Linux:**
+```bash
+curl -Ls https://cli.doppler.com/install.sh | sh
+```
+
+**Windows:**
+```powershell
+scoop install doppler
+```
+
+### Authentication
+
+```bash
+# Login (opens browser)
+doppler login
+
+# Verify authentication
+doppler me
+```
+
+### Managing Secrets
+
+```bash
+# View all secrets
+doppler secrets --project bottleneck --config dev
+
+# Get specific secret (plaintext)
+doppler secrets get SENTRY_DSN --project bottleneck --config dev --plain
+
+# Set secret
+doppler secrets set SENTRY_DSN=&quot;https://key@sentry.io/123&quot; --project bottleneck --config dev
+
+# Delete secret
+doppler secrets delete OLD_SECRET --project bottleneck --config dev
+```
+
+### Running with Doppler
+
+**Manual execution:**
+```bash
+# Full command
+doppler run --project bottleneck --config dev -- uv run main.py
+
+# Shorter (uses .doppler.yaml)
+doppler run -- uv run main.py
+```
+
+**MCP client configuration:**
+
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [
+        &quot;run&quot;,
+        &quot;--project&quot;, &quot;bottleneck&quot;,
+        &quot;--config&quot;, &quot;dev&quot;,
+        &quot;--command&quot;,
+        &quot;uv --directory /absolute/path/to/ast-grep-mcp run main.py&quot;
+      ]
+    }
+  }
+}
+```
+
+### Multiple Environments
+
+Create separate configs for different environments:
+
+```bash
+# Create staging config
+doppler configs create stg --project bottleneck
+
+# Set staging-specific secrets
+doppler secrets set SENTRY_DSN=&quot;https://stg-key@sentry.io/stg-id&quot; --project bottleneck --config stg
+doppler secrets set SENTRY_ENVIRONMENT=&quot;staging&quot; --project bottleneck --config stg
+
+# Create production config
+doppler configs create prd --project bottleneck
+
+# Set production secrets
+doppler secrets set SENTRY_DSN=&quot;https://prd-key@sentry.io/prd-id&quot; --project bottleneck --config prd
+doppler secrets set SENTRY_ENVIRONMENT=&quot;production&quot; --project bottleneck --config prd
+```
+
+Use different configs in MCP client:
+
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep-dev&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;dev&quot;, &quot;--command&quot;, &quot;uv --directory /path run main.py&quot;]
+    },
+    &quot;ast-grep-prod&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;prd&quot;, &quot;--command&quot;, &quot;uv --directory /path run main.py&quot;]
+    }
+  }
+}
+```
+
+### Team Collaboration
+
+**Invite team members:**
+
+1. Go to [Doppler Dashboard](https://dashboard.doppler.com/)
+2. Select project → Team → Invite Member
+3. Set role (Admin, Developer, Read-only)
+
+**Role-based access:**
+
+| Role | Permissions |
+|------|------------|
+| Owner | Full access, delete project |
+| Admin | Manage secrets, configs, members |
+| Developer | Read/write secrets |
+| Read-only | View secrets only |
+
+**Audit logging:**
+
+View who accessed secrets in Project Settings → Audit Logs.
+
+### Migration
+
+If you&apos;re currently using manual environment variables, follow the Doppler setup steps in [docs/README.md](README.md#configuration) and mirror your existing values into Doppler secrets.
+
+---
+
+## Complete Configuration Examples
+
+### Example 1: Local Development (No Monitoring)
+
+**MCP Client** (`.cursor-mcp/settings.json`):
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;uv&quot;,
+      &quot;args&quot;: [&quot;--directory&quot;, &quot;/Users/me/code/ast-grep-mcp&quot;, &quot;run&quot;, &quot;main.py&quot;],
+      &quot;env&quot;: {}
+    }
+  }
+}
+```
+
+**Features:**
+- No error tracking
+- No secret management
+- Minimal overhead
+- Good for: Local development, testing
+
+### Example 2: Development with Sentry (Manual)
+
+**MCP Client**:
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;uv&quot;,
+      &quot;args&quot;: [&quot;--directory&quot;, &quot;/Users/me/code/ast-grep-mcp&quot;, &quot;run&quot;, &quot;main.py&quot;],
+      &quot;env&quot;: {
+        &quot;SENTRY_DSN&quot;: &quot;https://dev-key@sentry.io/dev-project&quot;,
+        &quot;SENTRY_ENVIRONMENT&quot;: &quot;development&quot;
+      }
+    }
+  }
+}
+```
+
+**Features:**
+- Error tracking enabled
+- 100% trace sampling
+- Manual credential management
+- Good for: Solo developers, simple projects
+
+### Example 3: Team Development with Doppler
+
+**MCP Client**:
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [
+        &quot;run&quot;,
+        &quot;--project&quot;, &quot;bottleneck&quot;,
+        &quot;--config&quot;, &quot;dev&quot;,
+        &quot;--command&quot;,
+        &quot;uv --directory /Users/me/code/ast-grep-mcp run main.py&quot;
+      ]
+    }
+  }
+}
+```
+
+**Doppler Secrets** (`bottleneck/dev`):
+```bash
+SENTRY_DSN=https://dev-key@sentry.io/dev-project
+SENTRY_ENVIRONMENT=development
+SENTRY_TRACES_SAMPLE_RATE=1.0
+```
+
+**Features:**
+- Centralized secret management
+- Team collaboration
+- Audit logging
+- Easy environment switching
+- Good for: Teams, multiple environments
+
+### Example 4: Production Deployment
+
+**MCP Client**:
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [
+        &quot;run&quot;,
+        &quot;--project&quot;, &quot;bottleneck&quot;,
+        &quot;--config&quot;, &quot;prd&quot;,
+        &quot;--command&quot;,
+        &quot;uv --directory /opt/ast-grep-mcp run main.py&quot;
+      ]
+    }
+  }
+}
+```
+
+**Doppler Secrets** (`bottleneck/prd`):
+```bash
+SENTRY_DSN=https://prd-key@sentry.io/prd-project
+SENTRY_ENVIRONMENT=production
+SENTRY_TRACES_SAMPLE_RATE=0.1  # 10% sampling
+```
+
+**Features:**
+- Production error tracking
+- Cost-optimized sampling (10%)
+- Secure credential rotation
+- Separate Sentry project
+- Good for: Production deployments, high traffic
+
+### Example 5: Multi-Environment Setup
+
+**MCP Client**:
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep-dev&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;dev&quot;, &quot;--command&quot;, &quot;uv --directory /path run main.py&quot;]
+    },
+    &quot;ast-grep-stg&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;stg&quot;, &quot;--command&quot;, &quot;uv --directory /path run main.py&quot;]
+    },
+    &quot;ast-grep-prd&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;prd&quot;, &quot;--command&quot;, &quot;uv --directory /path run main.py&quot;]
+    }
+  }
+}
+```
+
+**Doppler Configs:**
+
+| Config | SENTRY_ENVIRONMENT | Trace Sampling | Use Case |
+|--------|-------------------|----------------|----------|
+| `dev` | development | 100% | Local development, full visibility |
+| `stg` | staging | 50% | Pre-production testing |
+| `prd` | production | 10% | Production deployment |
+
+**Good for:** Large teams, CI/CD pipelines, staged deployments
+
+### Example 6: Custom ast-grep Configuration
+
+**MCP Client**:
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [
+        &quot;run&quot;,
+        &quot;--project&quot;, &quot;bottleneck&quot;,
+        &quot;--config&quot;, &quot;dev&quot;,
+        &quot;--command&quot;,
+        &quot;uv --directory /path run main.py --config /path/to/sgconfig.yaml&quot;
+      ]
+    }
+  }
+}
+```
+
+**sgconfig.yaml**:
+```yaml
+ruleDirs:
+  - rules
+  - custom-rules
+
+customLanguages:
+  graphql:
+    extensions:
+      - .graphql
+      - .gql
+    languageId: graphql
+```
+
+**Features:**
+- Custom ast-grep language support
+- Doppler secret management
+- Sentry error tracking
+- Good for: Custom language projects, advanced ast-grep usage
+
+---
+
+## Configuration Validation
+
+### Validate ast-grep Configuration
+
+```bash
+# Test config file syntax
+cat sgconfig.yaml | python -c &quot;import yaml; yaml.safe_load(open(&apos;sgconfig.yaml&apos;))&quot;
+
+# Run server with config
+uv run main.py --config sgconfig.yaml
+```
+
+### Validate Sentry Configuration
+
+```bash
+# Check environment variables
+echo $SENTRY_DSN
+echo $SENTRY_ENVIRONMENT
+
+# Or with Doppler
+doppler secrets get SENTRY_DSN --project bottleneck --config dev --plain
+
+# Test Sentry integration
+uv run main.py
+# Look for: &quot;Sentry initialized with DSN&quot; in logs
+```
+
+### Validate Complete Setup
+
+```bash
+# 1. Test Doppler injection
+doppler run --project bottleneck --config dev -- env | grep SENTRY
+
+# 2. Test server startup
+doppler run --project bottleneck --config dev -- uv run main.py
+
+# 3. Use test tool via MCP client
+test_sentry_integration()
+```
+
+---
+
+## Additional Resources
+
+- **ast-grep Configuration**: [ast-grep docs](https://ast-grep.github.io/guide/project/project-config.html)
+- **Sentry Integration**: [SENTRY-INTEGRATION.md](../SENTRY-INTEGRATION.md)
+- **Doppler Setup**: [docs/README.md](README.md#configuration)
+- **Main Documentation**: [README.md](../README.md)
+- **Development Guide**: [CLAUDE.md](../CLAUDE.md)</file><file path="docs/magic_number_semantic_analysis_2026-03-04.tsv">number	category	file	line	code
+30	default_parameter_value	src/ast_grep_mcp/features/deduplication/applicator_backup.py	155	def cleanup_old_backups(self, days: int = 30) -&gt; int:
+3	slice_or_top_n_limit	analyze_codebase.py	109	for func in sorted(critical, key=lambda x: x.metrics.cognitive, reverse=True)[:3]:
+5	slice_or_top_n_limit	analyze_codebase.py	281	for i, group in enumerate(dedup_groups[:5], 1):
+3	slice_or_top_n_limit	analyze_codebase.py	287	for inst in instances[:3]:
+50	slice_or_top_n_limit	analyze_codebase.py	329	for line in lines[:50]:
+20	slice_or_top_n_limit	analyze_codebase.py	380	for line in error_lines[:20]:
+20	other	analyze_codebase.py	383	if error_count &gt; 20:
+0.7	confidence_score	src/ast_grep_mcp/features/quality/security_scanner.py	111	&quot;confidence&quot;: 0.7,
+0.8	confidence_score	src/ast_grep_mcp/features/quality/security_scanner.py	122	&quot;confidence&quot;: 0.8,
+0.8	confidence_score	src/ast_grep_mcp/features/quality/security_scanner.py	142	&quot;confidence&quot;: 0.8,
+0.95	confidence_score	src/ast_grep_mcp/features/quality/security_scanner.py	160	&quot;confidence&quot;: 0.95,
+0.8	confidence_score	src/ast_grep_mcp/features/quality/security_scanner.py	330	confidence=pattern_def.get(&quot;confidence&quot;, 0.8),
+3	severity_ranking	src/ast_grep_mcp/features/quality/security_scanner.py	543	severity_order = {&quot;critical&quot;: 3, &quot;high&quot;: 2, &quot;medium&quot;: 1, &quot;low&quot;: 0}
+1000.0	other	src/ast_grep_mcp/utils/performance.py	204	return self.elapsed_ms / 1000.0
+4	other	src/ast_grep_mcp/features/condense/service.py	200	body_indent = indent + 4
+50	slice_or_top_n_limit	src/ast_grep_mcp/features/cross_language/polyglot_refactoring.py	129	logger.warning(&quot;file_read_error&quot;, file=file_path, error=str(e)[:50])
+50	other	src/ast_grep_mcp/features/cross_language/polyglot_refactoring.py	217	if len(changes) &gt; 50:
+50	slice_or_top_n_limit	src/ast_grep_mcp/features/quality/smells_detectors.py	556	return magic_numbers[:50]
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/impact.py	73	function_names=function_names[:5] if function_names else [],
+1.2	other	src/ast_grep_mcp/features/deduplication/impact.py	495	extracted_function_lines = int(lines_per_duplicate * 1.2)
+3	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/impact.py	591	score += min(call_count, 3)  # Cap at 3
+3	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/impact.py	591	score += min(call_count, 3)  # Cap at 3
+3	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/impact.py	650	return 3, [&quot;Code is in module export file - higher breakage risk&quot;]
+4	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/impact.py	660	&quot;max_score&quot;: 4,
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/quality/orphan_detector.py	430	orphan.importers = references[:5]  # Store top 5
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/quality/orphan_detector.py	430	orphan.importers = references[:5]  # Store top 5
+0.95	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	37	&quot;no-console-log&quot;: {&quot;confidence&quot;: 0.95, &quot;reason&quot;: &quot;console.log removal is usually safe&quot;},
+0.95	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	47	&quot;no-mutable-defaults&quot;: {&quot;confidence&quot;: 0.95, &quot;reason&quot;: &quot;Mutable default fix is usually safe&quot;},
+0.6	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	54	&quot;no-eval-exec&quot;: {&quot;confidence&quot;: 0.6, &quot;reason&quot;: &quot;eval/exec removal may break functionality&quot;},
+0.7	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	55	&quot;no-sql-injection&quot;: {&quot;confidence&quot;: 0.7, &quot;reason&quot;: &quot;SQL parameterization needs careful review&quot;},
+0.75	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	56	&quot;no-empty-catch&quot;: {&quot;confidence&quot;: 0.75, &quot;reason&quot;: &quot;Empty catch replacement may change behavior&quot;},
+0.7	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	57	&quot;proper-exception-handling&quot;: {&quot;confidence&quot;: 0.7, &quot;reason&quot;: &quot;Exception handling changes need review&quot;},
+5.0	other	src/ast_grep_mcp/features/condense/dictionary.py	164	return 5.0   # Too few samples for reliable training
+50	other	src/ast_grep_mcp/features/condense/dictionary.py	165	if samples_used &lt; 50:
+10.0	other	src/ast_grep_mcp/features/condense/dictionary.py	166	return 10.0  # Moderate sample set
+15.0	other	src/ast_grep_mcp/features/condense/dictionary.py	167	return 15.0      # Full benefit for large, diverse sample sets
+3	slice_or_top_n_limit	src/ast_grep_mcp/features/cross_language/pattern_equivalence.py	156	if category_patterns[:3]:
+3	other	src/ast_grep_mcp/features/cross_language/pattern_equivalence.py	160	if not category and len(found_patterns) &lt; 3:
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/cross_language/pattern_equivalence.py	163	return suggestions[:5]  # Limit suggestions
+3	other	src/ast_grep_mcp/features/cross_language/pattern_equivalence.py	253	if len(category_examples[category]) &lt; 3:
+3	severity_ranking	src/ast_grep_mcp/features/quality/smells_helpers.py	164	smells.sort(key=lambda s: (severity_order.get(s.get(&quot;severity&quot;, &quot;low&quot;), 3), s.get(&quot;type&quot;, &quot;&quot;)))
+3	regex_capture_group_index	src/ast_grep_mcp/features/documentation/changelog_generator.py	211	result[&quot;is_breaking&quot;] = bool(match.group(3))
+3	threshold_or_cutoff	tests/scripts/detect_fixture_patterns.py	57	def __init__(self, root: Path, threshold: int = 3):
+3	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	104	fixture_value_score=9.0 if files_count &gt;= 3 else 5.0,
+5.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	104	fixture_value_score=9.0 if files_count &gt;= 3 else 5.0,
+3	benchmark_or_test_fixture_data	tests/scripts/detect_fixture_patterns.py	138	end = min(len(lines), i + 3)
+3	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	151	fixture_value_score=8.0 if files_count &gt;= 3 else 4.0,
+4.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	151	fixture_value_score=8.0 if files_count &gt;= 3 else 4.0,
+5	benchmark_or_test_fixture_data	tests/scripts/detect_fixture_patterns.py	181	end = min(len(lines), i + 5)
+3	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	194	fixture_value_score=9.0 if files_count &gt;= 3 else 6.0,
+6.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	194	fixture_value_score=9.0 if files_count &gt;= 3 else 6.0,
+3	benchmark_or_test_fixture_data	tests/scripts/detect_fixture_patterns.py	222	end = min(len(lines), i + 3)
+3	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	235	fixture_value_score=8.0 if files_count &gt;= 3 else 5.0,
+5.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	235	fixture_value_score=8.0 if files_count &gt;= 3 else 5.0,
+5	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	295	fixture_value_score=7.0 if most_common[1] &gt;= 5 else 4.0,
+4.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	295	fixture_value_score=7.0 if most_common[1] &gt;= 5 else 4.0,
+20	slice_or_top_n_limit	tests/scripts/detect_fixture_patterns.py	296	occurrences_list=occurrences[:20],  # Limit to first 20
+20	slice_or_top_n_limit	tests/scripts/detect_fixture_patterns.py	296	occurrences_list=occurrences[:20],  # Limit to first 20
+7.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	363	status = &quot;RECOMMEND FIXTURE&quot; if pattern.fixture_value_score &gt;= 7.0 else &quot;Consider&quot;
+5	slice_or_top_n_limit	tests/scripts/detect_fixture_patterns.py	395	for occ in pattern.occurrences_list[:5]:
+20	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	83	&quot;instances&quot;: [{&quot;file&quot;: &quot;a.py&quot;, &quot;line&quot;: 10}, {&quot;file&quot;: &quot;b.py&quot;, &quot;line&quot;: 20}, {&quot;file&quot;: &quot;a.py&quot;, &quot;line&quot;: 50}],
+50	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	83	&quot;instances&quot;: [{&quot;file&quot;: &quot;a.py&quot;, &quot;line&quot;: 10}, {&quot;file&quot;: &quot;b.py&quot;, &quot;line&quot;: 20}, {&quot;file&quot;: &quot;a.py&quot;, &quot;line&quot;: 50}],
+50	lines_saved_metric	src/ast_grep_mcp/features/deduplication/benchmark.py	90	&quot;potential_line_savings&quot;: 50,
+5	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	115	&quot;affected_files&quot;: (i % 5) + 1,
+85.0	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	134	(85.0, 3, 100, True, 3),
+3	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	134	(85.0, 3, 100, True, 3),
+3	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	134	(85.0, 3, 100, True, 3),
+45.0	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	135	(45.0, 7, 20, False, 8),
+7	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	135	(45.0, 7, 20, False, 8),
+20	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	135	(45.0, 7, 20, False, 8),
+8	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	135	(45.0, 7, 20, False, 8),
+25.0	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	136	(25.0, 9, 5, False, 15),
+9	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	136	(25.0, 9, 5, False, 15),
+5	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	136	(25.0, 9, 5, False, 15),
+15	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	136	(25.0, 9, 5, False, 15),
+85.0	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	161	&quot;similarity&quot;: 85.0 + i,
+5	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	193	results.append(self.benchmark_pattern_analysis(iterations * 5))
+5	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	196	results.append(self.benchmark_code_generation(iterations * 5))
+0.10	threshold_or_cutoff	src/ast_grep_mcp/features/deduplication/benchmark.py	368	threshold = self.thresholds.get(name, 0.10)
+100.0	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/reporting.py	308	&quot;similarity_score&quot;: candidate.get(&quot;similarity&quot;, 100.0),
+100.0	threshold_or_cutoff	tests/scripts/benchmark_fixtures.py	46	self.threshold_ms = 100.0  # 100ms threshold
+5	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	48	def benchmark_fixture(self, fixture_name: str, iterations: int = 5) -&gt; Optional[FixtureBenchmark]:
+3	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	95	per_test_overhead = avg_time / 3
+0.6	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	103	avg_setup_time=per_test_overhead * 0.6,  # Estimate 60% setup
+60	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	103	avg_setup_time=per_test_overhead * 0.6,  # Estimate 60% setup
+0.4	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	104	avg_teardown_time=per_test_overhead * 0.4,  # Estimate 40% teardown
+40	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	104	avg_teardown_time=per_test_overhead * 0.4,  # Estimate 40% teardown
+3	regex_capture_group_index	src/ast_grep_mcp/utils/formatters.py	426	context = match.group(3).strip()
+42	other	src/ast_grep_mcp/features/schema/client.py	161	&quot;Number&quot;: lambda: 42,
+42	other	src/ast_grep_mcp/features/schema/client.py	162	&quot;Integer&quot;: lambda: 42,
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/analyzer.py	287	&quot;parameter_suggestions&quot;: param_suggestions[:5],  # Top 5 suggestions
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/analyzer.py	287	&quot;parameter_suggestions&quot;: param_suggestions[:5],  # Top 5 suggestions
+3	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	449	return 3, &quot;Minor expression variation&quot;
+4	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	451	return 4, &quot;Different operations or function calls&quot;
+4	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	452	return 4, &quot;Significant expression restructuring&quot;
+4	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	457	return 4, &quot;Simple type substitution&quot;
+5	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	459	return 5, &quot;Generic type variation&quot;
+6	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	460	return 6, &quot;Complex type system changes&quot;
+7	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	465	return 7, &quot;Added or removed logic branches&quot;
+7	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	467	return 7, &quot;Significant control flow differences&quot;
+5	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	468	return 5, &quot;Conditional logic variation&quot;
+4	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/analyzer.py	474	if score &lt;= 4:
+3	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/analyzer.py	502	score, reasoning = 3, &quot;Unknown variation type&quot;
+20	numeric_operation_window_or_ratio	src/ast_grep_mcp/features/deduplication/analyzer.py	1188	start = max(0, match.start() - 20)
+20	numeric_operation_window_or_ratio	src/ast_grep_mcp/features/deduplication/analyzer.py	1189	end = min(len(code), match.end() + 20)
+15	slice_or_top_n_limit	scripts/migrate_prints_smart.py	234	for change in changes[:15]:
+5	slice_or_top_n_limit	scripts/migrate_prints_smart.py	254	for path, info in sorted(results[&quot;files&quot;].items(), key=lambda x: x[1][&quot;migrations&quot;], reverse=True)[:5]:
+3	slice_or_top_n_limit	scripts/migrate_prints_smart.py	256	for change in info[&quot;changes&quot;][:3]:
+50	slice_or_top_n_limit	src/ast_grep_mcp/features/complexity/analyzer.py	346	return magic_numbers[:50]
+3	regex_capture_group_index	src/ast_grep_mcp/features/search/service.py	1124	return cst_match.group(1) or cst_match.group(2) or cst_match.group(3)
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/search/service.py	1204	matches=matches[:5],  # Limit to first 5 matches for debugging
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/search/service.py	1204	matches=matches[:5],  # Limit to first 5 matches for debugging
+50	slice_or_top_n_limit	src/ast_grep_mcp/features/search/service.py	1937	pattern=f&apos;dump_syntax_tree(code=&quot;{code[:50]}...&quot;, language=&quot;{language}&quot;, format=&quot;cst&quot;)&apos;,
+4	other	scripts/list_complexity_violations.py	40	func_name = stripped[4:].split(&quot;(&quot;)[0].strip()
+30	other	src/ast_grep_mcp/features/cross_language/pattern_database.py	292	&quot;code&quot;: &apos;let person: HashMap&lt;&amp;str, &amp;str&gt; = HashMap::from([\n    (&quot;name&quot;, &quot;Alice&quot;),\n    (&quot;age&quot;, &quot;30&quot;),\n]);&apos;,
+3	other	src/ast_grep_mcp/features/cross_language/language_converter.py	157	(r&apos;&quot;(.+)&quot;\s*\+\s*(\w+)\s*\+\s*&quot;(.+)&quot;&apos;, r&apos;&quot;$\1$\2$\3&quot;&apos;, &quot;string_concat&quot;),
+3	other	src/ast_grep_mcp/features/deduplication/similarity.py	1577	return 3
+4	other	src/ast_grep_mcp/features/deduplication/similarity.py	1579	return 4
+5	other	src/ast_grep_mcp/features/deduplication/similarity.py	1581	return 5
+6	other	src/ast_grep_mcp/features/deduplication/similarity.py	1583	return 6
+2.0	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/similarity.py	1969	semantic_score = (embedding_cosine + 1.0) / 2.0
+5	slice_or_top_n_limit	scripts/migrate_print_to_logger.py	404	for change in file_results[&quot;changes&quot;][:5]:  # Show first 5
+5	slice_or_top_n_limit	scripts/migrate_print_to_logger.py	404	for change in file_results[&quot;changes&quot;][:5]:  # Show first 5
+5	other	scripts/migrate_print_to_logger.py	406	if len(file_results[&quot;changes&quot;]) &gt; 5:
+0.85	other	src/ast_grep_mcp/features/condense/strategies.py	11	&quot;ai_chat&quot;: 0.85,       # Signatures + types + docstrings only (lossy)
+0.40	other	src/ast_grep_mcp/features/condense/strategies.py	12	&quot;ai_analysis&quot;: 0.40,   # Full source minus dead code (lossless)
+0.30	other	src/ast_grep_mcp/features/condense/strategies.py	13	&quot;archival&quot;: 0.30,       # Normalized, deduplicated (lossless)
+0.65	other	src/ast_grep_mcp/features/condense/strategies.py	14	&quot;polyglot&quot;: 0.65,       # Per-language optimal selection
+3	severity_ranking	src/ast_grep_mcp/features/documentation/sync_checker.py	551	all_issues.sort(key=lambda i: (severity_order.get(i.severity, 3), i.file_path, i.line_number))
+5	other	src/ast_grep_mcp/features/cross_language/multi_language_search.py	305	with ThreadPoolExecutor(max_workers=min(len(languages), 5)) as executor:
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/schema/enhancement_service.py	168	return any(_is_schema_org_data(item) for item in data[:5])  # Check first 5
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/schema/enhancement_service.py	168	return any(_is_schema_org_data(item) for item in data[:5])  # Check first 5
+3	other	src/ast_grep_mcp/features/schema/enhancement_service.py	297	EnhancementPriority.LOW: 3,
+3	other	src/ast_grep_mcp/features/schema/enhancement_service.py	446	EnhancementPriority.LOW: 3,
+100.0	score_formula_or_cap	src/ast_grep_mcp/features/schema/enhancement_service.py	518	return max(0.0, min(100.0, score))
+100.0	score_formula_or_cap	src/ast_grep_mcp/features/schema/enhancement_service.py	542	return max(0.0, min(100.0, overall_score))
+3	other	src/ast_grep_mcp/features/schema/enhancement_service.py	803	if len(parts) &gt;= 3:
+5	threshold_or_cutoff	src/ast_grep_mcp/features/deduplication/tools.py	38	min_lines: int = 5,
+5	threshold_or_cutoff	src/ast_grep_mcp/features/deduplication/tools.py	83	min_lines: int = 5,
+1.2	threshold_or_cutoff	tests/scripts/validate_refactoring.py	183	threshold = baseline_duration * 1.2
+50	lines_saved_metric	scripts/benchmark_batch_coverage.py	63	&quot;lines_saved&quot;: 50,
+60	benchmark_or_test_fixture_data	scripts/benchmark_batch_coverage.py	273	if improvement &gt;= 60:
+40	benchmark_or_test_fixture_data	scripts/benchmark_batch_coverage.py	275	elif improvement &gt;= 40:
+300	other	src/ast_grep_mcp/core/config.py	21	CACHE_TTL: int = CacheDefaults.CLEANUP_INTERVAL_SECONDS  # Actually 300 seconds, reused for TTL
+50	lines_saved_metric	scripts/benchmark_parallel_enrichment.py	19	&quot;lines_saved&quot;: 50,
+75.5	score_formula_or_cap	scripts/benchmark_parallel_enrichment.py	20	&quot;score&quot;: 75.5,
+8	score_formula_or_cap	scripts/benchmark_parallel_enrichment.py	21	&quot;complexity_score&quot;: 8,
+25	benchmark_or_test_fixture_data	scripts/benchmark_parallel_enrichment.py	35	candidate_counts = [10, 25, 50, 100]
+50	benchmark_or_test_fixture_data	scripts/benchmark_parallel_enrichment.py	35	candidate_counts = [10, 25, 50, 100]
+3	slice_or_top_n_limit	scripts/analyze_analyticsbot.py	54	for i, func in enumerate(functions[:3], 1):
+5	slice_or_top_n_limit	scripts/analyze_analyticsbot.py	118	for issue_type, count in sorted(by_type.items(), key=lambda x: x[1], reverse=True)[:5]:
+5	threshold_or_cutoff	src/ast_grep_mcp/features/deduplication/detector.py	89	min_lines: int = 5,
+200	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/detector.py	612	&quot;code_preview&quot;: match.get(&quot;text&quot;, &quot;&quot;)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],  # First 200 chars
+3	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/detector.py	619	&quot;similarity_score&quot;: round(self.calculate_similarity(group[0].get(&quot;text&quot;, &quot;&quot;), group[1].get(&quot;text&quot;, &quot;&quot;)), 3)
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/generator.py	520	return list(set(dependencies))[:5]  # Limit to top 5
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/generator.py	520	return list(set(dependencies))[:5]  # Limit to top 5
+3	regex_capture_group_index	src/ast_grep_mcp/features/deduplication/generator.py	657	content = match.group(3)</file><file path="docs/README.md"># ast-grep + Schema.org MCP Server
+
+MCP server combining [ast-grep](https://ast-grep.github.io/) structural code search with Schema.org structured data tools for AI assistants (Cursor, Claude Desktop, etc.).
+
+## Overview
+
+**Code Search (ast-grep):** AST-based pattern matching, code construct search, duplication detection, YAML rules, syntax tree debugging
+
+**Structured Data (Schema.org):** Query 2600+ types/properties, search by keyword, explore hierarchies, generate JSON-LD examples, build knowledge graphs
+
+## Quick Start
+
+```bash
+# Install prerequisites
+brew install ast-grep  # or: cargo install ast-grep --locked
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Clone and install
+git clone https://github.com/aledlie/ast-grep-mcp.git
+cd ast-grep-mcp
+uv sync
+
+# Run directly from GitHub (no clone)
+uvx --from git+https://github.com/aledlie/ast-grep-mcp ast-grep-server
+```
+
+## Configuration
+
+Add to `.cursor-mcp/settings.json` or `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+**With Doppler (recommended for production):**
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;dev&quot;, &quot;--command&quot;,
+               &quot;uv --directory /path/to/ast-grep-mcp run main.py&quot;]
+    }
+  }
+}
+```
+
+**Without Doppler (local development):**
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;uv&quot;,
+      &quot;args&quot;: [&quot;--directory&quot;, &quot;/path/to/ast-grep-mcp&quot;, &quot;run&quot;, &quot;main.py&quot;],
+      &quot;env&quot;: {
+        &quot;SENTRY_DSN&quot;: &quot;optional-for-error-tracking&quot;,
+        &quot;SENTRY_ENVIRONMENT&quot;: &quot;production&quot;
+      }
+    }
+  }
+}
+```
+
+**Custom ast-grep config:** Use `--config /path/to/sgconfig.yaml` or `AST_GREP_CONFIG` env var. See [ast-grep config docs](https://ast-grep.github.io/guide/project/project-config.html).
+
+**Rule writing guide:** See [ast-grep.mdc](https://github.com/ast-grep/ast-grep-mcp/blob/main/ast-grep.mdc) for comprehensive rule patterns.
+
+## Error Tracking (Optional)
+
+**Sentry integration** (optional, zero overhead when disabled) provides:
+- Error tracking for all 53 tools
+- Performance monitoring (subprocess, API, batch operations)
+- AI interaction tracking (with Anthropic SDK)
+- Service tagging: `service:ast-grep-mcp`
+
+**Setup:**
+```bash
+# With Doppler (recommended)
+brew install dopplerhq/cli/doppler
+doppler login
+doppler secrets set SENTRY_DSN=&quot;your-dsn&quot; --project bottleneck --config dev
+
+# Manual
+export SENTRY_DSN=&quot;your-dsn&quot;
+export SENTRY_ENVIRONMENT=&quot;production&quot;
+```
+
+**Docs:** [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md)
+
+## Tools (53 Total)
+
+| Feature | Count | Tools |
+|---------|-------|-------|
+| Search | 9 | find_code, find_code_by_rule, dump_syntax_tree, test_match_code_rule, debug_pattern, develop_pattern, get_ast_grep_docs, build_rule, get_pattern_examples |
+| Rewrite | 3 | rewrite_code, rollback_rewrite, list_backups |
+| Refactoring | 2 | extract_function, rename_symbol |
+| Deduplication | 4 | find_duplication, analyze_deduplication_candidates, apply_deduplication, benchmark_deduplication |
+| Complexity | 3 | analyze_complexity, test_sentry_integration, detect_code_smells |
+| Quality | 7 | create_linting_rule, list_linting_rules, apply_linting_rule, detect_security_issues, apply_standards_fixes, generate_quality_report, enforce_code_standards |
+| Documentation | 5 | generate_docstrings, generate_readme_sections, generate_api_docs, generate_changelog, sync_documentation |
+| Cross-Language | 5 | search_multi_language, find_language_equivalents, convert_code_language, refactor_polyglot, generate_language_bindings |
+| Schema.org | 9 | get_schema_type, search_schemas, get_type_hierarchy, get_type_properties, generate_schema_example, generate_entity_id, validate_entity_id, build_entity_graph, enhance_entity_graph |
+| Condense | 6 | condense_extract_surface, condense_normalize, condense_strip, condense_pack, condense_estimate, condense_train_dictionary |
+
+
+## Usage Examples
+
+**Pattern search:**
+```yaml
+# Find console.log statements
+pattern: console.log($$$)
+```
+
+**Complex rules:**
+```yaml
+# Find async functions with await
+all:
+  - kind: function_declaration
+  - has: { pattern: async }
+  - has: { pattern: await $EXPR, stopBy: end }
+```
+
+**Duplication detection:**
+```python
+find_duplication(project_folder=&quot;/path&quot;, language=&quot;python&quot;,
+                 construct_type=&quot;function_definition&quot;, min_similarity=0.8)
+# Returns: summary stats, duplicate groups, refactoring suggestions
+```
+
+**Schema.org workflow:**
+```python
+search_schemas(&apos;blog&apos;)              # Find BlogPosting
+get_type_properties(&apos;BlogPosting&apos;)  # List properties
+generate_schema_example(&apos;BlogPosting&apos;, {&apos;headline&apos;: &apos;...&apos;, &apos;author&apos;: {...}})
+# Returns: Complete JSON-LD markup
+```
+
+**Knowledge graph:**
+```python
+generate_entity_id(&apos;https://example.com&apos;, &apos;Organization&apos;)  # Generate @id
+validate_entity_id(&apos;https://example.com/#organization&apos;)    # Validate
+build_entity_graph([...], &apos;https://example.com&apos;)          # Build @graph
+# Returns: Multi-entity JSON-LD with proper @id references
+```
+
+## Supported Languages
+
+JavaScript/TypeScript, Python, Rust, Go, Java, C/C++, C#, and [many more](https://ast-grep.github.io/reference/languages.html). Add custom languages via `sgconfig.yaml` ([guide](https://ast-grep.github.io/guide/project/project-config.html#languagecustomlanguage)).
+
+## Troubleshooting
+
+**Common:**
+- Command not found: Ensure `ast-grep` in PATH
+- No matches: Add `stopBy: end` to relational rules
+- Pattern issues: Use `dump_syntax_tree` to debug
+
+**Sentry:** Run `test_sentry_integration()`, check `SENTRY_DSN`. See [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md).
+
+**Doppler:** Verify auth (`doppler login`) and secrets (`doppler secrets --project bottleneck --config dev`).
+
+## Repository
+
+```
+src/ast_grep_mcp/          # 120 modules
+├── core/                  # Config, cache, executor, logging, sentry, usage tracking
+├── models/                # Data models (13 modules)
+├── utils/                 # Formatters, validation, templates, text processing
+├── features/              # 11 feature modules (search, rewrite, refactoring, deduplication,
+│                          #   complexity, quality, documentation, cross_language, schema, condense)
+└── server/                # MCP registry + runner
+```
+
+- `tests/` - 1,469 collected tests (unit + integration + quality regression)
+
+## Recent Updates
+
+- [changelog/2026-03-04-maintenance-quality.md](changelog/2026-03-04-maintenance-quality.md) - Constants consolidation, analyzer false-positive reduction, exclusion hardening, and diff parser fix.
+
+## Related
+
+- [ast-grep](https://ast-grep.github.io/) - Core search tool
+- [Schema.org](https://schema.org/) - Structured data vocabulary
+- [MCP](https://modelcontextprotocol.io/) - Protocol specification
+- [FastMCP](https://github.com/pydantic/fastmcp) - Python framework
+
+[![Security Assessment](https://mseep.net/pr/ast-grep-ast-grep-mcp-badge.png)](https://mseep.ai/app/ast-grep-ast-grep-mcp)</file><file path="docs/CHANGELOG.md"># Changelog
+
+All notable changes to ast-grep-mcp are documented in version-dated files in the `changelog/` directory.
+
+## Versions
+
+- [2026-03-08: Code Quality Fixes](changelog/2026-03-08-quality-fixes.md) — 2 items (magic number, assert)
+- [2026-03-08: Code Review Findings Resolution](changelog/2026-03-08-code-review-findings.md) — 4 items (M1, M2, M3, L1)
+- [2026-03-06: Complexity Refactoring + Code Review Fixes + Duplication](changelog/2026-03-06-complexity-review-fixes.md) — 24 items (C1-C10, BR1-BR8, CR1, M1, SE1, D1-D4)
+- [2026-03-04: Maintenance + Quality Updates](changelog/2026-03-04-maintenance-quality.md)
+- [2026-02-25: Condense Cleanup](changelog/2026-02-25-condense-cleanup.md)</file><file path="docs/BACKLOG.md"># Backlog
+
+
+## Complexity Refactoring Queue (2026-03-08 refresh)
+
+100 functions exceeding thresholds across 120 files (1,770 total). Thresholds: cyc &gt;10, cog &gt;15, nest &gt;4, len &gt;50.
+
+Previous baselines: **434** (2026-03-04) -&gt; **407** (2026-03-06) -&gt; **100** (2026-03-08). ~75% reduction from prior refactoring commits.
+
+Refresh: `uv run python scripts/run_all_analysis.py`
+
+### Top 10 Functions by Cognitive Complexity
+
+| File | Cyc | Cog | Nest | Len |
+|------|-----|-----|------|-----|
+| `deduplication/applicator_executor.py` | 12 | 33 | 6 | 59 |
+| `deduplication/applicator_backup.py` | 9 | 33 | 6 | 45 |
+| `refactoring/extractor.py` | 13 | 31 | 5 | 53 |
+| `documentation/changelog_generator.py` | 20 | 30 | 5 | 58 |
+| `core/executor.py` | 16 | 29 | 6 | 101 |
+| `condense/service.py` | 15 | 29 | 5 | 115 |
+| `deduplication/diff.py` | 14 | 29 | 5 | 53 |
+| `refactoring/analyzer.py` | 11 | 29 | 5 | 49 |
+| `condense/service.py` | 17 | 28 | 5 | 33 |
+| `quality/fixer.py` | 14 | 27 | 4 | 36 |
+
+Function names unavailable in summary output (analyzer reports `unknown`). Use per-file complexity analysis for function-level detail:
+`uv run python -c &quot;from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool; print(analyze_complexity_tool(&apos;/path/to/file&apos;, &apos;python&apos;))&quot;`</file></files></repomix>

@@ -225,8 +225,8 @@ def _complexity_level(score: int) -> Tuple[str, str, List[str]]:
     for threshold, description, color_code, recommendations in _COMPLEXITY_LEVELS:
         if score <= threshold:
             return description, color_code, recommendations
-    last = _COMPLEXITY_LEVELS[-1]
-    return last[1], last[2], last[3]
+    _, description, color_code, recommendations = _COMPLEXITY_LEVELS[-1]
+    return description, color_code, recommendations
 
 
 def visualize_complexity(score: int) -> Dict[str, Any]:

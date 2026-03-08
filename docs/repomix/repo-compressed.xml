@@ -1,0 +1,3480 @@
+<repomix><directory_structure>.github/
+  workflows/
+    ci.yml
+scripts/
+  analysis_output_helpers.py
+  analyze_analyticsbot.py
+  analyze_violations.py
+  analyze-duplicates.py
+  benchmark_batch_coverage.py
+  benchmark_parallel_enrichment.py
+  categorize-magic-numbers.ts
+  cleanup-error-logs.ts
+  deploy-traditional-server.sh
+  find_duplication.sh
+  find_large_classes.sh
+  fix_import_orphans.py
+  fix_imports.py
+  fix_migration_errors.py
+  fix-types.ts
+  generate-diff-summary.sh
+  generate-http-status-constants.ts
+  generate-repo-compressed.sh
+  generate-repomix-docs.sh
+  generate-repomix-git-ranked.sh
+  generate-repomix.sh
+  generate-sidequest-gitlog.sh
+  generate-token-tree.sh
+  import_helpers.py
+  list_complexity_violations.py
+  migrate_print_to_logger.py
+  migrate_prints_smart.py
+  migration_common.py
+  README.md
+  replace-magic.sh
+  repo-compressed.sh
+  repomix-docs.config.json
+  repomix-regen.sh
+  repomix.config.json
+  run_all_analysis.py
+  run_benchmarks.py
+  run-python-tests.sh
+  schema-graph-builder.py
+  validate-permissions.ts
+  verify-bugfixes.sh
+  verify-setup.ts
+  warm-doppler-cache.sh
+analyze_codebase.py
+main.py
+renovate.json
+repomix.config.json</directory_structure><files>This section contains the contents of the repository&apos;s files.<file path=".github/workflows/ci.yml">name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+env:
+  PYTHON_VERSION: &quot;3.13&quot;
+jobs:
+  lint:
+    name: Lint &amp; Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: &quot;latest&quot;
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install dependencies
+        run: uv sync --extra dev
+      - name: Run ruff check
+        run: uv run ruff check .
+      - name: Run ruff format check
+        run: uv run ruff format --check .
+      - name: Run mypy
+        run: uv run mypy src/ --ignore-missing-imports
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [&quot;3.11&quot;, &quot;3.12&quot;, &quot;3.13&quot;]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: &quot;latest&quot;
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install ast-grep CLI
+        run: npm install -g @ast-grep/cli
+      - name: Verify ast-grep installation
+        run: ast-grep --version
+      - name: Install dependencies
+        run: uv sync --extra dev
+      - name: Run unit tests
+        run: uv run pytest tests/unit/ -v --tb=short -x
+      - name: Run quality tests
+        run: uv run pytest tests/quality/ -v --tb=short
+      - name: Run integration tests
+        run: uv run pytest tests/integration/ -v --tb=short --ignore=tests/integration/test_semantic_integration.py || true
+  test-semantic:
+    name: Semantic Tests (CodeBERT)
+    runs-on: ubuntu-latest
+    if: github.ref == &apos;refs/heads/main&apos; || contains(github.event.pull_request.title, &apos;semantic&apos;)
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: &quot;latest&quot;
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install ast-grep CLI
+        run: npm install -g @ast-grep/cli
+      - name: Install dependencies with semantic support
+        run: uv sync --extra dev --extra semantic
+      - name: Cache HuggingFace models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ runner.os }}-huggingface-codebert-base
+          restore-keys: |
+            ${{ runner.os }}-huggingface-
+      - name: Run semantic unit tests
+        run: uv run pytest tests/unit/test_semantic_similarity.py -v --tb=short -m &quot;semantic or not semantic&quot;
+      - name: Run semantic integration tests
+        run: uv run pytest tests/integration/test_semantic_integration.py -v --tb=short || true
+  performance:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    if: github.ref == &apos;refs/heads/main&apos; &amp;&amp; github.event_name == &apos;push&apos;
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: &quot;latest&quot;
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install ast-grep CLI
+        run: npm install -g @ast-grep/cli
+      - name: Install dependencies
+        run: uv sync --extra dev
+      - name: Run performance tests
+        run: uv run pytest tests/performance/ -v --tb=short</file><file path="scripts/analysis_output_helpers.py">LogFn = Callable[[str], None]
+⋮----
+separator = &quot;=&quot; * width
+prefix = &quot;\n&quot; if leading_newline else &quot;&quot;
+⋮----
+suffix = &quot;\n&quot; if trailing_newline else &quot;&quot;
+⋮----
+def count_by_key(items: Iterable[Mapping[str, Any]], key: str, *, default: str = &quot;unknown&quot;) -&gt; dict[str, int]
+⋮----
+counts: dict[str, int] = {}
+⋮----
+raw_value = item.get(key, default)
+normalized = str(raw_value) if raw_value else default
+⋮----
+remaining = dict(counts)
+keys: list[str] = []
+⋮----
+label = key.capitalize() if capitalize_labels else key</file><file path="scripts/analyze_analyticsbot.py">project_root = Path(__file__).parent.parent
+⋮----
+_TS_PATTERNS = [&quot;**/*.ts&quot;, &quot;**/*.tsx&quot;, &quot;**/*.js&quot;, &quot;**/*.mjs&quot;]
+_TS_EXCLUDES = [&quot;**/node_modules/**&quot;, &quot;**/build/**&quot;, &quot;**/dist/**&quot;]
+def _run_complexity_scan(project_path: str) -&gt; dict
+⋮----
+result = analyze_complexity_tool(
+⋮----
+def _format_complexity_summary(complexity_result: dict) -&gt; dict
+⋮----
+summary = complexity_result.get(&quot;summary&quot;, {})
+functions = complexity_result.get(&quot;functions&quot;, [])
+⋮----
+def _run_smell_scan(project_path: str) -&gt; dict:  # type: ignore[type-arg]
+⋮----
+&quot;&quot;&quot;Run code smell detection and log summary.&quot;&quot;&quot;
+⋮----
+result = detect_code_smells_tool(
+⋮----
+def _format_smell_summary(smells_result: dict) -&gt; dict
+⋮----
+by_severity = count_by_key(smells_result[&quot;smells&quot;], &quot;severity&quot;)
+⋮----
+def _run_security_scan(project_path: str) -&gt; dict
+⋮----
+result = detect_security_issues_tool(
+⋮----
+def _format_security_summary(security_result: dict) -&gt; dict
+⋮----
+by_severity = count_by_key(security_result[&quot;issues&quot;], &quot;severity&quot;)
+by_type = count_by_key(security_result[&quot;issues&quot;], &quot;issue_type&quot;)
+⋮----
+top_types = take_top_n(sorted(by_type.items(), key=lambda x: x[1], reverse=True), AnalyticsBotTopN.TOP_SECURITY_TYPES_PREVIEW)
+⋮----
+def analyze_project(project_path: str) -&gt; dict
+⋮----
+complexity_result: dict = {}
+smells_result: dict = {}
+security_result: dict = {}
+⋮----
+complexity_result = _run_complexity_scan(project_path)
+⋮----
+smells_result = _run_smell_scan(project_path)
+⋮----
+security_result = _run_security_scan(project_path)
+⋮----
+analyticsbot_path = &quot;/Users/alyshialedlie/code/ISPublicSites/AnalyticsBot&quot;
+results = analyze_project(analyticsbot_path)
+output_file = Path(__file__).parent.parent / &quot;analyticsbot_analysis.json&quot;</file><file path="scripts/analyze_violations.py">def analyze_function_complexity(file_path: Path, func_name: str) -&gt; dict
+⋮----
+tree = ast.parse(f.read())
+⋮----
+cyclomatic = calculate_cyclomatic_complexity(node)
+cognitive = calculate_cognitive_complexity(node)
+nesting = calculate_max_nesting(node)
+lines = node.end_lineno - node.lineno + 1 if hasattr(node, &quot;end_lineno&quot;) else 0
+⋮----
+def calculate_cyclomatic_complexity(node: ast.AST) -&gt; int
+⋮----
+complexity = 1
+⋮----
+def calculate_cognitive_complexity(node: ast.AST, depth: int = 0) -&gt; int
+⋮----
+complexity = 0
+⋮----
+def calculate_max_nesting(node: ast.AST, current_depth: int = 0) -&gt; int
+⋮----
+max_depth = current_depth
+⋮----
+child_depth = current_depth
+⋮----
+max_depth = max(max_depth, calculate_max_nesting(child, child_depth))
+⋮----
+def scan_all_functions(project_root: Path)
+⋮----
+src_path = project_root / &quot;src&quot;
+all_functions = []
+⋮----
+def main()
+⋮----
+project_root = Path.cwd()
+all_functions = scan_all_functions(project_root)
+CRITICAL_THRESHOLDS = {
+violations = []
+⋮----
+metrics = analyze_function_complexity(file_path, func_name)
+⋮----
+violation_reasons = []
+⋮----
+rel_path = file_path.relative_to(project_root)</file><file path="scripts/analyze-duplicates.py">def get_file_path(location)
+def analyze_report(report_path)
+⋮----
+data = json.load(f)
+hash_to_blocks = defaultdict(list)
+⋮----
+exact_dups = [
+⋮----
+files = list(set(get_file_path(b[&quot;location&quot;]) for b in blocks))
+code = blocks[0][&quot;source_code&quot;]
+short_files = [Path(f).name for f in files[:4]]
+⋮----
+def find_latest_report()
+⋮----
+output_dir = Path(&quot;output/reports&quot;)
+⋮----
+reports = list(output_dir.glob(&quot;scan-*.json&quot;))
+⋮----
+report_path = sys.argv[1]
+⋮----
+report_path = find_latest_report()</file><file path="scripts/benchmark_batch_coverage.py">project_root = Path(__file__).parent.parent
+⋮----
+def create_test_candidates(file_count: int, files_per_candidate: int) -&gt; List[Dict]
+⋮----
+project_root_path = Path(__file__).parent.parent
+src_path = project_root_path / &quot;src&quot; / &quot;ast_grep_mcp&quot;
+all_files = list(src_path.rglob(&quot;*.py&quot;))[:file_count]
+⋮----
+file_count = len(all_files)
+# Create candidates with overlapping files (realistic scenario)
+candidates = []
+⋮----
+file_slice = all_files[i : i + files_per_candidate]
+⋮----
+def benchmark_legacy_sequential(detector: CoverageDetector, candidates: List[Dict], project_path: str) -&gt; Dict
+⋮----
+start = time.perf_counter()
+⋮----
+files = candidate.get(&quot;files&quot;, [])
+⋮----
+coverage_map = detector.get_test_coverage_for_files(files, &quot;python&quot;, project_path)
+⋮----
+elapsed = time.perf_counter() - start
+⋮----
+def benchmark_legacy_parallel(orchestrator: DeduplicationAnalysisOrchestrator, candidates: List[Dict], project_path: str) -&gt; Dict
+def benchmark_batch_sequential(orchestrator: DeduplicationAnalysisOrchestrator, candidates: List[Dict], project_path: str) -&gt; Dict
+def benchmark_batch_parallel(orchestrator: DeduplicationAnalysisOrchestrator, candidates: List[Dict], project_path: str) -&gt; Dict
+def run_benchmark_suite(file_count: int, files_per_candidate: int, project_path: str) -&gt; Dict
+⋮----
+detector = CoverageDetector()
+orchestrator = DeduplicationAnalysisOrchestrator()
+results = {
+⋮----
+candidates = create_test_candidates(file_count, files_per_candidate)
+result = benchmark_legacy_sequential(detector, candidates, project_path)
+⋮----
+result = benchmark_legacy_parallel(orchestrator, candidates, project_path)
+⋮----
+result = benchmark_batch_sequential(orchestrator, candidates, project_path)
+⋮----
+result = benchmark_batch_parallel(orchestrator, candidates, project_path)
+⋮----
+baseline = results[&quot;benchmarks&quot;][0][&quot;elapsed_seconds&quot;]
+⋮----
+speedup = baseline / benchmark[&quot;elapsed_seconds&quot;]
+improvement = ((baseline - benchmark[&quot;elapsed_seconds&quot;]) / baseline) * 100
+⋮----
+def main()
+⋮----
+parser = argparse.ArgumentParser(description=&quot;Benchmark batch test coverage detection performance&quot;)
+⋮----
+args = parser.parse_args()
+project_path = str(Path(__file__).parent.parent)
+results = run_benchmark_suite(args.file_count, args.files_per_candidate, project_path)
+⋮----
+output_path = Path(args.output)
+⋮----
+# Compare with baseline if requested
+⋮----
+baseline_path = Path(args.compare)
+⋮----
+baseline_results = json.load(f)
+⋮----
+baseline_bench = next((b for b in baseline_results[&quot;benchmarks&quot;] if b[&quot;method&quot;] == method), None)
+current_bench = next((b for b in results[&quot;benchmarks&quot;] if b[&quot;method&quot;] == method), None)
+⋮----
+baseline_time = baseline_bench[&quot;elapsed_seconds&quot;]
+current_time = current_bench[&quot;elapsed_seconds&quot;]
+change = ((current_time - baseline_time) / baseline_time) * 100
+⋮----
+# Print expected vs actual
+⋮----
+batch_parallel = next((b for b in results[&quot;benchmarks&quot;] if b[&quot;method&quot;] == &quot;batch_parallel&quot;), None)
+⋮----
+speedup = results[&quot;speedups&quot;][&quot;batch_parallel&quot;][&quot;speedup&quot;]
+improvement = results[&quot;speedups&quot;][&quot;batch_parallel&quot;][&quot;improvement_percent&quot;]</file><file path="scripts/benchmark_parallel_enrichment.py">MOCK_CANDIDATE_SCORE = 75.5
+MOCK_CANDIDATE_COMPLEXITY = 8
+BENCHMARK_CANDIDATE_COUNT_SMALL = 10
+BENCHMARK_CANDIDATE_COUNT_MEDIUM = 25
+BENCHMARK_CANDIDATE_COUNT_LARGE = 50
+BENCHMARK_CANDIDATE_COUNT_XLARGE = 100
+BENCHMARK_CANDIDATE_COUNTS = [
+def create_mock_candidates(count: int) -&gt; List[Dict[str, Any]]
+def benchmark_enrichment()
+⋮----
+orchestrator = DeduplicationAnalysisOrchestrator()
+candidate_counts = BENCHMARK_CANDIDATE_COUNTS
+⋮----
+candidates = create_mock_candidates(count)
+start = time.perf_counter()
+⋮----
+sequential_time = time.perf_counter() - start
+⋮----
+parallel_time = time.perf_counter() - start
+speedup = sequential_time / parallel_time if parallel_time &gt; 0 else 0
+improvement = ((sequential_time - parallel_time) / sequential_time * 100) if sequential_time &gt; 0 else 0</file><file path="scripts/categorize-magic-numbers.ts">import fs from &apos;fs&apos;;
+import path from &apos;path&apos;;
+import { spawnSync } from &apos;child_process&apos;;
+type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+interface CliOptions {
+  eslintJson: string | null;
+  outPath: string;
+  contextLines: number;
+  maxCandidates: number;
+  minSemanticScore: number;
+  peerSimilarityThreshold: number;
+}
+interface EslintMessage {
+  ruleId?: string | null;
+  message: string;
+  line?: number;
+  column?: number;
+}
+interface EslintResult {
+  filePath: string;
+  messages: EslintMessage[];
+}
+interface MagicOccurrence {
+  id: string;
+  filePath: string;
+  relativePath: string;
+  line: number;
+  column: number;
+  literal: string;
+  numericValue: number;
+  message: string;
+  snippet: string;
+  context: string[];
+  tokens: Set&lt;string&gt;;
+}
+interface ConstantDef {
+  id: string;
+  name: string;
+  filePath: string;
+  relativePath: string;
+  line: number;
+  literal: string;
+  numericValue: number;
+  snippet: string;
+  tokens: Set&lt;string&gt;;
+}
+interface ConstantCandidate {
+  constantId: string;
+  name: string;
+  path: string;
+  line: number;
+  literal: string;
+  numericValue: number;
+  semanticScore: number;
+  valueMatch: boolean;
+}
+interface OccurrenceSummary {
+  path: string;
+  line: number;
+  column: number;
+  snippet: string;
+}
+interface PeerClusterSummary {
+  clusterId: string;
+  size: number;
+  sharedTokens: string[];
+  sampleOccurrences: OccurrenceSummary[];
+}
+interface LiteralGroupSummary {
+  literal: string;
+  numericValue: number;
+  count: number;
+  occurrences: OccurrenceSummary[];
+  exactConstantMatches: ConstantCandidate[];
+  semanticConstantMatches: ConstantCandidate[];
+  peerClusters: PeerClusterSummary[];
+}
+interface SummaryReport {
+  generatedAt: string;
+  input: {
+    eslintJson: string | null;
+    contextLines: number;
+    maxCandidates: number;
+    minSemanticScore: number;
+    peerSimilarityThreshold: number;
+  };
+  summary: {
+    totalOccurrences: number;
+    uniqueLiterals: number;
+    constantsCatalogSize: number;
+    groupsWithExactConstantMatch: number;
+    groupsWithSemanticConstantMatch: number;
+  };
+  literals: LiteralGroupSummary[];
+}
+⋮----
+function parseArgs(argv: string[]): CliOptions
+function printUsage(): void
+function runCommand(command: string, args: string[], cwd: string): string
+function loadEslintResults(options: CliOptions): EslintResult[]
+function parseMessageLiteral(message: string): string | null
+function parseNumericLiteral(literal: string): number | null
+function splitIdentifier(value: string): string[]
+function textToTokens(value: string): string[]
+function buildTokenSet(...values: string[]): Set&lt;string&gt;
+function jaccardSimilarity(a: Set&lt;string&gt;, b: Set&lt;string&gt;): number
+function normalizeLiteralForGrouping(literal: string): string
+function gatherOccurrences(results: EslintResult[], contextLines: number): MagicOccurrence[]
+function listConstantFiles(): string[]
+function extractConstantsFromFile(filePath: string): ConstantDef[]
+function gatherConstants(): ConstantDef[]
+function numbersEqual(a: number, b: number): boolean
+function scoreCandidate(
+  literalValue: number,
+  groupTokens: Set&lt;string&gt;,
+  constant: ConstantDef
+): ConstantCandidate
+class UnionFind
+⋮----
+constructor(size: number)
+find(x: number): number
+union(a: number, b: number): void
+⋮----
+function clusterPeers(occurrences: MagicOccurrence[], threshold: number): PeerClusterSummary[]
+function summarizeGroups(
+  occurrences: MagicOccurrence[],
+  constants: ConstantDef[],
+  options: CliOptions
+): LiteralGroupSummary[]
+function toSerializableReport(report: SummaryReport): JsonValue
+function main(): void</file><file path="scripts/cleanup-error-logs.ts">import fs from &apos;fs/promises&apos;;
+import path from &apos;path&apos;;
+import { createGzip } from &apos;zlib&apos;;
+import { pipeline } from &apos;stream/promises&apos;;
+import { createReadStream, createWriteStream } from &apos;fs&apos;;
+import { BYTES_PER_KB } from &apos;../sidequest/core/constants.ts&apos;;
+import { createComponentLogger, logError } from &apos;../sidequest/utils/logger.ts&apos;;
+⋮----
+function parseArgs()
+function showHelp()
+async function getFileAgeDays(filePath)
+async function compressFile(inputPath, outputPath)
+async function scanErrorLogs(baseDir)
+⋮----
+async function scanDir(dir)
+⋮----
+async function scanArchivedLogs(archiveDir)
+function formatBytes(bytes)
+async function archiveOldLogs(errorLogs, retentionDays, dryRun, verbose)
+async function deleteOldArchives(archivedLogs, retentionDays, dryRun, verbose)
+function printCleanupSummary(archiveResult:
+async function cleanup(options)
+/**
+ * Main entry point
+ */
+async function main()</file><file path="scripts/deploy-traditional-server.sh">set -e
+set -u
+OS=&quot;$(uname -s)&quot;
+IS_MACOS=false
+IS_LINUX=false
+case &quot;$OS&quot; in
+    Darwin*)
+        IS_MACOS=true
+        ;;
+    Linux*)
+        IS_LINUX=true
+        ;;
+    *)
+        echo &quot;Unsupported OS: $OS&quot;
+        exit 1
+        ;;
+esac
+RED=&apos;\033[0;31m&apos;
+GREEN=&apos;\033[0;32m&apos;
+YELLOW=&apos;\033[1;33m&apos;
+BLUE=&apos;\033[0;34m&apos;
+NC=&apos;\033[0m&apos;
+if $IS_MACOS; then
+    APP_NAME=&quot;aleph-dashboard&quot;
+    APP_DIR=&quot;$HOME/code/jobs&quot;
+    BACKUP_DIR=&quot;$HOME/.aleph-backups&quot;
+    NGINX_SITE=&quot;/usr/local/etc/nginx/servers/${APP_NAME}&quot;
+    LOG_FILE=&quot;$HOME/.aleph-logs/${APP_NAME}-deploy.log&quot;
+    DEPLOY_USER=&quot;$USER&quot;
+else
+    APP_NAME=&quot;aleph-dashboard&quot;
+    APP_DIR=&quot;/var/www/${APP_NAME}&quot;
+    BACKUP_DIR=&quot;/var/backups/${APP_NAME}&quot;
+    NGINX_SITE=&quot;/etc/nginx/sites-available/${APP_NAME}&quot;
+    LOG_FILE=&quot;/var/log/${APP_NAME}-deploy.log&quot;
+    DEPLOY_USER=&quot;aleph&quot;
+fi
+log() {
+    echo -e &quot;${GREEN}[$(date +&apos;%Y-%m-%d %H:%M:%S&apos;)]${NC} $1&quot; | tee -a &quot;$LOG_FILE&quot;
+}
+warn() {
+    echo -e &quot;${YELLOW}[$(date +&apos;%Y-%m-%d %H:%M:%S&apos;)] WARNING:${NC} $1&quot; | tee -a &quot;$LOG_FILE&quot;
+}
+error() {
+    echo -e &quot;${RED}[$(date +&apos;%Y-%m-%d %H:%M:%S&apos;)] ERROR:${NC} $1&quot; | tee -a &quot;$LOG_FILE&quot;
+    exit 1
+}
+info() {
+    echo -e &quot;${BLUE}[$(date +&apos;%Y-%m-%d %H:%M:%S&apos;)]${NC} $1&quot; | tee -a &quot;$LOG_FILE&quot;
+}
+check_sudo() {
+    if $IS_LINUX &amp;&amp; [[ $EUID -ne 0 ]]; then
+        error &quot;This script must be run with sudo privileges on Linux&quot;
+    fi
+    if $IS_MACOS &amp;&amp; [[ $EUID -eq 0 ]]; then
+        warn &quot;Running as root on macOS is not recommended. Run without sudo.&quot;
+    fi
+}
+command_exists() {
+    command -v &quot;$1&quot; &gt;/dev/null 2&gt;&amp;1
+}
+setup_server() {
+    log &quot;Starting initial server setup for $(uname -s)...&quot;
+    if $IS_MACOS; then
+        setup_macos
+    else
+        setup_linux
+    fi
+    log &quot;✅ Server setup completed successfully!&quot;
+    info &quot;Next steps:&quot;
+    info &quot;  1. Login to Doppler: doppler login&quot;
+    info &quot;  2. Set up Doppler project: cd $APP_DIR &amp;&amp; doppler setup&quot;
+    if $IS_LINUX; then
+        info &quot;  3. Clone repository to $APP_DIR&quot;
+        info &quot;  4. Run: sudo $0 --update&quot;
+    else
+        info &quot;  3. Run: $0 --update&quot;
+    fi
+}
+setup_macos() {
+    log &quot;Setting up macOS environment...&quot;
+    if ! command_exists brew; then
+        error &quot;Homebrew is required but not installed. Install from: https://brew.sh&quot;
+    fi
+    log &quot;Updating Homebrew...&quot;
+    brew update
+    if ! command_exists node; then
+        log &quot;Installing Node.js...&quot;
+        brew install node@25
+        brew link node@25
+    else
+        info &quot;Node.js already installed: $(node --version)&quot;
+    fi
+    if ! command_exists python3; then
+        log &quot;Installing Python 3...&quot;
+        brew install python@3.11
+    else
+        info &quot;Python already installed: $(python3 --version)&quot;
+    fi
+    if ! command_exists redis-cli; then
+        log &quot;Installing Redis...&quot;
+        brew install redis
+        log &quot;Starting Redis service...&quot;
+        brew services start redis
+    else
+        info &quot;Redis already installed: $(redis-cli --version)&quot;
+        if ! brew services list | grep -q &quot;redis.*started&quot;; then
+            log &quot;Starting Redis service...&quot;
+            brew services start redis
+        fi
+    fi
+    if ! command_exists pm2; then
+        log &quot;Installing PM2...&quot;
+        npm install -g pm2
+        pm2 startup launchd
+    else
+        info &quot;PM2 already installed: $(pm2 --version)&quot;
+    fi
+    if ! command_exists doppler; then
+        log &quot;Installing Doppler CLI...&quot;
+        brew install dopplerhq/cli/doppler
+    else
+        info &quot;Doppler already installed: $(doppler --version)&quot;
+    fi
+    if ! command_exists nginx; then
+        log &quot;Installing Nginx...&quot;
+        brew install nginx
+        log &quot;Starting Nginx service...&quot;
+        brew services start nginx
+    else
+        info &quot;Nginx already installed: $(nginx -v 2&gt;&amp;1)&quot;
+        if ! brew services list | grep -q &quot;nginx.*started&quot;; then
+            log &quot;Starting Nginx service...&quot;
+            brew services start nginx
+        fi
+    fi
+    log &quot;Creating application directories...&quot;
+    mkdir -p &quot;$BACKUP_DIR&quot;
+    mkdir -p &quot;$(dirname &quot;$LOG_FILE&quot;)&quot;
+    # macOS doesn&apos;t need UFW firewall
+    info &quot;Note: macOS firewall configuration should be done through System Preferences &gt; Security &amp; Privacy&quot;
+}
+setup_linux() {
+    log &quot;Setting up Linux environment...&quot;
+    log &quot;Updating system packages...&quot;
+    apt-get update &amp;&amp; apt-get upgrade -y
+    if ! command_exists node; then
+        log &quot;Installing Node.js 25.x...&quot;
+        curl -fsSL https://deb.nodesource.com/setup_25.x | bash -
+        apt-get install -y nodejs
+    else
+        info &quot;Node.js already installed: $(node --version)&quot;
+    fi
+    if ! command_exists python3.11; then
+        log &quot;Installing Python 3.11...&quot;
+        apt-get install -y software-properties-common
+        add-apt-repository -y ppa:deadsnakes/ppa
+        apt-get update
+        apt-get install -y python3.11 python3.11-venv python3.11-dev python3-pip build-essential
+    else
+        info &quot;Python 3.11 already installed: $(python3.11 --version)&quot;
+    fi
+    if ! command_exists redis-cli; then
+        log &quot;Installing Redis...&quot;
+        apt-get install -y redis-server
+        systemctl enable redis-server
+        systemctl start redis-server
+    else
+        info &quot;Redis already installed: $(redis-cli --version)&quot;
+    fi
+    if ! command_exists pm2; then
+        log &quot;Installing PM2...&quot;
+        npm install -g pm2
+        pm2 startup systemd -u $(logname) --hp /home/$(logname)
+    else
+        info &quot;PM2 already installed: $(pm2 --version)&quot;
+    fi
+    if ! command_exists doppler; then
+        log &quot;Installing Doppler CLI...&quot;
+        curl -sLf --retry 3 --tlsv1.2 --proto &quot;=https&quot; &apos;https://packages.doppler.com/public/cli/gpg.DE2A7741.key&apos; | apt-key add -
+        echo &quot;deb https://packages.doppler.com/public/cli/deb/debian any-version main&quot; | tee /etc/apt/sources.list.d/doppler-cli.list
+        apt-get update
+        apt-get install -y doppler
+    else
+        info &quot;Doppler already installed: $(doppler --version)&quot;
+    fi
+    if ! command_exists nginx; then
+        log &quot;Installing Nginx...&quot;
+        apt-get install -y nginx
+        systemctl enable nginx
+        systemctl start nginx
+    else
+        info &quot;Nginx already installed: $(nginx -v 2&gt;&amp;1)&quot;
+    fi
+    if ! command_exists ufw; then
+        log &quot;Installing UFW firewall...&quot;
+        apt-get install -y ufw
+    fi
+    log &quot;Configuring firewall...&quot;
+    ufw --force enable
+    ufw allow OpenSSH
+    ufw allow 80/tcp
+    ufw allow 443/tcp
+    ufw status
+    log &quot;Creating application directory...&quot;
+    mkdir -p &quot;$APP_DIR&quot;
+    mkdir -p &quot;$BACKUP_DIR&quot;
+    mkdir -p &quot;$(dirname &quot;$LOG_FILE&quot;)&quot;
+    # Create deployment user (if not exists)
+    if ! id -u &quot;$DEPLOY_USER&quot; &gt;/dev/null 2&gt;&amp;1; then
+        log &quot;Creating deployment user &apos;$DEPLOY_USER&apos;...&quot;
+        adduser &quot;$DEPLOY_USER&quot; --disabled-password --gecos &quot;&quot;
+        chown -R &quot;$DEPLOY_USER:$DEPLOY_USER&quot; &quot;$APP_DIR&quot;
+    fi
+}
+update_application() {
+    log &quot;Starting application update...&quot;
+    if [[ ! -d &quot;$APP_DIR&quot; ]]; then
+        error &quot;Application directory not found: $APP_DIR&quot;
+    fi
+    cd &quot;$APP_DIR&quot;
+    log &quot;Creating backup...&quot;
+    BACKUP_FILE=&quot;$BACKUP_DIR/backup-$(date +%Y%m%d_%H%M%S).tar.gz&quot;
+    tar -czf &quot;$BACKUP_FILE&quot; \
+        --exclude=&apos;node_modules&apos; \
+        --exclude=&apos;venv&apos; \
+        --exclude=&apos;logs&apos; \
+        -C &quot;$(dirname &quot;$APP_DIR&quot;)&quot; &quot;$(basename &quot;$APP_DIR&quot;)&quot;
+    log &quot;Backup created: $BACKUP_FILE&quot;
+    if [[ -d .git ]]; then
+        log &quot;Pulling latest code from git...&quot;
+        if $IS_MACOS; then
+            git pull origin main || warn &quot;Git pull failed, using existing code&quot;
+        else
+            sudo -u &quot;$DEPLOY_USER&quot; git pull origin main || warn &quot;Git pull failed, using existing code&quot;
+        fi
+    else
+        warn &quot;Not a git repository, skipping git pull&quot;
+    fi
+    log &quot;Installing Node.js dependencies...&quot;
+    if $IS_MACOS; then
+        pnpm install --frozen-lockfile
+    else
+        sudo -u &quot;$DEPLOY_USER&quot; pnpm install --frozen-lockfile
+    fi
+    log &quot;Building frontend...&quot;
+    if $IS_MACOS; then
+        npm run build:frontend
+    else
+        sudo -u &quot;$DEPLOY_USER&quot; npm run build:frontend
+    fi
+    log &quot;Setting up Python virtual environment...&quot;
+    PYTHON_CMD=&quot;python3&quot;
+    if $IS_LINUX &amp;&amp; command_exists python3.11; then
+        PYTHON_CMD=&quot;python3.11&quot;
+    fi
+    if [[ ! -d venv ]]; then
+        if $IS_MACOS; then
+            $PYTHON_CMD -m venv venv
+        else
+            sudo -u &quot;$DEPLOY_USER&quot; $PYTHON_CMD -m venv venv
+        fi
+    fi
+    log &quot;Installing Python dependencies...&quot;
+    if $IS_MACOS; then
+        source venv/bin/activate &amp;&amp; pip install --upgrade pip &amp;&amp; pip install -r requirements.txt
+    else
+        sudo -u &quot;$DEPLOY_USER&quot; bash -c &quot;source venv/bin/activate &amp;&amp; pip install --upgrade pip &amp;&amp; pip install -r requirements.txt&quot;
+    fi
+    if $IS_LINUX; then
+        log &quot;Setting permissions...&quot;
+        chown -R &quot;$DEPLOY_USER:$DEPLOY_USER&quot; &quot;$APP_DIR&quot;
+        chmod -R 755 &quot;$APP_DIR&quot;
+    fi
+    log &quot;Normalizing critical entrypoint file modes...&quot;
+    if $IS_MACOS; then
+        node --strip-types scripts/validate-permissions.ts --fix
+    else
+        sudo -u &quot;$DEPLOY_USER&quot; bash -c &quot;cd $APP_DIR &amp;&amp; node --strip-types scripts/validate-permissions.ts --fix&quot;
+    fi
+    log &quot;Restarting PM2 processes...&quot;
+    if $IS_MACOS; then
+        cd &quot;$APP_DIR&quot; &amp;&amp; pm2 restart all || pm2 start config/ecosystem.config.cjs
+        pm2 save
+    else
+        sudo -u &quot;$DEPLOY_USER&quot; bash -c &quot;cd $APP_DIR &amp;&amp; pm2 restart all || pm2 start config/ecosystem.config.cjs&quot;
+        sudo -u &quot;$DEPLOY_USER&quot; pm2 save
+    fi
+    log &quot;Reloading Nginx...&quot;
+    if $IS_MACOS; then
+        nginx -t &amp;&amp; brew services restart nginx
+    else
+        nginx -t &amp;&amp; systemctl reload nginx
+    fi
+    log &quot;Performing health check...&quot;
+    sleep 3
+    if curl -f http://localhost:8080/health &gt;/dev/null 2&gt;&amp;1; then
+        log &quot;✅ Health check passed!&quot;
+    else
+        warn &quot;Health check failed, check logs with: pm2 logs&quot;
+    fi
+    log &quot;PM2 Status:&quot;
+    if $IS_MACOS; then
+        pm2 status
+    else
+        sudo -u &quot;$DEPLOY_USER&quot; pm2 status
+    fi
+    log &quot;✅ Application updated successfully!&quot;
+}
+rollback_application() {
+    log &quot;Starting rollback...&quot;
+    if [[ ! -d &quot;$BACKUP_DIR&quot; ]]; then
+        error &quot;Backup directory not found: $BACKUP_DIR&quot;
+    fi
+    LATEST_BACKUP=$(ls -t &quot;$BACKUP_DIR&quot;/backup-*.tar.gz 2&gt;/dev/null | head -1)
+    if [[ -z &quot;$LATEST_BACKUP&quot; ]]; then
+        error &quot;No backup found in $BACKUP_DIR&quot;
+    fi
+    log &quot;Rolling back to: $LATEST_BACKUP&quot;
+    log &quot;Stopping PM2 processes...&quot;
+    if $IS_MACOS; then
+        pm2 stop all
+    else
+        sudo -u &quot;$DEPLOY_USER&quot; pm2 stop all
+    fi
+    log &quot;Removing current application...&quot;
+    rm -rf &quot;${APP_DIR:?}&quot;/*
+    log &quot;Restoring from backup...&quot;
+    tar -xzf &quot;$LATEST_BACKUP&quot; -C &quot;$(dirname &quot;$APP_DIR&quot;)&quot;
+    cd &quot;$APP_DIR&quot;
+    log &quot;Reinstalling dependencies...&quot;
+    if $IS_MACOS; then
+        pnpm install --frozen-lockfile
+        npm run build:frontend
+        source venv/bin/activate &amp;&amp; pip install -r requirements.txt
+    else
+        sudo -u &quot;$DEPLOY_USER&quot; pnpm install --frozen-lockfile
+        sudo -u &quot;$DEPLOY_USER&quot; npm run build:frontend
+        sudo -u &quot;$DEPLOY_USER&quot; bash -c &quot;source venv/bin/activate &amp;&amp; pip install -r requirements.txt&quot;
+    fi
+    log &quot;Restarting PM2 processes...&quot;
+    if $IS_MACOS; then
+        cd &quot;$APP_DIR&quot; &amp;&amp; pm2 restart all
+        pm2 save
+    else
+        sudo -u &quot;$DEPLOY_USER&quot; bash -c &quot;cd $APP_DIR &amp;&amp; pm2 restart all&quot;
+        sudo -u &quot;$DEPLOY_USER&quot; pm2 save
+    fi
+    log &quot;Reloading Nginx...&quot;
+    if $IS_MACOS; then
+        brew services restart nginx
+    else
+        systemctl reload nginx
+    fi
+    log &quot;Performing health check...&quot;
+    sleep 3
+    if curl -f http://localhost:8080/health &gt;/dev/null 2&gt;&amp;1; then
+        log &quot;✅ Health check passed!&quot;
+    else
+        warn &quot;Health check failed, check logs with: pm2 logs&quot;
+    fi
+    log &quot;✅ Rollback completed successfully!&quot;
+}
+show_status() {
+    log &quot;=== System Status ($(uname -s)) ===&quot;
+    info &quot;PM2 Processes:&quot;
+    if $IS_MACOS; then
+        pm2 status
+    else
+        sudo -u &quot;$DEPLOY_USER&quot; pm2 status
+    fi
+    info &quot;&quot;
+    info &quot;Nginx Status:&quot;
+    if $IS_MACOS; then
+        brew services list | grep nginx || echo &quot;Nginx not running as service&quot;
+    else
+        systemctl status nginx --no-pager -l
+    fi
+    info &quot;&quot;
+    info &quot;Redis Status:&quot;
+    if $IS_MACOS; then
+        brew services list | grep redis || echo &quot;Redis not running as service&quot;
+        redis-cli ping 2&gt;/dev/null &amp;&amp; echo &quot;Redis is responding&quot; || echo &quot;Redis not responding&quot;
+    else
+        systemctl status redis-server --no-pager -l
+    fi
+    info &quot;&quot;
+    info &quot;Health Check:&quot;
+    curl -s http://localhost:8080/health | jq . 2&gt;/dev/null || curl -s http://localhost:8080/health
+    info &quot;&quot;
+    info &quot;Disk Usage:&quot;
+    df -h &quot;$APP_DIR&quot;
+    info &quot;&quot;
+    info &quot;Memory Usage:&quot;
+    if $IS_MACOS; then
+        vm_stat | head -10
+        echo &quot;---&quot;
+        top -l 1 | grep PhysMem
+    else
+        free -h
+    fi
+    info &quot;&quot;
+    info &quot;Recent Logs:&quot;
+    if $IS_MACOS; then
+        pm2 logs --nostream --lines 10
+    else
+        sudo -u &quot;$DEPLOY_USER&quot; pm2 logs --nostream --lines 10
+    fi
+}
+main() {
+    case &quot;${1:-}&quot; in
+        --setup)
+            check_sudo
+            setup_server
+            ;;
+        --update)
+            check_sudo
+            update_application
+            ;;
+        --rollback)
+            check_sudo
+            rollback_application
+            ;;
+        --status)
+            show_status
+            ;;
+        *)
+            echo &quot;AlephAuto Dashboard - Traditional Server Deployment&quot;
+            echo &quot;Platform: $(uname -s)&quot;
+            echo &quot;&quot;
+            echo &quot;Usage: $0 [OPTION]&quot;
+            echo &quot;&quot;
+            echo &quot;Options:&quot;
+            echo &quot;  --setup      Initial server setup (install dependencies)&quot;
+            echo &quot;  --update     Update application and restart services&quot;
+            echo &quot;  --rollback   Rollback to previous backup&quot;
+            echo &quot;  --status     Show current system status&quot;
+            echo &quot;&quot;
+            if $IS_MACOS; then
+                echo &quot;Examples (macOS):&quot;
+                echo &quot;  $0 --setup
+                echo &quot;  $0 --update     # Deploy new version&quot;
+                echo &quot;  $0 --rollback   # Revert to previous version&quot;
+                echo &quot;  $0 --status     # Check current status&quot;
+            else
+                echo &quot;Examples (Linux):&quot;
+                echo &quot;  sudo $0 --setup     # First-time server setup&quot;
+                echo &quot;  sudo $0 --update    # Deploy new version&quot;
+                echo &quot;  sudo $0 --rollback  # Revert to previous version&quot;
+                echo &quot;  $0 --status         # Check current status&quot;
+            fi
+            echo &quot;&quot;
+            exit 1
+            ;;
+    esac
+}
+# Run main function
+main &quot;$@&quot;</file><file path="scripts/find_duplication.sh">SCRIPT_DIR=&quot;$(cd &quot;$(dirname &quot;${BASH_SOURCE[0]}&quot;)&quot; &amp;&amp; pwd)&quot;
+PROJECT_ROOT=&quot;$(dirname &quot;$SCRIPT_DIR&quot;)&quot;
+# Check if project folder is provided
+if [ -z &quot;$1&quot; ]; then
+    echo &quot;Usage: $0 &lt;project_folder&gt; &lt;language&gt; [construct_type] [min_similarity] [min_lines] [max_constructs]&quot;
+    echo &quot;&quot;
+    echo &quot;Examples:&quot;
+    echo &quot;  $0 /path/to/project python&quot;
+    echo &quot;  $0 /path/to/project javascript class_definition&quot;
+    echo &quot;  $0 /path/to/project python function_definition 0.9&quot;
+    echo &quot;  $0 /path/to/project python function_definition 0.8 10&quot;
+    echo &quot;  $0 /path/to/project python function_definition 0.8 5 2000&quot;
+    exit 1
+fi
+PROJECT_FOLDER=&quot;$1&quot;
+LANGUAGE=&quot;${2:-python}&quot;
+CONSTRUCT_TYPE=&quot;${3:-function_definition}&quot;
+MIN_SIMILARITY=&quot;${4:-0.8}&quot;
+MIN_LINES=&quot;${5:-5}&quot;
+MAX_CONSTRUCTS=&quot;${6:-1000}&quot;
+if [ ! -d &quot;$PROJECT_FOLDER&quot; ]; then
+    echo &quot;Error: Project folder does not exist: $PROJECT_FOLDER&quot;
+    exit 1
+fi
+cd &quot;$PROJECT_ROOT&quot;
+uv run python scripts/find_duplication.py &quot;$PROJECT_FOLDER&quot; \
+    --language &quot;$LANGUAGE&quot; \
+    --construct-type &quot;$CONSTRUCT_TYPE&quot; \
+    --min-similarity &quot;$MIN_SIMILARITY&quot; \
+    --min-lines &quot;$MIN_LINES&quot; \
+    --max-constructs &quot;$MAX_CONSTRUCTS&quot;</file><file path="scripts/find_large_classes.sh">cd /Users/alyshialedlie/code/ISPublicSites/AnalyticsBot
+echo &quot;=== Finding all TypeScript classes ===&quot;
+echo
+find . -type f \( -name &quot;*.ts&quot; -o -name &quot;*.tsx&quot; \) \
+  -not -path &quot;*/node_modules/*&quot; \
+  -not -path &quot;*/build/*&quot; \
+  -not -path &quot;*/dist/*&quot; \
+  -exec grep -l &quot;^class \|^export class &quot; {} \; | while read file; do
+  grep -n &quot;^class \|^export class &quot; &quot;$file&quot; | while IFS=: read linenum classdef; do
+    classname=$(echo &quot;$classdef&quot; | sed -E &apos;s/.*(class |export class )([A-Za-z0-9_]+).*/\2/&apos;)
+    total_lines=$(wc -l &lt; &quot;$file&quot;)
+    class_size=$((total_lines - linenum))
+    method_count=$(sed -n &quot;${linenum},\$p&quot; &quot;$file&quot; | grep -c &quot;^\s*\(async \)\?[a-zA-Z_][a-zA-Z0-9_]*\s*(&quot;)
+    echo &quot;$file:$linenum - $classname ($class_size lines, ~$method_count methods)&quot;
+  done
+done | sort -t&apos;(&apos; -k2 -rn</file><file path="scripts/fix_import_orphans.py">_IMPORT_KEYWORDS = (&quot;from&quot;, &quot;import&quot;, &quot;#&quot;, &apos;&quot;&quot;&quot;&apos;, &quot;&apos;&apos;&apos;&quot;, &quot;class&quot;, &quot;def&quot;, &quot;@&quot;)
+_STATEMENT_STARTS = (&quot;from&quot;, &quot;import&quot;, &quot;class&quot;, &quot;def&quot;, &quot;@&quot;, &apos;&quot;&quot;&quot;&apos;, &quot;&apos;&apos;&apos;&quot;)
+def _is_orphan_close_paren(line: str, prev_line: str) -&gt; bool
+def _is_orphan_import_item_start(line: str, raw_line: str, prev_line: str) -&gt; bool
+def _scan_orphan_item_range(lines: List[str], start: int) -&gt; Tuple[int, int]
+⋮----
+i = start
+⋮----
+curr = lines[i].strip()
+⋮----
+def find_orphaned_imports(lines: List[str]) -&gt; List[Tuple[int, int]]
+⋮----
+orphaned_ranges = []
+i = 0
+⋮----
+line = lines[i].strip()
+prev_line = lines[i - 1].strip()
+⋮----
+i = end
+⋮----
+def remove_orphaned_lines(filepath: Path)
+⋮----
+lines = read_lines(filepath)
+orphaned = find_orphaned_imports(lines)
+⋮----
+def check_syntax(filepath: Path)
+⋮----
+&quot;&quot;&quot;Check if file has valid Python syntax.&quot;&quot;&quot;
+result = subprocess.run([sys.executable, &quot;-m&quot;, &quot;py_compile&quot;, str(filepath)], capture_output=True, text=True)
+⋮----
+def main()
+⋮----
+fixed_count = 0
+failed = []
+⋮----
+filepath = Path(filepath_str)</file><file path="scripts/fix_imports.py">CONSOLE_IMPORT = &quot;from ast_grep_mcp.utils.console_logger import console&quot;
+def fix_file(file_path: Path) -&gt; bool
+⋮----
+content = f.read()
+original = content
+lines = content.split(&quot;\n&quot;)
+filtered_lines = [line for line in lines if CONSOLE_IMPORT not in line]
+insert_idx = 0
+⋮----
+insert_idx = 1
+in_docstring = False
+⋮----
+line = filtered_lines[i].strip()
+⋮----
+in_docstring = True
+quote = &apos;&quot;&quot;&quot;&apos; if &apos;&quot;&quot;&quot;&apos; in line else &quot;&apos;&apos;&apos;&quot;
+⋮----
+insert_idx = i + 1
+⋮----
+new_content = &quot;\n&quot;.join(filtered_lines)
+⋮----
+def main()
+⋮----
+project_root = Path(__file__).parent.parent
+fixed_count = 0
+⋮----
+pattern = &quot;*.py&quot;
+⋮----
+pattern = &quot;**/*.py&quot;</file><file path="scripts/fix_migration_errors.py">def _is_potential_orphan_followup(next_line: str) -&gt; bool
+⋮----
+stripped = next_line.strip()
+⋮----
+def _find_orphaned_import_ranges(lines: List[str]) -&gt; List[Tuple[int, int]]
+⋮----
+&quot;&quot;&quot;Find orphaned import ranges as (start, end) with end-exclusive semantics.&quot;&quot;&quot;
+ranges: List[Tuple[int, int]] = []
+⋮----
+end_idx = idx + 1
+⋮----
+stripped = lines[end_idx].strip()
+⋮----
+def fix_file(filepath: Path) -&gt; bool
+⋮----
+lines = read_lines(filepath)
+ranges = _find_orphaned_import_ranges(lines)
+⋮----
+def main()
+⋮----
+&quot;&quot;&quot;Fix all files with syntax errors.&quot;&quot;&quot;
+⋮----
+fixed_count = 0
+⋮----
+path = Path(filepath)</file><file path="scripts/fix-types.ts">import { execSync } from &apos;child_process&apos;;
+import { existsSync } from &apos;fs&apos;;
+import { join } from &apos;path&apos;;
+import { fileURLToPath } from &apos;url&apos;;
+import { dirname } from &apos;path&apos;;</file><file path="scripts/generate-diff-summary.sh">set -euo pipefail
+N=20
+COMMITS=200
+OUT=&quot;docs/repomix/gitlog-top${N}.txt&quot;
+mkdir -p &quot;$(dirname &quot;$OUT&quot;)&quot;
+# Get Top-N tracked files by blob size (bytes)
+# Get Top-N tracked files by blob size (bytes) without xargs (macOS-safe)
+TOP_FILES=()
+while IFS= read -r f; do
+  [[ -n &quot;$f&quot; ]] &amp;&amp; TOP_FILES+=(&quot;$f&quot;)
+done &lt; &lt;(
+  git ls-files -z \
+  | while IFS= read -r -d &apos;&apos; f; do
+      sz=&quot;$(git cat-file -s &quot;:$f&quot; 2&gt;/dev/null || echo 0)&quot;
+      printf &apos;%s\t%s\n&apos; &quot;$sz&quot; &quot;$f&quot;
+    done \
+  | sort -nr \
+  | head -n &quot;$N&quot; \
+  | cut -f2-
+)
+git log -n &quot;$COMMITS&quot; \
+  --date=short \
+  --pretty=&apos;format:%h %ad %s&apos; \
+  --name-only \
+  -- &quot;${TOP_FILES[@]}&quot; \
+| awk &apos;
+    NF==0 { print &quot;&quot;; next }
+    /^[0-9a-f]{7,40} / { print; next }
+    { print &quot;  &quot; $0 }
+  &apos; &gt; &quot;$OUT&quot;
+echo &quot;Wrote: $OUT&quot;</file><file path="scripts/generate-http-status-constants.ts">import fs from &apos;fs&apos;;
+import path from &apos;path&apos;;
+import { fileURLToPath } from &apos;url&apos;;
+import yaml from &apos;js-yaml&apos;;
+⋮----
+type StatusMap = Record&lt;string, number&gt;;
+function loadStatusMap(): StatusMap
+function renderTs(statusMap: StatusMap): string
+function renderPythonGeneratedBlock(statusMap: StatusMap): string
+function writeTs(statusMap: StatusMap): void
+function updatePython(statusMap: StatusMap): void
+function main(): void</file><file path="scripts/generate-repo-compressed.sh">set -euo pipefail
+ROOT=&quot;${1:?Usage: $0 &lt;root_dir&gt; &lt;output_file&gt;}&quot;
+OUTPUT_FILE=&quot;${2:?Usage: $0 &lt;root_dir&gt; &lt;output_file&gt;}&quot;
+FORCE_COLOR=0 NO_COLOR=1 timeout 60 \
+npx repomix &quot;$ROOT&quot; --compress -o &quot;$OUTPUT_FILE&quot; &gt;/dev/null 2&gt;&amp;1</file><file path="scripts/generate-repomix-docs.sh">set -euo pipefail
+ROOT=&quot;${1:?Usage: $0 &lt;root_dir&gt; &lt;output_file&gt;}&quot;
+OUTPUT_FILE=&quot;${2:?Usage: $0 &lt;root_dir&gt; &lt;output_file&gt;}&quot;
+CONFIG_FILE=&quot;$ROOT/scripts/repomix-docs.config.json&quot;
+BASE_CONFIG_FILE=&quot;$ROOT/repomix.config.json&quot;
+TMP_CONFIG=&quot;$(mktemp &quot;${TMPDIR:-/tmp}/repomix-docs.XXXXXX.json&quot;)&quot;
+cleanup() {
+  rm -f &quot;$TMP_CONFIG&quot;
+}
+trap cleanup EXIT
+BUNDLE_IGNORE_PATTERNS_JSON=&quot;$(
+  jq -c &apos;
+    [
+      .ignore.customPatterns[]?
+      | select(
+          . == &quot;docs/repomix/**&quot;
+          or . == &quot;**/repomix-output.*&quot;
+          or . == &quot;**/repo-compressed.*&quot;
+          or . == &quot;**/repomix.xml&quot;
+          or . == &quot;**/repo-compressed.xml&quot;
+        )
+    ] | unique
+  &apos; &quot;$BASE_CONFIG_FILE&quot;
+)&quot;
+jq \
+  --argjson bundleIgnorePatterns &quot;$BUNDLE_IGNORE_PATTERNS_JSON&quot; \
+  &apos;
+    .ignore.customPatterns = ((.ignore.customPatterns // []) + $bundleIgnorePatterns | unique)
+  &apos; \
+  &quot;$CONFIG_FILE&quot; &gt; &quot;$TMP_CONFIG&quot;
+FORCE_COLOR=0 NO_COLOR=1 timeout 60 \
+npx repomix &quot;$ROOT&quot; -c &quot;$TMP_CONFIG&quot; -o &quot;$OUTPUT_FILE&quot; &gt;/dev/null 2&gt;&amp;1</file><file path="scripts/generate-repomix.sh">set -euo pipefail
+ROOT=&quot;${1:?Usage: $0 &lt;root_dir&gt; &lt;output_file&gt;}&quot;
+OUTPUT_FILE=&quot;${2:?Usage: $0 &lt;root_dir&gt; &lt;output_file&gt;}&quot;
+FORCE_COLOR=0 NO_COLOR=1 timeout 60 \
+npx repomix &quot;$ROOT&quot; -o &quot;$OUTPUT_FILE&quot; &gt;/dev/null 2&gt;&amp;1</file><file path="scripts/generate-sidequest-gitlog.sh">set -euo pipefail
+REPO_ROOT=&quot;$(cd &quot;$(dirname &quot;$0&quot;)/..&quot; &amp;&amp; pwd)&quot;
+COMMITS=&quot;${1:-200}&quot;
+DEFAULT_OUT=&quot;$REPO_ROOT/sidequest/docs/gitlog-sidequest.txt&quot;
+REPO_MIRROR_OUT=&quot;$REPO_ROOT/docs/repomix/gitlog-sidequest.txt&quot;
+OUT=&quot;${2:-&quot;$DEFAULT_OUT&quot;}&quot;
+MIRROR_OUT=&quot;${3:-&quot;$REPO_MIRROR_OUT&quot;}&quot;
+mkdir -p &quot;$(dirname &quot;$OUT&quot;)&quot; &quot;$(dirname &quot;$MIRROR_OUT&quot;)&quot;
+TMP_OUT=&quot;$(mktemp)&quot;
+trap &apos;rm -f &quot;$TMP_OUT&quot;&apos; EXIT
+git -C &quot;$REPO_ROOT&quot; log -n &quot;$COMMITS&quot; \
+  --date=short \
+  --pretty=&apos;format:%h %ad %s&apos; \
+  --name-only \
+  -- sidequest/ \
+| awk &apos;
+    NF==0 { print &quot;&quot;; next }              # blank line between commits
+    /^[0-9a-f]{7,40} / { print; next }    # commit header
+    { print &quot;  &quot; $0 }                     # indent filenames
+  &apos; &gt; &quot;$TMP_OUT&quot;
+cp &quot;$TMP_OUT&quot; &quot;$OUT&quot;
+if [[ &quot;$MIRROR_OUT&quot; != &quot;$OUT&quot; ]]; then
+  cp &quot;$TMP_OUT&quot; &quot;$MIRROR_OUT&quot;
+  echo &quot;Wrote: $OUT&quot;
+  echo &quot;Wrote: $MIRROR_OUT&quot;
+else
+  echo &quot;Wrote: $OUT&quot;
+fi</file><file path="scripts/generate-token-tree.sh">set -euo pipefail
+ROOT=&quot;${1:?Usage: $0 &lt;root_dir&gt; &lt;output_file&gt;}&quot;
+OUTPUT_FILE=&quot;${2:?Usage: $0 &lt;root_dir&gt; &lt;output_file&gt;}&quot;
+FORCE_COLOR=0 NO_COLOR=1 npx repomix &quot;$ROOT&quot; --token-count-tree --no-files --no-file-summary 2&gt;&amp;1 \
+  | tr -d &apos;\r&apos; \
+  | sed -E &apos;s/\x1B\[[0-9;]*[A-Za-z]//g&apos; \
+  | awk &apos;BEGIN{keep=0} /^🔢 Token Count Tree:/{keep=1} /^🔎 Security Check:/{keep=0} keep&apos; \
+  &gt; &quot;$OUTPUT_FILE&quot;</file><file path="scripts/import_helpers.py">CONSOLE_IMPORT_STMT = &quot;from ast_grep_mcp.utils.console_logger import console&quot;
+def scan_import_state(lines: Sequence[str], import_statement: str) -&gt; Tuple[bool, int]
+⋮----
+has_import = False
+import_line_index = -1
+⋮----
+has_import = True
+⋮----
+import_line_index = line_index
+⋮----
+def compute_import_insert_index(lines: Sequence[str]) -&gt; int
+⋮----
+insert_idx = 0
+⋮----
+stripped = line.strip()
+⋮----
+insert_idx = line_index + 1
+⋮----
+quote = &apos;&quot;&quot;&quot;&apos; if &apos;&quot;&quot;&quot;&apos; in line else &quot;&apos;&apos;&apos;&quot;
+⋮----
+insert_idx = next_index + 1
+⋮----
+insert_idx = compute_import_insert_index(lines)
+⋮----
+should_add_blank = True
+⋮----
+should_add_blank = insert_idx + 1 &lt; len(lines) and bool(lines[insert_idx + 1].strip())</file><file path="scripts/list_complexity_violations.py">CRITICAL_THRESHOLDS = {
+def scan_all_python_files(root: Path) -&gt; list[tuple[Path, str]]
+⋮----
+functions = []
+src_dir = root / &quot;src&quot;
+⋮----
+content = f.read()
+⋮----
+stripped = line.lstrip()
+⋮----
+func_name = stripped[len(&quot;def &quot;) :].split(&quot;(&quot;)[0].strip()
+⋮----
+def main()
+⋮----
+project_root = Path(__file__).parent.parent
+all_functions = scan_all_python_files(project_root)
+violations = []
+⋮----
+metrics = analyze_function_complexity(str(file_path), func_name)
+⋮----
+violation_reasons = []
+⋮----
+rel_path = file_path.relative_to(project_root)
+⋮----
+separator = &quot;=&quot; * FormattingDefaults.WIDE_SECTION_WIDTH</file><file path="scripts/migrate_print_to_logger.py">@dataclass
+class PrintStatement
+⋮----
+file_path: str
+line_number: int
+column: int
+original_code: str
+suggested_replacement: str
+print_type: str
+class PrintMigrator
+⋮----
+def __init__(self, dry_run: bool = True, backup: bool = False)
+def analyze_print_call(self, code: str) -&gt; str
+⋮----
+# Check for error output ( or &apos;error&apos; in string)
+⋮----
+def migrate_print_statement(self, code: str, print_type: str) -&gt; str
+⋮----
+match = re.match(r&quot;print\((.*)\)$&quot;, code.strip(), re.DOTALL)
+⋮----
+# Fallback: return original if we can&apos;t parse
+⋮----
+content = match.group(1)
+# Remove if present
+content = re.sub(r&quot;,?\s*file=sys\.stderr&quot;, &quot;&quot;, content)
+# Handle different types
+⋮----
+json_match = re.search(r&quot;json\.dumps\((.*?)(,\s*indent=\d+)?\)&quot;, content)
+⋮----
+data = json_match.group(1)
+⋮----
+sep_match = re.search(r&apos;[&quot;\&apos;]([=\-_*])\1*[&quot;\&apos;]&apos;, content)
+⋮----
+char = sep_match.group(1)
+length = len(re.search(r&apos;[&quot;\&apos;]([=\-_*]+)[&quot;\&apos;]&apos;, content).group(1))
+⋮----
+else:  # simple
+⋮----
+def find_print_statements(self, file_path: Path) -&gt; List[PrintStatement]
+⋮----
+&quot;&quot;&quot;Find all console.blank() statements in a file.
+        Args:
+            file_path: Path to Python file
+        Returns:
+            List of PrintStatement objects
+        &quot;&quot;&quot;
+statements = []
+⋮----
+content = f.read()
+lines = content.split(&quot;\n&quot;)
+# Use regex to find print statements (simple approach)
+⋮----
+# Skip comments
+⋮----
+# Find console.log( statements
+⋮----
+# Extract full print statement (may span multiple lines)
+start_col = match.start()
+original_code = self._extract_print_call(lines, line_num - 1, start_col)
+⋮----
+print_type = self.analyze_print_call(original_code)
+replacement = self.migrate_print_statement(original_code, print_type)
+⋮----
+def _extract_print_call(self, lines: List[str], start_line: int, start_col: int) -&gt; str
+⋮----
+&quot;&quot;&quot;Extract complete console.blank() call that may span multiple lines.
+        Args:
+            lines: All lines in the file
+            start_line: Line number where console.log( starts (0-indexed)
+            start_col: Column where console.log( starts
+        Returns:
+            Complete console.blank() statement as string
+        &quot;&quot;&quot;
+# Simple extraction - find matching closing parenthesis
+line = lines[start_line][start_col:]
+depth = 0
+in_string = False
+string_char = None
+escaped = False
+result = []
+⋮----
+escaped = True
+⋮----
+in_string = True
+string_char = char
+⋮----
+# If we didn&apos;t find closing paren on same line, it might span multiple lines
+⋮----
+def _read_file_lines(self, file_path: Path) -&gt; List[str]
+⋮----
+&quot;&quot;&quot;Read file content and return split lines.&quot;&quot;&quot;
+⋮----
+def _create_backup_if_needed(self, file_path: Path, changes: List[str]) -&gt; None
+⋮----
+backup_path = file_path.with_suffix(&quot;.py.bak&quot;)
+⋮----
+def _scan_import_state(self, lines: List[str]) -&gt; Tuple[bool, int]
+⋮----
+&quot;&quot;&quot;Return whether console import exists and last import line index.&quot;&quot;&quot;
+⋮----
+def _apply_statement_replacements(self, lines: List[str], statements: List[PrintStatement], changes: List[str]) -&gt; None
+⋮----
+&quot;&quot;&quot;Replace print statements in reverse order to preserve line indices.&quot;&quot;&quot;
+⋮----
+line_idx = stmt.line_number - 1
+line = lines[line_idx]
+⋮----
+def _compute_import_insert_index(self, lines: List[str]) -&gt; int
+⋮----
+&quot;&quot;&quot;Find insertion index after shebang/docstring for import insertion.&quot;&quot;&quot;
+⋮----
+def _ensure_import_present(self, lines: List[str], has_import: bool, import_line_index: int, changes: List[str]) -&gt; None
+⋮----
+&quot;&quot;&quot;Ensure console import exists in file content.&quot;&quot;&quot;
+⋮----
+_ = import_line_index  # Kept for compatibility with current call signature.
+⋮----
+def _write_lines_if_needed(self, file_path: Path, lines: List[str]) -&gt; None
+⋮----
+&quot;&quot;&quot;Persist updated lines unless running in dry-run mode.&quot;&quot;&quot;
+⋮----
+def migrate_file(self, file_path: Path) -&gt; Tuple[int, List[str]]
+⋮----
+statements = self.find_print_statements(file_path)
+⋮----
+changes = []
+lines = self._read_file_lines(file_path)
+⋮----
+def migrate_directory(self, directory: Path, pattern: str = &quot;**/*.py&quot;) -&gt; Dict[str, any]
+⋮----
+results = {&quot;files_processed&quot;: 0, &quot;files_modified&quot;: 0, &quot;total_migrations&quot;: 0, &quot;changes_by_file&quot;: {}}
+⋮----
+def main()
+⋮----
+parser = argparse.ArgumentParser(description=&quot;Migrate console.blank() statements to console logger&quot;)
+⋮----
+args = parser.parse_args()
+script_dir = Path(__file__).parent
+project_root = script_dir.parent
+migrator = PrintMigrator(dry_run=args.dry_run, backup=args.backup)
+⋮----
+path = Path(args.path)
+⋮----
+path = project_root / path
+⋮----
+path = project_root
+⋮----
+results = {
+⋮----
+results = migrator.migrate_directory(path)
+⋮----
+mode = &quot;DRY RUN - &quot; if args.dry_run else &quot;&quot;</file><file path="scripts/migrate_prints_smart.py">def smart_replace_print(line: str) -&gt; Tuple[str, bool]
+⋮----
+modified = False
+⋮----
+line = re.sub(r&quot;\bprint\(\s*\)&quot;, &quot;console.blank()&quot;, line)
+modified = True
+# Pattern 2: Separator lines (=, -, *, _)
+⋮----
+match = re.search(r&apos;print\([&quot;\&apos;]([=\-_*]+)[&quot;\&apos;]\)&apos;, line)
+⋮----
+char = match.group(1)[0]
+length = len(match.group(1))
+line = re.sub(r&apos;print\([&quot;\&apos;]([=\-_*]+)[&quot;\&apos;]\)&apos;, f&apos;console.separator(&quot;{char}&quot;, {length})&apos;, line)
+⋮----
+# Pattern 3: JSON output
+⋮----
+match = re.search(r&quot;print\(json\.dumps\((.*?)(,\s*indent=\d+)?\)\)&quot;, line)
+⋮----
+line = re.sub(r&quot;print\(json\.dumps\((.*?)(,\s*indent=\d+)?\)\)&quot;, r&quot;console.json(\1)&quot;, line)
+⋮----
+# Pattern 4: Error messages ( or &quot;error&quot; in text)
+⋮----
+# Remove file=sys.stderr and use console.error
+content = re.sub(r&quot;,?\s*file=sys\.stderr&quot;, &quot;&quot;, line)
+content = re.sub(r&quot;\bprint\((.*)\)&quot;, r&quot;console.error(\1)&quot;, content)
+line = content
+⋮----
+line = re.sub(r&quot;\bprint\(&quot;, &quot;console.error(&quot;, line)
+⋮----
+# Pattern 5: Success/completion messages
+⋮----
+line = re.sub(r&quot;\bprint\(&quot;, &quot;console.success(&quot;, line)
+⋮----
+# Pattern 6: Warning messages
+⋮----
+line = re.sub(r&quot;\bprint\(&quot;, &quot;console.warning(&quot;, line)
+⋮----
+# Pattern 7: Debug/verbose messages
+⋮----
+line = re.sub(r&quot;\bprint\(&quot;, &quot;console.debug(&quot;, line)
+⋮----
+# Pattern 8: Default to console.log()
+⋮----
+line = re.sub(r&quot;\bprint\(&quot;, &quot;console.log(&quot;, line)
+⋮----
+def add_console_import(lines: List[str]) -&gt; List[str]
+⋮----
+&quot;&quot;&quot;Add console import if not present.
+    Args:
+        lines: File lines
+    Returns:
+        Modified lines with import added
+    &quot;&quot;&quot;
+⋮----
+def migrate_file(file_path: Path, dry_run: bool = True) -&gt; Tuple[int, List[str]]
+⋮----
+&quot;&quot;&quot;Migrate print statements in a file.
+    Args:
+        file_path: Path to file
+        dry_run: If True, don&apos;t modify files
+    Returns:
+        Tuple of (migrations_count, changes_list)
+    &quot;&quot;&quot;
+⋮----
+lines = f.readlines()
+modified_lines = []
+changes = []
+migrations = 0
+⋮----
+# Add import
+modified_lines_stripped = [line.rstrip(&quot;\n&quot;) for line in modified_lines]
+modified_lines_stripped = add_console_import(modified_lines_stripped)
+⋮----
+def migrate_directory(dir_path: Path, pattern: str = &quot;**/*.py&quot;, dry_run: bool = True)
+⋮----
+results = {&quot;total_files&quot;: 0, &quot;modified_files&quot;: 0, &quot;total_migrations&quot;: 0, &quot;files&quot;: {}}
+⋮----
+def main()
+⋮----
+parser = argparse.ArgumentParser(description=&quot;Smart console.blank() to console migration&quot;)
+⋮----
+args = parser.parse_args()
+project_root = Path(__file__).parent.parent
+⋮----
+path = Path(args.path)
+⋮----
+path = project_root / path
+⋮----
+results = migrate_directory(path, dry_run=args.dry_run)
+⋮----
+results = migrate_directory(project_root / &quot;scripts&quot;, dry_run=args.dry_run)
+⋮----
+results = migrate_directory(project_root / &quot;tests&quot;, dry_run=args.dry_run)
+⋮----
+scripts_results = migrate_directory(project_root / &quot;scripts&quot;, dry_run=args.dry_run)
+⋮----
+# Tests
+⋮----
+tests_results = migrate_directory(project_root / &quot;tests&quot;, dry_run=args.dry_run)
+⋮----
+# Root level scripts
+⋮----
+root_results = migrate_directory(project_root, pattern=&quot;*.py&quot;, dry_run=args.dry_run)
+⋮----
+# Summary
+total_migrations = scripts_results[&quot;total_migrations&quot;] + tests_results[&quot;total_migrations&quot;] + root_results[&quot;total_migrations&quot;]</file><file path="scripts/migration_common.py">MIGRATION_ERROR_TEST_FILES = [
+def read_lines(file_path: Path) -&gt; List[str]
+def write_lines(file_path: Path, lines: Sequence[str]) -&gt; None
+def _normalize_ranges(ranges: Sequence[Tuple[int, int]]) -&gt; List[Tuple[int, int]]
+⋮----
+valid = sorted((start, end) for start, end in ranges if start &lt; end)
+⋮----
+merged: List[Tuple[int, int]] = [valid[0]]
+⋮----
+def remove_line_ranges(lines: Sequence[str], ranges: Sequence[Tuple[int, int]]) -&gt; List[str]
+⋮----
+merged = _normalize_ranges(ranges)
+⋮----
+result: List[str] = []
+range_idx = 0
+⋮----
+in_range = range_idx &lt; len(merged) and current_start &lt;= line_idx &lt; current_end</file><file path="scripts/README.md"># Scripts
+
+This directory contains utility scripts for running ast-grep MCP tools from the command line.
+
+## find_duplication.py
+
+Python script to detect duplicate code in a project.
+
+### Usage
+
+```bash
+# Basic usage - analyze Python functions
+uv run python scripts/find_duplication.py /path/to/project --language python
+
+# Analyze JavaScript classes
+uv run python scripts/find_duplication.py /path/to/project --language javascript --construct-type class_definition
+
+# Strict similarity threshold (90%)
+uv run python scripts/find_duplication.py /path/to/project --language python --min-similarity 0.9
+
+# Ignore small functions (less than 10 lines)
+uv run python scripts/find_duplication.py /path/to/project --language python --min-lines 10
+
+# Output as JSON
+uv run python scripts/find_duplication.py /path/to/project --language python --json
+```
+
+### Options
+
+- `project_folder` (required): Absolute path to the project to analyze
+- `--language, -l` (required): Programming language (python, javascript, typescript, java, go, etc.)
+- `--construct-type, -c`: Type of construct to analyze (default: function_definition)
+  - `function_definition`: Regular functions
+  - `class_definition`: Classes
+  - `method_definition`: Methods within classes
+- `--min-similarity, -s`: Minimum similarity threshold 0.0-1.0 (default: 0.8)
+- `--min-lines, -m`: Minimum lines to consider for duplication (default: 5)
+- `--json, -j`: Output results as JSON instead of formatted text
+
+### Examples
+
+**Find duplicate Python functions:**
+```bash
+uv run python scripts/find_duplication.py /path/to/my-project --language python
+```
+
+**Find duplicate JavaScript classes with strict matching:**
+```bash
+uv run python scripts/find_duplication.py /path/to/my-app \
+    --language javascript \
+    --construct-type class_definition \
+    --min-similarity 0.95
+```
+
+**Analyze only larger functions (10+ lines):**
+```bash
+uv run python scripts/find_duplication.py /path/to/my-project \
+    --language python \
+    --min-lines 10
+```
+
+**Get JSON output for programmatic processing:**
+```bash
+uv run python scripts/find_duplication.py /path/to/my-project \
+    --language python \
+    --json &gt; duplication-report.json
+```
+
+## find_duplication.sh
+
+Bash wrapper for the Python script (simpler interface).
+
+### Usage
+
+```bash
+# Basic usage
+./scripts/find_duplication.sh /path/to/project python
+
+# With construct type
+./scripts/find_duplication.sh /path/to/project javascript class_definition
+
+# With similarity threshold
+./scripts/find_duplication.sh /path/to/project python function_definition 0.9
+
+# With all options
+./scripts/find_duplication.sh /path/to/project python function_definition 0.8 10
+```
+
+### Arguments (positional)
+
+1. `project_folder` (required): Absolute path to the project
+2. `language` (optional, default: python): Programming language
+3. `construct_type` (optional, default: function_definition): Type of construct
+4. `min_similarity` (optional, default: 0.8): Similarity threshold
+5. `min_lines` (optional, default: 5): Minimum lines
+
+### Examples
+
+**Analyze Python project:**
+```bash
+./scripts/find_duplication.sh /Users/me/myproject python
+```
+
+**Analyze JavaScript classes:**
+```bash
+./scripts/find_duplication.sh /Users/me/webapp javascript class_definition
+```
+
+**Strict matching (95% similarity):**
+```bash
+./scripts/find_duplication.sh /Users/me/myproject python function_definition 0.95
+```
+
+## Output Format
+
+The script outputs a formatted report with three sections:
+
+### 1. Summary
+- Total constructs analyzed
+- Duplicate groups found
+- Total duplicated lines
+- Potential line savings
+- Analysis time
+
+### 2. Duplication Groups
+- Group ID and similarity score
+- List of duplicate instances with file locations
+- Code preview for each instance
+
+### 3. Refactoring Suggestions
+- Suggestion type (Extract Function, Base Class, etc.)
+- Description and recommendation
+- Number of duplicates and lines
+- File locations for all duplicates
+
+## Supported Languages
+
+The tool works with all languages supported by ast-grep:
+
+- JavaScript/TypeScript
+- Python
+- Java
+- Go
+- Rust
+- C/C++
+- C#
+- Ruby
+- PHP
+- And many more...
+
+See the [ast-grep language documentation](https://ast-grep.github.io/reference/languages.html) for a complete list.
+
+## Tips
+
+1. **Start with defaults**: Try running with default settings first to get a baseline
+2. **Adjust similarity**: Lower threshold (0.7) finds more potential duplicates; higher (0.9) is more strict
+3. **Filter small code**: Use `--min-lines 10` to focus on larger duplications
+4. **JSON output**: Use `--json` for integration with other tools or CI/CD pipelines
+5. **Large projects**: The analysis may take longer on large codebases; be patient
+
+## Troubleshooting
+
+**Error: &quot;Command not found: ast-grep&quot;**
+- Install ast-grep: `brew install ast-grep` or see [installation guide](https://ast-grep.github.io/guide/quick-start.html#installation)
+
+**Error: &quot;Project folder must be an absolute path&quot;**
+- Use absolute paths: `/Users/me/project` not `./project`
+- Use `pwd` to get current directory: `$(pwd)/project`
+
+**No duplicates found when you expect some:**
+- Try lowering `--min-similarity` (e.g., 0.7)
+- Try lowering `--min-lines` (e.g., 3)
+- Check that the correct `--construct-type` is specified
+- Verify the `--language` matches your codebase
+
+**Too many false positives:**
+- Increase `--min-similarity` (e.g., 0.9)
+- Increase `--min-lines` to focus on larger code blocks</file><file path="scripts/replace-magic.sh">set -euo pipefail
+usage() {
+  cat &lt;&lt;&apos;EOF&apos;
+Usage:
+  scripts/replace-magic.sh --from &lt;pattern&gt; --to &lt;replacement&gt; [options] [path...]
+Description:
+  Preview-first helper for rg + sed replacements.
+  Designed for replacing magic values with constants.
+Required:
+  --from &lt;pattern&gt;        Search pattern (literal unless --regex is set)
+  --to &lt;replacement&gt;      Replacement text
+Options:
+  --apply                 Apply changes in-place (default: preview only)
+  --regex                 Treat --from as regex (default: literal)
+  --word                  Match token boundaries for --from (good for numbers)
+  --glob &lt;pattern&gt;        Include only matching files (repeatable)
+  --context &lt;n&gt;           Context lines for preview (default: 2)
+  --help                  Show this help
+Examples:
+  scripts/replace-magic.sh --from 1000 --to TIME_MS.SECOND --word --glob &apos;*.ts&apos; sidequest api
+  scripts/replace-magic.sh --from 1000 --to TIME_MS.SECOND --word --glob &apos;*.ts&apos; --apply sidequest api
+  scripts/replace-magic.sh --from &apos;30\\s*\\*\\s*24\\s*\\*\\s*60\\s*\\*\\s*60&apos; \
+    --to &apos;GIT_ACTIVITY.MONTHLY_WINDOW_DAYS * (TIME_MS.DAY / TIME_MS.SECOND)&apos; \
+    --regex --glob &apos;*.ts&apos; sidequest
+EOF
+}
+escape_ere_literal() {
+  printf &apos;%s&apos; &quot;$1&quot; | sed -e &apos;s/[][\.^$*+?(){}|/\\]/\\&amp;/g&apos;
+}
+escape_replacement() {
+  printf &apos;%s&apos; &quot;$1&quot; | sed -e &apos;s/[&amp;|\\]/\\&amp;/g&apos;
+}
+run_sed_in_place() {
+  local expr=&quot;$1&quot;
+  shift
+  if sed --version &gt;/dev/null 2&gt;&amp;1; then
+    sed -E -i -e &quot;$expr&quot; &quot;$@&quot;
+  else
+    sed -E -i &apos;&apos; -e &quot;$expr&quot; &quot;$@&quot;
+  fi
+}
+from=&quot;&quot;
+to=&quot;&quot;
+apply=0
+is_regex=0
+word_mode=0
+context=2
+declare -a globs=()
+declare -a paths=()
+while (($#)); do
+  case &quot;$1&quot; in
+    --from)
+      from=&quot;${2-}&quot;
+      shift 2
+      ;;
+    --to)
+      to=&quot;${2-}&quot;
+      shift 2
+      ;;
+    --apply)
+      apply=1
+      shift
+      ;;
+    --regex)
+      is_regex=1
+      shift
+      ;;
+    --word)
+      word_mode=1
+      shift
+      ;;
+    --glob)
+      globs+=(&quot;${2-}&quot;)
+      shift 2
+      ;;
+    --context)
+      context=&quot;${2-}&quot;
+      shift 2
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      while (($
+        paths+=(&quot;$1&quot;)
+        shift
+      done
+      ;;
+    -*)
+      echo &quot;Unknown option: $1&quot; &gt;&amp;2
+      usage
+      exit 1
+      ;;
+    *)
+      paths+=(&quot;$1&quot;)
+      shift
+      ;;
+  esac
+done
+if [[ -z &quot;$from&quot; || -z &quot;$to&quot; ]]; then
+  echo &quot;Both --from and --to are required.&quot; &gt;&amp;2
+  usage
+  exit 1
+fi
+if [[ ! &quot;$context&quot; =~ ^[0-9]+$ ]]; then
+  echo &quot;--context must be a non-negative integer.&quot; &gt;&amp;2
+  exit 1
+fi
+if ((${
+  paths=(.)
+fi
+if ((is_regex)); then
+  rg_pattern=&quot;$from&quot;
+  sed_search=&quot;$from&quot;
+else
+  escaped=&quot;$(escape_ere_literal &quot;$from&quot;)&quot;
+  rg_pattern=&quot;$escaped&quot;
+  sed_search=&quot;$escaped&quot;
+fi
+if ((word_mode)); then
+  rg_pattern=&quot;(^|[^[:alnum:]_])(${rg_pattern})([^[:alnum:]_]|$)&quot;
+  sed_search=&quot;(^|[^[:alnum:]_])(${sed_search})([^[:alnum:]_]|$)&quot;
+  sed_repl=&quot;\\1$(escape_replacement &quot;$to&quot;)\\3&quot;
+else
+  sed_repl=&quot;$(escape_replacement &quot;$to&quot;)&quot;
+fi
+declare -a rg_args=(&quot;--pcre2&quot; &quot;-n&quot; &quot;-C&quot; &quot;$context&quot;)
+declare -a rg_files_args=(&quot;--pcre2&quot; &quot;-l&quot;)
+for g in &quot;${globs[@]}&quot;; do
+  rg_args+=(&quot;-g&quot; &quot;$g&quot;)
+  rg_files_args+=(&quot;-g&quot; &quot;$g&quot;)
+done
+echo &quot;Pattern: $from&quot;
+echo &quot;Replacement: $to&quot;
+echo &quot;Mode: $([[ $apply -eq 1 ]] &amp;&amp; echo apply || echo preview)&quot;
+echo &quot;Word boundary mode: $([[ $word_mode -eq 1 ]] &amp;&amp; echo on || echo off)&quot;
+echo
+set +e
+rg &quot;${rg_args[@]}&quot; &quot;$rg_pattern&quot; &quot;${paths[@]}&quot;
+preview_rc=$?
+set -e
+if ((preview_rc &gt; 1)); then
+  echo &quot;rg failed while previewing matches.&quot; &gt;&amp;2
+  exit &quot;$preview_rc&quot;
+fi
+if ((preview_rc == 1)); then
+  echo &quot;No matches found.&quot;
+  exit 0
+fi
+if ((apply == 0)); then
+  echo
+  echo &quot;Preview only. Re-run with --apply to modify files.&quot;
+  exit 0
+fi
+mapfile -t matched_files &lt; &lt;(rg &quot;${rg_files_args[@]}&quot; &quot;$rg_pattern&quot; &quot;${paths[@]}&quot;)
+if ((${
+  echo &quot;No files to update.&quot;
+  exit 0
+fi
+sed_expr=&quot;s|${sed_search}|${sed_repl}|g&quot;
+run_sed_in_place &quot;$sed_expr&quot; &quot;${matched_files[@]}&quot;
+echo
+echo &quot;Updated ${#matched_files[@]} file(s).&quot;
+echo &quot;Remaining matches after replacement:&quot;
+set +e
+rg &quot;${rg_args[@]}&quot; &quot;$rg_pattern&quot; &quot;${paths[@]}&quot;
+after_rc=$?
+set -e
+if ((after_rc == 1)); then
+  echo &quot;None.&quot;
+elif ((after_rc &gt; 1)); then
+  echo &quot;rg failed during post-check.&quot; &gt;&amp;2
+  exit &quot;$after_rc&quot;
+fi</file><file path="scripts/repo-compressed.sh">set -euo pipefail
+ROOT=&quot;${1:?Usage: $0 &lt;root_dir&gt; &lt;output_file&gt;}&quot;
+OUTPUT_FILE=&quot;${2:?Usage: $0 &lt;root_dir&gt; &lt;output_file&gt;}&quot;
+FORCE_COLOR=0 NO_COLOR=1 timeout 60 \
+npx repomix &quot;$ROOT&quot; --compress -o &quot;$OUTPUT_FILE&quot; &gt;/dev/null 2&gt;&amp;1</file><file path="scripts/repomix-docs.config.json">{
+  &quot;$schema&quot;: &quot;https://repomix.com/schemas/latest/schema.json&quot;,
+
+  &quot;output&quot;: {
+    &quot;style&quot;: &quot;xml&quot;,
+    &quot;parsableStyle&quot;: true,
+    &quot;removeComments&quot;: false,
+    &quot;removeEmptyLines&quot;: false,
+    &quot;truncateBase64&quot;: false,
+    &quot;fileSummary&quot;: false,
+    &quot;directoryStructure&quot;: true,
+    &quot;files&quot;: true,
+    &quot;showLineNumbers&quot;: false,
+    &quot;includeEmptyDirectories&quot;: false,
+    &quot;git&quot;: {
+      &quot;includeDiffs&quot;: false,
+      &quot;includeLogs&quot;: false,
+      &quot;includeLogsCount&quot;: 1
+    }
+  },
+
+  &quot;include&quot;: [
+    &quot;docs/**&quot;
+  ],
+
+  &quot;ignore&quot;: {
+    &quot;useGitignore&quot;: true,
+    &quot;useDotIgnore&quot;: true,
+    &quot;useDefaultPatterns&quot;: true,
+    &quot;customPatterns&quot;: [
+      &quot;**/node_modules/**&quot;,
+      &quot;docs/repomix/**&quot;,
+      &quot;**/repomix-output.*&quot;,
+      &quot;**/repo-compressed.*&quot;,
+      &quot;**/repomix.xml&quot;,
+      &quot;**/repo-compressed.xml&quot;
+    ]
+  },
+
+  &quot;security&quot;: {
+    &quot;enableSecurityCheck&quot;: true
+  },
+
+  &quot;tokenCount&quot;: {
+    &quot;encoding&quot;: &quot;o200k_base&quot;
+  }
+}</file><file path="scripts/repomix-regen.sh">set -euo pipefail
+ROOT=&quot;$(cd &quot;$(dirname &quot;$0&quot;)/..&quot; &amp;&amp; pwd)&quot;
+TREE_FILE=&quot;token-tree&quot;
+COMPRESSED_FILE=&quot;repo-compressed&quot;
+LOSSLESS_FILE=&quot;repomix&quot;
+DOCS_ONLY_FILE=&quot;repomix-docs&quot;
+GIT_RANKED_FILE=&quot;repomix-git-ranked&quot;
+OUTPUT_PATH=&quot;docs/repomix&quot;
+OUT_DIR=&quot;$ROOT/$OUTPUT_PATH&quot;
+TOKEN_TREE_FILE=&quot;$OUT_DIR/$TREE_FILE.txt&quot;
+COMPRESSED_REPO_FILE=&quot;$OUT_DIR/$COMPRESSED_FILE.xml&quot;
+LOSSLESS_REPO_FILE=&quot;$OUT_DIR/$LOSSLESS_FILE.xml&quot;
+DOCS_ONLY_REPO_FILE=&quot;$OUT_DIR/$DOCS_ONLY_FILE.xml&quot;
+GIT_RANKED_REPO_FILE=&quot;$OUT_DIR/$GIT_RANKED_FILE.xml&quot;
+GITLOG_TOP_FILE=&quot;$OUT_DIR/gitlog-top20.txt&quot;
+TREE_FILE_NAME=&quot;$OUTPUT_PATH/$TREE_FILE.txt&quot;
+COMPRESSED_FILE_NAME=&quot;$OUTPUT_PATH/$COMPRESSED_FILE.xml&quot;
+LOSSLESS_FILE_NAME=&quot;$OUTPUT_PATH/$LOSSLESS_FILE.xml&quot;
+DOCS_ONLY_FILE_NAME=&quot;$OUTPUT_PATH/$DOCS_ONLY_FILE.xml&quot;
+GIT_RANKED_FILE_NAME=&quot;$OUTPUT_PATH/$GIT_RANKED_FILE.xml&quot;
+GITLOG_TOP_FILE_NAME=&quot;$OUTPUT_PATH/gitlog-top20.txt&quot;
+INPUT_DIR=&quot;$ROOT/scripts/generate-&quot;
+TOKEN_TREE_SCRIPT=&quot;$INPUT_DIR$TREE_FILE.sh&quot;
+COMPRESS_SCRIPT=&quot;$INPUT_DIR$COMPRESSED_FILE.sh&quot;
+LOSSLESS_SCRIPT=&quot;$INPUT_DIR$LOSSLESS_FILE.sh&quot;
+DOCS_ONLY_SCRIPT=&quot;$INPUT_DIR$DOCS_ONLY_FILE.sh&quot;
+GIT_RANKED_SCRIPT=&quot;$INPUT_DIR$GIT_RANKED_FILE.sh&quot;
+GITLOG_TOP_SCRIPT=&quot;$ROOT/scripts/generate-diff-summary.sh&quot;
+GIT_RANKED_INCLUDE_LOGS_COUNT=&quot;${REPOMIX_GIT_RANKED_INCLUDE_LOGS_COUNT:-200}&quot;
+echo &quot;File set up...&quot;
+mkdir -p &quot;$OUT_DIR&quot;
+rm -f \
+  &quot;$TOKEN_TREE_FILE&quot; \
+  &quot;$COMPRESSED_REPO_FILE&quot; \
+  &quot;$LOSSLESS_REPO_FILE&quot; \
+  &quot;$DOCS_ONLY_REPO_FILE&quot; \
+  &quot;$GIT_RANKED_REPO_FILE&quot; \
+  &quot;$GITLOG_TOP_FILE&quot;
+PROJECT_DIR=&quot;$(basename &quot;$ROOT&quot;)&quot;
+echo &quot;Generating token count tree for $PROJECT_DIR at $TREE_FILE_NAME&quot;
+bash &quot;$TOKEN_TREE_SCRIPT&quot; &quot;$ROOT&quot; &quot;$TOKEN_TREE_FILE&quot;
+echo &quot;Success!&quot;
+echo
+echo &quot;Generating compressed repomix file for $PROJECT_DIR at $COMPRESSED_FILE_NAME&quot;
+bash &quot;$COMPRESS_SCRIPT&quot; &quot;$ROOT&quot; &quot;$COMPRESSED_REPO_FILE&quot;
+echo &quot;Success!&quot;
+echo
+echo &quot;Generating repomix file for $PROJECT_DIR at $LOSSLESS_FILE_NAME&quot;
+bash &quot;$LOSSLESS_SCRIPT&quot; &quot;$ROOT&quot; &quot;$LOSSLESS_REPO_FILE&quot;
+echo &quot;Success!&quot;
+echo
+echo &quot;Generating docs-only repomix file for $PROJECT_DIR at $DOCS_ONLY_FILE_NAME&quot;
+bash &quot;$DOCS_ONLY_SCRIPT&quot; &quot;$ROOT&quot; &quot;$DOCS_ONLY_REPO_FILE&quot;
+echo &quot;Success!&quot;
+echo
+echo &quot;Generating git-ranked repomix file for $PROJECT_DIR at $GIT_RANKED_FILE_NAME&quot;
+bash &quot;$GIT_RANKED_SCRIPT&quot; &quot;$ROOT&quot; &quot;$GIT_RANKED_REPO_FILE&quot; &quot;$GIT_RANKED_INCLUDE_LOGS_COUNT&quot;
+echo &quot;Success!&quot;
+echo
+echo &quot;Generating top-file git history at $GITLOG_TOP_FILE_NAME&quot;
+(
+  cd &quot;$ROOT&quot;
+  bash &quot;$GITLOG_TOP_SCRIPT&quot;
+)
+echo &quot;Success!&quot;
+echo
+echo &quot;Artifacts:&quot;
+print_artifact() {
+  local file_path=&quot;$1&quot;
+  local display_name=&quot;$2&quot;
+  if [[ -f &quot;$file_path&quot; ]]; then
+    chars=$(wc -c &lt; &quot;$file_path&quot; | tr -d &apos; &apos;)
+    tokens=$((chars / 4))
+    echo &quot; - $display_name (~$tokens tokens, $chars chars)&quot;
+  else
+    echo &quot; - $display_name (missing)&quot;
+  fi
+}
+print_artifact &quot;$TOKEN_TREE_FILE&quot; &quot;$TREE_FILE_NAME&quot;
+print_artifact &quot;$COMPRESSED_REPO_FILE&quot; &quot;$COMPRESSED_FILE_NAME&quot;
+print_artifact &quot;$LOSSLESS_REPO_FILE&quot; &quot;$LOSSLESS_FILE_NAME&quot;
+print_artifact &quot;$DOCS_ONLY_REPO_FILE&quot; &quot;$DOCS_ONLY_FILE_NAME&quot;
+print_artifact &quot;$GIT_RANKED_REPO_FILE&quot; &quot;$GIT_RANKED_FILE_NAME&quot;
+print_artifact &quot;$GITLOG_TOP_FILE&quot; &quot;$GITLOG_TOP_FILE_NAME&quot;</file><file path="scripts/repomix.config.json">{
+  &quot;$schema&quot;: &quot;https://repomix.com/schemas/latest/schema.json&quot;,
+
+  &quot;input&quot;: {
+    &quot;maxFileSize&quot;: 50000000
+  },
+
+  &quot;output&quot;: {
+    &quot;filePath&quot;: &quot;docs/repomix/repo-compressed.xml&quot;,
+    &quot;style&quot;: &quot;xml&quot;,
+    &quot;parsableStyle&quot;: true,
+
+    &quot;compress&quot;: true,
+    &quot;removeComments&quot;: true,
+    &quot;removeEmptyLines&quot;: true,
+    &quot;truncateBase64&quot;: true,
+
+    &quot;fileSummary&quot;: false,
+    &quot;directoryStructure&quot;: true,
+    &quot;files&quot;: true,
+
+    &quot;topFilesLength&quot;: 20,
+    &quot;showLineNumbers&quot;: false,
+    &quot;copyToClipboard&quot;: false,
+
+    &quot;includeEmptyDirectories&quot;: false,
+    &quot;includeFullDirectoryStructure&quot;: true,
+
+    &quot;headerText&quot;: &quot;Repo bundle generated by Repomix (XML output, compressed). Focus on core runtime code first: api/, sidequest/, frontend/, scripts/, config/. Docs are mostly excluded to control token bloat. Git diffs/logs are disabled.&quot;,
+
+    &quot;instructionFilePath&quot;: &quot;docs/repomix/repomix-instruction.md&quot;,
+
+    &quot;git&quot;: {
+      &quot;sortByChanges&quot;: true,
+      &quot;sortByChangesMaxCommits&quot;: 200,
+      &quot;includeDiffs&quot;: false,
+      &quot;includeLogs&quot;: false,
+      &quot;includeLogsCount&quot;: 1
+    }
+  },
+
+  &quot;include&quot;: [
+    &quot;api/**/*&quot;,
+    &quot;frontend/**/*&quot;,
+    &quot;sidequest/**/*&quot;,
+    &quot;cloudflare-workers/**/*&quot;,
+    &quot;config/**/*&quot;,
+    &quot;scripts/**/*&quot;,
+    &quot;nginx/**/*&quot;,
+    &quot;.github/**/*&quot;,
+    &quot;.husky/**/*&quot;,
+    &quot;.ast-grep/**/*&quot;,
+
+    &quot;package.json&quot;,
+    &quot;pnpm-workspace.yaml&quot;,
+    &quot;tsconfig.json&quot;,
+    &quot;eslint.config.js&quot;,
+    &quot;render.yaml&quot;,
+    &quot;requirements.txt&quot;,
+    &quot;README.md&quot;,
+    &quot;CLAUDE.md&quot;,
+    &quot;GEMINI.md&quot;,
+    &quot;.mise.toml&quot;,
+    &quot;.repomixignore&quot;,
+    &quot;.env.example&quot;
+  ],
+
+  &quot;ignore&quot;: {
+    &quot;useGitignore&quot;: true,
+    &quot;useDotIgnore&quot;: true,
+    &quot;useDefaultPatterns&quot;: true,
+
+    &quot;customPatterns&quot;: [
+      &quot;**/docs/**&quot;,
+      &quot;docs/**&quot;,
+
+      &quot;docs/repomix/**&quot;,
+      &quot;**/repomix-output.*&quot;,
+      &quot;**/repo-compressed.*&quot;,
+      &quot;**/repo-compressed.xml&quot;,
+      &quot;**/repomix.xml&quot;,
+
+      &quot;**/.ast-grep-backups/**&quot;,
+      &quot;.ast-grep-backups/**&quot;,
+
+      &quot;**/node_modules/**&quot;,
+      &quot;**/dist/**&quot;,
+      &quot;**/build/**&quot;,
+      &quot;**/out/**&quot;,
+      &quot;**/.next/**&quot;,
+      &quot;**/.turbo/**&quot;,
+      &quot;**/.vite/**&quot;,
+      &quot;**/coverage/**&quot;,
+
+      &quot;**/*.log&quot;,
+      &quot;**/*.tmp&quot;,
+      &quot;**/*.temp&quot;,
+      &quot;**/*.cache&quot;,
+      &quot;**/*.swp&quot;,
+      &quot;**/*.swo&quot;,
+      &quot;**/*.tsbuildinfo&quot;,
+      &quot;**/*.map&quot;,
+      &quot;**/*.min.js&quot;,
+      &quot;**/*.min.css&quot;,
+
+      &quot;**/__snapshots__/**&quot;,
+      &quot;**/*.snap&quot;,
+      &quot;tests/**&quot;,
+      &quot;**/*.test.*&quot;,
+      &quot;**/*.spec.*&quot;,
+
+      &quot;**/fixtures/**&quot;,
+      &quot;**/test-files/**&quot;,
+      &quot;**/manual/**&quot;,
+      &quot;**/results/**&quot;,
+
+      &quot;**/*.png&quot;,
+      &quot;**/*.jpg&quot;,
+      &quot;**/*.jpeg&quot;,
+      &quot;**/*.gif&quot;,
+      &quot;**/*.webp&quot;,
+      &quot;**/*.ico&quot;,
+      &quot;**/*.pdf&quot;,
+      &quot;**/*.zip&quot;,
+      &quot;**/*.tar&quot;,
+      &quot;**/*.gz&quot;,
+      &quot;**/*.tgz&quot;,
+      &quot;**/*.7z&quot;,
+      &quot;**/*.mp4&quot;,
+      &quot;**/*.mov&quot;,
+      &quot;**/*.avi&quot;,
+      &quot;**/*.mp3&quot;,
+      &quot;**/*.wav&quot;,
+
+      &quot;**/.env&quot;,
+      &quot;**/.env.*&quot;,
+      &quot;**/*.pem&quot;,
+      &quot;**/*.key&quot;,
+      &quot;**/*.p12&quot;,
+      &quot;**/*.pfx&quot;,
+      &quot;**/*secret*&quot;
+    ]
+  },
+
+  &quot;security&quot;: {
+    &quot;enableSecurityCheck&quot;: true
+  },
+
+  &quot;tokenCount&quot;: {
+    &quot;encoding&quot;: &quot;o200k_base&quot;
+  },
+
+  &quot;tokenBudget&quot;: {
+    &quot;maxTokens&quot;: 200000
+  }
+}</file><file path="scripts/run_benchmarks.py">def run_benchmarks(save_baseline: bool = False, check_regression: bool = False, output_file: str = &quot;benchmark_report.md&quot;) -&gt; int
+⋮----
+cmd = [&quot;uv&quot;, &quot;run&quot;, &quot;python&quot;, &quot;-m&quot;, &quot;pytest&quot;, &quot;tests/test_benchmark.py&quot;, &quot;-v&quot;, &quot;-s&quot;]
+⋮----
+# Run benchmarks
+⋮----
+result = subprocess.run(cmd, check=False)
+⋮----
+baseline_file = Path(&quot;tests/benchmark_baseline.json&quot;)
+⋮----
+# Regression check happens in the test suite
+# If we got here without errors, no regressions detected
+⋮----
+def main() -&gt; int
+⋮----
+parser = argparse.ArgumentParser(
+⋮----
+args = parser.parse_args()</file><file path="scripts/run-python-tests.sh">set -euo pipefail
+ROOT=&quot;$(cd &quot;$(dirname &quot;$0&quot;)/..&quot; &amp;&amp; pwd)&quot;
+TEST_TARGETS=(
+  &quot;sidequest/pipeline-core&quot;
+  &quot;sidequest/pipeline-runners/test_collect_git_activity.py&quot;
+)
+resolve_python() {
+  local candidate=&quot;$1&quot;
+  if [[ -z &quot;$candidate&quot; ]]; then
+    return 1
+  fi
+  if [[ &quot;$candidate&quot; == */* ]]; then
+    [[ -x &quot;$candidate&quot; ]] || return 1
+    printf &apos;%s\n&apos; &quot;$candidate&quot;
+    return 0
+  fi
+  command -v &quot;$candidate&quot; 2&gt;/dev/null || return 1
+}
+can_run_tests() {
+  local python_bin=&quot;$1&quot;
+  &quot;$python_bin&quot; -c &quot;import pytest, pydantic&quot; &gt;/dev/null 2&gt;&amp;1
+}
+declare -a CANDIDATES=()
+if [[ -n &quot;${PYTEST_PYTHON:-}&quot; ]]; then
+  CANDIDATES+=(&quot;$PYTEST_PYTHON&quot;)
+fi
+CANDIDATES+=(
+  &quot;$ROOT/venv/bin/python&quot;
+  &quot;python3&quot;
+  &quot;python&quot;
+  &quot;$HOME/.pyenv/versions/3.13.7/bin/python&quot;
+  &quot;/Users/alyshialedlie/code-env/python/pyenv/versions/3.13.7/bin/python&quot;
+)
+declare -a UNIQUE_BINS=()
+for candidate in &quot;${CANDIDATES[@]}&quot;; do
+  python_bin=&quot;$(resolve_python &quot;$candidate&quot; || true)&quot;
+  [[ -n &quot;${python_bin:-}&quot; ]] || continue
+  already_seen=false
+  for seen_bin in &quot;${UNIQUE_BINS[@]-}&quot;; do
+    if [[ &quot;$seen_bin&quot; == &quot;$python_bin&quot; ]]; then
+      already_seen=true
+      break
+    fi
+  done
+  if [[ &quot;$already_seen&quot; == true ]]; then
+    continue
+  fi
+  UNIQUE_BINS+=(&quot;$python_bin&quot;)
+  if can_run_tests &quot;$python_bin&quot;; then
+    echo &quot;Using Python test runner: $python_bin&quot;
+    cd &quot;$ROOT&quot;
+    PYTHONNOUSERSITE=1 &quot;$python_bin&quot; -m pytest -q &quot;${TEST_TARGETS[@]}&quot; &quot;$@&quot;
+    exit 0
+  fi
+done
+echo &quot;No Python interpreter with both pytest and pydantic was found.&quot; &gt;&amp;2
+echo &quot;Set PYTEST_PYTHON=/path/to/python and retry.&quot; &gt;&amp;2
+exit 1</file><file path="scripts/schema-graph-builder.py">class StatsDict(TypedDict)
+⋮----
+files_found: int
+entities_extracted: int
+entities_unique: int
+relationships: int
+ids_added: int
+ids_validated: int
+validation_warnings: List[str]
+class SchemaGraphBuilder
+⋮----
+def __init__(self, base_url: str, project_name: Optional[str] = None)
+⋮----
+@staticmethod
+    def _extract_project_name(base_url: str) -&gt; str
+def discover_json_schemas(self, directory: Path, exclude_patterns: Optional[List[str]] = None) -&gt; List[Path]
+⋮----
+exclude_patterns = [
+json_files = []
+⋮----
+data = json.load(f)
+⋮----
+def generate_entity_id(self, entity_type: str, slug: Optional[str] = None) -&gt; str
+⋮----
+entity_fragment = entity_type.lower()
+⋮----
+def validate_entity_id(self, entity_id: str) -&gt; Dict[str, Any]
+warnings = []
+⋮----
+def extract_entities_from_schema(self, data: Any, parent_path: str = &quot;&quot;) -&gt; List[Dict[str, Any]]
+⋮----
+&quot;&quot;&quot;
+        Recursively extract all entities (objects with @type and @id) from Schema.org JSON.
+        Args:
+            data: JSON data structure
+            parent_path: Path in the data tree (for debugging)
+        Returns:
+            List of extracted entities
+        &quot;&quot;&quot;
+entities = []
+⋮----
+# If this is an entity (has @type and @id)
+⋮----
+entity = {&quot;@id&quot;: data[&quot;@id&quot;], &quot;@type&quot;: data[&quot;@type&quot;], &quot;parent_path&quot;: parent_path}
+⋮----
+nested_entities = self.extract_entities_from_schema(value, f&quot;{parent_path}.{key}&quot;)
+⋮----
+new_list = []
+⋮----
+nested_entities = self.extract_entities_from_schema(item, f&quot;{parent_path}.{key}[{i}]&quot;)
+⋮----
+def merge_duplicate_entities(self, entities: List[Dict[str, Any]]) -&gt; List[Dict[str, Any]]
+⋮----
+&quot;&quot;&quot;
+        Merge entities with the same @id, combining their properties.
+        Args:
+            entities: List of entities to merge
+        Returns:
+            List of unique entities
+        &quot;&quot;&quot;
+entity_map = {}
+⋮----
+entity_id = entity[&quot;@id&quot;]
+⋮----
+existing = entity_map[entity_id]
+⋮----
+def build_entity_graph(self, json_files: List[Path]) -&gt; Dict[str, Any]
+⋮----
+all_entities = []
+⋮----
+# Extract entities from all files
+⋮----
+entities = self.extract_entities_from_schema(data)
+⋮----
+unique_entities = self.merge_duplicate_entities(all_entities)
+⋮----
+graph = {&quot;@context&quot;: &quot;https://schema.org&quot;, &quot;@graph&quot;: unique_entities}
+⋮----
+def analyze_relationships(self, graph: Dict[str, Any]) -&gt; Dict[str, Any]
+⋮----
+entities = graph[&quot;@graph&quot;]
+type_counts: Dict[str, int] = defaultdict(int)
+⋮----
+entity_type = entity[&quot;@type&quot;]
+⋮----
+relationships = []
+⋮----
+source_id = entity[&quot;@id&quot;]
+source_type = entity[&quot;@type&quot;]
+⋮----
+relationship_counts: Dict[str, int] = defaultdict(int)
+⋮----
+def generate_documentation(self, graph: Dict[str, Any], analysis: Dict[str, Any], json_files: List[Path]) -&gt; str
+⋮----
+doc_lines = []
+⋮----
+# Add entity types
+⋮----
+# Add relationship types
+⋮----
+target_short = rel[&quot;target&quot;].replace(self.base_url, &quot;&quot;)
+⋮----
+results = []
+⋮----
+entity_id = entity.get(&quot;@id&quot;)
+⋮----
+result = self.validate_entity_id(entity_id)
+⋮----
+parser = argparse.ArgumentParser(
+⋮----
+args = parser.parse_args()
+⋮----
+# Set output directory
+⋮----
+output_dir = Path(args.output_dir)
+⋮----
+output_dir = args.directory / &quot;schema-analysis&quot;
+⋮----
+builder = SchemaGraphBuilder(args.base_url, args.name)
+⋮----
+json_files = builder.discover_json_schemas(args.directory, args.exclude)
+⋮----
+# Build entity graph
+graph = builder.build_entity_graph(json_files)
+# Analyze relationships
+⋮----
+analysis = builder.analyze_relationships(graph)
+⋮----
+# Validate all @id values
+⋮----
+validation_results = builder.validate_all_entity_ids(graph)
+valid_count = sum(1 for r in validation_results if r[&quot;valid&quot;])
+⋮----
+# Save outputs
+⋮----
+# Save unified graph
+graph_file = output_dir / &quot;unified-entity-graph.json&quot;
+⋮----
+# Save analysis
+analysis_file = output_dir / &quot;entity-graph-analysis.json&quot;
+⋮----
+# Save validation results
+validation_file = output_dir / &quot;entity-id-validation.json&quot;
+⋮----
+# Generate documentation
+documentation = builder.generate_documentation(graph, analysis, json_files)
+doc_file = output_dir / &quot;ENTITY-GRAPH-SUMMARY.md&quot;
+⋮----
+# Print summary
+⋮----
+# JSON output mode
+⋮----
+summary = {</file><file path="scripts/validate-permissions.ts">import fs from &apos;fs/promises&apos;;
+import path from &apos;path&apos;;
+import { fileURLToPath } from &apos;url&apos;;
+⋮----
+async function checkFilePermissions(filePath)
+async function fixFilePermissions(filePath)
+function reportInvalidFiles(invalid: Awaited&lt;ReturnType&lt;typeof checkFilePermissions&gt;&gt;[])
+async function applyPermissionFixes(executable: Awaited&lt;ReturnType&lt;typeof checkFilePermissions&gt;&gt;[])
+async function main()</file><file path="scripts/verify-bugfixes.sh">set -e
+GREEN=&apos;\033[0;32m&apos;
+RED=&apos;\033[0;31m&apos;
+YELLOW=&apos;\033[1;33m&apos;
+BLUE=&apos;\033[0;34m&apos;
+NC=&apos;\033[0m&apos;
+PASSED=0
+FAILED=0
+WARNINGS=0
+SCRIPT_DIR=&quot;$(cd &quot;$(dirname &quot;${BASH_SOURCE[0]}&quot;)&quot; &amp;&amp; pwd)&quot;
+PROJECT_ROOT=&quot;$(dirname &quot;$SCRIPT_DIR&quot;)&quot;
+# Deployment mode
+MODE=&quot;${1:-all}&quot;
+#############################################
+# Helper Functions
+#############################################
+print_header() {
+  echo &quot;&quot;
+  echo -e &quot;${BLUE}═══════════════════════════════════════════════════════${NC}&quot;
+  echo -e &quot;${BLUE}  $1${NC}&quot;
+  echo -e &quot;${BLUE}═══════════════════════════════════════════════════════${NC}&quot;
+  echo &quot;&quot;
+}
+print_section() {
+  echo &quot;&quot;
+  echo -e &quot;${YELLOW}▸ $1${NC}&quot;
+  echo &quot;&quot;
+}
+check_pass() {
+  echo -e &quot;${GREEN}✓${NC} $1&quot;
+  ((PASSED++))
+}
+check_fail() {
+  echo -e &quot;${RED}✗${NC} $1&quot;
+  ((FAILED++))
+}
+check_warn() {
+  echo -e &quot;${YELLOW}⚠${NC} $1&quot;
+  ((WARNINGS++))
+}
+print_summary() {
+  echo &quot;&quot;
+  echo -e &quot;${BLUE}═══════════════════════════════════════════════════════${NC}&quot;
+  echo -e &quot;${BLUE}  Summary${NC}&quot;
+  echo -e &quot;${BLUE}═══════════════════════════════════════════════════════${NC}&quot;
+  echo &quot;&quot;
+  echo -e &quot;  ${GREEN}Passed:${NC}   $PASSED&quot;
+  echo -e &quot;  ${RED}Failed:${NC}   $FAILED&quot;
+  echo -e &quot;  ${YELLOW}Warnings:${NC} $WARNINGS&quot;
+  echo &quot;&quot;
+  if [ $FAILED -eq 0 ]; then
+    echo -e &quot;${GREEN}✓ All checks passed!${NC}&quot;
+    return 0
+  else
+    echo -e &quot;${RED}✗ $FAILED check(s) failed${NC}&quot;
+    return 1
+  fi
+}
+#############################################
+# Pre-Deployment Checks
+#############################################
+pre_deployment_checks() {
+  print_header &quot;Pre-Deployment Checks&quot;
+  print_section &quot;Verifying New Files&quot;
+  local files=(
+    &quot;sidequest/pipeline-core/doppler-health-monitor.ts&quot;
+    &quot;api/utils/port-manager.ts&quot;
+    &quot;api/activity-feed.ts&quot;
+    &quot;api/event-broadcaster.ts&quot;
+  )
+  for file in &quot;${files[@]}&quot;; do
+    if [ -f &quot;$PROJECT_ROOT/$file&quot; ]; then
+      check_pass &quot;File exists: $file&quot;
+    else
+      check_fail &quot;Missing file: $file&quot;
+    fi
+  done
+  print_section &quot;Checking Pipeline Script Shebangs&quot;
+  local pipeline_scripts=(
+    &quot;sidequest/pipeline-runners/duplicate-detection-pipeline.ts&quot;
+    &quot;sidequest/pipeline-runners/git-activity-pipeline.ts&quot;
+    &quot;sidequest/pipeline-runners/gitignore-pipeline.ts&quot;
+    &quot;sidequest/pipeline-runners/plugin-management-pipeline.ts&quot;
+    &quot;sidequest/pipeline-runners/claude-health-pipeline.ts&quot;
+    &quot;sidequest/pipeline-runners/repo-cleanup-pipeline.ts&quot;
+  )
+  for script in &quot;${pipeline_scripts[@]}&quot;; do
+    local full_path=&quot;$PROJECT_ROOT/$script&quot;
+    if [ -f &quot;$full_path&quot; ]; then
+      local first_line=$(head -n 1 &quot;$full_path&quot;)
+      if [[ &quot;$first_line&quot; == &quot;#!/usr/bin/env node&quot; ]] || [[ &quot;$first_line&quot; == &quot;#!/usr/bin/env bash&quot; ]]; then
+        check_pass &quot;Shebang present: $script&quot;
+      else
+        check_warn &quot;No shebang in: $script (OK if using node interpreter in PM2)&quot;
+      fi
+    else
+      check_fail &quot;Missing script: $script&quot;
+    fi
+  done
+  print_section &quot;Validating PM2 Configuration&quot;
+  if [ -f &quot;$PROJECT_ROOT/ecosystem.config.cjs&quot; ]; then
+    if node -c &quot;$PROJECT_ROOT/ecosystem.config.cjs&quot; 2&gt;/dev/null; then
+      check_pass &quot;PM2 config syntax valid&quot;
+    else
+      check_fail &quot;PM2 config has syntax errors&quot;
+    fi
+    if grep -q &quot;interpreter: &apos;node&apos;&quot; &quot;$PROJECT_ROOT/ecosystem.config.cjs&quot;; then
+      check_pass &quot;PM2 config uses node interpreter (prevents permission errors)&quot;
+    else
+      check_warn &quot;PM2 config missing node interpreter setting&quot;
+    fi
+    if grep -q &quot;restart_delay&quot; &quot;$PROJECT_ROOT/ecosystem.config.cjs&quot;; then
+      check_pass &quot;PM2 config has restart delay (prevents rapid crash loops)&quot;
+    else
+      check_warn &quot;PM2 config missing restart_delay&quot;
+    fi
+  else
+    check_fail &quot;PM2 config not found: ecosystem.config.cjs&quot;
+  fi
+  print_section &quot;Running TypeScript Type Checks&quot;
+  cd &quot;$PROJECT_ROOT&quot;
+  if npm run typecheck &gt; /dev/null 2&gt;&amp;1; then
+    check_pass &quot;TypeScript type checks passed&quot;
+  else
+    check_fail &quot;TypeScript type checks failed&quot;
+    echo &quot;&quot;
+    echo &quot;Run &apos;npm run typecheck&apos; for details&quot;
+  fi
+  print_section &quot;Running Unit Tests&quot;
+  if npm test &gt; /dev/null 2&gt;&amp;1; then
+    check_pass &quot;Unit tests passed&quot;
+  else
+    check_fail &quot;Unit tests failed&quot;
+    echo &quot;&quot;
+    echo &quot;Run &apos;npm test&apos; for details&quot;
+  fi
+  print_section &quot;Running Integration Tests&quot;
+  if npm run test:integration &gt; /dev/null 2&gt;&amp;1; then
+    check_pass &quot;Integration tests passed&quot;
+  else
+    check_fail &quot;Integration tests failed&quot;
+    echo &quot;&quot;
+    echo &quot;Run &apos;npm run test:integration&apos; for details&quot;
+  fi
+  print_section &quot;Verifying Doppler Configuration&quot;
+  if command -v doppler &amp;&gt; /dev/null; then
+    check_pass &quot;Doppler CLI installed&quot;
+    if doppler setup --no-interactive &amp;&gt; /dev/null; then
+      check_pass &quot;Doppler configured for project&quot;
+      local env_vars=(
+        &quot;JOBS_API_PORT&quot;
+        &quot;REDIS_HOST&quot;
+        &quot;REDIS_PORT&quot;
+        &quot;NODE_ENV&quot;
+      )
+      for var in &quot;${env_vars[@]}&quot;; do
+        if doppler secrets get &quot;$var&quot; &amp;&gt; /dev/null; then
+          check_pass &quot;Doppler secret exists: $var&quot;
+        else
+          check_warn &quot;Doppler secret not found: $var (may have fallback)&quot;
+        fi
+      done
+    else
+      check_warn &quot;Doppler not configured (run &apos;doppler setup&apos;)&quot;
+    fi
+  else
+    check_fail &quot;Doppler CLI not installed&quot;
+  fi
+  print_section &quot;Verifying Script Permissions&quot;
+  local scripts=(
+    &quot;scripts/verify-bugfixes.sh&quot;
+    &quot;scripts/deploy-traditional-server.sh&quot;
+  )
+  for script in &quot;${scripts[@]}&quot;; do
+    local full_path=&quot;$PROJECT_ROOT/$script&quot;
+    if [ -x &quot;$full_path&quot; ]; then
+      check_pass &quot;Script executable: $script&quot;
+    else
+      check_warn &quot;Script not executable: $script (run &apos;chmod +x $script&apos;)&quot;
+    fi
+  done
+}
+post_deployment_checks() {
+  print_header &quot;Post-Deployment Verification&quot;
+  print_section &quot;Verifying PM2 Processes&quot;
+  if command -v pm2 &amp;&gt; /dev/null; then
+    check_pass &quot;PM2 installed&quot;
+    if pm2 describe aleph-dashboard &amp;&gt; /dev/null; then
+      local status=$(pm2 jlist | jq -r &apos;.[] | select(.name==&quot;aleph-dashboard&quot;) | .pm2_env.status&apos;)
+      if [ &quot;$status&quot; == &quot;online&quot; ]; then
+        check_pass &quot;aleph-dashboard process online&quot;
+      else
+        check_fail &quot;aleph-dashboard process not online (status: $status)&quot;
+      fi
+    else
+      check_warn &quot;aleph-dashboard process not found (may not be deployed yet)&quot;
+    fi
+    if pm2 describe aleph-worker &amp;&gt; /dev/null; then
+      local status=$(pm2 jlist | jq -r &apos;.[] | select(.name==&quot;aleph-worker&quot;) | .pm2_env.status&apos;)
+      if [ &quot;$status&quot; == &quot;online&quot; ]; then
+        check_pass &quot;aleph-worker process online&quot;
+      else
+        check_warn &quot;aleph-worker process not online (status: $status)&quot;
+      fi
+    else
+      check_warn &quot;aleph-worker process not found (may not be deployed yet)&quot;
+    fi
+    local dashboard_restarts=$(pm2 jlist | jq -r &apos;.[] | select(.name==&quot;aleph-dashboard&quot;) | .pm2_env.restart_time // 0&apos;)
+    if [ &quot;$dashboard_restarts&quot; -gt 5 ]; then
+      check_warn &quot;aleph-dashboard has $dashboard_restarts restarts (may indicate instability)&quot;
+    elif [ &quot;$dashboard_restarts&quot; -gt 0 ]; then
+      check_pass &quot;aleph-dashboard restarts: $dashboard_restarts (normal)&quot;
+    fi
+  else
+    check_warn &quot;PM2 not installed (skip if not using PM2)&quot;
+  fi
+  print_section &quot;Testing Doppler Health Monitor&quot;
+  local test_script=$(cat &lt;&lt;&apos;EOF&apos;
+import { DopplerHealthMonitor } from &apos;./sidequest/pipeline-core/doppler-health-monitor.ts&apos;;
+const monitor = new DopplerHealthMonitor();
+try {
+  const health = await monitor.checkCacheHealth();
+  console.log(JSON.stringify({ success: true, health }));
+  process.exit(0);
+} catch (error) {
+  console.log(JSON.stringify({ success: false, error: error.message }));
+  process.exit(0);
+}
+EOF
+)
+  local result=$(cd &quot;$PROJECT_ROOT&quot; &amp;&amp; echo &quot;$test_script&quot; | node --strip-types --input-type=module 2&gt;&amp;1)
+  if echo &quot;$result&quot; | jq -e &apos;.success&apos; &amp;&gt; /dev/null; then
+    check_pass &quot;Doppler health monitor initializes successfully&quot;
+    local cache_age=$(echo &quot;$result&quot; | jq -r &apos;.health.cacheAgeHours // &quot;N/A&quot;&apos;)
+    if [ &quot;$cache_age&quot; != &quot;N/A&quot; ]; then
+      echo &quot;      Cache age: ${cache_age} hours&quot;
+      if [ &quot;$cache_age&quot; -gt 12 ]; then
+        check_warn &quot;Doppler cache is ${cache_age}h old (consider running &apos;doppler run --command=echo&apos;)&quot;
+      fi
+    fi
+  else
+    local error=$(echo &quot;$result&quot; | jq -r &apos;.error // &quot;Unknown error&quot;&apos;)
+    check_warn &quot;Doppler health check error: $error (may be normal if .doppler cache doesn&apos;t exist)&quot;
+  fi
+  print_section &quot;Testing Server Port Binding&quot;
+  local api_port=$(doppler secrets get JOBS_API_PORT --plain 2&gt;/dev/null || echo &quot;8080&quot;)
+  if lsof -i &quot;:$api_port&quot; -sTCP:LISTEN &amp;&gt; /dev/null; then
+    check_pass &quot;Server listening on port $api_port&quot;
+  else
+    check_warn &quot;Server not listening on port $api_port (may not be started)&quot;
+  fi
+  print_section &quot;Testing Activity Feed Error Handling&quot;
+  local test_script=$(cat &lt;&lt;&apos;EOF&apos;
+import { ActivityFeedManager } from &apos;./api/activity-feed.ts&apos;;
+import { ScanEventBroadcaster } from &apos;./api/event-broadcaster.ts&apos;;
+// Mock broadcaster
+const mockBroadcaster = { broadcast: () =&gt; {} };
+const feed = new ActivityFeedManager(mockBroadcaster);
+// Test with null error
+try {
+  feed.addActivity({
+    type: &apos;job:failed&apos;,
+    jobId: &apos;test-123&apos;,
+    jobType: &apos;test&apos;,
+    message: &apos;Test failed&apos;,
+    error: null  // Null error should not crash
+  });
+  console.log(JSON.stringify({ success: true }));
+} catch (error) {
+  console.log(JSON.stringify({ success: false, error: error.message }));
+}
+EOF
+)
+  local result=$(cd &quot;$PROJECT_ROOT&quot; &amp;&amp; echo &quot;$test_script&quot; | node --strip-types --input-type=module 2&gt;&amp;1)
+  if echo &quot;$result&quot; | jq -e &apos;.success&apos; &amp;&gt; /dev/null; then
+    check_pass &quot;Activity feed handles null errors gracefully&quot;
+  else
+    check_fail &quot;Activity feed crashes on null error&quot;
+  fi
+  print_section &quot;Verifying Pipeline Script Executability&quot;
+  local pipeline_scripts=(
+    &quot;sidequest/pipeline-runners/duplicate-detection-pipeline.ts&quot;
+    &quot;sidequest/pipeline-runners/git-activity-pipeline.ts&quot;
+  )
+  for script in &quot;${pipeline_scripts[@]}&quot;; do
+    local full_path=&quot;$PROJECT_ROOT/$script&quot;
+    if [ -f &quot;$full_path&quot; ]; then
+      if node -c &quot;$full_path&quot; 2&gt;/dev/null; then
+        check_pass &quot;Script can be executed with node: $script&quot;
+      else
+        check_fail &quot;Script has syntax errors: $script&quot;
+      fi
+    else
+      check_fail &quot;Script not found: $script&quot;
+    fi
+  done
+}
+health_checks() {
+  print_header &quot;Health Checks&quot;
+  local api_port=$(doppler secrets get JOBS_API_PORT --plain 2&gt;/dev/null || echo &quot;8080&quot;)
+  print_section &quot;Testing /health Endpoint&quot;
+  local health_response=$(curl -s &quot;http://localhost:$api_port/health&quot; 2&gt;/dev/null)
+  if echo &quot;$health_response&quot; | jq -e &apos;.status == &quot;healthy&quot;&apos; &amp;&gt; /dev/null; then
+    check_pass &quot;GET /health returns 200 with healthy status&quot;
+  else
+    check_warn &quot;GET /health failed (server may not be running on port $api_port)&quot;
+  fi
+  print_section &quot;Testing /api/health/doppler Endpoint&quot;
+  local doppler_health=$(curl -s &quot;http://localhost:$api_port/api/health/doppler&quot; 2&gt;/dev/null)
+  if echo &quot;$doppler_health&quot; | jq -e &apos;.status&apos; &amp;&gt; /dev/null; then
+    local status=$(echo &quot;$doppler_health&quot; | jq -r &apos;.status&apos;)
+    local cache_age=$(echo &quot;$doppler_health&quot; | jq -r &apos;.cacheAgeHours // &quot;N/A&quot;&apos;)
+    check_pass &quot;GET /api/health/doppler returns circuit state (status: $status)&quot;
+    if [ &quot;$status&quot; == &quot;healthy&quot; ]; then
+      echo &quot;      Cache age: ${cache_age}h (healthy)&quot;
+    else
+      check_warn &quot;Doppler health status: $status (cache age: ${cache_age}h)&quot;
+    fi
+  else
+    check_warn &quot;GET /api/health/doppler failed (server may not be running)&quot;
+  fi
+  print_section &quot;Testing WebSocket Connection&quot;
+  if command -v wscat &amp;&gt; /dev/null; then
+    local ws_test=$(timeout 2s wscat -c &quot;ws://localhost:$api_port/ws&quot; --execute &quot;ping&quot; 2&gt;&amp;1 || true)
+    if echo &quot;$ws_test&quot; | grep -q &quot;connected&quot; || echo &quot;$ws_test&quot; | grep -q &quot;pong&quot;; then
+      check_pass &quot;WebSocket connection successful&quot;
+    else
+      check_warn &quot;WebSocket connection failed (may need wscat: npm install -g wscat)&quot;
+    fi
+  else
+    check_warn &quot;wscat not installed (skip WebSocket test)&quot;
+  fi
+  print_section &quot;Testing Redis Connection&quot;
+  local status_response=$(curl -s &quot;http://localhost:$api_port/api/status&quot; 2&gt;/dev/null)
+  if echo &quot;$status_response&quot; | jq -e &apos;.queue&apos; &amp;&gt; /dev/null; then
+    check_pass &quot;Redis connection healthy (queue stats available)&quot;
+  else
+    check_warn &quot;Cannot verify Redis connection (server may not be running)&quot;
+  fi
+  print_section &quot;Verifying Sentry Configuration&quot;
+  if doppler secrets get SENTRY_DSN &amp;&gt; /dev/null; then
+    local sentry_dsn=$(doppler secrets get SENTRY_DSN --plain 2&gt;/dev/null)
+    if [ -n &quot;$sentry_dsn&quot; ]; then
+      check_pass &quot;Sentry DSN configured in Doppler&quot;
+    else
+      check_warn &quot;Sentry DSN is empty (error tracking disabled)&quot;
+    fi
+  else
+    check_warn &quot;Sentry DSN not found in Doppler&quot;
+  fi
+}
+smoke_tests() {
+  print_header &quot;Smoke Tests&quot;
+  local api_port=$(doppler secrets get JOBS_API_PORT --plain 2&gt;/dev/null || echo &quot;8080&quot;)
+  print_section &quot;Creating Test Job&quot;
+  local create_response=$(curl -s -X POST &quot;http://localhost:$api_port/api/scans&quot; \
+    -H &quot;Content-Type: application/json&quot; \
+    -d &apos;{&quot;repositoryPath&quot;:&quot;/tmp/test-repo&quot;,&quot;options&quot;:{&quot;skipCache&quot;:true}}&apos; \
+    2&gt;/dev/null)
+  if echo &quot;$create_response&quot; | jq -e &apos;.jobId&apos; &amp;&gt; /dev/null; then
+    local job_id=$(echo &quot;$create_response&quot; | jq -r &apos;.jobId&apos;)
+    check_pass &quot;Test job created: $job_id&quot;
+    print_section &quot;Verifying Activity Feed&quot;
+    sleep 2
+    local status_response=$(curl -s &quot;http://localhost:$api_port/api/status&quot; 2&gt;/dev/null)
+    local activity_count=$(echo &quot;$status_response&quot; | jq -r &apos;.recentActivity | length&apos;)
+    if [ &quot;$activity_count&quot; -gt 0 ]; then
+      check_pass &quot;Activity feed has $activity_count activities&quot;
+    else
+      check_warn &quot;Activity feed is empty&quot;
+    fi
+  else
+    check_warn &quot;Cannot create test job (server may not be running)&quot;
+  fi
+  print_section &quot;Testing Port Fallback Mechanism&quot;
+  if lsof -i &quot;:$api_port&quot; -sTCP:LISTEN &amp;&gt; /dev/null; then
+    check_pass &quot;Port fallback mechanism configured (current port: $api_port)&quot;
+    echo &quot;      Note: Full fallback test requires stopping server and running in parallel&quot;
+  else
+    check_warn &quot;Server not running - cannot test port fallback&quot;
+  fi
+  print_section &quot;Testing Doppler Circuit Breaker&quot;
+  if [ -f &quot;$HOME/.doppler/.fallback.json&quot; ]; then
+    local cache_age_sec=$(($(date +%s) - $(stat -f %m &quot;$HOME/.doppler/.fallback.json&quot; 2&gt;/dev/null || stat -c %Y &quot;$HOME/.doppler/.fallback.json&quot; 2&gt;/dev/null)))
+    local cache_age_hours=$((cache_age_sec / 3600))
+    check_pass &quot;Doppler fallback cache exists (age: ${cache_age_hours}h)&quot;
+    if [ $cache_age_hours -gt 24 ]; then
+      check_warn &quot;Doppler cache is stale (${cache_age_hours}h old) - run &apos;doppler run --command=echo&apos; to refresh&quot;
+    fi
+  else
+    check_warn &quot;Doppler fallback cache doesn&apos;t exist (will be created on first doppler run failure)&quot;
+  fi
+}
+create_rollback_script() {
+  print_header &quot;Creating Rollback Script&quot;
+  local rollback_file=&quot;$PROJECT_ROOT/scripts/rollback-bugfixes.sh&quot;
+  cat &gt; &quot;$rollback_file&quot; &lt;&lt;&apos;ROLLBACK_EOF&apos;
+set -e
+echo &quot;🔄 Rolling back bugfixes...&quot;
+echo &quot;Stopping PM2 processes...&quot;
+pm2 stop ecosystem.config.cjs || true
+if [ -f &quot;$HOME/.pm2/dump.pm2.bak&quot; ]; then
+  echo &quot;Restoring PM2 process state from backup...&quot;
+  cp &quot;$HOME/.pm2/dump.pm2.bak&quot; &quot;$HOME/.pm2/dump.pm2&quot;
+  pm2 resurrect
+else
+  echo &quot;⚠️  No PM2 backup found - manual restart required&quot;
+fi
+echo &quot;&quot;
+echo &quot;To revert code changes, run:&quot;
+echo &quot;  git revert &lt;commit-sha&gt;&quot;
+echo &quot;&quot;
+echo &quot;Recent commits:&quot;
+git log --oneline -5
+echo &quot;&quot;
+echo &quot;✓ Rollback preparation complete&quot;
+echo &quot;&quot;
+echo &quot;Next steps:&quot;
+echo &quot;1. Verify PM2 processes: pm2 status&quot;
+echo &quot;2. Check logs: pm2 logs aleph-dashboard&quot;
+echo &quot;3. If needed, revert git commits manually&quot;
+echo &quot;4. Restart services: doppler run -- pm2 restart ecosystem.config.cjs&quot;
+ROLLBACK_EOF
+  chmod +x &quot;$rollback_file&quot;
+  check_pass &quot;Rollback script created: scripts/rollback-bugfixes.sh&quot;
+  if command -v pm2 &amp;&gt; /dev/null; then
+    if pm2 ping &amp;&gt; /dev/null; then
+      echo &quot;&quot;
+      echo &quot;Creating PM2 backup...&quot;
+      pm2 save
+      cp &quot;$HOME/.pm2/dump.pm2&quot; &quot;$HOME/.pm2/dump.pm2.bak&quot; 2&gt;/dev/null || true
+      check_pass &quot;PM2 process state backed up&quot;
+    fi
+  fi
+}
+main() {
+  echo &quot;&quot;
+  echo -e &quot;${BLUE}╔═══════════════════════════════════════════════════════╗${NC}&quot;
+  echo -e &quot;${BLUE}║                                                       ║${NC}&quot;
+  echo -e &quot;${BLUE}║       Deployment Verification Script v1.0.0          ║${NC}&quot;
+  echo -e &quot;${BLUE}║       AlephAuto Bugfix Verification                  ║${NC}&quot;
+  echo -e &quot;${BLUE}║                                                       ║${NC}&quot;
+  echo -e &quot;${BLUE}╚═══════════════════════════════════════════════════════╝${NC}&quot;
+  case &quot;$MODE&quot; in
+    --pre|pre)
+      pre_deployment_checks
+      ;;
+    --post|post)
+      post_deployment_checks
+      ;;
+    --health|health)
+      health_checks
+      ;;
+    --smoke|smoke)
+      smoke_tests
+      ;;
+    --rollback|rollback)
+      create_rollback_script
+      ;;
+    --all|all|*)
+      pre_deployment_checks
+      post_deployment_checks
+      health_checks
+      smoke_tests
+      create_rollback_script
+      ;;
+  esac
+  print_summary
+}
+main
+if [ $FAILED -eq 0 ]; then
+  exit 0
+else
+  exit 1
+fi</file><file path="scripts/verify-setup.ts">import { execSync } from &apos;child_process&apos;;
+import { existsSync, readFileSync } from &apos;fs&apos;;
+import { join } from &apos;path&apos;;
+import { fileURLToPath } from &apos;url&apos;;
+import { dirname } from &apos;path&apos;;
+import { TIMEOUTS } from &apos;../sidequest/core/constants.ts&apos;;
+⋮----
+function check(name, fn)
+function runCheck(checkItem)
+⋮----
+// Try venv Python first (local dev)</file><file path="scripts/warm-doppler-cache.sh">set -e
+CACHE_DIR=&quot;$HOME/.doppler/fallback&quot;
+CACHE_FILE_PATTERN=&quot;$CACHE_DIR/.secrets-*.json&quot;
+LOG_FILE=&quot;$(dirname &quot;$0&quot;)/../logs/doppler-cache-warming.log&quot;
+mkdir -p &quot;$(dirname &quot;$LOG_FILE&quot;)&quot;
+log() {
+    echo &quot;[$(date &apos;+%Y-%m-%d %H:%M:%S&apos;)] $*&quot; | tee -a &quot;$LOG_FILE&quot;
+}
+log &quot;🔄 Doppler cache warming started&quot;
+if ! command -v doppler &amp;&gt; /dev/null; then
+    log &quot;❌ ERROR: doppler CLI not found in PATH&quot;
+    exit 1
+fi
+if [ ! -d &quot;$CACHE_DIR&quot; ]; then
+    log &quot;ℹ️  Creating Doppler cache directory: $CACHE_DIR&quot;
+    mkdir -p &quot;$CACHE_DIR&quot;
+fi
+log &quot;📥 Fetching secrets from Doppler API...&quot;
+if doppler secrets get NODE_ENV --plain &gt; /dev/null 2&gt;&amp;1; then
+    log &quot;✅ Successfully fetched secrets from Doppler API&quot;
+    if [ -d &quot;$CACHE_DIR&quot; ]; then
+        NEWEST_FILE=$(ls -t &quot;$CACHE_DIR&quot;/.secrets-*.json 2&gt;/dev/null | head -1)
+        if [ -n &quot;$NEWEST_FILE&quot; ]; then
+            CACHE_AGE=$(($(date +%s) - $(stat -f %m &quot;$NEWEST_FILE&quot; 2&gt;/dev/null || stat -c %Y &quot;$NEWEST_FILE&quot; 2&gt;/dev/null)))
+            FILE_COUNT=$(ls -1 &quot;$CACHE_DIR&quot;/.secrets-*.json 2&gt;/dev/null | wc -l | tr -d &apos; &apos;)
+            log &quot;✅ Cache updated: $(basename &quot;$NEWEST_FILE&quot;) (age: ${CACHE_AGE}s, total files: $FILE_COUNT)&quot;
+        else
+            log &quot;⚠️  Warning: No secret files found in cache directory: $CACHE_DIR&quot;
+        fi
+    else
+        log &quot;⚠️  Warning: Cache directory not found: $CACHE_DIR&quot;
+    fi
+else
+    log &quot;❌ ERROR: Failed to fetch secrets from Doppler API&quot;
+    log &quot;ℹ️  Check Doppler configuration: doppler setup&quot;
+    exit 1
+fi
+log &quot;🎉 Doppler cache warming completed successfully&quot;
+exit 0</file><file path="analyze_codebase.py">DEFAULT_PROJECT_FOLDER = &quot;src/ast_grep_mcp&quot;
+DEFAULT_LANGUAGE = &quot;python&quot;
+EXCLUDE_PATTERNS = FilePatterns.DEFAULT_EXCLUDE + FilePatterns.TEST_EXCLUDE + FilePatterns.MINIFIED_EXCLUDE
+LANGUAGE_EXTENSIONS = {
+def out(message: object = &quot;&quot;) -&gt; None
+⋮----
+&quot;&quot;&quot;Emit CLI output via shared console logger.&quot;&quot;&quot;
+⋮----
+def print_section(title: str)
+⋮----
+&quot;&quot;&quot;Print a formatted section header.&quot;&quot;&quot;
+⋮----
+def _discover_source_files(project_folder: str, language: str) -&gt; list[Path]
+⋮----
+&quot;&quot;&quot;Discover source files in the project folder by language.&quot;&quot;&quot;
+ext = LANGUAGE_EXTENSIONS.get(language, language)
+glob_pattern = f&quot;*.{ext}&quot;
+folder = Path(project_folder)
+⋮----
+# Derive dir names from glob patterns like &quot;**/node_modules/**&quot; -&gt; &quot;node_modules&quot;
+exclude_dirs = {p.strip(&quot;**/&quot;) for p in FilePatterns.DEFAULT_EXCLUDE}
+exclude_suffixes = {p.removeprefix(&quot;**/&quot;).removeprefix(&quot;*&quot;) for p in FilePatterns.MINIFIED_EXCLUDE}
+⋮----
+def analyze_individual_files(project_folder: str, language: str)
+⋮----
+source_files = _discover_source_files(project_folder, language)
+⋮----
+# First pass: score each file by max cognitive complexity
+thresholds = ComplexityThresholds()
+file_scores: list[tuple[str, int]] = []
+⋮----
+functions = analyze_file_complexity(str(f), language, thresholds)
+max_cog = max((fn.metrics.cognitive for fn in functions), default=0)
+⋮----
+# Take the top N files by worst cognitive complexity
+top_files = [
+⋮----
+functions = analyze_file_complexity(file_path, language, thresholds)
+critical = [f for f in functions if f.metrics.cyclomatic &gt; thresholds.cyclomatic or f.metrics.cognitive &gt; thresholds.cognitive]
+⋮----
+def analyze_project_complexity(project_folder: str, language: str)
+⋮----
+&quot;&quot;&quot;Run project-wide complexity analysis.&quot;&quot;&quot;
+⋮----
+result = analyze_complexity_tool(
+⋮----
+summary = result.get(&quot;summary&quot;, {})
+⋮----
+exceeding = result.get(&quot;exceeding_functions&quot;, [])
+⋮----
+def detect_code_smells(project_folder: str, language: str)
+⋮----
+&quot;&quot;&quot;Run code smell detection.&quot;&quot;&quot;
+⋮----
+result = detect_code_smells_tool(
+⋮----
+by_severity = summary.get(&quot;by_severity&quot;, {})
+⋮----
+smells = result.get(&quot;smells&quot;, [])
+⋮----
+def detect_security_issues(project_folder: str, language: str)
+⋮----
+&quot;&quot;&quot;Run security vulnerability scanning.&quot;&quot;&quot;
+⋮----
+result = detect_security_issues_impl(
+summary = result.summary
+⋮----
+by_category = summary.get(&quot;by_category&quot;, {})
+⋮----
+def analyze_duplication(project_folder: str, language: str)
+⋮----
+&quot;&quot;&quot;Analyze code duplication opportunities.&quot;&quot;&quot;
+⋮----
+find_result = find_duplication_tool(
+groups = find_result.get(&quot;groups&quot;, [])
+⋮----
+result = analyze_deduplication_candidates_tool(
+⋮----
+dedup_groups = result.get(&quot;groups&quot;, [])
+⋮----
+instances = group.get(&quot;instances&quot;, [])
+⋮----
+def _run_enforcement(project_folder: str, language: str) -&gt; dict:  # type: ignore[type-arg]
+⋮----
+&quot;&quot;&quot;Run standards enforcement and return the result dict.&quot;&quot;&quot;
+⋮----
+def _generate_markdown_report(enforcement_result: dict) -&gt; dict:  # type: ignore[type-arg]
+⋮----
+&quot;&quot;&quot;Generate and save markdown quality report, return result dict.&quot;&quot;&quot;
+⋮----
+def _print_report_summary(result: dict) -&gt; None
+⋮----
+report_path = result.get(&quot;file_path&quot;)
+⋮----
+report_content = result.get(&quot;report&quot;, &quot;&quot;)
+⋮----
+lines = report_content.split(&quot;\n&quot;)
+in_summary = False
+⋮----
+in_summary = True
+⋮----
+def generate_summary_report(project_folder: str, language: str, apply_fixes: bool = False)
+⋮----
+enforcement_result = _run_enforcement(project_folder, language)
+result = _generate_markdown_report(enforcement_result)
+⋮----
+def _run_tsc_check(project_folder: str) -&gt; bool
+⋮----
+&quot;&quot;&quot;Run tsc --noEmit to verify no type errors after fixes.
+    Args:
+        project_folder: Path to the project folder
+    Returns:
+        True if tsc passes (or is not available), False if errors found
+    &quot;&quot;&quot;
+tsconfig = Path(project_folder) / &quot;tsconfig.json&quot;
+⋮----
+result = subprocess.run(
+⋮----
+error_lines = result.stdout.strip().splitlines() if result.stdout else []
+error_count = sum(1 for line in error_lines if &quot;: error TS&quot; in line)
+⋮----
+# Show bounded error preview
+⋮----
+def _is_cli_entry_point(file_path: str) -&gt; bool
+⋮----
+content = Path(file_path).read_text(encoding=&quot;utf-8&quot;)
+⋮----
+_DESTRUCTIVE_RULES = {&quot;no-print-production&quot;, &quot;no-console-log&quot;, &quot;no-system-out&quot;}
+def _filter_destructive_violations(violations: list[dict]) -&gt; tuple[list[dict], int]
+⋮----
+filtered = []
+skipped = 0
+cli_cache: dict[str, bool] = {}
+⋮----
+rule_id = v.get(&quot;rule_id&quot;, &quot;&quot;)
+file_path = v.get(&quot;file&quot;, &quot;&quot;)
+⋮----
+def _apply_fixes(enforcement_result: dict, language: str, project_folder: str = &quot;&quot;)
+⋮----
+&quot;&quot;&quot;Apply automatic standards fixes from enforcement violations.&quot;&quot;&quot;
+⋮----
+violations = enforcement_result.get(&quot;violations&quot;, [])
+⋮----
+# Dry run first
+dry_result = apply_standards_fixes_tool(
+summary = dry_result.get(&quot;summary&quot;, {})
+fixable = summary.get(&quot;total_violations&quot;, 0)
+safe_count = sum(1 for r in dry_result.get(&quot;results&quot;, []) if r.get(&quot;fix_type&quot;) == &quot;safe&quot;)
+⋮----
+# Apply fixes
+fix_result = apply_standards_fixes_tool(
+fix_summary = fix_result.get(&quot;summary&quot;, {})
+⋮----
+backup_id = fix_result.get(&quot;backup_id&quot;)
+⋮----
+# Post-fix type check for TypeScript
+⋮----
+def parse_args() -&gt; argparse.Namespace
+⋮----
+&quot;&quot;&quot;Parse command-line arguments.&quot;&quot;&quot;
+parser = argparse.ArgumentParser(description=&quot;Comprehensive codebase analysis using MCP tools.&quot;)
+⋮----
+def main()
+⋮----
+args = parse_args()
+project_folder = args.project_folder
+language = args.language</file><file path="main.py"></file><file path="renovate.json">{
+  &quot;$schema&quot;: &quot;https://docs.renovatebot.com/renovate-schema.json&quot;,
+  &quot;extends&quot;: [
+    &quot;config:recommended&quot;
+  ]
+}</file><file path="repomix.config.json">{
+  &quot;$schema&quot;: &quot;https://repomix.com/schemas/latest/schema.json&quot;,
+
+  &quot;output&quot;: {
+    &quot;filePath&quot;: &quot;docs/repomix/repomix.xml&quot;,
+    &quot;style&quot;: &quot;xml&quot;,
+    &quot;parsableStyle&quot;: true,
+
+    &quot;removeComments&quot;: true,
+    &quot;removeEmptyLines&quot;: true,
+    &quot;truncateBase64&quot;: true,
+
+    &quot;fileSummary&quot;: false,
+    &quot;directoryStructure&quot;: true,
+    &quot;files&quot;: true,
+
+    &quot;showLineNumbers&quot;: true,
+
+    &quot;includeEmptyDirectories&quot;: false,
+    &quot;instructionFilePath&quot;: &quot;docs/repomix/repomix-instruction.md&quot;,
+    &quot;git&quot;: {
+      &quot;sortByChanges&quot;: true,
+      &quot;sortByChangesMaxCommits&quot;: 20,
+      &quot;includeDiffs&quot;: false,
+      &quot;includeLogs&quot;: false,
+      &quot;includeLogsCount&quot;: 1
+    }
+  },
+
+  &quot;include&quot;: [
+    &quot;api/**/*&quot;,
+    &quot;frontend/**/*&quot;,
+    &quot;sidequest/**/*&quot;,
+    &quot;scripts/**/*&quot;,
+    &quot;config/**/*&quot;,
+    &quot;cloudflare-workers/**/*&quot;,
+    &quot;.ast-grep/**/*&quot;,
+    &quot;.github/workflows/**/*&quot;,
+    &quot;*.json&quot;,
+    &quot;*.ts&quot;,
+    &quot;*.tsx&quot;,
+    &quot;*.js&quot;,
+    &quot;*.py&quot;,
+    &quot;*.sh&quot;
+  ],
+
+  &quot;ignore&quot;: {
+    &quot;useGitignore&quot;: true,
+    &quot;useDotIgnore&quot;: true,
+    &quot;useDefaultPatterns&quot;: true,
+
+    &quot;customPatterns&quot;: [
+      &quot;docs/**&quot;,
+      &quot;docs/archive/**&quot;,
+      &quot;docs/backlog/**&quot;,
+      &quot;docs/repomix/**&quot;,
+      &quot;**/repomix-output.*&quot;,
+      &quot;**/repo-compressed.*&quot;,
+      &quot;**/repomix.xml&quot;,
+      &quot;**/repo-compressed.xml&quot;,
+
+      &quot;**/node_modules/**&quot;,
+      &quot;**/.next/**&quot;,
+      &quot;**/.turbo/**&quot;,
+      &quot;**/.vite/**&quot;,
+      &quot;**/dist/**&quot;,
+      &quot;**/build/**&quot;,
+      &quot;**/out/**&quot;,
+      &quot;**/coverage/**&quot;,
+
+      &quot;**/.ast-grep-backups/**&quot;,
+
+      &quot;**/fixtures/**&quot;,
+      &quot;**/test-files/**&quot;,
+      &quot;**/__snapshots__/**&quot;,
+      &quot;**/*.snap&quot;,
+      &quot;tests/**&quot;,
+      &quot;**/*.test.*&quot;,
+      &quot;**/*.spec.*&quot;,
+
+      &quot;**/*.log&quot;,
+      &quot;**/*.tmp&quot;,
+      &quot;**/*.temp&quot;,
+      &quot;**/*.cache&quot;,
+      &quot;**/*.swp&quot;,
+      &quot;**/*.swo&quot;,
+      &quot;**/*.tsbuildinfo&quot;,
+      &quot;**/*.map&quot;,
+      &quot;**/*.min.js&quot;,
+      &quot;**/*.min.css&quot;,
+
+      &quot;**/*.png&quot;,
+      &quot;**/*.jpg&quot;,
+      &quot;**/*.jpeg&quot;,
+      &quot;**/*.gif&quot;,
+      &quot;**/*.webp&quot;,
+      &quot;**/*.ico&quot;,
+      &quot;**/*.pdf&quot;,
+      &quot;**/*.zip&quot;,
+      &quot;**/*.tar&quot;,
+      &quot;**/*.gz&quot;,
+      &quot;**/*.tgz&quot;,
+      &quot;**/*.7z&quot;,
+
+      &quot;**/*.mp4&quot;,
+      &quot;**/*.mov&quot;,
+      &quot;**/*.avi&quot;,
+      &quot;**/*.mp3&quot;,
+      &quot;**/*.wav&quot;,
+
+      &quot;**/.env&quot;,
+      &quot;**/.env.*&quot;,
+      &quot;**/*.pem&quot;,
+      &quot;**/*.key&quot;,
+      &quot;**/*.p12&quot;,
+      &quot;**/*.pfx&quot;,
+      &quot;**/*secret*&quot;
+    ]
+  },
+
+
+  &quot;security&quot;: {
+    &quot;enableSecurityCheck&quot;: true
+  },
+
+  &quot;tokenCount&quot;: {
+    &quot;encoding&quot;: &quot;o200k_base&quot;
+  }
+}</file><file path="scripts/run_all_analysis.py">def run_complexity(project_folder: str) -&gt; dict
+⋮----
+result = analyze_complexity_tool(project_folder=project_folder, language=&quot;python&quot;)
+⋮----
+funcs = result.get(&quot;functions&quot;, [])
+⋮----
+# Response keys: name, file, lines, cyclomatic, cognitive, nesting_depth, length, exceeds
+⋮----
+rel = f.get(&quot;file&quot;, &quot;&quot;).split(&quot;src/&quot;)[-1]
+⋮----
+def run_smells(project_folder: str) -&gt; dict
+⋮----
+result = detect_code_smells_tool(project_folder=project_folder, language=&quot;python&quot;)
+⋮----
+summary = {k: v for k, v in result.items() if k != &quot;smells&quot;}
+⋮----
+smells = result.get(&quot;smells&quot;, [])
+⋮----
+rel = s.get(&quot;file&quot;, &quot;&quot;).split(&quot;src/&quot;)[-1]
+⋮----
+def run_standards(project_folder: str) -&gt; dict
+⋮----
+&quot;&quot;&quot;Run standards enforcement.&quot;&quot;&quot;
+⋮----
+result = enforce_standards_tool(project_folder=project_folder, language=&quot;python&quot;, rule_set=&quot;all&quot;)
+⋮----
+violations = result.get(&quot;violations&quot;, [])
+⋮----
+rel = v[&quot;file&quot;].split(&quot;src/&quot;)[-1]
+⋮----
+def run_security(project_folder: str) -&gt; dict
+⋮----
+result = detect_security_issues_tool(project_folder=project_folder, language=&quot;python&quot;)
+⋮----
+issues = result.get(&quot;issues&quot;, [])
+⋮----
+rel = i[&quot;file&quot;].split(&quot;src/&quot;)[-1]
+⋮----
+def run_orphans(project_folder: str) -&gt; dict
+⋮----
+result = detect_orphans_tool(project_folder=project_folder)
+⋮----
+rel = f[&quot;file_path&quot;].split(&quot;src/&quot;)[-1]
+⋮----
+def run_duplication(project_folder: str) -&gt; dict
+⋮----
+&quot;&quot;&quot;Run duplication detection.&quot;&quot;&quot;
+⋮----
+result = find_duplication_tool(project_folder=project_folder, language=&quot;python&quot;)
+⋮----
+summary = result.get(&quot;summary&quot;, {})
+⋮----
+groups = result.get(&quot;duplication_groups&quot;, [])
+⋮----
+rel = inst.get(&quot;file&quot;, &quot;&quot;).split(&quot;src/&quot;)[-1]
+⋮----
+def run_benchmarks() -&gt; dict
+⋮----
+&quot;&quot;&quot;Run deduplication performance benchmarks.&quot;&quot;&quot;
+⋮----
+result = benchmark_deduplication_tool(iterations=5)
+⋮----
+summary = {k: v for k, v in result.items() if k != &quot;results&quot;}
+⋮----
+def main() -&gt; None
+⋮----
+project_folder = sys.argv[1] if len(sys.argv) &gt; 1 else str(Path(__file__).resolve().parent.parent / &quot;src&quot;)
+⋮----
+start = time.time()
+⋮----
+elapsed = time.time() - start</file><file path="scripts/generate-repomix-git-ranked.sh">set -euo pipefail
+SCRIPT_NAME=&quot;$(basename &quot;$0&quot;)&quot;
+ROOT=&quot;${1:?Usage: $SCRIPT_NAME &lt;root_dir&gt; &lt;output_file&gt; [include_logs_count]}&quot;
+OUTPUT_FILE=&quot;${2:?Usage: $SCRIPT_NAME &lt;root_dir&gt; &lt;output_file&gt; [include_logs_count]}&quot;
+INCLUDE_LOGS_COUNT=&quot;${3:-200}&quot;
+# Preflight: required commands.
+for cmd in jq npx git; do
+  command -v &quot;$cmd&quot; &gt;/dev/null 2&gt;&amp;1 \
+    || { echo &quot;$SCRIPT_NAME: required command not found: $cmd&quot; &gt;&amp;2; exit 1; }
+done
+ROOT=&quot;$(cd &quot;$ROOT&quot; 2&gt;/dev/null &amp;&amp; pwd)&quot; \
+  || { echo &quot;ROOT does not exist or is not accessible: ${1}&quot; &gt;&amp;2; exit 1; }
+if ! git -C &quot;$ROOT&quot; rev-parse --git-dir &gt;/dev/null 2&gt;&amp;1; then
+  echo &quot;ROOT is not a git repository: $ROOT&quot; &gt;&amp;2
+  exit 1
+fi
+OUTPUT_FILE=&quot;$(cd &quot;$(dirname &quot;$OUTPUT_FILE&quot;)&quot; 2&gt;/dev/null &amp;&amp; pwd)/$(basename &quot;$OUTPUT_FILE&quot;)&quot; \
+  || { echo &quot;Cannot resolve output file path: ${2}&quot; &gt;&amp;2; exit 1; }
+# Validate output directory exists.
+OUTPUT_DIR=&quot;$(dirname &quot;$OUTPUT_FILE&quot;)&quot;
+if [[ ! -d &quot;$OUTPUT_DIR&quot; ]]; then
+  echo &quot;Output directory does not exist: $OUTPUT_DIR&quot; &gt;&amp;2
+  exit 1
+fi
+INCLUDE_DIFFS=&quot;${REPOMIX_INCLUDE_DIFFS:-true}&quot;
+INCLUDE_LOGS=&quot;${REPOMIX_INCLUDE_LOGS:-true}&quot;
+SORT_BY_CHANGES_MAX_COMMITS=&quot;${REPOMIX_SORT_BY_CHANGES_MAX_COMMITS:-1000}&quot;
+TIMEOUT_SECONDS=&quot;${REPOMIX_TIMEOUT_SECONDS:-120}&quot;
+REPOMIX_LOG_TAIL_LINES=&quot;${REPOMIX_LOG_TAIL_LINES:-20}&quot;
+if ! [[ &quot;$INCLUDE_LOGS_COUNT&quot; =~ ^[0-9]+$ ]] || [[ &quot;$INCLUDE_LOGS_COUNT&quot; -lt 0 ]]; then
+  echo &quot;include_logs_count must be a non-negative integer: $INCLUDE_LOGS_COUNT&quot; &gt;&amp;2
+  exit 1
+fi
+if ! [[ &quot;$SORT_BY_CHANGES_MAX_COMMITS&quot; =~ ^[0-9]+$ ]] || [[ &quot;$SORT_BY_CHANGES_MAX_COMMITS&quot; -lt 1 ]]; then
+  echo &quot;REPOMIX_SORT_BY_CHANGES_MAX_COMMITS must be a positive integer: $SORT_BY_CHANGES_MAX_COMMITS&quot; &gt;&amp;2
+  exit 1
+fi
+if [[ &quot;$INCLUDE_DIFFS&quot; != &quot;true&quot; &amp;&amp; &quot;$INCLUDE_DIFFS&quot; != &quot;false&quot; ]]; then
+  echo &quot;REPOMIX_INCLUDE_DIFFS must be true|false: $INCLUDE_DIFFS&quot; &gt;&amp;2
+  exit 1
+fi
+if [[ &quot;$INCLUDE_LOGS&quot; != &quot;true&quot; &amp;&amp; &quot;$INCLUDE_LOGS&quot; != &quot;false&quot; ]]; then
+  echo &quot;REPOMIX_INCLUDE_LOGS must be true|false: $INCLUDE_LOGS&quot; &gt;&amp;2
+  exit 1
+fi
+if [[ &quot;$INCLUDE_LOGS_COUNT&quot; -eq 0 &amp;&amp; &quot;$INCLUDE_LOGS&quot; == &quot;true&quot; ]]; then
+  echo &quot;Warning: INCLUDE_LOGS=true but include_logs_count=0; no logs will be included&quot; &gt;&amp;2
+fi
+TMP_CONFIG=&quot;$(mktemp &quot;${TMPDIR:-/tmp}/repomix-git-ranked.XXXXXX.json&quot;)&quot;
+TMP_FILES=&quot;$(mktemp &quot;${TMPDIR:-/tmp}/repomix-git-ranked-files.XXXXXX&quot;)&quot;
+TMP_LOG=&quot;$(mktemp &quot;${TMPDIR:-/tmp}/repomix-run.XXXXXX.log&quot;)&quot;
+trap &apos;rm -f &quot;$TMP_CONFIG&quot; &quot;$TMP_FILES&quot; &quot;$TMP_LOG&quot;&apos; EXIT INT TERM
+# Generated bundle patterns sourced from base repomix config.
+BUNDLE_IGNORE_PATTERNS_FILE=&quot;$ROOT/repomix.config.json&quot;
+if [[ -f &quot;$BUNDLE_IGNORE_PATTERNS_FILE&quot; ]]; then
+  BUNDLE_IGNORE_PATTERNS_JSON=&quot;$(
+    jq -c &apos;
+      [
+        .ignore.customPatterns[]?
+        | select(
+            . == &quot;docs/repomix/**&quot;
+            or . == &quot;**/repomix-output.*&quot;
+            or . == &quot;**/repo-compressed.*&quot;
+            or . == &quot;**/repomix.xml&quot;
+            or . == &quot;**/repo-compressed.xml&quot;
+          )
+      ] | unique
+    &apos; &quot;$BUNDLE_IGNORE_PATTERNS_FILE&quot; 2&gt;/dev/null
+  )&quot; || {
+    echo &quot;Warning: $BUNDLE_IGNORE_PATTERNS_FILE exists but is not valid JSON; using empty ignore patterns&quot; &gt;&amp;2
+    BUNDLE_IGNORE_PATTERNS_JSON=&apos;[]&apos;
+  }
+else
+  BUNDLE_IGNORE_PATTERNS_JSON=&apos;[]&apos;
+fi
+# Generated artifacts that should never be re-ingested into ranked bundles.
+# Override via REPOMIX_EXCLUDE_ARTIFACTS (newline-separated glob patterns).
+# Patterns are intentionally interpreted as globs by case.
+# Do not pass untrusted input in REPOMIX_EXCLUDE_ARTIFACTS.
+EXCLUDE_ARTIFACTS=&quot;${REPOMIX_EXCLUDE_ARTIFACTS:-sidequest/docs/gitlog-sidequest.txt}&quot;
+is_generated_bundle_artifact() {
+  local rel_path=&quot;$1&quot;
+  local pattern
+  while IFS= read -r pattern; do
+    [[ -z &quot;$pattern&quot; ]] &amp;&amp; continue
+    # shellcheck disable=SC2254
+    case &quot;$rel_path&quot; in
+      $pattern) return 0 ;;
+    esac
+  done &lt;&lt;&lt; &quot;$EXCLUDE_ARTIFACTS&quot;
+  return 1
+}
+# Build include list from files touched in the selected commit window.
+# Use sort -u for deduplication (compatible with bash 3.x on macOS).
+git -C &quot;$ROOT&quot; -c core.quotePath=false log --name-only --pretty=format: -n &quot;$SORT_BY_CHANGES_MAX_COMMITS&quot; \
+  | grep -v &apos;^$&apos; \
+  | sort -u \
+  | while IFS= read -r rel_path; do
+      if is_generated_bundle_artifact &quot;$rel_path&quot;; then
+        continue
+      fi
+      if [[ -f &quot;$ROOT/$rel_path&quot; ]]; then
+        printf &apos;%s\n&apos; &quot;$rel_path&quot;
+      fi
+    done &gt; &quot;$TMP_FILES&quot;
+if [[ ! -s &quot;$TMP_FILES&quot; ]]; then
+  echo &quot;No existing files found in the selected commit window.&quot; &gt;&amp;2
+  exit 1
+fi
+include_files_json=&quot;$(jq -R -s &apos;split(&quot;\n&quot;) | map(select(length &gt; 0))&apos; &quot;$TMP_FILES&quot;)&quot;
+jq -n \
+  --argjson includeFiles &quot;$include_files_json&quot; \
+  --argjson bundleIgnorePatterns &quot;$BUNDLE_IGNORE_PATTERNS_JSON&quot; \
+  --argjson includeLogsCount &quot;$INCLUDE_LOGS_COUNT&quot; \
+  --argjson sortByChangesMaxCommits &quot;$SORT_BY_CHANGES_MAX_COMMITS&quot; \
+  --arg includeDiffs &quot;$INCLUDE_DIFFS&quot; \
+  --arg includeLogs &quot;$INCLUDE_LOGS&quot; &apos;
+{
+  &quot;$schema&quot;: &quot;https://repomix.com/schemas/latest/schema.json&quot;,
+  &quot;output&quot;: {
+    &quot;style&quot;: &quot;xml&quot;,
+    &quot;parsableStyle&quot;: true,
+    &quot;removeComments&quot;: true,
+    &quot;removeEmptyLines&quot;: true,
+    &quot;fileSummary&quot;: false,
+    &quot;directoryStructure&quot;: false,
+    &quot;files&quot;: true,
+    &quot;includeEmptyDirectories&quot;: false,
+    &quot;git&quot;: {
+      &quot;sortByChanges&quot;: true,
+      &quot;sortByChangesMaxCommits&quot;: $sortByChangesMaxCommits,
+      &quot;includeDiffs&quot;: ($includeDiffs == &quot;true&quot;),
+      &quot;includeLogs&quot;: ($includeLogs == &quot;true&quot;),
+      &quot;includeLogsCount&quot;: $includeLogsCount
+    }
+  },
+  &quot;ignore&quot;: {
+    &quot;useGitignore&quot;: true,
+    &quot;useDotIgnore&quot;: true,
+    &quot;useDefaultPatterns&quot;: true,
+    &quot;customPatterns&quot;: $bundleIgnorePatterns
+  },
+  &quot;include&quot;: $includeFiles
+}&apos; &gt; &quot;$TMP_CONFIG&quot;
+REPOMIX_EXIT=0
+FORCE_COLOR=0 NO_COLOR=1 timeout &quot;$TIMEOUT_SECONDS&quot; \
+  npx repomix &quot;$ROOT&quot; -c &quot;$TMP_CONFIG&quot; -o &quot;$OUTPUT_FILE&quot; &gt;&quot;$TMP_LOG&quot; 2&gt;&amp;1 \
+  || REPOMIX_EXIT=$?
+if [[ $REPOMIX_EXIT -ne 0 ]]; then
+  echo &quot;repomix failed (exit $REPOMIX_EXIT). Last output:&quot; &gt;&amp;2
+  tail -&quot;$REPOMIX_LOG_TAIL_LINES&quot; &quot;$TMP_LOG&quot; &gt;&amp;2
+  exit 1
+fi</file></files><instruction>Modular MCP server with ast-grep structural code search, Schema.org tools, refactoring, deduplication, quality, documentation generation, and semantic code condensation.
+</instruction></repomix>

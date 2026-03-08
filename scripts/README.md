@@ -1,178 +1,74 @@
 # Scripts
 
-This directory contains utility scripts for running ast-grep MCP tools from the command line.
+Utility scripts for analysis, migration, benchmarking, code generation, and repomix management.
 
-## find_duplication.py
+## Analysis
 
-Python script to detect duplicate code in a project.
+| Script | Description |
+|--------|-------------|
+| `run_all_analysis.py` | Runs complete analysis suite (complexity, smells, security, standards, orphans, duplication, benchmarks) and prints summary. |
+| `analyze_violations.py` | Scans Python codebase for functions exceeding complexity thresholds (cyclomatic, cognitive, nesting, length). |
+| `analyze_analyticsbot.py` | Runs complexity, smell, and security analysis on the AnalyticsBot project. |
+| `analyze-duplicates.py` | Parses scan reports to identify exact duplicate code blocks with file locations. |
+| `list_complexity_violations.py` | Lists all Python functions exceeding critical complexity thresholds with detailed metrics. |
+| `analysis_output_helpers.py` | Formatting utilities (section headers, count breakdowns) used by other analysis scripts. |
+| `schema-graph-builder.py` | Extracts Schema.org entities from HTML/JSON, builds a knowledge graph, and validates entity IDs. |
+| `find_duplication.sh` | Wrapper for Python duplication detector with configurable language, construct type, and similarity threshold. |
+| `find_large_classes.sh` | Finds TypeScript classes by size and method count. |
 
-### Usage
+## Benchmarking
 
-```bash
-# Basic usage - analyze Python functions
-uv run python scripts/find_duplication.py /path/to/project --language python
+| Script | Description |
+|--------|-------------|
+| `run_benchmarks.py` | Orchestrates benchmark tests with baseline saving and regression detection (>10% threshold). |
+| `benchmark_batch_coverage.py` | Benchmarks dedup coverage detection on candidate batches of varying sizes (10-100). |
+| `benchmark_parallel_enrichment.py` | Benchmarks sequential vs parallel enrichment on dedup candidates. |
 
-# Analyze JavaScript classes
-uv run python scripts/find_duplication.py /path/to/project --language javascript --construct-type class_definition
+## Migration & Fixes
 
-# Strict similarity threshold (90%)
-uv run python scripts/find_duplication.py /path/to/project --language python --min-similarity 0.9
+| Script | Description |
+|--------|-------------|
+| `migrate_print_to_logger.py` | Migrates `print()` to console logger calls with dry-run support and change tracking. |
+| `migrate_prints_smart.py` | Smart migration of remaining `print()` calls, avoiding nested calls and preserving intent. |
+| `migration_common.py` | Common utilities for migration scripts (file paths, read/write, line range removal). |
+| `fix_import_orphans.py` | Fixes orphaned closing parentheses and import statements from migration errors. |
+| `fix_imports.py` | Adds missing `console_logger` imports to Python files that use it. |
+| `fix_migration_errors.py` | Fixes syntax errors in test files from migration (orphaned imports, broken multi-line imports). |
+| `import_helpers.py` | Helper functions for managing imports (scan state, insert positions, ensuring presence). |
+| `replace-magic.sh` | Preview-first find-and-replace for magic values with constants. Supports literal and regex modes. |
+| `fix-types.ts` | Installs `@types/node` if missing and runs `npm run typecheck`. |
 
-# Ignore small functions (less than 10 lines)
-uv run python scripts/find_duplication.py /path/to/project --language python --min-lines 10
+## Code Generation
 
-# Output as JSON
-uv run python scripts/find_duplication.py /path/to/project --language python --json
-```
+| Script | Description |
+|--------|-------------|
+| `generate-http-status-constants.ts` | Generates HTTP status constants from YAML definition to TypeScript and Python. |
+| `categorize-magic-numbers.ts` | Categorizes magic number literals from ESLint output and generates semantic grouping reports. |
 
-### Options
+## Repomix
 
-- `project_folder` (required): Absolute path to the project to analyze
-- `--language, -l` (required): Programming language (python, javascript, typescript, java, go, etc.)
-- `--construct-type, -c`: Type of construct to analyze (default: function_definition)
-  - `function_definition`: Regular functions
-  - `class_definition`: Classes
-  - `method_definition`: Methods within classes
-- `--min-similarity, -s`: Minimum similarity threshold 0.0-1.0 (default: 0.8)
-- `--min-lines, -m`: Minimum lines to consider for duplication (default: 5)
-- `--json, -j`: Output results as JSON instead of formatted text
+| Script | Description |
+|--------|-------------|
+| `repomix-regen.sh` | Master regeneration: rebuilds all repomix outputs (compressed, lossless, docs, git-ranked, token tree, gitlog). |
+| `generate-repomix.sh` | Generates lossless repomix output of the full repository. |
+| `generate-repo-compressed.sh` | Generates lossy-compressed repomix output. |
+| `generate-repomix-docs.sh` | Generates docs-only repomix output with doc-specific exclusion patterns. |
+| `generate-repomix-git-ranked.sh` | Generates git-ranked repomix output prioritizing recently modified files. |
+| `generate-token-tree.sh` | Generates token count tree view showing distribution across files. |
+| `generate-sidequest-gitlog.sh` | Generates formatted git log for sidequest module with configurable commit count. |
+| `generate-diff-summary.sh` | Generates git log with top N largest tracked files and recent commit history. |
+| `repo-compressed.sh` | Alias for `generate-repo-compressed.sh`. |
+| `repomix.config.json` | Main repomix config: output style, file includes/excludes, security checks, token budgets. |
+| `repomix-docs.config.json` | Config for documentation-only repomix output. |
 
-### Examples
+## DevOps & Verification
 
-**Find duplicate Python functions:**
-```bash
-uv run python scripts/find_duplication.py /path/to/my-project --language python
-```
-
-**Find duplicate JavaScript classes with strict matching:**
-```bash
-uv run python scripts/find_duplication.py /path/to/my-app \
-    --language javascript \
-    --construct-type class_definition \
-    --min-similarity 0.95
-```
-
-**Analyze only larger functions (10+ lines):**
-```bash
-uv run python scripts/find_duplication.py /path/to/my-project \
-    --language python \
-    --min-lines 10
-```
-
-**Get JSON output for programmatic processing:**
-```bash
-uv run python scripts/find_duplication.py /path/to/my-project \
-    --language python \
-    --json > duplication-report.json
-```
-
-## find_duplication.sh
-
-Bash wrapper for the Python script (simpler interface).
-
-### Usage
-
-```bash
-# Basic usage
-./scripts/find_duplication.sh /path/to/project python
-
-# With construct type
-./scripts/find_duplication.sh /path/to/project javascript class_definition
-
-# With similarity threshold
-./scripts/find_duplication.sh /path/to/project python function_definition 0.9
-
-# With all options
-./scripts/find_duplication.sh /path/to/project python function_definition 0.8 10
-```
-
-### Arguments (positional)
-
-1. `project_folder` (required): Absolute path to the project
-2. `language` (optional, default: python): Programming language
-3. `construct_type` (optional, default: function_definition): Type of construct
-4. `min_similarity` (optional, default: 0.8): Similarity threshold
-5. `min_lines` (optional, default: 5): Minimum lines
-
-### Examples
-
-**Analyze Python project:**
-```bash
-./scripts/find_duplication.sh /Users/me/myproject python
-```
-
-**Analyze JavaScript classes:**
-```bash
-./scripts/find_duplication.sh /Users/me/webapp javascript class_definition
-```
-
-**Strict matching (95% similarity):**
-```bash
-./scripts/find_duplication.sh /Users/me/myproject python function_definition 0.95
-```
-
-## Output Format
-
-The script outputs a formatted report with three sections:
-
-### 1. Summary
-- Total constructs analyzed
-- Duplicate groups found
-- Total duplicated lines
-- Potential line savings
-- Analysis time
-
-### 2. Duplication Groups
-- Group ID and similarity score
-- List of duplicate instances with file locations
-- Code preview for each instance
-
-### 3. Refactoring Suggestions
-- Suggestion type (Extract Function, Base Class, etc.)
-- Description and recommendation
-- Number of duplicates and lines
-- File locations for all duplicates
-
-## Supported Languages
-
-The tool works with all languages supported by ast-grep:
-
-- JavaScript/TypeScript
-- Python
-- Java
-- Go
-- Rust
-- C/C++
-- C#
-- Ruby
-- PHP
-- And many more...
-
-See the [ast-grep language documentation](https://ast-grep.github.io/reference/languages.html) for a complete list.
-
-## Tips
-
-1. **Start with defaults**: Try running with default settings first to get a baseline
-2. **Adjust similarity**: Lower threshold (0.7) finds more potential duplicates; higher (0.9) is more strict
-3. **Filter small code**: Use `--min-lines 10` to focus on larger duplications
-4. **JSON output**: Use `--json` for integration with other tools or CI/CD pipelines
-5. **Large projects**: The analysis may take longer on large codebases; be patient
-
-## Troubleshooting
-
-**Error: "Command not found: ast-grep"**
-- Install ast-grep: `brew install ast-grep` or see [installation guide](https://ast-grep.github.io/guide/quick-start.html#installation)
-
-**Error: "Project folder must be an absolute path"**
-- Use absolute paths: `/Users/me/project` not `./project`
-- Use `pwd` to get current directory: `$(pwd)/project`
-
-**No duplicates found when you expect some:**
-- Try lowering `--min-similarity` (e.g., 0.7)
-- Try lowering `--min-lines` (e.g., 3)
-- Check that the correct `--construct-type` is specified
-- Verify the `--language` matches your codebase
-
-**Too many false positives:**
-- Increase `--min-similarity` (e.g., 0.9)
-- Increase `--min-lines` to focus on larger code blocks
+| Script | Description |
+|--------|-------------|
+| `deploy-traditional-server.sh` | OS-aware deployment (setup, update, rollback) with macOS/Linux handling. |
+| `verify-bugfixes.sh` | Comprehensive pre/post-deployment, health, and smoke tests with color-coded output. |
+| `verify-setup.ts` | Setup verification checks (Node, npm, uv, ast-grep, Python, Doppler) with pass/fail reporting. |
+| `validate-permissions.ts` | Validates executable permissions on critical scripts; `--fix` to apply corrections. |
+| `run-python-tests.sh` | Resolves Python interpreter and runs pytest with proper environment isolation. |
+| `warm-doppler-cache.sh` | Manages Doppler CLI secrets cache with backup creation and validation. |
+| `cleanup-error-logs.ts` | Error log cleanup with configurable retention (7d active, 30d archive) and gzip compression. |
