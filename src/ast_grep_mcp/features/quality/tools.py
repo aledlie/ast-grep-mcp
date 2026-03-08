@@ -10,7 +10,9 @@ This module registers MCP tools for:
 
 import os
 import time
-from typing import Any, Dict, List, Optional, cast
+from collections import defaultdict
+from contextlib import contextmanager
+from typing import Any, Dict, Generator, List, Optional, cast
 
 import sentry_sdk
 import yaml
@@ -29,7 +31,6 @@ from ast_grep_mcp.features.quality.validator import validate_rule_definition
 from ast_grep_mcp.models.standards import (
     EnforcementResult,
     LintingRule,
-    RuleStorageError,
     RuleValidationError,
     RuleViolation,
     SecurityIssue,
@@ -104,6 +105,36 @@ def _format_rule_result(rule: LintingRule, validation_result: Any, saved_path: O
     }
 
 
+@contextmanager
+def _tool_context(tool_name: str, **sentry_extras: Any) -> Generator[float, None, None]:
+    """Context manager for tool error handling, timing, and Sentry capture.
+
+    Yields the start_time so callers can compute execution_time for success logging.
+    On exception: logs error, captures to Sentry, and re-raises.
+    """
+    start_time = time.time()
+    try:
+        yield start_time
+    except Exception as e:
+        execution_time = time.time() - start_time
+        logger = get_logger(f"tool.{tool_name}")
+        logger.error(
+            "tool_failed",
+            tool=tool_name,
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+        )
+        sentry_sdk.capture_exception(
+            e,
+            extras={
+                "tool": tool_name,
+                **sentry_extras,
+                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            },
+        )
+        raise
+
+
 def create_linting_rule_tool(
     rule_name: str,
     description: str,
@@ -147,8 +178,6 @@ def create_linting_rule_tool(
         Dictionary containing rule definition, validation results, saved path, and YAML
     """
     logger = get_logger("tool.create_linting_rule")
-    start_time = time.time()
-
     logger.info(
         "tool_invoked",
         tool="create_linting_rule",
@@ -159,22 +188,17 @@ def create_linting_rule_tool(
         save_to_project=save_to_project,
     )
 
-    try:
+    with _tool_context("create_linting_rule", rule_name=rule_name, language=language) as start_time:
         with sentry_sdk.start_span(op="create_linting_rule", name="Create custom linting rule"):
-            # Create rule using helper
             rule = _create_rule_from_params(rule_name, description, pattern, severity, language, suggested_fix, note, use_template)
 
             if use_template:
                 logger.info("rule_created_from_template", template_id=use_template)
 
-            # Validate the rule
             with sentry_sdk.start_span(op="validate_rule", name="Validate rule definition"):
                 validation_result = validate_rule_definition(rule)
 
-            # Save if requested
             saved_path = _save_rule_if_requested(rule, save_to_project, project_folder, validation_result)
-
-            # Format result
             result = _format_rule_result(rule, validation_result, saved_path)
 
             execution_time = time.time() - start_time
@@ -188,25 +212,6 @@ def create_linting_rule_tool(
             )
 
             return result
-
-    except (RuleValidationError, RuleStorageError, ValueError) as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="create_linting_rule",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-        )
-        sentry_sdk.capture_exception(
-            e,
-            extras={
-                "tool": "create_linting_rule",
-                "rule_name": rule_name,
-                "language": language,
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            },
-        )
-        raise
 
 
 def list_rule_templates_tool(language: Optional[str] = None, category: Optional[str] = None) -> Dict[str, Any]:
@@ -231,20 +236,16 @@ def list_rule_templates_tool(language: Optional[str] = None, category: Optional[
         Dictionary with total count, available languages/categories, and template list
     """
     logger = get_logger("tool.list_rule_templates")
-    start_time = time.time()
-
     logger.info("tool_invoked", tool="list_rule_templates", language=language, category=category)
 
-    try:
+    with _tool_context("list_rule_templates", language=language, category=category) as start_time:
         with sentry_sdk.start_span(op="list_templates", name="Get rule templates"):
             templates = get_available_templates(language=language, category=category)
 
-            # Get unique languages and categories from all templates
             all_templates = list(RULE_TEMPLATES.values())
             all_languages = sorted(set(t.language for t in all_templates))
             all_categories = sorted(set(t.category for t in all_templates))
 
-            # Convert templates to dict format
             template_dicts = [
                 {
                     "id": t.id,
@@ -277,25 +278,6 @@ def list_rule_templates_tool(language: Optional[str] = None, category: Optional[
                 "applied_filters": {"language": language, "category": category},
                 "templates": template_dicts,
             }
-
-    except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="list_rule_templates",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-        )
-        sentry_sdk.capture_exception(
-            e,
-            extras={
-                "tool": "list_rule_templates",
-                "language": language,
-                "category": category,
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            },
-        )
-        raise
 
 
 def _get_default_exclude_patterns() -> List[str]:
@@ -419,8 +401,6 @@ def enforce_standards_tool(
     exclude_patterns = _normalize_exclude_patterns(exclude_patterns)
 
     logger = get_logger("tool.enforce_standards")
-    start_time = time.time()
-
     logger.info(
         "tool_invoked",
         tool="enforce_standards",
@@ -432,11 +412,9 @@ def enforce_standards_tool(
         max_threads=max_threads,
     )
 
-    try:
-        # Validate inputs using helper
+    with _tool_context("enforce_standards", project_folder=project_folder, language=language, rule_set=rule_set) as start_time:
         _validate_enforcement_inputs(severity_threshold, output_format)
 
-        # Execute enforcement
         result = enforce_standards_impl(
             project_folder=project_folder,
             language=language,
@@ -450,7 +428,6 @@ def enforce_standards_tool(
         )
 
         execution_time = time.time() - start_time
-
         logger.info(
             "tool_completed",
             tool="enforce_standards",
@@ -459,28 +436,7 @@ def enforce_standards_tool(
             files_scanned=result.files_scanned,
         )
 
-        # Format output using helper
         return _format_enforcement_output(result, output_format)
-
-    except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="enforce_standards",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-        )
-        sentry_sdk.capture_exception(
-            e,
-            extras={
-                "tool": "enforce_standards",
-                "project_folder": project_folder,
-                "language": language,
-                "rule_set": rule_set,
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            },
-        )
-        raise
 
 
 def _convert_violations_to_objects(violations: List[Dict[str, Any]]) -> List[RuleViolation]:
@@ -609,8 +565,6 @@ def apply_standards_fixes_tool(
         fix_types = ["safe"]
 
     logger = get_logger("tool.apply_standards_fixes")
-    start_time = time.time()
-
     logger.info(
         "tool_invoked",
         tool="apply_standards_fixes",
@@ -621,14 +575,10 @@ def apply_standards_fixes_tool(
         create_backup=create_backup,
     )
 
-    try:
-        # Convert violations using helper
+    with _tool_context("apply_standards_fixes", violations_count=len(violations), language=language, fix_types=fix_types) as start_time:
         violation_objects = _convert_violations_to_objects(violations)
-
-        # Infer project folder using helper
         project_folder_inferred = _infer_project_folder(violations)
 
-        # Apply fixes
         result = apply_fixes_batch(
             violations=violation_objects,
             language=language,
@@ -639,7 +589,6 @@ def apply_standards_fixes_tool(
         )
 
         execution_time = time.time() - start_time
-
         logger.info(
             "tool_completed",
             tool="apply_standards_fixes",
@@ -651,28 +600,7 @@ def apply_standards_fixes_tool(
             dry_run=dry_run,
         )
 
-        # Format output using helper
         return _format_fix_results(result, dry_run)
-
-    except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="apply_standards_fixes",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-        )
-        sentry_sdk.capture_exception(
-            e,
-            extras={
-                "tool": "apply_standards_fixes",
-                "violations_count": len(violations),
-                "language": language,
-                "fix_types": fix_types,
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            },
-        )
-        raise
 
 
 def generate_quality_report_tool(
@@ -726,17 +654,13 @@ def generate_quality_report_tool(
         print(report["content"])
     """
     logger = get_logger("tool.generate_quality_report")
-    start_time = time.time()
-
     logger.info(
         "tool_invoked", tool="generate_quality_report", project_name=project_name, output_format=output_format, save_to_file=save_to_file
     )
 
-    try:
-        # Convert dictionary to EnforcementResult
+    with _tool_context("generate_quality_report", project_name=project_name, output_format=output_format) as start_time:
         result_obj = _dict_to_enforcement_result(enforcement_result)
 
-        # Generate report
         report = generate_quality_report_impl(
             result=result_obj,
             project_name=project_name,
@@ -747,7 +671,6 @@ def generate_quality_report_tool(
         )
 
         execution_time = time.time() - start_time
-
         logger.info(
             "tool_completed",
             tool="generate_quality_report",
@@ -758,80 +681,38 @@ def generate_quality_report_tool(
 
         return report
 
-    except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="generate_quality_report",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-        )
-        sentry_sdk.capture_exception(
-            e,
-            extras={
-                "tool": "generate_quality_report",
-                "project_name": project_name,
-                "output_format": output_format,
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            },
-        )
-        raise
+
+def _group_violations(
+    violations: List[RuleViolation],
+) -> tuple[
+    Dict[str, List[RuleViolation]],
+    Dict[str, List[RuleViolation]],
+    Dict[str, List[RuleViolation]],
+]:
+    """Group violations by file, severity, and rule_id."""
+    by_file: Dict[str, List[RuleViolation]] = defaultdict(list)
+    by_severity: Dict[str, List[RuleViolation]] = defaultdict(list)
+    by_rule: Dict[str, List[RuleViolation]] = defaultdict(list)
+
+    for v in violations:
+        by_file[v.file].append(v)
+        by_severity[v.severity].append(v)
+        by_rule[v.rule_id].append(v)
+
+    return dict(by_file), dict(by_severity), dict(by_rule)
 
 
 def _dict_to_enforcement_result(data: Dict[str, Any]) -> EnforcementResult:
-    """Convert enforcement result dictionary to EnforcementResult object.
-
-    Args:
-        data: Dictionary from enforce_standards tool
-
-    Returns:
-        EnforcementResult object
-    """
-    # Convert violations
-    violations = []
-    for v_dict in data.get("violations", []):
-        violation = RuleViolation(
-            file=v_dict["file"],
-            line=v_dict["line"],
-            column=v_dict.get("column", 1),
-            end_line=v_dict.get("end_line", v_dict["line"]),
-            end_column=v_dict.get("end_column", 1),
-            severity=v_dict["severity"],
-            rule_id=v_dict["rule_id"],
-            message=v_dict["message"],
-            code_snippet=v_dict.get("code_snippet", ""),
-            fix_suggestion=v_dict.get("fix_suggestion"),
-            meta_vars=v_dict.get("meta_vars"),
-        )
-        violations.append(violation)
-
-    # Group violations
-    violations_by_file: Dict[str, List[RuleViolation]] = {}
-    violations_by_severity: Dict[str, List[RuleViolation]] = {}
-    violations_by_rule: Dict[str, List[RuleViolation]] = {}
-
-    for v in violations:
-        # By file
-        if v.file not in violations_by_file:
-            violations_by_file[v.file] = []
-        violations_by_file[v.file].append(v)
-
-        # By severity
-        if v.severity not in violations_by_severity:
-            violations_by_severity[v.severity] = []
-        violations_by_severity[v.severity].append(v)
-
-        # By rule
-        if v.rule_id not in violations_by_rule:
-            violations_by_rule[v.rule_id] = []
-        violations_by_rule[v.rule_id].append(v)
+    """Convert enforcement result dictionary to EnforcementResult object."""
+    violations = _convert_violations_to_objects(data.get("violations", []))
+    by_file, by_severity, by_rule = _group_violations(violations)
 
     return EnforcementResult(
         summary=data.get("summary", {}),
         violations=violations,
-        violations_by_file=violations_by_file,
-        violations_by_severity=violations_by_severity,
-        violations_by_rule=violations_by_rule,
+        violations_by_file=by_file,
+        violations_by_severity=by_severity,
+        violations_by_rule=by_rule,
         rules_executed=data.get("rules_executed", []),
         execution_time_ms=data.get("execution_time_ms", 0),
         files_scanned=data.get("summary", {}).get("files_scanned", 0),
@@ -935,13 +816,10 @@ def detect_security_issues_tool(
         for issue in result['issues']:
             print(f"{issue['severity']}: {issue['title']} at {issue['file']}:{issue['line']}")
     """
-    logger = get_logger("tool.detect_security_issues")
-    start_time = time.time()
-
-    # Default to all types if not specified
     if issue_types is None:
         issue_types = ["all"]
 
+    logger = get_logger("tool.detect_security_issues")
     logger.info(
         "tool_invoked",
         tool="detect_security_issues",
@@ -952,8 +830,7 @@ def detect_security_issues_tool(
         max_issues=max_issues,
     )
 
-    try:
-        # Run security scan
+    with _tool_context("detect_security_issues", project_folder=project_folder, language=language, issue_types=issue_types) as start_time:
         result = detect_security_issues_impl(
             project_folder=project_folder,
             language=language,
@@ -963,7 +840,6 @@ def detect_security_issues_tool(
         )
 
         execution_time = time.time() - start_time
-
         logger.info(
             "tool_completed",
             tool="detect_security_issues",
@@ -974,7 +850,6 @@ def detect_security_issues_tool(
             files_scanned=result.files_scanned,
         )
 
-        # Convert to JSON-serializable format using helpers
         return {
             "summary": result.summary,
             "issues": _format_security_issues(result.issues),
@@ -983,26 +858,6 @@ def detect_security_issues_tool(
             "files_scanned": result.files_scanned,
             "execution_time_ms": result.execution_time_ms,
         }
-
-    except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="detect_security_issues",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-        )
-        sentry_sdk.capture_exception(
-            e,
-            extras={
-                "tool": "detect_security_issues",
-                "project_folder": project_folder,
-                "language": language,
-                "issue_types": issue_types,
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            },
-        )
-        raise
 
 
 def detect_orphans_tool(
@@ -1078,8 +933,6 @@ def detect_orphans_tool(
             print(f"  {f['file_path']} ({f['lines']} lines) - {f['status']}")
     """
     logger = get_logger("tool.detect_orphans")
-    start_time = time.time()
-
     logger.info(
         "tool_invoked",
         tool="detect_orphans",
@@ -1090,8 +943,7 @@ def detect_orphans_tool(
         verify_with_grep=verify_with_grep,
     )
 
-    try:
-        # Run orphan detection
+    with _tool_context("detect_orphans", project_folder=project_folder, analyze_functions=analyze_functions) as start_time:
         result = detect_orphans_impl(
             project_folder=project_folder,
             include_patterns=include_patterns,
@@ -1101,7 +953,6 @@ def detect_orphans_tool(
         )
 
         execution_time = time.time() - start_time
-
         logger.info(
             "tool_completed",
             tool="detect_orphans",
@@ -1113,28 +964,9 @@ def detect_orphans_tool(
 
         return result
 
-    except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "tool_failed",
-            tool="detect_orphans",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-        )
-        sentry_sdk.capture_exception(
-            e,
-            extras={
-                "tool": "detect_orphans",
-                "project_folder": project_folder,
-                "analyze_functions": analyze_functions,
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            },
-        )
-        raise
 
-
-def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
-    """Create field definitions for MCP tool registration."""
+def _linting_field_definitions() -> Dict[str, Dict[str, Any]]:
+    """Field definitions for linting rule tools."""
     return {
         "create_linting_rule": {
             "rule_name": Field(description="Unique rule identifier (e.g., 'no-console-log')"),
@@ -1152,6 +984,12 @@ def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
             "language": Field(default=None, description="Filter by language (python, typescript, javascript, java, etc.)"),
             "category": Field(default=None, description="Filter by category (general, security, performance, style)"),
         },
+    }
+
+
+def _enforcement_field_definitions() -> Dict[str, Dict[str, Any]]:
+    """Field definitions for enforcement and fix tools."""
+    return {
         "enforce_standards": {
             "project_folder": Field(description="The absolute path to the project folder to scan"),
             "language": Field(description="The programming language (python, typescript, javascript, java)"),
@@ -1193,6 +1031,12 @@ def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
             "include_code_snippets": Field(default=False, description="Whether to include code snippets (JSON only)"),
             "save_to_file": Field(default=None, description="Optional file path to save the report"),
         },
+    }
+
+
+def _scanning_field_definitions() -> Dict[str, Dict[str, Any]]:
+    """Field definitions for security and orphan scanning tools."""
+    return {
         "detect_security_issues": {
             "project_folder": Field(description="Absolute path to project root directory"),
             "language": Field(description="Programming language (python, javascript, typescript, java)"),
@@ -1219,17 +1063,17 @@ def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
     }
 
 
-def register_quality_tools(mcp: FastMCP) -> None:
-    """Register all quality feature tools with MCP server.
+def _create_mcp_field_definitions() -> Dict[str, Dict[str, Any]]:
+    """Create field definitions for MCP tool registration."""
+    return {
+        **_linting_field_definitions(),
+        **_enforcement_field_definitions(),
+        **_scanning_field_definitions(),
+    }
 
-    Args:
-        mcp: FastMCP server instance
 
-    Note:
-        detect_code_smells is registered in the complexity module's register_complexity_tools() function
-        to consolidate code smell detection with complexity analysis.
-    """
-    fields = _create_mcp_field_definitions()
+def _register_linting_tools(mcp: FastMCP, fields: Dict[str, Dict[str, Any]]) -> None:
+    """Register linting rule tools with MCP server."""
 
     @mcp.tool()
     def create_linting_rule(
@@ -1265,6 +1109,10 @@ def register_quality_tools(mcp: FastMCP) -> None:
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone list_rule_templates_tool function."""
         return list_rule_templates_tool(language=language, category=category)
+
+
+def _register_enforcement_tools(mcp: FastMCP, fields: Dict[str, Dict[str, Any]]) -> None:
+    """Register enforcement, fix, and report tools with MCP server."""
 
     @mcp.tool()
     def enforce_standards(
@@ -1325,6 +1173,10 @@ def register_quality_tools(mcp: FastMCP) -> None:
             save_to_file=save_to_file,
         )
 
+
+def _register_scanning_tools(mcp: FastMCP, fields: Dict[str, Dict[str, Any]]) -> None:
+    """Register security and orphan scanning tools with MCP server."""
+
     @mcp.tool()
     def detect_security_issues(
         project_folder: str = fields["detect_security_issues"]["project_folder"],
@@ -1358,3 +1210,19 @@ def register_quality_tools(mcp: FastMCP) -> None:
             analyze_functions=analyze_functions,
             verify_with_grep=verify_with_grep,
         )
+
+
+def register_quality_tools(mcp: FastMCP) -> None:
+    """Register all quality feature tools with MCP server.
+
+    Args:
+        mcp: FastMCP server instance
+
+    Note:
+        detect_code_smells is registered in the complexity module's register_complexity_tools() function
+        to consolidate code smell detection with complexity analysis.
+    """
+    fields = _create_mcp_field_definitions()
+    _register_linting_tools(mcp, fields)
+    _register_enforcement_tools(mcp, fields)
+    _register_scanning_tools(mcp, fields)

@@ -383,6 +383,66 @@ def _get_line_numbers(func: Dict[str, Any]) -> Tuple[int, int]:
     return start_line, end_line
 
 
+def _find_signature_end(code_lines: List[str]) -> int:
+    """Find the line index where a Python function signature ends (the colon line)."""
+    in_signature = False
+    for i, line in enumerate(code_lines):
+        stripped = line.strip()
+        if not in_signature and (stripped.startswith("def ") or stripped.startswith("async def ")):
+            in_signature = True
+        if in_signature and stripped.endswith(":"):
+            return i
+    return -1
+
+
+def _find_docstring_extent(code_lines: List[str], start: int) -> int:
+    """Count docstring lines starting from the given line index.
+
+    Returns the number of lines the docstring occupies, or 0 if no docstring found.
+    """
+    # Skip blank lines to find docstring start
+    doc_start = start
+    while doc_start < len(code_lines) and not code_lines[doc_start].strip():
+        doc_start += 1
+
+    if doc_start >= len(code_lines):
+        return 0
+
+    first_content = code_lines[doc_start].strip()
+
+    for quote in ('"""', "'''"):
+        if not first_content.startswith(quote):
+            continue
+        # Single-line docstring: """text"""
+        if first_content.count(quote) >= 2:
+            return 1
+        # Multi-line: find closing quote
+        for j in range(doc_start + 1, len(code_lines)):
+            if quote in code_lines[j]:
+                return j - doc_start + 1
+        return 0
+
+    return 0
+
+
+def _count_docstring_lines(code: str, language: str) -> int:
+    """Count lines occupied by the leading docstring in a function body.
+
+    Excludes docstring lines from length calculations so that well-documented
+    functions are not penalized for having MCP/API documentation.
+    """
+    if language != "python":
+        return 0
+
+    code_lines = code.split("\n")
+    sig_end = _find_signature_end(code_lines)
+
+    if sig_end < 0 or sig_end + 1 >= len(code_lines):
+        return 0
+
+    return _find_docstring_extent(code_lines, sig_end + 1)
+
+
 def _calculate_all_metrics(code: str, language: str) -> ComplexityMetrics:
     """Calculate all complexity metrics for a function.
 
@@ -396,7 +456,7 @@ def _calculate_all_metrics(code: str, language: str) -> ComplexityMetrics:
     cyclomatic = calculate_cyclomatic_complexity(code, language)
     cognitive = calculate_cognitive_complexity(code, language)
     nesting = calculate_nesting_depth(code, language)
-    lines = len(code.split("\n"))
+    lines = len(code.split("\n")) - _count_docstring_lines(code, language)
     param_count = _count_function_parameters(code, language)
 
     return ComplexityMetrics(cyclomatic=cyclomatic, cognitive=cognitive, nesting_depth=nesting, lines=lines, parameter_count=param_count)
