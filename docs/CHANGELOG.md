@@ -4,6 +4,7 @@ All notable changes to ast-grep-mcp are documented in version-dated files in the
 
 ## Versions
 
+- [2026-03-08: Code Quality Fixes](changelog/2026-03-08-quality-fixes.md) — 2 items (magic number, assert)
 - [2026-03-08: Code Review Findings Resolution](changelog/2026-03-08-code-review-findings.md) — 4 items (M1, M2, M3, L1)
 - [2026-03-06: Complexity Refactoring + Code Review Fixes + Duplication](changelog/2026-03-06-complexity-review-fixes.md) — 24 items (C1-C10, BR1-BR8, CR1, M1, SE1, D1-D4)
 - [2026-03-04: Maintenance + Quality Updates](changelog/2026-03-04-maintenance-quality.md)
