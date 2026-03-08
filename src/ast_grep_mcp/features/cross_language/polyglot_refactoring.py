@@ -19,6 +19,7 @@ from ast_grep_mcp.models.cross_language import (
     PolyglotRefactoringResult,
     RefactoringType,
 )
+from ast_grep_mcp.utils.text import read_file_lines, write_file_lines
 
 logger = get_logger(__name__)
 
@@ -275,8 +276,7 @@ def _identify_manual_review(
 def _apply_changes_to_file(file_path: str, file_changes: List[PolyglotChange]) -> bool:
     """Apply changes to a single file. Returns True on success."""
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
+        lines = read_file_lines(file_path)
 
         file_changes.sort(key=lambda c: c.line_number, reverse=True)
         for change in file_changes:
@@ -284,8 +284,7 @@ def _apply_changes_to_file(file_path: str, file_changes: List[PolyglotChange]) -
             if 0 <= line_idx < len(lines):
                 lines[line_idx] = change.new_code + "\n"
 
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.writelines(lines)
+        write_file_lines(file_path, lines)
         return True
     except Exception as e:
         logger.error("apply_change_failed", file=file_path, error=str(e)[:100])

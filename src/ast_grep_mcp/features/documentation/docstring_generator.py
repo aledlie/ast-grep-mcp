@@ -20,6 +20,7 @@ from ast_grep_mcp.models.documentation import (
     GeneratedDocstring,
     ParameterInfo,
 )
+from ast_grep_mcp.utils.text import read_file_lines, write_file_lines
 
 logger = get_logger(__name__)
 
@@ -1163,8 +1164,7 @@ def _apply_docstring_to_file(
     Returns:
         True if file was modified
     """
-    with open(file_path, "r", encoding="utf-8") as f:
-        lines = f.readlines()
+    lines = read_file_lines(file_path)
 
     sorted_docstrings = sorted(docstrings, key=lambda d: d.line_number, reverse=True)
     modified = False
@@ -1177,8 +1177,7 @@ def _apply_docstring_to_file(
         modified = True
 
     if modified:
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.writelines(lines)
+        write_file_lines(file_path, lines)
 
     return modified
 

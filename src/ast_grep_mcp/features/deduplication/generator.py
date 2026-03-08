@@ -12,6 +12,7 @@ from ...constants import RegexCaptureGroups, SemanticVolumeDefaults
 from ...core.logging import get_logger
 from ...models.deduplication import FunctionTemplate
 from ...utils.formatters import format_generated_code
+from ...utils.text import indent_lines
 
 # Language-specific configuration for function generation
 FUNCTION_GENERATORS: Dict[str, Callable[..., str]] = {}
@@ -751,9 +752,7 @@ class CodeGenerator:
 
         # Apply indentation to replacement
         if "\n" in replacement:
-            lines = replacement.split("\n")
-            indented_lines = [indent + line if line.strip() else "" for line in lines]
-            return "\n".join(indented_lines)
+            return "\n".join(indent_lines(replacement, prefix=indent))
         else:
             return indent + replacement
 
