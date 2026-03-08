@@ -3,28 +3,14 @@
 import time
 from typing import Any, Dict, List, Optional
 
-import sentry_sdk
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults
+from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.schema.client import get_schema_org_client
 from ast_grep_mcp.features.schema.enhancement_service import analyze_entity_graph
-
-
-def _log_tool_error(logger: Any, tool: str, e: Exception, elapsed: float, extras: Dict[str, Any]) -> None:
-    logger.error(
-        "tool_failed",
-        tool=tool,
-        execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
-        error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-        status="failed",
-    )
-    sentry_sdk.capture_exception(
-        e,
-        extras={"tool": tool, "execution_time_seconds": round(elapsed, FormattingDefaults.ROUNDING_PRECISION), **extras},
-    )
+from ast_grep_mcp.utils.tool_context import async_tool_context, tool_context
 
 
 async def get_schema_type_tool(type_name: str) -> Dict[str, Any]:
@@ -42,9 +28,8 @@ async def get_schema_type_tool(type_name: str) -> Dict[str, Any]:
         get_schema_type_tool('Person') returns details about the Person type
     """
     logger = get_logger("tool.get_schema_type")
-    start_time = time.time()
     logger.info("tool_invoked", tool="get_schema_type", type_name=type_name)
-    try:
+    async with async_tool_context("get_schema_type", type_name=type_name) as start_time:
         result = await get_schema_org_client().get_schema_type(type_name)
         elapsed = time.time() - start_time
         logger.info(
@@ -54,9 +39,6 @@ async def get_schema_type_tool(type_name: str) -> Dict[str, Any]:
             status="success",
         )
         return result
-    except Exception as e:
-        _log_tool_error(logger, "get_schema_type", e, time.time() - start_time, {"type_name": type_name})
-        raise
 
 
 async def search_schemas_tool(query: str, limit: int = 10) -> List[Dict[str, Any]]:
@@ -75,9 +57,8 @@ async def search_schemas_tool(query: str, limit: int = 10) -> List[Dict[str, Any
         search_schemas_tool('blog') finds types like BlogPosting, Blog, etc.
     """
     logger = get_logger("tool.search_schemas")
-    start_time = time.time()
     logger.info("tool_invoked", tool="search_schemas", query=query, limit=limit)
-    try:
+    async with async_tool_context("search_schemas", query=query, limit=limit) as start_time:
         results = await get_schema_org_client().search_schemas(query, limit)
         elapsed = time.time() - start_time
         logger.info(
@@ -88,9 +69,6 @@ async def search_schemas_tool(query: str, limit: int = 10) -> List[Dict[str, Any
             status="success",
         )
         return results
-    except Exception as e:
-        _log_tool_error(logger, "search_schemas", e, time.time() - start_time, {"query": query, "limit": limit})
-        raise
 
 
 async def get_type_hierarchy_tool(type_name: str) -> Dict[str, Any]:
@@ -108,9 +86,8 @@ async def get_type_hierarchy_tool(type_name: str) -> Dict[str, Any]:
         get_type_hierarchy_tool('NewsArticle') shows inheritance from Article, CreativeWork, etc.
     """
     logger = get_logger("tool.get_type_hierarchy")
-    start_time = time.time()
     logger.info("tool_invoked", tool="get_type_hierarchy", type_name=type_name)
-    try:
+    async with async_tool_context("get_type_hierarchy", type_name=type_name) as start_time:
         result = await get_schema_org_client().get_type_hierarchy(type_name)
         elapsed = time.time() - start_time
         logger.info(
@@ -120,9 +97,6 @@ async def get_type_hierarchy_tool(type_name: str) -> Dict[str, Any]:
             status="success",
         )
         return result
-    except Exception as e:
-        _log_tool_error(logger, "get_type_hierarchy", e, time.time() - start_time, {"type_name": type_name})
-        raise
 
 
 async def get_type_properties_tool(type_name: str, include_inherited: bool = True) -> List[Dict[str, Any]]:
@@ -141,9 +115,8 @@ async def get_type_properties_tool(type_name: str, include_inherited: bool = Tru
         get_type_properties_tool('Organization') returns properties like name, url, address, etc.
     """
     logger = get_logger("tool.get_type_properties")
-    start_time = time.time()
     logger.info("tool_invoked", tool="get_type_properties", type_name=type_name, include_inherited=include_inherited)
-    try:
+    async with async_tool_context("get_type_properties", type_name=type_name, include_inherited=include_inherited) as start_time:
         results = await get_schema_org_client().get_type_properties(type_name, include_inherited)
         elapsed = time.time() - start_time
         logger.info(
@@ -154,11 +127,6 @@ async def get_type_properties_tool(type_name: str, include_inherited: bool = Tru
             status="success",
         )
         return results
-    except Exception as e:
-        _log_tool_error(
-            logger, "get_type_properties", e, time.time() - start_time, {"type_name": type_name, "include_inherited": include_inherited}
-        )
-        raise
 
 
 async def generate_schema_example_tool(type_name: str, custom_properties: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -177,9 +145,8 @@ async def generate_schema_example_tool(type_name: str, custom_properties: Option
         generate_schema_example_tool('Recipe', {'name': 'Chocolate Cake', 'prepTime': 'PT30M'})
     """
     logger = get_logger("tool.generate_schema_example")
-    start_time = time.time()
     logger.info("tool_invoked", tool="generate_schema_example", type_name=type_name)
-    try:
+    async with async_tool_context("generate_schema_example", type_name=type_name) as start_time:
         result = await get_schema_org_client().generate_example(type_name, custom_properties)
         elapsed = time.time() - start_time
         logger.info(
@@ -189,15 +156,6 @@ async def generate_schema_example_tool(type_name: str, custom_properties: Option
             status="success",
         )
         return result
-    except Exception as e:
-        _log_tool_error(
-            logger,
-            "generate_schema_example",
-            e,
-            time.time() - start_time,
-            {"type_name": type_name, "has_custom_properties": custom_properties is not None},
-        )
-        raise
 
 
 def generate_entity_id_tool(base_url: str, entity_type: str, entity_slug: Optional[str] = None) -> str:
@@ -222,9 +180,8 @@ def generate_entity_id_tool(base_url: str, entity_type: str, entity_slug: Option
           → 'https://example.com/products/widget-a#product'
     """
     logger = get_logger("tool.generate_entity_id")
-    start_time = time.time()
     logger.info("tool_invoked", tool="generate_entity_id", base_url=base_url, entity_type=entity_type)
-    try:
+    with tool_context("generate_entity_id", base_url=base_url, entity_type=entity_type) as start_time:
         result = get_schema_org_client().generate_entity_id(base_url, entity_type, entity_slug)
         elapsed = time.time() - start_time
         logger.info(
@@ -235,15 +192,6 @@ def generate_entity_id_tool(base_url: str, entity_type: str, entity_slug: Option
             status="success",
         )
         return result
-    except Exception as e:
-        _log_tool_error(
-            logger,
-            "generate_entity_id",
-            e,
-            time.time() - start_time,
-            {"base_url": base_url, "entity_type": entity_type, "has_slug": entity_slug is not None},
-        )
-        raise
 
 
 def validate_entity_id_tool(entity_id: str) -> Dict[str, Any]:
@@ -268,9 +216,8 @@ def validate_entity_id_tool(entity_id: str) -> Dict[str, Any]:
         → { "valid": true, "warnings": [], "suggestions": [] }
     """
     logger = get_logger("tool.validate_entity_id")
-    start_time = time.time()
     logger.info("tool_invoked", tool="validate_entity_id", entity_id=entity_id)
-    try:
+    with tool_context("validate_entity_id", entity_id=entity_id) as start_time:
         result = get_schema_org_client().validate_entity_id(entity_id)
         elapsed = time.time() - start_time
         logger.info(
@@ -282,9 +229,6 @@ def validate_entity_id_tool(entity_id: str) -> Dict[str, Any]:
             status="success",
         )
         return result
-    except Exception as e:
-        _log_tool_error(logger, "validate_entity_id", e, time.time() - start_time, {"entity_id": entity_id})
-        raise
 
 
 async def build_entity_graph_tool(entities: List[Dict[str, Any]], base_url: str) -> Dict[str, Any]:
@@ -299,9 +243,8 @@ async def build_entity_graph_tool(entities: List[Dict[str, Any]], base_url: str)
         Complete JSON-LD @graph with all entities properly connected via @id references
     """
     logger = get_logger("tool.build_entity_graph")
-    start_time = time.time()
     logger.info("tool_invoked", tool="build_entity_graph", entity_count=len(entities), base_url=base_url)
-    try:
+    async with async_tool_context("build_entity_graph", entity_count=len(entities), base_url=base_url) as start_time:
         result = await get_schema_org_client().build_entity_graph(entities, base_url)
         elapsed = time.time() - start_time
         logger.info(
@@ -312,9 +255,6 @@ async def build_entity_graph_tool(entities: List[Dict[str, Any]], base_url: str)
             status="success",
         )
         return result
-    except Exception as e:
-        _log_tool_error(logger, "build_entity_graph", e, time.time() - start_time, {"entity_count": len(entities), "base_url": base_url})
-        raise
 
 
 async def enhance_entity_graph_tool(input_source: str, input_type: str = "file", output_mode: str = "analysis") -> Dict[str, Any]:
@@ -330,9 +270,10 @@ async def enhance_entity_graph_tool(input_source: str, input_type: str = "file",
         Entity-level analysis: missing properties, missing types, SEO scores, validation issues
     """
     logger = get_logger("tool.enhance_entity_graph")
-    start_time = time.time()
     logger.info("tool_invoked", tool="enhance_entity_graph", input_source=input_source, input_type=input_type, output_mode=output_mode)
-    try:
+    async with async_tool_context(
+        "enhance_entity_graph", input_source=input_source, input_type=input_type, output_mode=output_mode
+    ) as start_time:
         result = await analyze_entity_graph(input_source=input_source, input_type=input_type, output_mode=output_mode)
         elapsed = time.time() - start_time
         logger.info(
@@ -344,15 +285,6 @@ async def enhance_entity_graph_tool(input_source: str, input_type: str = "file",
             status="success",
         )
         return result
-    except Exception as e:
-        _log_tool_error(
-            logger,
-            "enhance_entity_graph",
-            e,
-            time.time() - start_time,
-            {"input_source": input_source, "input_type": input_type, "output_mode": output_mode},
-        )
-        raise
 
 
 def _reg_get_search(mcp: FastMCP) -> None:

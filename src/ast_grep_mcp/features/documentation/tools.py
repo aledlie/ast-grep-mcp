@@ -11,11 +11,10 @@ This module registers MCP tools for:
 import time
 from typing import Any, Dict, List, Optional
 
-import sentry_sdk
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-from ast_grep_mcp.constants import ConversionFactors, DisplayDefaults, FormattingDefaults
+from ast_grep_mcp.constants import ConversionFactors, FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.documentation.api_docs_generator import generate_api_docs_impl
 from ast_grep_mcp.features.documentation.changelog_generator import generate_changelog_impl
@@ -23,16 +22,7 @@ from ast_grep_mcp.features.documentation.docstring_generator import generate_doc
 from ast_grep_mcp.features.documentation.readme_generator import generate_readme_sections_impl
 from ast_grep_mcp.features.documentation.sync_checker import sync_documentation_impl
 from ast_grep_mcp.models.documentation import ApiRoute
-
-
-def _log_tool_error(logger: Any, tool: str, execution_time: float, e: Exception) -> None:
-    logger.error(
-        "tool_failed",
-        tool=tool,
-        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-        error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-    )
-    sentry_sdk.capture_exception(e)
+from ast_grep_mcp.utils.tool_context import tool_context
 
 
 def _format_docstrings_response(result: Any) -> Dict[str, Any]:
@@ -150,8 +140,6 @@ def generate_docstrings_tool(
     skip_private: bool = True,
 ) -> Dict[str, Any]:
     logger = get_logger("tool.generate_docstrings")
-    start_time = time.time()
-
     logger.info(
         "tool_invoked",
         tool="generate_docstrings",
@@ -162,7 +150,7 @@ def generate_docstrings_tool(
         dry_run=dry_run,
     )
 
-    try:
+    with tool_context("generate_docstrings", project_folder=project_folder, language=language) as start_time:
         result = generate_docstrings_impl(
             project_folder=project_folder,
             file_pattern=file_pattern,
@@ -182,11 +170,6 @@ def generate_docstrings_tool(
         )
         return _format_docstrings_response(result)
 
-    except Exception as e:
-        execution_time = time.time() - start_time
-        _log_tool_error(logger, "generate_docstrings", execution_time, e)
-        raise
-
 
 def generate_readme_sections_tool(
     project_folder: str,
@@ -195,7 +178,6 @@ def generate_readme_sections_tool(
     include_examples: bool = True,
 ) -> Dict[str, Any]:
     logger = get_logger("tool.generate_readme_sections")
-    start_time = time.time()
 
     if sections is None:
         sections = ["all"]
@@ -208,7 +190,7 @@ def generate_readme_sections_tool(
         sections=sections,
     )
 
-    try:
+    with tool_context("generate_readme_sections", project_folder=project_folder, language=language) as start_time:
         result = generate_readme_sections_impl(
             project_folder=project_folder,
             language=language,
@@ -223,11 +205,6 @@ def generate_readme_sections_tool(
             sections_generated=len(result.sections),
         )
         return _format_readme_response(result)
-
-    except Exception as e:
-        execution_time = time.time() - start_time
-        _log_tool_error(logger, "generate_readme_sections", execution_time, e)
-        raise
 
 
 def _format_route_for_output(route: ApiRoute) -> Dict[str, Any]:
@@ -257,8 +234,6 @@ def generate_api_docs_tool(
     include_examples: bool = True,
 ) -> Dict[str, Any]:
     logger = get_logger("tool.generate_api_docs")
-    start_time = time.time()
-
     logger.info(
         "tool_invoked",
         tool="generate_api_docs",
@@ -268,7 +243,7 @@ def generate_api_docs_tool(
         output_format=output_format,
     )
 
-    try:
+    with tool_context("generate_api_docs", project_folder=project_folder, language=language) as start_time:
         result = generate_api_docs_impl(
             project_folder=project_folder,
             language=language,
@@ -292,11 +267,6 @@ def generate_api_docs_tool(
             "execution_time_ms": result.execution_time_ms,
         }
 
-    except Exception as e:
-        execution_time = time.time() - start_time
-        _log_tool_error(logger, "generate_api_docs", execution_time, e)
-        raise
-
 
 def generate_changelog_tool(
     project_folder: str,
@@ -306,8 +276,6 @@ def generate_changelog_tool(
     group_by: str = "type",
 ) -> Dict[str, Any]:
     logger = get_logger("tool.generate_changelog")
-    start_time = time.time()
-
     logger.info(
         "tool_invoked",
         tool="generate_changelog",
@@ -317,7 +285,7 @@ def generate_changelog_tool(
         format=changelog_format,
     )
 
-    try:
+    with tool_context("generate_changelog", project_folder=project_folder) as start_time:
         result = generate_changelog_impl(
             project_folder=project_folder,
             from_version=from_version,
@@ -341,11 +309,6 @@ def generate_changelog_tool(
             "execution_time_ms": result.execution_time_ms,
         }
 
-    except Exception as e:
-        execution_time = time.time() - start_time
-        _log_tool_error(logger, "generate_changelog", execution_time, e)
-        raise
-
 
 def sync_documentation_tool(
     project_folder: str,
@@ -354,7 +317,6 @@ def sync_documentation_tool(
     check_only: bool = True,
 ) -> Dict[str, Any]:
     logger = get_logger("tool.sync_documentation")
-    start_time = time.time()
 
     if doc_types is None:
         doc_types = ["all"]
@@ -368,7 +330,7 @@ def sync_documentation_tool(
         check_only=check_only,
     )
 
-    try:
+    with tool_context("sync_documentation", project_folder=project_folder, language=language) as start_time:
         result = sync_documentation_impl(
             project_folder=project_folder,
             language=language,
@@ -383,11 +345,6 @@ def sync_documentation_tool(
             issues_found=len(result.issues),
         )
         return _format_sync_response(result)
-
-    except Exception as e:
-        execution_time = time.time() - start_time
-        _log_tool_error(logger, "sync_documentation", execution_time, e)
-        raise
 
 
 # =============================================================================
