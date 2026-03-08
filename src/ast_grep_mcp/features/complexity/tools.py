@@ -18,13 +18,13 @@ from ast_grep_mcp.constants import (
     ComplexityDefaults,
     ComplexityStorageDefaults,
     ConversionFactors,
-    DisplayDefaults,
     FilePatterns,
     FormattingDefaults,
     ParallelProcessing,
 )
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.complexity import ComplexityThresholds
+from ast_grep_mcp.utils.tool_context import tool_context
 
 from .complexity_analyzer import ParallelComplexityAnalyzer
 from .complexity_file_finder import ComplexityFileFinder
@@ -54,16 +54,9 @@ def _validate_inputs(language: str) -> None:
         raise ValueError(f"Unsupported language '{language}'. Supported: {', '.join(supported_langs)}")
 
 
-def _get_default_complexity_exclude_patterns() -> List[str]:
-    """Get default exclude patterns for complexity analysis."""
-    return ["**/node_modules/**", "**/__pycache__/**", *FilePatterns.VENV_EXCLUDE]
-
-
 def _normalize_complexity_exclude_patterns(exclude_patterns: List[str] | None) -> List[str]:
     """Normalize exclude patterns and enforce virtualenv exclusions."""
-    if exclude_patterns is None:
-        exclude_patterns = _get_default_complexity_exclude_patterns()
-    return FilePatterns.merge_with_venv_excludes(exclude_patterns)
+    return FilePatterns.normalize_excludes(exclude_patterns, defaults=_COMPLEXITY_EXCLUDE_DEFAULTS)
 
 
 def _find_files_to_analyze(
@@ -253,23 +246,6 @@ def _execute_analysis(
     return _format_response(summary, _thresholds_to_dict(thresholds), exceeding_functions, run_id, stored_at, trends, statistics)
 
 
-def _log_tool_error(logger: Any, tool: str, execution_time: float, e: Exception, extras: Dict[str, Any]) -> None:
-    logger.error(
-        "tool_failed",
-        tool=tool,
-        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-        error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-        status="failed",
-    )
-    sentry_sdk.capture_exception(
-        e,
-        extras={
-            "tool": tool,
-            "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            **extras,
-        },
-    )
-
 
 def analyze_complexity_tool(
     project_folder: str,
@@ -292,7 +268,6 @@ def analyze_complexity_tool(
         include_patterns = ["**/*"]
     exclude_patterns = _normalize_complexity_exclude_patterns(exclude_patterns)
     logger = get_logger("tool.analyze_complexity")
-    start_time = time.time()
     logger.info(
         "tool_invoked",
         tool="analyze_complexity",
@@ -304,7 +279,8 @@ def analyze_complexity_tool(
         length_threshold=length_threshold,
         max_threads=max_threads,
     )
-    try:
+
+    with tool_context("analyze_complexity", project_folder=project_folder, language=language) as start_time:
         _validate_inputs(language)
         thresholds = ComplexityThresholds(
             cyclomatic=cyclomatic_threshold, cognitive=cognitive_threshold, nesting_depth=nesting_threshold, lines=length_threshold
@@ -315,9 +291,6 @@ def analyze_complexity_tool(
         return _execute_analysis(
             project_folder, language, thresholds, files_to_analyze, store_results, include_trends, max_threads, start_time, logger
         )
-    except Exception as e:
-        _log_tool_error(logger, "analyze_complexity", time.time() - start_time, e, {"project_folder": project_folder, "language": language})
-        raise
 
 
 def _sentry_test_error(message: str, result: Dict[str, Any]) -> None:
@@ -387,27 +360,21 @@ def test_sentry_integration_tool(
         Information about what was sent to Sentry
     """
     logger = get_logger("tool.test_sentry_integration")
-    start_time = time.time()
     logger.info("tool_invoked", tool="test_sentry_integration", test_type=test_type)
-    try:
+
+    with tool_context("test_sentry_integration", test_type=test_type) as start_time:
         if not os.getenv("SENTRY_DSN"):
             return {"status": "skipped", "message": "Sentry not configured (SENTRY_DSN not set)", "test_type": test_type}
         result: Dict[str, Any] = {"status": "success", "test_type": test_type}
         _SENTRY_TEST_HANDLERS[test_type](message, result)
-        execution_time = time.time() - start_time
-        et = round(execution_time, FormattingDefaults.ROUNDING_PRECISION)
+        et = round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION)
         logger.info("tool_completed", tool="test_sentry_integration", test_type=test_type, execution_time_seconds=et, status="success")
         result["execution_time_seconds"] = et
         result["sentry_configured"] = True
         return result
-    except Exception as e:
-        _log_tool_error(logger, "test_sentry_integration", time.time() - start_time, e, {"test_type": test_type})
-        raise
 
 
-def _get_default_smell_exclude_patterns() -> List[str]:
-    """Get default exclude patterns for code smell detection."""
-    return FilePatterns.merge_with_venv_excludes(FilePatterns.DEFAULT_EXCLUDE + FilePatterns.TEST_EXCLUDE)
+_SMELL_EXCLUDE_DEFAULTS = FilePatterns.DEFAULT_EXCLUDE + FilePatterns.TEST_EXCLUDE
 
 
 def _prepare_smell_detection_params(include_patterns: List[str] | None, exclude_patterns: List[str] | None) -> tuple[List[str], List[str]]:
@@ -422,9 +389,7 @@ def _prepare_smell_detection_params(include_patterns: List[str] | None, exclude_
     """
     if include_patterns is None:
         include_patterns = ["**/*"]
-    if exclude_patterns is None:
-        exclude_patterns = _get_default_smell_exclude_patterns()
-    exclude_patterns = FilePatterns.merge_with_venv_excludes(exclude_patterns)
+    exclude_patterns = FilePatterns.normalize_excludes(exclude_patterns, defaults=_SMELL_EXCLUDE_DEFAULTS)
     return include_patterns, exclude_patterns
 
 
@@ -472,10 +437,10 @@ def detect_code_smells_tool(
     from ast_grep_mcp.features.quality.smells import detect_code_smells_impl
 
     logger = get_logger("tool.detect_code_smells")
-    start_time = time.time()
     include_patterns, exclude_patterns = _prepare_smell_detection_params(include_patterns, exclude_patterns)
     logger.info("tool_invoked", tool="detect_code_smells", project_folder=project_folder, language=language)
-    try:
+
+    with tool_context("detect_code_smells", project_folder=project_folder, language=language) as start_time:
         result = detect_code_smells_impl(
             project_folder=project_folder,
             language=language,
@@ -491,9 +456,6 @@ def detect_code_smells_tool(
             max_threads=max_threads,
         )
         return _process_smell_detection_result(result, start_time, logger)
-    except Exception as e:
-        _log_tool_error(logger, "detect_code_smells", time.time() - start_time, e, {"project_folder": project_folder, "language": language})
-        raise
 
 
 def _register_analyze_complexity(mcp: FastMCP) -> None:

@@ -298,9 +298,7 @@ def _find_source_files(
     import glob
 
     include_patterns = _resolve_include_patterns(language, include_patterns)
-    if not exclude_patterns:
-        exclude_patterns = _DEFAULT_EXCLUDE_PATTERNS
-    exclude_patterns = FilePatterns.merge_with_venv_excludes(exclude_patterns)
+    exclude_patterns = FilePatterns.normalize_excludes(exclude_patterns, defaults=_DEFAULT_EXCLUDE_PATTERNS)
 
     files: List[str] = []
     for pattern in include_patterns:
