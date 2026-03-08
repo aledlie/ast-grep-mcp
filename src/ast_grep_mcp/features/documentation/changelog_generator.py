@@ -54,6 +54,68 @@ def _run_git_command(project_folder: str, args: List[str]) -> Tuple[bool, str]:
         return False, "Git not found"
 
 
+def _resolve_version_ref(project_folder: str, version: str) -> str:
+    """Resolve a version string to a git ref.
+
+    Tries v-prefixed tag first, then bare ref, falls back to HEAD.
+
+    Args:
+        project_folder: Project root
+        version: Version string (tag name, commit, or HEAD)
+
+    Returns:
+        Resolved git ref
+    """
+    if version.upper() == "HEAD":
+        return "HEAD"
+
+    # Try v-prefixed tag
+    success, _ = _run_git_command(project_folder, ["rev-parse", f"v{version}"])
+    if success:
+        return f"v{version}"
+
+    # Try bare ref
+    success, _ = _run_git_command(project_folder, ["rev-parse", version])
+    if success:
+        return version
+
+    return "HEAD"
+
+
+def _get_first_commit(project_folder: str) -> str:
+    """Get the first commit hash in the repository.
+
+    Args:
+        project_folder: Project root
+
+    Returns:
+        First commit hash, or empty string on failure
+    """
+    success, first_commit = _run_git_command(project_folder, ["rev-list", "--max-parents=0", "HEAD"])
+    return first_commit if success else ""
+
+
+def _find_previous_tag(project_folder: str, exclude_ref: str) -> str:
+    """Find the most recent v-prefixed tag, excluding a given ref.
+
+    Falls back to the first commit if no suitable tag is found.
+
+    Args:
+        project_folder: Project root
+        exclude_ref: Ref to skip (e.g., current version tag)
+
+    Returns:
+        Tag name or first commit hash
+    """
+    success, tags = _run_git_command(project_folder, ["tag", "--sort=-version:refname", "-l", "v*"])
+    if success and tags:
+        for tag in tags.split("\n"):
+            if tag and tag != exclude_ref:
+                return tag
+
+    return _get_first_commit(project_folder)
+
+
 def _get_commit_range(
     project_folder: str,
     from_version: Optional[str],
@@ -69,47 +131,13 @@ def _get_commit_range(
     Returns:
         Tuple of (from_ref, to_ref)
     """
-    # Get to_ref
-    if to_version.upper() == "HEAD":
-        to_ref = "HEAD"
-    else:
-        # Check if it's a tag
-        success, _ = _run_git_command(project_folder, ["rev-parse", f"v{to_version}"])
-        if success:
-            to_ref = f"v{to_version}"
-        else:
-            success, _ = _run_git_command(project_folder, ["rev-parse", to_version])
-            if success:
-                to_ref = to_version
-            else:
-                to_ref = "HEAD"
+    to_ref = _resolve_version_ref(project_folder, to_version)
 
-    # Get from_ref
     if from_version:
-        # Check if it's a tag
         success, _ = _run_git_command(project_folder, ["rev-parse", f"v{from_version}"])
-        if success:
-            from_ref = f"v{from_version}"
-        else:
-            from_ref = from_version
+        from_ref = f"v{from_version}" if success else from_version
     else:
-        # Get the first commit or most recent tag
-        success, tags = _run_git_command(project_folder, ["tag", "--sort=-version:refname", "-l", "v*"])
-        if success and tags:
-            tag_list = tags.split("\n")
-            # Skip current version tag if it's to_ref
-            for tag in tag_list:
-                if tag and tag != to_ref:
-                    from_ref = tag
-                    break
-            else:
-                # No previous tag, get first commit
-                success, first_commit = _run_git_command(project_folder, ["rev-list", "--max-parents=0", "HEAD"])
-                from_ref = first_commit if success else ""
-        else:
-            # No tags, get first commit
-            success, first_commit = _run_git_command(project_folder, ["rev-list", "--max-parents=0", "HEAD"])
-            from_ref = first_commit if success else ""
+        from_ref = _find_previous_tag(project_folder, to_ref)
 
     return from_ref, to_ref
 
