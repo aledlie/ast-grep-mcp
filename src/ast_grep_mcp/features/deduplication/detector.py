@@ -423,11 +423,14 @@ class DuplicationDetector:
 
         return groups
 
+    @staticmethod
+    def _match_line(match: Dict[str, Any], position: str = "start") -> int:
+        """Extract a line number from a match's range, defaulting to 0."""
+        return match.get("range", {}).get(position, {}).get("line", 0)
+
     def _get_item_key(self, item: Dict[str, Any]) -> str:
         """Get unique key for an item."""
-        file = item.get("file", "")
-        line = item.get("range", {}).get("start", {}).get("line", 0)
-        return f"{file}:{line}"
+        return f"{item.get('file', '')}:{self._match_line(item)}"
 
     def _build_item_to_groups_map(self, groups: List[List[Dict[str, Any]]]) -> Dict[str, List[int]]:
         """Build mapping from items to group indices."""
@@ -499,13 +502,11 @@ class DuplicationDetector:
 
     def _items_equal(self, item1: Dict[str, Any], item2: Dict[str, Any]) -> bool:
         """Check if two match items are the same."""
-        return item1.get("file") == item2.get("file") and item1.get("range", {}).get("start", {}).get("line") == item2.get("range", {}).get(
-            "start", {}
-        ).get("line")
+        return item1.get("file") == item2.get("file") and self._match_line(item1) == self._match_line(item2)
 
     def _group_locations(self, group: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Extract file/line location entries from a group."""
-        return [{"file": item.get("file", ""), "line": item.get("range", {}).get("start", {}).get("line", 0) + 1} for item in group]
+        return [{"file": item.get("file", ""), "line": self._match_line(item) + 1} for item in group]
 
     def _build_suggestion(self, idx: int, group: List[Dict[str, Any]], construct_type: str) -> Dict[str, Any]:
         """Build a single refactoring suggestion for a duplication group."""
@@ -525,22 +526,21 @@ class DuplicationDetector:
         """Generate refactoring suggestions for duplication groups."""
         return [self._build_suggestion(idx, group, construct_type) for idx, group in enumerate(duplication_groups) if len(group) >= 2]
 
+    _STRATEGY_BY_CONSTRUCT: Dict[str, Dict[str, str]] = {
+        "class_definition": {"type": "extract_base_class", "description": "Extract common functionality into a base class"},
+        "method_definition": {"type": "extract_method", "description": "Extract duplicated method to a parent class or mixin"},
+    }
+    _FUNCTION_STRATEGY_SMALL = {"type": "extract_utility_function", "description": "Extract duplicated logic into a shared utility function"}
+    _FUNCTION_STRATEGY_LARGE = {"type": "extract_module", "description": "Extract duplicated logic into a separate module"}
+
     def _determine_refactoring_strategy(self, group: List[Dict[str, Any]], construct_type: str) -> Dict[str, str]:
         """Determine the best refactoring strategy for a duplication group."""
-        # Analyze the code to determine strategy
-        first_text = group[0].get("text", "")
-        line_count = len(first_text.split("\n"))
-
-        # Simple heuristics for strategy selection
-        if construct_type == "function_definition":
-            if line_count < DetectorDefaults.UTILITY_FUNCTION_LINE_THRESHOLD:
-                return {"type": "extract_utility_function", "description": "Extract duplicated logic into a shared utility function"}
-            else:
-                return {"type": "extract_module", "description": "Extract duplicated logic into a separate module"}
-        elif construct_type == "class_definition":
-            return {"type": "extract_base_class", "description": "Extract common functionality into a base class"}
-        else:  # method_definition
-            return {"type": "extract_method", "description": "Extract duplicated method to a parent class or mixin"}
+        if construct_type != "function_definition":
+            return self._STRATEGY_BY_CONSTRUCT.get(construct_type, self._STRATEGY_BY_CONSTRUCT["method_definition"])
+        line_count = len(group[0].get("text", "").split("\n"))
+        if line_count < DetectorDefaults.UTILITY_FUNCTION_LINE_THRESHOLD:
+            return self._FUNCTION_STRATEGY_SMALL
+        return self._FUNCTION_STRATEGY_LARGE
 
     def _calculate_statistics(
         self, all_matches: List[Dict[str, Any]], duplication_groups: List[List[Dict[str, Any]]], suggestions: List[Dict[str, Any]]
@@ -571,20 +571,19 @@ class DuplicationDetector:
             "message": f"No {construct_type} instances found in the project",
         }
 
+    def _format_instance(self, match: Dict[str, Any]) -> Dict[str, Any]:
+        """Format a single match instance for output."""
+        start_line = self._match_line(match) + 1
+        end_line = self._match_line(match, "end") + 1
+        return {
+            "file": match.get("file", ""),
+            "lines": f"{start_line}-{end_line}",
+            "code_preview": match.get("text", "")[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+        }
+
     def _format_group_instances(self, group: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Format match instances within a duplication group."""
-        instances = []
-        for match in group:
-            start_line = match.get("range", {}).get("start", {}).get("line", 0) + 1
-            end_line = match.get("range", {}).get("end", {}).get("line", 0) + 1
-            instances.append(
-                {
-                    "file": match.get("file", ""),
-                    "lines": f"{start_line}-{end_line}",
-                    "code_preview": match.get("text", "")[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-                }
-            )
-        return instances
+        return [self._format_instance(match) for match in group]
 
     def _format_group(self, idx: int, group: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Format a single duplication group for output."""
