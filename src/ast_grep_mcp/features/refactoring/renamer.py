@@ -213,6 +213,13 @@ class SymbolRenamer:
 
         Returns:
             True if this is an import statement
+
+        Note:
+            Uses substring match (``"import" in context``), so identifiers
+            containing the word "import" (e.g. ``reimport_legacy``) will
+            produce a false positive. This is a known limitation inherited
+            from the pre-consolidation ``_is_python_import``/
+            ``_is_javascript_import`` implementations.
         """
         return "import" in context
 
