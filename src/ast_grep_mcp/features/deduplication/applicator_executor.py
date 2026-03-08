@@ -157,10 +157,12 @@ class RefactoringExecutor:
                 if replacement.get("new_content"):
                     new_content = replacement["new_content"]
 
-                # Add import statement
+                # Add import statement (lazy import to avoid circular dependency)
                 import_info = import_additions.get(file_path)
                 if import_info:
-                    new_content = self._add_import_to_content(
+                    from .applicator import _add_import_to_content
+
+                    new_content = _add_import_to_content(
                         content=new_content, import_statement=import_info.get("import_statement", ""), language=language
                     )
 
@@ -177,173 +179,6 @@ class RefactoringExecutor:
                 raise  # Fail fast for atomicity
 
         return {"updated": updated, "failed": failed}
-
-    def _find_python_import_location(self, lines: List[str]) -> int:
-        """Find where to insert an import in Python code.
-
-        Args:
-            lines: Code lines
-
-        Returns:
-            Line index to insert import
-        """
-        # Find last import statement
-        last_import_idx = -1
-        for i, line in enumerate(lines):
-            stripped = line.strip()
-            if stripped.startswith(("import ", "from ")):
-                last_import_idx = i
-            elif stripped and not stripped.startswith("#") and last_import_idx >= 0:
-                break
-
-        if last_import_idx >= 0:
-            return last_import_idx + 1
-
-        # No imports found, add at the top after any shebang/encoding
-        insert_idx = 0
-        for i, line in enumerate(lines):
-            if not line.strip() or line.startswith("#"):
-                insert_idx = i + 1
-            else:
-                break
-        return insert_idx
-
-    def _find_javascript_import_location(self, lines: List[str]) -> int:
-        """Find where to insert an import in JavaScript/TypeScript code.
-
-        Args:
-            lines: Code lines
-
-        Returns:
-            Line index to insert import
-        """
-        last_import_idx = -1
-        for i, line in enumerate(lines):
-            if "import " in line or "require(" in line:
-                last_import_idx = i
-
-        return last_import_idx + 1 if last_import_idx >= 0 else 0
-
-    def _find_java_import_location(self, lines: List[str]) -> tuple[int, bool]:
-        """Find where to insert an import in Java code.
-
-        Args:
-            lines: Code lines
-
-        Returns:
-            Tuple of (insert_index, needs_blank_before)
-        """
-        package_idx = -1
-        last_import_idx = -1
-
-        for i, line in enumerate(lines):
-            stripped = line.strip()
-            if stripped.startswith("package "):
-                package_idx = i
-            elif stripped.startswith("import "):
-                last_import_idx = i
-
-        if last_import_idx >= 0:
-            return (last_import_idx + 1, False)
-        elif package_idx >= 0:
-            return (package_idx + 1, True)
-        else:
-            return (0, False)
-
-    def _insert_import_python(self, lines: List[str], import_statement: str) -> List[str]:
-        """Insert import in Python code.
-
-        Args:
-            lines: Code lines
-            import_statement: Import to add
-
-        Returns:
-            Modified lines
-        """
-        insert_idx = self._find_python_import_location(lines)
-        lines.insert(insert_idx, import_statement)
-
-        # Add blank line if inserting at top without existing imports
-        if insert_idx > 0 and not any(line.strip().startswith(("import ", "from ")) for line in lines[:insert_idx]):
-            lines.insert(insert_idx, "")
-
-        return lines
-
-    def _insert_import_javascript(self, lines: List[str], import_statement: str) -> List[str]:
-        """Insert import in JavaScript/TypeScript code.
-
-        Args:
-            lines: Code lines
-            import_statement: Import to add
-
-        Returns:
-            Modified lines
-        """
-        insert_idx = self._find_javascript_import_location(lines)
-        lines.insert(insert_idx, import_statement)
-
-        # Add blank line after if inserting at top
-        if insert_idx == 0:
-            lines.insert(1, "")
-
-        return lines
-
-    def _insert_import_java(self, lines: List[str], import_statement: str) -> List[str]:
-        """Insert import in Java code.
-
-        Args:
-            lines: Code lines
-            import_statement: Import to add
-
-        Returns:
-            Modified lines
-        """
-        insert_idx, needs_blank = self._find_java_import_location(lines)
-
-        if needs_blank:
-            lines.insert(insert_idx, "")
-            lines.insert(insert_idx + 1, import_statement)
-        else:
-            lines.insert(insert_idx, import_statement)
-            if insert_idx == 0:
-                lines.insert(1, "")
-
-        return lines
-
-    def _add_import_to_content(self, content: str, import_statement: str, language: str) -> str:
-        """Add an import statement to file content.
-
-        Args:
-            content: Current file content
-            import_statement: Import statement to add
-            language: Programming language
-
-        Returns:
-            Updated content with import statement
-        """
-        if not import_statement:
-            return content
-
-        # Check if import already exists
-        if import_statement.strip() in content:
-            return content
-
-        lines = content.split("\n")
-        lang = language.lower()
-
-        # Language-specific import insertion
-        if lang == "python":
-            lines = self._insert_import_python(lines, import_statement)
-        elif lang in ("javascript", "typescript", "jsx", "tsx"):
-            lines = self._insert_import_javascript(lines, import_statement)
-        elif lang == "java":
-            lines = self._insert_import_java(lines, import_statement)
-        # For other languages, just add at the top
-        else:
-            lines.insert(0, import_statement)
-            lines.insert(1, "")
-
-        return "\n".join(lines)
 
     def _generate_preview(self, orchestration_plan: Dict[str, Any], replacements: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
         """Generate preview of changes for dry run.
