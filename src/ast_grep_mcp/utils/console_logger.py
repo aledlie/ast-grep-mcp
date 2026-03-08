@@ -118,7 +118,14 @@ class ConsoleLogger:
             print(f"✓ {message}", **kwargs)
 
     def _log_to_stderr(self, prefix: str, message: str, **kwargs: Any) -> None:
-        """Output a prefixed message to stderr. Always shown regardless of quiet mode."""
+        """Output a prefixed message to stderr. Always shown regardless of quiet mode.
+
+        Note:
+            ``file=sys.stderr`` is passed explicitly to ``print``. If a caller
+            also passes ``file=`` via ``**kwargs`` a ``TypeError`` will be raised
+            (duplicate keyword argument). Callers must not include ``file`` in
+            kwargs. This is a pre-existing limitation, not a regression.
+        """
         print(f"{prefix}: {message}", file=sys.stderr, **kwargs)
 
     def error(self, message: str, **kwargs: Any) -> None:
