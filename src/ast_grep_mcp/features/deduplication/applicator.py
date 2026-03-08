@@ -464,7 +464,9 @@ class DeduplicationApplicator:
             project_folder: Project root folder
 
         Returns:
-            Absolute target file path, or None if no extraction needed
+            Absolute target file path, or None if files_to_modify is empty
+            and no explicit target is specified. Note: auto-synthesizes a
+            _extracted_utils path as fallback when files_to_modify is non-empty.
         """
         target_file = extract_to_file or generated_code.get("extract_to_file")
         if not target_file and files_to_modify:
@@ -696,10 +698,10 @@ def _add_import_to_content(content: str, import_statement: str, language: str) -
 
 
 def _generate_import_for_extracted_function(
-    source_file: str, target_file: str, function_name: str, language: str, project_folder: str
+    source_file: str, target_file: str, function_name: str, project_folder: str, language: str
 ) -> str:
     """Module-level wrapper for _generate_import_for_extracted_function."""
-    result = _get_applicator()._generate_import_for_extracted_function(source_file, target_file, function_name, language, project_folder)
+    result = _get_applicator()._generate_import_for_extracted_function(source_file, target_file, function_name, project_folder, language)
     if not isinstance(result, str):
         raise TypeError(f"Expected str from _generate_import_for_extracted_function, got {type(result).__name__}")
     return result

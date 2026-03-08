@@ -193,7 +193,7 @@ class TestApplicatorWrapperTypeGuards:
             return_value=mock_applicator,
         ):
             with pytest.raises(TypeError, match="Expected str"):
-                _generate_import_for_extracted_function("/src/a.py", "/src/b.py", "func", "python", "/src")
+                _generate_import_for_extracted_function("/src/a.py", "/src/b.py", "func", "/src", "python")
 
     def test_plan_file_modification_order_accepts_dict(self):
         from ast_grep_mcp.features.deduplication.applicator import (
