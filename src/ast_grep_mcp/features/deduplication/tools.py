@@ -9,26 +9,22 @@ from typing import Any, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
 
-from ...constants import DeduplicationDefaults
+from ...constants import DeduplicationDefaults, FilePatterns
 from ...core.logging import get_logger
 from .analysis_orchestrator import DeduplicationAnalysisOrchestrator
 from .applicator import DeduplicationApplicator
 from .benchmark import DeduplicationBenchmark
 from .detector import DuplicationDetector
 
-_MANDATORY_ENV_EXCLUDE_PATTERNS = ["site-packages", ".venv", "venv", "virtualenv"]
-
-
-def _normalize_exclude_patterns(exclude_patterns: Optional[List[str]]) -> List[str]:
-    """Normalize exclude patterns and enforce virtualenv exclusions."""
-    if exclude_patterns is None:
-        exclude_patterns = ["site-packages", "node_modules", ".venv", "venv", "vendor", "__pycache__", ".git"]
-
-    normalized = list(exclude_patterns)
-    for pattern in _MANDATORY_ENV_EXCLUDE_PATTERNS:
-        if pattern not in normalized:
-            normalized.append(pattern)
-    return normalized
+_DEDUP_EXCLUDE_DEFAULTS = [
+    "**/site-packages/**",
+    "**/node_modules/**",
+    "**/.venv/**",
+    "**/venv/**",
+    "**/vendor/**",
+    "**/__pycache__/**",
+    "**/.git/**",
+]
 
 
 def find_duplication_tool(
@@ -54,7 +50,7 @@ def find_duplication_tool(
     """
     logger = get_logger("deduplication.tool.find")
 
-    exclude_patterns = _normalize_exclude_patterns(exclude_patterns)
+    exclude_patterns = FilePatterns.normalize_excludes(exclude_patterns, defaults=_DEDUP_EXCLUDE_DEFAULTS)
 
     detector = DuplicationDetector(language=language)
     results = detector.find_duplication(
@@ -87,7 +83,7 @@ def analyze_deduplication_candidates_tool(
     """Analyze a project for deduplication candidates and return ranked results."""
     logger = get_logger("deduplication.tool.analyze")
 
-    exclude_patterns = _normalize_exclude_patterns(exclude_patterns)
+    exclude_patterns = FilePatterns.normalize_excludes(exclude_patterns, defaults=_DEDUP_EXCLUDE_DEFAULTS)
 
     # Delegate to orchestrator
     orchestrator = DeduplicationAnalysisOrchestrator()

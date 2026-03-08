@@ -13,6 +13,8 @@ strategy validation, and delegation to impl functions.
 """
 
 import tempfile
+
+import pytest
 from pathlib import Path
 from unittest.mock import patch
 
@@ -94,15 +96,14 @@ class TestExtractSurfaceTool:
 
 
 class TestNormalizeTool:
-    def test_nonexistent_path_returns_error(self):
-        result = condense_normalize_tool("/nonexistent/xyz.py", "python")
-        assert "error" in result
+    def test_nonexistent_path_raises(self):
+        with pytest.raises(FileNotFoundError):
+            condense_normalize_tool("/nonexistent/xyz.py", "python")
 
-    def test_directory_path_returns_error(self):
+    def test_directory_path_raises(self):
         with tempfile.TemporaryDirectory() as tmp:
-            result = condense_normalize_tool(tmp, "python")
-        assert "error" in result
-        assert "directory" in result["error"].lower()
+            with pytest.raises(IsADirectoryError, match="(?i)directory"):
+                condense_normalize_tool(tmp, "python")
 
     def test_valid_file_returns_expected_keys(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -130,15 +131,14 @@ class TestNormalizeTool:
 
 
 class TestStripTool:
-    def test_nonexistent_path_returns_error(self):
-        result = condense_strip_tool("/nonexistent/xyz.py", "python")
-        assert "error" in result
+    def test_nonexistent_path_raises(self):
+        with pytest.raises(FileNotFoundError):
+            condense_strip_tool("/nonexistent/xyz.py", "python")
 
-    def test_directory_path_returns_error(self):
+    def test_directory_path_raises(self):
         with tempfile.TemporaryDirectory() as tmp:
-            result = condense_strip_tool(tmp, "python")
-        assert "error" in result
-        assert "directory" in result["error"].lower()
+            with pytest.raises(IsADirectoryError, match="(?i)directory"):
+                condense_strip_tool(tmp, "python")
 
     def test_valid_file_returns_expected_keys(self):
         with tempfile.TemporaryDirectory() as tmp:

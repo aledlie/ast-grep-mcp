@@ -13,12 +13,12 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import sentry_sdk
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from ...constants import CondenseDefaults, CondenseDictionaryDefaults, FormattingDefaults
 from ...core.logging import get_logger
+from ...utils.tool_context import tool_context
 from .dictionary import train_dictionary_impl
 from .estimator import estimate_condensation_impl
 from .normalizer import normalize_source
@@ -56,9 +56,8 @@ def condense_extract_surface_tool(
 ) -> Dict[str, Any]:
     """Extract public API surface from source files."""
     logger.info("tool_invoked", tool="condense_extract_surface", path=path, language=language)
-    start = time.time()
 
-    try:
+    with tool_context("condense_extract_surface", path=path, language=language) as start:
         result = extract_surface_impl(
             path=path,
             language=language,
@@ -74,10 +73,6 @@ def condense_extract_surface_tool(
             reduction_pct=result.get("reduction_pct", 0.0),
         )
         return result
-    except Exception as exc:
-        logger.error("tool_failed", tool="condense_extract_surface", error=str(exc))
-        sentry_sdk.capture_exception(exc)
-        raise
 
 
 def condense_normalize_tool(
@@ -86,9 +81,8 @@ def condense_normalize_tool(
 ) -> Dict[str, Any]:
     """Normalize source code to canonical forms for better downstream compression."""
     logger.info("tool_invoked", tool="condense_normalize", path=path, language=language)
-    start = time.time()
 
-    try:
+    with tool_context("condense_normalize", path=path, language=language) as start:
         resolved = _resolve_file_path(path)
         source = resolved.read_text(encoding="utf-8", errors="replace")
         normalized, count = normalize_source(source, language)
@@ -106,13 +100,6 @@ def condense_normalize_tool(
             normalizations_applied=count,
         )
         return result
-    except (FileNotFoundError, IsADirectoryError) as exc:
-        logger.error("tool_failed", tool="condense_normalize", error=str(exc))
-        return {"error": str(exc)}
-    except Exception as exc:
-        logger.error("tool_failed", tool="condense_normalize", error=str(exc))
-        sentry_sdk.capture_exception(exc)
-        return {"error": str(exc)}
 
 
 def condense_strip_tool(
@@ -121,9 +108,8 @@ def condense_strip_tool(
 ) -> Dict[str, Any]:
     """Remove dead code, debug statements, and empty blocks."""
     logger.info("tool_invoked", tool="condense_strip", path=path, language=language)
-    start = time.time()
 
-    try:
+    with tool_context("condense_strip", path=path, language=language) as start:
         resolved = _resolve_file_path(path)
         source = resolved.read_text(encoding="utf-8", errors="replace")
         stripped, removed = strip_dead_code(source, language)
@@ -141,13 +127,6 @@ def condense_strip_tool(
             lines_removed=removed,
         )
         return result
-    except (FileNotFoundError, IsADirectoryError) as exc:
-        logger.error("tool_failed", tool="condense_strip", error=str(exc))
-        return {"error": str(exc)}
-    except Exception as exc:
-        logger.error("tool_failed", tool="condense_strip", error=str(exc))
-        sentry_sdk.capture_exception(exc)
-        return {"error": str(exc)}
 
 
 def condense_pack_tool(
@@ -171,9 +150,8 @@ def condense_pack_tool(
         strategy=strategy,
         language=language,
     )
-    start = time.time()
 
-    try:
+    with tool_context("condense_pack", path=path, strategy=strategy, language=language) as start:
         result = condense_pack_impl(
             path=path,
             language=language,
@@ -189,10 +167,6 @@ def condense_pack_tool(
             reduction_pct=result.get("reduction_pct", 0.0),
         )
         return result
-    except Exception as exc:
-        logger.error("tool_failed", tool="condense_pack", error=str(exc))
-        sentry_sdk.capture_exception(exc)
-        raise
 
 
 def condense_estimate_tool(
@@ -201,9 +175,8 @@ def condense_estimate_tool(
 ) -> Dict[str, Any]:
     """Estimate condensation reduction ratios without modifying any files."""
     logger.info("tool_invoked", tool="condense_estimate", path=path, language=language)
-    start = time.time()
 
-    try:
+    with tool_context("condense_estimate", path=path, language=language) as start:
         result = estimate_condensation_impl(path=path, language=language)
         logger.info(
             "tool_completed",
@@ -212,10 +185,6 @@ def condense_estimate_tool(
             total_files=result.get("total_files", 0),
         )
         return result
-    except Exception as exc:
-        logger.error("tool_failed", tool="condense_estimate", error=str(exc))
-        sentry_sdk.capture_exception(exc)
-        raise
 
 
 def condense_train_dictionary_tool(
@@ -232,9 +201,8 @@ def condense_train_dictionary_tool(
         language=language,
         sample_count=sample_count,
     )
-    start = time.time()
 
-    try:
+    with tool_context("condense_train_dictionary", path=path, language=language, sample_count=sample_count) as start:
         result = train_dictionary_impl(
             path=path,
             language=language,
@@ -249,10 +217,6 @@ def condense_train_dictionary_tool(
             dict_size_bytes=result.get("dict_size_bytes", 0),
         )
         return result
-    except Exception as exc:
-        logger.error("tool_failed", tool="condense_train_dictionary", error=str(exc))
-        sentry_sdk.capture_exception(exc)
-        return {"error": str(exc)}
 
 
 # ---------------------------------------------------------------------------
