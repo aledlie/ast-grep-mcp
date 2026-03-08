@@ -76,47 +76,40 @@ class RefactoringExecutor:
         return {"modified_files": modified_files, "failed_files": failed_files, "dry_run": False}
 
     def _create_files(self, create_file_list: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Create new files for extracted functions.
-
-        Args:
-            create_file_list: List of file creation operations
-
-        Returns:
-            Dictionary with created and failed file lists
-        """
+        """Create new files for extracted functions."""
         created: List[str] = []
         failed: List[Dict[str, Any]] = []
 
         for create_info in create_file_list:
             target_path = create_info.get("path", "")
             content = create_info.get("content", "")
-
             if not target_path or not content:
                 continue
-
-            try:
-                # Create parent directory if needed
-                target_dir = os.path.dirname(target_path)
-                if target_dir and not os.path.exists(target_dir):
-                    os.makedirs(target_dir, exist_ok=True)
-
-                # Determine write mode (append or write)
-                mode = "a" if os.path.exists(target_path) and create_info.get("append", False) else "w"
-                prefix = "\n\n" if mode == "a" else ""
-
-                # Write file
-                with open(target_path, mode) as f:
-                    f.write(prefix + content)
-
-                created.append(target_path)
-                self.logger.info("file_created", file=target_path, mode=mode)
-
-            except Exception as e:
-                failed.append({"file": target_path, "operation": "create", "error": str(e)})
-                self.logger.error("file_creation_failed", file=target_path, error=str(e))
-                raise  # Fail fast for atomicity
+            self._create_single_file(create_info, target_path, content, created, failed)
 
         return {"created": created, "failed": failed}
+
+    def _create_single_file(
+        self, create_info: Dict[str, Any], target_path: str, content: str, created: List[str], failed: List[Dict[str, Any]]
+    ) -> None:
+        """Create or append to a single file."""
+        try:
+            target_dir = os.path.dirname(target_path)
+            if target_dir and not os.path.exists(target_dir):
+                os.makedirs(target_dir, exist_ok=True)
+
+            mode = "a" if os.path.exists(target_path) and create_info.get("append", False) else "w"
+            prefix = "\n\n" if mode == "a" else ""
+
+            with open(target_path, mode) as f:
+                f.write(prefix + content)
+
+            created.append(target_path)
+            self.logger.info("file_created", file=target_path, mode=mode)
+        except Exception as e:
+            failed.append({"file": target_path, "operation": "create", "error": str(e)})
+            self.logger.error("file_creation_failed", file=target_path, error=str(e))
+            raise  # Fail fast for atomicity
 
     def _update_files(
         self,
@@ -125,96 +118,83 @@ class RefactoringExecutor:
         import_additions: Dict[str, Dict[str, Any]],
         language: str,
     ) -> Dict[str, Any]:
-        """Update duplicate location files.
-
-        Args:
-            update_file_list: List of file update operations
-            replacements: Dictionary of file replacements
-            import_additions: Dictionary of import additions per file
-            language: Programming language
-
-        Returns:
-            Dictionary with updated and failed file lists
-        """
+        """Update duplicate location files."""
         updated: List[str] = []
         failed: List[Dict[str, Any]] = []
 
         for update_info in update_file_list:
             file_path = update_info.get("path", "")
-
             if not file_path or not os.path.exists(file_path):
                 continue
-
-            try:
-                # Read current content
-                with open(file_path, "r") as f:
-                    current_content = f.read()
-
-                new_content = current_content
-
-                # Apply replacement
-                replacement = replacements.get(file_path, {})
-                if replacement.get("new_content"):
-                    new_content = replacement["new_content"]
-
-                # Add import statement (lazy import to avoid circular dependency)
-                import_info = import_additions.get(file_path)
-                if import_info:
-                    from .applicator import _add_import_to_content
-
-                    new_content = _add_import_to_content(
-                        content=new_content, import_statement=import_info.get("import_statement", ""), language=language
-                    )
-
-                # Write updated content
-                with open(file_path, "w") as f:
-                    f.write(new_content)
-
-                updated.append(file_path)
-                self.logger.info("file_updated", file=file_path)
-
-            except Exception as e:
-                failed.append({"file": file_path, "operation": "update", "error": str(e)})
-                self.logger.error("file_update_failed", file=file_path, error=str(e))
-                raise  # Fail fast for atomicity
+            self._update_single_file(file_path, replacements, import_additions, language, updated, failed)
 
         return {"updated": updated, "failed": failed}
 
-    def _generate_preview(self, orchestration_plan: Dict[str, Any], replacements: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
-        """Generate preview of changes for dry run.
+    def _update_single_file(
+        self,
+        file_path: str,
+        replacements: Dict[str, Dict[str, Any]],
+        import_additions: Dict[str, Dict[str, Any]],
+        language: str,
+        updated: List[str],
+        failed: List[Dict[str, Any]],
+    ) -> None:
+        """Read, transform, and write a single file."""
+        try:
+            with open(file_path, "r") as f:
+                new_content = f.read()
 
-        Args:
-            orchestration_plan: The orchestration plan
-            replacements: Dictionary of file replacements
+            replacement = replacements.get(file_path, {})
+            if replacement.get("new_content"):
+                new_content = replacement["new_content"]
 
-        Returns:
-            Dictionary with preview information
+            new_content = self._apply_import_addition(new_content, file_path, import_additions, language)
+
+            with open(file_path, "w") as f:
+                f.write(new_content)
+
+            updated.append(file_path)
+            self.logger.info("file_updated", file=file_path)
+        except Exception as e:
+            failed.append({"file": file_path, "operation": "update", "error": str(e)})
+            self.logger.error("file_update_failed", file=file_path, error=str(e))
+            raise  # Fail fast for atomicity
+
+    def _apply_import_addition(
+        self, content: str, file_path: str, import_additions: Dict[str, Dict[str, Any]], language: str
+    ) -> str:
+        """Add import statement if one is specified for this file.
+
+        Uses a lazy import of applicator._add_import_to_content to avoid
+        a circular dependency (applicator.py imports this module at the
+        top level).
         """
-        preview: Dict[str, Any] = {"files_to_create": [], "files_to_update": []}
+        import_info = import_additions.get(file_path)
+        if not import_info:
+            return content
 
-        # Preview file creations
-        for create_info in orchestration_plan.get("create_files", []):
-            target_path = create_info.get("path", "")
-            if target_path:
-                preview["files_to_create"].append(
-                    {
-                        "path": target_path,
-                        "mode": "append" if create_info.get("append", False) else "write",
-                        "content_lines": len(create_info.get("content", "").split("\n")),
-                    }
-                )
+        from .applicator import _add_import_to_content
 
-        # Preview file updates
-        for update_info in orchestration_plan.get("update_files", []):
-            file_path = update_info.get("path", "")
-            if file_path:
-                replacement = replacements.get(file_path, {})
-                preview["files_to_update"].append(
-                    {
-                        "path": file_path,
-                        "has_replacement": bool(replacement.get("new_content")),
-                        "has_import_addition": file_path in orchestration_plan.get("import_additions", {}),
-                    }
-                )
+        return _add_import_to_content(content=content, import_statement=import_info.get("import_statement", ""), language=language)
 
-        return preview
+    def _generate_preview(self, orchestration_plan: Dict[str, Any], replacements: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate preview of changes for dry run."""
+        create_previews = [
+            {
+                "path": info.get("path", ""),
+                "mode": "append" if info.get("append", False) else "write",
+                "content_lines": len(info.get("content", "").split("\n")),
+            }
+            for info in orchestration_plan.get("create_files", [])
+            if info.get("path")
+        ]
+        update_previews = [
+            {
+                "path": info.get("path", ""),
+                "has_replacement": bool(replacements.get(info.get("path", ""), {}).get("new_content")),
+                "has_import_addition": info.get("path", "") in orchestration_plan.get("import_additions", {}),
+            }
+            for info in orchestration_plan.get("update_files", [])
+            if info.get("path")
+        ]
+        return {"files_to_create": create_previews, "files_to_update": update_previews}
