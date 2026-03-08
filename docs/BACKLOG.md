@@ -1,9 +1,5 @@
 # Backlog
 
-## Code Quality Fixes (2026-03-08)
-
-- [x] **Magic number `3` in formatters.py:229** — Replaced hardcoded tuple indices with tuple unpacking for clarity (da58cde, 2026-03-08).
-- [x] **Assert in applicator_post_validator.py:137** — Replaced `assert` with explicit `if` guard for production code (2026-03-08).
 
 ## Complexity Refactoring Queue (2026-03-08 refresh)
 
