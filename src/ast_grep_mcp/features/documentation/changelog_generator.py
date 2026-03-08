@@ -9,7 +9,7 @@ import re
 import subprocess
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from ast_grep_mcp.constants import ChangelogDefaults, ConversionFactors, FormattingDefaults, RegexCaptureGroups
 from ast_grep_mcp.core.logging import get_logger
@@ -120,7 +120,7 @@ def _find_previous_tag(project_folder: str, exclude_ref: str) -> str | None:
 
 def _get_commit_range(
     project_folder: str,
-    from_version: Optional[str],
+    from_version: str | None,
     to_version: str,
 ) -> Tuple[str, str]:
     """Determine commit range for changelog.
@@ -139,7 +139,10 @@ def _get_commit_range(
         success, _ = _run_git_command(project_folder, ["rev-parse", f"v{from_version}"])
         from_ref = f"v{from_version}" if success else from_version
     else:
-        from_ref = _find_previous_tag(project_folder, to_ref) or ""
+        previous_tag = _find_previous_tag(project_folder, to_ref)
+        if previous_tag is None:
+            logger.warning("from_ref_fallback_to_full_history", to_ref=to_ref)
+        from_ref = previous_tag or ""
 
     return from_ref, to_ref
 
@@ -261,7 +264,7 @@ def _parse_conventional_commit(subject: str, body: str) -> Dict[str, Any]:
 # =============================================================================
 
 
-def _map_commit_type_to_change_type(commit_type: Optional[str]) -> ChangeType:
+def _map_commit_type_to_change_type(commit_type: str | None) -> ChangeType:
     """Map conventional commit type to changelog change type.
 
     Args:
@@ -584,7 +587,7 @@ def _format_conventional(versions: List[ChangelogVersion], project_name: str = "
 
 def generate_changelog_impl(
     project_folder: str,
-    from_version: Optional[str] = None,
+    from_version: str | None = None,
     to_version: str = "HEAD",
     changelog_format: str = "keepachangelog",
     group_by: str = "type",

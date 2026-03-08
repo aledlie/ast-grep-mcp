@@ -527,6 +527,9 @@ async def get_item(item_id: int):
 class TestChangelogHelpers:
     """Tests for changelog generator helper functions."""
 
+    _MODULE = "ast_grep_mcp.features.documentation.changelog_generator"
+    _MOCK_TARGET = f"{_MODULE}._run_git_command"
+
     def test_resolve_version_ref_head(self):
         """Test HEAD passthrough."""
         from ast_grep_mcp.features.documentation.changelog_generator import (
@@ -534,9 +537,7 @@ class TestChangelogHelpers:
         )
 
         # HEAD should return immediately without git calls
-        with patch(
-            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
-        ) as mock_git:
+        with patch(self._MOCK_TARGET) as mock_git:
             assert _resolve_version_ref("/fake", "HEAD") == "HEAD"
             assert _resolve_version_ref("/fake", "head") == "HEAD"
             mock_git.assert_not_called()
@@ -547,9 +548,7 @@ class TestChangelogHelpers:
             _resolve_version_ref,
         )
 
-        with patch(
-            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
-        ) as mock_git:
+        with patch(self._MOCK_TARGET) as mock_git:
             mock_git.return_value = (True, "abc123")
             result = _resolve_version_ref("/fake", "1.2.0")
             assert result == "v1.2.0"
@@ -561,9 +560,7 @@ class TestChangelogHelpers:
             _resolve_version_ref,
         )
 
-        with patch(
-            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
-        ) as mock_git:
+        with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
                 (False, "not found"),  # v-prefix fails
                 (True, "abc123"),      # bare ref succeeds
@@ -577,9 +574,7 @@ class TestChangelogHelpers:
             _resolve_version_ref,
         )
 
-        with patch(
-            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
-        ) as mock_git:
+        with patch(self._MOCK_TARGET) as mock_git:
             mock_git.return_value = (False, "not found")
             result = _resolve_version_ref("/fake", "nonexistent")
             assert result == "HEAD"
@@ -590,9 +585,7 @@ class TestChangelogHelpers:
             _get_first_commit,
         )
 
-        with patch(
-            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
-        ) as mock_git:
+        with patch(self._MOCK_TARGET) as mock_git:
             mock_git.return_value = (True, "aaa111")
             assert _get_first_commit("/fake") == "aaa111"
             mock_git.assert_called_once_with(
@@ -605,9 +598,7 @@ class TestChangelogHelpers:
             _get_first_commit,
         )
 
-        with patch(
-            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
-        ) as mock_git:
+        with patch(self._MOCK_TARGET) as mock_git:
             mock_git.return_value = (False, "error")
             assert _get_first_commit("/fake") is None
 
@@ -617,9 +608,7 @@ class TestChangelogHelpers:
             _find_previous_tag,
         )
 
-        with patch(
-            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
-        ) as mock_git:
+        with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
                 (True, "v2.0.0\nv1.0.0\nv0.9.0"),  # tag list
             ]
@@ -633,9 +622,7 @@ class TestChangelogHelpers:
             _find_previous_tag,
         )
 
-        with patch(
-            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
-        ) as mock_git:
+        with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
                 (True, "v1.0.0"),       # tag list (only the excluded one)
                 (True, "first-commit"), # rev-list for first commit
@@ -649,9 +636,7 @@ class TestChangelogHelpers:
             _find_previous_tag,
         )
 
-        with patch(
-            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
-        ) as mock_git:
+        with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
                 (True, ""),             # empty tag list
                 (True, "first-commit"), # rev-list for first commit
@@ -665,9 +650,7 @@ class TestChangelogHelpers:
             _find_previous_tag,
         )
 
-        with patch(
-            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
-        ) as mock_git:
+        with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
                 (False, "error"),       # tag command fails
                 (True, "first-commit"), # rev-list for first commit
@@ -681,9 +664,7 @@ class TestChangelogHelpers:
             _resolve_version_ref,
         )
 
-        with patch(
-            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
-        ) as mock_git:
+        with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
                 (False, "not found"),  # vv1.2.0 fails
                 (True, "abc123"),      # v1.2.0 succeeds as bare ref
@@ -697,9 +678,7 @@ class TestChangelogHelpers:
             _get_commit_range,
         )
 
-        with patch(
-            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
-        ) as mock_git:
+        with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
                 (True, "abc123"),          # _resolve_version_ref: rev-parse v2.0.0
                 (True, "v2.0.0\nv1.0.0"),  # _find_previous_tag: tag list
@@ -708,19 +687,20 @@ class TestChangelogHelpers:
             assert to_ref == "v2.0.0"
 
     def test_get_commit_range_from_version_asymmetry(self):
-        """Test from_version only tries v-prefix, no bare-ref fallback."""
+        """Test from_version only tries v-prefix, no bare-ref fallback.
+
+        Note: this pins known-broken behavior — see KNOWN_ISSUES.md
+        'from_version / to_version resolution asymmetry'.
+        """
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _get_commit_range,
         )
 
-        with patch(
-            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
-        ) as mock_git:
+        with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
                 (True, "abc123"),      # _resolve_version_ref for to_version
                 (False, "not found"),  # from_version v-prefix fails
             ]
-            # from_version falls back to raw string — no bare-ref validation
             from_ref, to_ref = _get_commit_range("/fake", "bad-ref", "2.0.0")
             assert from_ref == "bad-ref"  # raw string passthrough
             assert to_ref == "v2.0.0"
@@ -731,9 +711,7 @@ class TestChangelogHelpers:
             _get_commit_range,
         )
 
-        with patch(
-            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
-        ) as mock_git:
+        with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
                 (True, "abc123"),  # _resolve_version_ref for to_version
                 (True, "def456"),  # from_version v-prefix succeeds
@@ -748,9 +726,7 @@ class TestChangelogHelpers:
             _get_commit_range,
         )
 
-        with patch(
-            "ast_grep_mcp.features.documentation.changelog_generator._run_git_command"
-        ) as mock_git:
+        with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
                 (True, "abc123"),              # _resolve_version_ref for to_version
                 (True, "v2.0.0\nv1.0.0"),      # _find_previous_tag: tag list
@@ -759,13 +735,14 @@ class TestChangelogHelpers:
             assert from_ref == "v1.0.0"  # previous tag, skipping v2.0.0
             assert to_ref == "v2.0.0"
 
-    def test_run_git_command_invalid_cwd(self):
+    def test_run_git_command_invalid_cwd(self, tmp_path):
         """Test _run_git_command returns failure for non-existent directory."""
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _run_git_command,
         )
 
-        success, message = _run_git_command("/nonexistent/path/xyz", ["status"])
+        nonexistent = str(tmp_path / "does_not_exist")
+        success, message = _run_git_command(nonexistent, ["status"])
         assert success is False
         assert "Directory not found" in message
 
