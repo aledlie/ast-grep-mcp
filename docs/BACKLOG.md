@@ -5,15 +5,22 @@
 
 Thresholds: cyc >10, cog >15, nest >4, len >50.
 
-Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08).
+Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08) → **80** (2026-03-08 shared-util).
 
 ### Recently Resolved
+
+**Shared utility extractions (2026-03-08):**
+
+- **`FilePatterns.normalize_excludes()`** — new classmethod on `constants.py:FilePatterns`. Consolidates all `_normalize_exclude_patterns` functions across quality, complexity, deduplication, and documentation tools. Dedup migrated from substring-match to glob format (`"**/site-packages/**"` etc.) with module-local `_DEDUP_EXCLUDE_DEFAULTS`.
+- **`utils/tool_context.py`** — extracted `tool_context` context manager (timing + error logging + Sentry capture) from `quality/tools.py`. Adopted by `complexity/tools.py` (replaced `_log_tool_error` + 3 manual try/except blocks) and all 6 `condense/tools.py` tool functions. Added `status="failed"` to error log. Unit tests: `tests/unit/test_tool_context.py` (8 tests). `cross_language/tools.py` kept its `_run_tool` callable wrapper (different API shape, no violations).
+- **`complexity/tools.py`** — removed `_log_tool_error` (16 lines), `_get_default_complexity_exclude_patterns` (3 lines), `DisplayDefaults` import.
+- **`quality/tools.py`** — removed local `_tool_context` (28 lines), `_normalize_exclude_patterns` (5 lines), `contextlib`/`Generator`/`DisplayDefaults` imports. `_create_mcp_field_definitions` and field-dict indirection removed; `Field()` inlined into `@mcp.tool()` wrappers.
 
 Commits `52b1f3f`..`70a4762` addressed 6 hotspot areas:
 
 - **`deduplication/applicator_executor.py`** (was cog=33) — extracted loop bodies into `_create_single_file`, `_update_single_file`, `_apply_import_addition`; removed duplicated import logic. Worst remaining: cog=16.
 - **`documentation/changelog_generator.py`** (was cog=30) — extracted `_get_commits`, `_group_commits_by_version`, `_format_changelog_entry` helpers; added unit tests. Hardened with `str | None` types (`1b5f331`). Worst remaining: `_format_conventional_section` cog=18.
-- **`quality/tools.py`** — extracted `_tool_context` context manager, split `_create_mcp_field_definitions` and `register_quality_tools` into per-domain helpers (`d09f996`). Worst remaining: `create_linting_rule_tool` cog=18.
+- **`quality/tools.py`** — extracted `_tool_context` context manager, split `register_quality_tools` into per-domain helpers (`d09f996`). Worst remaining: `create_linting_rule_tool` cog=18.
 - **`complexity/analyzer.py`** — `extract_functions_from_file` cog=23→15 (`0f48536`); added `_count_docstring_lines` helper (`d09f996`). Worst remaining: `_find_magic_numbers` cog=25.
 - **`refactoring/analyzer.py`** (was cog=29) — moved keyword sets to class-level frozensets; extracted `_register_variable` and `_scan_and_register_identifiers`; collapsed duplicate Java branch (`60caecf`). Worst remaining: `_find_python_base_variables` cog=25.
 - **`deduplication/detector.py`** — extracted `_match_line`, `_format_instance` helpers; moved strategy tables to class-level constants (`8415bec`).
@@ -62,6 +69,11 @@ See [docs/duplicate-detector-misses.md](duplicate-detector-misses.md) for full i
 - Reduce weight for strategy pattern implementations
 - Add minimum line savings threshold
 - Consider excluding parallel `to_*` formatters
+
+## e74b8de Review Follow-ups (2026-03-08)
+
+- **Sentry gap in `analyze_entity_graph`** — `enhancement_service.py:754` lost its inner `capture_exception` during consolidation. Currently only called from `enhance_entity_graph_tool` (which wraps with `async_tool_context`), so coverage holds. Add a comment documenting the single-caller assumption, or restore a lightweight `capture_exception` if new callers are added.
+- **`_handle_tool_error` logger duplication** — `tool_context.py:16` calls `get_logger(f"tool.{tool_name}")` on every error. Caller already has a logger bound to the same name. Low severity if `get_logger` caches; document or accept logger as parameter.
 
 ## changelog_generator.py Hardening (2026-03-08)
 

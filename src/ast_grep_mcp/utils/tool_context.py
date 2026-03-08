@@ -17,6 +17,7 @@ def _handle_tool_error(tool_name: str, start_time: float, e: Exception, sentry_e
     logger.error(
         "tool_failed",
         tool=tool_name,
+        status="failed",
         execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
         error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
     )
