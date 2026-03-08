@@ -61,10 +61,7 @@ def _complexity_label(lines: int) -> str:
 
 
 def _build_complexity_comparison(examples: List[PatternExample]) -> Dict[str, str]:
-    return {
-        ex.language: _complexity_label(len(ex.code.strip().split("\n")))
-        for ex in examples
-    }
+    return {ex.language: _complexity_label(len(ex.code.strip().split("\n"))) for ex in examples}
 
 
 def _create_pattern_equivalence(

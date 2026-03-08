@@ -554,11 +554,7 @@ class MinHashSimilarity:
         candidates: Set[Tuple[str, str]] = set()
 
         for key, code in code_items:
-            pairs = {
-                (min(key, sk), max(key, sk))
-                for sk in self.query_similar(code)
-                if sk != key
-            }
+            pairs = {(min(key, sk), max(key, sk)) for sk in self.query_similar(code) if sk != key}
             candidates.update(pairs)
 
         self.logger.info(
@@ -868,10 +864,18 @@ class HybridSimilarity:
             semantic_skipped=True,
         )
         return HybridSimilarityResult(
-            similarity=combined, method="hybrid", verified=True,
-            minhash_similarity=minhash_sim, ast_similarity=ast_sim,
-            semantic_similarity=None, stage1_passed=True, stage2_passed=stage2_passed,
-            early_exit=False, semantic_skipped=True, token_count=token_count, semantic_model=None,
+            similarity=combined,
+            method="hybrid",
+            verified=True,
+            minhash_similarity=minhash_sim,
+            ast_similarity=ast_sim,
+            semantic_similarity=None,
+            stage1_passed=True,
+            stage2_passed=stage2_passed,
+            early_exit=False,
+            semantic_skipped=True,
+            token_count=token_count,
+            semantic_model=None,
         )
 
     def calculate_hybrid_similarity(
@@ -1116,11 +1120,29 @@ class HybridSimilarity:
 
         return intersection / union if union > 0 else 0.0
 
-    _STRUCTURAL_KEYWORDS: frozenset[str] = frozenset({
-        "def", "class", "if", "elif", "else", "for", "while",
-        "try", "except", "finally", "with", "return", "yield",
-        "async", "await", "function", "const", "let", "var",
-    })
+    _STRUCTURAL_KEYWORDS: frozenset[str] = frozenset(
+        {
+            "def",
+            "class",
+            "if",
+            "elif",
+            "else",
+            "for",
+            "while",
+            "try",
+            "except",
+            "finally",
+            "with",
+            "return",
+            "yield",
+            "async",
+            "await",
+            "function",
+            "const",
+            "let",
+            "var",
+        }
+    )
 
     def _extract_structural_patterns(self, code: str) -> List[str]:
         """Extract structural patterns from code for simplified comparison.
@@ -1349,17 +1371,58 @@ class EnhancedStructureHash:
         complexity += sum(1 for n in nodes if n in decision_nodes)
         return complexity
 
-    _CALL_EXCLUDED: frozenset[str] = frozenset({
-        "if", "for", "while", "with", "elif", "match", "case",
-        "except", "try", "catch", "finally",
-        "print", "return", "assert", "raise", "yield", "pass",
-        "def", "class", "lambda", "async",
-        "len", "str", "int", "float", "bool", "list", "dict", "set",
-        "tuple", "range", "enumerate", "zip", "map", "filter",
-        "sorted", "reversed", "type", "isinstance", "hasattr",
-        "getattr", "setattr", "open", "input", "super",
-        "property", "staticmethod", "classmethod",
-    })
+    _CALL_EXCLUDED: frozenset[str] = frozenset(
+        {
+            "if",
+            "for",
+            "while",
+            "with",
+            "elif",
+            "match",
+            "case",
+            "except",
+            "try",
+            "catch",
+            "finally",
+            "print",
+            "return",
+            "assert",
+            "raise",
+            "yield",
+            "pass",
+            "def",
+            "class",
+            "lambda",
+            "async",
+            "len",
+            "str",
+            "int",
+            "float",
+            "bool",
+            "list",
+            "dict",
+            "set",
+            "tuple",
+            "range",
+            "enumerate",
+            "zip",
+            "map",
+            "filter",
+            "sorted",
+            "reversed",
+            "type",
+            "isinstance",
+            "hasattr",
+            "getattr",
+            "setattr",
+            "open",
+            "input",
+            "super",
+            "property",
+            "staticmethod",
+            "classmethod",
+        }
+    )
 
     _DEF_PATTERNS = (
         (r"^def\s+([a-zA-Z_][a-zA-Z0-9_]*)", "def "),
@@ -1681,6 +1744,7 @@ class SemanticSimilarity:
     def _init_model_components(self) -> None:
         import torch
         from transformers import AutoModel, AutoTokenizer
+
         self._tokenizer = AutoTokenizer.from_pretrained(self.config.model_name)  # type: ignore[no-untyped-call]
         self._model = AutoModel.from_pretrained(self.config.model_name)
         self._device = self._select_device(torch_module=torch)
@@ -1736,6 +1800,7 @@ class SemanticSimilarity:
 
     def _run_model_inference(self, code: str) -> Any:
         import torch
+
         inputs = self._tokenizer(
             code,
             return_tensors="pt",

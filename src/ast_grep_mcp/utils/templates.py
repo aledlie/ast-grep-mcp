@@ -381,9 +381,7 @@ def format_typescript_class(
         Formatted TypeScript class code
     """
     return TYPESCRIPT_CLASS_TEMPLATE.format(
-        **_build_typescript_class_args(
-            name, export, abstract, type_params, extends, implements, jsdoc, properties, constructor, methods
-        )
+        **_build_typescript_class_args(name, export, abstract, type_params, extends, implements, jsdoc, properties, constructor, methods)
     )
 
 

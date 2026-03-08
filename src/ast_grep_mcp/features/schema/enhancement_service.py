@@ -84,9 +84,22 @@ def _load_entities_from_file(file_path: Path) -> List[Dict[str, Any]]:
 
 
 _EXCLUDED_DIRS = {
-    "node_modules", ".git", ".svn", ".hg", "__pycache__", ".tox",
-    ".pytest_cache", ".mypy_cache", "dist", "build", ".next", ".nuxt",
-    "coverage", ".cache", "vendor", "bower_components",
+    "node_modules",
+    ".git",
+    ".svn",
+    ".hg",
+    "__pycache__",
+    ".tox",
+    ".pytest_cache",
+    ".mypy_cache",
+    "dist",
+    "build",
+    ".next",
+    ".nuxt",
+    "coverage",
+    ".cache",
+    "vendor",
+    "bower_components",
 }
 
 
@@ -250,8 +263,7 @@ async def _get_suggested_properties(entity_type: str, existing_properties: List[
     missing_names = prop_by_name.keys() - set(existing_properties)
 
     suggested = [
-        e for name in missing_names
-        if (e := _score_property(name, entity_type, prop_by_name[name])).priority in _NOTABLE_PRIORITIES
+        e for name in missing_names if (e := _score_property(name, entity_type, prop_by_name[name])).priority in _NOTABLE_PRIORITIES
     ]
     suggested.sort(key=lambda p: ENHANCEMENT_PRIORITY_ORDER[p.priority])
     return suggested

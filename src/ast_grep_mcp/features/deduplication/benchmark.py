@@ -95,8 +95,7 @@ class BenchmarkExecutor:
             {"file": "a.py", "line": BENCHMARK_SCORING_HIGH_LINE_C},
         ]
         low_instances = [
-            {"file": f"file{i}.py", "line": i * BENCHMARK_SCORING_HIGH_LINE_A}
-            for i in range(BENCHMARK_SCORING_LOW_INSTANCE_COUNT)
+            {"file": f"file{i}.py", "line": i * BENCHMARK_SCORING_HIGH_LINE_A} for i in range(BENCHMARK_SCORING_LOW_INSTANCE_COUNT)
         ]
         med_instances = [
             {"file": f"module{i % BENCHMARK_SCORING_MODULE_BUCKET_COUNT}.py", "line": i * BENCHMARK_LOW_LINES_SAVED}

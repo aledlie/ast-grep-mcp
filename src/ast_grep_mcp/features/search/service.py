@@ -344,9 +344,7 @@ def _run_find_code_search(
     return result
 
 
-def _log_find_code_error(
-    e: Exception, project_folder: str, pattern: str, language: str, start_time: float, logger: Any
-) -> None:
+def _log_find_code_error(e: Exception, project_folder: str, pattern: str, language: str, start_time: float, logger: Any) -> None:
     """Log error and capture in Sentry for find_code_impl."""
     execution_time = time.time() - start_time
     logger.error(
@@ -646,9 +644,7 @@ def find_code_by_rule_impl(
     )
 
     try:
-        return _run_rule_search_with_cache(
-            project_folder, yaml_rule, max_results, output_format, warnings, parsed_yaml, logger, start_time
-        )
+        return _run_rule_search_with_cache(project_folder, yaml_rule, max_results, output_format, warnings, parsed_yaml, logger, start_time)
     except Exception as e:
         if isinstance(e, InvalidYAMLError):
             raise
@@ -719,8 +715,9 @@ def _add_relational_to_rule(
 def _generate_rule_id(pattern: str, language: str, inside: Optional[str], has: Optional[str]) -> str:
     """Generate a deterministic rule ID from pattern components."""
     import hashlib
+
     hash_input = f"{pattern}{language}{inside}{has}"
-    return f"rule-{hashlib.sha256(hash_input.encode()).hexdigest()[:CacheDefaults.RULE_ID_HASH_LENGTH]}"
+    return f"rule-{hashlib.sha256(hash_input.encode()).hexdigest()[: CacheDefaults.RULE_ID_HASH_LENGTH]}"
 
 
 def _build_rule_object(
@@ -967,11 +964,7 @@ def _check_single_arg_metavar_issues(pattern: str) -> List[PatternIssue]:
     if "(" not in pattern or ")" not in pattern:
         return []
     paren_content = re.findall(r"\(([^)]+)\)", pattern)
-    return [
-        _single_arg_issue(content.strip())
-        for content in paren_content
-        if re.match(r"^\$[A-Z][A-Z0-9_]*$", content.strip())
-    ]
+    return [_single_arg_issue(content.strip()) for content in paren_content if re.match(r"^\$[A-Z][A-Z0-9_]*$", content.strip())]
 
 
 _FRAGMENT_SUGGESTION = "Patterns must be valid, parseable code. Wrap in full expression or use YAML rule with 'context' and 'selector'"
@@ -1120,7 +1113,10 @@ rule:
 
 
 def _add_suggestions_by_severity(
-    severity: IssueSeverity, prefix: str, issues: List[PatternIssue], suggestions: List[str],
+    severity: IssueSeverity,
+    prefix: str,
+    issues: List[PatternIssue],
+    suggestions: List[str],
 ) -> None:
     """Add suggestions filtered by severity level."""
     for issue in issues:
@@ -1161,8 +1157,6 @@ def _add_debug_suggestions(
 
     if ast_comparison.pattern_root_kind != ast_comparison.code_root_kind:
         suggestions.append(f"[TIP] Try using 'kind: {ast_comparison.code_root_kind}' in a YAML rule instead of pattern matching.")
-
-
 
 
 def _add_default_suggestions(match_attempt: MatchAttempt, suggestions: List[str]) -> None:
@@ -1220,12 +1214,14 @@ def _get_pattern_ast(pattern: str, language: str, issues: List[PatternIssue]) ->
     try:
         return dump_syntax_tree_impl(pattern, language, "pattern"), True
     except Exception as e:
-        issues.append(PatternIssue(
-            severity=IssueSeverity.ERROR,
-            category=IssueCategory.SYNTAX,
-            message=f"Pattern failed to parse: {str(e)[:100]}",
-            suggestion="Ensure pattern is valid, parseable code for the target language",
-        ))
+        issues.append(
+            PatternIssue(
+                severity=IssueSeverity.ERROR,
+                category=IssueCategory.SYNTAX,
+                message=f"Pattern failed to parse: {str(e)[:100]}",
+                suggestion="Ensure pattern is valid, parseable code for the target language",
+            )
+        )
         return f"Error parsing pattern: {str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH]}", False
 
 
@@ -1234,18 +1230,18 @@ def _get_code_ast(code: str, language: str, issues: List[PatternIssue]) -> str:
     try:
         return dump_syntax_tree_impl(code, language, "cst")
     except Exception as e:
-        issues.append(PatternIssue(
-            severity=IssueSeverity.WARNING,
-            category=IssueCategory.SYNTAX,
-            message=f"Code failed to parse: {str(e)[:100]}",
-            suggestion="Check that the code is valid syntax",
-        ))
+        issues.append(
+            PatternIssue(
+                severity=IssueSeverity.WARNING,
+                category=IssueCategory.SYNTAX,
+                message=f"Code failed to parse: {str(e)[:100]}",
+                suggestion="Check that the code is valid syntax",
+            )
+        )
         return f"Error parsing code: {str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH]}"
 
 
-def _run_debug_analysis(
-    pattern: str, code: str, language: str, start_time: float, logger: Any
-) -> PatternDebugResult:
+def _run_debug_analysis(pattern: str, code: str, language: str, start_time: float, logger: Any) -> PatternDebugResult:
     """Execute the pattern debug analysis and build result."""
     metavars = _extract_metavariables(pattern)
     issues = _check_pattern_issues(pattern, metavars)
@@ -1256,16 +1252,26 @@ def _run_debug_analysis(
     suggestions = _generate_suggestions(pattern, code, language, issues, ast_comparison, match_attempt)
     execution_time = time.time() - start_time
     result = PatternDebugResult(
-        pattern=pattern, code=code, language=language, pattern_valid=pattern_valid,
-        pattern_ast=pattern_ast, code_ast=code_ast, ast_comparison=ast_comparison,
-        metavariables=metavars, issues=issues, suggestions=suggestions,
+        pattern=pattern,
+        code=code,
+        language=language,
+        pattern_valid=pattern_valid,
+        pattern_ast=pattern_ast,
+        code_ast=code_ast,
+        ast_comparison=ast_comparison,
+        metavariables=metavars,
+        issues=issues,
+        suggestions=suggestions,
         match_attempt=match_attempt,
         execution_time_ms=int(execution_time * ConversionFactors.MILLISECONDS_PER_SECOND),
     )
     logger.info(
         "debug_pattern_completed",
         execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-        pattern_valid=pattern_valid, issues_found=len(issues), matched=match_attempt.matched, status="success",
+        pattern_valid=pattern_valid,
+        issues_found=len(issues),
+        matched=match_attempt.matched,
+        status="success",
     )
     return result
 
@@ -1751,19 +1757,23 @@ def _matched_refinement_steps(analysis: CodeAnalysis) -> List[RefinementStep]:
     steps: List[RefinementStep] = []
     priority = 1
     if analysis.complexity != "simple":
-        steps.append(RefinementStep(
-            action="Simplify pattern",
-            pattern="Focus on the key structural element you want to match",
-            explanation="Complex patterns may miss variations. Start simple, add constraints.",
-            priority=priority,
-        ))
+        steps.append(
+            RefinementStep(
+                action="Simplify pattern",
+                pattern="Focus on the key structural element you want to match",
+                explanation="Complex patterns may miss variations. Start simple, add constraints.",
+                priority=priority,
+            )
+        )
         priority += 1
-    steps.append(RefinementStep(
-        action="Add constraints with YAML rule",
-        pattern="Use 'inside' with stopBy: end to limit scope",
-        explanation="Wrap in YAML rule to add context (e.g., only inside functions)",
-        priority=priority,
-    ))
+    steps.append(
+        RefinementStep(
+            action="Add constraints with YAML rule",
+            pattern="Use 'inside' with stopBy: end to limit scope",
+            explanation="Wrap in YAML rule to add context (e.g., only inside functions)",
+            priority=priority,
+        )
+    )
     return steps
 
 
@@ -1922,9 +1932,7 @@ def _run_develop_analysis(code: str, language: str, start_time: float, logger: A
     suggestions = _generate_pattern_suggestions(code, language, analysis)
     best_pattern, pattern_matches, match_count = _select_best_pattern(suggestions, code, language)
     execution_time = time.time() - start_time
-    result = _build_develop_result(
-        code, language, analysis, suggestions, best_pattern, pattern_matches, match_count, execution_time
-    )
+    result = _build_develop_result(code, language, analysis, suggestions, best_pattern, pattern_matches, match_count, execution_time)
     logger.info(
         "develop_pattern_completed",
         execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),

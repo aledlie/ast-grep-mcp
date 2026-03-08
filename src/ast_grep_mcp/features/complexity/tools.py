@@ -216,7 +216,6 @@ def _handle_no_files_found(language: str, execution_time: float) -> Dict[str, An
     }
 
 
-
 def _thresholds_to_dict(thresholds: ComplexityThresholds) -> Dict[str, int]:
     return {
         "cyclomatic": thresholds.cyclomatic,
@@ -262,11 +261,14 @@ def _log_tool_error(logger: Any, tool: str, execution_time: float, e: Exception,
         error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         status="failed",
     )
-    sentry_sdk.capture_exception(e, extras={
-        "tool": tool,
-        "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-        **extras,
-    })
+    sentry_sdk.capture_exception(
+        e,
+        extras={
+            "tool": tool,
+            "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            **extras,
+        },
+    )
 
 
 def analyze_complexity_tool(
@@ -291,9 +293,17 @@ def analyze_complexity_tool(
     exclude_patterns = _normalize_complexity_exclude_patterns(exclude_patterns)
     logger = get_logger("tool.analyze_complexity")
     start_time = time.time()
-    logger.info("tool_invoked", tool="analyze_complexity", project_folder=project_folder, language=language,
-                cyclomatic_threshold=cyclomatic_threshold, cognitive_threshold=cognitive_threshold,
-                nesting_threshold=nesting_threshold, length_threshold=length_threshold, max_threads=max_threads)
+    logger.info(
+        "tool_invoked",
+        tool="analyze_complexity",
+        project_folder=project_folder,
+        language=language,
+        cyclomatic_threshold=cyclomatic_threshold,
+        cognitive_threshold=cognitive_threshold,
+        nesting_threshold=nesting_threshold,
+        length_threshold=length_threshold,
+        max_threads=max_threads,
+    )
     try:
         _validate_inputs(language)
         thresholds = ComplexityThresholds(
@@ -467,11 +477,18 @@ def detect_code_smells_tool(
     logger.info("tool_invoked", tool="detect_code_smells", project_folder=project_folder, language=language)
     try:
         result = detect_code_smells_impl(
-            project_folder=project_folder, language=language, include_patterns=include_patterns,
-            exclude_patterns=exclude_patterns, long_function_lines=long_function_lines,
-            parameter_count=parameter_count, nesting_depth=nesting_depth, class_lines=class_lines,
-            class_methods=class_methods, detect_magic_numbers=detect_magic_numbers,
-            severity_filter=severity_filter, max_threads=max_threads,
+            project_folder=project_folder,
+            language=language,
+            include_patterns=include_patterns,
+            exclude_patterns=exclude_patterns,
+            long_function_lines=long_function_lines,
+            parameter_count=parameter_count,
+            nesting_depth=nesting_depth,
+            class_lines=class_lines,
+            class_methods=class_methods,
+            detect_magic_numbers=detect_magic_numbers,
+            severity_filter=severity_filter,
+            max_threads=max_threads,
         )
         return _process_smell_detection_result(result, start_time, logger)
     except Exception as e:
@@ -499,11 +516,17 @@ def _register_analyze_complexity(mcp: FastMCP) -> None:
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone analyze_complexity_tool function."""
         return analyze_complexity_tool(
-            project_folder=project_folder, language=language, include_patterns=include_patterns,
-            exclude_patterns=exclude_patterns, cyclomatic_threshold=cyclomatic_threshold,
-            cognitive_threshold=cognitive_threshold, nesting_threshold=nesting_threshold,
-            length_threshold=length_threshold, store_results=store_results,
-            include_trends=include_trends, max_threads=max_threads,
+            project_folder=project_folder,
+            language=language,
+            include_patterns=include_patterns,
+            exclude_patterns=exclude_patterns,
+            cyclomatic_threshold=cyclomatic_threshold,
+            cognitive_threshold=cognitive_threshold,
+            nesting_threshold=nesting_threshold,
+            length_threshold=length_threshold,
+            store_results=store_results,
+            include_trends=include_trends,
+            max_threads=max_threads,
         )
 
 
@@ -547,11 +570,18 @@ def _register_detect_smells(mcp: FastMCP) -> None:
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone detect_code_smells_tool function."""
         return detect_code_smells_tool(
-            project_folder=project_folder, language=language, include_patterns=include_patterns,
-            exclude_patterns=exclude_patterns, long_function_lines=long_function_lines,
-            parameter_count=parameter_count, nesting_depth=nesting_depth, class_lines=class_lines,
-            class_methods=class_methods, detect_magic_numbers=detect_magic_numbers,
-            severity_filter=severity_filter, max_threads=max_threads,
+            project_folder=project_folder,
+            language=language,
+            include_patterns=include_patterns,
+            exclude_patterns=exclude_patterns,
+            long_function_lines=long_function_lines,
+            parameter_count=parameter_count,
+            nesting_depth=nesting_depth,
+            class_lines=class_lines,
+            class_methods=class_methods,
+            detect_magic_numbers=detect_magic_numbers,
+            severity_filter=severity_filter,
+            max_threads=max_threads,
         )
 
 

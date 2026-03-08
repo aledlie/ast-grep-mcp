@@ -27,7 +27,8 @@ def _make_error(error_type: str, file_path: str, error: str, suggestion: str) ->
 
 def _file_not_found_error(file_path: str) -> Dict[str, Any]:
     return _make_error(
-        "file_not_found", file_path,
+        "file_not_found",
+        file_path,
         f"Modified file not found: {file_path}",
         "File may have been deleted during operation",
     )
@@ -77,14 +78,18 @@ class RefactoringPostValidator:
         """
         try:
             from ..rewrite.service import validate_syntax
+
             result = validate_syntax(file_path, language)
         except Exception as e:
             self.logger.error("syntax_validation_exception", file=file_path, error=str(e))
-            return [_make_error(
-                "validation_exception", file_path,
-                f"Failed to validate syntax: {str(e)}",
-                "Check if the file is readable and well-formed",
-            )]
+            return [
+                _make_error(
+                    "validation_exception",
+                    file_path,
+                    f"Failed to validate syntax: {str(e)}",
+                    "Check if the file is readable and well-formed",
+                )
+            ]
 
         if result["valid"]:
             return []
@@ -94,11 +99,14 @@ class RefactoringPostValidator:
             file=file_path,
             error=result.get("error", "")[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
         )
-        return [_make_error(
-            "syntax_error", file_path,
-            result.get("error", "Unknown syntax error"),
-            suggest_syntax_fix(result.get("error"), language, context="file"),
-        )]
+        return [
+            _make_error(
+                "syntax_error",
+                file_path,
+                result.get("error", "Unknown syntax error"),
+                suggest_syntax_fix(result.get("error"), language, context="file"),
+            )
+        ]
 
     def _read_file_content(self, file_path: str) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
         try:
@@ -106,7 +114,8 @@ class RefactoringPostValidator:
                 return f.read(), None
         except Exception as e:
             return None, _make_error(
-                "structure_check_failed", file_path,
+                "structure_check_failed",
+                file_path,
                 f"Failed to check file structure: {str(e)}",
                 "Verify file is readable",
             )
@@ -129,11 +138,14 @@ class RefactoringPostValidator:
         errors: List[Dict[str, Any]] = []
 
         if not content.strip():
-            errors.append(_make_error(
-                "empty_file", file_path,
-                "File is empty after modifications",
-                "Verify that content was written correctly",
-            ))
+            errors.append(
+                _make_error(
+                    "empty_file",
+                    file_path,
+                    "File is empty after modifications",
+                    "Verify that content was written correctly",
+                )
+            )
 
         lang = language.lower()
         dispatch = {
@@ -163,28 +175,37 @@ class RefactoringPostValidator:
         double_quotes = content.count('"') - content.count('\\"')
 
         if single_quotes % 2 != 0:
-            errors.append(_make_error(
-                "unbalanced_quotes", file_path,
-                "Unbalanced single quotes in file",
-                "Check for unclosed string literals",
-            ))
+            errors.append(
+                _make_error(
+                    "unbalanced_quotes",
+                    file_path,
+                    "Unbalanced single quotes in file",
+                    "Check for unclosed string literals",
+                )
+            )
 
         if double_quotes % 2 != 0:
-            errors.append(_make_error(
-                "unbalanced_quotes", file_path,
-                "Unbalanced double quotes in file",
-                "Check for unclosed string literals",
-            ))
+            errors.append(
+                _make_error(
+                    "unbalanced_quotes",
+                    file_path,
+                    "Unbalanced double quotes in file",
+                    "Check for unclosed string literals",
+                )
+            )
 
         lines = content.split("\n")
         has_content = any(line.strip() and not line.strip().startswith("#") for line in lines)
 
         if not has_content:
-            errors.append(_make_error(
-                "no_code_content", file_path,
-                "File contains only comments or whitespace",
-                "Verify code was written correctly",
-            ))
+            errors.append(
+                _make_error(
+                    "no_code_content",
+                    file_path,
+                    "File contains only comments or whitespace",
+                    "Verify code was written correctly",
+                )
+            )
 
         return errors
 
@@ -219,17 +240,23 @@ class RefactoringPostValidator:
         errors: List[Dict[str, Any]] = []
 
         if content.count("{") != content.count("}"):
-            errors.append(_make_error(
-                "unbalanced_braces", file_path,
-                "Unbalanced curly braces",
-                "Check for missing { or }",
-            ))
+            errors.append(
+                _make_error(
+                    "unbalanced_braces",
+                    file_path,
+                    "Unbalanced curly braces",
+                    "Check for missing { or }",
+                )
+            )
 
         if "class " not in content and "interface " not in content:
-            errors.append(_make_error(
-                "no_class_definition", file_path,
-                "No class or interface definition found",
-                "Java files should contain at least one class or interface",
-            ))
+            errors.append(
+                _make_error(
+                    "no_class_definition",
+                    file_path,
+                    "No class or interface definition found",
+                    "Java files should contain at least one class or interface",
+                )
+            )
 
         return errors

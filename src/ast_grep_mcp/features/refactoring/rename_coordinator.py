@@ -110,9 +110,7 @@ class RenameCoordinator:
             return conflict_result
 
         diff_preview = self._generate_diff_preview(references, old_name, new_name)
-        backup_id, files_modified = self._maybe_apply(
-            project_folder, references, old_name, new_name, dry_run
-        )
+        backup_id, files_modified = self._maybe_apply(project_folder, references, old_name, new_name, dry_run)
 
         return RenameSymbolResult(
             success=True,
@@ -165,15 +163,11 @@ class RenameCoordinator:
         )
         return backup_id, files_modified
 
-    def _build_scope_trees(
-        self, references: List[SymbolReference]
-    ) -> Dict[str, List[ScopeInfo]]:
+    def _build_scope_trees(self, references: List[SymbolReference]) -> Dict[str, List[ScopeInfo]]:
         affected_files = list(set(ref.file_path for ref in references))
         return {fp: self.renamer.build_scope_tree(fp) for fp in affected_files}
 
-    def _group_refs_by_file(
-        self, references: List[SymbolReference]
-    ) -> Dict[str, List[SymbolReference]]:
+    def _group_refs_by_file(self, references: List[SymbolReference]) -> Dict[str, List[SymbolReference]]:
         refs_by_file: Dict[str, List[SymbolReference]] = {}
         for ref in references:
             refs_by_file.setdefault(ref.file_path, []).append(ref)

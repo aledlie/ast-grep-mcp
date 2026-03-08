@@ -69,12 +69,12 @@ class TestStripInlineComments:
 
     def test_preserves_url_with_double_slash(self):
         """// at position 0 is not stripped (only > 0 triggers removal)."""
-        line = '//example.com'
+        line = "//example.com"
         result = HybridSimilarity._strip_inline_comments(line)
-        assert result == '//example.com'
+        assert result == "//example.com"
 
     def test_strips_double_slash_after_content(self):
-        line = 'const url = x;  // set url'
+        line = "const url = x;  // set url"
         result = HybridSimilarity._strip_inline_comments(line)
         assert result == "const url = x;"
 
@@ -193,9 +193,7 @@ class TestApplicatorWrapperTypeGuards:
             return_value=mock_applicator,
         ):
             with pytest.raises(TypeError, match="Expected str"):
-                _generate_import_for_extracted_function(
-                    "/src/a.py", "/src/b.py", "func", "python", "/src"
-                )
+                _generate_import_for_extracted_function("/src/a.py", "/src/b.py", "func", "python", "/src")
 
     def test_plan_file_modification_order_accepts_dict(self):
         from ast_grep_mcp.features.deduplication.applicator import (

@@ -317,17 +317,11 @@ def _find_entry_points(project_folder: str, language: str) -> List[str]:
 
 
 def _has_tests(project_folder: str) -> bool:
-    return any(
-        os.path.exists(os.path.join(project_folder, d))
-        for d in ("tests", "test", "__tests__", "spec")
-    )
+    return any(os.path.exists(os.path.join(project_folder, d)) for d in ("tests", "test", "__tests__", "spec"))
 
 
 def _has_docs(project_folder: str) -> bool:
-    return any(
-        os.path.exists(os.path.join(project_folder, d))
-        for d in ("docs", "documentation")
-    )
+    return any(os.path.exists(os.path.join(project_folder, d)) for d in ("docs", "documentation"))
 
 
 def _analyze_project(project_folder: str, language: str) -> ProjectInfo:
@@ -541,15 +535,17 @@ def _generate_installation_section(info: ProjectInfo) -> ReadmeSection:
             lines.append(f"Install using {info.package_manager}.")
         lines.extend(_from_source_lines(info.name, info.package_manager))
     else:
-        lines.extend([
-            "Clone the repository and install dependencies:",
-            "",
-            "```bash",
-            f"git clone https://github.com/your-username/{info.name}.git",
-            f"cd {info.name}",
-            "# Install dependencies",
-            "```",
-        ])
+        lines.extend(
+            [
+                "Clone the repository and install dependencies:",
+                "",
+                "```bash",
+                f"git clone https://github.com/your-username/{info.name}.git",
+                f"cd {info.name}",
+                "# Install dependencies",
+                "```",
+            ]
+        )
 
     return ReadmeSection(
         section_type="installation",

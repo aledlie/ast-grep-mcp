@@ -478,9 +478,7 @@ def _apply_rewrites(
     return _build_rewrite_response(files_to_modify, backup_id, result, validation_summary)
 
 
-def _handle_rewrite_error(
-    e: Exception, logger: Any, start_time: float, project_folder: str, dry_run: bool
-) -> None:
+def _handle_rewrite_error(e: Exception, logger: Any, start_time: float, project_folder: str, dry_run: bool) -> None:
     execution_time = time.time() - start_time
     logger.error(
         "rewrite_code_failed",
@@ -500,8 +498,14 @@ def _handle_rewrite_error(
 
 
 def _execute_rewrite(
-    project_folder: str, yaml_rule: str, dry_run: bool, backup: bool, max_file_size_mb: int, workers: int,
-    logger: Any, start_time: float,
+    project_folder: str,
+    yaml_rule: str,
+    dry_run: bool,
+    backup: bool,
+    max_file_size_mb: int,
+    workers: int,
+    logger: Any,
+    start_time: float,
 ) -> Tuple[Optional[str], Dict[str, Any]]:
     """Validate, prepare, and dispatch rewrite. Returns (rule_file, result)."""
     rule_data = _validate_yaml_rule(yaml_rule)

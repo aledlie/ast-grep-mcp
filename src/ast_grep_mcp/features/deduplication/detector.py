@@ -141,8 +141,14 @@ class DuplicationDetector:
             "find_duplication", OperationType.FIND_DUPLICATION, metadata={"language": self.language, "construct_type": construct_type}
         ) as tracker:
             return self._tracked_detection(
-                project_folder, construct_type, min_similarity, min_lines,
-                max_constructs, exclude_patterns, start_time, tracker,
+                project_folder,
+                construct_type,
+                min_similarity,
+                min_lines,
+                max_constructs,
+                exclude_patterns,
+                start_time,
+                tracker,
             )
 
     def _tracked_detection(
@@ -159,8 +165,13 @@ class DuplicationDetector:
         """Run detection inside a tracking context with error logging."""
         try:
             result = self._run_detection(
-                project_folder, construct_type, min_similarity, min_lines,
-                max_constructs, exclude_patterns, start_time,
+                project_folder,
+                construct_type,
+                min_similarity,
+                min_lines,
+                max_constructs,
+                exclude_patterns,
+                start_time,
             )
             summary = result.get("summary", {})
             tracker.lines_analyzed = summary.get("total_constructs", 0)
@@ -434,8 +445,11 @@ class DuplicationDetector:
                 target.append(item)
 
     def _connected_group_indices(
-        self, current_idx: int, groups: List[List[Dict[str, Any]]],
-        item_to_groups: Dict[str, List[int]], used_groups: set[int],
+        self,
+        current_idx: int,
+        groups: List[List[Dict[str, Any]]],
+        item_to_groups: Dict[str, List[int]],
+        used_groups: set[int],
     ) -> List[int]:
         """Return group indices connected to current_idx that haven't been visited."""
         candidates: List[int] = []
@@ -563,11 +577,13 @@ class DuplicationDetector:
         for match in group:
             start_line = match.get("range", {}).get("start", {}).get("line", 0) + 1
             end_line = match.get("range", {}).get("end", {}).get("line", 0) + 1
-            instances.append({
-                "file": match.get("file", ""),
-                "lines": f"{start_line}-{end_line}",
-                "code_preview": match.get("text", "")[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-            })
+            instances.append(
+                {
+                    "file": match.get("file", ""),
+                    "lines": f"{start_line}-{end_line}",
+                    "code_preview": match.get("text", "")[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
+                }
+            )
         return instances
 
     def _format_group(self, idx: int, group: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -594,7 +610,6 @@ class DuplicationDetector:
             "duplication_groups": formatted_groups,
             "refactoring_suggestions": suggestions,
             "message": (
-                f"Found {stats['duplicate_groups']} duplication group(s) "
-                f"with potential to save {stats['potential_line_savings']} lines"
+                f"Found {stats['duplicate_groups']} duplication group(s) with potential to save {stats['potential_line_savings']} lines"
             ),
         }

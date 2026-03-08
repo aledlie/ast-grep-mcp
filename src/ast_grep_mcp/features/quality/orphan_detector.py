@@ -179,12 +179,14 @@ class OrphanDetector:
         import_type = "relative" if node.level > 0 else "absolute"
         target = self._resolve_import_from_target(node, file_path, base_path)
         if target and target in graph.files:
-            graph.edges.append(DependencyEdge(
-                source=rel_path,
-                target=target,
-                import_type=import_type,
-                import_statement=f"from {node.module} import ...",
-            ))
+            graph.edges.append(
+                DependencyEdge(
+                    source=rel_path,
+                    target=target,
+                    import_type=import_type,
+                    import_statement=f"from {node.module} import ...",
+                )
+            )
         elif node.module:
             external_imports.add(node.module.split(".")[0])
 
@@ -387,7 +389,9 @@ class OrphanDetector:
         try:
             result = subprocess.run(
                 ["grep", "-r", "-l", Path(orphan.file_path).stem, str(base_path)],
-                capture_output=True, text=True, timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
+                capture_output=True,
+                text=True,
+                timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
             )
             refs = [ln for ln in result.stdout.strip().split("\n") if ln and not ln.endswith(orphan.file_path)]
             self._apply_grep_refs(orphan, refs)
@@ -433,10 +437,7 @@ class OrphanDetector:
             return 0, []
 
         func_nodes = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
-        orphans = [
-            o for n in func_nodes
-            if (o := self._check_function_orphan(n, rel_path, base_path)) is not None
-        ]
+        orphans = [o for n in func_nodes if (o := self._check_function_orphan(n, rel_path, base_path)) is not None]
         return len(func_nodes), orphans
 
     def _check_function_orphan(self, node: ast.FunctionDef, rel_path: str, base_path: Path) -> Optional[OrphanFunction]:

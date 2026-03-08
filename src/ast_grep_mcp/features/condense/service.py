@@ -132,9 +132,7 @@ def extract_surface_impl(
 
     condensed_source = "\n\n".join(output_parts)
     reduction_pct = (
-        max(0.0, round((1.0 - total_condensed / total_original) * ConversionFactors.PERCENT_MULTIPLIER, 1))
-        if total_original > 0
-        else 0.0
+        max(0.0, round((1.0 - total_condensed / total_original) * ConversionFactors.PERCENT_MULTIPLIER, 1)) if total_original > 0 else 0.0
     )
 
     logger.info(

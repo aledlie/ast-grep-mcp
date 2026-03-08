@@ -40,7 +40,7 @@ def _copy_file_to_backup(
 
 def create_backup(files_to_backup: List[str], project_folder: str) -> str:
     logger = get_logger("rewrite.backup")
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-FormattingDefaults.TIMESTAMP_MS_TRIM]
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[: -FormattingDefaults.TIMESTAMP_MS_TRIM]
     backup_base_dir = os.path.join(project_folder, ".ast-grep-backups")
     backup_id, backup_dir = _resolve_backup_dir("backup", timestamp, backup_base_dir)
     os.makedirs(backup_dir, exist_ok=True)
@@ -67,7 +67,7 @@ def create_deduplication_backup(
     files_to_backup: List[str], project_folder: str, duplicate_group_id: int, strategy: str, original_hashes: Dict[str, str]
 ) -> str:
     logger = get_logger("rewrite.backup")
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-FormattingDefaults.TIMESTAMP_MS_TRIM]
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[: -FormattingDefaults.TIMESTAMP_MS_TRIM]
     backup_base_dir = os.path.join(project_folder, ".ast-grep-backups")
     backup_id, backup_dir = _resolve_backup_dir("dedup-backup", timestamp, backup_base_dir)
     os.makedirs(backup_dir, exist_ok=True)

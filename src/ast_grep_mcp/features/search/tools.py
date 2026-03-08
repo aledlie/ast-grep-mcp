@@ -299,8 +299,19 @@ def _register_build_rule(mcp: FastMCP) -> None:
         fix: Optional[str] = Field(default=None, description="Auto-fix template using captured metavariables"),
     ) -> str:
         return _call_build_rule(
-            pattern, language, rule_id, inside, has, follows, precedes,
-            inside_kind, has_kind, stop_by, message, severity, fix,
+            pattern,
+            language,
+            rule_id,
+            inside,
+            has,
+            follows,
+            precedes,
+            inside_kind,
+            has_kind,
+            stop_by,
+            message,
+            severity,
+            fix,
         )
 
     build_rule.__doc__ = _BUILD_RULE_DOC

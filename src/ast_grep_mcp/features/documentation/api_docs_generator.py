@@ -89,10 +89,7 @@ def _detect_python_api_framework(project_folder: str) -> Optional[str]:
     Returns:
         Framework name or None
     """
-    deps_content = "".join(
-        _read_file_lower(os.path.join(project_folder, fn))
-        for fn in ("requirements.txt", "pyproject.toml")
-    )
+    deps_content = "".join(_read_file_lower(os.path.join(project_folder, fn)) for fn in ("requirements.txt", "pyproject.toml"))
     if not deps_content:
         return None
     for pattern, framework_name in _PYTHON_API_FRAMEWORKS:
@@ -156,22 +153,23 @@ class ExpressRouteParser:
             path = match.group(RegexCaptureGroups.SECOND)
             handler_match = re.search(r",\s*(\w+)\s*\)", line)
             handler_name = handler_match.group(RegexCaptureGroups.FIRST) if handler_match else "anonymous"
-            routes.append(ApiRoute(
-                path=path,
-                method=method,
-                handler_name=handler_name,
-                file_path=file_path,
-                line_number=i + 1,
-                parameters=self._extract_path_params(path),
-            ))
+            routes.append(
+                ApiRoute(
+                    path=path,
+                    method=method,
+                    handler_name=handler_name,
+                    file_path=file_path,
+                    line_number=i + 1,
+                    parameters=self._extract_path_params(path),
+                )
+            )
 
         return routes
 
     def _extract_path_params(self, path: str) -> List[RouteParameter]:
         """Extract path parameters from route path."""
         return [
-            RouteParameter(name=m.group(RegexCaptureGroups.FIRST), location="path", required=True)
-            for m in re.finditer(r":(\w+)", path)
+            RouteParameter(name=m.group(RegexCaptureGroups.FIRST), location="path", required=True) for m in re.finditer(r":(\w+)", path)
         ]
 
 
@@ -211,22 +209,23 @@ class FastAPIRouteParser:
             method = match.group(RegexCaptureGroups.FIRST).upper()
             path = match.group(RegexCaptureGroups.SECOND)
             handler_name, params = self._parse_handler(lines, i)
-            routes.append(ApiRoute(
-                path=path,
-                method=method,
-                handler_name=handler_name,
-                file_path=file_path,
-                line_number=i + 1,
-                parameters=self._extract_path_params(path) + params,
-            ))
+            routes.append(
+                ApiRoute(
+                    path=path,
+                    method=method,
+                    handler_name=handler_name,
+                    file_path=file_path,
+                    line_number=i + 1,
+                    parameters=self._extract_path_params(path) + params,
+                )
+            )
 
         return routes
 
     def _extract_path_params(self, path: str) -> List[RouteParameter]:
         """Extract path parameters from route path."""
         return [
-            RouteParameter(name=m.group(RegexCaptureGroups.FIRST), location="path", required=True)
-            for m in re.finditer(r"\{(\w+)\}", path)
+            RouteParameter(name=m.group(RegexCaptureGroups.FIRST), location="path", required=True) for m in re.finditer(r"\{(\w+)\}", path)
         ]
 
     def _param_from_part(self, part: str) -> Optional[RouteParameter]:
@@ -301,9 +300,7 @@ class FlaskRouteParser:
                 break
         return "unknown"
 
-    def _build_routes_for_methods(
-        self, path: str, methods: List[str], handler_name: str, file_path: str, line_idx: int
-    ) -> List[ApiRoute]:
+    def _build_routes_for_methods(self, path: str, methods: List[str], handler_name: str, file_path: str, line_idx: int) -> List[ApiRoute]:
         """Build one ApiRoute per HTTP method."""
         path_params = self._extract_path_params(path)
         return [
@@ -363,10 +360,15 @@ def _markdown_param_table(route: ApiRoute) -> List[str]:
 
 def _markdown_default_responses() -> List[str]:
     return [
-        "**Responses:**", "",
-        "| Status | Description |", "|--------|-------------|",
-        "| 200 | Success |", "| 400 | Bad Request |",
-        "| 404 | Not Found |", "| 500 | Internal Server Error |", "",
+        "**Responses:**",
+        "",
+        "| Status | Description |",
+        "|--------|-------------|",
+        "| 200 | Success |",
+        "| 400 | Bad Request |",
+        "| 404 | Not Found |",
+        "| 500 | Internal Server Error |",
+        "",
     ]
 
 
