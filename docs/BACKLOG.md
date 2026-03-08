@@ -45,17 +45,5 @@ See [docs/duplicate-detector-misses.md](duplicate-detector-misses.md) for full i
 
 ## changelog_generator.py Hardening (2026-03-08)
 
-### Resolved
-- ~~Validate `project_folder` exists in `_run_git_command`~~ — Added `os.path.isdir()` check
-- ~~Replace empty string sentinel in `_get_first_commit` with `str | None`~~ — `_get_first_commit` and `_find_previous_tag` now return `str | None`
-
-### Open
 - **`from_version` resolution asymmetry** — `_get_commit_range` only tries v-prefix for `from_version`, falling back to raw string passthrough. `to_version` uses full `_resolve_version_ref`. Fix: use `_resolve_version_ref` for both. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
-## ~~Test & Documentation Quality~~ (2026-03-08, Resolved)
-
-- ~~Per-method imports in TestChangelogHelpers~~ — Moved `from unittest.mock import patch` to module level
-- ~~Add test for `_run_git_command` with invalid `cwd`~~ — Added `test_run_git_command_invalid_cwd` (passing, not xfail — bug is fixed)
-- ~~KNOWN_ISSUES.md: replace hardcoded line numbers with function names~~ — Done
-- ~~Clarify test name~~ — Renamed to `test_find_previous_tag_empty_tag_list`
-- ~~Resolve `Optional[str]` vs `str | None` terminology~~ — Standardized on `str | None` (Python 3.13+)
