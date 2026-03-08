@@ -39,6 +39,8 @@ def _run_git_command(project_folder: str, args: List[str]) -> Tuple[bool, str]:
     Returns:
         Tuple of (success, output)
     """
+    if not os.path.isdir(project_folder):
+        return False, f"Directory not found: {project_folder}"
     try:
         result = subprocess.run(
             ["git"] + args,
@@ -82,20 +84,20 @@ def _resolve_version_ref(project_folder: str, version: str) -> str:
     return "HEAD"
 
 
-def _get_first_commit(project_folder: str) -> str:
+def _get_first_commit(project_folder: str) -> str | None:
     """Get the first commit hash in the repository.
 
     Args:
         project_folder: Project root
 
     Returns:
-        First commit hash, or empty string on failure
+        First commit hash, or None on failure
     """
     success, first_commit = _run_git_command(project_folder, ["rev-list", "--max-parents=0", "HEAD"])
-    return first_commit if success else ""
+    return first_commit if success else None
 
 
-def _find_previous_tag(project_folder: str, exclude_ref: str) -> str:
+def _find_previous_tag(project_folder: str, exclude_ref: str) -> str | None:
     """Find the most recent v-prefixed tag, excluding a given ref.
 
     Falls back to the first commit if no suitable tag is found.
@@ -105,7 +107,7 @@ def _find_previous_tag(project_folder: str, exclude_ref: str) -> str:
         exclude_ref: Ref to skip (e.g., current version tag)
 
     Returns:
-        Tag name or first commit hash
+        Tag name, first commit hash, or None on failure
     """
     success, tags = _run_git_command(project_folder, ["tag", "--sort=-version:refname", "-l", "v*"])
     if success and tags:
@@ -137,7 +139,7 @@ def _get_commit_range(
         success, _ = _run_git_command(project_folder, ["rev-parse", f"v{from_version}"])
         from_ref = f"v{from_version}" if success else from_version
     else:
-        from_ref = _find_previous_tag(project_folder, to_ref)
+        from_ref = _find_previous_tag(project_folder, to_ref) or ""
 
     return from_ref, to_ref
 

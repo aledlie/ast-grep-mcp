@@ -134,7 +134,8 @@ class RefactoringPostValidator:
         if read_error is not None:
             return [read_error]
 
-        assert content is not None
+        if content is None:
+            return []
         errors: List[Dict[str, Any]] = []
 
         if not content.strip():

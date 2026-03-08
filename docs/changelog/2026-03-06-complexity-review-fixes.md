@@ -115,6 +115,13 @@ Extracted shared `_log_to_stderr(prefix, message)` helper in `console_logger.py`
 **Priority**: P3 | **Implementation session**: 2026-03-06
 Added `__init__(self, threshold, logger_name)` to the `SmellDetector` ABC base class and refactored 5 detector subclasses (`LongFunctionDetector`, `ParameterBloatDetector`, `DeepNestingDetector`, `LargeClassDetector`, `MagicNumberDetector`) to call `super().__init__()` instead of duplicating threshold/logger initialization. ~20 lines saved; all 1,615 tests pass.
 
+## Post-Refactoring Lint & Type Fixes
+
+- Resolved 59 ruff errors introduced by complexity refactoring (96632cf)
+- Resolved 38 mypy errors introduced by complexity refactoring (5a3f682)
+- Wrapped `yaml.dump` return with `str()` to resolve `no-any-return` (f1b587d)
+- Extracted 90 magic numbers into shared constants across 37 files (afdf71a)
+
 ## Summary
 
 - **Items migrated**: 24 (C1-C10, BR1-BR8, CR1, M1, SE1, D1-D4)
