@@ -153,6 +153,11 @@ def _process_opcode(
         _append_lines_as_ops(diff_ops, lines2[j1:j2], "insert")
 
 
+def _count_changes(diff_ops: list[dict[str, Any]]) -> int:
+    """Count non-equal diff operations."""
+    return sum(1 for op in diff_ops if op["type"] != "equal")
+
+
 def build_diff_tree(code1: str, code2: str, language: str | None = None) -> dict[str, Any]:
     """Build a diff tree from two code snippets.
 
@@ -161,19 +166,16 @@ def build_diff_tree(code1: str, code2: str, language: str | None = None) -> dict
     Args:
         code1: First code snippet (original)
         code2: Second code snippet (modified)
-        language: Optional language hint for language-specific parsing
+        language: Optional language hint
 
     Returns:
-        Dictionary containing diff information with keys:
-        - diff: List of diff operations
-        - language: The language hint if provided
-        - summary: Statistics about changes
+        Dictionary containing diff info: diff ops, language, change summary.
     """
     if not code1 and not code2:
         return {"diff": [], "language": language, "summary": {"changes": 0}}
 
-    lines1 = code1.splitlines() if code1 else []
-    lines2 = code2.splitlines() if code2 else []
+    lines1 = (code1 or "").splitlines()
+    lines2 = (code2 or "").splitlines()
 
     matcher = difflib.SequenceMatcher(None, lines1, lines2)
     diff_ops: list[dict[str, Any]] = []
@@ -181,12 +183,10 @@ def build_diff_tree(code1: str, code2: str, language: str | None = None) -> dict
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         _process_opcode(diff_ops, tag, lines1, lines2, i1, i2, j1, j2)
 
-    change_count = sum(1 for op in diff_ops if op["type"] != "equal")
-
     return {
         "diff": diff_ops,
         "language": language,
-        "summary": {"changes": change_count},
+        "summary": {"changes": _count_changes(diff_ops)},
     }
 
 
