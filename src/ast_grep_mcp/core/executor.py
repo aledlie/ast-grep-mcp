@@ -75,7 +75,7 @@ def get_supported_languages() -> List[str]:
 
 
 def _execute_subprocess(
-    args: List[str], input_text: Optional[str], allow_nonzero: bool, use_shell: bool
+    args: List[str], input_text: Optional[str], allow_nonzero: bool, *, use_shell: bool
 ) -> subprocess.CompletedProcess[str]:
     """Run subprocess wrapped in a Sentry span.
 
@@ -129,7 +129,7 @@ def run_command(args: List[str], input_text: Optional[str] = None, *, allow_nonz
     with tool_context("run_command", command=" ".join(args), has_stdin=has_stdin) as start_time:
         try:
             use_shell = sys.platform == "win32" and args[0] == ExecutorDefaults.AST_GREP_COMMAND
-            result = _execute_subprocess(args, input_text, allow_nonzero, use_shell)
+            result = _execute_subprocess(args, input_text, allow_nonzero, use_shell=use_shell)
             execution_time = time.time() - start_time
             logger.info(
                 "command_completed",
