@@ -1,0 +1,1 @@
+server:tsc:cd "/Users/alyshialedlie/code/is-public-sites/tcad-scraper/server" && npx tsc --noEmit --incremental --tsBuildInfoFile "/Users/alyshialedlie/.claude/tsc-buildinfo/_Users_alyshialedlie_code_is-public-sites_tcad-scraper_server.tsbuildinfo"

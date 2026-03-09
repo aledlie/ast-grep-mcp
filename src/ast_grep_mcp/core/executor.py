@@ -91,14 +91,18 @@ def _execute_subprocess(
     with sentry_sdk.start_span(op="subprocess.run", name=f"Running {args[0]}") as span:
         span.set_data("command", args[0])
         span.set_data("has_stdin", input_text is not None)
-        result = subprocess.run(
-            args,
-            capture_output=True,
-            input=input_text,
-            text=True,
-            check=not allow_nonzero,
-            shell=use_shell,
-        )
+        try:
+            result = subprocess.run(
+                args,
+                capture_output=True,
+                input=input_text,
+                text=True,
+                check=not allow_nonzero,
+                shell=use_shell,
+            )
+        except subprocess.CalledProcessError as e:
+            span.set_data("returncode", e.returncode)
+            raise
         span.set_data("returncode", result.returncode)
     return result
 
