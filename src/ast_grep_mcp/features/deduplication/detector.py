@@ -436,8 +436,8 @@ class DuplicationDetector:
 
     _RE_FUNC_NAME = re.compile(r"^\s*(?:async\s+)?(?:def|function)\s+(\w+)")
     _RE_JS_VAR_NAME = re.compile(r"^\s*(?:const|let|var)\s+(\w+)\s*=")
-    _RE_CALL_EXPR = re.compile(r"^(self\.\w+|super\(\)\.\w+|\w+)\(")
-    _SIGNATURE_PREFIXES = ("def ", "async def ", "function ", "return")
+    _RE_CALL_EXPR = re.compile(r"^(self\.\w+(?:\.\w+)*|super\(\)\.\w+(?:\.\w+)*|\w+)\(")
+    _SIGNATURE_PREFIXES = ("def ", "async def ", "function ", "return ")
     _CLOSING_TOKENS = ("}", "pass")
     _NON_BODY_PREFIXES = ("class ", "@", "#", "//", "/*")
 
@@ -475,6 +475,8 @@ class DuplicationDetector:
 
     def _is_trivial_constructor_group(self, group: List[Dict[str, Any]]) -> bool:
         """True when every member is a short constructor (e.g. __init__)."""
+        if not group:
+            return False
         max_lines = DetectorDefaults.TRIVIAL_INIT_MAX_LINES
         for item in group:
             code = item.get("text", "")
@@ -489,8 +491,10 @@ class DuplicationDetector:
         """True when every member is a thin wrapper delegating to a shared helper.
 
         Heuristic: the non-signature body is dominated by a single function/method
-        call (self._xxx, super().xxx, or a module-level helper).
+        call (self._xxx, self._x.y, super().xxx, or a module-level helper).
         """
+        if not group:
+            return False
         for item in group:
             code = item.get("text", "")
             lines = [ln.strip() for ln in code.split("\n") if ln.strip()]
@@ -529,9 +533,8 @@ class DuplicationDetector:
         """True when the group offers enough line savings to be worth reporting."""
         if not group:
             return False
-        lines = self._code_line_count(group[0].get("text", ""))
-        total = lines * len(group)
-        savings = total - lines
+        all_lines = [self._code_line_count(item.get("text", "")) for item in group]
+        savings = sum(all_lines) - min(all_lines)
         return savings >= DetectorDefaults.MIN_LINE_SAVINGS
 
     @staticmethod
