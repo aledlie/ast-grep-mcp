@@ -306,6 +306,42 @@ def _parse_diff_line(line: str) -> dict[str, str]:
     return {"type": line_type, "content": content}
 
 
+class _DiffPreviewState:
+    """Accumulator for unified diff parsing state."""
+
+    __slots__ = ("hunks", "current_hunk", "old_file", "new_file")
+
+    def __init__(self) -> None:
+        self.hunks: list[dict[str, Any]] = []
+        self.current_hunk: dict[str, Any] | None = None
+        self.old_file: str | None = None
+        self.new_file: str | None = None
+
+    def flush_hunk(self) -> None:
+        """Append current_hunk to hunks and reset."""
+        if self.current_hunk:
+            self.hunks.append(self.current_hunk)
+            self.current_hunk = None
+
+
+def _process_preview_line(state: _DiffPreviewState, line: str) -> None:
+    """Process a single line of unified diff text, updating state."""
+    if line.startswith("--- "):
+        state.old_file = _parse_file_header(line, "--- ")
+        return
+    if line.startswith("+++ "):
+        state.new_file = _parse_file_header(line, "+++ ")
+        return
+    if line.startswith("@@"):
+        new_hunk = _parse_hunk_header(line)
+        if new_hunk:
+            state.flush_hunk()
+            state.current_hunk = new_hunk
+        return
+    if state.current_hunk is not None:
+        state.current_hunk["changes"].append(_parse_diff_line(line))
+
+
 def diff_preview_to_dict(diff_text: str) -> dict[str, Any]:
     """Convert unified diff text to a dictionary representation.
 
@@ -323,40 +359,14 @@ def diff_preview_to_dict(diff_text: str) -> dict[str, Any]:
     if not diff_text or not diff_text.strip():
         return {"hunks": [], "files": (None, None), "raw": diff_text}
 
-    lines = diff_text.strip().split("\n")
-    hunks: list[dict[str, Any]] = []
-    current_hunk: dict[str, Any] | None = None
-    old_file: str | None = None
-    new_file: str | None = None
-
-    for line in lines:
-        # Try parsing as file header
-        if line.startswith("--- "):
-            old_file = _parse_file_header(line, "--- ")
-            continue
-        if line.startswith("+++ "):
-            new_file = _parse_file_header(line, "+++ ")
-            continue
-
-        # Try parsing as hunk header
-        if line.startswith("@@"):
-            new_hunk = _parse_hunk_header(line)
-            if new_hunk:
-                if current_hunk:
-                    hunks.append(current_hunk)
-                current_hunk = new_hunk
-            continue
-
-        # Parse as diff content line
-        if current_hunk is not None:
-            current_hunk["changes"].append(_parse_diff_line(line))
-
-    if current_hunk:
-        hunks.append(current_hunk)
+    state = _DiffPreviewState()
+    for line in diff_text.strip().split("\n"):
+        _process_preview_line(state, line)
+    state.flush_hunk()
 
     return {
-        "hunks": hunks,
-        "files": (old_file, new_file),
+        "hunks": state.hunks,
+        "files": (state.old_file, state.new_file),
         "raw": diff_text,
     }
 

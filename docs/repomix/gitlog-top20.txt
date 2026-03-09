@@ -1,3 +1,16 @@
+c412c78 2026-03-08 fix(dedup): resolve high/medium reviewer findings in precision filters
+  tests/unit/test_duplication_detector.py
+
+6a27e23 2026-03-08 feat(dedup): add precision filters to eliminate false-positive duplicate groups
+  tests/unit/test_duplication_detector.py
+
+c847003 2026-03-08 refactor(backup): extract shared backup primitives to utils/backup.py
+  docs/repomix/repo-compressed.xml
+  docs/repomix/repomix-docs.xml
+  docs/repomix/repomix-git-ranked.xml
+  docs/repomix/repomix.xml
+  tests/unit/test_applicator_backup.py
+
 7880737 2026-03-08 refactor(dedup): extract helpers in applicator_backup to reduce complexity
   tests/unit/test_applicator_backup.py
 
@@ -5,9 +18,6 @@
   docs/repomix/repo-compressed.xml
   docs/repomix/repomix-git-ranked.xml
   docs/repomix/repomix.xml
-
-ad109ab 2026-03-08 fix(schema,changelog,tool-context): address e74b8de review follow-ups and changelog hardening
-  tests/unit/test_documentation.py
 
 f25cbab 2026-03-08 docs: fix outdated references in docs and regenerate repomix-docs
   docs/repomix/repomix-docs.xml
@@ -19,22 +29,12 @@ eac6227 2026-03-08 refactor(utils): promote indent_lines, read_file_lines, write
 166841b 2026-03-08 refactor(tools): consolidate to inline Field() pattern across cross_language, documentation, quality
   src/ast_grep_mcp/features/quality/tools.py
 
-1b5f331 2026-03-08 fix(documentation): harden changelog_generator and improve test quality
-  tests/unit/test_documentation.py
-
 a07407b 2026-03-08 docs(complexity): add 2026-03-08 analysis with change history and helper appendix
   .claude/skills/ast-grep-mcp-expert/references/files.md
   docs/repomix/repo-compressed.xml
   docs/repomix/repomix-docs.xml
   docs/repomix/repomix-git-ranked.xml
   docs/repomix/repomix.xml
-  tests/unit/test_documentation.py
-
-6d929bd 2026-03-08 test(documentation): fix mock fragility and add _get_commit_range tests
-  tests/unit/test_documentation.py
-
-751e2bc 2026-03-08 test(documentation): add unit tests for changelog helper functions
-  tests/unit/test_documentation.py
 
 d09f996 2026-03-08 refactor(quality): reduce complexity in tools.py and analyzer.py
   src/ast_grep_mcp/features/quality/tools.py
@@ -126,6 +126,7 @@ f40d1f2 2026-03-04 chore: format codebase and clear standards violations
 84cf30d 2026-03-04 chore: checkpoint outstanding changes
   src/ast_grep_mcp/features/deduplication/similarity.py
   src/ast_grep_mcp/features/search/docs.py
+  tests/unit/test_duplication_detector.py
   tests/unit/test_minhash_similarity.py
 
 5194d99 2026-03-04 chore: MOAR const migrations
@@ -190,7 +191,7 @@ b0ea4b0 2026-02-12 refactor: extract magic numbers into named constants across 1
   src/ast_grep_mcp/features/deduplication/generator.py
   src/ast_grep_mcp/features/quality/tools.py
   src/ast_grep_mcp/features/search/service.py
-  tests/unit/test_documentation.py
+  tests/unit/test_duplication_detector.py
   tests/unit/test_minhash_similarity.py
   tests/unit/test_schema.py
   tests/unit/test_standards_enforcement.py
@@ -200,7 +201,11 @@ e1ab927 2026-02-11 deps: add pillow to project dependencies
 
 4e47157 2026-01-24 fix(tests): add missing dev deps and fix ast-grep exit code handling
   tests/unit/test_applicator_backup.py
+  tests/unit/test_duplication_detector.py
   uv.lock
+
+a08936e 2026-01-10 test(deduplication): add comprehensive tests for duplication detector
+  tests/unit/test_duplication_detector.py
 
 05dd7b7 2026-01-10 test(deduplication): add comprehensive tests for backup manager
   tests/unit/test_applicator_backup.py
@@ -254,7 +259,6 @@ f920615 2025-12-03 fix(lint): resolve ruff violations for SIM115 and B007
   src/ast_grep_mcp/features/documentation/docstring_generator.py
   src/ast_grep_mcp/features/quality/tools.py
   src/ast_grep_mcp/features/search/service.py
-  tests/unit/test_documentation.py
   tests/unit/test_minhash_similarity.py
   tests/unit/test_schema.py
   tests/unit/test_standards_enforcement.py
@@ -297,7 +301,6 @@ f62b036 2025-12-02 feat(deduplication): implement MinHash + LSH for O(n) similar
 
 643d2aa 2025-11-29 telemetry skill
   src/ast_grep_mcp/features/documentation/docstring_generator.py
-  tests/unit/test_documentation.py
 
 7551cba 2025-11-29 refactor(complexity): reduce violations to zero
   src/ast_grep_mcp/features/deduplication/generator.py
