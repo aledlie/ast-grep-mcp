@@ -38,7 +38,7 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 | `deduplication/diff.py` | `_format_alignment_entry` | 11 | 12 | 3 | 16 | cyc |
 | `complexity/analyzer.py` | `analyze_file_complexity` | 4 | 9 | 5 | 43 | nest |
 | `deduplication/diff.py` | `generate_file_diff` | 11 | 6 | 2 | 27 | cyc |
-| `deduplication/diff.py` | `build_diff_tree` | 11 | 5 | 2 | 35 | cyc |
+| ~~`deduplication/diff.py`~~ | ~~`build_diff_tree`~~ | ~~11~~ | ~~5~~ | ~~2~~ | ~~35~~ | ~~cyc~~ — Done `53e025a` |
 
 **By file:** `complexity/analyzer.py` (3), `deduplication/diff.py` (3), `refactoring/extractor.py` (2) — `core/executor.py` (1 remaining: `filter_files_by_size`)
 

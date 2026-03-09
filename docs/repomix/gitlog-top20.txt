@@ -1,3 +1,8 @@
+8a732c9 2026-03-08 (chore) regen repomix
+  docs/repomix/repo-compressed.xml
+  docs/repomix/repomix-git-ranked.xml
+  docs/repomix/repomix.xml
+
 0f38231 2026-03-08 (chore) regen repomix
   docs/repomix/repo-compressed.xml
   docs/repomix/repomix-docs.xml
