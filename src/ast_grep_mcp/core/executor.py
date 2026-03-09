@@ -74,6 +74,35 @@ def get_supported_languages() -> List[str]:
     return sorted(set(languages))
 
 
+def _execute_subprocess(
+    args: List[str], input_text: Optional[str], allow_nonzero: bool, use_shell: bool
+) -> subprocess.CompletedProcess[str]:
+    """Run subprocess wrapped in a Sentry span.
+
+    Args:
+        args: Command arguments list
+        input_text: Optional stdin input
+        allow_nonzero: If True, don't raise on non-zero exit codes
+        use_shell: Whether to use shell execution (Windows ast-grep)
+
+    Returns:
+        CompletedProcess instance
+    """
+    with sentry_sdk.start_span(op="subprocess.run", name=f"Running {args[0]}") as span:
+        span.set_data("command", args[0])
+        span.set_data("has_stdin", input_text is not None)
+        result = subprocess.run(
+            args,
+            capture_output=True,
+            input=input_text,
+            text=True,
+            check=not allow_nonzero,
+            shell=use_shell,
+        )
+        span.set_data("returncode", result.returncode)
+    return result
+
+
 def run_command(args: List[str], input_text: Optional[str] = None, *, allow_nonzero: bool = False) -> subprocess.CompletedProcess[str]:
     """Execute a command with proper error handling.
 
@@ -90,38 +119,20 @@ def run_command(args: List[str], input_text: Optional[str] = None, *, allow_nonz
         AstGrepExecutionError: If command execution fails (unless allow_nonzero)
     """
     logger = get_logger("subprocess")
-    sanitized_args = args.copy()
     has_stdin = input_text is not None
-
-    logger.info("executing_command", command=sanitized_args[0], args=sanitized_args[1:], has_stdin=has_stdin)
+    logger.info("executing_command", command=args[0], args=args[1:], has_stdin=has_stdin)
 
     with tool_context("run_command", command=" ".join(args), has_stdin=has_stdin) as start_time:
         try:
             use_shell = sys.platform == "win32" and args[0] == ExecutorDefaults.AST_GREP_COMMAND
-
-            with sentry_sdk.start_span(op="subprocess.run", name=f"Running {args[0]}") as span:
-                span.set_data("command", sanitized_args[0])
-                span.set_data("has_stdin", has_stdin)
-
-                result = subprocess.run(
-                    args,
-                    capture_output=True,
-                    input=input_text,
-                    text=True,
-                    check=not allow_nonzero,
-                    shell=use_shell,
-                )
-
-                span.set_data("returncode", result.returncode)
-
+            result = _execute_subprocess(args, input_text, allow_nonzero, use_shell)
             execution_time = time.time() - start_time
             logger.info(
                 "command_completed",
-                command=sanitized_args[0],
+                command=args[0],
                 execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
                 returncode=result.returncode,
             )
-
             return result
         except subprocess.CalledProcessError as e:
             stderr_msg = e.stderr.strip() if e.stderr else ""
