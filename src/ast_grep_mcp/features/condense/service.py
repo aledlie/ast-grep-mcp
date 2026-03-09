@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from ...constants import (
     CondenseDefaults,
     CondenseFileRouting,
+    CondenseParsing,
     ConversionFactors,
     IndentationDefaults,
 )
@@ -101,6 +102,29 @@ def _compute_reduction_pct(condensed: int, original: int) -> float:
     return max(0.0, round((1.0 - condensed / original) * ConversionFactors.PERCENT_MULTIPLIER, 1))
 
 
+def _accumulate_surface_results(
+    files: List[Path], language: str, include_docstrings: bool,
+) -> Tuple[List[str], int, int]:
+    """Process files and accumulate surface extraction results.
+
+    Returns (output_parts, total_original, total_condensed).
+    """
+    output_parts: List[str] = []
+    total_original = 0
+    total_condensed = 0
+
+    for fp in files:
+        result = _extract_surface_for_file(fp, language, include_docstrings)
+        if result is None:
+            continue
+        header, orig_len, cond_len = result
+        total_original += orig_len
+        total_condensed += cond_len
+        output_parts.append(header)
+
+    return output_parts, total_original, total_condensed
+
+
 def extract_surface_impl(
     path: str,
     language: str,
@@ -128,19 +152,9 @@ def extract_surface_impl(
         return {"error": f"Path does not exist: {path}"}
 
     files = [root] if root.is_file() else _collect_files(root, language)
-
-    output_parts: List[str] = []
-    total_original = 0
-    total_condensed = 0
-
-    for fp in files:
-        result = _extract_surface_for_file(fp, language, include_docstrings)
-        if result is None:
-            continue
-        header, orig_len, cond_len = result
-        total_original += orig_len
-        total_condensed += cond_len
-        output_parts.append(header)
+    output_parts, total_original, total_condensed = _accumulate_surface_results(
+        files, language, include_docstrings,
+    )
 
     condensed_source = "\n\n".join(output_parts)
     patterns_matched = condensed_source.count("\n")
@@ -295,12 +309,10 @@ def _count_structural_braces(line: str) -> int:
         c = line[i]
         if c == "/" and i + 1 < n and line[i + 1] == "/":
             break
-        if c in ('"', "'", "`"):
+        if c in CondenseParsing.QUOTE_CHARS:
             i = _skip_string_literal(line, i)
-        elif c == "{":
-            net += 1
-        elif c == "}":
-            net -= 1
+        else:
+            net += CondenseParsing.BRACE_DELTA.get(c, 0)
         i += 1
     return net
 
@@ -433,28 +445,15 @@ def _serialize_language_stats(per_language: Dict[str, LanguageCondenseStats]) ->
     }
 
 
-def condense_pack_impl(
-    path: str,
-    language: str | None = None,
-    strategy: str = CondenseDefaults.DEFAULT_STRATEGY,
-    file_type_routing: bool = True,
-    exclude_patterns: list[str] | None = None,
+def _accumulate_pack_results(
+    all_files: List[Path], root: Path, strategy: str, file_type_routing: bool,
 ) -> Dict[str, Any]:
-    """Chain normalize -> strip -> extract into a single condensation pipeline.
+    """Process all files and accumulate condensation stats.
 
-    Returns:
-        Dict with condensed_output (str), strategy, files_processed (int),
-        files_skipped (int), and a CondenseResult-compatible stats dict.
+    Returns dict with output_parts, files_processed, files_skipped,
+    total_original_bytes, total_condensed_bytes, normalizations_applied,
+    dead_code_removed_lines, per_language.
     """
-    root = Path(path)
-    if not root.exists():
-        return {"error": f"Path does not exist: {path}"}
-
-    all_files = [root] if root.is_file() else _collect_files(root, language)
-    if exclude_patterns:
-        exclusion_set = set(exclude_patterns)
-        all_files = [fp for fp in all_files if not _path_matches_any(fp, exclusion_set)]
-
     output_parts: List[str] = []
     files_processed = 0
     files_skipped = 0
@@ -478,30 +477,71 @@ def condense_pack_impl(
         files_processed += 1
         _update_language_stats(per_language, file_result)
 
-    reduction_pct = _compute_reduction_pct(total_condensed_bytes, total_original_bytes)
+    return {
+        "output_parts": output_parts,
+        "files_processed": files_processed,
+        "files_skipped": files_skipped,
+        "total_original_bytes": total_original_bytes,
+        "total_condensed_bytes": total_condensed_bytes,
+        "normalizations_applied": normalizations_applied,
+        "dead_code_removed_lines": dead_code_removed_lines,
+        "per_language": per_language,
+    }
+
+
+def _build_pack_result(acc: Dict[str, Any], strategy: str) -> Dict[str, Any]:
+    """Build the final condense_pack result dict from accumulated stats."""
+    orig = acc["total_original_bytes"]
+    cond = acc["total_condensed_bytes"]
+    return {
+        "condensed_output": "\n\n".join(acc["output_parts"]),
+        "strategy": strategy,
+        "files_processed": acc["files_processed"],
+        "files_skipped": acc["files_skipped"],
+        "reduction_pct": _compute_reduction_pct(cond, orig),
+        "original_bytes": orig,
+        "condensed_bytes": cond,
+        "original_tokens_est": int(orig * CondenseDefaults.AVG_TOKENS_PER_BYTE),
+        "condensed_tokens_est": int(cond * CondenseDefaults.AVG_TOKENS_PER_BYTE),
+        "normalizations_applied": acc["normalizations_applied"],
+        "dead_code_removed_lines": acc["dead_code_removed_lines"],
+        "per_language_stats": _serialize_language_stats(acc["per_language"]),
+    }
+
+
+def condense_pack_impl(
+    path: str,
+    language: str | None = None,
+    strategy: str = CondenseDefaults.DEFAULT_STRATEGY,
+    file_type_routing: bool = True,
+    exclude_patterns: list[str] | None = None,
+) -> Dict[str, Any]:
+    """Chain normalize -> strip -> extract into a single condensation pipeline.
+
+    Returns:
+        Dict with condensed_output (str), strategy, files_processed (int),
+        files_skipped (int), and a CondenseResult-compatible stats dict.
+    """
+    root = Path(path)
+    if not root.exists():
+        return {"error": f"Path does not exist: {path}"}
+
+    all_files = [root] if root.is_file() else _collect_files(root, language)
+    if exclude_patterns:
+        exclusion_set = set(exclude_patterns)
+        all_files = [fp for fp in all_files if not _path_matches_any(fp, exclusion_set)]
+
+    acc = _accumulate_pack_results(all_files, root, strategy, file_type_routing)
 
     logger.info(
         "condense_pack_complete",
         strategy=strategy,
-        files_processed=files_processed,
-        files_skipped=files_skipped,
-        reduction_pct=reduction_pct,
+        files_processed=acc["files_processed"],
+        files_skipped=acc["files_skipped"],
+        reduction_pct=_compute_reduction_pct(acc["total_condensed_bytes"], acc["total_original_bytes"]),
     )
 
-    return {
-        "condensed_output": "\n\n".join(output_parts),
-        "strategy": strategy,
-        "files_processed": files_processed,
-        "files_skipped": files_skipped,
-        "reduction_pct": reduction_pct,
-        "original_bytes": total_original_bytes,
-        "condensed_bytes": total_condensed_bytes,
-        "original_tokens_est": int(total_original_bytes * CondenseDefaults.AVG_TOKENS_PER_BYTE),
-        "condensed_tokens_est": int(total_condensed_bytes * CondenseDefaults.AVG_TOKENS_PER_BYTE),
-        "normalizations_applied": normalizations_applied,
-        "dead_code_removed_lines": dead_code_removed_lines,
-        "per_language_stats": _serialize_language_stats(per_language),
-    }
+    return _build_pack_result(acc, strategy)
 
 
 def _apply_strategy(source: str, language: str, strategy: str) -> str:

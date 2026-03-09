@@ -5,49 +5,48 @@
 
 Thresholds: cyc >10, cog >15, nest >4, len >50.
 
-Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08) → **80** (2026-03-08 shared-util) → **25** (2026-03-08 helper-adoption).
+Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08) → **80** (2026-03-08 shared-util) → **25** (2026-03-08 helper-adoption) → **19** (2026-03-08 condense-decompose).
 
 ### Recently Resolved
 
-- **`core/executor.py:stream_ast_grep_results`** (`0642b3f`) — extracted `_iter_stdout_matches` (yield-from delegation), `_log_stream_completion`, `_raise_not_found_error`. cyc 16→4, cog 29→2, nest 6→2, len 101→52.
+- **`condense/service.py`** (uncommitted) — all 5 offenders resolved. `condense_pack_impl` (was cyc=15, cog=29, nest=5, len=115) decomposed into `_accumulate_pack_results` + `_build_pack_result`. `extract_surface_impl` (was cyc=12, cog=15, len=73) extracted `_accumulate_surface_results`. `_count_structural_braces` (was cyc=17, cog=28, nest=5) simplified via `CondenseParsing.BRACE_DELTA` lookup. `_extract_python_surface` (was cog=17) and `_extract_js_ts_surface` (was cyc=12) also dropped below thresholds.
+- **`deduplication/diff.py:diff_preview_to_dict`** — no longer exceeds thresholds (was cyc=14, cog=29, nest=5, len=53).
+- **`constants.py`** (uncommitted) — added `CondenseParsing` class (`QUOTE_CHARS`, `BRACE_DELTA`) to replace magic brace/quote chars in condense and renamer.
+- **`refactoring/renamer.py`** (uncommitted) — replaced magic `{`/`}` brace handling with `CondenseParsing.BRACE_DELTA` lookup.
+- **`core/executor.py:stream_ast_grep_results`** (`0642b3f`) — extracted `_iter_stdout_matches` (yield-from delegation), `_log_stream_completion`, `_raise_not_found_error`. cyc 16→4, cog 29→2, nest 6→2, len 101→52. Note: len=52 still marginally exceeds len>50 threshold.
 - **`deduplication/applicator_backup.py`** (`7880737`, `c847003`) — all 4 functions now below thresholds. Extracted helpers to class + shared `utils/backup.py` primitives (`get_file_hash`, `resolve_backup_dir`, `copy_file_to_backup`, `restore_file_from_backup`). `cleanup_old_backups` cog 33→14, `list_backups` cog 23→14, `create_backup` cog 20→10, `rollback` cog 18→15.
 - **`rewrite/backup.py`** (`c847003`) — consolidated duplicate backup primitives into shared `utils/backup.py`, eliminating ~60 lines of duplication. `create_backup`, `create_deduplication_backup`, `_restore_single_file`, `_check_file_conflicts` now delegate to shared utils.
 - **`core/executor.py:run_command`** (`0a679bb`) — wrapped with `tool_context()`, eliminated ~35 lines of manual timing + Sentry boilerplate. Still exceeds thresholds (cog=17, nest=5, len=56) — listed in remaining offenders table below.
 - **`schema/enhancement_service.py`** (`0a679bb`) — replaced hardcoded 16-entry `_EXCLUDED_DIRS` with derivation from `FilePatterns.DEFAULT_EXCLUDE`.
 - **`refactoring/extractor.py`** (`0a679bb`) — `_generate_docstring` (was cog=31), `_generate_function_body` (was cog=25), `_generate_signature` (was cog=13), `_apply_extraction` (was cog=11) all dropped below thresholds via further decomposition.
 
-### Remaining Offenders (live scan at `0642b3f`)
+### Remaining Offenders (live scan at `5fdd930` + uncommitted)
 
-24 functions exceed at least one threshold. Sorted by cognitive complexity.
+19 functions exceed at least one threshold. Sorted by cognitive complexity.
 
 | File | Function | Cyc | Cog | Nest | Len | Exceeds |
 |------|----------|-----|-----|------|-----|---------|
-| `condense/service.py` | `condense_pack_impl` | 15 | 29 | 5 | 115 | cyc,cog,nest,len |
-| `deduplication/diff.py` | `diff_preview_to_dict` | 14 | 29 | 5 | 53 | cyc,cog,nest,len |
-| `condense/service.py` | `_count_structural_braces` | 17 | 28 | 5 | 33 | cyc,cog,nest |
 | `deduplication/diff.py` | `build_nested_diff_tree` | 20 | 25 | 6 | 96 | cyc,cog,nest,len |
 | `refactoring/analyzer.py` | `_find_python_base_variables` | 10 | 25 | 4 | 44 | cog |
 | `complexity/analyzer.py` | `_find_magic_numbers` | 13 | 25 | 5 | 61 | cyc,cog,nest,len |
 | `complexity/analyzer.py` | `_find_docstring_extent` | 11 | 21 | 4 | 28 | cyc,cog |
-| `refactoring/extractor.py` | `_scan_imports` | 10 | 18 | 5 | 29 | cog,nest |
 | `core/executor.py` | `filter_files_by_size` | 19 | 18 | 4 | 52 | cyc,cog,len |
+| `refactoring/extractor.py` | `_scan_imports` | 10 | 18 | 5 | 29 | cog,nest |
 | `complexity/analyzer.py` | `_count_function_parameters` | 18 | 18 | 3 | 49 | cyc,cog |
-| `condense/service.py` | `_extract_python_surface` | 11 | 17 | 4 | 28 | cyc,cog |
 | `core/executor.py` | `run_command` | 9 | 17 | 5 | 56 | cog,nest,len |
 | `core/executor.py` | `get_supported_languages` | 8 | 16 | 5 | 44 | cog,nest |
-| `condense/service.py` | `extract_surface_impl` | 12 | 15 | 3 | 73 | cyc,len |
-| `condense/service.py` | `_extract_js_ts_surface` | 12 | 15 | 4 | 31 | cyc |
 | `complexity/analyzer.py` | `extract_functions_from_file` | 10 | 15 | 5 | 34 | nest |
 | `refactoring/analyzer.py` | `_get_variable_classification` | 13 | 13 | 3 | 40 | cyc |
 | `refactoring/extractor.py` | `extract_function` | 9 | 12 | 5 | 79 | nest,len |
 | `deduplication/diff.py` | `_format_alignment_entry` | 11 | 12 | 3 | 16 | cyc |
-| `deduplication/diff.py` | `build_diff_tree` | 11 | 5 | 2 | 35 | cyc |
-| `deduplication/diff.py` | `generate_file_diff` | 11 | 6 | 2 | 27 | cyc |
-| `refactoring/analyzer.py` | `analyze_selection` | 6 | 0 | 3 | 63 | len |
 | `refactoring/analyzer.py` | `_scan_and_register_identifiers` | 9 | 9 | 5 | 26 | nest |
 | `complexity/analyzer.py` | `analyze_file_complexity` | 4 | 9 | 5 | 43 | nest |
+| `deduplication/diff.py` | `generate_file_diff` | 11 | 6 | 2 | 27 | cyc |
+| `deduplication/diff.py` | `build_diff_tree` | 11 | 5 | 2 | 35 | cyc |
+| `core/executor.py` | `stream_ast_grep_results` | 4 | 2 | 2 | 52 | len |
+| `refactoring/analyzer.py` | `analyze_selection` | 6 | 0 | 3 | 63 | len |
 
-**By file:** `condense/service.py` (5), `deduplication/diff.py` (5), `complexity/analyzer.py` (4), `refactoring/analyzer.py` (4), `core/executor.py` (3), `refactoring/extractor.py` (2)
+**By file:** `complexity/analyzer.py` (5), `deduplication/diff.py` (4), `refactoring/analyzer.py` (4), `core/executor.py` (4), `refactoring/extractor.py` (2)
 
 Refresh: `uv run python scripts/scan_complexity_offenders.py`
 

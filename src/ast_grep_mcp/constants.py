@@ -838,6 +838,13 @@ class CondenseDictionaryDefaults:
     DICT_OUTPUT_DIR = ".condense/dictionaries"
 
 
+class CondenseParsing:
+    """Constants for structural code parsing in condense feature."""
+
+    QUOTE_CHARS: frozenset[str] = frozenset(('"', "'", "`"))
+    BRACE_DELTA: dict[str, int] = {"{": 1, "}": -1}
+
+
 class CondenseFileRouting:
     """File-type routing for polyglot condensation."""
 
