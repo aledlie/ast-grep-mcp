@@ -77,3 +77,14 @@ Implemented filters (see `features/deduplication/detector.py`):
 - [x] Minimum line savings threshold (`_meets_min_savings`, >=20 lines)
 - Strategy pattern filter deferred — the only candidate (Group 5) is low-priority per investigation notes
 
+## Deferred (2026-03-08)
+
+**scan_complexity_offenders.py Hardening** — Skipped in backlog-implementer pass; user scope "non-complexity related items" excludes complexity tooling. (Commits: `6a27e23`, `edbb9f0`, `c412c78`)
+- High: Silent failure on wrong CWD (uses relative paths, needs startup guard)
+- Medium: `_extract_name` fragile with decorators
+- Medium: Language hardcoded to `"python"`
+- Low: `FILES` lacks type annotation
+- Low: `run_command` documentation issue (listed as both resolved and remaining offender)
+
+**Strategy pattern filter for deduplication** — Low-priority per docs/duplicate-detector-misses.md investigation notes. Only candidate (Group 5) would save ~18 lines with minor signature mismatch; over-engineering for marginal benefit.
+
