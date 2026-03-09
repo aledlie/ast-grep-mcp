@@ -226,6 +226,36 @@ def _count_class_methods(code: str, language: str) -> int:
         return len(re.findall(r"^\s+\w+\s*\([^)]*\)\s*\{", code, re.MULTILINE))
 
 
+def _extract_param_string(code: str, language: str) -> str:
+    """Extract the raw parameter string from a function signature."""
+    if language.lower() == "python":
+        match = re.search(r"def\s+\w+\s*\(([^)]*)\)", code)
+    else:
+        match = re.search(r"(?:function\s+\w+|\w+)\s*\(([^)]*)\)", code)
+    return match.group(1).strip() if match else ""
+
+
+def _strip_python_self_cls(params: str) -> str:
+    """Remove self/cls receiver args from a Python parameter string."""
+    params = re.sub(r"\bself\b\s*,?\s*", "", params)
+    params = re.sub(r"\bcls\b\s*,?\s*", "", params)
+    return params.strip()
+
+
+def _count_params_by_depth(params: str) -> int:
+    """Count comma-separated params while respecting bracket depth."""
+    depth = 0
+    count = 1
+    for char in params:
+        if char in "([{<":
+            depth += 1
+        elif char in ")]}>":
+            depth -= 1
+        elif char == "," and depth == 0:
+            count += 1
+    return count
+
+
 def _count_function_parameters(code: str, language: str) -> int:
     """Count the number of parameters in a function.
 
@@ -236,45 +266,14 @@ def _count_function_parameters(code: str, language: str) -> int:
     Returns:
         Number of parameters
     """
-    # Find the parameter list
-    if language.lower() == "python":
-        # Match def name(params): or async def name(params):
-        match = re.search(r"def\s+\w+\s*\(([^)]*)\)", code)
-    else:
-        # Match function name(params) { or (params) =>
-        match = re.search(r"(?:function\s+\w+|\w+)\s*\(([^)]*)\)", code)
-
-    if not match:
-        return 0
-
-    params = match.group(1).strip()
+    params = _extract_param_string(code, language)
     if not params:
         return 0
-
-    # Handle self/this as non-parameter
     if language.lower() == "python":
-        # Remove 'self' and 'cls' from count
-        params = re.sub(r"\bself\b\s*,?\s*", "", params)
-        params = re.sub(r"\bcls\b\s*,?\s*", "", params)
-
-    # Count commas + 1 (unless empty)
-    params = params.strip()
+        params = _strip_python_self_cls(params)
     if not params:
         return 0
-
-    # Handle default values and type annotations
-    # Count actual parameters by splitting on commas at the right depth
-    depth = 0
-    param_count = 1 if params else 0
-    for char in params:
-        if char in "([{<":
-            depth += 1
-        elif char in ")]}>":
-            depth -= 1
-        elif char == "," and depth == 0:
-            param_count += 1
-
-    return param_count
+    return _count_params_by_depth(params)
 
 
 def _extract_function_name(func: Dict[str, Any]) -> str:
