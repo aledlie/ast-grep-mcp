@@ -72,20 +72,11 @@ TMP_LOG="$(mktemp "${TMPDIR:-/tmp}/repomix-run.XXXXXX.log")"
 trap 'rm -f "$TMP_CONFIG" "$TMP_FILES" "$TMP_LOG"' EXIT INT TERM
 
 # Generated bundle patterns sourced from base repomix config.
-BUNDLE_IGNORE_PATTERNS_FILE="$ROOT/scripts/repomix/repomix.config.json"
+BUNDLE_IGNORE_PATTERNS_FILE="$ROOT/repomix.config.json"
 if [[ -f "$BUNDLE_IGNORE_PATTERNS_FILE" ]]; then
   BUNDLE_IGNORE_PATTERNS_JSON="$(
     jq -c '
-      [
-        .ignore.customPatterns[]?
-        | select(
-            . == "docs/repomix/**"
-            or . == "**/repomix-output.*"
-            or . == "**/repo-compressed.*"
-            or . == "**/repomix.xml"
-            or . == "**/repo-compressed.xml"
-          )
-      ] | unique
+      [.ignore.customPatterns[]? | select(test("repomix|repo-compressed"))] | unique
     ' "$BUNDLE_IGNORE_PATTERNS_FILE" 2>/dev/null
   )" || {
     echo "Warning: $BUNDLE_IGNORE_PATTERNS_FILE exists but is not valid JSON; using empty ignore patterns" >&2
@@ -99,7 +90,8 @@ fi
 # Override via REPOMIX_EXCLUDE_ARTIFACTS (newline-separated glob patterns).
 # Patterns are intentionally interpreted as globs by case.
 # Do not pass untrusted input in REPOMIX_EXCLUDE_ARTIFACTS.
-EXCLUDE_ARTIFACTS="${REPOMIX_EXCLUDE_ARTIFACTS:-sidequest/docs/gitlog-sidequest.txt}"
+EXCLUDE_ARTIFACTS="${REPOMIX_EXCLUDE_ARTIFACTS:-docs/repomix/*
+sidequest/docs/gitlog-sidequest.txt}"
 
 is_generated_bundle_artifact() {
   local rel_path="$1"
