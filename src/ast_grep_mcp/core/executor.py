@@ -540,7 +540,8 @@ def stream_ast_grep_results(
 ) -> Generator[Dict[str, Any], None, None]:
     """Stream ast-grep JSON results line-by-line with early termination support.
 
-    Uses subprocess.Popen for incremental reading with progress logging.
+    Uses subprocess.Popen for incremental reads: reduces memory on large result sets,
+    enables early termination at max_results, and logs progress during long searches.
 
     Args:
         command: ast-grep subcommand (run, scan, etc.)
