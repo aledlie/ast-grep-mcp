@@ -1,3 +1,17 @@
+7880737 2026-03-08 refactor(dedup): extract helpers in applicator_backup to reduce complexity
+  tests/unit/test_applicator_backup.py
+
+0a679bb 2026-03-08 refactor(executor,backup,schema): adopt tool_context, extract helpers, unify exclusions
+  docs/repomix/repo-compressed.xml
+  docs/repomix/repomix-git-ranked.xml
+  docs/repomix/repomix.xml
+
+ad109ab 2026-03-08 fix(schema,changelog,tool-context): address e74b8de review follow-ups and changelog hardening
+  tests/unit/test_documentation.py
+
+f25cbab 2026-03-08 docs: fix outdated references in docs and regenerate repomix-docs
+  docs/repomix/repomix-docs.xml
+
 eac6227 2026-03-08 refactor(utils): promote indent_lines, read_file_lines, write_file_lines to shared utils
   src/ast_grep_mcp/features/deduplication/generator.py
   src/ast_grep_mcp/features/documentation/docstring_generator.py
@@ -176,7 +190,6 @@ b0ea4b0 2026-02-12 refactor: extract magic numbers into named constants across 1
   src/ast_grep_mcp/features/deduplication/generator.py
   src/ast_grep_mcp/features/quality/tools.py
   src/ast_grep_mcp/features/search/service.py
-  tests/unit/test_coverage_detector.py
   tests/unit/test_documentation.py
   tests/unit/test_minhash_similarity.py
   tests/unit/test_schema.py
@@ -185,15 +198,12 @@ b0ea4b0 2026-02-12 refactor: extract magic numbers into named constants across 1
 e1ab927 2026-02-11 deps: add pillow to project dependencies
   uv.lock
 
-105cc32 2026-02-10 refactor(dedup): remove module-level wrapper functions and slim __init__.py
-  tests/unit/test_coverage_detector.py
-
 4e47157 2026-01-24 fix(tests): add missing dev deps and fix ast-grep exit code handling
-  tests/unit/test_coverage_detector.py
+  tests/unit/test_applicator_backup.py
   uv.lock
 
-292f224 2026-01-10 test(deduplication): add comprehensive tests for coverage detector
-  tests/unit/test_coverage_detector.py
+05dd7b7 2026-01-10 test(deduplication): add comprehensive tests for backup manager
+  tests/unit/test_applicator_backup.py
 
 9641374 2026-01-10 docs(search): add matches rule documentation to get_ast_grep_docs
   src/ast_grep_mcp/features/search/docs.py

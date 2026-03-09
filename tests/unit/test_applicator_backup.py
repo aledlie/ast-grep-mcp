@@ -24,6 +24,7 @@ import pytest
 from ast_grep_mcp.features.deduplication.applicator_backup import (
     DeduplicationBackupManager,
 )
+from ast_grep_mcp.utils.backup import copy_file_to_backup
 
 
 class TestDeduplicationBackupManagerInit:
@@ -602,16 +603,17 @@ class TestGenerateBackupId:
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = DeduplicationBackupManager(tmpdir)
 
-            backup_id = manager._generate_backup_id()
+            backup_id, backup_dir = manager._generate_backup_id()
 
             assert backup_id.startswith("dedup-backup-")
+            assert backup_dir == manager.backup_base_dir / backup_id
 
     def test_no_collision_suffix_when_dir_absent(self):
         """Test that no counter suffix is added when no collision exists."""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = DeduplicationBackupManager(tmpdir)
 
-            backup_id = manager._generate_backup_id()
+            backup_id, _backup_dir = manager._generate_backup_id()
 
             # Should not have a trailing -N counter
             parts = backup_id.split("-")
@@ -660,24 +662,22 @@ class TestComputeFileHashes:
             assert real in hashes
 
 
-class TestBackupSingleFile:
-    """Tests for _backup_single_file helper."""
+class TestCopyFileToBackup:
+    """Tests for shared copy_file_to_backup utility."""
 
     def test_returns_none_for_missing_file(self):
         """Test that None is returned when source file doesn't exist."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = DeduplicationBackupManager(tmpdir)
             backup_dir = Path(tmpdir) / "backup"
             backup_dir.mkdir()
 
-            result = manager._backup_single_file("/no/such/file.py", backup_dir, {})
+            result = copy_file_to_backup("/no/such/file.py", tmpdir, backup_dir, {})
 
             assert result is None
 
     def test_returns_entry_dict_with_correct_keys(self):
         """Test that returned dict has the expected keys."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = DeduplicationBackupManager(tmpdir)
             backup_dir = Path(tmpdir) / "backup"
             backup_dir.mkdir()
 
@@ -685,7 +685,7 @@ class TestBackupSingleFile:
             with open(fp, "w") as f:
                 f.write("code")
 
-            result = manager._backup_single_file(fp, backup_dir, {fp: "abc123"})
+            result = copy_file_to_backup(fp, tmpdir, backup_dir, {fp: "abc123"})
 
             assert result is not None
             assert set(result.keys()) == {"original", "relative", "backup", "original_hash"}
@@ -695,7 +695,6 @@ class TestBackupSingleFile:
     def test_falls_back_to_empty_hash_when_missing(self):
         """Test that original_hash defaults to empty string when file not in hashes dict."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            manager = DeduplicationBackupManager(tmpdir)
             backup_dir = Path(tmpdir) / "backup"
             backup_dir.mkdir()
 
@@ -703,10 +702,25 @@ class TestBackupSingleFile:
             with open(fp, "w") as f:
                 f.write("code")
 
-            result = manager._backup_single_file(fp, backup_dir, {})
+            result = copy_file_to_backup(fp, tmpdir, backup_dir, {})
 
             assert result is not None
             assert result["original_hash"] == ""
+
+    def test_omits_hash_key_when_hashes_none(self):
+        """Test that original_hash key is omitted when original_hashes is None."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            backup_dir = Path(tmpdir) / "backup"
+            backup_dir.mkdir()
+
+            fp = os.path.join(tmpdir, "mod.py")
+            with open(fp, "w") as f:
+                f.write("code")
+
+            result = copy_file_to_backup(fp, tmpdir, backup_dir)
+
+            assert result is not None
+            assert "original_hash" not in result
 
 
 class TestRestoreSingleFile:

@@ -1,49 +1,27 @@
 """Backup management for code rewrites."""
 
-import hashlib
 import json
 import os
-import shutil
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
-
-
-def _resolve_backup_dir(prefix: str, timestamp: str, backup_base_dir: str) -> tuple[str, str]:
-    backup_id = f"{prefix}-{timestamp}"
-    backup_dir = os.path.join(backup_base_dir, backup_id)
-    counter = 1
-    while os.path.exists(backup_dir):
-        backup_id = f"{prefix}-{timestamp}-{counter}"
-        backup_dir = os.path.join(backup_base_dir, backup_id)
-        counter += 1
-    return backup_id, backup_dir
-
-
-def _copy_file_to_backup(
-    file_path: str, project_folder: str, backup_dir: str, logger: Any, original_hashes: Optional[Dict[str, str]] = None
-) -> Optional[Dict[str, Any]]:
-    if not os.path.exists(file_path):
-        logger.warning("file_not_found_for_backup", file_path=file_path)
-        return None
-    rel_path = os.path.relpath(file_path, project_folder)
-    backup_file_path = os.path.join(backup_dir, rel_path)
-    os.makedirs(os.path.dirname(backup_file_path), exist_ok=True)
-    shutil.copy2(file_path, backup_file_path)
-    entry: Dict[str, Any] = {"original": file_path, "relative": rel_path, "backup": backup_file_path}
-    if original_hashes is not None:
-        entry["original_hash"] = original_hashes.get(file_path, "")
-    return entry
+from ast_grep_mcp.utils.backup import (
+    copy_file_to_backup,
+    get_file_hash,
+    resolve_backup_dir,
+    restore_file_from_backup,
+)
 
 
 def create_backup(files_to_backup: List[str], project_folder: str) -> str:
     logger = get_logger("rewrite.backup")
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[: -FormattingDefaults.TIMESTAMP_MS_TRIM]
-    backup_base_dir = os.path.join(project_folder, ".ast-grep-backups")
-    backup_id, backup_dir = _resolve_backup_dir("backup", timestamp, backup_base_dir)
-    os.makedirs(backup_dir, exist_ok=True)
+    backup_base_dir = Path(project_folder) / ".ast-grep-backups"
+    backup_id, backup_dir = resolve_backup_dir("backup", timestamp, backup_base_dir)
+    backup_dir.mkdir(parents=True, exist_ok=True)
 
     metadata: Dict[str, Any] = {
         "backup_id": backup_id,
@@ -52,14 +30,16 @@ def create_backup(files_to_backup: List[str], project_folder: str) -> str:
         "project_folder": project_folder,
     }
     for file_path in files_to_backup:
-        entry = _copy_file_to_backup(file_path, project_folder, backup_dir, logger)
-        if entry:
+        entry = copy_file_to_backup(file_path, project_folder, backup_dir)
+        if entry is None:
+            logger.warning("file_not_found_for_backup", file_path=file_path)
+        else:
             metadata["files"].append(entry)
 
-    with open(os.path.join(backup_dir, "backup-metadata.json"), "w") as f:
+    with open(backup_dir / "backup-metadata.json", "w") as f:
         json.dump(metadata, f, indent=2)
 
-    logger.info("backup_created", backup_id=backup_id, files_backed_up=len(metadata["files"]), backup_dir=backup_dir)
+    logger.info("backup_created", backup_id=backup_id, files_backed_up=len(metadata["files"]), backup_dir=str(backup_dir))
     return backup_id
 
 
@@ -68,9 +48,9 @@ def create_deduplication_backup(
 ) -> str:
     logger = get_logger("rewrite.backup")
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[: -FormattingDefaults.TIMESTAMP_MS_TRIM]
-    backup_base_dir = os.path.join(project_folder, ".ast-grep-backups")
-    backup_id, backup_dir = _resolve_backup_dir("dedup-backup", timestamp, backup_base_dir)
-    os.makedirs(backup_dir, exist_ok=True)
+    backup_base_dir = Path(project_folder) / ".ast-grep-backups"
+    backup_id, backup_dir = resolve_backup_dir("dedup-backup", timestamp, backup_base_dir)
+    backup_dir.mkdir(parents=True, exist_ok=True)
 
     metadata: Dict[str, Any] = {
         "backup_id": backup_id,
@@ -86,38 +66,24 @@ def create_deduplication_backup(
         },
     }
     for file_path in files_to_backup:
-        entry = _copy_file_to_backup(file_path, project_folder, backup_dir, logger, original_hashes)
-        if entry:
+        entry = copy_file_to_backup(file_path, project_folder, backup_dir, original_hashes)
+        if entry is None:
+            logger.warning("file_not_found_for_backup", file_path=file_path)
+        else:
             metadata["files"].append(entry)
 
-    with open(os.path.join(backup_dir, "backup-metadata.json"), "w") as f:
+    with open(backup_dir / "backup-metadata.json", "w") as f:
         json.dump(metadata, f, indent=2)
 
     logger.info(
         "deduplication_backup_created",
         backup_id=backup_id,
         files_backed_up=len(metadata["files"]),
-        backup_dir=backup_dir,
+        backup_dir=str(backup_dir),
         duplicate_group_id=duplicate_group_id,
         strategy=strategy,
     )
     return backup_id
-
-
-def get_file_hash(file_path: str) -> str:
-    """Calculate SHA-256 hash of a file's contents.
-
-    Args:
-        file_path: Absolute path to the file
-
-    Returns:
-        Hex digest of the file's SHA-256 hash
-    """
-    try:
-        with open(file_path, "rb") as f:
-            return hashlib.sha256(f.read()).hexdigest()
-    except (OSError, IOError):
-        return ""
 
 
 def _verify_backup_files_exist(metadata: Dict[str, Any], errors: List[str]) -> None:
@@ -182,8 +148,10 @@ def _restore_single_file(file_info: Dict[str, Any], result: Dict[str, Any]) -> N
         result["errors"].append(f"Invalid file info in metadata: {file_info}")
         return
     try:
-        os.makedirs(os.path.dirname(original_path), exist_ok=True)
-        shutil.copy2(backup_path, original_path)
+        restored = restore_file_from_backup(backup_path, original_path, make_parents=True)
+        if restored is None:
+            result["errors"].append(f"Backup file missing: {backup_path}")
+            return
         result["restored_files"].append(original_path)
     except Exception as e:
         result["errors"].append(f"Failed to restore {original_path}: {e}")
