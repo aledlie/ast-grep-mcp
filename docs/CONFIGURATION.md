@@ -378,34 +378,30 @@ Add to `.cursor-mcp/settings.json` or Claude Desktop config:
 
 ### Configuration Details
 
-Located in `main.py`:
+Located in `src/ast_grep_mcp/core/sentry.py`:
 
 ```python
-def init_sentry() -> None:
-    """Initialize Sentry error tracking with Anthropic AI integration."""
-    sentry_dsn = os.environ.get("SENTRY_DSN")
-    if not sentry_dsn:
-        logger.info("Sentry DSN not configured, error tracking disabled")
+def init_sentry(service_name: str = "ast-grep-mcp") -> None:
+    """Initialize Sentry with Anthropic AI integration and service tagging."""
+    dsn = os.getenv("SENTRY_DSN")
+    if not dsn:
         return
 
-    environment = os.environ.get("SENTRY_ENVIRONMENT", "development")
-
-    # Development: 100% trace sampling for full visibility
-    # Production: 10% trace sampling to balance cost vs observability
-    traces_sample_rate = 1.0 if environment == "development" else 0.1
+    sentry_env = os.getenv("SENTRY_ENVIRONMENT", "development")
+    is_dev = sentry_env == "development"
 
     sentry_sdk.init(
-        dsn=sentry_dsn,
-        environment=environment,
-        traces_sample_rate=traces_sample_rate,
-        send_default_pii=True,  # Enables AI monitoring (Anthropic SDK)
-        integrations=[AnthropicIntegration()],
+        dsn=dsn,
+        environment=sentry_env,
+        integrations=[AnthropicIntegration(include_prompts=True)],
+        traces_sample_rate=1.0 if is_dev else SentryDefaults.PRODUCTION_TRACES_SAMPLE_RATE,
+        profiles_sample_rate=1.0 if is_dev else SentryDefaults.PRODUCTION_PROFILES_SAMPLE_RATE,
+        send_default_pii=True,
+        attach_stacktrace=True,
+        before_send=_make_tag_event(service_name),
     )
 
-    logger.info("Sentry initialized", dsn_configured=True, environment=environment)
-
-    # Tag all events with service name for filtering
-    sentry_sdk.set_tag("service", "ast-grep-mcp")
+    sentry_sdk.set_tag("service", service_name)
 ```
 
 ### Customizing Sampling Rates

@@ -1,10 +1,25 @@
 <repomix><directory_structure>docs/
   changelog/
+    2025-11-23-thru-2025-11-29.md
+    2025-12-02-thru-2025-12-04-dedup-phase5-modular.md
+    2026-01-09-pattern-debugging.md
+    2026-01-10-docs-rule-builder.md
+    2026-02-10-test-stability-docs.md
+    2026-02-12-formatting-refactoring.md
+    2026-02-25-code-condensation.md
     2026-02-25-condense-cleanup.md
+    2026-02-26-jsdoc-fixes.md
+    2026-02-28-analyzer-cli-quality.md
     2026-03-04-maintenance-quality.md
     2026-03-06-complexity-review-fixes.md
+    2026-03-06-critical-bug-fixes.md
+    2026-03-07-type-fixes-formatting.md
+    2026-03-08-changelog-hardening-test-quality.md
     2026-03-08-code-review-findings.md
+    2026-03-08-complexity-analysis.md
     2026-03-08-quality-fixes.md
+    2026-03-08-shared-utils-consolidation.md
+  BACKFILLING.md
   BACKLOG.md
   BENCHMARKING.md
   CHANGELOG.md
@@ -12,6 +27,8 @@
   CODE-CONDENSE-PREP.md
   CONFIGURATION.md
   DEDUPLICATION-GUIDE.md
+  duplicate-detector-misses.md
+  KNOWN_ISSUES.md
   magic_number_semantic_analysis_2026-03-04.tsv
   PATTERNS.md
   README.md
@@ -25,7 +42,631 @@ Removed 7 unused constants from CondenseDefaults (INCLUDE_TYPE_ANNOTATIONS, INCL
 
 ## L2: Standardize per-language stats field naming
 **Priority**: P3 | **Source**: condense feature session (9e65f55) | **Commit**: d97d782
-Renamed `LanguageCondenseStats.files` to `files_processed` to match project-wide convention (CondenseResult, UsageStats). Updated construction and serialization in service.py. -- `src/ast_grep_mcp/models/condense.py`</file><file path="docs/BENCHMARKING.md"># Performance Benchmarking Guide
+Renamed `LanguageCondenseStats.files` to `files_processed` to match project-wide convention (CondenseResult, UsageStats). Updated construction and serialization in service.py. -- `src/ast_grep_mcp/models/condense.py`</file><file path="docs/changelog/2026-03-08-complexity-analysis.md"># 2026-03-08: Complexity Analysis
+
+**80 functions** exceeding thresholds across **120 files** (1,756 total functions).
+
+Thresholds: cyclomatic &gt;10, cognitive &gt;15, nesting &gt;4, length &gt;50.
+
+Baselines: 434 (2026-03-04) → 407 (2026-03-06) → 100 (2026-03-06 post-refactor) → 98 (2026-03-08) → 79 (2026-03-08 post-refactor) → **80** (2026-03-08 shared-util extraction).
+
+Note: count rose 79→80 because Field() inlining into `@mcp.tool()` wrappers added `_register_enforcement_tools` as a new length violation, while `_create_mcp_field_definitions` and `register_quality_tools` violations were eliminated.
+
+## Summary
+
+| Metric | Value |
+|--------|-------|
+| Total functions | 1,756 |
+| Total files | 120 |
+| Exceeding threshold | 80 (4.6%) |
+| Avg cyclomatic | 4.34 |
+| Avg cognitive | 4.47 |
+| Max cyclomatic | 20 |
+| Max cognitive | 33 |
+| Max nesting | 6 |
+
+## Violations by Module
+
+### `core/executor.py` (4 violations)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `stream_ast_grep_results` | 489-589 | 16 | 29 | 6 | 80 | cyc, cog, nest, len |
+| `filter_files_by_size` | 246-297 | 19 | 18 | 4 | 36 | cyc, cog |
+| `get_supported_languages` | 23-66 | 8 | 16 | 5 | 43 | cog, nest |
+| `run_command` | 69-159 | 10 | 11 | 4 | 77 | len |
+
+### `features/complexity/analyzer.py` (5 violations)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `_find_magic_numbers` | 279-339 | 13 | 25 | 5 | 48 | cyc, cog, nest |
+| `_count_function_parameters` | 228-276 | 18 | 18 | 3 | 40 | cyc, cog |
+| `_calculate_halstead_metrics` | 391-418 | 11 | 21 | 4 | 24 | cyc, cog |
+| `extract_functions_from_file` | 35-68 | 10 | 15 | 5 | 25 | nest |
+| `analyze_file_complexity` | 482-524 | 4 | 9 | 5 | 33 | nest |
+
+### `features/condense/service.py` (5 violations)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `condense_pack_impl` | 376-490 | 15 | 29 | 5 | 102 | cyc, cog, nest, len |
+| `_count_structural_braces` | 242-274 | 17 | 28 | 5 | 27 | cyc, cog, nest |
+| `_extract_python_surface` | 182-209 | 11 | 17 | 4 | 27 | cyc, cog |
+| `extract_surface_impl` | 78-150 | 12 | 15 | 3 | 58 | cyc, len |
+| `_extract_js_ts_surface` | 277-307 | 12 | 15 | 4 | 24 | cyc |
+
+### `features/deduplication/analyzer.py` (2 violations)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `_compare_literal_maps` | 129-149 | 5 | 8 | 6 | 21 | nest |
+| `_format_literal_variations` | 289-304 | 4 | 8 | 5 | 16 | nest |
+
+### `features/deduplication/applicator.py` (6 violations)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `_insert_python_import` | 603-626 | 13 | 24 | 4 | 23 | cyc, cog |
+| `apply_deduplication` | 33-105 | 18 | 14 | 4 | 51 | cyc, len |
+| `_validate_and_prepare_plan` | 107-152 | 11 | 12 | 3 | 29 | cyc |
+| `_plan_file_modification_order` | 451-481 | 11 | 11 | 3 | 18 | cyc |
+| `_plan_file_updates` | 483-521 | 8 | 14 | 6 | 28 | nest |
+| `_resolve_target_file` | 523-549 | 7 | 4 | 5 | 26 | nest |
+
+### `features/deduplication/applicator_backup.py` (4 violations)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `cleanup_old_backups` | 156-200 | 9 | 33 | 6 | 45 | cog, nest |
+| `list_backups` | 218-247 | 7 | 23 | 5 | 30 | cog, nest |
+| `create_backup` | 32-109 | 11 | 20 | 5 | 78 | cyc, cog, nest, len |
+| `rollback` | 111-154 | 7 | 18 | 4 | 44 | cog |
+
+### `features/deduplication/applicator_executor.py` (2 violations)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `_update_single_file` | 133-161 | 7 | 16 | 4 | 28 | cog |
+| `_generate_preview` | 180-200 | 7 | 16 | 4 | 20 | cog |
+
+### `features/deduplication/applicator_post_validator.py` (4 violations)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `_validate_file_structure` | 123-161 | 6 | 12 | 5 | 39 | nest |
+| `_validate_python_structure` | 163-211 | 9 | 11 | 5 | 49 | nest |
+| `_validate_java_structure` | 231-263 | 8 | 10 | 5 | 33 | nest |
+| `_validate_file_syntax` | 69-109 | 5 | 7 | 5 | 41 | nest |
+
+### `features/deduplication/coverage.py` (5 violations)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `has_test_coverage` | 346-383 | 13 | 25 | 6 | 28 | cyc, cog, nest |
+| `_check_test_file_references_source` | 306-344 | 12 | 24 | 4 | 29 | cyc, cog |
+| `_process_parallel_batch` | 541-576 | 6 | 17 | 5 | 24 | cog, nest |
+| `find_test_file_patterns` | 62-156 | 19 | 10 | 4 | 87 | cyc, len |
+| `_get_potential_test_paths` | 158-257 | 18 | 11 | 6 | 90 | cyc, nest, len |
+
+### `features/deduplication/detector.py` (1 violation)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `_format_group_instances` | 574-587 | 2 | 3 | 5 | 14 | nest |
+
+### `features/deduplication/diff.py` (5 violations)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `diff_preview_to_dict` | 309-361 | 14 | 29 | 5 | 53 | cyc, cog, nest, len |
+| `build_nested_diff_tree` | 15-110 | 20 | 25 | 6 | 96 | cyc, cog, nest, len |
+| `_format_alignment_entry` | 181-196 | 11 | 12 | 3 | 16 | cyc |
+| `generate_file_diff` | 364-390 | 11 | 6 | 2 | 27 | cyc |
+| `build_diff_tree` | 144-178 | 11 | 5 | 2 | 35 | cyc |
+
+### `features/deduplication/ranker.py` (1 violation)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `_build_log_data` | 449-466 | 7 | 3 | 5 | 18 | nest |
+
+### `features/documentation/api_docs_generator.py` (2 violations)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `parse_file` (Flask) | 136-167 | 7 | 10 | 5 | 31 | nest |
+| `parse_file` (Express) | 199-223 | 4 | 10 | 5 | 24 | nest |
+
+### `features/documentation/changelog_generator.py` (5 violations)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `_format_conventional_section` | 517-552 | 9 | 18 | 4 | 27 | cog |
+| `_group_commits_by_version` | 307-375 | 10 | 16 | 3 | 59 | cog, len |
+| `_format_changelog_entry` | 389-421 | 11 | 12 | 2 | 25 | cyc |
+| `_get_commits` | 150-214 | 7 | 12 | 3 | 55 | len |
+| `generate_changelog_impl` | 588-668 | 12 | 7 | 3 | 69 | cyc, len |
+
+### `features/documentation/sync_checker.py` (1 violation)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `_check_line_links` | 204-222 | 5 | 9 | 5 | 19 | nest |
+
+### `features/quality/fixer.py` (4 violations)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `_is_variable_reassigned` | 559-594 | 14 | 27 | 4 | 36 | cyc, cog |
+| `apply_pattern_fix` | 149-244 | 13 | 24 | 4 | 96 | cyc, cog, len |
+| `apply_removal_fix` | 269-349 | 10 | 19 | 4 | 81 | cog, len |
+| `_apply_single_fix` | 620-655 | 12 | 13 | 5 | 36 | cyc, nest |
+
+### `features/quality/orphan_detector.py` (1 violation)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `_process_import_from_node` | 167-191 | 7 | 8 | 5 | 25 | nest |
+
+### `features/quality/tools.py` (8 violations)
+
+| Function | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-----|-----|------|-----|---------|
+| `list_rule_templates_tool` | 15 | 17 | 5 | 64 | cyc, cog, nest, len |
+| `create_linting_rule_tool` | 13 | 18 | 4 | 77 | cyc, cog, len |
+| `detect_security_issues_tool` | 17 | 13 | 3 | 105 | cyc, len |
+| `enforce_standards_tool` | 17 | 11 | 3 | 89 | cyc, len |
+| `detect_orphans_tool` | 12 | 8 | 3 | 103 | cyc, len |
+| `apply_standards_fixes_tool` | 9 | 7 | 3 | 92 | len |
+| `generate_quality_report_tool` | 12 | 8 | 3 | 77 | cyc, len |
+| `_register_enforcement_tools` | 12 | 3 | 3 | 77 | cyc, len |
+
+Refactoring notes: `_tool_context` extracted to shared `utils/tool_context.py`. `_create_mcp_field_definitions` and field-dict indirection removed; `Field()` inlined into `@mcp.tool()` wrappers. `_normalize_exclude_patterns` replaced by `FilePatterns.normalize_excludes()`. Length violations are predominantly docstrings and MCP parameter definitions.
+
+### `features/refactoring/analyzer.py` (4 violations)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `_find_python_base_variables` | 260-303 | 10 | 25 | 4 | 32 | cog |
+| `_get_variable_classification` | 431-470 | 13 | 13 | 3 | 23 | cyc |
+| `_find_python_assignments` | 213-238 | 9 | 9 | 5 | 15 | nest |
+| `analyze_selection` | 36-99 | 7 | 3 | 3 | 53 | len |
+
+### `features/refactoring/extractor.py` (5 violations)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `_generate_docstring` | 215-267 | 13 | 31 | 5 | 42 | cyc, cog, nest |
+| `_generate_function_body` | 269-314 | 15 | 25 | 4 | 37 | cyc, cog |
+| `_generate_signature` | 158-213 | 18 | 13 | 4 | 47 | cyc |
+| `_scan_imports` | 385-413 | 10 | 18 | 5 | 21 | cog, nest |
+| `extract_function` | 35-113 | 9 | 12 | 5 | 68 | nest, len |
+
+### `features/refactoring/renamer.py` (5 violations)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `find_symbol_references` | 37-121 | 12 | 20 | 6 | 85 | cyc, cog, nest, len |
+| `check_naming_conflicts` | 502-538 | 11 | 20 | 5 | 37 | cyc, cog, nest |
+| `_find_js_scope_end` | 474-500 | 8 | 19 | 5 | 27 | cog, nest |
+| `_build_js_scope_tree` | 396-450 | 6 | 11 | 5 | 55 | nest, len |
+| `_analyze_python_variables` *(renamer)* | 335-394 | 10 | 18 | 6 | 60 | cog, nest, len |
+
+### `utils/formatters.py` (1 violation)
+
+| Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-------|-----|-----|------|-----|---------|
+| `_run_prettier` | 678-710 | 6 | 11 | 5 | 33 | nest |
+
+## Violation Distribution by Type
+
+| Violation Type | Count |
+|----------------|-------|
+| cognitive only | 5 |
+| cyclomatic only | 13 |
+| nesting only | 18 |
+| length only | 4 |
+| multiple | 39 |
+
+## Hotspot Files (5+ violations)
+
+| File | Violations | Worst Cognitive |
+|------|------------|-----------------|
+| `quality/tools.py` | 8 | 18 |
+| `deduplication/applicator.py` | 6 | 24 |
+| `complexity/analyzer.py` | 5 | 25 |
+| `condense/service.py` | 5 | 29 |
+| `deduplication/coverage.py` | 5 | 25 |
+| `deduplication/diff.py` | 5 | 29 |
+| `documentation/changelog_generator.py` | 5 | 18 |
+| `refactoring/extractor.py` | 5 | 31 |
+| `refactoring/renamer.py` | 5 | 20 |
+
+## Top 10 by Cognitive Complexity
+
+| Function | File | Cog |
+|----------|------|-----|
+| `cleanup_old_backups` | applicator_backup.py | 33 |
+| `_generate_docstring` | extractor.py | 31 |
+| `stream_ast_grep_results` | executor.py | 29 |
+| `condense_pack_impl` | service.py | 29 |
+| `diff_preview_to_dict` | diff.py | 29 |
+| `_count_structural_braces` | service.py | 28 |
+| `_is_variable_reassigned` | fixer.py | 27 |
+| `_find_python_base_variables` | analyzer.py (refactoring) | 25 |
+| `_find_magic_numbers` | analyzer.py (complexity) | 25 |
+| `has_test_coverage` | coverage.py | 25 |
+
+## Change History (from gitlog-top20.txt)
+
+Files with current violations that have been recently modified, grouped by refactoring phase.
+
+### Complexity Refactoring (2026-03-06)
+
+The 2026-03-06 batch refactors reduced violations from 434 to 100. Files with *remaining* violations that were touched:
+
+| Commit | File(s) Touched (with violations) | Description |
+|--------|-----------------------------------|-------------|
+| `6bf92be` | `search/docs.py` | Batch 10 complexity reduction |
+| `98dd5a9` | `deduplication/similarity.py`, `search/service.py` | Batch 3 complexity reduction |
+| `7ec47ad` | `deduplication/analyzer.py`, `deduplication/generator.py`, `documentation/docstring_generator.py` | Batch 2 complexity reduction |
+| `c12667e` | `deduplication/similarity.py` | Decompose `_normalize_for_ast` |
+| `5e6b3de` | `deduplication/similarity.py` | Decompose `HybridSimilarityConfig.__post_init__` |
+| `029b7b2` | `deduplication/similarity.py` | Extract `_normalize_indentation` |
+| `96632cf` | `deduplication/analyzer.py`, `deduplication/similarity.py` | Fix 59 ruff errors from refactoring |
+| `5a3f682` | `deduplication/analyzer.py`, `deduplication/generator.py`, `deduplication/similarity.py`, `documentation/docstring_generator.py` | Fix 38 mypy errors from refactoring |
+
+### Bug Fixes &amp; Type Fixes (2026-03-06 -- 2026-03-07)
+
+| Commit | File(s) Touched (with violations) | Description |
+|--------|-----------------------------------|-------------|
+| `6473709` | `documentation/docstring_generator.py` | Guard depth counter in `_split_params` |
+| `590b4d1` | `deduplication/similarity.py` | Adaptive indent divisor in `_normalize_for_ast` |
+| `f1b587d` | `search/service.py` | Wrap `yaml.dump` return with `str()` |
+| `0a5bb3e` | `deduplication/similarity.py` | Cross-env mypy suppress for `AutoModel` |
+| `58e60a9` | `deduplication/similarity.py` | Stabilize `type: ignore` for cross-env mypy |
+
+### Complexity Refactoring (2026-03-08)
+
+The 2026-03-08 batch reduced violations from 98 to 79. Two hotspot files were refactored:
+
+| Commit | File(s) Touched (with violations) | Description |
+|--------|-----------------------------------|-------------|
+| `60caecf` | `refactoring/analyzer.py`, `deduplication/applicator.py` | Extract shared helpers and delete dead methods in hotspot files |
+| `70a4762` | `refactoring/analyzer.py`, `deduplication/applicator.py` | Align wrapper arg order and fix review findings from 60caecf |
+
+Key changes:
+- `refactoring/analyzer.py`: 8 violations -&gt; 4 (extracted `_register_variable`, `_scan_and_register_identifiers`; hoisted keyword sets to class-level `frozenset`s; merged duplicate Java/JS/TS branches)
+- `deduplication/applicator.py`: 7 violations -&gt; 6 (extracted `_resolve_target_file`, `_plan_file_updates`; deleted dead `_validate_code_for_language`, `_suggest_syntax_fix`)
+
+### Chore / Feature Commits (2026-03-08)
+
+| Commit | Description |
+|--------|-------------|
+| `a353930` | Add backfill script and docs for skill span recovery (no src changes) |
+| `0123a8b` | Sync complexity queue in BACKLOG.md with live scan (no src changes) |
+| `29c756d` | Reorganize repomix scripts into `scripts/repomix/` subdirectory |
+| `5190b23` | Add review skill for diff-aware code review |
+| `9f06709` | Add `.claude/py-cache/` to `.gitignore` and `.claudeignore` |
+
+### Style &amp; Constants (2026-03-04 -- 2026-03-08)
+
+| Commit | File(s) Touched (with violations) | Description |
+|--------|-----------------------------------|-------------|
+| `aebd562` | `search/service.py` | Derive severity prefix from lookup dict |
+| `2bb7b59` | `deduplication/analyzer.py`, `deduplication/generator.py`, `deduplication/similarity.py`, `documentation/docstring_generator.py`, `search/service.py` | Ruff format 42 files |
+| `92741ab` | `search/service.py` | Consolidate D1-D4 duplication fixes |
+| `afdf71a` | `deduplication/similarity.py`, `documentation/docstring_generator.py`, `search/service.py` | Extract 90 magic numbers into constants |
+| `0cf6cd3` | `deduplication/analyzer.py`, `deduplication/similarity.py` | Extract remaining magic numbers |
+| `460722b` | `deduplication/analyzer.py`, `deduplication/similarity.py` | Slicing helper + dedup scoring enums |
+
+### Earlier Refactors (2025-11 -- 2026-02)
+
+| Commit | File(s) Touched (with violations) | Description |
+|--------|-----------------------------------|-------------|
+| `7551cba` | `deduplication/generator.py`, `quality/tools.py`, `search/service.py` | Reduce violations to zero (2025-11-29) |
+| `898ff8b` | `quality/tools.py` | Simplify MCP tool definitions (2025-11-28) |
+| `074c744` | `deduplication/analyzer.py` | Reduce complexity across analyzer (2025-11-28) |
+| `12cfbfb` | `search/service.py` | Extract search service helpers (2025-11-28) |
+| `9bdd029` | `deduplication/analyzer.py`, `deduplication/generator.py` | Resolve 6 complexity violations (2026-01-09) |
+| `97fdb42` | `deduplication/analyzer.py` | Extract `_parse_conditional_matches` (2026-02-12) |
+| `b0ea4b0` | `documentation/docstring_generator.py`, `search/service.py` | Extract magic numbers (2026-02-12) |
+| `484fdcf` | `deduplication/similarity.py` | Extract magic numbers to constants (2026-02-28) |
+
+### Files with Violations Never Touched in History
+
+These violation files have no entries in gitlog-top20.txt, suggesting they haven&apos;t been refactored recently:
+
+- `core/executor.py` (4 violations, worst cog=29)
+- `features/complexity/analyzer.py` (5 violations, worst cog=25)
+- `features/condense/service.py` (5 violations, worst cog=29)
+- `features/deduplication/applicator_backup.py` (4 violations, worst cog=33)
+- `features/deduplication/applicator_executor.py` (2 violations)
+- `features/deduplication/applicator_post_validator.py` (4 violations)
+- `features/deduplication/coverage.py` (5 violations, worst cog=25)
+- `features/deduplication/diff.py` (5 violations, worst cog=29)
+- `features/deduplication/ranker.py` (1 violation)
+- `features/documentation/api_docs_generator.py` (2 violations)
+- `features/documentation/changelog_generator.py` (5 violations, worst cog=18)
+- `features/documentation/sync_checker.py` (1 violation)
+- `features/quality/fixer.py` (4 violations, worst cog=27)
+- `features/quality/orphan_detector.py` (1 violation)
+- `features/refactoring/extractor.py` (5 violations, worst cog=31)
+- `features/refactoring/renamer.py` (5 violations, worst cog=20)
+- `utils/formatters.py` (1 violation)
+
+Previously listed, now resolved or refactored:
+- ~~`core/usage_tracking.py`~~ (0 violations)
+- ~~`features/deduplication/detector.py`~~ (0 violations)
+- ~~`utils/performance.py`~~ (0 violations)
+- ~~`features/refactoring/analyzer.py`~~ (refactored in 60caecf/70a4762, now 4 violations)
+- ~~`features/deduplication/applicator.py`~~ (refactored in 60caecf/70a4762, now 6 violations)
+
+## Appendix: Extracted Helper Functions
+
+Helper functions created during complexity refactoring, organized by module. These functions were extracted from high-complexity parents to reduce cyclomatic, cognitive, and nesting metrics.
+
+**Total extracted helpers: 141** across 7 modules.
+
+### `search/service.py` (72 helpers)
+
+Primary decomposition targets: `find_code_impl`, `search_with_rule_impl`, `debug_pattern_impl`, `develop_pattern_impl`.
+
+| Helper | Line | Parent / Purpose | ~Lines |
+|--------|------|------------------|--------|
+| `_run_scan_against_code` | 92 | Execute ast-grep scan with error handling | 37 |
+| `_prepare_search_targets` | 148 | Prepare targets with optional size filtering | 30 |
+| `_build_search_args` | 179 | Build ast-grep CLI arguments | 10 |
+| `_format_cached_results` | 190 | Format cached results by output format | 16 |
+| `_check_cache` | 207 | Check cache before search | 23 |
+| `_execute_search` | 231 | Execute search and cache results | 12 |
+| `_format_search_results` | 243 | Format results by output format | 12 |
+| `_is_early_return_value` | 255 | Check for empty result sentinel | 15 |
+| `_validate_output_format` | 271 | Validate text/json output format | 9 |
+| `_handle_empty_search_targets` | 282 | Handle all-files-skipped case | 9 |
+| `_validate_and_prepare_search` | 294 | End-to-end search param validation | 21 |
+| `_run_find_code_search` | 317 | Orchestrate find_code_impl | 28 |
+| `_log_find_code_error` | 347 | Log + Sentry capture for find_code | 12 |
+| `_validate_yaml_rule` | 406 | Validate YAML rule structure | 23 |
+| `_check_relational_entry` | 435 | Check single relational rule for stopBy | 16 |
+| `_check_composite_entries` | 453 | Check composite rule entries recursively | 11 |
+| `_check_relational_rule_for_stopby` | 465 | Recursive stopBy checker | 19 |
+| `_check_yaml_rule_for_common_mistakes` | 485 | Detect lowercase metavars, etc. | 22 |
+| `_execute_rule_search` | 509 | Execute YAML rule search | 24 |
+| `_prepend_warnings_to_result` | 534 | Prepend warnings to result string | 30 |
+| `_check_rule_cache` | 564 | Check rule cache | 12 |
+| `_store_rule_result_in_cache` | 577 | Store rule result in cache | 5 |
+| `_log_rule_warnings` | 583 | Log common-mistake warnings | 10 |
+| `_run_rule_search_with_cache` | 594 | Rule search with caching orchestration | 80 |
+| `_build_relational_rule` | 676 | Build relational rule with stopBy | 19 |
+| `_add_relational_to_rule` | 696 | Add relational constraint to rule | 18 |
+| `_generate_rule_id` | 715 | Deterministic rule ID from pattern | 7 |
+| `_build_rule_object` | 723 | Build rule object from pattern+constraints | 21 |
+| `_build_yaml_object` | 746 | Build complete YAML object | 59 |
+| `_invalid_metavar_issue` | 806 | Build MetavariableInfo for invalid metavar | 8 |
+| `_extract_invalid_metavariables` | 816 | Extract invalid metavars from pattern | 7 |
+| `_add_metavar_if_new` | 825 | Deduplicated metavar tracking | 16 |
+| `_extract_multi_metavariables` | 853 | Extract $$$ multi-node metavars | 6 |
+| `_extract_unnamed_metavariables` | 861 | Extract $$ unnamed metavars | 8 |
+| `_extract_non_capturing_metavariables` | 871 | Extract $_ non-capturing metavars | 6 |
+| `_extract_single_metavariables` | 879 | Extract $NAME single metavars | 11 |
+| `_extract_metavariables` | 892 | Main metavar extraction orchestrator | 36 |
+| `_metavar_suggestion` | 929 | Build suggestion text for metavar | 5 |
+| `_check_invalid_metavar_issues` | 936 | Check for invalid metavar issues | 4 |
+| `_single_arg_issue` | 951 | Build PatternIssue for single-arg metavar | 9 |
+| `_check_single_arg_metavar_issues` | 962 | Check single metavar in fn args | 10 |
+| `_check_fragment_issues` | 973 | Detect incomplete code fragments | 13 |
+| `_check_pattern_issues` | 987 | Check common pattern issues | 17 |
+| `_extract_root_kind` | 1006 | Extract root node kind from AST | 24 |
+| `_truncate_ast` | 1032 | Truncate AST to display limit | 5 |
+| `_collect_ast_differences` | 1039 | Collect structural AST differences | 10 |
+| `_compare_asts` | 1051 | Compare pattern vs code ASTs | 23 |
+| `_attempt_match` | 1076 | Attempt pattern match against code | 44 |
+| `_add_suggestions_by_severity` | 1122 | Severity-based suggestion lookup dict | 15 |
+| `_add_structural_suggestions` | 1138 | Structural mismatch suggestions | 10 |
+| `_add_debug_suggestions` | 1152 | Debug suggestions for non-match | 19 |
+| `_add_default_suggestions` | 1173 | Default guidance fallback | 16 |
+| `_generate_suggestions` | 1190 | Suggestion orchestrator | 31 |
+| `_get_pattern_ast` | 1223 | Get pattern AST; return (text, valid) | 14 |
+| `_get_code_ast` | 1239 | Get code AST text | 14 |
+| `_run_debug_analysis` | 1255 | Execute debug analysis, build result | 29 |
+| `_get_identifier_pattern` | 1572 | Language identifier pattern with fallback | 3 |
+| `_get_keywords` | 1577 | Language keywords with fallback | 2 |
+| `_extract_identifiers` | 1582 | Extract unique identifiers from code | 14 |
+| `_extract_literals` | 1597 | Extract string/number literals | 5 |
+| `_count_ast_depth` | 1604 | Estimate AST depth from indentation | 9 |
+| `_determine_complexity` | 1615 | Determine code complexity from AST | 11 |
+| `_extract_child_kinds` | 1628 | Extract child node kinds from AST | 12 |
+| `_analyze_code` | 1642 | Analyze code structure for patterns | 27 |
+| `_pick_metavar_name` | 1671 | Pick unique metavar name | 11 |
+| `_generate_generalized_pattern` | 1683 | Replace identifiers/literals with metavars | 18 |
+| `_generate_structural_pattern` | 1703 | Generate kind-based YAML pattern | 5 |
+| `_exact_confidence` | 1709 | Confidence level for exact pattern | 5 |
+| `_generalized_suggestion` | 1716 | Build generalized pattern suggestion | 14 |
+| `_generate_pattern_suggestions` | 1732 | Multi-pattern suggestions with scores | 32 |
+| `_matched_refinement_steps` | 1766 | Refinement steps when matched | 23 |
+| `_unmatched_refinement_steps` | 1791 | Refinement steps when unmatched | 24 |
+| `_generate_refinement_steps` | 1817 | Refinement step dispatcher | 10 |
+| `_generate_yaml_template` | 1829 | Generate YAML rule template | 42 |
+| `_generate_next_steps` | 1873 | Next-step guidance | 5 |
+| `_test_pattern_match` | 1879 | Test if pattern matches code | 15 |
+| `_select_best_pattern` | 1896 | Select and test best pattern | 15 |
+| `_build_develop_result` | 1913 | Build PatternDevelopResult | 24 |
+| `_run_develop_analysis` | 1939 | Execute develop analysis | 17 |
+
+### `documentation/docstring_generator.py` (32 helpers)
+
+Primary decomposition targets: `generate_docstrings_impl`, `_generate_docstring_for_function`.
+
+| Helper | Line | Parent / Purpose | ~Lines |
+|--------|------|------------------|--------|
+| `_split_camel_case` | 32 | Split camelCase into words | 14 |
+| `_split_snake_case` | 48 | Split snake_case into words | 8 |
+| `_infer_description_from_name` | 139 | Infer description from fn name prefixes | 22 |
+| `_build_prefix_description` | 162 | Build description from verb prefix | 10 |
+| `_check_suffix_pattern` | 335 | Check name against suffix pattern | 6 |
+| `_check_prefix_pattern` | 344 | Check name against prefix pattern | 6 |
+| `_infer_parameter_description` | 353 | Infer param description from name | 15 |
+| `_get_return_from_type` | 401 | Return description from type annotation | 7 |
+| `_apply_return_prefix_handler` | 410 | Apply return prefix template | 6 |
+| `_function_name_words` | 417 | Split fn name into lowercase words | 3 |
+| `_infer_return_description` | 423 | Infer return description | 20 |
+| `_parse_single_python_param` | 445 | Parse Python param to ParameterInfo | 16 |
+| `_split_python_params` | 462 | Split Python params respecting brackets | 22 |
+| `_split_js_ts_params` | 486 | Split JS/TS params respecting brackets | 20 |
+| `_non_self_params` | 845 | Filter out self/this params | 2 |
+| `_has_return` | 849 | Check for meaningful return type | 2 |
+| `_google_param_line` | 853 | Generate Google-style param line | 4 |
+| `_generate_google_docstring` | 860 | Generate Google-style docstring | 11 |
+| `_numpy_param_lines` | 873 | NumPy-style param doc lines | 4 |
+| `_generate_numpy_docstring` | 878 | Generate NumPy-style docstring | 13 |
+| `_sphinx_param_lines` | 893 | Sphinx-style param doc lines | 7 |
+| `_generate_sphinx_docstring` | 901 | Generate Sphinx-style docstring | 13 |
+| `_generate_jsdoc` | 916 | Generate JSDoc documentation | 31 |
+| `_generate_javadoc` | 949 | Generate Javadoc documentation | 28 |
+| `_process_file_for_docstrings` | 979 | Process single file for all fns | 45 |
+| `_apply_docstrings_to_files` | 1026 | Apply generated docstrings to files | 28 |
+| `_detect_project_style` | 1055 | Auto-detect docstring style | 20 |
+| `_generate_docstring_for_function` | 1077 | Generate docstring for single fn | 36 |
+| `_should_skip_function` | 1115 | Skip private/dunder functions | 19 |
+| `_format_docstring_block` | 1136 | Format block, return (text, idx) | 14 |
+| `_apply_docstring_to_file` | 1151 | Apply docstring at correct location | 33 |
+| `_process_files_batch` | 1186 | Process batch of files | 34 |
+| `_log_and_build_result` | 1222 | Log ops and build final result | 20 |
+
+### `quality/tools.py` (16 helpers)
+
+Primary decomposition targets: `enforce_standards_tool`, `detect_security_issues_tool`, `register_quality_tools`.
+
+| Helper | Line | Parent / Purpose | ~Lines |
+|--------|------|------------------|--------|
+| `_create_rule_from_params` | 40 | Create linting rule from params | 27 |
+| `_save_rule_if_requested` | 69 | Save rule to project | 15 |
+| `_format_rule_result` | 86 | Format rule creation result | 22 |
+| `_get_default_exclude_patterns` | 254 | Default file scan exclude patterns | 3 |
+| `_validate_enforcement_inputs` | 259 | Validate enforce_standards inputs | 13 |
+| `_format_enforcement_output` | 276 | Format enforcement result by format | 25 |
+| `_convert_violations_to_objects` | 406 | Dict violations to RuleViolation objects | 19 |
+| `_infer_project_folder` | 427 | Infer project folder from violations | 16 |
+| `_format_fix_results` | 443 | Format fix results for output | 8 |
+| `_group_violations` | 649 | Group violations by rule and file | 18 |
+| `_dict_to_enforcement_result` | 669 | Dict to EnforcementResult conversion | 16 |
+| `_format_security_issues` | 686 | Format security issues for output | 22 |
+| `_format_issues_by_severity` | 709 | Format issues grouped by severity | 12 |
+| `_register_linting_tools` | 932 | Register linting tools with inline Field() | 36 |
+| `_register_enforcement_tools` | 971 | Register enforcement tools with inline Field() | 77 |
+| `_register_scanning_tools` | 1050 | Register scanning tools with inline Field() | 47 |
+
+Removed in `166841b`: `_tool_context` (moved to `utils/tool_context.py`), `_normalize_exclude_patterns` (replaced by `FilePatterns.normalize_excludes()`), `_linting_field_definitions`, `_enforcement_field_definitions`, `_scanning_field_definitions`, `_create_mcp_field_definitions` (all replaced by inline `Field()` in `@mcp.tool()` signatures).
+
+### `deduplication/generator.py` (10 helpers)
+
+Primary decomposition targets: `_infer_type_from_value`, `_generate_parameter_name`.
+
+| Helper | Line | Parent / Purpose | ~Lines |
+|--------|------|------------------|--------|
+| `_infer_from_identifier_name` | 114 | Infer type from identifier naming | 26 |
+| `_is_boolean_literal` | 157 | Check True/False literal | 2 |
+| `_is_null_literal` | 162 | Check None/null/nil/undefined | 2 |
+| `_is_quoted_string` | 167 | Check quoted string literal | 3 |
+| `_is_integer_literal` | 172 | Check integer literal | 2 |
+| `_try_get_float_type` | 177 | Parse and determine float type | 10 |
+| `_get_collection_type` | 188 | Get collection type for literals | 8 |
+| `_infer_single_value_type` | 198 | Infer type from single literal | 40 |
+| `_strip_param_prefix` | 962 | Strip is_/has_ prefixes | 6 |
+| `_build_param_candidates` | 970 | Build candidate param names | 5 |
+
+### `deduplication/analyzer.py` (6 helpers)
+
+Primary decomposition targets: `_analyze_variations`, `identify_varying_identifiers`.
+
+| Helper | Line | Parent / Purpose | ~Lines |
+|--------|------|------------------|--------|
+| `_detect_nested_function_call` | 900 | Detect nested fn call identifiers | 16 |
+| `_collect_all_variations` | 919 | Aggregate literal/conditional/id variations | 28 |
+| `_determine_overall_severity` | 949 | Calculate severity from variation counts | 9 |
+| `_get_usage_type` | 1040 | Determine usage type from context | 8 |
+| `_extract_identifiers_from_code` | 1050 | Extract identifiers with position info | 30 |
+| `identify_varying_identifiers` | 1004 | Public API for identifier variation | 35 |
+
+### `search/docs.py` (4 helpers)
+
+Primary decomposition target: `get_ast_grep_patterns`.
+
+| Helper | Line | Parent / Purpose | ~Lines |
+|--------|------|------------------|--------|
+| `_resolve_language` | 1944 | Resolve language alias | 2 |
+| `_resolve_categories` | 1948 | Return categories or error string | 9 |
+| `_format_pattern_entry` | 1962 | Format pattern with description | 7 |
+| `_build_pattern_output` | 1970 | Build output for categories | 15 |
+
+### `deduplication/similarity.py` (1 helper)
+
+| Helper | Line | Parent / Purpose | ~Lines |
+|--------|------|------------------|--------|
+| `_check_transformers_available` | 1571 | Check transformers/torch availability | 10 |
+
+### Summary by Extraction Pattern
+
+| Pattern | Count | Examples |
+|---------|-------|---------|
+| Validate/check inputs | 17 | `_validate_yaml_rule`, `_validate_enforcement_inputs`, `_check_relational_entry` |
+| Format/build output | 28 | `_format_cached_results`, `_format_rule_result`, `_build_develop_result` |
+| Extract/parse data | 22 | `_extract_metavariables`, `_extract_identifiers`, `_parse_single_python_param` |
+| Type inference | 10 | `_is_boolean_literal`, `_infer_single_value_type`, `_infer_from_identifier_name` |
+| Orchestrate sub-steps | 14 | `_run_find_code_search`, `_run_rule_search_with_cache`, `_run_develop_analysis` |
+| Generate content | 19 | `_generate_google_docstring`, `_generate_yaml_template`, `_generate_suggestions` |
+| Register/configure | 3 | `_register_linting_tools`, `_register_enforcement_tools`, `_register_scanning_tools` |
+| Utility/predicate | 28 | `_non_self_params`, `_has_return`, `_is_early_return_value`, `_truncate_ast` |
+
+## Refresh Command
+
+```bash
+uv run python -c &quot;
+import json
+from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool
+result = analyze_complexity_tool(project_folder=&apos;$(pwd)/src&apos;, language=&apos;python&apos;)
+print(json.dumps(result, indent=2))
+&quot;
+```</file><file path="docs/changelog/2026-03-08-shared-utils-consolidation.md"># 2026-03-08: Shared Utils &amp; Tool Consolidation
+
+## Summary
+
+Major refactoring pass to extract shared utilities, consolidate error handling patterns, and reduce complexity across hotspot files. 23 commits from `1b5f331` through `a5c7879`.
+
+## Changes
+
+### Shared Utility Extractions
+
+- **`utils/tool_context.py`** — extracted `tool_context` context manager (timing + error logging + Sentry capture) from `quality/tools.py`. Adopted by `complexity/tools.py` and all 6 `condense/tools.py` tool functions. 8 unit tests added.
+- **`FilePatterns.normalize_excludes()`** — new classmethod on `constants.py:FilePatterns`. Consolidates all `_normalize_exclude_patterns` functions across quality, complexity, deduplication, and documentation tools.
+- **`indent_lines`, `read_file_lines`, `write_file_lines`** promoted from `deduplication/generator.py` and `documentation/docstring_generator.py` to shared `utils/`.
+
+### Tool Registration Consolidation
+
+- Replaced `_create_mcp_field_definitions` and field-dict indirection with inline `Field()` across cross_language, documentation, and quality tool registrations.
+
+### Complexity Reductions
+
+- **`deduplication/applicator_executor.py`** (cog 33 -&gt; 16) — extracted `_create_single_file`, `_update_single_file`, `_apply_import_addition`.
+- **`documentation/changelog_generator.py`** (cog 30 -&gt; 18) — extracted `_get_commits`, `_group_commits_by_version`, `_format_changelog_entry`. Hardened with `str | None` types.
+- **`refactoring/extractor.py`** — decomposed `_generate_docstring`, `_generate_function_body`, and `_scan_imports` via `FunctionExtractor` helper methods.
+- **`deduplication/detector.py`** — extracted `_match_line`, `_format_instance`; moved strategy tables to class-level constants.
+- **`refactoring/analyzer.py`** — keyword sets to class-level frozensets; extracted `_register_variable` and `_scan_and_register_identifiers`.
+
+### Other
+
+- Added `review` skill for diff-aware code review.
+- Added OTEL telemetry backfill script and docs.
+- Reorganized repomix scripts into `scripts/repomix/` subdirectory.
+- Removed unused performance monitoring module.
+- Fixed flaky cache benchmark assertions (ratio -&gt; absolute ceiling).
+
+## Stats
+
+- 1,622 tests collected (up from 1,598)
+- Complexity baseline: 434 -&gt; 80 remaining violations</file><file path="docs/BENCHMARKING.md"># Performance Benchmarking Guide
 
 This document describes the performance benchmarking suite for the ast-grep MCP server.
 
@@ -128,13 +769,13 @@ python scripts/run_benchmarks.py --save-baseline
 
 ```bash
 # Run all benchmarks
-uv run python -m pytest tests/test_benchmark.py -v
+uv run python -m pytest tests/integration/test_benchmark.py -v
 
 # Run specific benchmark
-uv run python -m pytest tests/test_benchmark.py::TestPerformanceBenchmarks::test_benchmark_simple_pattern_search -v
+uv run python -m pytest tests/integration/test_benchmark.py::TestPerformanceBenchmarks::test_benchmark_simple_pattern_search -v
 
 # Run with verbose output
-uv run python -m pytest tests/test_benchmark.py -v -s
+uv run python -m pytest tests/integration/test_benchmark.py -v -s
 ```
 
 ### CI Integration
@@ -156,7 +797,7 @@ The benchmarks will:
 
 ### Custom Benchmarks
 
-Add custom benchmarks to `tests/test_benchmark.py`:
+Add custom benchmarks to `tests/integration/test_benchmark.py`:
 
 ```python
 def test_benchmark_custom_query(
@@ -290,7 +931,7 @@ diff tests/baseline_main.json tests/baseline_feature.json
 
 ### Custom Regression Thresholds
 
-Modify threshold in `test_benchmark.py`:
+Modify threshold in `tests/integration/test_benchmark.py`:
 
 ```python
 # Default: 10% regression threshold
@@ -955,7 +1596,7 @@ condense:
 This guide covers the enhanced code deduplication system in ast-grep-mcp, which provides intelligent detection, analysis, and automated refactoring of duplicate code.
 
 **Last Updated:** 2025-11-29
-**Architecture:** Modular (v2.0) - See [MODULE-GUIDE.md](MODULE-GUIDE.md) for implementation details
+**Architecture:** Modular (v2.0)
 **Code Quality:** ✅ ZERO complexity violations (all deduplication modules refactored)
 
 &gt; **Note:** This guide uses MCP tool names. For direct module imports in custom scripts, see the [Module Architecture](#module-architecture) section.
@@ -2033,7 +2674,164 @@ python scripts/find_duplication.py /path --language python \
 
 ---
 
-**End of Deduplication Guide**</file><file path="docs/PATTERNS.md"># Refactoring Patterns - Proven Complexity Reduction Techniques
+**End of Deduplication Guide**</file><file path="docs/magic_number_semantic_analysis_2026-03-04.tsv">number	category	file	line	code
+30	default_parameter_value	src/ast_grep_mcp/features/deduplication/applicator_backup.py	155	def cleanup_old_backups(self, days: int = 30) -&gt; int:
+3	slice_or_top_n_limit	analyze_codebase.py	109	for func in sorted(critical, key=lambda x: x.metrics.cognitive, reverse=True)[:3]:
+5	slice_or_top_n_limit	analyze_codebase.py	281	for i, group in enumerate(dedup_groups[:5], 1):
+3	slice_or_top_n_limit	analyze_codebase.py	287	for inst in instances[:3]:
+50	slice_or_top_n_limit	analyze_codebase.py	329	for line in lines[:50]:
+20	slice_or_top_n_limit	analyze_codebase.py	380	for line in error_lines[:20]:
+20	other	analyze_codebase.py	383	if error_count &gt; 20:
+0.7	confidence_score	src/ast_grep_mcp/features/quality/security_scanner.py	111	&quot;confidence&quot;: 0.7,
+0.8	confidence_score	src/ast_grep_mcp/features/quality/security_scanner.py	122	&quot;confidence&quot;: 0.8,
+0.8	confidence_score	src/ast_grep_mcp/features/quality/security_scanner.py	142	&quot;confidence&quot;: 0.8,
+0.95	confidence_score	src/ast_grep_mcp/features/quality/security_scanner.py	160	&quot;confidence&quot;: 0.95,
+0.8	confidence_score	src/ast_grep_mcp/features/quality/security_scanner.py	330	confidence=pattern_def.get(&quot;confidence&quot;, 0.8),
+3	severity_ranking	src/ast_grep_mcp/features/quality/security_scanner.py	543	severity_order = {&quot;critical&quot;: 3, &quot;high&quot;: 2, &quot;medium&quot;: 1, &quot;low&quot;: 0}
+1000.0	other	src/ast_grep_mcp/utils/performance.py	204	return self.elapsed_ms / 1000.0
+4	other	src/ast_grep_mcp/features/condense/service.py	200	body_indent = indent + 4
+50	slice_or_top_n_limit	src/ast_grep_mcp/features/cross_language/polyglot_refactoring.py	129	logger.warning(&quot;file_read_error&quot;, file=file_path, error=str(e)[:50])
+50	other	src/ast_grep_mcp/features/cross_language/polyglot_refactoring.py	217	if len(changes) &gt; 50:
+50	slice_or_top_n_limit	src/ast_grep_mcp/features/quality/smells_detectors.py	556	return magic_numbers[:50]
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/impact.py	73	function_names=function_names[:5] if function_names else [],
+1.2	other	src/ast_grep_mcp/features/deduplication/impact.py	495	extracted_function_lines = int(lines_per_duplicate * 1.2)
+3	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/impact.py	591	score += min(call_count, 3)  # Cap at 3
+3	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/impact.py	591	score += min(call_count, 3)  # Cap at 3
+3	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/impact.py	650	return 3, [&quot;Code is in module export file - higher breakage risk&quot;]
+4	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/impact.py	660	&quot;max_score&quot;: 4,
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/quality/orphan_detector.py	430	orphan.importers = references[:5]  # Store top 5
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/quality/orphan_detector.py	430	orphan.importers = references[:5]  # Store top 5
+0.95	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	37	&quot;no-console-log&quot;: {&quot;confidence&quot;: 0.95, &quot;reason&quot;: &quot;console.log removal is usually safe&quot;},
+0.95	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	47	&quot;no-mutable-defaults&quot;: {&quot;confidence&quot;: 0.95, &quot;reason&quot;: &quot;Mutable default fix is usually safe&quot;},
+0.6	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	54	&quot;no-eval-exec&quot;: {&quot;confidence&quot;: 0.6, &quot;reason&quot;: &quot;eval/exec removal may break functionality&quot;},
+0.7	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	55	&quot;no-sql-injection&quot;: {&quot;confidence&quot;: 0.7, &quot;reason&quot;: &quot;SQL parameterization needs careful review&quot;},
+0.75	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	56	&quot;no-empty-catch&quot;: {&quot;confidence&quot;: 0.75, &quot;reason&quot;: &quot;Empty catch replacement may change behavior&quot;},
+0.7	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	57	&quot;proper-exception-handling&quot;: {&quot;confidence&quot;: 0.7, &quot;reason&quot;: &quot;Exception handling changes need review&quot;},
+5.0	other	src/ast_grep_mcp/features/condense/dictionary.py	164	return 5.0   # Too few samples for reliable training
+50	other	src/ast_grep_mcp/features/condense/dictionary.py	165	if samples_used &lt; 50:
+10.0	other	src/ast_grep_mcp/features/condense/dictionary.py	166	return 10.0  # Moderate sample set
+15.0	other	src/ast_grep_mcp/features/condense/dictionary.py	167	return 15.0      # Full benefit for large, diverse sample sets
+3	slice_or_top_n_limit	src/ast_grep_mcp/features/cross_language/pattern_equivalence.py	156	if category_patterns[:3]:
+3	other	src/ast_grep_mcp/features/cross_language/pattern_equivalence.py	160	if not category and len(found_patterns) &lt; 3:
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/cross_language/pattern_equivalence.py	163	return suggestions[:5]  # Limit suggestions
+3	other	src/ast_grep_mcp/features/cross_language/pattern_equivalence.py	253	if len(category_examples[category]) &lt; 3:
+3	severity_ranking	src/ast_grep_mcp/features/quality/smells_helpers.py	164	smells.sort(key=lambda s: (severity_order.get(s.get(&quot;severity&quot;, &quot;low&quot;), 3), s.get(&quot;type&quot;, &quot;&quot;)))
+3	regex_capture_group_index	src/ast_grep_mcp/features/documentation/changelog_generator.py	211	result[&quot;is_breaking&quot;] = bool(match.group(3))
+3	threshold_or_cutoff	tests/scripts/detect_fixture_patterns.py	57	def __init__(self, root: Path, threshold: int = 3):
+3	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	104	fixture_value_score=9.0 if files_count &gt;= 3 else 5.0,
+5.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	104	fixture_value_score=9.0 if files_count &gt;= 3 else 5.0,
+3	benchmark_or_test_fixture_data	tests/scripts/detect_fixture_patterns.py	138	end = min(len(lines), i + 3)
+3	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	151	fixture_value_score=8.0 if files_count &gt;= 3 else 4.0,
+4.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	151	fixture_value_score=8.0 if files_count &gt;= 3 else 4.0,
+5	benchmark_or_test_fixture_data	tests/scripts/detect_fixture_patterns.py	181	end = min(len(lines), i + 5)
+3	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	194	fixture_value_score=9.0 if files_count &gt;= 3 else 6.0,
+6.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	194	fixture_value_score=9.0 if files_count &gt;= 3 else 6.0,
+3	benchmark_or_test_fixture_data	tests/scripts/detect_fixture_patterns.py	222	end = min(len(lines), i + 3)
+3	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	235	fixture_value_score=8.0 if files_count &gt;= 3 else 5.0,
+5.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	235	fixture_value_score=8.0 if files_count &gt;= 3 else 5.0,
+5	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	295	fixture_value_score=7.0 if most_common[1] &gt;= 5 else 4.0,
+4.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	295	fixture_value_score=7.0 if most_common[1] &gt;= 5 else 4.0,
+20	slice_or_top_n_limit	tests/scripts/detect_fixture_patterns.py	296	occurrences_list=occurrences[:20],  # Limit to first 20
+20	slice_or_top_n_limit	tests/scripts/detect_fixture_patterns.py	296	occurrences_list=occurrences[:20],  # Limit to first 20
+7.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	363	status = &quot;RECOMMEND FIXTURE&quot; if pattern.fixture_value_score &gt;= 7.0 else &quot;Consider&quot;
+5	slice_or_top_n_limit	tests/scripts/detect_fixture_patterns.py	395	for occ in pattern.occurrences_list[:5]:
+20	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	83	&quot;instances&quot;: [{&quot;file&quot;: &quot;a.py&quot;, &quot;line&quot;: 10}, {&quot;file&quot;: &quot;b.py&quot;, &quot;line&quot;: 20}, {&quot;file&quot;: &quot;a.py&quot;, &quot;line&quot;: 50}],
+50	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	83	&quot;instances&quot;: [{&quot;file&quot;: &quot;a.py&quot;, &quot;line&quot;: 10}, {&quot;file&quot;: &quot;b.py&quot;, &quot;line&quot;: 20}, {&quot;file&quot;: &quot;a.py&quot;, &quot;line&quot;: 50}],
+50	lines_saved_metric	src/ast_grep_mcp/features/deduplication/benchmark.py	90	&quot;potential_line_savings&quot;: 50,
+5	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	115	&quot;affected_files&quot;: (i % 5) + 1,
+85.0	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	134	(85.0, 3, 100, True, 3),
+3	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	134	(85.0, 3, 100, True, 3),
+3	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	134	(85.0, 3, 100, True, 3),
+45.0	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	135	(45.0, 7, 20, False, 8),
+7	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	135	(45.0, 7, 20, False, 8),
+20	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	135	(45.0, 7, 20, False, 8),
+8	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	135	(45.0, 7, 20, False, 8),
+25.0	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	136	(25.0, 9, 5, False, 15),
+9	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	136	(25.0, 9, 5, False, 15),
+5	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	136	(25.0, 9, 5, False, 15),
+15	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	136	(25.0, 9, 5, False, 15),
+85.0	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	161	&quot;similarity&quot;: 85.0 + i,
+5	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	193	results.append(self.benchmark_pattern_analysis(iterations * 5))
+5	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	196	results.append(self.benchmark_code_generation(iterations * 5))
+0.10	threshold_or_cutoff	src/ast_grep_mcp/features/deduplication/benchmark.py	368	threshold = self.thresholds.get(name, 0.10)
+100.0	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/reporting.py	308	&quot;similarity_score&quot;: candidate.get(&quot;similarity&quot;, 100.0),
+100.0	threshold_or_cutoff	tests/scripts/benchmark_fixtures.py	46	self.threshold_ms = 100.0  # 100ms threshold
+5	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	48	def benchmark_fixture(self, fixture_name: str, iterations: int = 5) -&gt; Optional[FixtureBenchmark]:
+3	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	95	per_test_overhead = avg_time / 3
+0.6	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	103	avg_setup_time=per_test_overhead * 0.6,  # Estimate 60% setup
+60	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	103	avg_setup_time=per_test_overhead * 0.6,  # Estimate 60% setup
+0.4	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	104	avg_teardown_time=per_test_overhead * 0.4,  # Estimate 40% teardown
+40	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	104	avg_teardown_time=per_test_overhead * 0.4,  # Estimate 40% teardown
+3	regex_capture_group_index	src/ast_grep_mcp/utils/formatters.py	426	context = match.group(3).strip()
+42	other	src/ast_grep_mcp/features/schema/client.py	161	&quot;Number&quot;: lambda: 42,
+42	other	src/ast_grep_mcp/features/schema/client.py	162	&quot;Integer&quot;: lambda: 42,
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/analyzer.py	287	&quot;parameter_suggestions&quot;: param_suggestions[:5],  # Top 5 suggestions
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/analyzer.py	287	&quot;parameter_suggestions&quot;: param_suggestions[:5],  # Top 5 suggestions
+3	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	449	return 3, &quot;Minor expression variation&quot;
+4	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	451	return 4, &quot;Different operations or function calls&quot;
+4	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	452	return 4, &quot;Significant expression restructuring&quot;
+4	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	457	return 4, &quot;Simple type substitution&quot;
+5	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	459	return 5, &quot;Generic type variation&quot;
+6	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	460	return 6, &quot;Complex type system changes&quot;
+7	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	465	return 7, &quot;Added or removed logic branches&quot;
+7	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	467	return 7, &quot;Significant control flow differences&quot;
+5	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	468	return 5, &quot;Conditional logic variation&quot;
+4	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/analyzer.py	474	if score &lt;= 4:
+3	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/analyzer.py	502	score, reasoning = 3, &quot;Unknown variation type&quot;
+20	numeric_operation_window_or_ratio	src/ast_grep_mcp/features/deduplication/analyzer.py	1188	start = max(0, match.start() - 20)
+20	numeric_operation_window_or_ratio	src/ast_grep_mcp/features/deduplication/analyzer.py	1189	end = min(len(code), match.end() + 20)
+15	slice_or_top_n_limit	scripts/migrate_prints_smart.py	234	for change in changes[:15]:
+5	slice_or_top_n_limit	scripts/migrate_prints_smart.py	254	for path, info in sorted(results[&quot;files&quot;].items(), key=lambda x: x[1][&quot;migrations&quot;], reverse=True)[:5]:
+3	slice_or_top_n_limit	scripts/migrate_prints_smart.py	256	for change in info[&quot;changes&quot;][:3]:
+50	slice_or_top_n_limit	src/ast_grep_mcp/features/complexity/analyzer.py	346	return magic_numbers[:50]
+3	regex_capture_group_index	src/ast_grep_mcp/features/search/service.py	1124	return cst_match.group(1) or cst_match.group(2) or cst_match.group(3)
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/search/service.py	1204	matches=matches[:5],  # Limit to first 5 matches for debugging
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/search/service.py	1204	matches=matches[:5],  # Limit to first 5 matches for debugging
+50	slice_or_top_n_limit	src/ast_grep_mcp/features/search/service.py	1937	pattern=f&apos;dump_syntax_tree(code=&quot;{code[:50]}...&quot;, language=&quot;{language}&quot;, format=&quot;cst&quot;)&apos;,
+4	other	scripts/list_complexity_violations.py	40	func_name = stripped[4:].split(&quot;(&quot;)[0].strip()
+30	other	src/ast_grep_mcp/features/cross_language/pattern_database.py	292	&quot;code&quot;: &apos;let person: HashMap&lt;&amp;str, &amp;str&gt; = HashMap::from([\n    (&quot;name&quot;, &quot;Alice&quot;),\n    (&quot;age&quot;, &quot;30&quot;),\n]);&apos;,
+3	other	src/ast_grep_mcp/features/cross_language/language_converter.py	157	(r&apos;&quot;(.+)&quot;\s*\+\s*(\w+)\s*\+\s*&quot;(.+)&quot;&apos;, r&apos;&quot;$\1$\2$\3&quot;&apos;, &quot;string_concat&quot;),
+3	other	src/ast_grep_mcp/features/deduplication/similarity.py	1577	return 3
+4	other	src/ast_grep_mcp/features/deduplication/similarity.py	1579	return 4
+5	other	src/ast_grep_mcp/features/deduplication/similarity.py	1581	return 5
+6	other	src/ast_grep_mcp/features/deduplication/similarity.py	1583	return 6
+2.0	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/similarity.py	1969	semantic_score = (embedding_cosine + 1.0) / 2.0
+5	slice_or_top_n_limit	scripts/migrate_print_to_logger.py	404	for change in file_results[&quot;changes&quot;][:5]:  # Show first 5
+5	slice_or_top_n_limit	scripts/migrate_print_to_logger.py	404	for change in file_results[&quot;changes&quot;][:5]:  # Show first 5
+5	other	scripts/migrate_print_to_logger.py	406	if len(file_results[&quot;changes&quot;]) &gt; 5:
+0.85	other	src/ast_grep_mcp/features/condense/strategies.py	11	&quot;ai_chat&quot;: 0.85,       # Signatures + types + docstrings only (lossy)
+0.40	other	src/ast_grep_mcp/features/condense/strategies.py	12	&quot;ai_analysis&quot;: 0.40,   # Full source minus dead code (lossless)
+0.30	other	src/ast_grep_mcp/features/condense/strategies.py	13	&quot;archival&quot;: 0.30,       # Normalized, deduplicated (lossless)
+0.65	other	src/ast_grep_mcp/features/condense/strategies.py	14	&quot;polyglot&quot;: 0.65,       # Per-language optimal selection
+3	severity_ranking	src/ast_grep_mcp/features/documentation/sync_checker.py	551	all_issues.sort(key=lambda i: (severity_order.get(i.severity, 3), i.file_path, i.line_number))
+5	other	src/ast_grep_mcp/features/cross_language/multi_language_search.py	305	with ThreadPoolExecutor(max_workers=min(len(languages), 5)) as executor:
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/schema/enhancement_service.py	168	return any(_is_schema_org_data(item) for item in data[:5])  # Check first 5
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/schema/enhancement_service.py	168	return any(_is_schema_org_data(item) for item in data[:5])  # Check first 5
+3	other	src/ast_grep_mcp/features/schema/enhancement_service.py	297	EnhancementPriority.LOW: 3,
+3	other	src/ast_grep_mcp/features/schema/enhancement_service.py	446	EnhancementPriority.LOW: 3,
+100.0	score_formula_or_cap	src/ast_grep_mcp/features/schema/enhancement_service.py	518	return max(0.0, min(100.0, score))
+100.0	score_formula_or_cap	src/ast_grep_mcp/features/schema/enhancement_service.py	542	return max(0.0, min(100.0, overall_score))
+3	other	src/ast_grep_mcp/features/schema/enhancement_service.py	803	if len(parts) &gt;= 3:
+5	threshold_or_cutoff	src/ast_grep_mcp/features/deduplication/tools.py	38	min_lines: int = 5,
+5	threshold_or_cutoff	src/ast_grep_mcp/features/deduplication/tools.py	83	min_lines: int = 5,
+1.2	threshold_or_cutoff	tests/scripts/validate_refactoring.py	183	threshold = baseline_duration * 1.2
+50	lines_saved_metric	scripts/benchmark_batch_coverage.py	63	&quot;lines_saved&quot;: 50,
+60	benchmark_or_test_fixture_data	scripts/benchmark_batch_coverage.py	273	if improvement &gt;= 60:
+40	benchmark_or_test_fixture_data	scripts/benchmark_batch_coverage.py	275	elif improvement &gt;= 40:
+300	other	src/ast_grep_mcp/core/config.py	21	CACHE_TTL: int = CacheDefaults.CLEANUP_INTERVAL_SECONDS  # Actually 300 seconds, reused for TTL
+50	lines_saved_metric	scripts/benchmark_parallel_enrichment.py	19	&quot;lines_saved&quot;: 50,
+75.5	score_formula_or_cap	scripts/benchmark_parallel_enrichment.py	20	&quot;score&quot;: 75.5,
+8	score_formula_or_cap	scripts/benchmark_parallel_enrichment.py	21	&quot;complexity_score&quot;: 8,
+25	benchmark_or_test_fixture_data	scripts/benchmark_parallel_enrichment.py	35	candidate_counts = [10, 25, 50, 100]
+50	benchmark_or_test_fixture_data	scripts/benchmark_parallel_enrichment.py	35	candidate_counts = [10, 25, 50, 100]
+3	slice_or_top_n_limit	scripts/analyze_analyticsbot.py	54	for i, func in enumerate(functions[:3], 1):
+5	slice_or_top_n_limit	scripts/analyze_analyticsbot.py	118	for issue_type, count in sorted(by_type.items(), key=lambda x: x[1], reverse=True)[:5]:
+5	threshold_or_cutoff	src/ast_grep_mcp/features/deduplication/detector.py	89	min_lines: int = 5,
+200	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/detector.py	612	&quot;code_preview&quot;: match.get(&quot;text&quot;, &quot;&quot;)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],  # First 200 chars
+3	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/detector.py	619	&quot;similarity_score&quot;: round(self.calculate_similarity(group[0].get(&quot;text&quot;, &quot;&quot;), group[1].get(&quot;text&quot;, &quot;&quot;)), 3)
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/generator.py	520	return list(set(dependencies))[:5]  # Limit to top 5
+5	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/generator.py	520	return list(set(dependencies))[:5]  # Limit to top 5
+3	regex_capture_group_index	src/ast_grep_mcp/features/deduplication/generator.py	657	content = match.group(3)</file><file path="docs/PATTERNS.md"># Refactoring Patterns - Proven Complexity Reduction Techniques
 
 **Effectiveness:** 80-100% complexity reduction with zero behavioral regressions
 **Last Updated:** 2025-11-28
@@ -3506,7 +4304,198 @@ For issues with this integration:
 1. Check this documentation
 2. Run `test_sentry_integration()` for diagnostic info
 3. Review [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-4. Open an issue on GitHub with diagnostic output</file><file path="docs/changelog/2026-03-04-maintenance-quality.md"># Maintenance + Quality Updates - 2026-03-04
+4. Open an issue on GitHub with diagnostic output</file><file path="docs/changelog/2025-11-23-thru-2025-11-29.md"># 2025-11-23 through 2025-11-30: Foundation Features
+
+## 2025-11-30: Test &amp; Fixture Stabilization
+
+- Resolved all 74 pytest warnings (8d0e229)
+- Fixed deduplication fixture and metavariables parsing tests (3b7217a)
+- Fixed key name mismatches between detector, orchestrator, and tools (002b48a)
+
+## 2025-11-29: Entity Graph Enhancement + Documentation Generation
+
+- `enhance_entity_graph` tool for Schema.org JSON-LD graph analysis, SEO scoring, @id validation (51 tests)
+- `generate_docstrings` tool with 5 styles (Google, NumPy, Sphinx, JSDoc, Javadoc)
+- `generate_readme_sections`, `generate_api_docs`, `generate_changelog`, `sync_documentation` tools (32 tests)
+- Cross-language polyglot search and refactoring (f173f7f)
+- Total MCP tools: 38
+
+## 2025-11-28: Phase 2 Complexity Refactoring
+
+- Zero violations achieved (48 -&gt; 0 functions, 100% complete)
+- Created [PATTERNS.md](../PATTERNS.md) with proven refactoring techniques
+- Quality gate passing (15/15 regression tests, 278 module tests)
+
+## 2025-11-27: Security Scanner &amp; Auto-Fix
+
+- `detect_security_issues` tool (SQL injection, XSS, command injection, secrets, crypto)
+- `apply_standards_fixes` tool with safety classification
+- `generate_quality_report` tool (Markdown/JSON formats)
+
+## 2025-11-26: Refactoring Assistants
+
+- `extract_function` tool with parameter/return detection
+- `rename_symbol` tool with scope-aware renaming (32 tests)
+
+## 2025-11-25: Tool Registration Complete
+
+- 100% tool registration (38 tools), consistent two-layer pattern
+
+## 2025-11-24: Modular Architecture &amp; Code Quality
+
+- Migrated to 64-module architecture
+- Code complexity analysis, code smell detection, linting rule system (24+ templates)
+- `main.py` reduced to entry point only (10 lines)
+
+## 2025-11-23: Enhanced Deduplication
+
+- Complete rewrite with intelligent analysis and automated refactoring with validation
+- 1,000+ new tests, 9+ language test coverage support
+
+## 2025-11-17: Sentry &amp; Schema.org Testing
+
+- Added Sentry error tracking with Anthropic AI integration (826529c)
+- Added comprehensive Schema.org test suite — coverage 59% to 90% (746e9b5)
+
+## 2025-11-10: DRY Tool
+
+- Added DRY analysis tool (a40c7d9)</file><file path="docs/changelog/2025-12-02-thru-2025-12-04-dedup-phase5-modular.md"># 2025-12-02 through 2025-12-04: Dedup Phase 5 &amp; Modular Migration
+
+## Added (2025-12-02)
+
+- Implemented MinHash + LSH for O(n) similarity detection (f62b036)
+- Implemented hybrid two-stage similarity pipeline (a8f51d0)
+- Added SequenceMatcher fallback for small code blocks (fbc7b71)
+- Implemented Phase 5 CodeBERT semantic similarity (58a13cd)
+- Added regression and hybrid similarity tests (a6c55a6)
+- Added fallback and performance tests (8784da3)
+
+## Changed (2025-12-03)
+
+- Registered `detect_orphans` tool and reduced complexity (0a3045b)
+- Resolved all ruff and mypy errors across 14 files (010052b)
+- Resolved Protocol and Union type mismatches in dedup generator (0e370ed)
+- Added Callable type annotations to lambda dictionaries in dedup analyzer (41dcb51)
+- Fixed ruff violations for SIM115 and B007 (f920615)
+
+## Changed (2025-12-04)
+
+- Migrated deduplication functions to modular architecture (9284084)
+- Migrated integration tests to modular imports (e22d244)
+- Migrated unit tests from main.py stubs to modular imports (fd0c16f)
+- Updated cache fixtures to use modular imports (c1158f1)
+- Updated test fixtures to use modular imports (2166889)</file><file path="docs/changelog/2026-01-09-pattern-debugging.md"># 2026-01-09: Pattern Debugging Tool
+
+## Added
+
+- `debug_pattern` tool for diagnosing why patterns don&apos;t match code
+- Validates metavariable syntax (detects `$name` vs `$NAME`, `$123`, `$KEBAB-CASE` errors)
+- Compares pattern AST with code AST to find structural mismatches
+- Prioritized suggestions for fixing pattern issues
+- New models: `pattern_debug.py` with 8 dataclasses/enums
+- 31 new tests for pattern debugging
+- Total MCP tools: 43
+
+## Fixed
+
+- Resolved 6 complexity violations in deduplication module (9bdd029)
+- Resolved all lint errors (55de598)</file><file path="docs/changelog/2026-01-10-docs-rule-builder.md"># 2026-01-10: Documentation &amp; Rule Builder Tools + Warning System
+
+Based on the [ast-grep Prompting Guide](https://ast-grep.github.io/advanced/prompting.html).
+
+## Added
+
+- `get_ast_grep_docs` — on-demand documentation retrieval (topics: pattern, rules, relational, metavariables, workflow, all)
+- `build_rule` — YAML rule builder with automatic `stopBy: end` on relational rules
+- `get_pattern_examples` — common patterns by language and category
+- Automatic warning detection in `find_code_by_rule` for missing `stopBy` and lowercase metavariables
+- Enhanced tool descriptions with pattern syntax quick reference
+- 24+ new tests in `tests/unit/test_docs_and_rule_builder.py`</file><file path="docs/changelog/2026-02-10-test-stability-docs.md"># 2026-02-10: Test Stability &amp; Documentation Improvements
+
+## Added
+
+- Added `develop_pattern` tool for iterative pattern development with strictness levels (63613b0)
+- Added `matches` rule documentation to `get_ast_grep_docs` (9641374)
+- Added pattern objects, lazy metavariables, and playground link to search docs (691e344)
+- Added comprehensive deduplication tests for all submodules: analysis orchestrator, coverage detector, applicator executor, backup manager, duplication detector (9b08989..a08936e)
+
+## Fixed
+
+- Fixed integration tests to use modular API (4a7992a)
+- Fixed pydantic.Field mock pollution in test state (2e81ccf)
+- Relaxed benchmark performance thresholds for CI stability (ee11e9e)
+- Added missing dev dependencies and fixed ast-grep exit code handling (4e47157)
+- Updated MCP tools cache to 47 tools (039ca7e)
+
+## Changed
+
+- Removed module-level wrapper functions and slimmed dedup `__init__.py` (105cc32)</file><file path="docs/changelog/2026-02-12-formatting-refactoring.md"># 2026-02-12: Formatting &amp; Dedup Refactoring
+
+## Changed
+
+- Applied ruff format to 72 files (28861dd)
+- Extracted `_parse_conditional_matches` to fix nesting violation in dedup analyzer (97fdb42)
+- Documentation update (c369bdf)
+
+## Dependencies
+
+- Added pillow to project dependencies (e1ab927, 2026-02-11)</file><file path="docs/changelog/2026-02-25-code-condensation.md"># 2026-02-25: Code Condensation Feature
+
+## Added
+
+- Added `condense_extract_surface` tool — semantic surface extraction with per-language AST patterns (830b7ed)
+- Added `condense_normalize` tool — rewrite transforms (identifier shortening, whitespace, comments) (830b7ed)
+- Added `condense_strip` tool — dead code removal (unreachable branches, unused imports) (830b7ed)
+- Added `condense_pack` tool — full pipeline orchestration with token-aware packing (830b7ed)
+- Added `condense_estimate` tool — token estimation before condensation (830b7ed)
+- Added `condense_train_dictionary` tool — zstd dictionary training from codebase samples (1ffc15b)
+- Polyglot strategy routing for language-specific condensation (830b7ed)
+- 81+ new tests for condense feature
+- Total MCP tools: 53
+
+## Fixed
+
+- Fixed async event loop conflict and zstd `--train` flag handling (87a1d91)
+- Removed unused CondenseDefaults constants, standardized field naming (d97d782)
+- Addressed code review findings and genai quality gaps (6c8b635, 9a09893)
+
+## Changed
+
+- Migrated magic numbers to named constants across 17 modules (b0ea4b0, dcae1ff, 9e65f55)
+- Zero complexity violations maintained throughout refactoring</file><file path="docs/changelog/2026-02-26-jsdoc-fixes.md"># 2026-02-26: JSDoc Parsing &amp; Project Context
+
+## Added
+
+- Added project context and fixed JSDoc detection for JS/TS/Java in docstring generator (3a1739b)
+
+## Fixed
+
+- Fixed JSDoc param parsing for generics and optional params (565aaea)</file><file path="docs/changelog/2026-02-28-analyzer-cli-quality.md"># 2026-02-28: Analyzer CLI, Syntax Validation, and Quality Fixes
+
+## Added
+
+- Added `--filepath` and `--language` CLI arguments to `analyze_codebase.py` (8c488e4)
+- Added `--fix` flag to analyzer for applying safe auto-fixes after enforcement (2fb6ea3)
+- Added dedicated TypeScript validation via `tsc` with `--module esnext --target esnext --moduleResolution bundler`, eliminating false positives from `import.meta` and modern TS features (2fb6ea3)
+- Switched JavaScript validation from `new Function()` to `node --check` with `.mjs` temp files for proper ESM support (2fb6ea3)
+- Added per-rule file exclusions for quality false positives (9b66b52)
+- Added `TSC_TIMEOUT_SECONDS` and `TSC_SYNTAX_ERROR_PATTERN` constants (2fb6ea3)
+
+## Fixed
+
+- Fixed `no-empty-catch` rule: replaced unparseable `catch ($E) {}` pattern with kind-based `catch_clause` + `has` field matching (06fe291)
+- Fixed ast-grep exit code 1 handling: scan success with error-level diagnostics no longer treated as command failure (06fe291)
+- Fixed API mismatches in `analyze_codebase.py` and reporter (80245c9)
+- Passed language correctly to `DuplicationDetector` in tools and orchestrator (2fb6ea3)
+- Fixed off-by-one in violation line numbers causing wrong-line removal (0e24a7c, 2026-03-01)
+
+## Changed
+
+- Extracted magic numbers to named constants across quality modules (484fdcf)
+- Reduced complexity in applicator, schema client, and sentry tool (ed58e44)
+- Extracted rule-specific code transforms and removal rules into declarative dicts in `fixer.py` (2fb6ea3)
+- Broadened exclude patterns for `node_modules`, `dist`, `build` dirs in analyzer (2fb6ea3)
+- Made `pattern` optional in `LintingRule.to_yaml_dict()` to support kind-only rules (06fe291)</file><file path="docs/changelog/2026-03-04-maintenance-quality.md"># Maintenance + Quality Updates - 2026-03-04
 
 Summary of recent repository maintenance based on commit history.
 
@@ -3533,130 +4522,66 @@ Enforced consistent exclude patterns in analysis tools for `venv/.venv/virtualen
 - Resolved Ruff and mypy issues in MCP tool wrappers and line-length violations.
 - Cleared standards-enforcement violations in baseline quality runs.
 - Fixed unified diff hunk parsing to align regex capture groups with shared constants.
-- Current test baseline after fix: `1468 passed, 1 skipped`.</file><file path="docs/changelog/2026-03-06-complexity-review-fixes.md"># Complexity Refactoring + Code Review Fixes — 2026-03-06
+- Current test baseline after fix: `1468 passed, 1 skipped`.</file><file path="docs/changelog/2026-03-06-critical-bug-fixes.md"># 2026-03-06: Critical Bug Fixes
 
-Batch completion of complexity reduction queue (C1-C10) and high-priority code review issues (BR1-BR8). All items committed 2026-03-06.
+## Fixed
 
-## Complexity Refactoring (C1-C10)
+- Fixed duplicate exception classes: consolidated `RuleValidationError` and `RuleStorageError` definitions from `core.exceptions` into single canonical location in `models.standards` to fix silent catch failures (b492180)
+- Fixed stderr pipe deadlock in `stream_ast_grep_results`: added background thread to drain stderr concurrently while reading stdout, preventing mutual deadlock when ast-grep writes large error messages (99dec84)
+- Added timeout to `kill() + wait()` sequence in process cleanup to prevent indefinite hangs on unkillable processes (D-state on Linux, network filesystems) (99dec84)</file><file path="docs/changelog/2026-03-07-type-fixes-formatting.md"># 2026-03-07: Type Fixes &amp; Formatting
 
-### C1: Split file-migration orchestration in `migrate_file`
-**Commit**: `70f78ef` | **Priority**: P1
-Split `migrate_file` (cyclomatic 26, cognitive 76, nesting 9) into focused helpers: `_load_file_lines`, `_create_backup_if_needed`, `_replace_print_statements`, `_ensure_import_present`, `_persist_changes_if_needed`. Main orchestrator now linear and branch-light.
+## Fixed
 
-### C2: Replace brittle orphan-import repair flow in `fix_file`
-**Commit**: `63d5873` | **Priority**: P1
-Decomposed `fix_file` (cyclomatic 29, cognitive 56, nesting 6) from index/skip state mutation into explicit phases: detect candidate orphan ranges, validate, rebuild by range exclusion. No in-loop index mutation.
+- Added cross-env mypy suppress to `AutoModel.from_pretrained` in deduplication similarity module (0a5bb3e)
+- Stabilized `type: ignore` annotations for cross-env mypy compatibility (58e60a9)
 
-### C3: Decompose end-to-end analytics script `analyze_project`
-**Commit**: `fb4bf17` | **Priority**: P1
-Extracted scan-specific steps from orchestrator (cyclomatic 19, cognitive 49, nesting 5): `_run_complexity_scan`, `_run_smell_scan`, `_run_security_scan`, plus `_format_*_summary` helpers. Output payload backward-compatible.
+## Changed
 
-### C4: Split reporting + summary extraction in `generate_summary_report`
-**Commit**: `2794f06` | **Priority**: P2
-Bundled function (cyclomatic 14, cognitive 43, nesting 7) split into: `_run_enforcement`, `_generate_markdown_report`, `_print_report_summary`. Simplified happy-path flow; summary extraction isolated.
+- Applied ruff format to 42 files (2bb7b59)</file><file path="docs/changelog/2026-03-08-changelog-hardening-test-quality.md"># 2026-03-08: Changelog Generator Hardening &amp; Test Quality Improvements
 
-### C5: Break up enhanced dedup response builder
-**Commit**: `16a5ac1` | **Priority**: P2
-Decomposed `create_enhanced_duplication_response` (cyclomatic 23, cognitive 40, nesting 6) into `_build_enhanced_candidate`, `_generate_candidate_diff_preview`, `_update_distribution`, `_build_global_recommendations`, `_build_summary`. No regression in candidate ordering.
+Hardened `changelog_generator.py` error handling and improved test suite quality by consolidating mock imports, adding validation tests, and standardizing type hints.
 
-### C6: Simplify hybrid config validation in `__post_init__`
-**Commit**: `5e6b3de` | **Priority**: P2
-Split validator (cyclomatic 19, cognitive 37, nesting 5) into `_apply_semantic_rebalance_if_needed`, `_validate_weight_bounds`, `_validate_weight_sum`. Validation semantics unchanged.
+## Changelog Generator Hardening
 
-### C7: Refactor Flask route parser loop in `parse_file`
-**Commit**: `6874996` | **Priority**: P2
-Extracted decorator matching, method parsing, and route creation into `_parse_decorator_match`, `_find_next_handler_name`, `_build_routes_for_methods`. No duplicate or missing routes in support of `@app.route`/`@blueprint.route`.
+- **Validate `project_folder` exists in `_run_git_command`** — Added `os.path.isdir()` check before passing directory to `subprocess.run`. Returns `(False, &quot;Directory not found: ...&quot;)` for non-existent paths instead of raising unhandled `FileNotFoundError`.
 
-### C8: Decompose external call-site discovery
-**Commit**: `426b938` | **Priority**: P2
-Split `_find_external_call_sites` (cyclomatic 14, cognitive 36, nesting 7) into `_search_call_sites_for_name`, `_normalize_match_file_path`, `_to_call_site_record`. Deterministic unit tests with mocked responses.
+- **Replace empty string sentinel in `_get_first_commit` with `str | None`** — Changed return type from `str` (with `&quot;&quot;` sentinel) to `str | None`. Updated `_find_previous_tag` to return `str | None` as well. `_get_commit_range` coalesces with `or &quot;&quot;` for downstream compatibility.
 
-### C9: Replace heuristic-heavy orphan detection monolith
-**Commit**: `e7a51e3` | **Priority**: P2
-Decomposed `find_orphaned_imports` (cyclomatic 23, cognitive 35, nesting 6) into composable predicates (`_is_orphan_close_paren`, `_is_orphan_import_item_start`) and single range scanner. Clearer predicate-focused tests.
+- **Add warning log on `None` coalescion** — When `_find_previous_tag` returns `None` (both tag list and first commit queries fail), `_get_commit_range` logs `from_ref_fallback_to_full_history` at warn level to aid debugging.
 
-### C10: Modularize normalization pipeline in `_normalize_for_ast`
-**Commit**: `029b7b2` | **Priority**: P2
-Extracted per-line transforms (`_strip_inline_python_comment`, `_strip_inline_js_comment`, `_normalize_indentation`) from main loop. Composed in small pipeline. Normalized output unchanged; table-driven tests for edge cases.
+- **Standardize type hints to `str | None`** — Replaced all `Optional[str]` with `str | None` throughout the module (Python 3.13+). Removed unused `Optional` import.
 
-## Code Review Fixes (BR1-BR8)
+## Test Quality Improvements
 
-### BR1: Fix indentation normalization for 4-space code
-**Commit**: `590b4d1`, `029b7b2` | **Priority**: P1
-`NORMALIZATION_DIVISOR = 2` caused 4-space-indented code to normalize incorrectly. Switched to adaptive indent divisor (detects 4-space and 2-space consistently). Identical functions in different styles now compare as similar.
+- **Consolidate `patch` import to module level** — Moved `from unittest.mock import patch` from per-method imports to module-level. Reduced boilerplate by ~60 lines in `TestChangelogHelpers`.
 
-### BR2: Fix contract mismatch in `filter_files_by_size`
-**Commit**: `18a15dd` | **Priority**: P1
-Function returned `([], [])` silently when `max_size_mb is None` despite docstring claiming &quot;None = unlimited&quot;. Fixed to walk and return all files when unlimited. Callers with guards unaffected.
+- **Consolidate mock target as class constant** — Extracted repeated `patch(&quot;ast_grep_mcp.features.documentation.changelog_generator._run_git_command&quot;)` string as class constant `_MOCK_TARGET`. Applied across 16 test methods.
 
-### BR3: Fix `meta_vars` type annotation mismatch
-**Commit**: `77e4b2d` | **Priority**: P1
-`RuleViolation.meta_vars` declared as `Optional[Dict[str, str]]` but stored `List[str]` for `$$$` multi-captures, causing `TypeError` in fixer. Widened type to `Dict[str, str | list[str]]` with guarded replacements.
+- **Use `tmp_path` fixture for invalid-cwd test** — Changed `test_run_git_command_invalid_cwd` to use pytest&apos;s `tmp_path` fixture instead of hardcoded `/nonexistent/path/xyz`. Creates deterministic non-existent path: `str(tmp_path / &quot;does_not_exist&quot;)`.
 
-### BR4: Fix column 0-indexing inconsistency in RuleViolation
-**Commit**: `81cf372` | **Priority**: P1
-Columns left at 0-indexed value from ast-grep while lines applied `+1` offset. Added `+1` to column assignments to match 1-indexed docstring contract. `security_scanner` already correct; enforcer now aligned.
+- **Rename test for clarity** — `test_find_previous_tag_no_tags` → `test_find_previous_tag_empty_tag_list` to distinguish &quot;empty output (success=True, tags=&quot;&quot;)&quot; from &quot;git failure (success=False)&quot;.
 
-### BR5: Fix file handle leak in `configure_logging`
-**Commit**: `682a5f5` | **Priority**: P1
-Each call opened new file descriptor with no close, leaking in long-running processes. Fixed by holding module-level reference outside function. Test suites no longer leak file descriptors.
+- **Update `test_get_first_commit_failure` assertion** — Changed from `assert _get_first_commit(&quot;/fake&quot;) == &quot;&quot;` to `assert _get_first_commit(&quot;/fake&quot;) is None` to match new return type.
 
-### BR6: Fix `CACHE_TTL` semantic mismatch with `CLEANUP_INTERVAL_SECONDS`
-**Commit**: `955772c` | **Priority**: P2
-`CACHE_TTL` initialized from `CLEANUP_INTERVAL_SECONDS` (300s background sweep) despite semantic difference. Introduced dedicated `DEFAULT_CACHE_TTL` (3600s); callers now get correct expiry.
+- **Add known-issue comment to asymmetry test** — Added docstring note to `test_get_commit_range_from_version_asymmetry` linking to `KNOWN_ISSUES.md` &apos;from_version / to_version resolution asymmetry&apos; to document known-broken behavior.
 
-### BR7: Fix double `os.environ.get` call in config path resolution
-**Commit**: `abc9e0d` | **Priority**: P2
-`_resolve_and_validate_config_path` read `AST_GREP_CONFIG` env var twice on same condition with dead code between. Simplified to single read with walrus operator.
+## Documentation Updates
 
-### BR8: Add timeout to `kill()` + `wait()` in process cleanup
-**Commit**: `99dec84` | **Priority**: P1
-Bare `process.wait()` after `kill()` could block indefinitely on unkillable processes. Both `_terminate_process` and `_cleanup_process` fixed with 5s timeout.
+- **KNOWN_ISSUES.md: Replace hardcoded line numbers with function names** — Updated all references to use function names (`_get_commit_range`, `_run_git_command`, `_get_first_commit`) instead of line numbers for durability across future edits.
 
-## Additional Fixes
+- **KNOWN_ISSUES.md: Mark resolved issues with strikethrough** — Marked cwd validation and sentinel issues as resolved with descriptive resolution notes. Kept open asymmetry issue highlighted.
 
-### CR1: Commit 565aaea Parser Fixes
-**Commit**: `6473709` | **Priority**: P1
-Fixed three critical parser issues in `sync_checker.py` identified in code review:
-- High: `_split_params` depth counter guard (goes negative on `&gt;` in `=&gt;` defaults)
-- High: `rstrip(&quot;?&quot;)` strips all trailing `?` chars (now uses `p.name[:-1] if p.name.endswith(&quot;?&quot;)`)
-- Medium: JSDoc nested brace regex only handles 2 levels (pre-existing limitation noted)
+- **BACKLOG.md: Split Hardening section into Resolved/Open** — Separated `changelog_generator.py Hardening` into Resolved subsection (2 items) and Open subsection (1 item: `from_version` asymmetry with KNOWN_ISSUES.md link).
 
-### M1: Handle JS/TS brace counter edge cases
-**Commit**: `10f757c` | **Priority**: P2
-Improved brace counter for JavaScript/TypeScript to skip braces inside template strings and regex patterns. Surface extraction now ignores structural braces from escaped content.
-
-### SE1: Replace `assert isinstance()` with explicit type checks
-**Priority**: P2 | **Implementation session**: 2026-03-06
-Removed 4 `assert isinstance()` calls in production code (asserts stripped under `-O` flag):
-- `benchmark.py:82`: Removed redundant assert (value provably float)
-- `applicator.py:673,680,689`: Replaced with `if not isinstance: raise TypeError`
-
-## Duplication Consolidation (D1-D4)
-
-### D1: Consolidate `_is_python_import` / `_is_javascript_import` in renamer
-**Priority**: P2 | **Implementation session**: 2026-03-06
-Merged two identical import-checking methods (`_is_python_import` and `_is_javascript_import`) into a single `_is_import(context)` method in `renamer.py`. Updated both call sites (lines 204, 258) to use the unified method. ~10 lines saved; 37 related tests pass.
-
-### D2: Parameterize severity-suggestion helpers in search service
-**Priority**: P2 | **Implementation session**: 2026-03-06
-Replaced three identical severity-filtering helpers (`_add_error_suggestions`, `_add_warning_suggestions`, `_add_info_suggestions`) in `search/service.py` with a single parameterized `_add_suggestions_by_severity(severity, prefix, issues, suggestions)` function. Updated all call sites in `_generate_suggestions`. ~10 lines saved; 35 debug/pattern tests pass.
-
-### D3: Console logger error/warning methods
-**Priority**: P3 | **Implementation session**: 2026-03-06
-Extracted shared `_log_to_stderr(prefix, message)` helper in `console_logger.py` to consolidate identical prefix/message logging logic. `error()` and `warning()` now delegate to the shared helper. ~8 lines saved; 5 related tests pass.
-
-### D4: Smell detector `__init__` duplication
-**Priority**: P3 | **Implementation session**: 2026-03-06
-Added `__init__(self, threshold, logger_name)` to the `SmellDetector` ABC base class and refactored 5 detector subclasses (`LongFunctionDetector`, `ParameterBloatDetector`, `DeepNestingDetector`, `LargeClassDetector`, `MagicNumberDetector`) to call `super().__init__()` instead of duplicating threshold/logger initialization. ~20 lines saved; all 1,615 tests pass.
+- **BACKLOG.md: Fully mark Test &amp; Documentation Quality as resolved** — All 5 items struck-through with accurate descriptions of implementations.
 
 ## Summary
 
-- **Items migrated**: 24 (C1-C10, BR1-BR8, CR1, M1, SE1, D1-D4)
-- **Files affected**: 24 modules across core, features, utils, scripts
-- **Total cyclomatic reduction**: ~280 complexity points across refactored functions
-- **Duplication consolidated**: ~48 lines across search, refactoring, quality, utils modules
-- **Quality gates**: All items pass ruff, mypy, pytest</file><file path="docs/changelog/2026-03-08-code-review-findings.md"># 2026-03-08: Code Review Findings Resolution
+- **Items:** 7 (4 hardening + 1 open issue + 5 test quality fixes)
+- **Files modified:** 4 (changelog_generator.py, test_documentation.py, KNOWN_ISSUES.md, BACKLOG.md)
+- **Type:** Code hardening, test quality, documentation
+- **Tests:** All 48 unit tests passing, mypy clean
+- **Commit:** `1b5f331`</file><file path="docs/changelog/2026-03-08-code-review-findings.md"># 2026-03-08: Code Review Findings Resolution
 
 Migration of completed code review items from BACKLOG.md addressing issues identified in commit 92741ab (D1-D4 dedup consolidation).
 
@@ -4073,34 +4998,30 @@ Add to `.cursor-mcp/settings.json` or Claude Desktop config:
 
 ### Configuration Details
 
-Located in `main.py`:
+Located in `src/ast_grep_mcp/core/sentry.py`:
 
 ```python
-def init_sentry() -&gt; None:
-    &quot;&quot;&quot;Initialize Sentry error tracking with Anthropic AI integration.&quot;&quot;&quot;
-    sentry_dsn = os.environ.get(&quot;SENTRY_DSN&quot;)
-    if not sentry_dsn:
-        logger.info(&quot;Sentry DSN not configured, error tracking disabled&quot;)
+def init_sentry(service_name: str = &quot;ast-grep-mcp&quot;) -&gt; None:
+    &quot;&quot;&quot;Initialize Sentry with Anthropic AI integration and service tagging.&quot;&quot;&quot;
+    dsn = os.getenv(&quot;SENTRY_DSN&quot;)
+    if not dsn:
         return
 
-    environment = os.environ.get(&quot;SENTRY_ENVIRONMENT&quot;, &quot;development&quot;)
-
-    # Development: 100% trace sampling for full visibility
-    # Production: 10% trace sampling to balance cost vs observability
-    traces_sample_rate = 1.0 if environment == &quot;development&quot; else 0.1
+    sentry_env = os.getenv(&quot;SENTRY_ENVIRONMENT&quot;, &quot;development&quot;)
+    is_dev = sentry_env == &quot;development&quot;
 
     sentry_sdk.init(
-        dsn=sentry_dsn,
-        environment=environment,
-        traces_sample_rate=traces_sample_rate,
-        send_default_pii=True,  # Enables AI monitoring (Anthropic SDK)
-        integrations=[AnthropicIntegration()],
+        dsn=dsn,
+        environment=sentry_env,
+        integrations=[AnthropicIntegration(include_prompts=True)],
+        traces_sample_rate=1.0 if is_dev else SentryDefaults.PRODUCTION_TRACES_SAMPLE_RATE,
+        profiles_sample_rate=1.0 if is_dev else SentryDefaults.PRODUCTION_PROFILES_SAMPLE_RATE,
+        send_default_pii=True,
+        attach_stacktrace=True,
+        before_send=_make_tag_event(service_name),
     )
 
-    logger.info(&quot;Sentry initialized&quot;, dsn_configured=True, environment=environment)
-
-    # Tag all events with service name for filtering
-    sentry_sdk.set_tag(&quot;service&quot;, &quot;ast-grep-mcp&quot;)
+    sentry_sdk.set_tag(&quot;service&quot;, service_name)
 ```
 
 ### Customizing Sampling Rates
@@ -4564,164 +5485,57 @@ test_sentry_integration()
 - **Sentry Integration**: [SENTRY-INTEGRATION.md](../SENTRY-INTEGRATION.md)
 - **Doppler Setup**: [docs/README.md](README.md#configuration)
 - **Main Documentation**: [README.md](../README.md)
-- **Development Guide**: [CLAUDE.md](../CLAUDE.md)</file><file path="docs/magic_number_semantic_analysis_2026-03-04.tsv">number	category	file	line	code
-30	default_parameter_value	src/ast_grep_mcp/features/deduplication/applicator_backup.py	155	def cleanup_old_backups(self, days: int = 30) -&gt; int:
-3	slice_or_top_n_limit	analyze_codebase.py	109	for func in sorted(critical, key=lambda x: x.metrics.cognitive, reverse=True)[:3]:
-5	slice_or_top_n_limit	analyze_codebase.py	281	for i, group in enumerate(dedup_groups[:5], 1):
-3	slice_or_top_n_limit	analyze_codebase.py	287	for inst in instances[:3]:
-50	slice_or_top_n_limit	analyze_codebase.py	329	for line in lines[:50]:
-20	slice_or_top_n_limit	analyze_codebase.py	380	for line in error_lines[:20]:
-20	other	analyze_codebase.py	383	if error_count &gt; 20:
-0.7	confidence_score	src/ast_grep_mcp/features/quality/security_scanner.py	111	&quot;confidence&quot;: 0.7,
-0.8	confidence_score	src/ast_grep_mcp/features/quality/security_scanner.py	122	&quot;confidence&quot;: 0.8,
-0.8	confidence_score	src/ast_grep_mcp/features/quality/security_scanner.py	142	&quot;confidence&quot;: 0.8,
-0.95	confidence_score	src/ast_grep_mcp/features/quality/security_scanner.py	160	&quot;confidence&quot;: 0.95,
-0.8	confidence_score	src/ast_grep_mcp/features/quality/security_scanner.py	330	confidence=pattern_def.get(&quot;confidence&quot;, 0.8),
-3	severity_ranking	src/ast_grep_mcp/features/quality/security_scanner.py	543	severity_order = {&quot;critical&quot;: 3, &quot;high&quot;: 2, &quot;medium&quot;: 1, &quot;low&quot;: 0}
-1000.0	other	src/ast_grep_mcp/utils/performance.py	204	return self.elapsed_ms / 1000.0
-4	other	src/ast_grep_mcp/features/condense/service.py	200	body_indent = indent + 4
-50	slice_or_top_n_limit	src/ast_grep_mcp/features/cross_language/polyglot_refactoring.py	129	logger.warning(&quot;file_read_error&quot;, file=file_path, error=str(e)[:50])
-50	other	src/ast_grep_mcp/features/cross_language/polyglot_refactoring.py	217	if len(changes) &gt; 50:
-50	slice_or_top_n_limit	src/ast_grep_mcp/features/quality/smells_detectors.py	556	return magic_numbers[:50]
-5	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/impact.py	73	function_names=function_names[:5] if function_names else [],
-1.2	other	src/ast_grep_mcp/features/deduplication/impact.py	495	extracted_function_lines = int(lines_per_duplicate * 1.2)
-3	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/impact.py	591	score += min(call_count, 3)  # Cap at 3
-3	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/impact.py	591	score += min(call_count, 3)  # Cap at 3
-3	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/impact.py	650	return 3, [&quot;Code is in module export file - higher breakage risk&quot;]
-4	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/impact.py	660	&quot;max_score&quot;: 4,
-5	slice_or_top_n_limit	src/ast_grep_mcp/features/quality/orphan_detector.py	430	orphan.importers = references[:5]  # Store top 5
-5	slice_or_top_n_limit	src/ast_grep_mcp/features/quality/orphan_detector.py	430	orphan.importers = references[:5]  # Store top 5
-0.95	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	37	&quot;no-console-log&quot;: {&quot;confidence&quot;: 0.95, &quot;reason&quot;: &quot;console.log removal is usually safe&quot;},
-0.95	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	47	&quot;no-mutable-defaults&quot;: {&quot;confidence&quot;: 0.95, &quot;reason&quot;: &quot;Mutable default fix is usually safe&quot;},
-0.6	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	54	&quot;no-eval-exec&quot;: {&quot;confidence&quot;: 0.6, &quot;reason&quot;: &quot;eval/exec removal may break functionality&quot;},
-0.7	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	55	&quot;no-sql-injection&quot;: {&quot;confidence&quot;: 0.7, &quot;reason&quot;: &quot;SQL parameterization needs careful review&quot;},
-0.75	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	56	&quot;no-empty-catch&quot;: {&quot;confidence&quot;: 0.75, &quot;reason&quot;: &quot;Empty catch replacement may change behavior&quot;},
-0.7	confidence_score	src/ast_grep_mcp/features/quality/fixer.py	57	&quot;proper-exception-handling&quot;: {&quot;confidence&quot;: 0.7, &quot;reason&quot;: &quot;Exception handling changes need review&quot;},
-5.0	other	src/ast_grep_mcp/features/condense/dictionary.py	164	return 5.0   # Too few samples for reliable training
-50	other	src/ast_grep_mcp/features/condense/dictionary.py	165	if samples_used &lt; 50:
-10.0	other	src/ast_grep_mcp/features/condense/dictionary.py	166	return 10.0  # Moderate sample set
-15.0	other	src/ast_grep_mcp/features/condense/dictionary.py	167	return 15.0      # Full benefit for large, diverse sample sets
-3	slice_or_top_n_limit	src/ast_grep_mcp/features/cross_language/pattern_equivalence.py	156	if category_patterns[:3]:
-3	other	src/ast_grep_mcp/features/cross_language/pattern_equivalence.py	160	if not category and len(found_patterns) &lt; 3:
-5	slice_or_top_n_limit	src/ast_grep_mcp/features/cross_language/pattern_equivalence.py	163	return suggestions[:5]  # Limit suggestions
-3	other	src/ast_grep_mcp/features/cross_language/pattern_equivalence.py	253	if len(category_examples[category]) &lt; 3:
-3	severity_ranking	src/ast_grep_mcp/features/quality/smells_helpers.py	164	smells.sort(key=lambda s: (severity_order.get(s.get(&quot;severity&quot;, &quot;low&quot;), 3), s.get(&quot;type&quot;, &quot;&quot;)))
-3	regex_capture_group_index	src/ast_grep_mcp/features/documentation/changelog_generator.py	211	result[&quot;is_breaking&quot;] = bool(match.group(3))
-3	threshold_or_cutoff	tests/scripts/detect_fixture_patterns.py	57	def __init__(self, root: Path, threshold: int = 3):
-3	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	104	fixture_value_score=9.0 if files_count &gt;= 3 else 5.0,
-5.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	104	fixture_value_score=9.0 if files_count &gt;= 3 else 5.0,
-3	benchmark_or_test_fixture_data	tests/scripts/detect_fixture_patterns.py	138	end = min(len(lines), i + 3)
-3	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	151	fixture_value_score=8.0 if files_count &gt;= 3 else 4.0,
-4.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	151	fixture_value_score=8.0 if files_count &gt;= 3 else 4.0,
-5	benchmark_or_test_fixture_data	tests/scripts/detect_fixture_patterns.py	181	end = min(len(lines), i + 5)
-3	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	194	fixture_value_score=9.0 if files_count &gt;= 3 else 6.0,
-6.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	194	fixture_value_score=9.0 if files_count &gt;= 3 else 6.0,
-3	benchmark_or_test_fixture_data	tests/scripts/detect_fixture_patterns.py	222	end = min(len(lines), i + 3)
-3	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	235	fixture_value_score=8.0 if files_count &gt;= 3 else 5.0,
-5.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	235	fixture_value_score=8.0 if files_count &gt;= 3 else 5.0,
-5	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	295	fixture_value_score=7.0 if most_common[1] &gt;= 5 else 4.0,
-4.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	295	fixture_value_score=7.0 if most_common[1] &gt;= 5 else 4.0,
-20	slice_or_top_n_limit	tests/scripts/detect_fixture_patterns.py	296	occurrences_list=occurrences[:20],  # Limit to first 20
-20	slice_or_top_n_limit	tests/scripts/detect_fixture_patterns.py	296	occurrences_list=occurrences[:20],  # Limit to first 20
-7.0	score_formula_or_cap	tests/scripts/detect_fixture_patterns.py	363	status = &quot;RECOMMEND FIXTURE&quot; if pattern.fixture_value_score &gt;= 7.0 else &quot;Consider&quot;
-5	slice_or_top_n_limit	tests/scripts/detect_fixture_patterns.py	395	for occ in pattern.occurrences_list[:5]:
-20	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	83	&quot;instances&quot;: [{&quot;file&quot;: &quot;a.py&quot;, &quot;line&quot;: 10}, {&quot;file&quot;: &quot;b.py&quot;, &quot;line&quot;: 20}, {&quot;file&quot;: &quot;a.py&quot;, &quot;line&quot;: 50}],
-50	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	83	&quot;instances&quot;: [{&quot;file&quot;: &quot;a.py&quot;, &quot;line&quot;: 10}, {&quot;file&quot;: &quot;b.py&quot;, &quot;line&quot;: 20}, {&quot;file&quot;: &quot;a.py&quot;, &quot;line&quot;: 50}],
-50	lines_saved_metric	src/ast_grep_mcp/features/deduplication/benchmark.py	90	&quot;potential_line_savings&quot;: 50,
-5	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	115	&quot;affected_files&quot;: (i % 5) + 1,
-85.0	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	134	(85.0, 3, 100, True, 3),
-3	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	134	(85.0, 3, 100, True, 3),
-3	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	134	(85.0, 3, 100, True, 3),
-45.0	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	135	(45.0, 7, 20, False, 8),
-7	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	135	(45.0, 7, 20, False, 8),
-20	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	135	(45.0, 7, 20, False, 8),
-8	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	135	(45.0, 7, 20, False, 8),
-25.0	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	136	(25.0, 9, 5, False, 15),
-9	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	136	(25.0, 9, 5, False, 15),
-5	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	136	(25.0, 9, 5, False, 15),
-15	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	136	(25.0, 9, 5, False, 15),
-85.0	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	161	&quot;similarity&quot;: 85.0 + i,
-5	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	193	results.append(self.benchmark_pattern_analysis(iterations * 5))
-5	benchmark_or_test_fixture_data	src/ast_grep_mcp/features/deduplication/benchmark.py	196	results.append(self.benchmark_code_generation(iterations * 5))
-0.10	threshold_or_cutoff	src/ast_grep_mcp/features/deduplication/benchmark.py	368	threshold = self.thresholds.get(name, 0.10)
-100.0	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/reporting.py	308	&quot;similarity_score&quot;: candidate.get(&quot;similarity&quot;, 100.0),
-100.0	threshold_or_cutoff	tests/scripts/benchmark_fixtures.py	46	self.threshold_ms = 100.0  # 100ms threshold
-5	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	48	def benchmark_fixture(self, fixture_name: str, iterations: int = 5) -&gt; Optional[FixtureBenchmark]:
-3	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	95	per_test_overhead = avg_time / 3
-0.6	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	103	avg_setup_time=per_test_overhead * 0.6,  # Estimate 60% setup
-60	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	103	avg_setup_time=per_test_overhead * 0.6,  # Estimate 60% setup
-0.4	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	104	avg_teardown_time=per_test_overhead * 0.4,  # Estimate 40% teardown
-40	benchmark_or_test_fixture_data	tests/scripts/benchmark_fixtures.py	104	avg_teardown_time=per_test_overhead * 0.4,  # Estimate 40% teardown
-3	regex_capture_group_index	src/ast_grep_mcp/utils/formatters.py	426	context = match.group(3).strip()
-42	other	src/ast_grep_mcp/features/schema/client.py	161	&quot;Number&quot;: lambda: 42,
-42	other	src/ast_grep_mcp/features/schema/client.py	162	&quot;Integer&quot;: lambda: 42,
-5	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/analyzer.py	287	&quot;parameter_suggestions&quot;: param_suggestions[:5],  # Top 5 suggestions
-5	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/analyzer.py	287	&quot;parameter_suggestions&quot;: param_suggestions[:5],  # Top 5 suggestions
-3	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	449	return 3, &quot;Minor expression variation&quot;
-4	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	451	return 4, &quot;Different operations or function calls&quot;
-4	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	452	return 4, &quot;Significant expression restructuring&quot;
-4	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	457	return 4, &quot;Simple type substitution&quot;
-5	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	459	return 5, &quot;Generic type variation&quot;
-6	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	460	return 6, &quot;Complex type system changes&quot;
-7	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	465	return 7, &quot;Added or removed logic branches&quot;
-7	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	467	return 7, &quot;Significant control flow differences&quot;
-5	scoring_code_with_reason	src/ast_grep_mcp/features/deduplication/analyzer.py	468	return 5, &quot;Conditional logic variation&quot;
-4	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/analyzer.py	474	if score &lt;= 4:
-3	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/analyzer.py	502	score, reasoning = 3, &quot;Unknown variation type&quot;
-20	numeric_operation_window_or_ratio	src/ast_grep_mcp/features/deduplication/analyzer.py	1188	start = max(0, match.start() - 20)
-20	numeric_operation_window_or_ratio	src/ast_grep_mcp/features/deduplication/analyzer.py	1189	end = min(len(code), match.end() + 20)
-15	slice_or_top_n_limit	scripts/migrate_prints_smart.py	234	for change in changes[:15]:
-5	slice_or_top_n_limit	scripts/migrate_prints_smart.py	254	for path, info in sorted(results[&quot;files&quot;].items(), key=lambda x: x[1][&quot;migrations&quot;], reverse=True)[:5]:
-3	slice_or_top_n_limit	scripts/migrate_prints_smart.py	256	for change in info[&quot;changes&quot;][:3]:
-50	slice_or_top_n_limit	src/ast_grep_mcp/features/complexity/analyzer.py	346	return magic_numbers[:50]
-3	regex_capture_group_index	src/ast_grep_mcp/features/search/service.py	1124	return cst_match.group(1) or cst_match.group(2) or cst_match.group(3)
-5	slice_or_top_n_limit	src/ast_grep_mcp/features/search/service.py	1204	matches=matches[:5],  # Limit to first 5 matches for debugging
-5	slice_or_top_n_limit	src/ast_grep_mcp/features/search/service.py	1204	matches=matches[:5],  # Limit to first 5 matches for debugging
-50	slice_or_top_n_limit	src/ast_grep_mcp/features/search/service.py	1937	pattern=f&apos;dump_syntax_tree(code=&quot;{code[:50]}...&quot;, language=&quot;{language}&quot;, format=&quot;cst&quot;)&apos;,
-4	other	scripts/list_complexity_violations.py	40	func_name = stripped[4:].split(&quot;(&quot;)[0].strip()
-30	other	src/ast_grep_mcp/features/cross_language/pattern_database.py	292	&quot;code&quot;: &apos;let person: HashMap&lt;&amp;str, &amp;str&gt; = HashMap::from([\n    (&quot;name&quot;, &quot;Alice&quot;),\n    (&quot;age&quot;, &quot;30&quot;),\n]);&apos;,
-3	other	src/ast_grep_mcp/features/cross_language/language_converter.py	157	(r&apos;&quot;(.+)&quot;\s*\+\s*(\w+)\s*\+\s*&quot;(.+)&quot;&apos;, r&apos;&quot;$\1$\2$\3&quot;&apos;, &quot;string_concat&quot;),
-3	other	src/ast_grep_mcp/features/deduplication/similarity.py	1577	return 3
-4	other	src/ast_grep_mcp/features/deduplication/similarity.py	1579	return 4
-5	other	src/ast_grep_mcp/features/deduplication/similarity.py	1581	return 5
-6	other	src/ast_grep_mcp/features/deduplication/similarity.py	1583	return 6
-2.0	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/similarity.py	1969	semantic_score = (embedding_cosine + 1.0) / 2.0
-5	slice_or_top_n_limit	scripts/migrate_print_to_logger.py	404	for change in file_results[&quot;changes&quot;][:5]:  # Show first 5
-5	slice_or_top_n_limit	scripts/migrate_print_to_logger.py	404	for change in file_results[&quot;changes&quot;][:5]:  # Show first 5
-5	other	scripts/migrate_print_to_logger.py	406	if len(file_results[&quot;changes&quot;]) &gt; 5:
-0.85	other	src/ast_grep_mcp/features/condense/strategies.py	11	&quot;ai_chat&quot;: 0.85,       # Signatures + types + docstrings only (lossy)
-0.40	other	src/ast_grep_mcp/features/condense/strategies.py	12	&quot;ai_analysis&quot;: 0.40,   # Full source minus dead code (lossless)
-0.30	other	src/ast_grep_mcp/features/condense/strategies.py	13	&quot;archival&quot;: 0.30,       # Normalized, deduplicated (lossless)
-0.65	other	src/ast_grep_mcp/features/condense/strategies.py	14	&quot;polyglot&quot;: 0.65,       # Per-language optimal selection
-3	severity_ranking	src/ast_grep_mcp/features/documentation/sync_checker.py	551	all_issues.sort(key=lambda i: (severity_order.get(i.severity, 3), i.file_path, i.line_number))
-5	other	src/ast_grep_mcp/features/cross_language/multi_language_search.py	305	with ThreadPoolExecutor(max_workers=min(len(languages), 5)) as executor:
-5	slice_or_top_n_limit	src/ast_grep_mcp/features/schema/enhancement_service.py	168	return any(_is_schema_org_data(item) for item in data[:5])  # Check first 5
-5	slice_or_top_n_limit	src/ast_grep_mcp/features/schema/enhancement_service.py	168	return any(_is_schema_org_data(item) for item in data[:5])  # Check first 5
-3	other	src/ast_grep_mcp/features/schema/enhancement_service.py	297	EnhancementPriority.LOW: 3,
-3	other	src/ast_grep_mcp/features/schema/enhancement_service.py	446	EnhancementPriority.LOW: 3,
-100.0	score_formula_or_cap	src/ast_grep_mcp/features/schema/enhancement_service.py	518	return max(0.0, min(100.0, score))
-100.0	score_formula_or_cap	src/ast_grep_mcp/features/schema/enhancement_service.py	542	return max(0.0, min(100.0, overall_score))
-3	other	src/ast_grep_mcp/features/schema/enhancement_service.py	803	if len(parts) &gt;= 3:
-5	threshold_or_cutoff	src/ast_grep_mcp/features/deduplication/tools.py	38	min_lines: int = 5,
-5	threshold_or_cutoff	src/ast_grep_mcp/features/deduplication/tools.py	83	min_lines: int = 5,
-1.2	threshold_or_cutoff	tests/scripts/validate_refactoring.py	183	threshold = baseline_duration * 1.2
-50	lines_saved_metric	scripts/benchmark_batch_coverage.py	63	&quot;lines_saved&quot;: 50,
-60	benchmark_or_test_fixture_data	scripts/benchmark_batch_coverage.py	273	if improvement &gt;= 60:
-40	benchmark_or_test_fixture_data	scripts/benchmark_batch_coverage.py	275	elif improvement &gt;= 40:
-300	other	src/ast_grep_mcp/core/config.py	21	CACHE_TTL: int = CacheDefaults.CLEANUP_INTERVAL_SECONDS  # Actually 300 seconds, reused for TTL
-50	lines_saved_metric	scripts/benchmark_parallel_enrichment.py	19	&quot;lines_saved&quot;: 50,
-75.5	score_formula_or_cap	scripts/benchmark_parallel_enrichment.py	20	&quot;score&quot;: 75.5,
-8	score_formula_or_cap	scripts/benchmark_parallel_enrichment.py	21	&quot;complexity_score&quot;: 8,
-25	benchmark_or_test_fixture_data	scripts/benchmark_parallel_enrichment.py	35	candidate_counts = [10, 25, 50, 100]
-50	benchmark_or_test_fixture_data	scripts/benchmark_parallel_enrichment.py	35	candidate_counts = [10, 25, 50, 100]
-3	slice_or_top_n_limit	scripts/analyze_analyticsbot.py	54	for i, func in enumerate(functions[:3], 1):
-5	slice_or_top_n_limit	scripts/analyze_analyticsbot.py	118	for issue_type, count in sorted(by_type.items(), key=lambda x: x[1], reverse=True)[:5]:
-5	threshold_or_cutoff	src/ast_grep_mcp/features/deduplication/detector.py	89	min_lines: int = 5,
-200	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/detector.py	612	&quot;code_preview&quot;: match.get(&quot;text&quot;, &quot;&quot;)[:DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],  # First 200 chars
-3	score_formula_or_cap	src/ast_grep_mcp/features/deduplication/detector.py	619	&quot;similarity_score&quot;: round(self.calculate_similarity(group[0].get(&quot;text&quot;, &quot;&quot;), group[1].get(&quot;text&quot;, &quot;&quot;)), 3)
-5	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/generator.py	520	return list(set(dependencies))[:5]  # Limit to top 5
-5	slice_or_top_n_limit	src/ast_grep_mcp/features/deduplication/generator.py	520	return list(set(dependencies))[:5]  # Limit to top 5
-3	regex_capture_group_index	src/ast_grep_mcp/features/deduplication/generator.py	657	content = match.group(3)</file><file path="docs/README.md"># ast-grep + Schema.org MCP Server
+- **Development Guide**: [CLAUDE.md](../CLAUDE.md)</file><file path="docs/duplicate-detector-misses.md"># Duplicate Detector False Positives (2026-03-08)
+
+Investigation of 5 duplicate groups reported by `find_duplication` (sim &gt;= 0.82). All are false positives or low-value for refactoring.
+
+## Group 1 (sim=0.84): `models/refactoring.py:75-82` vs `:84-91`
+
+`to_python_signature()` and `to_typescript_signature()` — intentionally parallel language-specific formatters. Same params/ret/async_prefix structure, different output format (`def` vs `function`). Not duplicates.
+
+## Group 2 (sim=0.82): `utils/console_logger.py:131-140` vs `:142-151`
+
+`error()` and `warning()` — thin wrappers that delegate to shared `_log_to_stderr()` with different prefixes. Already deduplicated; the methods exist for semantic API.
+
+## Group 3 (sim=0.84): `core/usage_tracking.py:336-341` vs `:344-349`
+
+`_db_calls_by_tool()` and `_db_calls_by_operation()` — same 6-line query pattern differing only in `GROUP BY` column. Parameterizing would introduce a dynamic column name in SQL (mild injection smell for negligible savings).
+
+## Group 4 (sim=0.93): `refactoring/extractor.py:27-33` vs `renamer.py:29-35`
+
+Identical `__init__(self, language: str)` doing `self.language = language`. Trivial one-liner constructor on unrelated classes (`FunctionExtractor`, `SymbolRenamer`). A shared base class for this would be over-engineering.
+
+## Group 5 (sim=0.89): `quality/smells_detectors.py:83-91`, `:121-129`, `:195-203`
+
+Three `detect()` methods on `LongFunctionDetector`, `ParameterBloatDetector`, `DeepNestingDetector`. All follow the same pattern:
+
+```python
+rel_path = str(Path(file_path).relative_to(project_path))
+try:
+    funcs = extract_functions_from_file(file_path, language)
+    return [s for s in (self._check_func(f, rel_path, ...) for f in funcs) if s]
+except Exception as e:
+    self.logger.warning(&quot;detection_failed&quot;, file=file_path, error=str(e))
+    return []
+```
+
+Only candidate worth considering — could lift to a template method on `SmellDetector` base class. However, ~18 lines saved with added indirection, and a minor signature mismatch (`_check_func` with/without `language` arg). Low priority.
+
+## Patterns Causing False Positives
+
+1. **Trivial constructors** — `__init__` that only assigns `self.language` flagged across unrelated classes
+2. **Intentionally parallel APIs** — language-specific formatters (Python/TypeScript) with matching structure
+3. **Thin semantic wrappers** — `error()`/`warning()` delegating to a shared method
+4. **Small private helpers** — 6-line functions with similar SQL structure but different column names
+5. **Strategy pattern implementations** — subclasses implementing an abstract method with shared boilerplate
+
+## Recommended Detector Improvements
+
+- Exclude `__init__` methods under N lines (e.g., 10) from duplicate detection
+- Discount similarity for methods that delegate to a shared helper (already deduplicated)
+- Reduce weight for strategy/template pattern implementations sharing abstract method boilerplate
+- Add minimum line savings threshold (e.g., 20+ lines) before reporting
+- Consider excluding dataclass/model `to_*` methods with parallel structure</file><file path="docs/README.md"># ast-grep + Schema.org MCP Server
 
 MCP server combining [ast-grep](https://ast-grep.github.io/) structural code search with Schema.org structured data tools for AI assistants (Cursor, Claude Desktop, etc.).
 
@@ -4884,15 +5698,18 @@ src/ast_grep_mcp/          # 120 modules
 ├── core/                  # Config, cache, executor, logging, sentry, usage tracking
 ├── models/                # Data models (13 modules)
 ├── utils/                 # Formatters, validation, templates, text processing
-├── features/              # 11 feature modules (search, rewrite, refactoring, deduplication,
+├── features/              # 10 feature modules (search, rewrite, refactoring, deduplication,
 │                          #   complexity, quality, documentation, cross_language, schema, condense)
 └── server/                # MCP registry + runner
 ```
 
-- `tests/` - 1,469 collected tests (unit + integration + quality regression)
+- `tests/` - 1,622 collected tests (unit + integration + quality regression)
 
 ## Recent Updates
 
+- [changelog/2026-03-08-changelog-hardening-test-quality.md](changelog/2026-03-08-changelog-hardening-test-quality.md) - Changelog hardening and test quality improvements.
+- [changelog/2026-03-08-quality-fixes.md](changelog/2026-03-08-quality-fixes.md) - Quality fixes.
+- [changelog/2026-03-06-complexity-review-fixes.md](changelog/2026-03-06-complexity-review-fixes.md) - Complexity review and fixes.
 - [changelog/2026-03-04-maintenance-quality.md](changelog/2026-03-04-maintenance-quality.md) - Constants consolidation, analyzer false-positive reduction, exclusion hardening, and diff parser fix.
 
 ## Related
@@ -4902,41 +5719,406 @@ src/ast_grep_mcp/          # 120 modules
 - [MCP](https://modelcontextprotocol.io/) - Protocol specification
 - [FastMCP](https://github.com/pydantic/fastmcp) - Python framework
 
-[![Security Assessment](https://mseep.net/pr/ast-grep-ast-grep-mcp-badge.png)](https://mseep.ai/app/ast-grep-ast-grep-mcp)</file><file path="docs/CHANGELOG.md"># Changelog
+[![Security Assessment](https://mseep.net/pr/ast-grep-ast-grep-mcp-badge.png)](https://mseep.ai/app/ast-grep-ast-grep-mcp)</file><file path="docs/changelog/2026-03-06-complexity-review-fixes.md"># Complexity Refactoring + Code Review Fixes — 2026-03-06
+
+Batch completion of complexity reduction queue (C1-C10) and high-priority code review issues (BR1-BR8). All items committed 2026-03-06.
+
+## Complexity Refactoring (C1-C10)
+
+### C1: Split file-migration orchestration in `migrate_file`
+**Commit**: `70f78ef` | **Priority**: P1
+Split `migrate_file` (cyclomatic 26, cognitive 76, nesting 9) into focused helpers: `_load_file_lines`, `_create_backup_if_needed`, `_replace_print_statements`, `_ensure_import_present`, `_persist_changes_if_needed`. Main orchestrator now linear and branch-light.
+
+### C2: Replace brittle orphan-import repair flow in `fix_file`
+**Commit**: `63d5873` | **Priority**: P1
+Decomposed `fix_file` (cyclomatic 29, cognitive 56, nesting 6) from index/skip state mutation into explicit phases: detect candidate orphan ranges, validate, rebuild by range exclusion. No in-loop index mutation.
+
+### C3: Decompose end-to-end analytics script `analyze_project`
+**Commit**: `fb4bf17` | **Priority**: P1
+Extracted scan-specific steps from orchestrator (cyclomatic 19, cognitive 49, nesting 5): `_run_complexity_scan`, `_run_smell_scan`, `_run_security_scan`, plus `_format_*_summary` helpers. Output payload backward-compatible.
+
+### C4: Split reporting + summary extraction in `generate_summary_report`
+**Commit**: `2794f06` | **Priority**: P2
+Bundled function (cyclomatic 14, cognitive 43, nesting 7) split into: `_run_enforcement`, `_generate_markdown_report`, `_print_report_summary`. Simplified happy-path flow; summary extraction isolated.
+
+### C5: Break up enhanced dedup response builder
+**Commit**: `16a5ac1` | **Priority**: P2
+Decomposed `create_enhanced_duplication_response` (cyclomatic 23, cognitive 40, nesting 6) into `_build_enhanced_candidate`, `_generate_candidate_diff_preview`, `_update_distribution`, `_build_global_recommendations`, `_build_summary`. No regression in candidate ordering.
+
+### C6: Simplify hybrid config validation in `__post_init__`
+**Commit**: `5e6b3de` | **Priority**: P2
+Split validator (cyclomatic 19, cognitive 37, nesting 5) into `_apply_semantic_rebalance_if_needed`, `_validate_weight_bounds`, `_validate_weight_sum`. Validation semantics unchanged.
+
+### C7: Refactor Flask route parser loop in `parse_file`
+**Commit**: `6874996` | **Priority**: P2
+Extracted decorator matching, method parsing, and route creation into `_parse_decorator_match`, `_find_next_handler_name`, `_build_routes_for_methods`. No duplicate or missing routes in support of `@app.route`/`@blueprint.route`.
+
+### C8: Decompose external call-site discovery
+**Commit**: `426b938` | **Priority**: P2
+Split `_find_external_call_sites` (cyclomatic 14, cognitive 36, nesting 7) into `_search_call_sites_for_name`, `_normalize_match_file_path`, `_to_call_site_record`. Deterministic unit tests with mocked responses.
+
+### C9: Replace heuristic-heavy orphan detection monolith
+**Commit**: `e7a51e3` | **Priority**: P2
+Decomposed `find_orphaned_imports` (cyclomatic 23, cognitive 35, nesting 6) into composable predicates (`_is_orphan_close_paren`, `_is_orphan_import_item_start`) and single range scanner. Clearer predicate-focused tests.
+
+### C10: Modularize normalization pipeline in `_normalize_for_ast`
+**Commit**: `029b7b2` | **Priority**: P2
+Extracted per-line transforms (`_strip_inline_python_comment`, `_strip_inline_js_comment`, `_normalize_indentation`) from main loop. Composed in small pipeline. Normalized output unchanged; table-driven tests for edge cases.
+
+## Code Review Fixes (BR1-BR8)
+
+### BR1: Fix indentation normalization for 4-space code
+**Commit**: `590b4d1`, `029b7b2` | **Priority**: P1
+`NORMALIZATION_DIVISOR = 2` caused 4-space-indented code to normalize incorrectly. Switched to adaptive indent divisor (detects 4-space and 2-space consistently). Identical functions in different styles now compare as similar.
+
+### BR2: Fix contract mismatch in `filter_files_by_size`
+**Commit**: `18a15dd` | **Priority**: P1
+Function returned `([], [])` silently when `max_size_mb is None` despite docstring claiming &quot;None = unlimited&quot;. Fixed to walk and return all files when unlimited. Callers with guards unaffected.
+
+### BR3: Fix `meta_vars` type annotation mismatch
+**Commit**: `77e4b2d` | **Priority**: P1
+`RuleViolation.meta_vars` declared as `Optional[Dict[str, str]]` but stored `List[str]` for `$$$` multi-captures, causing `TypeError` in fixer. Widened type to `Dict[str, str | list[str]]` with guarded replacements.
+
+### BR4: Fix column 0-indexing inconsistency in RuleViolation
+**Commit**: `81cf372` | **Priority**: P1
+Columns left at 0-indexed value from ast-grep while lines applied `+1` offset. Added `+1` to column assignments to match 1-indexed docstring contract. `security_scanner` already correct; enforcer now aligned.
+
+### BR5: Fix file handle leak in `configure_logging`
+**Commit**: `682a5f5` | **Priority**: P1
+Each call opened new file descriptor with no close, leaking in long-running processes. Fixed by holding module-level reference outside function. Test suites no longer leak file descriptors.
+
+### BR6: Fix `CACHE_TTL` semantic mismatch with `CLEANUP_INTERVAL_SECONDS`
+**Commit**: `955772c` | **Priority**: P2
+`CACHE_TTL` initialized from `CLEANUP_INTERVAL_SECONDS` (300s background sweep) despite semantic difference. Introduced dedicated `DEFAULT_CACHE_TTL` (3600s); callers now get correct expiry.
+
+### BR7: Fix double `os.environ.get` call in config path resolution
+**Commit**: `abc9e0d` | **Priority**: P2
+`_resolve_and_validate_config_path` read `AST_GREP_CONFIG` env var twice on same condition with dead code between. Simplified to single read with walrus operator.
+
+### BR8: Add timeout to `kill()` + `wait()` in process cleanup
+**Commit**: `99dec84` | **Priority**: P1
+Bare `process.wait()` after `kill()` could block indefinitely on unkillable processes. Both `_terminate_process` and `_cleanup_process` fixed with 5s timeout.
+
+## Additional Fixes
+
+### CR1: Commit 565aaea Parser Fixes
+**Commit**: `6473709` | **Priority**: P1
+Fixed three critical parser issues in `sync_checker.py` identified in code review:
+- High: `_split_params` depth counter guard (goes negative on `&gt;` in `=&gt;` defaults)
+- High: `rstrip(&quot;?&quot;)` strips all trailing `?` chars (now uses `p.name[:-1] if p.name.endswith(&quot;?&quot;)`)
+- Medium: JSDoc nested brace regex only handles 2 levels (pre-existing limitation noted)
+
+### M1: Handle JS/TS brace counter edge cases
+**Commit**: `10f757c` | **Priority**: P2
+Improved brace counter for JavaScript/TypeScript to skip braces inside template strings and regex patterns. Surface extraction now ignores structural braces from escaped content.
+
+### SE1: Replace `assert isinstance()` with explicit type checks
+**Priority**: P2 | **Implementation session**: 2026-03-06
+Removed 4 `assert isinstance()` calls in production code (asserts stripped under `-O` flag):
+- `benchmark.py:82`: Removed redundant assert (value provably float)
+- `applicator.py:673,680,689`: Replaced with `if not isinstance: raise TypeError`
+
+## Duplication Consolidation (D1-D4)
+
+### D1: Consolidate `_is_python_import` / `_is_javascript_import` in renamer
+**Priority**: P2 | **Implementation session**: 2026-03-06
+Merged two identical import-checking methods (`_is_python_import` and `_is_javascript_import`) into a single `_is_import(context)` method in `renamer.py`. Updated both call sites (lines 204, 258) to use the unified method. ~10 lines saved; 37 related tests pass.
+
+### D2: Parameterize severity-suggestion helpers in search service
+**Priority**: P2 | **Implementation session**: 2026-03-06
+Replaced three identical severity-filtering helpers (`_add_error_suggestions`, `_add_warning_suggestions`, `_add_info_suggestions`) in `search/service.py` with a single parameterized `_add_suggestions_by_severity(severity, prefix, issues, suggestions)` function. Updated all call sites in `_generate_suggestions`. ~10 lines saved; 35 debug/pattern tests pass.
+
+### D3: Console logger error/warning methods
+**Priority**: P3 | **Implementation session**: 2026-03-06
+Extracted shared `_log_to_stderr(prefix, message)` helper in `console_logger.py` to consolidate identical prefix/message logging logic. `error()` and `warning()` now delegate to the shared helper. ~8 lines saved; 5 related tests pass.
+
+### D4: Smell detector `__init__` duplication
+**Priority**: P3 | **Implementation session**: 2026-03-06
+Added `__init__(self, threshold, logger_name)` to the `SmellDetector` ABC base class and refactored 5 detector subclasses (`LongFunctionDetector`, `ParameterBloatDetector`, `DeepNestingDetector`, `LargeClassDetector`, `MagicNumberDetector`) to call `super().__init__()` instead of duplicating threshold/logger initialization. ~20 lines saved; all 1,615 tests pass.
+
+## Post-Refactoring Lint &amp; Type Fixes
+
+- Resolved 59 ruff errors introduced by complexity refactoring (96632cf)
+- Resolved 38 mypy errors introduced by complexity refactoring (5a3f682)
+- Wrapped `yaml.dump` return with `str()` to resolve `no-any-return` (f1b587d)
+- Extracted 90 magic numbers into shared constants across 37 files (afdf71a)
+
+## Summary
+
+- **Items migrated**: 24 (C1-C10, BR1-BR8, CR1, M1, SE1, D1-D4)
+- **Files affected**: 24 modules across core, features, utils, scripts
+- **Total cyclomatic reduction**: ~280 complexity points across refactored functions
+- **Duplication consolidated**: ~48 lines across search, refactoring, quality, utils modules
+- **Quality gates**: All items pass ruff, mypy, pytest</file><file path="docs/BACKFILLING.md"># Telemetry Backfilling
+
+Reconstruct missing OTEL plugin spans from agent-cache invocation logs so that new skills inherit usage history from the agents they wrap.
+
+## Problem
+
+When a new skill wraps an existing agent (e.g., `/review` wraps `code-reviewer`), the skill auditor scores its telemetry dimensions at 0 because no `plugin.name` spans exist yet. The agent has hundreds of invocations with full telemetry, but the skill has none.
+
+## Solution
+
+`scripts/backfill-skill-spans.py` reads agent-cache logs, resolves trace context, and appends `hook:plugin-pre-tool` / `hook:plugin-post-tool` spans to the OTEL trace JSONL files. Each backfilled span links to the original agent invocation via `agent.linked_type`.
+
+## Usage
+
+```bash
+# Dry run (default) -- prints spans to stdout, writes nothing
+python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer --category review
+
+# Write spans to trace files
+python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer --category review --write
+
+# Filter to specific sessions
+python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer --category review --sessions 7477d8dc,a3e2e2a5
+```
+
+## Data Sources
+
+| Source | Location | Content |
+|--------|----------|---------|
+| Agent cache | `~/.claude/agent-cache/&lt;session&gt;/agent-invocations.log` | STARTED/COMPLETED records with timestamps and output size |
+| Trace context | `~/.claude/telemetry/trace-ctx/&lt;session&gt;.json` | `traceId`, `spanId`, `timestamp` linking sessions to OTEL traces |
+| Trace spans | `~/.claude/telemetry/traces-YYYY-MM-DD.jsonl` | OTEL spans (append target) |
+
+## Agent Cache Format
+
+```
+# STARTED (6 tab-separated fields)
+2026-03-08T09:07:55.069Z	code-reviewer	review	active	STARTED	NEW,FG
+
+# COMPLETED (4 tab-separated fields)
+2026-03-08T09:08:50.123Z	code-reviewer	COMPLETED	5843bytes
+```
+
+## Backfilled Span Format
+
+Two spans per invocation:
+
+**Pre-tool** (near-instant at invocation start):
+```json
+{
+  &quot;traceId&quot;: &quot;&lt;from trace-ctx&gt;&quot;,
+  &quot;spanId&quot;: &quot;&lt;random hex16&gt;&quot;,
+  &quot;name&quot;: &quot;hook:plugin-pre-tool&quot;,
+  &quot;kind&quot;: 0,
+  &quot;startTime&quot;: [epoch_s, ns],
+  &quot;endTime&quot;: [epoch_s, ns + 8ms],
+  &quot;duration&quot;: [0, 8000000],
+  &quot;status&quot;: {&quot;code&quot;: 1},
+  &quot;attributes&quot;: {
+    &quot;hook.name&quot;: &quot;plugin-pre-tool&quot;,
+    &quot;hook.type&quot;: &quot;plugin&quot;,
+    &quot;session.id&quot;: &quot;&lt;session-uuid&gt;&quot;,
+    &quot;hook.trigger&quot;: &quot;PreToolUse&quot;,
+    &quot;plugin.name&quot;: &quot;&lt;skill-name&gt;&quot;,
+    &quot;plugin.full_name&quot;: &quot;&lt;skill-name&gt;&quot;,
+    &quot;plugin.category&quot;: &quot;&lt;skill-category&gt;&quot;,
+    &quot;plugin.source_type&quot;: &quot;active&quot;,
+    &quot;plugin.has_args&quot;: true,
+    &quot;agent.linked_type&quot;: &quot;&lt;agent-name&gt;&quot;,
+    &quot;backfill.source&quot;: &quot;backfill:agent-span-recovery&quot;,
+    &quot;backfill.timestamp&quot;: &quot;&lt;ISO-8601&gt;&quot;
+  },
+  &quot;events&quot;: [],
+  &quot;links&quot;: [],
+  &quot;resource&quot;: {&quot;serviceName&quot;: &quot;claude-code-hooks&quot;, &quot;serviceVersion&quot;: &quot;1.0.0&quot;}
+}
+```
+
+**Post-tool** (full invocation duration):
+```json
+{
+  &quot;name&quot;: &quot;hook:plugin-post-tool&quot;,
+  &quot;duration&quot;: [seconds, nanoseconds],
+  &quot;attributes&quot;: {
+    &quot;hook.trigger&quot;: &quot;PostToolUse&quot;,
+    &quot;agent.output_bytes&quot;: 5843,
+    &quot;agent.completion_status&quot;: &quot;COMPLETED&quot;
+  }
+}
+```
+
+## Idempotency
+
+Spans are tagged with `backfill.source: &quot;backfill:agent-span-recovery&quot;` and `plugin.name`. Before appending, the script checks each target trace file for existing backfilled spans matching the same skill and session. Duplicate sessions are skipped.
+
+Re-running `--write` after a successful backfill produces zero new spans.
+
+## Recovery Tiers
+
+| Tier | Sources Available | Fidelity |
+|------|-------------------|----------|
+| ~90% | agent-cache + transcript + trace-ctx | Full: timestamps, duration, output size, trace linkage |
+| ~50% | agent-cache + trace-ctx (no transcript) | Partial: timing and linkage, no output content |
+| ~20% | agent-cache only (no trace-ctx) | Skipped: no traceId to link spans into |
+
+Sessions without trace-ctx files (pre-OTEL hooks era) are skipped with a warning.
+
+## Example: /review Skill Backfill (2026-03-08)
+
+```
+Source:     code-reviewer agent
+Target:     /review skill
+Invocations found:  579 across 259 sessions
+With trace-ctx:     261 invocations (45%)
+Spans written:      522 (261 x 2 pre/post)
+Trace files:        16 (2026-02-17 through 2026-03-08)
+Skipped (no ctx):   318 invocations
+```
+
+## Limitations
+
+- Sessions before OTEL hooks were enabled have no trace-ctx and cannot be backfilled
+- Output content (the actual review text) is not stored in spans; only byte count is preserved
+- Backfilled spans have `kind: 0` (INTERNAL) and `status.code: 1` (OK) regardless of original outcome
+- The `COMPLETED_WITH_ERROR_MENTIONS` status is preserved in `agent.completion_status` but `status.code` is always OK</file><file path="docs/KNOWN_ISSUES.md"># Known Issues
+
+## changelog_generator.py
+
+### `from_version` / `to_version` resolution asymmetry
+
+**Severity:** Medium
+**File:** `src/ast_grep_mcp/features/documentation/changelog_generator.py`
+**Function:** `_get_commit_range`
+
+`_resolve_version_ref` (v-prefix tag, bare ref, HEAD fallback) is only used for `to_version`. The `from_version` path only tries the v-prefix tag and falls back to the raw string — no bare-ref validation, no HEAD fallback. An invalid `from_version` is silently passed to `git log`, which fails downstream.
+
+**Fix:** Replace the `from_version` branch in `_get_commit_range` with `from_ref = _resolve_version_ref(project_folder, from_version)`. Accepts a behavior delta: invalid `from_version` falls back to HEAD instead of passing the raw string.
+
+### ~~Missing unit tests for extracted helpers~~ (Resolved)
+
+Unit tests for `_resolve_version_ref`, `_get_first_commit`, `_find_previous_tag`, and `_get_commit_range` were added in `tests/unit/test_documentation.py::TestChangelogHelpers`.
+
+### ~~No `cwd` validation in `_run_git_command`~~ (Resolved)
+
+`_run_git_command` now validates `project_folder` with `os.path.isdir()` before passing as `cwd` to `subprocess.run`. Returns `(False, &quot;Directory not found: ...&quot;)` for non-existent paths.
+
+### ~~Empty string sentinel for missing refs~~ (Resolved)
+
+`_get_first_commit` now returns `str | None` instead of `&quot;&quot;`. `_find_previous_tag` also returns `str | None`. `_get_commit_range` uses `or &quot;&quot;` to coalesce `None` for downstream compatibility with `_get_commits`.</file><file path="docs/CHANGELOG.md"># Changelog
 
 All notable changes to ast-grep-mcp are documented in version-dated files in the `changelog/` directory.
 
+**Current Total:** 53 MCP tools | 120 modules | 1,622 tests
+
 ## Versions
 
+- [2026-03-08: Shared Utils &amp; Tool Consolidation](changelog/2026-03-08-shared-utils-consolidation.md) — shared utility extractions, tool_context, normalize_excludes, inline Field() pattern
+- [2026-03-08: Complexity Analysis](changelog/2026-03-08-complexity-analysis.md) — 98 functions exceeding thresholds across 22 modules
+- [2026-03-08: Changelog Hardening &amp; Test Quality](changelog/2026-03-08-changelog-hardening-test-quality.md) — 4 hardening + 5 test quality items, 1 open issue
 - [2026-03-08: Code Quality Fixes](changelog/2026-03-08-quality-fixes.md) — 2 items (magic number, assert)
 - [2026-03-08: Code Review Findings Resolution](changelog/2026-03-08-code-review-findings.md) — 4 items (M1, M2, M3, L1)
-- [2026-03-06: Complexity Refactoring + Code Review Fixes + Duplication](changelog/2026-03-06-complexity-review-fixes.md) — 24 items (C1-C10, BR1-BR8, CR1, M1, SE1, D1-D4)
+- [2026-03-07: Type Fixes &amp; Formatting](changelog/2026-03-07-type-fixes-formatting.md) — mypy cross-env suppression, ruff format 42 files
+- [2026-03-06: Complexity Refactoring + Code Review Fixes + Duplication](changelog/2026-03-06-complexity-review-fixes.md) — 24 items + post-refactoring lint/type fixes
+- [2026-03-06: Critical Bug Fixes](changelog/2026-03-06-critical-bug-fixes.md) — exception consolidation, stderr deadlock, process cleanup
 - [2026-03-04: Maintenance + Quality Updates](changelog/2026-03-04-maintenance-quality.md)
-- [2026-02-25: Condense Cleanup](changelog/2026-02-25-condense-cleanup.md)</file><file path="docs/BACKLOG.md"># Backlog
+- [2026-02-28: Analyzer CLI, Syntax Validation, Quality Fixes](changelog/2026-02-28-analyzer-cli-quality.md) — includes 2026-03-01 off-by-one fix
+- [2026-02-26: JSDoc Parsing &amp; Project Context](changelog/2026-02-26-jsdoc-fixes.md) — JSDoc generics/optional param fixes
+- [2026-02-25: Code Condensation Feature](changelog/2026-02-25-code-condensation.md) — 6 new tools, 81+ tests
+- [2026-02-25: Condense Cleanup](changelog/2026-02-25-condense-cleanup.md)
+- [2026-02-12: Formatting &amp; Dedup Refactoring](changelog/2026-02-12-formatting-refactoring.md) — ruff format 72 files, nesting fix, pillow dep
+- [2026-02-10: Test Stability &amp; Documentation](changelog/2026-02-10-test-stability-docs.md) — +1 tool (develop_pattern)
+- [2026-01-10: Documentation &amp; Rule Builder Tools](changelog/2026-01-10-docs-rule-builder.md) — +3 tools, warning system
+- [2026-01-09: Pattern Debugging Tool](changelog/2026-01-09-pattern-debugging.md) — +1 tool (debug_pattern)
+- [2025-12-02 thru 2025-12-04: Dedup Phase 5 &amp; Modular Migration](changelog/2025-12-02-thru-2025-12-04-dedup-phase5-modular.md) — MinHash/LSH, CodeBERT, hybrid similarity, modular imports
+- [2025-11-23 thru 2025-11-30: Foundation Features](changelog/2025-11-23-thru-2025-11-29.md) — modular architecture, dedup, quality, security, schema, docs generation, Sentry, DRY tool
+
+## Tool Addition Timeline
+
+| Date | Feature | Tools Added |
+|------|---------|-------------|
+| 2026-02-25 | Code Condensation | +6 (condense_extract_surface, condense_normalize, condense_strip, condense_pack, condense_estimate, condense_train_dictionary) |
+| 2026-02-10 | Test Stability &amp; Docs | +1 (develop_pattern) |
+| 2026-01-10 | Documentation &amp; Rule Builder | +3 (get_ast_grep_docs, build_rule, get_pattern_examples) |
+| 2026-01-09 | Pattern Debugging | +1 (debug_pattern) |
+| 2025-11-29 | Entity Graph Enhancement | +1 (enhance_entity_graph) |
+| 2025-12-03 | Orphan Detection | +1 (detect_orphans) |
+| 2025-12-02 | Dedup Phase 5 | +0 (internal: MinHash/LSH, CodeBERT, hybrid similarity) |
+| 2025-11-29 | Documentation Generation | +5 (docstrings, readme, api_docs, changelog, sync) |
+| 2025-11-29 | Entity Graph Enhancement | +1 (enhance_entity_graph) |
+| 2025-11-27 | Security Scanner | +3 (detect_security_issues, apply_standards_fixes, generate_quality_report) |
+| 2025-11-26 | Refactoring Assistants | +2 (extract_function, rename_symbol) |
+| 2025-11-24 | Modular Architecture | Multiple tools |
+| 2025-11-23 | Enhanced Deduplication | Multiple tools |
+| 2025-11-10 | DRY Analysis | +1 (DRY tool) |</file><file path="docs/BACKLOG.md"># Backlog
 
 
 ## Complexity Refactoring Queue (2026-03-08 refresh)
 
-100 functions exceeding thresholds across 120 files (1,770 total). Thresholds: cyc &gt;10, cog &gt;15, nest &gt;4, len &gt;50.
+Thresholds: cyc &gt;10, cog &gt;15, nest &gt;4, len &gt;50.
 
-Previous baselines: **434** (2026-03-04) -&gt; **407** (2026-03-06) -&gt; **100** (2026-03-08). ~75% reduction from prior refactoring commits.
+Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08) → **80** (2026-03-08 shared-util).
+
+### Recently Resolved
+
+**Shared utility extractions (2026-03-08):**
+
+- **`FilePatterns.normalize_excludes()`** — new classmethod on `constants.py:FilePatterns`. Consolidates all `_normalize_exclude_patterns` functions across quality, complexity, deduplication, and documentation tools. Dedup migrated from substring-match to glob format (`&quot;**/site-packages/**&quot;` etc.) with module-local `_DEDUP_EXCLUDE_DEFAULTS`.
+- **`utils/tool_context.py`** — extracted `tool_context` context manager (timing + error logging + Sentry capture) from `quality/tools.py`. Adopted by `complexity/tools.py` (replaced `_log_tool_error` + 3 manual try/except blocks) and all 6 `condense/tools.py` tool functions. Added `status=&quot;failed&quot;` to error log. Unit tests: `tests/unit/test_tool_context.py` (8 tests). `cross_language/tools.py` kept its `_run_tool` callable wrapper (different API shape, no violations).
+- **`complexity/tools.py`** — removed `_log_tool_error` (16 lines), `_get_default_complexity_exclude_patterns` (3 lines), `DisplayDefaults` import.
+- **`quality/tools.py`** — removed local `_tool_context` (28 lines), `_normalize_exclude_patterns` (5 lines), `contextlib`/`Generator`/`DisplayDefaults` imports. `_create_mcp_field_definitions` and field-dict indirection removed; `Field()` inlined into `@mcp.tool()` wrappers.
+
+Commits `52b1f3f`..`70a4762` addressed 6 hotspot areas:
+
+- **`deduplication/applicator_executor.py`** (was cog=33) — extracted loop bodies into `_create_single_file`, `_update_single_file`, `_apply_import_addition`; removed duplicated import logic. Worst remaining: cog=16.
+- **`documentation/changelog_generator.py`** (was cog=30) — extracted `_get_commits`, `_group_commits_by_version`, `_format_changelog_entry` helpers; added unit tests. Hardened with `str | None` types (`1b5f331`). Worst remaining: `_format_conventional_section` cog=18.
+- **`quality/tools.py`** — extracted `_tool_context` context manager, split `register_quality_tools` into per-domain helpers (`d09f996`). Worst remaining: `create_linting_rule_tool` cog=18.
+- **`complexity/analyzer.py`** — `extract_functions_from_file` cog=23→15 (`0f48536`); added `_count_docstring_lines` helper (`d09f996`). Worst remaining: `_find_magic_numbers` cog=25.
+- **`refactoring/analyzer.py`** (was cog=29) — moved keyword sets to class-level frozensets; extracted `_register_variable` and `_scan_and_register_identifiers`; collapsed duplicate Java branch (`60caecf`). Worst remaining: `_find_python_base_variables` cog=25.
+- **`deduplication/detector.py`** — extracted `_match_line`, `_format_instance` helpers; moved strategy tables to class-level constants (`8415bec`).
+
+### Remaining Top Offenders (live scan)
+
+| File | Function | Cyc | Cog | Nest | Len |
+|------|----------|-----|-----|------|-----|
+| `deduplication/applicator_backup.py` | `cleanup_old_backups` | 9 | 33 | 6 | 45 |
+| `deduplication/applicator_backup.py` | `list_backups` | 7 | 23 | 5 | 30 |
+| `deduplication/applicator_backup.py` | `create_backup` | 11 | 20 | 5 | 78 |
+| `deduplication/applicator_backup.py` | `rollback` | 7 | 18 | 4 | 44 |
+| `refactoring/extractor.py` | `_generate_docstring` | 13 | 31 | 5 | 53 |
+| `refactoring/extractor.py` | `_generate_function_body` | 15 | 25 | 4 | 46 |
+| `refactoring/extractor.py` | `_scan_imports` | 10 | 18 | 5 | 29 |
+| `refactoring/extractor.py` | `_generate_signature` | 18 | 13 | 4 | 56 |
+| `refactoring/extractor.py` | `_apply_extraction` | 7 | 11 | 4 | 58 |
+| `core/executor.py` | `stream_ast_grep_results` | 16 | 29 | 6 | 101 |
+| `core/executor.py` | `filter_files_by_size` | 19 | 18 | 4 | 52 |
+| `core/executor.py` | `get_supported_languages` | 8 | 16 | 5 | 44 |
+| `condense/service.py` | `condense_pack_impl` | 15 | 29 | 5 | 115 |
+| `condense/service.py` | `_count_structural_braces` | 17 | 28 | 5 | 33 |
+| `condense/service.py` | `_extract_python_surface` | 11 | 17 | 4 | 28 |
+| `deduplication/diff.py` | `diff_preview_to_dict` | 14 | 29 | 5 | 53 |
+| `deduplication/diff.py` | `build_nested_diff_tree` | 20 | 25 | 6 | 96 |
+| `refactoring/analyzer.py` | `_find_python_base_variables` | 10 | 25 | 4 | 44 |
+| `complexity/analyzer.py` | `_find_magic_numbers` | 13 | 25 | 5 | 61 |
+| `complexity/analyzer.py` | `_find_docstring_extent` | 11 | 21 | 4 | 28 |
+| `complexity/analyzer.py` | `_count_function_parameters` | 18 | 18 | 3 | 49 |
 
 Refresh: `uv run python scripts/run_all_analysis.py`
 
-### Top 10 Functions by Cognitive Complexity
+## Mypy Unused type:ignore Comments (2026-03-08)
 
-| File | Cyc | Cog | Nest | Len |
-|------|-----|-----|------|-----|
-| `deduplication/applicator_executor.py` | 12 | 33 | 6 | 59 |
-| `deduplication/applicator_backup.py` | 9 | 33 | 6 | 45 |
-| `refactoring/extractor.py` | 13 | 31 | 5 | 53 |
-| `documentation/changelog_generator.py` | 20 | 30 | 5 | 58 |
-| `core/executor.py` | 16 | 29 | 6 | 101 |
-| `condense/service.py` | 15 | 29 | 5 | 115 |
-| `deduplication/diff.py` | 14 | 29 | 5 | 53 |
-| `refactoring/analyzer.py` | 11 | 29 | 5 | 49 |
-| `condense/service.py` | 17 | 28 | 5 | 33 |
-| `quality/fixer.py` | 14 | 27 | 4 | 36 |
+7 unused `type: ignore[misc]` comments flagged by mypy:
+- `complexity/tools.py` lines 632, 666, 677
+- `deduplication/tools.py` lines 220, 237, 258, 279
 
-Function names unavailable in summary output (analyzer reports `unknown`). Use per-file complexity analysis for function-level detail:
-`uv run python -c &quot;from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool; print(analyze_complexity_tool(&apos;/path/to/file&apos;, &apos;python&apos;))&quot;`</file></files></repomix>
+## Duplicate Detection Precision (2026-03-08)
+
+All 5 groups from latest `find_duplication` run (sim &gt;= 0.82) are false positives or low-value. Common causes: trivial constructors, intentionally parallel APIs, thin semantic wrappers, and strategy pattern boilerplate.
+
+See [docs/duplicate-detector-misses.md](duplicate-detector-misses.md) for full investigation and recommended detector improvements:
+- Exclude short `__init__` methods
+- Discount methods delegating to shared helpers
+- Reduce weight for strategy pattern implementations
+- Add minimum line savings threshold
+- Consider excluding parallel `to_*` formatters
+
+## e74b8de Review Follow-ups (2026-03-08)
+
+- **Sentry gap in `analyze_entity_graph`** — `enhancement_service.py:754` lost its inner `capture_exception` during consolidation. Currently only called from `enhance_entity_graph_tool` (which wraps with `async_tool_context`), so coverage holds. Add a comment documenting the single-caller assumption, or restore a lightweight `capture_exception` if new callers are added.
+- **`_handle_tool_error` logger duplication** — `tool_context.py:16` calls `get_logger(f&quot;tool.{tool_name}&quot;)` on every error. Caller already has a logger bound to the same name. Low severity if `get_logger` caches; document or accept logger as parameter.
+
+## changelog_generator.py Hardening (2026-03-08)
+
+- **`from_version` resolution asymmetry** — `_get_commit_range` only tries v-prefix for `from_version`, falling back to raw string passthrough. `to_version` uses full `_resolve_version_ref`. Fix: use `_resolve_version_ref` for both. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md).</file></files></repomix>

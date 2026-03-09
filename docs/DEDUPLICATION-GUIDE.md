@@ -3,7 +3,7 @@
 This guide covers the enhanced code deduplication system in ast-grep-mcp, which provides intelligent detection, analysis, and automated refactoring of duplicate code.
 
 **Last Updated:** 2025-11-29
-**Architecture:** Modular (v2.0) - See [MODULE-GUIDE.md](MODULE-GUIDE.md) for implementation details
+**Architecture:** Modular (v2.0)
 **Code Quality:** ✅ ZERO complexity violations (all deduplication modules refactored)
 
 > **Note:** This guide uses MCP tool names. For direct module imports in custom scripts, see the [Module Architecture](#module-architecture) section.
