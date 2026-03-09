@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ast_grep_mcp.constants import FormattingDefaults
+from ast_grep_mcp.constants import BackupDefaults, FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.utils.backup import (
     copy_file_to_backup,
@@ -19,8 +19,8 @@ from ast_grep_mcp.utils.backup import (
 def create_backup(files_to_backup: List[str], project_folder: str) -> str:
     logger = get_logger("rewrite.backup")
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[: -FormattingDefaults.TIMESTAMP_MS_TRIM]
-    backup_base_dir = Path(project_folder) / ".ast-grep-backups"
-    backup_id, backup_dir = resolve_backup_dir("backup", timestamp, backup_base_dir)
+    backup_base_dir = Path(project_folder) / BackupDefaults.DIR_NAME
+    backup_id, backup_dir = resolve_backup_dir(BackupDefaults.REWRITE_PREFIX, timestamp, backup_base_dir)
     backup_dir.mkdir(parents=True, exist_ok=True)
 
     metadata: Dict[str, Any] = {
@@ -36,7 +36,7 @@ def create_backup(files_to_backup: List[str], project_folder: str) -> str:
         else:
             metadata["files"].append(entry)
 
-    with open(backup_dir / "backup-metadata.json", "w") as f:
+    with open(backup_dir / BackupDefaults.METADATA_FILE, "w") as f:
         json.dump(metadata, f, indent=2)
 
     logger.info("backup_created", backup_id=backup_id, files_backed_up=len(metadata["files"]), backup_dir=str(backup_dir))
@@ -48,8 +48,8 @@ def create_deduplication_backup(
 ) -> str:
     logger = get_logger("rewrite.backup")
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[: -FormattingDefaults.TIMESTAMP_MS_TRIM]
-    backup_base_dir = Path(project_folder) / ".ast-grep-backups"
-    backup_id, backup_dir = resolve_backup_dir("dedup-backup", timestamp, backup_base_dir)
+    backup_base_dir = Path(project_folder) / BackupDefaults.DIR_NAME
+    backup_id, backup_dir = resolve_backup_dir(BackupDefaults.DEDUP_PREFIX, timestamp, backup_base_dir)
     backup_dir.mkdir(parents=True, exist_ok=True)
 
     metadata: Dict[str, Any] = {
@@ -72,7 +72,7 @@ def create_deduplication_backup(
         else:
             metadata["files"].append(entry)
 
-    with open(backup_dir / "backup-metadata.json", "w") as f:
+    with open(backup_dir / BackupDefaults.METADATA_FILE, "w") as f:
         json.dump(metadata, f, indent=2)
 
     logger.info(
@@ -120,8 +120,8 @@ def _load_integrity_metadata(backup_dir: str, metadata_path: str, result: Dict[s
 
 def verify_backup_integrity(backup_id: str, project_folder: str) -> Dict[str, Any]:
     logger = get_logger("rewrite.backup")
-    backup_dir = os.path.join(project_folder, ".ast-grep-backups", backup_id)
-    metadata_path = os.path.join(backup_dir, "backup-metadata.json")
+    backup_dir = os.path.join(project_folder, BackupDefaults.DIR_NAME, backup_id)
+    metadata_path = os.path.join(backup_dir, BackupDefaults.METADATA_FILE)
     result: Dict[str, Any] = {"valid": False, "errors": [], "warnings": [], "metadata": None}
 
     if not _load_integrity_metadata(backup_dir, metadata_path, result):
@@ -234,7 +234,7 @@ def _load_backup_info(backup_dir: str, backup_name: str, logger: Any) -> Optiona
     Returns:
         Backup info dict or None if invalid
     """
-    metadata_path = os.path.join(backup_dir, "backup-metadata.json")
+    metadata_path = os.path.join(backup_dir, BackupDefaults.METADATA_FILE)
 
     # Skip if no metadata
     if not os.path.exists(metadata_path):
@@ -262,7 +262,7 @@ def list_available_backups(project_folder: str) -> List[Dict[str, Any]]:
         List of backup information dictionaries
     """
     logger = get_logger("rewrite.backup")
-    backup_base_dir = os.path.join(project_folder, ".ast-grep-backups")
+    backup_base_dir = os.path.join(project_folder, BackupDefaults.DIR_NAME)
 
     if not os.path.exists(backup_base_dir):
         return []

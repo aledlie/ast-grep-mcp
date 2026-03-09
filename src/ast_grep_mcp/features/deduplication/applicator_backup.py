@@ -31,7 +31,7 @@ class DeduplicationBackupManager:
             project_folder: Project root folder
         """
         self.project_folder = project_folder
-        self.backup_base_dir = Path(project_folder) / ".ast-grep-backups"
+        self.backup_base_dir = Path(project_folder) / BackupDefaults.DIR_NAME
         self.logger = get_logger("deduplication.backup")
 
     def create_backup(self, files: List[str], metadata: Dict[str, Any]) -> str:
@@ -68,7 +68,7 @@ class DeduplicationBackupManager:
             else:
                 backup_metadata["files"].append(entry)
 
-        metadata_path = backup_dir / "backup-metadata.json"
+        metadata_path = backup_dir / BackupDefaults.METADATA_FILE
         with open(metadata_path, "w") as f:
             json.dump(backup_metadata, f, indent=2)
 
@@ -87,7 +87,7 @@ class DeduplicationBackupManager:
         self.logger.info("rollback_start", backup_id=backup_id)
 
         backup_dir = self.backup_base_dir / backup_id
-        metadata_path = backup_dir / "backup-metadata.json"
+        metadata_path = backup_dir / BackupDefaults.METADATA_FILE
 
         if not metadata_path.exists():
             raise ValueError(f"Backup '{backup_id}' not found or invalid")
@@ -168,7 +168,7 @@ class DeduplicationBackupManager:
     def _generate_backup_id(self) -> tuple[str, Path]:
         """Generate a unique backup ID with timestamp, handling collisions."""
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[: -FormattingDefaults.TIMESTAMP_MS_TRIM]
-        return resolve_backup_dir("dedup-backup", timestamp, self.backup_base_dir)
+        return resolve_backup_dir(BackupDefaults.DEDUP_PREFIX, timestamp, self.backup_base_dir)
 
     def _compute_file_hashes(self, files: List[str]) -> Dict[str, str]:
         """Compute SHA-256 hashes for all existing files."""
@@ -204,7 +204,7 @@ class DeduplicationBackupManager:
         Returns:
             Parsed metadata dict, or None if missing/unreadable.
         """
-        metadata_path = backup_dir / "backup-metadata.json"
+        metadata_path = backup_dir / BackupDefaults.METADATA_FILE
         if not metadata_path.exists():
             return None
         try:
