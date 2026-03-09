@@ -153,6 +153,22 @@ class DeduplicationBackupManager:
 
         return restored_files
 
+    def _load_backup_metadata(self, backup_dir: Path) -> Dict[str, Any] | None:
+        """Load and parse backup-metadata.json from a backup directory.
+
+        Returns:
+            Parsed metadata dict, or None if missing/unreadable.
+        """
+        metadata_path = backup_dir / "backup-metadata.json"
+        if not metadata_path.exists():
+            return None
+        try:
+            with open(metadata_path, "r") as f:
+                return json.load(f)  # type: ignore[no-any-return]
+        except Exception as e:
+            self.logger.warning("metadata_read_failed", backup_dir=str(backup_dir), error=str(e))
+            return None
+
     def cleanup_old_backups(self, days: int = BackupDefaults.RETENTION_DAYS) -> int:
         """Remove backups older than specified days.
 
@@ -174,18 +190,15 @@ class DeduplicationBackupManager:
             if not backup_dir.is_dir():
                 continue
 
-            metadata_path = backup_dir / "backup-metadata.json"
-            if not metadata_path.exists():
+            metadata = self._load_backup_metadata(backup_dir)
+            if metadata is None:
+                continue
+
+            timestamp_str = metadata.get("timestamp", "")
+            if not timestamp_str:
                 continue
 
             try:
-                with open(metadata_path, "r") as f:
-                    metadata = json.load(f)
-
-                timestamp_str = metadata.get("timestamp", "")
-                if not timestamp_str:
-                    continue
-
                 backup_date = datetime.fromisoformat(timestamp_str)
                 if backup_date < cutoff_date:
                     shutil.rmtree(backup_dir)
@@ -193,7 +206,6 @@ class DeduplicationBackupManager:
                     self.logger.info(
                         "old_backup_removed", backup_id=metadata.get("backup_id"), age_days=(datetime.now() - backup_date).days
                     )
-
             except Exception as e:
                 self.logger.warning("cleanup_failed", backup_dir=str(backup_dir), error=str(e))
 
@@ -230,16 +242,9 @@ class DeduplicationBackupManager:
             if not backup_dir.is_dir():
                 continue
 
-            metadata_path = backup_dir / "backup-metadata.json"
-            if not metadata_path.exists():
-                continue
-
-            try:
-                with open(metadata_path, "r") as f:
-                    metadata = json.load(f)
-                    backups.append(metadata)
-            except Exception as e:
-                self.logger.warning("metadata_read_failed", backup_dir=str(backup_dir), error=str(e))
+            metadata = self._load_backup_metadata(backup_dir)
+            if metadata is not None:
+                backups.append(metadata)
 
         # Sort by timestamp (newest first)
         backups.sort(key=lambda b: b.get("timestamp", ""), reverse=True)

@@ -40,7 +40,7 @@ src/ast_grep_mcp/          # 120 modules
 └── server/                # MCP registry + runner
 ```
 
-**53 MCP tools** | **1,469 tests collected** | **Quality gates: Ruff + mypy + pytest + analyzer pipeline**
+**53 MCP tools** | **1,622 tests collected** | **Quality gates: Ruff + mypy + pytest + analyzer pipeline**
 
 ## Quick Start
 
@@ -172,12 +172,14 @@ uv run python analyze_codebase.py <path> -l <lang>        # codebase analysis
 uv run python analyze_codebase.py <path> -l <lang> --fix  # analysis + auto-fix
 ```
 
-## Recent Maintenance (2026-03-04)
+## Recent Maintenance (2026-03-08)
 
-- Consolidated semantic-overlap constants and scoring scales; replaced many duplicated literals.
-- Updated magic-number detection to skip one-off constant declarations (`UPPER_CASE = ...`) to reduce false positives.
-- Enforced virtual-environment and backup-directory exclusions (`venv/.venv/virtualenv/site-packages/.ast-grep-backups`) across quality analyzers.
-- Fixed unified diff hunk parsing to align capture groups with shared constants; full suite now passes (`1468 passed, 1 skipped`).
+- Extracted `tool_context` context manager and `FilePatterns.normalize_excludes` to shared utilities; adopted across complexity, quality, condense, and deduplication tools.
+- Consolidated inline `Field()` pattern across cross_language, documentation, and quality tool registrations.
+- Promoted `indent_lines`, `read_file_lines`, `write_file_lines` to shared `utils/`.
+- Decomposed high-complexity methods in `FunctionExtractor`, `changelog_generator`, `detector.py`, and `applicator_executor.py`.
+- Hardened `changelog_generator` with `str | None` types and added unit tests for helper functions.
+- Full suite passes (`1,622 tests collected`).
 
 ### Adding Features
 
@@ -197,6 +199,7 @@ uv run python analyze_codebase.py <path> -l <lang> --fix  # analysis + auto-fix
 - [docs/CODE-CONDENSE-PREP.md](docs/CODE-CONDENSE-PREP.md) - Condense feature design
 - [docs/CODE-CONDENSE-PHASE-2.md](docs/CODE-CONDENSE-PHASE-2.md) - Condense phase 2 design
 - [docs/BACKLOG.md](docs/BACKLOG.md) - Open backlog items
+- [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) - Known issues and workarounds
 - [docs/BACKFILLING.md](docs/BACKFILLING.md) - OTEL telemetry backfilling for skills
 
 ## Acknowledgments

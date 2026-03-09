@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Set
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import ConversionFactors, RegexCaptureGroups, SemanticVolumeDefaults, SEODefaults
+from ast_grep_mcp.constants import ConversionFactors, FilePatterns, RegexCaptureGroups, SemanticVolumeDefaults, SEODefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.schema.client import SchemaOrgClient, get_schema_org_client
 from ast_grep_mcp.features.schema.enhancement_rules import (
@@ -83,24 +83,12 @@ def _load_entities_from_file(file_path: Path) -> List[Dict[str, Any]]:
     return _extract_entities_from_data(data)
 
 
-_EXCLUDED_DIRS = {
-    "node_modules",
-    ".git",
-    ".svn",
-    ".hg",
-    "__pycache__",
-    ".tox",
-    ".pytest_cache",
-    ".mypy_cache",
-    "dist",
-    "build",
-    ".next",
-    ".nuxt",
-    "coverage",
-    ".cache",
-    "vendor",
-    "bower_components",
-}
+_EXCLUDED_DIRS = frozenset(
+    # Extract bare directory names from glob patterns like "**/node_modules/**"
+    p.strip("*").strip("/")
+    for p in FilePatterns.DEFAULT_EXCLUDE
+    if p.startswith("**/") and p.endswith("/**")
+) | {"bower_components", ".svn", ".hg", ".tox", ".pytest_cache", ".mypy_cache"}
 
 
 def _filter_json_files(json_files: List[Path]) -> List[Path]:

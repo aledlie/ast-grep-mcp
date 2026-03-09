@@ -18,6 +18,7 @@ from ast_grep_mcp.core.exceptions import (
     AstGrepNotFoundError,
 )
 from ast_grep_mcp.core.logging import get_logger
+from ast_grep_mcp.utils.tool_context import tool_context
 
 
 def get_supported_languages() -> List[str]:
@@ -82,81 +83,46 @@ def run_command(args: List[str], input_text: Optional[str] = None, *, allow_nonz
         AstGrepExecutionError: If command execution fails (unless allow_nonzero)
     """
     logger = get_logger("subprocess")
-    start_time = time.time()
-
-    # Sanitize command for logging (don't log code content)
     sanitized_args = args.copy()
     has_stdin = input_text is not None
 
     logger.info("executing_command", command=sanitized_args[0], args=sanitized_args[1:], has_stdin=has_stdin)
 
-    try:
-        # On Windows, if ast-grep is installed via npm, it's a batch file
-        # that requires shell=True to execute properly
-        use_shell = sys.platform == "win32" and args[0] == "ast-grep"
+    with tool_context("run_command", command=" ".join(args), has_stdin=has_stdin) as start_time:
+        try:
+            use_shell = sys.platform == "win32" and args[0] == "ast-grep"
 
-        with sentry_sdk.start_span(op="subprocess.run", name=f"Running {args[0]}") as span:
-            span.set_data("command", sanitized_args[0])
-            span.set_data("has_stdin", has_stdin)
+            with sentry_sdk.start_span(op="subprocess.run", name=f"Running {args[0]}") as span:
+                span.set_data("command", sanitized_args[0])
+                span.set_data("has_stdin", has_stdin)
 
-            result = subprocess.run(
-                args,
-                capture_output=True,
-                input=input_text,
-                text=True,
-                check=not allow_nonzero,
-                shell=use_shell,
+                result = subprocess.run(
+                    args,
+                    capture_output=True,
+                    input=input_text,
+                    text=True,
+                    check=not allow_nonzero,
+                    shell=use_shell,
+                )
+
+                span.set_data("returncode", result.returncode)
+
+            execution_time = time.time() - start_time
+            logger.info(
+                "command_completed",
+                command=sanitized_args[0],
+                execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+                returncode=result.returncode,
             )
 
-            span.set_data("returncode", result.returncode)
-
-        execution_time = time.time() - start_time
-        logger.info(
-            "command_completed",
-            command=sanitized_args[0],
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            returncode=result.returncode,
-        )
-
-        return result
-    except subprocess.CalledProcessError as e:
-        execution_time = time.time() - start_time
-        stderr_msg = e.stderr.strip() if e.stderr else ""
-
-        logger.error(
-            "command_failed",
-            command=sanitized_args[0],
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            returncode=e.returncode,
-            stderr=stderr_msg[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],  # Truncate stderr in logs
-        )
-
-        error = AstGrepExecutionError(command=args, returncode=e.returncode, stderr=stderr_msg)
-        sentry_sdk.capture_exception(
-            error,
-            extras={
-                "command": " ".join(args),
-                "returncode": e.returncode,
-                "stderr": stderr_msg[: DisplayDefaults.AST_TRUNCATION_LENGTH],
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-                "has_stdin": has_stdin,
-            },
-        )
-        raise error from e
-    except FileNotFoundError as e:
-        execution_time = time.time() - start_time
-
-        logger.error(
-            "command_not_found", command=args[0], execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION)
-        )
-
-        if args[0] == "ast-grep":
-            not_found_error = AstGrepNotFoundError()
-            sentry_sdk.capture_exception(not_found_error, extras={"command": " ".join(args)})
-            raise not_found_error from e
-        not_found_error = AstGrepNotFoundError(f"Command '{args[0]}' not found")
-        sentry_sdk.capture_exception(not_found_error, extras={"command": " ".join(args)})
-        raise not_found_error from e
+            return result
+        except subprocess.CalledProcessError as e:
+            stderr_msg = e.stderr.strip() if e.stderr else ""
+            raise AstGrepExecutionError(command=args, returncode=e.returncode, stderr=stderr_msg) from e
+        except FileNotFoundError as e:
+            if args[0] == "ast-grep":
+                raise AstGrepNotFoundError() from e
+            raise AstGrepNotFoundError(f"Command '{args[0]}' not found") from e
 
 
 def _get_language_extensions(language: str) -> Optional[List[str]]:
@@ -428,12 +394,7 @@ def _handle_stream_error(
         AstGrepExecutionError: If process failed
     """
     # SIGTERM from early termination is not an error
-    if returncode == 0 or returncode == StreamDefaults.SIGTERM_RETURN_CODE:
-        return
-
-    # Exit code 1 means "scan succeeded, found error-level diagnostics" or
-    # "no matches found" — neither is an execution error.
-    if returncode == 1:
+    if returncode in (0, 1, StreamDefaults.SIGTERM_RETURN_CODE):
         return
 
     execution_time = time.time() - start_time
@@ -451,8 +412,6 @@ def _handle_stream_error(
         extras={
             "command": " ".join(full_command),
             "returncode": returncode,
-            "stderr": stderr_output[: DisplayDefaults.AST_TRUNCATION_LENGTH],
-            "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             "match_count": match_count,
         },
     )

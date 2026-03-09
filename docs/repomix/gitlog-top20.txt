@@ -1,3 +1,30 @@
+eac6227 2026-03-08 refactor(utils): promote indent_lines, read_file_lines, write_file_lines to shared utils
+  src/ast_grep_mcp/features/deduplication/generator.py
+  src/ast_grep_mcp/features/documentation/docstring_generator.py
+
+166841b 2026-03-08 refactor(tools): consolidate to inline Field() pattern across cross_language, documentation, quality
+  src/ast_grep_mcp/features/quality/tools.py
+
+1b5f331 2026-03-08 fix(documentation): harden changelog_generator and improve test quality
+  tests/unit/test_documentation.py
+
+a07407b 2026-03-08 docs(complexity): add 2026-03-08 analysis with change history and helper appendix
+  .claude/skills/ast-grep-mcp-expert/references/files.md
+  docs/repomix/repo-compressed.xml
+  docs/repomix/repomix-docs.xml
+  docs/repomix/repomix-git-ranked.xml
+  docs/repomix/repomix.xml
+  tests/unit/test_documentation.py
+
+6d929bd 2026-03-08 test(documentation): fix mock fragility and add _get_commit_range tests
+  tests/unit/test_documentation.py
+
+751e2bc 2026-03-08 test(documentation): add unit tests for changelog helper functions
+  tests/unit/test_documentation.py
+
+d09f996 2026-03-08 refactor(quality): reduce complexity in tools.py and analyzer.py
+  src/ast_grep_mcp/features/quality/tools.py
+
 aebd562 2026-03-08 refactor(search): derive severity prefix from lookup dict in _add_suggestions_by_severity
   src/ast_grep_mcp/features/search/service.py
 
@@ -66,7 +93,6 @@ afdf71a 2026-03-06 refactor: extract 90 magic numbers into shared constants acro
   src/ast_grep_mcp/features/search/service.py
 
 f40d1f2 2026-03-04 chore: format codebase and clear standards violations
-  src/ast_grep_mcp/features/cross_language/pattern_database.py
   src/ast_grep_mcp/features/quality/tools.py
   src/ast_grep_mcp/features/search/docs.py
   src/ast_grep_mcp/features/search/service.py
@@ -74,9 +100,6 @@ f40d1f2 2026-03-04 chore: format codebase and clear standards violations
 0cf6cd3 2026-03-04 refactor: extract remaining magic numbers into local/shared constants
   src/ast_grep_mcp/features/deduplication/analyzer.py
   src/ast_grep_mcp/features/deduplication/similarity.py
-
-d94b80f 2026-03-04 refactor: consolidate benchmark and magic-number constants
-  src/ast_grep_mcp/features/cross_language/pattern_database.py
 
 460722b 2026-03-04 refactor: add slicing helper and dedup scoring enums
   src/ast_grep_mcp/features/deduplication/analyzer.py
@@ -89,9 +112,6 @@ d94b80f 2026-03-04 refactor: consolidate benchmark and magic-number constants
 84cf30d 2026-03-04 chore: checkpoint outstanding changes
   src/ast_grep_mcp/features/deduplication/similarity.py
   src/ast_grep_mcp/features/search/docs.py
-  tests/conftest.py
-  tests/unit/test_analysis_orchestrator.py
-  tests/unit/test_duplication_detector.py
   tests/unit/test_minhash_similarity.py
 
 5194d99 2026-03-04 chore: MOAR const migrations
@@ -156,13 +176,9 @@ b0ea4b0 2026-02-12 refactor: extract magic numbers into named constants across 1
   src/ast_grep_mcp/features/deduplication/generator.py
   src/ast_grep_mcp/features/quality/tools.py
   src/ast_grep_mcp/features/search/service.py
-  tests/conftest.py
-  tests/integration/test_benchmark.py
-  tests/unit/test_analysis_orchestrator.py
   tests/unit/test_coverage_detector.py
-  tests/unit/test_duplication_detector.py
+  tests/unit/test_documentation.py
   tests/unit/test_minhash_similarity.py
-  tests/unit/test_orchestrator_optimizations.py
   tests/unit/test_schema.py
   tests/unit/test_standards_enforcement.py
 
@@ -170,33 +186,14 @@ e1ab927 2026-02-11 deps: add pillow to project dependencies
   uv.lock
 
 105cc32 2026-02-10 refactor(dedup): remove module-level wrapper functions and slim __init__.py
-  tests/integration/test_benchmark.py
   tests/unit/test_coverage_detector.py
 
 4e47157 2026-01-24 fix(tests): add missing dev deps and fix ast-grep exit code handling
-  tests/integration/test_benchmark.py
-  tests/unit/test_analysis_orchestrator.py
   tests/unit/test_coverage_detector.py
-  tests/unit/test_duplication_detector.py
   uv.lock
-
-ee11e9e 2026-01-10 test(benchmarks): relax performance thresholds for stability
-  tests/integration/test_benchmark.py
-
-2e81ccf 2026-01-10 fix(tests): remove pydantic.Field mock that polluted test state
-  tests/integration/test_benchmark.py
-
-4a7992a 2026-01-10 fix(tests): update integration tests to use modular API
-  tests/integration/test_benchmark.py
-
-a08936e 2026-01-10 test(deduplication): add comprehensive tests for duplication detector
-  tests/unit/test_duplication_detector.py
 
 292f224 2026-01-10 test(deduplication): add comprehensive tests for coverage detector
   tests/unit/test_coverage_detector.py
-
-9b08989 2026-01-10 test(deduplication): add comprehensive tests for analysis orchestrator
-  tests/unit/test_analysis_orchestrator.py
 
 9641374 2026-01-10 docs(search): add matches rule documentation to get_ast_grep_docs
   src/ast_grep_mcp/features/search/docs.py
@@ -224,27 +221,15 @@ a1b4d1a 2026-01-09 feat(search): add debug_pattern tool for diagnosing pattern m
 55de598 2026-01-09 fix: resolve all lint errors
   .playwright-mcp/reports-index-styling.png
   .playwright-mcp/sumedh-site.png
-  tests/conftest.py
-  tests/integration/test_benchmark.py
   tests/unit/test_minhash_similarity.py
-  tests/unit/test_orchestrator_optimizations.py
   tests/unit/test_standards_enforcement.py
-
-2166889 2025-12-04 test(fixtures): update to use modular imports instead of main
-  tests/conftest.py
 
 9284084 2025-12-04 refactor(deduplication): migrate functions to modular architecture
   src/ast_grep_mcp/features/deduplication/analyzer.py
   src/ast_grep_mcp/features/deduplication/generator.py
 
-e22d244 2025-12-04 test(refactor): migrate integration tests to modular imports
-  tests/integration/test_benchmark.py
-
 fd0c16f 2025-12-04 test(refactor): migrate unit tests from main.py stubs to modular imports
   tests/unit/test_standards_enforcement.py
-
-c1158f1 2025-12-04 refactor(test): update cache fixtures to use modular imports
-  tests/conftest.py
 
 f920615 2025-12-03 fix(lint): resolve ruff violations for SIM115 and B007
   tests/unit/test_standards_enforcement.py
@@ -253,17 +238,14 @@ f920615 2025-12-03 fix(lint): resolve ruff violations for SIM115 and B007
   src/ast_grep_mcp/features/quality/tools.py
 
 010052b 2025-12-03 fix(type-debt): resolve all ruff and mypy errors
-  src/ast_grep_mcp/features/cross_language/pattern_database.py
   src/ast_grep_mcp/features/deduplication/analyzer.py
   src/ast_grep_mcp/features/deduplication/generator.py
   src/ast_grep_mcp/features/deduplication/similarity.py
   src/ast_grep_mcp/features/documentation/docstring_generator.py
   src/ast_grep_mcp/features/quality/tools.py
   src/ast_grep_mcp/features/search/service.py
-  tests/conftest.py
-  tests/integration/test_benchmark.py
+  tests/unit/test_documentation.py
   tests/unit/test_minhash_similarity.py
-  tests/unit/test_orchestrator_optimizations.py
   tests/unit/test_schema.py
   tests/unit/test_standards_enforcement.py
 
@@ -300,26 +282,17 @@ f62b036 2025-12-02 feat(deduplication): implement MinHash + LSH for O(n) similar
 3b7217a 2025-11-30 test: fix deduplication fixture and metavariables parsing tests
   tests/unit/test_standards_enforcement.py
 
-002b48a 2025-11-30 fix(deduplication): use correct key names between detector, orchestrator, and tools
-  tests/conftest.py
-  tests/unit/test_orchestrator_optimizations.py
-
-f173f7f 2025-11-29 feat(cross-language): implement polyglot search and refactoring
-  src/ast_grep_mcp/features/cross_language/pattern_database.py
-
 8532443 2025-11-29 refactor(docs): reduce complexity in docstring generator
   src/ast_grep_mcp/features/documentation/docstring_generator.py
 
 643d2aa 2025-11-29 telemetry skill
   src/ast_grep_mcp/features/documentation/docstring_generator.py
+  tests/unit/test_documentation.py
 
 7551cba 2025-11-29 refactor(complexity): reduce violations to zero
   src/ast_grep_mcp/features/deduplication/generator.py
   src/ast_grep_mcp/features/quality/tools.py
   src/ast_grep_mcp/features/search/service.py
-
-9e41c88 2025-11-28 refactor: reduce complexity in execute_rules_batch (cognitive 45→10, nesting 8→3)
-  tests/unit/test_orchestrator_optimizations.py
 
 12cfbfb 2025-11-28 refactor(search): extract helpers to reduce search service complexity
   src/ast_grep_mcp/features/search/service.py
@@ -330,9 +303,6 @@ f173f7f 2025-11-29 feat(cross-language): implement polyglot search and refactori
 074c744 2025-11-28 refactor(deduplication): reduce complexity across analyzer, detector, ranker
   src/ast_grep_mcp/features/deduplication/analyzer.py
 
-b2e0000 2025-11-28 test: add comprehensive tests for parallel enrich utility
-  tests/unit/test_orchestrator_optimizations.py
-
 5307c19 2025-11-28 phase 5.1
   src/ast_grep_mcp/features/deduplication/analyzer.py
   src/ast_grep_mcp/features/deduplication/generator.py
@@ -340,20 +310,14 @@ b2e0000 2025-11-28 test: add comprehensive tests for parallel enrich utility
   src/ast_grep_mcp/features/search/service.py
 
 8080d88 2025-11-28 refactor(tests): migrate print() to console logger
-  tests/conftest.py
-  tests/integration/test_benchmark.py
   tests/unit/test_schema.py
   tests/unit/test_standards_enforcement.py
-
-74585c5 2025-11-27 fix(cache): sync backward-compatible cache with modular implementation
-  tests/integration/test_benchmark.py
 
 bb81421 2025-11-27 chore: fix package name and remove 852 obsolete tests
   uv.lock
 
 aaa266e 2025-11-27 delete tests
   src/ast_grep_mcp/features/deduplication/analyzer.py
-  tests/conftest.py
 
 3fd38ab 2025-11-27 feat(quality): add security vulnerability scanner (phase 3)
   src/ast_grep_mcp/features/quality/tools.py
@@ -363,9 +327,6 @@ aaa266e 2025-11-27 delete tests
 
 291aa94 2025-11-26 fix 2 bugs and update docs
   tests/unit/test_standards_enforcement.py
-
-2a6cb62 2025-11-26 test: fix mock_field() to accept positional arguments
-  tests/integration/test_benchmark.py
 
 9b7639b 2025-11-26 feat: implement Phase 1 of refactoring assistants - extract_function MVP
   tests/unit/test_standards_enforcement.py
@@ -379,17 +340,11 @@ c23d295 2025-11-26 test: migrate test_standards_enforcement.py to pytest fixture
 a3e34f3 2025-11-25 websocket fixes
   src/ast_grep_mcp/features/quality/tools.py
 
-4949522 2025-11-25 feat: complete Phase 2 fixture migration for test_rewrite.py
-  tests/conftest.py
-
 dfd11ec 2025-11-25 refactor: remove unused imports and fix critical import errors
   src/ast_grep_mcp/features/deduplication/analyzer.py
   src/ast_grep_mcp/features/deduplication/generator.py
   src/ast_grep_mcp/features/quality/tools.py
   src/ast_grep_mcp/features/search/service.py
-
-a95b84b 2025-11-25 test: enhance conftest.py with 15 shared fixtures
-  tests/conftest.py
 
 3079772 2025-11-24 fix: resolve import errors in 19 test files
   tests/unit/test_standards_enforcement.py
@@ -398,7 +353,6 @@ a95b84b 2025-11-25 test: enhance conftest.py with 15 shared fixtures
   src/ast_grep_mcp/features/deduplication/generator.py
 
 d62daa0 2025-11-24 test: add conftest.py and update test imports for modular architecture
-  tests/conftest.py
   tests/unit/test_schema.py
   tests/unit/test_standards_enforcement.py
 
@@ -415,15 +369,10 @@ ae5d7ac 2025-11-24 refactor: extract deduplication feature modules (Phase 7 - pa
 1e15b4a 2025-11-24 feat: implement code quality & standards feature (Phase 1 & 2)
   tests/unit/test_standards_enforcement.py
 
-5760f55 2025-11-23 feat: implement Phase 6 Testing & Documentation for deduplication
-  tests/integration/test_benchmark.py
-
 93d4d81 2025-11-18 chore: fix remaining ruff import ordering errors
-  tests/integration/test_benchmark.py
   tests/unit/test_schema.py
 
 77e06e7 2025-11-18 fix: resolve ruff and mypy lint errors
-  tests/integration/test_benchmark.py
   tests/unit/test_schema.py
 
 826529c 2025-11-17 Add Sentry error tracking with Anthropic AI integration
@@ -432,9 +381,6 @@ ae5d7ac 2025-11-24 refactor: extract deduplication feature modules (Phase 7 - pa
 746e9b5 2025-11-17 Add comprehensive Schema.org test suite - Coverage: 59% → 90%
   tests/unit/test_schema.py
   uv.lock
-
-af82cbd 2025-11-17 test suite update for phase 2
-  tests/integration/test_benchmark.py
 
 a40c7d9 2025-11-10 add DRY tool
   uv.lock

@@ -4,7 +4,7 @@
 
 ```bash
 uv sync                          # Install dependencies
-uv run pytest                    # Run all tests (1,598 collected)
+uv run pytest                    # Run all tests (1,622 collected)
 uv run ruff check . && uv run mypy src/ # Lint and type check
 uv run main.py                   # Run MCP server locally
 doppler run -- uv run main.py    # Run with Doppler secrets
@@ -55,13 +55,15 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 
 When calling tools programmatically, use these field names (NOT `line`/`file_path`):
 
-- **analyze_complexity** `functions[]`: `name`, `file`, `lines`, `cyclomatic`, `cognitive`, `nesting_depth`, `length`, `exceeds`
-- **find_duplication** top-level: `summary`, `duplication_groups[]`, `refactoring_suggestions[]`; group keys: `group_id`, `similarity_score`, `instances[]` (with `file`, `lines`, `code_preview`)
-- **enforce_standards**: `summary`, `violations[]` (with `file`, `line`, `column`, `severity`, `rule_id`, `message`, `code_snippet`)
-- **detect_security_issues**: `summary`, `issues[]` (with `file`, `line`, `severity`, `issue_type`, `title`, `cwe_id`)
-- **detect_orphans**: `summary`, `orphan_files[]` (with `file_path`, `lines`, `status`), `orphan_functions[]` (with `file`, `line`, `name`)
-- **detect_code_smells**: `smells[]` (with `file`, `line`, `severity`, `smell_type`, `message`)
-- **benchmark_deduplication**: `results[]` (with `name`, `mean_ms`, `median_ms`, `p95_ms`)
+- **analyze_complexity** (`complexity.tools`): `functions[]` with `name`, `file`, `lines`, `cyclomatic`, `cognitive`, `nesting_depth`, `length`, `exceeds`
+- **detect_code_smells** (`complexity.tools`): `smells[]` with `file`, `line`, `severity`, `smell_type`, `message`
+- **find_duplication** (`deduplication.tools`): `summary`, `duplication_groups[]`, `refactoring_suggestions[]`; group keys: `group_id`, `similarity_score`, `instances[]` (with `file`, `lines`, `code_preview`)
+- **benchmark_deduplication** (`deduplication.tools`): `results[]` with `name`, `mean_ms`, `median_ms`, `p95_ms`
+- **enforce_standards** (`quality.tools`): `summary`, `violations[]` with `file`, `line`, `column`, `severity`, `rule_id`, `message`, `code_snippet`
+- **detect_security_issues** (`quality.tools`): `summary`, `issues[]` with `file`, `line`, `severity`, `issue_type`, `title`, `cwe_id`
+- **detect_orphans** (`quality.tools`): `summary`, `orphan_files[]` (with `file_path`, `lines`, `status`), `orphan_functions[]` (with `file`, `line`, `name`)
+
+Import pattern: `from ast_grep_mcp.features.<module>.tools import <tool_name>_tool`
 
 ## Analysis Scripts
 
@@ -87,4 +89,5 @@ When calling tools programmatically, use these field names (NOT `line`/`file_pat
 - [docs/CODE-CONDENSE-PREP.md](docs/CODE-CONDENSE-PREP.md) - Condense feature design
 - [docs/CODE-CONDENSE-PHASE-2.md](docs/CODE-CONDENSE-PHASE-2.md) - Condense phase 2 design
 - [docs/BACKLOG.md](docs/BACKLOG.md) - Open backlog items
+- [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) - Known issues and workarounds
 - [docs/BACKFILLING.md](docs/BACKFILLING.md) - OTEL telemetry backfilling for skills
