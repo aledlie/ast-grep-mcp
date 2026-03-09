@@ -157,7 +157,7 @@ JavaScript/TypeScript, Python, Rust, Go, Java, C/C++, C#, and [many more](https:
 ## Repository
 
 ```
-src/ast_grep_mcp/          # 120 modules
+src/ast_grep_mcp/          # 121 modules
 ├── core/                  # Config, cache, executor, logging, sentry, usage tracking
 ├── models/                # Data models (13 modules)
 ├── utils/                 # Formatters, validation, templates, text processing
@@ -166,14 +166,15 @@ src/ast_grep_mcp/          # 120 modules
 └── server/                # MCP registry + runner
 ```
 
-- `tests/` - 1,622 collected tests (unit + integration + quality regression)
+- `tests/` - 1,668 collected tests (unit + integration + quality regression)
 
 ## Recent Updates
 
-- [changelog/2026-03-08-changelog-hardening-test-quality.md](changelog/2026-03-08-changelog-hardening-test-quality.md) - Changelog hardening and test quality improvements.
-- [changelog/2026-03-08-quality-fixes.md](changelog/2026-03-08-quality-fixes.md) - Quality fixes.
-- [changelog/2026-03-06-complexity-review-fixes.md](changelog/2026-03-06-complexity-review-fixes.md) - Complexity review and fixes.
-- [changelog/2026-03-04-maintenance-quality.md](changelog/2026-03-04-maintenance-quality.md) - Constants consolidation, analyzer false-positive reduction, exclusion hardening, and diff parser fix.
+- [changelog/2026-03-08-deduplication-precision-filters.md](changelog/2026-03-08-deduplication-precision-filters.md) - 5 false-positive group filters, constants + regex refactor, 32 tests.
+- [changelog/2026-03-08-backup-refactoring-helper-adoption.md](changelog/2026-03-08-backup-refactoring-helper-adoption.md) - Shared backup utils, applicator_backup complexity reduction, tool_context adoption.
+- [changelog/2026-03-08-shared-utils-consolidation.md](changelog/2026-03-08-shared-utils-consolidation.md) - Shared utility extractions, tool_context, normalize_excludes.
+- [changelog/2026-03-08-review-follow-ups-testing.md](changelog/2026-03-08-review-follow-ups-testing.md) - Sentry exception capture, logger parameter deduplication.
+- [changelog/2026-03-08-code-review-findings.md](changelog/2026-03-08-code-review-findings.md) - 4 code review items resolved.
 
 ## Related
 

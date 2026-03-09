@@ -14,9 +14,11 @@
     2026-03-06-complexity-review-fixes.md
     2026-03-06-critical-bug-fixes.md
     2026-03-07-type-fixes-formatting.md
+    2026-03-08-backup-refactoring-helper-adoption.md
     2026-03-08-changelog-hardening-test-quality.md
     2026-03-08-code-review-findings.md
     2026-03-08-complexity-analysis.md
+    2026-03-08-deduplication-precision-filters.md
     2026-03-08-quality-fixes.md
     2026-03-08-review-follow-ups-testing.md
     2026-03-08-shared-utils-consolidation.md
@@ -43,7 +45,34 @@ Removed 7 unused constants from CondenseDefaults (INCLUDE_TYPE_ANNOTATIONS, INCL
 
 ## L2: Standardize per-language stats field naming
 **Priority**: P3 | **Source**: condense feature session (9e65f55) | **Commit**: d97d782
-Renamed `LanguageCondenseStats.files` to `files_processed` to match project-wide convention (CondenseResult, UsageStats). Updated construction and serialization in service.py. -- `src/ast_grep_mcp/models/condense.py`</file><file path="docs/CODE-CONDENSE-PHASE-2.md"># Code Condense Phase 2: Additional Insights from Whitepaper Research
+Renamed `LanguageCondenseStats.files` to `files_processed` to match project-wide convention (CondenseResult, UsageStats). Updated construction and serialization in service.py. -- `src/ast_grep_mcp/models/condense.py`</file><file path="docs/changelog/2026-03-04-maintenance-quality.md"># Maintenance + Quality Updates - 2026-03-04
+
+Summary of recent repository maintenance based on commit history.
+
+## Highlights
+
+### H1: Constants consolidation and magic-number migration
+**Source commits**: `662578b`, `5194d99`, `646364b`, `460722b`, `20f3a87`, `d94b80f`, `fe005d8`, `0cf6cd3`
+
+Consolidated repeated literals into shared constants and scoring scales, then migrated semantically matching call sites across source, scripts, and tests.
+
+### H2: Analyzer false-positive reduction for constants
+**Source commit**: `3440fc1`
+
+Updated magic-number detection logic to skip one-off constant declarations (for example, `UPPER_CASE = 123`) so constant definitions are not reported as smells.
+
+### H3: Exclusion hardening for virtual environments and backups
+**Source commits**: `7a96e4d`, `24840be`, `00f2223`, `2a6282b`
+
+Enforced consistent exclude patterns in analysis tools for `venv/.venv/virtualenv/site-packages` and `.ast-grep-backups` plus generated/build artifacts.
+
+### H4: Quality gate cleanup and parser correctness
+**Source commits**: `af1db42`, `3b9b5fc`, `f40d1f2`, `4ffabc3`
+
+- Resolved Ruff and mypy issues in MCP tool wrappers and line-length violations.
+- Cleared standards-enforcement violations in baseline quality runs.
+- Fixed unified diff hunk parsing to align regex capture groups with shared constants.
+- Current test baseline after fix: `1468 passed, 1 skipped`.</file><file path="docs/CODE-CONDENSE-PHASE-2.md"># Code Condense Phase 2: Additional Insights from Whitepaper Research
 
 &gt; Supplementary findings from the [code-condense-whitepaper](~/reports/code-condense-whitepaper/) collection that extend [CODE-CONDENSE-PREP.md](CODE-CONDENSE-PREP.md) with dictionary training, complexity-guided extraction, per-file-type routing, and archival pipeline options.
 
@@ -2471,34 +2500,7 @@ Based on the [ast-grep Prompting Guide](https://ast-grep.github.io/advanced/prom
 - Reduced complexity in applicator, schema client, and sentry tool (ed58e44)
 - Extracted rule-specific code transforms and removal rules into declarative dicts in `fixer.py` (2fb6ea3)
 - Broadened exclude patterns for `node_modules`, `dist`, `build` dirs in analyzer (2fb6ea3)
-- Made `pattern` optional in `LintingRule.to_yaml_dict()` to support kind-only rules (06fe291)</file><file path="docs/changelog/2026-03-04-maintenance-quality.md"># Maintenance + Quality Updates - 2026-03-04
-
-Summary of recent repository maintenance based on commit history.
-
-## Highlights
-
-### H1: Constants consolidation and magic-number migration
-**Source commits**: `662578b`, `5194d99`, `646364b`, `460722b`, `20f3a87`, `d94b80f`, `fe005d8`, `0cf6cd3`
-
-Consolidated repeated literals into shared constants and scoring scales, then migrated semantically matching call sites across source, scripts, and tests.
-
-### H2: Analyzer false-positive reduction for constants
-**Source commit**: `3440fc1`
-
-Updated magic-number detection logic to skip one-off constant declarations (for example, `UPPER_CASE = 123`) so constant definitions are not reported as smells.
-
-### H3: Exclusion hardening for virtual environments and backups
-**Source commits**: `7a96e4d`, `24840be`, `00f2223`, `2a6282b`
-
-Enforced consistent exclude patterns in analysis tools for `venv/.venv/virtualenv/site-packages` and `.ast-grep-backups` plus generated/build artifacts.
-
-### H4: Quality gate cleanup and parser correctness
-**Source commits**: `af1db42`, `3b9b5fc`, `f40d1f2`, `4ffabc3`
-
-- Resolved Ruff and mypy issues in MCP tool wrappers and line-length violations.
-- Cleared standards-enforcement violations in baseline quality runs.
-- Fixed unified diff hunk parsing to align regex capture groups with shared constants.
-- Current test baseline after fix: `1468 passed, 1 skipped`.</file><file path="docs/changelog/2026-03-06-critical-bug-fixes.md"># 2026-03-06: Critical Bug Fixes
+- Made `pattern` optional in `LintingRule.to_yaml_dict()` to support kind-only rules (06fe291)</file><file path="docs/changelog/2026-03-06-critical-bug-fixes.md"># 2026-03-06: Critical Bug Fixes
 
 ## Fixed
 
@@ -2513,7 +2515,57 @@ Enforced consistent exclude patterns in analysis tools for `venv/.venv/virtualen
 
 ## Changed
 
-- Applied ruff format to 42 files (2bb7b59)</file><file path="docs/changelog/2026-03-08-changelog-hardening-test-quality.md"># 2026-03-08: Changelog Generator Hardening &amp; Test Quality Improvements
+- Applied ruff format to 42 files (2bb7b59)</file><file path="docs/changelog/2026-03-08-backup-refactoring-helper-adoption.md"># 2026-03-08: Backup Refactoring &amp; Helper Adoption
+
+## Summary
+
+Extracted shared backup primitives to `utils/backup.py`, refactored `applicator_backup.py` to reduce complexity, and adopted `tool_context` in executor/schema modules.
+
+## Changes
+
+### Shared Backup Utils (`c847003`)
+
+New `src/ast_grep_mcp/utils/backup.py` with 4 primitives shared by `rewrite/backup.py` and `deduplication/applicator_backup.py`:
+
+- `get_file_hash` — SHA-256 file hashing (moved from `rewrite/backup.py`)
+- `resolve_backup_dir` — unique backup ID generation with collision handling
+- `copy_file_to_backup` — single-file copy with metadata entry
+- `restore_file_from_backup` — single-file restore with existence check
+
+Eliminated ~60 lines of duplication between the two backup modules.
+
+### Applicator Backup Complexity Reduction (`7880737`)
+
+Extracted 6 private helpers from `DeduplicationBackupManager`:
+
+| Method | Before | After |
+|--------|--------|-------|
+| `cleanup_old_backups` | cog=33 | cog=14 |
+| `list_backups` | cog=23 | cog=14 |
+| `create_backup` | cog=20 | cog=10 |
+| `rollback` | cog=18 | cog=15 |
+
+Added 300+ lines of tests covering all new helpers and edge cases.
+
+### Tool Context &amp; Exclusion Adoption (`0a679bb`)
+
+- `core/executor.py:run_command` — wrapped with `tool_context()`, reduced ~35 lines of manual timing + Sentry boilerplate
+- `schema/enhancement_service.py` — replaced hardcoded `_EXCLUDED_DIRS` with `FilePatterns.DEFAULT_EXCLUDE`
+- `refactoring/extractor.py` — further decomposition of `_generate_docstring`, `_generate_function_body`, `_generate_signature`, `_apply_extraction`
+
+### Backlog Refresh (`8d4d13a`, `306756c`)
+
+- Added `scripts/scan_complexity_offenders.py` for automated offender scanning
+- Refreshed offender table: 25 functions remain above thresholds
+- Baseline progression: 434 → 407 → 100 → 80 → 25
+
+## Commits
+
+- `c847003` refactor(backup): extract shared backup primitives to utils/backup.py
+- `7880737` refactor(dedup): extract helpers in applicator_backup to reduce complexity
+- `8d4d13a` docs(backlog): refresh offender table and add scan script
+- `306756c` docs(backlog): expand recently-resolved entries with commit refs and detail
+- `0a679bb` refactor(executor,backup,schema): adopt tool_context, extract helpers, unify exclusions</file><file path="docs/changelog/2026-03-08-changelog-hardening-test-quality.md"># 2026-03-08: Changelog Generator Hardening &amp; Test Quality Improvements
 
 Hardened `changelog_generator.py` error handling and improved test suite quality by consolidating mock imports, adding validation tests, and standardizing type hints.
 
@@ -3167,7 +3219,89 @@ from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool
 result = analyze_complexity_tool(project_folder=&apos;$(pwd)/src&apos;, language=&apos;python&apos;)
 print(json.dumps(result, indent=2))
 &quot;
-```</file><file path="docs/changelog/2026-03-08-quality-fixes.md"># 2026-03-08: Code Quality Fixes
+```</file><file path="docs/changelog/2026-03-08-deduplication-precision-filters.md"># Deduplication Precision Filters (2026-03-08)
+
+**Commit:** `6a27e23` feat(dedup): add precision filters to eliminate false-positive duplicate groups
+**Follow-up:** `c412c78` fix(dedup): resolve high/medium reviewer findings in precision filters
+
+## Summary
+
+Implemented precision filters in `DuplicationDetector` to eliminate false-positive duplicate detection results. An investigation of 5 groups reported by `find_duplication` (sim &gt;= 0.82) revealed they were all false positives or low-value for refactoring:
+- Trivial constructors (`__init__` assigning a single parameter)
+- Intentionally parallel language-specific formatters (e.g., `to_python()` vs `to_typescript()`)
+- Thin semantic wrappers delegating to a shared helper (e.g., `error()` and `warning()` both calling `_log()`)
+- Strategy pattern implementations with shared boilerplate
+- Below-threshold line savings (&lt;20 lines)
+
+## Implemented Filters
+
+### New Methods in `DuplicationDetector`
+
+1. **`_apply_precision_filters`** — Orchestrates all filters, logs removal count
+2. **`_is_trivial_constructor_group`** — Flags groups where all members are short constructors (&lt;=10 lines)
+   - Constant: `DetectorDefaults.TRIVIAL_INIT_MAX_LINES = 10`
+3. **`_is_delegation_wrapper_group`** — Identifies thin wrappers delegating to `self._xxx()` / `super().xxx()`
+   - Constant: `DetectorDefaults.DELEGATION_MAX_BODY_STATEMENTS = 2` (max statements in wrapper body)
+4. **`_is_parallel_formatter_group`** — Detects parallel formatters with different prefixes (to_/from_/as_/into_)
+   - Constant: `DetectorDefaults.PARALLEL_FORMATTER_PREFIXES = (&quot;to_&quot;, &quot;from_&quot;, &quot;as_&quot;, &quot;into_&quot;)`
+5. **`_meets_min_savings`** — Enforces minimum line savings threshold
+   - Constant: `DetectorDefaults.MIN_LINE_SAVINGS = 20`
+6. **`_code_line_count`** — Helper to consolidate duplicated `len(code.split(&quot;\n&quot;))` pattern (DRY refactor)
+
+### New Constants in `DetectorDefaults`
+
+```python
+CONSTRUCTOR_NAMES = frozenset({&quot;__init__&quot;, &quot;constructor&quot;, &quot;__new__&quot;, &quot;init&quot;})
+TRIVIAL_INIT_MAX_LINES = 10
+DELEGATION_MAX_BODY_STATEMENTS = 2
+MIN_LINE_SAVINGS = 20
+PARALLEL_FORMATTER_PREFIXES = (&quot;to_&quot;, &quot;from_&quot;, &quot;as_&quot;, &quot;into_&quot;)
+```
+
+### Compiled Regex Patterns (class-level, reused)
+
+```python
+_RE_FUNC_NAME = re.compile(r&quot;^\s*(?:async\s+)?(?:def|function)\s+(\w+)&quot;)
+_RE_JS_VAR_NAME = re.compile(r&quot;^\s*(?:const|let|var)\s+(\w+)\s*=&quot;)
+_RE_CALL_EXPR = re.compile(r&quot;^(self\.\w+(?:\.\w+)*|super\(\)\.\w+(?:\.\w+)*|\w+)\(&quot;)
+```
+
+### Prefix/Token Constants (class-level tuples)
+
+```python
+_SIGNATURE_PREFIXES = (&quot;def &quot;, &quot;async def &quot;, &quot;function &quot;, &quot;return &quot;)
+_CLOSING_TOKENS = (&quot;}&quot;, &quot;pass&quot;)
+_NON_BODY_PREFIXES = (&quot;class &quot;, &quot;@&quot;, &quot;#&quot;, &quot;//&quot;, &quot;/*&quot;)
+```
+
+## Integration
+
+Filters are applied in `_run_detection` between `group_duplicates` and `generate_refactoring_suggestions`:
+
+```python
+raw_groups = self.group_duplicates(all_matches, min_similarity, min_lines)
+duplication_groups = self._apply_precision_filters(raw_groups)  # NEW
+suggestions = self.generate_refactoring_suggestions(duplication_groups, construct_type)
+```
+
+## Test Coverage
+
+Added 32 comprehensive tests across 5 test classes:
+- `TestTrivialConstructorFilter` — 5 tests covering short init detection and edge cases
+- `TestDelegationWrapperFilter` — 3 tests for thin wrapper heuristics
+- `TestParallelFormatterFilter` — 3 tests for parallel formatter variants
+- `TestMinSavingsFilter` — 4 tests for line savings thresholds
+- `TestApplyPrecisionFilters` — 2 integration tests verifying all 5 false-positive patterns are eliminated while legitimate duplicates are preserved
+
+All 90 tests pass (58 existing + 32 new).
+
+## Result
+
+All 5 false-positive groups from the investigation are now filtered out. The detector becomes more precise and requires less manual review of results.
+
+## Deferred
+
+**Strategy pattern filter** — Low-priority per investigation notes. Only candidate (Group 5 from investigation) would save ~18 lines with minor signature mismatch; deemed over-engineering for marginal benefit.</file><file path="docs/changelog/2026-03-08-quality-fixes.md"># 2026-03-08: Code Quality Fixes
 
 Minor fixes for code quality issues identified during analysis refresh.
 
@@ -3599,7 +3733,874 @@ Potential improvements to the benchmark suite:
 ---
 
 **Last Updated:** 2025-11-16
-**Maintained by:** AST-Grep MCP Development Team</file><file path="docs/DEDUPLICATION-GUIDE.md"># Deduplication Guide
+**Maintained by:** AST-Grep MCP Development Team</file><file path="docs/CONFIGURATION.md"># Configuration Guide
+
+This document describes configuration options for the ast-grep MCP server, including ast-grep configuration (`sgconfig.yaml`) and Sentry/Doppler integration.
+
+## Table of Contents
+
+1. [ast-grep Configuration](#ast-grep-configuration)
+2. [Sentry Error Tracking](#sentry-error-tracking)
+3. [Doppler Secret Management](#doppler-secret-management)
+4. [Complete Configuration Examples](#complete-configuration-examples)
+
+## ast-grep Configuration
+
+The ast-grep MCP server supports custom configuration via a `sgconfig.yaml` file. This file allows you to customize ast-grep behavior, including:
+
+- Defining custom languages
+- Specifying rule directories
+- Configuring test directories
+- Setting language-to-file extension mappings
+
+## Providing the Configuration File
+
+You can provide the configuration file in two ways (in order of precedence):
+
+1. **Command-line argument**: `--config /path/to/sgconfig.yaml`
+2. **Environment variable**: `AST_GREP_CONFIG=/path/to/sgconfig.yaml`
+
+The configuration file is validated on startup. If validation fails, the server will exit with a descriptive error message.
+
+## Configuration Structure
+
+### Top-Level Fields
+
+```yaml
+# Optional: Directories containing ast-grep rules
+ruleDirs:
+  - rules
+  - custom-rules
+
+# Optional: Directories containing test files
+testDirs:
+  - tests
+
+# Optional: Custom language definitions
+customLanguages:
+  mylang:
+    extensions:
+      - .ml
+      - .mli
+    languageId: mylang
+    expandoChar: _
+
+# Optional: Language-to-glob mappings
+languageGlobs:
+  - extensions: [.proto]
+    language: protobuf
+```
+
+### Field Descriptions
+
+#### `ruleDirs` (optional)
+
+Type: `List[str]`
+
+Directories containing ast-grep rule files (`.yml` or `.yaml` files). Paths are relative to the configuration file location.
+
+**Validation:**
+- Must not be an empty list if specified
+- Each directory path should exist (not enforced by validation, but recommended)
+
+**Example:**
+```yaml
+ruleDirs:
+  - rules
+  - security-rules
+  - refactoring-rules
+```
+
+#### `testDirs` (optional)
+
+Type: `List[str]`
+
+Directories containing test files for your ast-grep rules. Used by ast-grep&apos;s testing framework.
+
+**Validation:**
+- Must not be an empty list if specified
+
+**Example:**
+```yaml
+testDirs:
+  - tests
+  - rule-tests
+```
+
+#### `customLanguages` (optional)
+
+Type: `Dict[str, CustomLanguageConfig]`
+
+Define custom languages with tree-sitter grammars. Each language has:
+
+- **`extensions`** (required): List of file extensions (must start with `.`)
+- **`languageId`** (optional): Language identifier
+- **`expandoChar`** (optional): Character used for meta-variable expansion
+
+**Validation:**
+- Dictionary must not be empty if specified
+- Each language must have at least one extension
+- All extensions must start with a dot (`.`)
+
+**Example:**
+```yaml
+customLanguages:
+  # Custom language for Protocol Buffers
+  protobuf:
+    extensions:
+      - .proto
+    languageId: proto
+
+  # Custom language for Terraform
+  terraform:
+    extensions:
+      - .tf
+      - .tfvars
+    languageId: hcl
+```
+
+#### `languageGlobs` (optional)
+
+Type: `List[Dict[str, Any]]`
+
+Map file extensions to languages. Useful for associating non-standard extensions with existing languages.
+
+**Example:**
+```yaml
+languageGlobs:
+  - extensions: [.proto]
+    language: protobuf
+  - extensions: [.mjs, .cjs]
+    language: javascript
+```
+
+## Complete Example
+
+Here&apos;s a complete example configuration:
+
+```yaml
+# sgconfig.yaml - Complete example
+
+ruleDirs:
+  - rules
+  - custom-rules
+  - security
+
+testDirs:
+  - tests
+  - rule-tests
+
+customLanguages:
+  # Add support for GraphQL
+  graphql:
+    extensions:
+      - .graphql
+      - .gql
+    languageId: graphql
+
+  # Add support for Solidity
+  solidity:
+    extensions:
+      - .sol
+    languageId: solidity
+
+languageGlobs:
+  # Map .mjs and .cjs to JavaScript
+  - extensions: [.mjs, .cjs]
+    language: javascript
+
+  # Map .tsx and .jsx to TypeScript/JavaScript
+  - extensions: [.tsx]
+    language: tsx
+  - extensions: [.jsx]
+    language: jsx
+```
+
+## Validation
+
+The server validates the configuration file on startup using Pydantic models. Common validation errors include:
+
+### Empty Lists or Dictionaries
+
+**Error:**
+```
+Configuration error in &apos;/path/to/sgconfig.yaml&apos;: Validation failed: Directory list cannot be empty if specified
+```
+
+**Fix:**
+Remove the empty field or add at least one item:
+```yaml
+# Wrong
+ruleDirs: []
+
+# Right - remove the field
+# ruleDirs not specified
+
+# Right - add items
+ruleDirs:
+  - rules
+```
+
+### Invalid File Extensions
+
+**Error:**
+```
+Configuration error in &apos;/path/to/sgconfig.yaml&apos;: Validation failed: Extension &apos;txt&apos; must start with a dot (e.g., &apos;.myext&apos;)
+```
+
+**Fix:**
+Add a dot prefix to all extensions:
+```yaml
+# Wrong
+customLanguages:
+  mylang:
+    extensions:
+      - txt
+
+# Right
+customLanguages:
+  mylang:
+    extensions:
+      - .txt
+```
+
+### Empty Extensions List
+
+**Error:**
+```
+Configuration error in &apos;/path/to/sgconfig.yaml&apos;: Validation failed: extensions list cannot be empty
+```
+
+**Fix:**
+Add at least one extension:
+```yaml
+# Wrong
+customLanguages:
+  mylang:
+    extensions: []
+
+# Right
+customLanguages:
+  mylang:
+    extensions:
+      - .ml
+```
+
+### YAML Syntax Errors
+
+**Error:**
+```
+Configuration error in &apos;/path/to/sgconfig.yaml&apos;: YAML parsing failed: ...
+```
+
+**Fix:**
+Check YAML syntax. Common issues:
+- Incorrect indentation (use spaces, not tabs)
+- Missing colons or hyphens
+- Unclosed quotes or brackets
+
+### File Not Found
+
+**Error:**
+```
+Configuration error in &apos;/path/to/sgconfig.yaml&apos;: File does not exist
+```
+
+**Fix:**
+- Verify the path is correct
+- Use absolute paths or paths relative to your working directory
+- Check file permissions
+
+## Testing Your Configuration
+
+You can test your configuration by running the server with the `--config` flag:
+
+```bash
+uv run main.py --config /path/to/sgconfig.yaml
+```
+
+If validation succeeds, the server will start normally. If validation fails, you&apos;ll see a descriptive error message.
+
+## Additional Resources
+
+- [ast-grep Configuration Documentation](https://ast-grep.github.io/guide/project/project-config.html)
+- [ast-grep Custom Language Guide](https://ast-grep.github.io/advanced/custom-language.html)
+- [tree-sitter Language Support](https://tree-sitter.github.io/tree-sitter/)
+
+## Schema Reference
+
+### CustomLanguageConfig
+
+```python
+class CustomLanguageConfig:
+    extensions: List[str]         # Required, must start with &apos;.&apos;
+    languageId: Optional[str]     # Optional language identifier
+    expandoChar: Optional[str]    # Optional expansion character
+```
+
+### AstGrepConfig
+
+```python
+class AstGrepConfig:
+    ruleDirs: Optional[List[str]]                              # Rule directories
+    testDirs: Optional[List[str]]                              # Test directories
+    customLanguages: Optional[Dict[str, CustomLanguageConfig]] # Custom languages
+    languageGlobs: Optional[List[Dict[str, Any]]]             # Language mappings
+```
+
+All fields are optional, but if provided, they must follow the validation rules described above.
+
+---
+
+## Sentry Error Tracking
+
+The MCP server supports optional Sentry integration for error tracking and performance monitoring.
+
+### Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SENTRY_DSN` | No | None | Sentry project DSN (format: `https://key@sentry.io/project-id`) |
+| `SENTRY_ENVIRONMENT` | No | `&quot;development&quot;` | Environment name (`development`, `staging`, `production`) |
+
+### Setup Methods
+
+#### Method 1: Doppler (Recommended)
+
+```bash
+# Set secrets in Doppler
+doppler secrets set SENTRY_DSN=&quot;https://your-key@sentry.io/project-id&quot; --project bottleneck --config dev
+doppler secrets set SENTRY_ENVIRONMENT=&quot;development&quot; --project bottleneck --config dev
+
+# Run server
+doppler run --project bottleneck --config dev -- uv run main.py
+```
+
+#### Method 2: Environment Variables
+
+**macOS/Linux:**
+```bash
+export SENTRY_DSN=&quot;https://your-key@sentry.io/project-id&quot;
+export SENTRY_ENVIRONMENT=&quot;production&quot;
+uv run main.py
+```
+
+**Windows (PowerShell):**
+```powershell
+$env:SENTRY_DSN = &quot;https://your-key@sentry.io/project-id&quot;
+$env:SENTRY_ENVIRONMENT = &quot;production&quot;
+uv run main.py
+```
+
+#### Method 3: MCP Client Configuration
+
+Add to `.cursor-mcp/settings.json` or Claude Desktop config:
+
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;uv&quot;,
+      &quot;args&quot;: [&quot;--directory&quot;, &quot;/path/to/ast-grep-mcp&quot;, &quot;run&quot;, &quot;main.py&quot;],
+      &quot;env&quot;: {
+        &quot;SENTRY_DSN&quot;: &quot;https://your-key@sentry.io/project-id&quot;,
+        &quot;SENTRY_ENVIRONMENT&quot;: &quot;production&quot;
+      }
+    }
+  }
+}
+```
+
+### Configuration Details
+
+Located in `src/ast_grep_mcp/core/sentry.py`:
+
+```python
+def init_sentry(service_name: str = &quot;ast-grep-mcp&quot;) -&gt; None:
+    &quot;&quot;&quot;Initialize Sentry with Anthropic AI integration and service tagging.&quot;&quot;&quot;
+    dsn = os.getenv(&quot;SENTRY_DSN&quot;)
+    if not dsn:
+        return
+
+    sentry_env = os.getenv(&quot;SENTRY_ENVIRONMENT&quot;, &quot;development&quot;)
+    is_dev = sentry_env == &quot;development&quot;
+
+    sentry_sdk.init(
+        dsn=dsn,
+        environment=sentry_env,
+        integrations=[AnthropicIntegration(include_prompts=True)],
+        traces_sample_rate=1.0 if is_dev else SentryDefaults.PRODUCTION_TRACES_SAMPLE_RATE,
+        profiles_sample_rate=1.0 if is_dev else SentryDefaults.PRODUCTION_PROFILES_SAMPLE_RATE,
+        send_default_pii=True,
+        attach_stacktrace=True,
+        before_send=_make_tag_event(service_name),
+    )
+
+    sentry_sdk.set_tag(&quot;service&quot;, service_name)
+```
+
+### Customizing Sampling Rates
+
+Edit `main.py` to adjust sampling per environment:
+
+```python
+# Conservative production sampling (1%)
+traces_sample_rate = 0.01 if environment == &quot;production&quot; else 1.0
+
+# Moderate production sampling (10%)
+traces_sample_rate = 0.1 if environment == &quot;production&quot; else 1.0
+
+# Aggressive production sampling (50%)
+traces_sample_rate = 0.5 if environment == &quot;production&quot; else 1.0
+```
+
+Or use environment variable (requires code change):
+
+```python
+traces_sample_rate = float(os.environ.get(&quot;SENTRY_TRACES_SAMPLE_RATE&quot;, &quot;1.0&quot; if environment == &quot;development&quot; else &quot;0.1&quot;))
+```
+
+Then set via Doppler:
+
+```bash
+doppler secrets set SENTRY_TRACES_SAMPLE_RATE=&quot;0.05&quot; --project bottleneck --config prd
+```
+
+### Testing Sentry Integration
+
+Use the built-in test tool:
+
+```python
+# Via MCP client (Cursor/Claude)
+test_sentry_integration()
+```
+
+Returns:
+
+```json
+{
+  &quot;sentry_enabled&quot;: true,
+  &quot;configuration&quot;: {
+    &quot;dsn_configured&quot;: true,
+    &quot;environment&quot;: &quot;development&quot;,
+    &quot;traces_sample_rate&quot;: 1.0
+  },
+  &quot;test_result&quot;: &quot;success&quot;,
+  &quot;message&quot;: &quot;Test error captured successfully. Check your Sentry dashboard.&quot;
+}
+```
+
+### What Gets Tracked
+
+**Errors:**
+- ast-grep subprocess failures
+- YAML parsing errors
+- File operation errors (backup/restore)
+- Schema.org API failures
+- Code validation errors
+
+**Performance:**
+- Tool execution time
+- Subprocess execution spans
+- HTTP request spans
+- Batch parallel operation spans
+
+**AI Interactions** (if using Anthropic SDK):
+- Prompts and responses
+- Token usage
+- Model information
+
+See [SENTRY-INTEGRATION.md](../SENTRY-INTEGRATION.md) for detailed documentation.
+
+---
+
+## Doppler Secret Management
+
+Doppler provides centralized, secure secret management with team collaboration and audit logging.
+
+### Project Structure
+
+This project is configured with:
+
+- **Project**: `bottleneck`
+- **Default Config**: `dev`
+- **Configuration File**: `.doppler.yaml`
+
+### Installation
+
+**macOS:**
+```bash
+brew install dopplerhq/cli/doppler
+```
+
+**Linux:**
+```bash
+curl -Ls https://cli.doppler.com/install.sh | sh
+```
+
+**Windows:**
+```powershell
+scoop install doppler
+```
+
+### Authentication
+
+```bash
+# Login (opens browser)
+doppler login
+
+# Verify authentication
+doppler me
+```
+
+### Managing Secrets
+
+```bash
+# View all secrets
+doppler secrets --project bottleneck --config dev
+
+# Get specific secret (plaintext)
+doppler secrets get SENTRY_DSN --project bottleneck --config dev --plain
+
+# Set secret
+doppler secrets set SENTRY_DSN=&quot;https://key@sentry.io/123&quot; --project bottleneck --config dev
+
+# Delete secret
+doppler secrets delete OLD_SECRET --project bottleneck --config dev
+```
+
+### Running with Doppler
+
+**Manual execution:**
+```bash
+# Full command
+doppler run --project bottleneck --config dev -- uv run main.py
+
+# Shorter (uses .doppler.yaml)
+doppler run -- uv run main.py
+```
+
+**MCP client configuration:**
+
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [
+        &quot;run&quot;,
+        &quot;--project&quot;, &quot;bottleneck&quot;,
+        &quot;--config&quot;, &quot;dev&quot;,
+        &quot;--command&quot;,
+        &quot;uv --directory /absolute/path/to/ast-grep-mcp run main.py&quot;
+      ]
+    }
+  }
+}
+```
+
+### Multiple Environments
+
+Create separate configs for different environments:
+
+```bash
+# Create staging config
+doppler configs create stg --project bottleneck
+
+# Set staging-specific secrets
+doppler secrets set SENTRY_DSN=&quot;https://stg-key@sentry.io/stg-id&quot; --project bottleneck --config stg
+doppler secrets set SENTRY_ENVIRONMENT=&quot;staging&quot; --project bottleneck --config stg
+
+# Create production config
+doppler configs create prd --project bottleneck
+
+# Set production secrets
+doppler secrets set SENTRY_DSN=&quot;https://prd-key@sentry.io/prd-id&quot; --project bottleneck --config prd
+doppler secrets set SENTRY_ENVIRONMENT=&quot;production&quot; --project bottleneck --config prd
+```
+
+Use different configs in MCP client:
+
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep-dev&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;dev&quot;, &quot;--command&quot;, &quot;uv --directory /path run main.py&quot;]
+    },
+    &quot;ast-grep-prod&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;prd&quot;, &quot;--command&quot;, &quot;uv --directory /path run main.py&quot;]
+    }
+  }
+}
+```
+
+### Team Collaboration
+
+**Invite team members:**
+
+1. Go to [Doppler Dashboard](https://dashboard.doppler.com/)
+2. Select project → Team → Invite Member
+3. Set role (Admin, Developer, Read-only)
+
+**Role-based access:**
+
+| Role | Permissions |
+|------|------------|
+| Owner | Full access, delete project |
+| Admin | Manage secrets, configs, members |
+| Developer | Read/write secrets |
+| Read-only | View secrets only |
+
+**Audit logging:**
+
+View who accessed secrets in Project Settings → Audit Logs.
+
+### Migration
+
+If you&apos;re currently using manual environment variables, follow the Doppler setup steps in [docs/README.md](README.md#configuration) and mirror your existing values into Doppler secrets.
+
+---
+
+## Complete Configuration Examples
+
+### Example 1: Local Development (No Monitoring)
+
+**MCP Client** (`.cursor-mcp/settings.json`):
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;uv&quot;,
+      &quot;args&quot;: [&quot;--directory&quot;, &quot;/Users/me/code/ast-grep-mcp&quot;, &quot;run&quot;, &quot;main.py&quot;],
+      &quot;env&quot;: {}
+    }
+  }
+}
+```
+
+**Features:**
+- No error tracking
+- No secret management
+- Minimal overhead
+- Good for: Local development, testing
+
+### Example 2: Development with Sentry (Manual)
+
+**MCP Client**:
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;uv&quot;,
+      &quot;args&quot;: [&quot;--directory&quot;, &quot;/Users/me/code/ast-grep-mcp&quot;, &quot;run&quot;, &quot;main.py&quot;],
+      &quot;env&quot;: {
+        &quot;SENTRY_DSN&quot;: &quot;https://dev-key@sentry.io/dev-project&quot;,
+        &quot;SENTRY_ENVIRONMENT&quot;: &quot;development&quot;
+      }
+    }
+  }
+}
+```
+
+**Features:**
+- Error tracking enabled
+- 100% trace sampling
+- Manual credential management
+- Good for: Solo developers, simple projects
+
+### Example 3: Team Development with Doppler
+
+**MCP Client**:
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [
+        &quot;run&quot;,
+        &quot;--project&quot;, &quot;bottleneck&quot;,
+        &quot;--config&quot;, &quot;dev&quot;,
+        &quot;--command&quot;,
+        &quot;uv --directory /Users/me/code/ast-grep-mcp run main.py&quot;
+      ]
+    }
+  }
+}
+```
+
+**Doppler Secrets** (`bottleneck/dev`):
+```bash
+SENTRY_DSN=https://dev-key@sentry.io/dev-project
+SENTRY_ENVIRONMENT=development
+SENTRY_TRACES_SAMPLE_RATE=1.0
+```
+
+**Features:**
+- Centralized secret management
+- Team collaboration
+- Audit logging
+- Easy environment switching
+- Good for: Teams, multiple environments
+
+### Example 4: Production Deployment
+
+**MCP Client**:
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [
+        &quot;run&quot;,
+        &quot;--project&quot;, &quot;bottleneck&quot;,
+        &quot;--config&quot;, &quot;prd&quot;,
+        &quot;--command&quot;,
+        &quot;uv --directory /opt/ast-grep-mcp run main.py&quot;
+      ]
+    }
+  }
+}
+```
+
+**Doppler Secrets** (`bottleneck/prd`):
+```bash
+SENTRY_DSN=https://prd-key@sentry.io/prd-project
+SENTRY_ENVIRONMENT=production
+SENTRY_TRACES_SAMPLE_RATE=0.1  # 10% sampling
+```
+
+**Features:**
+- Production error tracking
+- Cost-optimized sampling (10%)
+- Secure credential rotation
+- Separate Sentry project
+- Good for: Production deployments, high traffic
+
+### Example 5: Multi-Environment Setup
+
+**MCP Client**:
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep-dev&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;dev&quot;, &quot;--command&quot;, &quot;uv --directory /path run main.py&quot;]
+    },
+    &quot;ast-grep-stg&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;stg&quot;, &quot;--command&quot;, &quot;uv --directory /path run main.py&quot;]
+    },
+    &quot;ast-grep-prd&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;prd&quot;, &quot;--command&quot;, &quot;uv --directory /path run main.py&quot;]
+    }
+  }
+}
+```
+
+**Doppler Configs:**
+
+| Config | SENTRY_ENVIRONMENT | Trace Sampling | Use Case |
+|--------|-------------------|----------------|----------|
+| `dev` | development | 100% | Local development, full visibility |
+| `stg` | staging | 50% | Pre-production testing |
+| `prd` | production | 10% | Production deployment |
+
+**Good for:** Large teams, CI/CD pipelines, staged deployments
+
+### Example 6: Custom ast-grep Configuration
+
+**MCP Client**:
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [
+        &quot;run&quot;,
+        &quot;--project&quot;, &quot;bottleneck&quot;,
+        &quot;--config&quot;, &quot;dev&quot;,
+        &quot;--command&quot;,
+        &quot;uv --directory /path run main.py --config /path/to/sgconfig.yaml&quot;
+      ]
+    }
+  }
+}
+```
+
+**sgconfig.yaml**:
+```yaml
+ruleDirs:
+  - rules
+  - custom-rules
+
+customLanguages:
+  graphql:
+    extensions:
+      - .graphql
+      - .gql
+    languageId: graphql
+```
+
+**Features:**
+- Custom ast-grep language support
+- Doppler secret management
+- Sentry error tracking
+- Good for: Custom language projects, advanced ast-grep usage
+
+---
+
+## Configuration Validation
+
+### Validate ast-grep Configuration
+
+```bash
+# Test config file syntax
+cat sgconfig.yaml | python -c &quot;import yaml; yaml.safe_load(open(&apos;sgconfig.yaml&apos;))&quot;
+
+# Run server with config
+uv run main.py --config sgconfig.yaml
+```
+
+### Validate Sentry Configuration
+
+```bash
+# Check environment variables
+echo $SENTRY_DSN
+echo $SENTRY_ENVIRONMENT
+
+# Or with Doppler
+doppler secrets get SENTRY_DSN --project bottleneck --config dev --plain
+
+# Test Sentry integration
+uv run main.py
+# Look for: &quot;Sentry initialized with DSN&quot; in logs
+```
+
+### Validate Complete Setup
+
+```bash
+# 1. Test Doppler injection
+doppler run --project bottleneck --config dev -- env | grep SENTRY
+
+# 2. Test server startup
+doppler run --project bottleneck --config dev -- uv run main.py
+
+# 3. Use test tool via MCP client
+test_sentry_integration()
+```
+
+---
+
+## Additional Resources
+
+- **ast-grep Configuration**: [ast-grep docs](https://ast-grep.github.io/guide/project/project-config.html)
+- **Sentry Integration**: [SENTRY-INTEGRATION.md](../SENTRY-INTEGRATION.md)
+- **Doppler Setup**: [docs/README.md](README.md#configuration)
+- **Main Documentation**: [README.md](../README.md)
+- **Development Guide**: [CLAUDE.md](../CLAUDE.md)</file><file path="docs/DEDUPLICATION-GUIDE.md"># Deduplication Guide
 
 This guide covers the enhanced code deduplication system in ast-grep-mcp, which provides intelligent detection, analysis, and automated refactoring of duplicate code.
 
@@ -4732,7 +5733,191 @@ Only candidate worth considering — could lift to a template method on `SmellDe
 - Discount similarity for methods that delegate to a shared helper (already deduplicated)
 - Reduce weight for strategy/template pattern implementations sharing abstract method boilerplate
 - Add minimum line savings threshold (e.g., 20+ lines) before reporting
-- Consider excluding dataclass/model `to_*` methods with parallel structure</file><file path="docs/changelog/2026-03-06-complexity-review-fixes.md"># Complexity Refactoring + Code Review Fixes — 2026-03-06
+- Consider excluding dataclass/model `to_*` methods with parallel structure</file><file path="docs/README.md"># ast-grep + Schema.org MCP Server
+
+MCP server combining [ast-grep](https://ast-grep.github.io/) structural code search with Schema.org structured data tools for AI assistants (Cursor, Claude Desktop, etc.).
+
+## Overview
+
+**Code Search (ast-grep):** AST-based pattern matching, code construct search, duplication detection, YAML rules, syntax tree debugging
+
+**Structured Data (Schema.org):** Query 2600+ types/properties, search by keyword, explore hierarchies, generate JSON-LD examples, build knowledge graphs
+
+## Quick Start
+
+```bash
+# Install prerequisites
+brew install ast-grep  # or: cargo install ast-grep --locked
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Clone and install
+git clone https://github.com/aledlie/ast-grep-mcp.git
+cd ast-grep-mcp
+uv sync
+
+# Run directly from GitHub (no clone)
+uvx --from git+https://github.com/aledlie/ast-grep-mcp ast-grep-server
+```
+
+## Configuration
+
+Add to `.cursor-mcp/settings.json` or `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+**With Doppler (recommended for production):**
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;doppler&quot;,
+      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;dev&quot;, &quot;--command&quot;,
+               &quot;uv --directory /path/to/ast-grep-mcp run main.py&quot;]
+    }
+  }
+}
+```
+
+**Without Doppler (local development):**
+```json
+{
+  &quot;mcpServers&quot;: {
+    &quot;ast-grep&quot;: {
+      &quot;command&quot;: &quot;uv&quot;,
+      &quot;args&quot;: [&quot;--directory&quot;, &quot;/path/to/ast-grep-mcp&quot;, &quot;run&quot;, &quot;main.py&quot;],
+      &quot;env&quot;: {
+        &quot;SENTRY_DSN&quot;: &quot;optional-for-error-tracking&quot;,
+        &quot;SENTRY_ENVIRONMENT&quot;: &quot;production&quot;
+      }
+    }
+  }
+}
+```
+
+**Custom ast-grep config:** Use `--config /path/to/sgconfig.yaml` or `AST_GREP_CONFIG` env var. See [ast-grep config docs](https://ast-grep.github.io/guide/project/project-config.html).
+
+**Rule writing guide:** See [ast-grep.mdc](https://github.com/ast-grep/ast-grep-mcp/blob/main/ast-grep.mdc) for comprehensive rule patterns.
+
+## Error Tracking (Optional)
+
+**Sentry integration** (optional, zero overhead when disabled) provides:
+- Error tracking for all 53 tools
+- Performance monitoring (subprocess, API, batch operations)
+- AI interaction tracking (with Anthropic SDK)
+- Service tagging: `service:ast-grep-mcp`
+
+**Setup:**
+```bash
+# With Doppler (recommended)
+brew install dopplerhq/cli/doppler
+doppler login
+doppler secrets set SENTRY_DSN=&quot;your-dsn&quot; --project bottleneck --config dev
+
+# Manual
+export SENTRY_DSN=&quot;your-dsn&quot;
+export SENTRY_ENVIRONMENT=&quot;production&quot;
+```
+
+**Docs:** [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md)
+
+## Tools (53 Total)
+
+| Feature | Count | Tools |
+|---------|-------|-------|
+| Search | 9 | find_code, find_code_by_rule, dump_syntax_tree, test_match_code_rule, debug_pattern, develop_pattern, get_ast_grep_docs, build_rule, get_pattern_examples |
+| Rewrite | 3 | rewrite_code, rollback_rewrite, list_backups |
+| Refactoring | 2 | extract_function, rename_symbol |
+| Deduplication | 4 | find_duplication, analyze_deduplication_candidates, apply_deduplication, benchmark_deduplication |
+| Complexity | 3 | analyze_complexity, test_sentry_integration, detect_code_smells |
+| Quality | 7 | create_linting_rule, list_linting_rules, apply_linting_rule, detect_security_issues, apply_standards_fixes, generate_quality_report, enforce_code_standards |
+| Documentation | 5 | generate_docstrings, generate_readme_sections, generate_api_docs, generate_changelog, sync_documentation |
+| Cross-Language | 5 | search_multi_language, find_language_equivalents, convert_code_language, refactor_polyglot, generate_language_bindings |
+| Schema.org | 9 | get_schema_type, search_schemas, get_type_hierarchy, get_type_properties, generate_schema_example, generate_entity_id, validate_entity_id, build_entity_graph, enhance_entity_graph |
+| Condense | 6 | condense_extract_surface, condense_normalize, condense_strip, condense_pack, condense_estimate, condense_train_dictionary |
+
+
+## Usage Examples
+
+**Pattern search:**
+```yaml
+# Find console.log statements
+pattern: console.log($$$)
+```
+
+**Complex rules:**
+```yaml
+# Find async functions with await
+all:
+  - kind: function_declaration
+  - has: { pattern: async }
+  - has: { pattern: await $EXPR, stopBy: end }
+```
+
+**Duplication detection:**
+```python
+find_duplication(project_folder=&quot;/path&quot;, language=&quot;python&quot;,
+                 construct_type=&quot;function_definition&quot;, min_similarity=0.8)
+# Returns: summary stats, duplicate groups, refactoring suggestions
+```
+
+**Schema.org workflow:**
+```python
+search_schemas(&apos;blog&apos;)              # Find BlogPosting
+get_type_properties(&apos;BlogPosting&apos;)  # List properties
+generate_schema_example(&apos;BlogPosting&apos;, {&apos;headline&apos;: &apos;...&apos;, &apos;author&apos;: {...}})
+# Returns: Complete JSON-LD markup
+```
+
+**Knowledge graph:**
+```python
+generate_entity_id(&apos;https://example.com&apos;, &apos;Organization&apos;)  # Generate @id
+validate_entity_id(&apos;https://example.com/#organization&apos;)    # Validate
+build_entity_graph([...], &apos;https://example.com&apos;)          # Build @graph
+# Returns: Multi-entity JSON-LD with proper @id references
+```
+
+## Supported Languages
+
+JavaScript/TypeScript, Python, Rust, Go, Java, C/C++, C#, and [many more](https://ast-grep.github.io/reference/languages.html). Add custom languages via `sgconfig.yaml` ([guide](https://ast-grep.github.io/guide/project/project-config.html#languagecustomlanguage)).
+
+## Troubleshooting
+
+**Common:**
+- Command not found: Ensure `ast-grep` in PATH
+- No matches: Add `stopBy: end` to relational rules
+- Pattern issues: Use `dump_syntax_tree` to debug
+
+**Sentry:** Run `test_sentry_integration()`, check `SENTRY_DSN`. See [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md).
+
+**Doppler:** Verify auth (`doppler login`) and secrets (`doppler secrets --project bottleneck --config dev`).
+
+## Repository
+
+```
+src/ast_grep_mcp/          # 120 modules
+├── core/                  # Config, cache, executor, logging, sentry, usage tracking
+├── models/                # Data models (13 modules)
+├── utils/                 # Formatters, validation, templates, text processing
+├── features/              # 10 feature modules (search, rewrite, refactoring, deduplication,
+│                          #   complexity, quality, documentation, cross_language, schema, condense)
+└── server/                # MCP registry + runner
+```
+
+- `tests/` - 1,622 collected tests (unit + integration + quality regression)
+
+## Recent Updates
+
+- [changelog/2026-03-08-changelog-hardening-test-quality.md](changelog/2026-03-08-changelog-hardening-test-quality.md) - Changelog hardening and test quality improvements.
+- [changelog/2026-03-08-quality-fixes.md](changelog/2026-03-08-quality-fixes.md) - Quality fixes.
+- [changelog/2026-03-06-complexity-review-fixes.md](changelog/2026-03-06-complexity-review-fixes.md) - Complexity review and fixes.
+- [changelog/2026-03-04-maintenance-quality.md](changelog/2026-03-04-maintenance-quality.md) - Constants consolidation, analyzer false-positive reduction, exclusion hardening, and diff parser fix.
+
+## Related
+
+- [ast-grep](https://ast-grep.github.io/) - Core search tool
+- [Schema.org](https://schema.org/) - Structured data vocabulary
+- [MCP](https://modelcontextprotocol.io/) - Protocol specification
+- [FastMCP](https://github.com/pydantic/fastmcp) - Python framework
+
+[![Security Assessment](https://mseep.net/pr/ast-grep-ast-grep-mcp-badge.png)](https://mseep.ai/app/ast-grep-ast-grep-mcp)</file><file path="docs/changelog/2026-03-06-complexity-review-fixes.md"># Complexity Refactoring + Code Review Fixes — 2026-03-06
 
 Batch completion of complexity reduction queue (C1-C10) and high-priority code review issues (BR1-BR8). All items committed 2026-03-06.
 
@@ -4986,1083 +6171,18 @@ Skipped (no ctx):   318 invocations
 - Sessions before OTEL hooks were enabled have no trace-ctx and cannot be backfilled
 - Output content (the actual review text) is not stored in spans; only byte count is preserved
 - Backfilled spans have `kind: 0` (INTERNAL) and `status.code: 1` (OK) regardless of original outcome
-- The `COMPLETED_WITH_ERROR_MENTIONS` status is preserved in `agent.completion_status` but `status.code` is always OK</file><file path="docs/CONFIGURATION.md"># Configuration Guide
+- The `COMPLETED_WITH_ERROR_MENTIONS` status is preserved in `agent.completion_status` but `status.code` is always OK</file><file path="docs/KNOWN_ISSUES.md"># Known Issues
 
-This document describes configuration options for the ast-grep MCP server, including ast-grep configuration (`sgconfig.yaml`) and Sentry/Doppler integration.
-
-## Table of Contents
-
-1. [ast-grep Configuration](#ast-grep-configuration)
-2. [Sentry Error Tracking](#sentry-error-tracking)
-3. [Doppler Secret Management](#doppler-secret-management)
-4. [Complete Configuration Examples](#complete-configuration-examples)
-
-## ast-grep Configuration
-
-The ast-grep MCP server supports custom configuration via a `sgconfig.yaml` file. This file allows you to customize ast-grep behavior, including:
-
-- Defining custom languages
-- Specifying rule directories
-- Configuring test directories
-- Setting language-to-file extension mappings
-
-## Providing the Configuration File
-
-You can provide the configuration file in two ways (in order of precedence):
-
-1. **Command-line argument**: `--config /path/to/sgconfig.yaml`
-2. **Environment variable**: `AST_GREP_CONFIG=/path/to/sgconfig.yaml`
-
-The configuration file is validated on startup. If validation fails, the server will exit with a descriptive error message.
-
-## Configuration Structure
-
-### Top-Level Fields
-
-```yaml
-# Optional: Directories containing ast-grep rules
-ruleDirs:
-  - rules
-  - custom-rules
-
-# Optional: Directories containing test files
-testDirs:
-  - tests
-
-# Optional: Custom language definitions
-customLanguages:
-  mylang:
-    extensions:
-      - .ml
-      - .mli
-    languageId: mylang
-    expandoChar: _
-
-# Optional: Language-to-glob mappings
-languageGlobs:
-  - extensions: [.proto]
-    language: protobuf
-```
-
-### Field Descriptions
-
-#### `ruleDirs` (optional)
-
-Type: `List[str]`
-
-Directories containing ast-grep rule files (`.yml` or `.yaml` files). Paths are relative to the configuration file location.
-
-**Validation:**
-- Must not be an empty list if specified
-- Each directory path should exist (not enforced by validation, but recommended)
-
-**Example:**
-```yaml
-ruleDirs:
-  - rules
-  - security-rules
-  - refactoring-rules
-```
-
-#### `testDirs` (optional)
-
-Type: `List[str]`
-
-Directories containing test files for your ast-grep rules. Used by ast-grep&apos;s testing framework.
-
-**Validation:**
-- Must not be an empty list if specified
-
-**Example:**
-```yaml
-testDirs:
-  - tests
-  - rule-tests
-```
-
-#### `customLanguages` (optional)
-
-Type: `Dict[str, CustomLanguageConfig]`
-
-Define custom languages with tree-sitter grammars. Each language has:
-
-- **`extensions`** (required): List of file extensions (must start with `.`)
-- **`languageId`** (optional): Language identifier
-- **`expandoChar`** (optional): Character used for meta-variable expansion
-
-**Validation:**
-- Dictionary must not be empty if specified
-- Each language must have at least one extension
-- All extensions must start with a dot (`.`)
-
-**Example:**
-```yaml
-customLanguages:
-  # Custom language for Protocol Buffers
-  protobuf:
-    extensions:
-      - .proto
-    languageId: proto
-
-  # Custom language for Terraform
-  terraform:
-    extensions:
-      - .tf
-      - .tfvars
-    languageId: hcl
-```
-
-#### `languageGlobs` (optional)
-
-Type: `List[Dict[str, Any]]`
-
-Map file extensions to languages. Useful for associating non-standard extensions with existing languages.
-
-**Example:**
-```yaml
-languageGlobs:
-  - extensions: [.proto]
-    language: protobuf
-  - extensions: [.mjs, .cjs]
-    language: javascript
-```
-
-## Complete Example
-
-Here&apos;s a complete example configuration:
-
-```yaml
-# sgconfig.yaml - Complete example
-
-ruleDirs:
-  - rules
-  - custom-rules
-  - security
-
-testDirs:
-  - tests
-  - rule-tests
-
-customLanguages:
-  # Add support for GraphQL
-  graphql:
-    extensions:
-      - .graphql
-      - .gql
-    languageId: graphql
-
-  # Add support for Solidity
-  solidity:
-    extensions:
-      - .sol
-    languageId: solidity
-
-languageGlobs:
-  # Map .mjs and .cjs to JavaScript
-  - extensions: [.mjs, .cjs]
-    language: javascript
-
-  # Map .tsx and .jsx to TypeScript/JavaScript
-  - extensions: [.tsx]
-    language: tsx
-  - extensions: [.jsx]
-    language: jsx
-```
-
-## Validation
-
-The server validates the configuration file on startup using Pydantic models. Common validation errors include:
-
-### Empty Lists or Dictionaries
-
-**Error:**
-```
-Configuration error in &apos;/path/to/sgconfig.yaml&apos;: Validation failed: Directory list cannot be empty if specified
-```
-
-**Fix:**
-Remove the empty field or add at least one item:
-```yaml
-# Wrong
-ruleDirs: []
-
-# Right - remove the field
-# ruleDirs not specified
-
-# Right - add items
-ruleDirs:
-  - rules
-```
-
-### Invalid File Extensions
-
-**Error:**
-```
-Configuration error in &apos;/path/to/sgconfig.yaml&apos;: Validation failed: Extension &apos;txt&apos; must start with a dot (e.g., &apos;.myext&apos;)
-```
-
-**Fix:**
-Add a dot prefix to all extensions:
-```yaml
-# Wrong
-customLanguages:
-  mylang:
-    extensions:
-      - txt
-
-# Right
-customLanguages:
-  mylang:
-    extensions:
-      - .txt
-```
-
-### Empty Extensions List
-
-**Error:**
-```
-Configuration error in &apos;/path/to/sgconfig.yaml&apos;: Validation failed: extensions list cannot be empty
-```
-
-**Fix:**
-Add at least one extension:
-```yaml
-# Wrong
-customLanguages:
-  mylang:
-    extensions: []
-
-# Right
-customLanguages:
-  mylang:
-    extensions:
-      - .ml
-```
-
-### YAML Syntax Errors
-
-**Error:**
-```
-Configuration error in &apos;/path/to/sgconfig.yaml&apos;: YAML parsing failed: ...
-```
-
-**Fix:**
-Check YAML syntax. Common issues:
-- Incorrect indentation (use spaces, not tabs)
-- Missing colons or hyphens
-- Unclosed quotes or brackets
-
-### File Not Found
-
-**Error:**
-```
-Configuration error in &apos;/path/to/sgconfig.yaml&apos;: File does not exist
-```
-
-**Fix:**
-- Verify the path is correct
-- Use absolute paths or paths relative to your working directory
-- Check file permissions
-
-## Testing Your Configuration
-
-You can test your configuration by running the server with the `--config` flag:
-
-```bash
-uv run main.py --config /path/to/sgconfig.yaml
-```
-
-If validation succeeds, the server will start normally. If validation fails, you&apos;ll see a descriptive error message.
-
-## Additional Resources
-
-- [ast-grep Configuration Documentation](https://ast-grep.github.io/guide/project/project-config.html)
-- [ast-grep Custom Language Guide](https://ast-grep.github.io/advanced/custom-language.html)
-- [tree-sitter Language Support](https://tree-sitter.github.io/tree-sitter/)
-
-## Schema Reference
-
-### CustomLanguageConfig
-
-```python
-class CustomLanguageConfig:
-    extensions: List[str]         # Required, must start with &apos;.&apos;
-    languageId: Optional[str]     # Optional language identifier
-    expandoChar: Optional[str]    # Optional expansion character
-```
-
-### AstGrepConfig
-
-```python
-class AstGrepConfig:
-    ruleDirs: Optional[List[str]]                              # Rule directories
-    testDirs: Optional[List[str]]                              # Test directories
-    customLanguages: Optional[Dict[str, CustomLanguageConfig]] # Custom languages
-    languageGlobs: Optional[List[Dict[str, Any]]]             # Language mappings
-```
-
-All fields are optional, but if provided, they must follow the validation rules described above.
-
----
-
-## Sentry Error Tracking
-
-The MCP server supports optional Sentry integration for error tracking and performance monitoring.
-
-### Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `SENTRY_DSN` | No | None | Sentry project DSN (format: `https://key@sentry.io/project-id`) |
-| `SENTRY_ENVIRONMENT` | No | `&quot;development&quot;` | Environment name (`development`, `staging`, `production`) |
-
-### Setup Methods
-
-#### Method 1: Doppler (Recommended)
-
-```bash
-# Set secrets in Doppler
-doppler secrets set SENTRY_DSN=&quot;https://your-key@sentry.io/project-id&quot; --project bottleneck --config dev
-doppler secrets set SENTRY_ENVIRONMENT=&quot;development&quot; --project bottleneck --config dev
-
-# Run server
-doppler run --project bottleneck --config dev -- uv run main.py
-```
-
-#### Method 2: Environment Variables
-
-**macOS/Linux:**
-```bash
-export SENTRY_DSN=&quot;https://your-key@sentry.io/project-id&quot;
-export SENTRY_ENVIRONMENT=&quot;production&quot;
-uv run main.py
-```
-
-**Windows (PowerShell):**
-```powershell
-$env:SENTRY_DSN = &quot;https://your-key@sentry.io/project-id&quot;
-$env:SENTRY_ENVIRONMENT = &quot;production&quot;
-uv run main.py
-```
-
-#### Method 3: MCP Client Configuration
-
-Add to `.cursor-mcp/settings.json` or Claude Desktop config:
-
-```json
-{
-  &quot;mcpServers&quot;: {
-    &quot;ast-grep&quot;: {
-      &quot;command&quot;: &quot;uv&quot;,
-      &quot;args&quot;: [&quot;--directory&quot;, &quot;/path/to/ast-grep-mcp&quot;, &quot;run&quot;, &quot;main.py&quot;],
-      &quot;env&quot;: {
-        &quot;SENTRY_DSN&quot;: &quot;https://your-key@sentry.io/project-id&quot;,
-        &quot;SENTRY_ENVIRONMENT&quot;: &quot;production&quot;
-      }
-    }
-  }
-}
-```
-
-### Configuration Details
-
-Located in `src/ast_grep_mcp/core/sentry.py`:
-
-```python
-def init_sentry(service_name: str = &quot;ast-grep-mcp&quot;) -&gt; None:
-    &quot;&quot;&quot;Initialize Sentry with Anthropic AI integration and service tagging.&quot;&quot;&quot;
-    dsn = os.getenv(&quot;SENTRY_DSN&quot;)
-    if not dsn:
-        return
-
-    sentry_env = os.getenv(&quot;SENTRY_ENVIRONMENT&quot;, &quot;development&quot;)
-    is_dev = sentry_env == &quot;development&quot;
-
-    sentry_sdk.init(
-        dsn=dsn,
-        environment=sentry_env,
-        integrations=[AnthropicIntegration(include_prompts=True)],
-        traces_sample_rate=1.0 if is_dev else SentryDefaults.PRODUCTION_TRACES_SAMPLE_RATE,
-        profiles_sample_rate=1.0 if is_dev else SentryDefaults.PRODUCTION_PROFILES_SAMPLE_RATE,
-        send_default_pii=True,
-        attach_stacktrace=True,
-        before_send=_make_tag_event(service_name),
-    )
-
-    sentry_sdk.set_tag(&quot;service&quot;, service_name)
-```
-
-### Customizing Sampling Rates
-
-Edit `main.py` to adjust sampling per environment:
-
-```python
-# Conservative production sampling (1%)
-traces_sample_rate = 0.01 if environment == &quot;production&quot; else 1.0
-
-# Moderate production sampling (10%)
-traces_sample_rate = 0.1 if environment == &quot;production&quot; else 1.0
-
-# Aggressive production sampling (50%)
-traces_sample_rate = 0.5 if environment == &quot;production&quot; else 1.0
-```
-
-Or use environment variable (requires code change):
-
-```python
-traces_sample_rate = float(os.environ.get(&quot;SENTRY_TRACES_SAMPLE_RATE&quot;, &quot;1.0&quot; if environment == &quot;development&quot; else &quot;0.1&quot;))
-```
-
-Then set via Doppler:
-
-```bash
-doppler secrets set SENTRY_TRACES_SAMPLE_RATE=&quot;0.05&quot; --project bottleneck --config prd
-```
-
-### Testing Sentry Integration
-
-Use the built-in test tool:
-
-```python
-# Via MCP client (Cursor/Claude)
-test_sentry_integration()
-```
-
-Returns:
-
-```json
-{
-  &quot;sentry_enabled&quot;: true,
-  &quot;configuration&quot;: {
-    &quot;dsn_configured&quot;: true,
-    &quot;environment&quot;: &quot;development&quot;,
-    &quot;traces_sample_rate&quot;: 1.0
-  },
-  &quot;test_result&quot;: &quot;success&quot;,
-  &quot;message&quot;: &quot;Test error captured successfully. Check your Sentry dashboard.&quot;
-}
-```
-
-### What Gets Tracked
-
-**Errors:**
-- ast-grep subprocess failures
-- YAML parsing errors
-- File operation errors (backup/restore)
-- Schema.org API failures
-- Code validation errors
-
-**Performance:**
-- Tool execution time
-- Subprocess execution spans
-- HTTP request spans
-- Batch parallel operation spans
-
-**AI Interactions** (if using Anthropic SDK):
-- Prompts and responses
-- Token usage
-- Model information
-
-See [SENTRY-INTEGRATION.md](../SENTRY-INTEGRATION.md) for detailed documentation.
-
----
-
-## Doppler Secret Management
-
-Doppler provides centralized, secure secret management with team collaboration and audit logging.
-
-### Project Structure
-
-This project is configured with:
-
-- **Project**: `bottleneck`
-- **Default Config**: `dev`
-- **Configuration File**: `.doppler.yaml`
-
-### Installation
-
-**macOS:**
-```bash
-brew install dopplerhq/cli/doppler
-```
-
-**Linux:**
-```bash
-curl -Ls https://cli.doppler.com/install.sh | sh
-```
-
-**Windows:**
-```powershell
-scoop install doppler
-```
-
-### Authentication
-
-```bash
-# Login (opens browser)
-doppler login
-
-# Verify authentication
-doppler me
-```
-
-### Managing Secrets
-
-```bash
-# View all secrets
-doppler secrets --project bottleneck --config dev
-
-# Get specific secret (plaintext)
-doppler secrets get SENTRY_DSN --project bottleneck --config dev --plain
-
-# Set secret
-doppler secrets set SENTRY_DSN=&quot;https://key@sentry.io/123&quot; --project bottleneck --config dev
-
-# Delete secret
-doppler secrets delete OLD_SECRET --project bottleneck --config dev
-```
-
-### Running with Doppler
-
-**Manual execution:**
-```bash
-# Full command
-doppler run --project bottleneck --config dev -- uv run main.py
-
-# Shorter (uses .doppler.yaml)
-doppler run -- uv run main.py
-```
-
-**MCP client configuration:**
-
-```json
-{
-  &quot;mcpServers&quot;: {
-    &quot;ast-grep&quot;: {
-      &quot;command&quot;: &quot;doppler&quot;,
-      &quot;args&quot;: [
-        &quot;run&quot;,
-        &quot;--project&quot;, &quot;bottleneck&quot;,
-        &quot;--config&quot;, &quot;dev&quot;,
-        &quot;--command&quot;,
-        &quot;uv --directory /absolute/path/to/ast-grep-mcp run main.py&quot;
-      ]
-    }
-  }
-}
-```
-
-### Multiple Environments
-
-Create separate configs for different environments:
-
-```bash
-# Create staging config
-doppler configs create stg --project bottleneck
-
-# Set staging-specific secrets
-doppler secrets set SENTRY_DSN=&quot;https://stg-key@sentry.io/stg-id&quot; --project bottleneck --config stg
-doppler secrets set SENTRY_ENVIRONMENT=&quot;staging&quot; --project bottleneck --config stg
-
-# Create production config
-doppler configs create prd --project bottleneck
-
-# Set production secrets
-doppler secrets set SENTRY_DSN=&quot;https://prd-key@sentry.io/prd-id&quot; --project bottleneck --config prd
-doppler secrets set SENTRY_ENVIRONMENT=&quot;production&quot; --project bottleneck --config prd
-```
-
-Use different configs in MCP client:
-
-```json
-{
-  &quot;mcpServers&quot;: {
-    &quot;ast-grep-dev&quot;: {
-      &quot;command&quot;: &quot;doppler&quot;,
-      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;dev&quot;, &quot;--command&quot;, &quot;uv --directory /path run main.py&quot;]
-    },
-    &quot;ast-grep-prod&quot;: {
-      &quot;command&quot;: &quot;doppler&quot;,
-      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;prd&quot;, &quot;--command&quot;, &quot;uv --directory /path run main.py&quot;]
-    }
-  }
-}
-```
-
-### Team Collaboration
-
-**Invite team members:**
-
-1. Go to [Doppler Dashboard](https://dashboard.doppler.com/)
-2. Select project → Team → Invite Member
-3. Set role (Admin, Developer, Read-only)
-
-**Role-based access:**
-
-| Role | Permissions |
-|------|------------|
-| Owner | Full access, delete project |
-| Admin | Manage secrets, configs, members |
-| Developer | Read/write secrets |
-| Read-only | View secrets only |
-
-**Audit logging:**
-
-View who accessed secrets in Project Settings → Audit Logs.
-
-### Migration
-
-If you&apos;re currently using manual environment variables, follow the Doppler setup steps in [docs/README.md](README.md#configuration) and mirror your existing values into Doppler secrets.
-
----
-
-## Complete Configuration Examples
-
-### Example 1: Local Development (No Monitoring)
-
-**MCP Client** (`.cursor-mcp/settings.json`):
-```json
-{
-  &quot;mcpServers&quot;: {
-    &quot;ast-grep&quot;: {
-      &quot;command&quot;: &quot;uv&quot;,
-      &quot;args&quot;: [&quot;--directory&quot;, &quot;/Users/me/code/ast-grep-mcp&quot;, &quot;run&quot;, &quot;main.py&quot;],
-      &quot;env&quot;: {}
-    }
-  }
-}
-```
-
-**Features:**
-- No error tracking
-- No secret management
-- Minimal overhead
-- Good for: Local development, testing
-
-### Example 2: Development with Sentry (Manual)
-
-**MCP Client**:
-```json
-{
-  &quot;mcpServers&quot;: {
-    &quot;ast-grep&quot;: {
-      &quot;command&quot;: &quot;uv&quot;,
-      &quot;args&quot;: [&quot;--directory&quot;, &quot;/Users/me/code/ast-grep-mcp&quot;, &quot;run&quot;, &quot;main.py&quot;],
-      &quot;env&quot;: {
-        &quot;SENTRY_DSN&quot;: &quot;https://dev-key@sentry.io/dev-project&quot;,
-        &quot;SENTRY_ENVIRONMENT&quot;: &quot;development&quot;
-      }
-    }
-  }
-}
-```
-
-**Features:**
-- Error tracking enabled
-- 100% trace sampling
-- Manual credential management
-- Good for: Solo developers, simple projects
-
-### Example 3: Team Development with Doppler
-
-**MCP Client**:
-```json
-{
-  &quot;mcpServers&quot;: {
-    &quot;ast-grep&quot;: {
-      &quot;command&quot;: &quot;doppler&quot;,
-      &quot;args&quot;: [
-        &quot;run&quot;,
-        &quot;--project&quot;, &quot;bottleneck&quot;,
-        &quot;--config&quot;, &quot;dev&quot;,
-        &quot;--command&quot;,
-        &quot;uv --directory /Users/me/code/ast-grep-mcp run main.py&quot;
-      ]
-    }
-  }
-}
-```
-
-**Doppler Secrets** (`bottleneck/dev`):
-```bash
-SENTRY_DSN=https://dev-key@sentry.io/dev-project
-SENTRY_ENVIRONMENT=development
-SENTRY_TRACES_SAMPLE_RATE=1.0
-```
-
-**Features:**
-- Centralized secret management
-- Team collaboration
-- Audit logging
-- Easy environment switching
-- Good for: Teams, multiple environments
-
-### Example 4: Production Deployment
-
-**MCP Client**:
-```json
-{
-  &quot;mcpServers&quot;: {
-    &quot;ast-grep&quot;: {
-      &quot;command&quot;: &quot;doppler&quot;,
-      &quot;args&quot;: [
-        &quot;run&quot;,
-        &quot;--project&quot;, &quot;bottleneck&quot;,
-        &quot;--config&quot;, &quot;prd&quot;,
-        &quot;--command&quot;,
-        &quot;uv --directory /opt/ast-grep-mcp run main.py&quot;
-      ]
-    }
-  }
-}
-```
-
-**Doppler Secrets** (`bottleneck/prd`):
-```bash
-SENTRY_DSN=https://prd-key@sentry.io/prd-project
-SENTRY_ENVIRONMENT=production
-SENTRY_TRACES_SAMPLE_RATE=0.1  # 10% sampling
-```
-
-**Features:**
-- Production error tracking
-- Cost-optimized sampling (10%)
-- Secure credential rotation
-- Separate Sentry project
-- Good for: Production deployments, high traffic
-
-### Example 5: Multi-Environment Setup
-
-**MCP Client**:
-```json
-{
-  &quot;mcpServers&quot;: {
-    &quot;ast-grep-dev&quot;: {
-      &quot;command&quot;: &quot;doppler&quot;,
-      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;dev&quot;, &quot;--command&quot;, &quot;uv --directory /path run main.py&quot;]
-    },
-    &quot;ast-grep-stg&quot;: {
-      &quot;command&quot;: &quot;doppler&quot;,
-      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;stg&quot;, &quot;--command&quot;, &quot;uv --directory /path run main.py&quot;]
-    },
-    &quot;ast-grep-prd&quot;: {
-      &quot;command&quot;: &quot;doppler&quot;,
-      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;prd&quot;, &quot;--command&quot;, &quot;uv --directory /path run main.py&quot;]
-    }
-  }
-}
-```
-
-**Doppler Configs:**
-
-| Config | SENTRY_ENVIRONMENT | Trace Sampling | Use Case |
-|--------|-------------------|----------------|----------|
-| `dev` | development | 100% | Local development, full visibility |
-| `stg` | staging | 50% | Pre-production testing |
-| `prd` | production | 10% | Production deployment |
-
-**Good for:** Large teams, CI/CD pipelines, staged deployments
-
-### Example 6: Custom ast-grep Configuration
-
-**MCP Client**:
-```json
-{
-  &quot;mcpServers&quot;: {
-    &quot;ast-grep&quot;: {
-      &quot;command&quot;: &quot;doppler&quot;,
-      &quot;args&quot;: [
-        &quot;run&quot;,
-        &quot;--project&quot;, &quot;bottleneck&quot;,
-        &quot;--config&quot;, &quot;dev&quot;,
-        &quot;--command&quot;,
-        &quot;uv --directory /path run main.py --config /path/to/sgconfig.yaml&quot;
-      ]
-    }
-  }
-}
-```
-
-**sgconfig.yaml**:
-```yaml
-ruleDirs:
-  - rules
-  - custom-rules
-
-customLanguages:
-  graphql:
-    extensions:
-      - .graphql
-      - .gql
-    languageId: graphql
-```
-
-**Features:**
-- Custom ast-grep language support
-- Doppler secret management
-- Sentry error tracking
-- Good for: Custom language projects, advanced ast-grep usage
-
----
-
-## Configuration Validation
-
-### Validate ast-grep Configuration
-
-```bash
-# Test config file syntax
-cat sgconfig.yaml | python -c &quot;import yaml; yaml.safe_load(open(&apos;sgconfig.yaml&apos;))&quot;
-
-# Run server with config
-uv run main.py --config sgconfig.yaml
-```
-
-### Validate Sentry Configuration
-
-```bash
-# Check environment variables
-echo $SENTRY_DSN
-echo $SENTRY_ENVIRONMENT
-
-# Or with Doppler
-doppler secrets get SENTRY_DSN --project bottleneck --config dev --plain
-
-# Test Sentry integration
-uv run main.py
-# Look for: &quot;Sentry initialized with DSN&quot; in logs
-```
-
-### Validate Complete Setup
-
-```bash
-# 1. Test Doppler injection
-doppler run --project bottleneck --config dev -- env | grep SENTRY
-
-# 2. Test server startup
-doppler run --project bottleneck --config dev -- uv run main.py
-
-# 3. Use test tool via MCP client
-test_sentry_integration()
-```
-
----
-
-## Additional Resources
-
-- **ast-grep Configuration**: [ast-grep docs](https://ast-grep.github.io/guide/project/project-config.html)
-- **Sentry Integration**: [SENTRY-INTEGRATION.md](../SENTRY-INTEGRATION.md)
-- **Doppler Setup**: [docs/README.md](README.md#configuration)
-- **Main Documentation**: [README.md](../README.md)
-- **Development Guide**: [CLAUDE.md](../CLAUDE.md)</file><file path="docs/README.md"># ast-grep + Schema.org MCP Server
-
-MCP server combining [ast-grep](https://ast-grep.github.io/) structural code search with Schema.org structured data tools for AI assistants (Cursor, Claude Desktop, etc.).
-
-## Overview
-
-**Code Search (ast-grep):** AST-based pattern matching, code construct search, duplication detection, YAML rules, syntax tree debugging
-
-**Structured Data (Schema.org):** Query 2600+ types/properties, search by keyword, explore hierarchies, generate JSON-LD examples, build knowledge graphs
-
-## Quick Start
-
-```bash
-# Install prerequisites
-brew install ast-grep  # or: cargo install ast-grep --locked
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Clone and install
-git clone https://github.com/aledlie/ast-grep-mcp.git
-cd ast-grep-mcp
-uv sync
-
-# Run directly from GitHub (no clone)
-uvx --from git+https://github.com/aledlie/ast-grep-mcp ast-grep-server
-```
-
-## Configuration
-
-Add to `.cursor-mcp/settings.json` or `~/Library/Application Support/Claude/claude_desktop_config.json`:
-
-**With Doppler (recommended for production):**
-```json
-{
-  &quot;mcpServers&quot;: {
-    &quot;ast-grep&quot;: {
-      &quot;command&quot;: &quot;doppler&quot;,
-      &quot;args&quot;: [&quot;run&quot;, &quot;--project&quot;, &quot;bottleneck&quot;, &quot;--config&quot;, &quot;dev&quot;, &quot;--command&quot;,
-               &quot;uv --directory /path/to/ast-grep-mcp run main.py&quot;]
-    }
-  }
-}
-```
-
-**Without Doppler (local development):**
-```json
-{
-  &quot;mcpServers&quot;: {
-    &quot;ast-grep&quot;: {
-      &quot;command&quot;: &quot;uv&quot;,
-      &quot;args&quot;: [&quot;--directory&quot;, &quot;/path/to/ast-grep-mcp&quot;, &quot;run&quot;, &quot;main.py&quot;],
-      &quot;env&quot;: {
-        &quot;SENTRY_DSN&quot;: &quot;optional-for-error-tracking&quot;,
-        &quot;SENTRY_ENVIRONMENT&quot;: &quot;production&quot;
-      }
-    }
-  }
-}
-```
-
-**Custom ast-grep config:** Use `--config /path/to/sgconfig.yaml` or `AST_GREP_CONFIG` env var. See [ast-grep config docs](https://ast-grep.github.io/guide/project/project-config.html).
-
-**Rule writing guide:** See [ast-grep.mdc](https://github.com/ast-grep/ast-grep-mcp/blob/main/ast-grep.mdc) for comprehensive rule patterns.
-
-## Error Tracking (Optional)
-
-**Sentry integration** (optional, zero overhead when disabled) provides:
-- Error tracking for all 53 tools
-- Performance monitoring (subprocess, API, batch operations)
-- AI interaction tracking (with Anthropic SDK)
-- Service tagging: `service:ast-grep-mcp`
-
-**Setup:**
-```bash
-# With Doppler (recommended)
-brew install dopplerhq/cli/doppler
-doppler login
-doppler secrets set SENTRY_DSN=&quot;your-dsn&quot; --project bottleneck --config dev
-
-# Manual
-export SENTRY_DSN=&quot;your-dsn&quot;
-export SENTRY_ENVIRONMENT=&quot;production&quot;
-```
-
-**Docs:** [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md)
-
-## Tools (53 Total)
-
-| Feature | Count | Tools |
-|---------|-------|-------|
-| Search | 9 | find_code, find_code_by_rule, dump_syntax_tree, test_match_code_rule, debug_pattern, develop_pattern, get_ast_grep_docs, build_rule, get_pattern_examples |
-| Rewrite | 3 | rewrite_code, rollback_rewrite, list_backups |
-| Refactoring | 2 | extract_function, rename_symbol |
-| Deduplication | 4 | find_duplication, analyze_deduplication_candidates, apply_deduplication, benchmark_deduplication |
-| Complexity | 3 | analyze_complexity, test_sentry_integration, detect_code_smells |
-| Quality | 7 | create_linting_rule, list_linting_rules, apply_linting_rule, detect_security_issues, apply_standards_fixes, generate_quality_report, enforce_code_standards |
-| Documentation | 5 | generate_docstrings, generate_readme_sections, generate_api_docs, generate_changelog, sync_documentation |
-| Cross-Language | 5 | search_multi_language, find_language_equivalents, convert_code_language, refactor_polyglot, generate_language_bindings |
-| Schema.org | 9 | get_schema_type, search_schemas, get_type_hierarchy, get_type_properties, generate_schema_example, generate_entity_id, validate_entity_id, build_entity_graph, enhance_entity_graph |
-| Condense | 6 | condense_extract_surface, condense_normalize, condense_strip, condense_pack, condense_estimate, condense_train_dictionary |
-
-
-## Usage Examples
-
-**Pattern search:**
-```yaml
-# Find console.log statements
-pattern: console.log($$$)
-```
-
-**Complex rules:**
-```yaml
-# Find async functions with await
-all:
-  - kind: function_declaration
-  - has: { pattern: async }
-  - has: { pattern: await $EXPR, stopBy: end }
-```
-
-**Duplication detection:**
-```python
-find_duplication(project_folder=&quot;/path&quot;, language=&quot;python&quot;,
-                 construct_type=&quot;function_definition&quot;, min_similarity=0.8)
-# Returns: summary stats, duplicate groups, refactoring suggestions
-```
-
-**Schema.org workflow:**
-```python
-search_schemas(&apos;blog&apos;)              # Find BlogPosting
-get_type_properties(&apos;BlogPosting&apos;)  # List properties
-generate_schema_example(&apos;BlogPosting&apos;, {&apos;headline&apos;: &apos;...&apos;, &apos;author&apos;: {...}})
-# Returns: Complete JSON-LD markup
-```
-
-**Knowledge graph:**
-```python
-generate_entity_id(&apos;https://example.com&apos;, &apos;Organization&apos;)  # Generate @id
-validate_entity_id(&apos;https://example.com/#organization&apos;)    # Validate
-build_entity_graph([...], &apos;https://example.com&apos;)          # Build @graph
-# Returns: Multi-entity JSON-LD with proper @id references
-```
-
-## Supported Languages
-
-JavaScript/TypeScript, Python, Rust, Go, Java, C/C++, C#, and [many more](https://ast-grep.github.io/reference/languages.html). Add custom languages via `sgconfig.yaml` ([guide](https://ast-grep.github.io/guide/project/project-config.html#languagecustomlanguage)).
-
-## Troubleshooting
-
-**Common:**
-- Command not found: Ensure `ast-grep` in PATH
-- No matches: Add `stopBy: end` to relational rules
-- Pattern issues: Use `dump_syntax_tree` to debug
-
-**Sentry:** Run `test_sentry_integration()`, check `SENTRY_DSN`. See [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md).
-
-**Doppler:** Verify auth (`doppler login`) and secrets (`doppler secrets --project bottleneck --config dev`).
-
-## Repository
-
-```
-src/ast_grep_mcp/          # 120 modules
-├── core/                  # Config, cache, executor, logging, sentry, usage tracking
-├── models/                # Data models (13 modules)
-├── utils/                 # Formatters, validation, templates, text processing
-├── features/              # 10 feature modules (search, rewrite, refactoring, deduplication,
-│                          #   complexity, quality, documentation, cross_language, schema, condense)
-└── server/                # MCP registry + runner
-```
-
-- `tests/` - 1,622 collected tests (unit + integration + quality regression)
-
-## Recent Updates
-
-- [changelog/2026-03-08-changelog-hardening-test-quality.md](changelog/2026-03-08-changelog-hardening-test-quality.md) - Changelog hardening and test quality improvements.
-- [changelog/2026-03-08-quality-fixes.md](changelog/2026-03-08-quality-fixes.md) - Quality fixes.
-- [changelog/2026-03-06-complexity-review-fixes.md](changelog/2026-03-06-complexity-review-fixes.md) - Complexity review and fixes.
-- [changelog/2026-03-04-maintenance-quality.md](changelog/2026-03-04-maintenance-quality.md) - Constants consolidation, analyzer false-positive reduction, exclusion hardening, and diff parser fix.
-
-## Related
-
-- [ast-grep](https://ast-grep.github.io/) - Core search tool
-- [Schema.org](https://schema.org/) - Structured data vocabulary
-- [MCP](https://modelcontextprotocol.io/) - Protocol specification
-- [FastMCP](https://github.com/pydantic/fastmcp) - Python framework
-
-[![Security Assessment](https://mseep.net/pr/ast-grep-ast-grep-mcp-badge.png)](https://mseep.ai/app/ast-grep-ast-grep-mcp)</file><file path="docs/KNOWN_ISSUES.md"># Known Issues
-
-## changelog_generator.py
-
-### ~~`from_version` / `to_version` resolution asymmetry~~ (Resolved)
-
-`_get_commit_range` now uses `_resolve_version_ref` for both `from_version` and `to_version`. Invalid `from_version` falls back to HEAD via `_resolve_version_ref` instead of passing the raw string.
-
-### ~~Missing unit tests for extracted helpers~~ (Resolved)
-
-Unit tests for `_resolve_version_ref`, `_get_first_commit`, `_find_previous_tag`, and `_get_commit_range` were added in `tests/unit/test_documentation.py::TestChangelogHelpers`.
-
-### ~~No `cwd` validation in `_run_git_command`~~ (Resolved)
-
-`_run_git_command` now validates `project_folder` with `os.path.isdir()` before passing as `cwd` to `subprocess.run`. Returns `(False, &quot;Directory not found: ...&quot;)` for non-existent paths.
-
-### ~~Empty string sentinel for missing refs~~ (Resolved)
-
-`_get_first_commit` now returns `str | None` instead of `&quot;&quot;`. `_find_previous_tag` also returns `str | None`. `_get_commit_range` uses `or &quot;&quot;` to coalesce `None` for downstream compatibility with `_get_commits`.</file><file path="docs/CHANGELOG.md"># Changelog
+No known issues at this time. Previously resolved items have been migrated to changelog entries.</file><file path="docs/CHANGELOG.md"># Changelog
 
 All notable changes to ast-grep-mcp are documented in version-dated files in the `changelog/` directory.
 
-**Current Total:** 53 MCP tools | 120 modules | 1,622 tests
+**Current Total:** 53 MCP tools | 121 modules | 1,663 tests
 
 ## Versions
 
+- [2026-03-08: Deduplication Precision Filters](changelog/2026-03-08-deduplication-precision-filters.md) — 5 false-positive group filters, constants + regex refactor, 32 tests
+- [2026-03-08: Backup Refactoring &amp; Helper Adoption](changelog/2026-03-08-backup-refactoring-helper-adoption.md) — shared backup utils, applicator_backup complexity reduction, tool_context adoption, offender scan script
 - [2026-03-08: Review Follow-ups &amp; Test Coverage](changelog/2026-03-08-review-follow-ups-testing.md) — Sentry exception capture, logger parameter deduplication, version resolution consistency
 - [2026-03-08: Shared Utils &amp; Tool Consolidation](changelog/2026-03-08-shared-utils-consolidation.md) — shared utility extractions, tool_context, normalize_excludes, inline Field() pattern
 - [2026-03-08: Complexity Analysis](changelog/2026-03-08-complexity-analysis.md) — 98 functions exceeding thresholds across 22 modules
@@ -6110,43 +6230,72 @@ Thresholds: cyc &gt;10, cog &gt;15, nest &gt;4, len &gt;50.
 
 Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08) → **80** (2026-03-08 shared-util) → **25** (2026-03-08 helper-adoption).
 
-### Recently Resolved (`0a679bb`)
+### Recently Resolved
 
-- **`deduplication/applicator_backup.py`** — all 4 functions now below thresholds. Extracted `_load_backup_metadata`, `_generate_backup_id`, `_compute_file_hashes`, `_backup_single_file`, `_restore_single_file`, `_try_cleanup_backup`. `cleanup_old_backups` cog 33→below, `list_backups` cog 23→14.
-- **`core/executor.py:run_command`** — wrapped with `tool_context()`, eliminated ~35 lines of manual timing + Sentry boilerplate.
-- **`schema/enhancement_service.py`** — replaced hardcoded 16-entry `_EXCLUDED_DIRS` with derivation from `FilePatterns.DEFAULT_EXCLUDE`.
-- **`refactoring/extractor.py`** — `_generate_docstring` (was cog=31), `_generate_function_body` (was cog=25), `_generate_signature` (was cog=13), `_apply_extraction` (was cog=11) all dropped below thresholds via further decomposition.
+- **`core/executor.py:stream_ast_grep_results`** (`0642b3f`) — extracted `_iter_stdout_matches` (yield-from delegation), `_log_stream_completion`, `_raise_not_found_error`. cyc 16→4, cog 29→2, nest 6→2, len 101→52.
+- **`deduplication/applicator_backup.py`** (`7880737`, `c847003`) — all 4 functions now below thresholds. Extracted helpers to class + shared `utils/backup.py` primitives (`get_file_hash`, `resolve_backup_dir`, `copy_file_to_backup`, `restore_file_from_backup`). `cleanup_old_backups` cog 33→14, `list_backups` cog 23→14, `create_backup` cog 20→10, `rollback` cog 18→15.
+- **`rewrite/backup.py`** (`c847003`) — consolidated duplicate backup primitives into shared `utils/backup.py`, eliminating ~60 lines of duplication. `create_backup`, `create_deduplication_backup`, `_restore_single_file`, `_check_file_conflicts` now delegate to shared utils.
+- **`core/executor.py:run_command`** (`0a679bb`) — wrapped with `tool_context()`, eliminated ~35 lines of manual timing + Sentry boilerplate. Note: still at cog=17 due to inherent branching; `tool_context` reduced len, not cognitive complexity.
+- **`schema/enhancement_service.py`** (`0a679bb`) — replaced hardcoded 16-entry `_EXCLUDED_DIRS` with derivation from `FilePatterns.DEFAULT_EXCLUDE`.
+- **`refactoring/extractor.py`** (`0a679bb`) — `_generate_docstring` (was cog=31), `_generate_function_body` (was cog=25), `_generate_signature` (was cog=13), `_apply_extraction` (was cog=11) all dropped below thresholds via further decomposition.
 
-### Remaining Top Offenders (live scan)
+### Remaining Offenders (live scan at `0642b3f`)
 
-| File | Function | Cyc | Cog | Nest | Len |
-|------|----------|-----|-----|------|-----|
-| `core/executor.py` | `stream_ast_grep_results` | 16 | 29 | 6 | 101 |
-| `condense/service.py` | `condense_pack_impl` | 15 | 29 | 5 | 115 |
-| `condense/service.py` | `_count_structural_braces` | 17 | 28 | 5 | 33 |
-| `deduplication/diff.py` | `diff_preview_to_dict` | 14 | 29 | 5 | 53 |
-| `deduplication/diff.py` | `build_nested_diff_tree` | 20 | 25 | 6 | 96 |
-| `refactoring/analyzer.py` | `_find_python_base_variables` | 10 | 25 | 4 | 44 |
-| `complexity/analyzer.py` | `_find_magic_numbers` | 13 | 25 | 5 | 61 |
-| `complexity/analyzer.py` | `_find_docstring_extent` | 11 | 21 | 4 | 28 |
-| `complexity/analyzer.py` | `_count_function_parameters` | 18 | 18 | 3 | 49 |
-| `core/executor.py` | `filter_files_by_size` | 19 | 18 | 4 | 52 |
-| `core/executor.py` | `run_command` | 9 | 17 | 5 | 56 |
-| `refactoring/extractor.py` | `_scan_imports` | 10 | 18 | 5 | 29 |
-| `condense/service.py` | `_extract_python_surface` | 11 | 17 | 4 | 28 |
-| `core/executor.py` | `get_supported_languages` | 8 | 16 | 5 | 44 |
-| `condense/service.py` | `extract_surface_impl` | 12 | 15 | 3 | 73 |
-| `condense/service.py` | `_extract_js_ts_surface` | 12 | 15 | 4 | 31 |
+24 functions exceed at least one threshold. Sorted by cognitive complexity.
+
+| File | Function | Cyc | Cog | Nest | Len | Exceeds |
+|------|----------|-----|-----|------|-----|---------|
+| `condense/service.py` | `condense_pack_impl` | 15 | 29 | 5 | 115 | cyc,cog,nest,len |
+| `deduplication/diff.py` | `diff_preview_to_dict` | 14 | 29 | 5 | 53 | cyc,cog,nest,len |
+| `condense/service.py` | `_count_structural_braces` | 17 | 28 | 5 | 33 | cyc,cog,nest |
+| `deduplication/diff.py` | `build_nested_diff_tree` | 20 | 25 | 6 | 96 | cyc,cog,nest,len |
+| `refactoring/analyzer.py` | `_find_python_base_variables` | 10 | 25 | 4 | 44 | cog |
+| `complexity/analyzer.py` | `_find_magic_numbers` | 13 | 25 | 5 | 61 | cyc,cog,nest,len |
+| `complexity/analyzer.py` | `_find_docstring_extent` | 11 | 21 | 4 | 28 | cyc,cog |
+| `refactoring/extractor.py` | `_scan_imports` | 10 | 18 | 5 | 29 | cog,nest |
+| `core/executor.py` | `filter_files_by_size` | 19 | 18 | 4 | 52 | cyc,cog,len |
+| `complexity/analyzer.py` | `_count_function_parameters` | 18 | 18 | 3 | 49 | cyc,cog |
+| `condense/service.py` | `_extract_python_surface` | 11 | 17 | 4 | 28 | cyc,cog |
+| `core/executor.py` | `run_command` | 9 | 17 | 5 | 56 | cog,nest,len |
+| `core/executor.py` | `get_supported_languages` | 8 | 16 | 5 | 44 | cog,nest |
+| `condense/service.py` | `extract_surface_impl` | 12 | 15 | 3 | 73 | cyc,len |
+| `condense/service.py` | `_extract_js_ts_surface` | 12 | 15 | 4 | 31 | cyc |
+| `complexity/analyzer.py` | `extract_functions_from_file` | 10 | 15 | 5 | 34 | nest |
+| `refactoring/analyzer.py` | `_get_variable_classification` | 13 | 13 | 3 | 40 | cyc |
+| `refactoring/extractor.py` | `extract_function` | 9 | 12 | 5 | 79 | nest,len |
+| `deduplication/diff.py` | `_format_alignment_entry` | 11 | 12 | 3 | 16 | cyc |
+| `deduplication/diff.py` | `build_diff_tree` | 11 | 5 | 2 | 35 | cyc |
+| `deduplication/diff.py` | `generate_file_diff` | 11 | 6 | 2 | 27 | cyc |
+| `refactoring/analyzer.py` | `analyze_selection` | 6 | 0 | 3 | 63 | len |
+| `refactoring/analyzer.py` | `_scan_and_register_identifiers` | 9 | 9 | 5 | 26 | nest |
+| `complexity/analyzer.py` | `analyze_file_complexity` | 4 | 9 | 5 | 43 | nest |
+
+**By file:** `condense/service.py` (5), `deduplication/diff.py` (5), `complexity/analyzer.py` (4), `refactoring/analyzer.py` (4), `core/executor.py` (3), `refactoring/extractor.py` (2)
 
 Refresh: `uv run python scripts/scan_complexity_offenders.py`
 
-## Duplicate Detection Precision (2026-03-08)
+## scan_complexity_offenders.py Hardening (2026-03-08)
 
-All 5 groups from latest `find_duplication` run (sim &gt;= 0.82) are false positives or low-value. Common causes: trivial constructors, intentionally parallel APIs, thin semantic wrappers, and strategy pattern boilerplate.
+From code review of `8d4d13a`:
 
-See [docs/duplicate-detector-misses.md](duplicate-detector-misses.md) for full investigation and recommended detector improvements:
-- Exclude short `__init__` methods
-- Discount methods delegating to shared helpers
-- Reduce weight for strategy pattern implementations
-- Add minimum line savings threshold
-- Consider excluding parallel `to_*` formatters</file></files></repomix>
+### High
+- **Silent failure on wrong CWD**: Uses relative paths (`src/ast_grep_mcp/...`). If run from anywhere but the project root, `extract_functions_from_file` returns `[]` and the script prints an empty table with no error. Fix: resolve paths relative to `__file__` or add a startup guard checking `pathlib.Path(&quot;src/ast_grep_mcp&quot;).is_dir()`.
+
+### Medium
+- **`_extract_name` fragile with decorators** (line 40-42): `code.split(&quot;(&quot;)[0]` can hit a decorator&apos;s `(` before `def`. Fix: scan lines for `def`/`async def` first, then split on `(`.
+- **Language hardcoded to `&quot;python&quot;`** (line 53): Silent assumption. If a non-Python file is ever added to `FILES`, calls silently return `[]`. Add a comment or per-entry language field.
+
+### Low
+- **`FILES` lacks type annotation**: Should be `FILES: list[str] = [...]` per project conventions.
+- **`run_command` listed as both resolved and remaining offender** in BACKLOG.md: &quot;Recently Resolved&quot; says it was wrapped with `tool_context()`, but the offender table still lists it at `cog=17`. The wrapping doesn&apos;t lower cognitive complexity — reword the resolved entry or remove it.
+
+## Deferred (2026-03-08)
+
+**scan_complexity_offenders.py Hardening** — Skipped in backlog-implementer pass; user scope &quot;non-complexity related items&quot; excludes complexity tooling. (Commits: `6a27e23`, `edbb9f0`, `c412c78`)
+- High: Silent failure on wrong CWD (uses relative paths, needs startup guard)
+- Medium: `_extract_name` fragile with decorators
+- Medium: Language hardcoded to `&quot;python&quot;`
+- Low: `FILES` lacks type annotation
+- Low: `run_command` documentation issue (listed as both resolved and remaining offender)
+
+**Strategy pattern filter for deduplication** — Low-priority per docs/duplicate-detector-misses.md investigation notes. Only candidate (Group 5) would save ~18 lines with minor signature mismatch; over-engineering for marginal benefit.</file></files></repomix>
