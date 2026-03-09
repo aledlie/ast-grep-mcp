@@ -35,8 +35,8 @@ def _load_custom_languages() -> List[str]:
             config = yaml.safe_load(f)
             if config and "customLanguages" in config:
                 return list(config["customLanguages"].keys())
-    except Exception:
-        pass
+    except Exception as e:
+        get_logger("executor").debug("custom_language_load_error", config_path=CONFIG_PATH, error=str(e))
     return []
 
 
