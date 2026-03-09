@@ -927,3 +927,182 @@ class TestEdgeCases:
         # Should create one group with items 1 and 3 (code_a and code_c)
         assert len(groups) == 1
         assert len(groups[0]) == 2
+
+
+# ── Precision filter tests ──────────────────────────────────────
+
+
+def _make_match(code: str, file: str = "a.py", line: int = 0) -> Dict[str, Any]:
+    """Helper to build a match dict."""
+    return {"text": code, "file": file, "range": {"start": {"line": line}}}
+
+
+class TestTrivialConstructorFilter:
+    """Tests for _is_trivial_constructor_group."""
+
+    def test_short_init_detected(self):
+        detector = DuplicationDetector()
+        group = [
+            _make_match("def __init__(self, lang):\n    self.lang = lang", "a.py"),
+            _make_match("def __init__(self, lang):\n    self.lang = lang", "b.py"),
+        ]
+        assert detector._is_trivial_constructor_group(group) is True
+
+    def test_long_init_not_filtered(self):
+        detector = DuplicationDetector()
+        body = "\n".join([f"    self.f{i} = f{i}" for i in range(12)])
+        code = f"def __init__(self, **kw):\n{body}"
+        group = [_make_match(code, "a.py"), _make_match(code, "b.py")]
+        assert detector._is_trivial_constructor_group(group) is False
+
+    def test_non_init_not_filtered(self):
+        detector = DuplicationDetector()
+        group = [
+            _make_match("def process(self):\n    pass", "a.py"),
+            _make_match("def process(self):\n    pass", "b.py"),
+        ]
+        assert detector._is_trivial_constructor_group(group) is False
+
+    def test_mixed_init_and_regular(self):
+        """Group with mix of __init__ and regular method is NOT trivial."""
+        detector = DuplicationDetector()
+        group = [
+            _make_match("def __init__(self, x):\n    self.x = x", "a.py"),
+            _make_match("def process(self, x):\n    self.x = x", "b.py"),
+        ]
+        assert detector._is_trivial_constructor_group(group) is False
+
+    def test_js_constructor(self):
+        detector = DuplicationDetector()
+        group = [
+            _make_match("function constructor(a) {\n  this.a = a;\n}", "a.js"),
+            _make_match("function constructor(b) {\n  this.b = b;\n}", "b.js"),
+        ]
+        assert detector._is_trivial_constructor_group(group) is True
+
+
+class TestDelegationWrapperFilter:
+    """Tests for _is_delegation_wrapper_group."""
+
+    def test_thin_wrapper_detected(self):
+        detector = DuplicationDetector()
+        group = [
+            _make_match("def error(self, msg):\n    self._log(msg)", "a.py"),
+            _make_match("def warning(self, msg):\n    self._log(msg)", "a.py", 10),
+        ]
+        assert detector._is_delegation_wrapper_group(group) is True
+
+    def test_substantial_body_not_filtered(self):
+        detector = DuplicationDetector()
+        code = "def process(self, data):\n    x = validate(data)\n    y = transform(x)\n    z = enrich(y)\n    return z"
+        group = [_make_match(code, "a.py"), _make_match(code, "b.py")]
+        assert detector._is_delegation_wrapper_group(group) is False
+
+    def test_super_call_wrapper(self):
+        detector = DuplicationDetector()
+        group = [
+            _make_match("def detect(self, path):\n    super().detect(path)", "a.py"),
+            _make_match("def detect(self, path):\n    super().detect(path)", "b.py"),
+        ]
+        assert detector._is_delegation_wrapper_group(group) is True
+
+
+class TestParallelFormatterFilter:
+    """Tests for _is_parallel_formatter_group."""
+
+    def test_parallel_to_formatters_detected(self):
+        detector = DuplicationDetector()
+        group = [
+            _make_match("def to_python(self):\n    return f'def {self.name}()'", "a.py"),
+            _make_match("def to_typescript(self):\n    return f'function {self.name}()'", "a.py", 10),
+        ]
+        assert detector._is_parallel_formatter_group(group) is True
+
+    def test_same_name_not_flagged(self):
+        """Identical to_python in two files is real duplication, not parallel."""
+        detector = DuplicationDetector()
+        group = [
+            _make_match("def to_python(self):\n    return f'def {self.name}()'", "a.py"),
+            _make_match("def to_python(self):\n    return f'def {self.name}()'", "b.py"),
+        ]
+        assert detector._is_parallel_formatter_group(group) is False
+
+    def test_non_formatter_not_flagged(self):
+        detector = DuplicationDetector()
+        group = [
+            _make_match("def process_a(self):\n    pass", "a.py"),
+            _make_match("def process_b(self):\n    pass", "b.py"),
+        ]
+        assert detector._is_parallel_formatter_group(group) is False
+
+
+class TestMinSavingsFilter:
+    """Tests for _meets_min_savings."""
+
+    def test_high_savings_passes(self):
+        detector = DuplicationDetector()
+        code = "\n".join([f"    line_{i}" for i in range(25)])
+        full = f"def big_func():\n{code}"
+        group = [_make_match(full, "a.py"), _make_match(full, "b.py")]
+        assert detector._meets_min_savings(group) is True
+
+    def test_low_savings_filtered(self):
+        detector = DuplicationDetector()
+        code = "def small():\n    return 1\n    # pad\n    # pad2"
+        group = [_make_match(code, "a.py"), _make_match(code, "b.py")]
+        # 4 lines * 2 = 8 total, savings = 4 < 20
+        assert detector._meets_min_savings(group) is False
+
+    def test_many_copies_increase_savings(self):
+        detector = DuplicationDetector()
+        code = "def med():\n" + "\n".join([f"    x{i} = {i}" for i in range(7)])
+        # 8 lines * 4 copies = 32, savings = 24 >= 20
+        group = [_make_match(code, f"f{i}.py") for i in range(4)]
+        assert detector._meets_min_savings(group) is True
+
+    def test_empty_group(self):
+        detector = DuplicationDetector()
+        assert detector._meets_min_savings([]) is False
+
+
+class TestApplyPrecisionFilters:
+    """Integration test for _apply_precision_filters combining all filters."""
+
+    def test_all_false_positive_patterns_removed(self):
+        """The 5 false-positive patterns from the investigation should be filtered."""
+        detector = DuplicationDetector()
+
+        # Group 1: trivial __init__
+        init_group = [
+            _make_match("def __init__(self, lang):\n    self.lang = lang", "a.py"),
+            _make_match("def __init__(self, lang):\n    self.lang = lang", "b.py"),
+        ]
+        # Group 2: delegation wrappers
+        wrapper_group = [
+            _make_match("def error(self, msg):\n    self._log_to_stderr(msg)", "c.py"),
+            _make_match("def warning(self, msg):\n    self._log_to_stderr(msg)", "c.py", 10),
+        ]
+        # Group 3: parallel formatters
+        formatter_group = [
+            _make_match("def to_python_signature(self):\n    return f'def {self.name}()'", "d.py"),
+            _make_match("def to_typescript_signature(self):\n    return f'function {self.name}()'", "d.py", 10),
+        ]
+        # Group 4: below min savings (tiny functions)
+        tiny_group = [
+            _make_match("def query_a(self):\n    return self.db.query('SELECT * FROM a')", "e.py"),
+            _make_match("def query_b(self):\n    return self.db.query('SELECT * FROM b')", "e.py", 10),
+        ]
+
+        groups = [init_group, wrapper_group, formatter_group, tiny_group]
+        result = detector._apply_precision_filters(groups)
+        assert result == []
+
+    def test_legitimate_duplicates_preserved(self):
+        """Real duplicates above savings threshold are kept."""
+        detector = DuplicationDetector()
+        body = "\n".join([f"    result.append(process(item_{i}))" for i in range(22)])
+        code = f"def process_batch(items):\n{body}"
+        group = [_make_match(code, "a.py"), _make_match(code, "b.py")]
+
+        result = detector._apply_precision_filters([group])
+        assert len(result) == 1

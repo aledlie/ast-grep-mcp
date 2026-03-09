@@ -15,6 +15,7 @@ Hybrid Pipeline (v0.3.0):
 - Configurable thresholds and weights for tuning behavior
 """
 
+import re
 import time
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Literal, Optional
@@ -69,6 +70,11 @@ class DuplicationDetector:
             similarity_mode=similarity_mode,
         )
 
+    @staticmethod
+    def _code_line_count(code: str) -> int:
+        """Count lines in a code snippet."""
+        return len(code.split("\n"))
+
     def _build_exclude_patterns(self, exclude_patterns: Optional[List[str]]) -> List[str]:
         """Merge user-supplied and mandatory exclusion patterns."""
         result = ["site-packages", "node_modules", ".venv", "venv", "vendor"] if exclude_patterns is None else list(exclude_patterns)
@@ -95,7 +101,8 @@ class DuplicationDetector:
         if not all_matches:
             return self._empty_result(construct_type, time.time() - start_time)
 
-        duplication_groups = self.group_duplicates(all_matches, min_similarity, min_lines)
+        raw_groups = self.group_duplicates(all_matches, min_similarity, min_lines)
+        duplication_groups = self._apply_precision_filters(raw_groups)
         suggestions = self.generate_refactoring_suggestions(duplication_groups, construct_type)
         stats = self._calculate_statistics(all_matches, duplication_groups, suggestions)
         return self._format_result(all_matches, duplication_groups, suggestions, stats, time.time() - start_time)
@@ -345,7 +352,7 @@ class DuplicationDetector:
         if not matches:
             return []
 
-        filtered_matches = [m for m in matches if len(m.get("text", "").split("\n")) >= min_lines]
+        filtered_matches = [m for m in matches if self._code_line_count(m.get("text", "")) >= min_lines]
 
         if not filtered_matches:
             return []
@@ -423,10 +430,114 @@ class DuplicationDetector:
 
         return groups
 
+    # ── Precision filters ─────────────────────────────────────────────
+    # These filters reduce false positives identified in the 2026-03-08
+    # investigation (docs/duplicate-detector-misses.md).
+
+    _RE_FUNC_NAME = re.compile(r"^\s*(?:async\s+)?(?:def|function)\s+(\w+)")
+    _RE_JS_VAR_NAME = re.compile(r"^\s*(?:const|let|var)\s+(\w+)\s*=")
+    _RE_CALL_EXPR = re.compile(r"^(self\.\w+|super\(\)\.\w+|\w+)\(")
+    _SIGNATURE_PREFIXES = ("def ", "async def ", "function ", "return")
+    _CLOSING_TOKENS = ("}", "pass")
+    _NON_BODY_PREFIXES = ("class ", "@", "#", "//", "/*")
+
+    def _apply_precision_filters(
+        self, groups: List[List[Dict[str, Any]]]
+    ) -> List[List[Dict[str, Any]]]:
+        """Apply all precision filters and return surviving groups."""
+        before = len(groups)
+        result = [
+            g for g in groups
+            if not self._is_trivial_constructor_group(g)
+            and not self._is_delegation_wrapper_group(g)
+            and not self._is_parallel_formatter_group(g)
+            and self._meets_min_savings(g)
+        ]
+        removed = before - len(result)
+        if removed:
+            self.logger.info(
+                "precision_filters_applied",
+                groups_before=before,
+                groups_after=len(result),
+                groups_removed=removed,
+            )
+        return result
+
+    @classmethod
+    def _extract_function_name(cls, code: str) -> str:
+        """Extract function/method name from code text."""
+        m = cls._RE_FUNC_NAME.match(code)
+        if m:
+            return m.group(1)
+        # JS arrow / const
+        m = cls._RE_JS_VAR_NAME.match(code)
+        return m.group(1) if m else ""
+
+    def _is_trivial_constructor_group(self, group: List[Dict[str, Any]]) -> bool:
+        """True when every member is a short constructor (e.g. __init__)."""
+        max_lines = DetectorDefaults.TRIVIAL_INIT_MAX_LINES
+        for item in group:
+            code = item.get("text", "")
+            name = self._extract_function_name(code)
+            if name not in DetectorDefaults.CONSTRUCTOR_NAMES:
+                return False
+            if self._code_line_count(code) > max_lines:
+                return False
+        return True
+
+    def _is_delegation_wrapper_group(self, group: List[Dict[str, Any]]) -> bool:
+        """True when every member is a thin wrapper delegating to a shared helper.
+
+        Heuristic: the non-signature body is dominated by a single function/method
+        call (self._xxx, super().xxx, or a module-level helper).
+        """
+        for item in group:
+            code = item.get("text", "")
+            lines = [ln.strip() for ln in code.split("\n") if ln.strip()]
+            # Skip signature line(s) and closing
+            body_lines = [
+                ln for ln in lines
+                if not ln.startswith(self._SIGNATURE_PREFIXES)
+                and ln not in self._CLOSING_TOKENS
+                and not ln.startswith(self._NON_BODY_PREFIXES)
+            ]
+            if len(body_lines) > DetectorDefaults.DELEGATION_MAX_BODY_STATEMENTS:
+                return False
+            # Check if the body is a single call expression
+            if body_lines and not any(self._RE_CALL_EXPR.match(ln) for ln in body_lines):
+                return False
+        return True
+
+    @classmethod
+    def _is_parallel_formatter_group(cls, group: List[Dict[str, Any]]) -> bool:
+        """True when all members are parallel to_*/from_*/as_* formatters."""
+        prefixes = DetectorDefaults.PARALLEL_FORMATTER_PREFIXES
+        names: set[str] = set()
+        for item in group:
+            code = item.get("text", "")
+            m = cls._RE_FUNC_NAME.match(code)
+            if not m:
+                return False
+            name = m.group(1)
+            if not any(name.startswith(p) for p in prefixes):
+                return False
+            names.add(name)
+        # Only flag when names differ (parallel variants of each other)
+        return len(names) > 1
+
+    def _meets_min_savings(self, group: List[Dict[str, Any]]) -> bool:
+        """True when the group offers enough line savings to be worth reporting."""
+        if not group:
+            return False
+        lines = self._code_line_count(group[0].get("text", ""))
+        total = lines * len(group)
+        savings = total - lines
+        return savings >= DetectorDefaults.MIN_LINE_SAVINGS
+
     @staticmethod
     def _match_line(match: Dict[str, Any], position: str = "start") -> int:
         """Extract a line number from a match's range, defaulting to 0."""
-        return match.get("range", {}).get(position, {}).get("line", 0)
+        return int(match.get("range", {}).get(position, {}).get("line", 0))
 
     def _get_item_key(self, item: Dict[str, Any]) -> str:
         """Get unique key for an item."""
@@ -510,7 +621,7 @@ class DuplicationDetector:
 
     def _build_suggestion(self, idx: int, group: List[Dict[str, Any]], construct_type: str) -> Dict[str, Any]:
         """Build a single refactoring suggestion for a duplication group."""
-        lines = len(group[0].get("text", "").split("\n"))
+        lines = self._code_line_count(group[0].get("text", ""))
         total_lines = lines * len(group)
         return {
             "group_id": idx + 1,
@@ -530,14 +641,17 @@ class DuplicationDetector:
         "class_definition": {"type": "extract_base_class", "description": "Extract common functionality into a base class"},
         "method_definition": {"type": "extract_method", "description": "Extract duplicated method to a parent class or mixin"},
     }
-    _FUNCTION_STRATEGY_SMALL = {"type": "extract_utility_function", "description": "Extract duplicated logic into a shared utility function"}
+    _FUNCTION_STRATEGY_SMALL = {
+        "type": "extract_utility_function",
+        "description": "Extract duplicated logic into a shared utility function",
+    }
     _FUNCTION_STRATEGY_LARGE = {"type": "extract_module", "description": "Extract duplicated logic into a separate module"}
 
     def _determine_refactoring_strategy(self, group: List[Dict[str, Any]], construct_type: str) -> Dict[str, str]:
         """Determine the best refactoring strategy for a duplication group."""
         if construct_type != "function_definition":
             return self._STRATEGY_BY_CONSTRUCT.get(construct_type, self._STRATEGY_BY_CONSTRUCT["method_definition"])
-        line_count = len(group[0].get("text", "").split("\n"))
+        line_count = self._code_line_count(group[0].get("text", ""))
         if line_count < DetectorDefaults.UTILITY_FUNCTION_LINE_THRESHOLD:
             return self._FUNCTION_STRATEGY_SMALL
         return self._FUNCTION_STRATEGY_LARGE
