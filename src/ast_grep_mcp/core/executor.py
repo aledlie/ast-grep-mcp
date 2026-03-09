@@ -445,6 +445,70 @@ def _drain_stderr_to_list(process: subprocess.Popen[str], output: List[str]) -> 
             output.append(chunk)
 
 
+def _iter_stdout_matches(
+    process: subprocess.Popen[str],
+    max_results: int,
+    progress_interval: int,
+    start_time: float,
+    logger: Any,
+) -> Generator[Dict[str, Any], None, int]:
+    """Iterate over stdout lines, yielding parsed matches.
+
+    Returns:
+        Total match count (accessible via ``yield from``).
+    """
+    match_count = 0
+    last_progress_log = 0
+
+    if not process.stdout:
+        return 0
+
+    for line in process.stdout:
+        match = _parse_json_line(line, logger)
+        if not match:
+            continue
+
+        match_count += 1
+
+        if _should_log_progress(match_count, last_progress_log, progress_interval):
+            logger.info(
+                "stream_progress",
+                matches_found=match_count,
+                execution_time_seconds=round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION),
+            )
+            last_progress_log = match_count
+
+        yield match
+
+        if max_results > 0 and match_count >= max_results:
+            logger.info("stream_early_termination", matches_found=match_count, max_results=max_results)
+            _terminate_process(process, logger, "early_termination")
+            break
+
+    return match_count
+
+
+def _log_stream_completion(match_count: int, start_time: float, max_results: int, logger: Any) -> None:
+    """Log final stream metrics."""
+    execution_time = time.time() - start_time
+    logger.info(
+        "stream_completed",
+        total_matches=match_count,
+        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        early_terminated=max_results > 0 and match_count >= max_results,
+    )
+
+
+def _raise_not_found_error(full_command: List[str], cause: Exception) -> None:
+    """Raise an AstGrepNotFoundError with Sentry capture."""
+    if full_command[0] == "ast-grep":
+        error = AstGrepNotFoundError()
+    else:
+        error = AstGrepNotFoundError(f"Command '{full_command[0]}' not found")
+    sentry_sdk.capture_exception(error, extras={"command": " ".join(full_command)})
+    raise error from cause
+
+
 def stream_ast_grep_results(
     command: str, args: List[str], max_results: int = 0, progress_interval: int = StreamDefaults.PROGRESS_INTERVAL
 ) -> Generator[Dict[str, Any], None, None]:
@@ -471,78 +535,29 @@ def stream_ast_grep_results(
     """
     logger = get_logger("stream_results")
     start_time = time.time()
-
-    # Prepare command
     full_command = _prepare_stream_command(command, args)
 
     logger.info("stream_started", command=command, max_results=max_results, progress_interval=progress_interval)
 
     process = None
-    match_count = 0
-    last_progress_log = 0
     stderr_chunks: List[str] = []
 
     try:
-        # Start subprocess
         process = _create_stream_process(full_command)
 
-        # Drain stderr concurrently to prevent pipe buffer deadlock
         stderr_thread = threading.Thread(target=_drain_stderr_to_list, args=(process, stderr_chunks), daemon=True)
         stderr_thread.start()
 
-        # Process output lines
-        if process.stdout:
-            for line in process.stdout:
-                # Parse JSON from line
-                match = _parse_json_line(line, logger)
-                if not match:
-                    continue
+        match_count = yield from _iter_stdout_matches(process, max_results, progress_interval, start_time, logger)
 
-                match_count += 1
-
-                # Log progress if needed
-                if _should_log_progress(match_count, last_progress_log, progress_interval):
-                    logger.info(
-                        "stream_progress",
-                        matches_found=match_count,
-                        execution_time_seconds=round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION),
-                    )
-                    last_progress_log = match_count
-
-                yield match
-
-                # Check for early termination
-                if max_results > 0 and match_count >= max_results:
-                    logger.info("stream_early_termination", matches_found=match_count, max_results=max_results)
-                    _terminate_process(process, logger, "early_termination")
-                    break
-
-        # Wait for process and stderr thread to finish
         returncode = process.wait()
         stderr_thread.join(timeout=5)
-        stderr_output = "".join(stderr_chunks)
-
-        # Handle any errors
-        _handle_stream_error(returncode, stderr_output, full_command, start_time, match_count, logger)
-
-        # Log completion
-        execution_time = time.time() - start_time
-        logger.info(
-            "stream_completed",
-            total_matches=match_count,
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            early_terminated=max_results > 0 and match_count >= max_results,
-        )
+        _handle_stream_error(returncode, "".join(stderr_chunks), full_command, start_time, match_count, logger)
+        _log_stream_completion(match_count, start_time, max_results, logger)
 
     except FileNotFoundError as e:
         logger.error("stream_command_not_found", command=full_command[0])
-        if full_command[0] == "ast-grep":
-            not_found_error = AstGrepNotFoundError()
-            sentry_sdk.capture_exception(not_found_error, extras={"command": " ".join(full_command)})
-            raise not_found_error from e
-        not_found_error = AstGrepNotFoundError(f"Command '{full_command[0]}' not found")
-        sentry_sdk.capture_exception(not_found_error, extras={"command": " ".join(full_command)})
-        raise not_found_error from e
+        _raise_not_found_error(full_command, e)
 
     finally:
         _cleanup_process(process)

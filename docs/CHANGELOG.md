@@ -2,10 +2,11 @@
 
 All notable changes to ast-grep-mcp are documented in version-dated files in the `changelog/` directory.
 
-**Current Total:** 53 MCP tools | 120 modules | 1,622 tests
+**Current Total:** 53 MCP tools | 121 modules | 1,663 tests
 
 ## Versions
 
+- [2026-03-08: Backup Refactoring & Helper Adoption](changelog/2026-03-08-backup-refactoring-helper-adoption.md) — shared backup utils, applicator_backup complexity reduction, tool_context adoption, offender scan script
 - [2026-03-08: Review Follow-ups & Test Coverage](changelog/2026-03-08-review-follow-ups-testing.md) — Sentry exception capture, logger parameter deduplication, version resolution consistency
 - [2026-03-08: Shared Utils & Tool Consolidation](changelog/2026-03-08-shared-utils-consolidation.md) — shared utility extractions, tool_context, normalize_excludes, inline Field() pattern
 - [2026-03-08: Complexity Analysis](changelog/2026-03-08-complexity-analysis.md) — 98 functions exceeding thresholds across 22 modules
