@@ -41,10 +41,10 @@ Thresholds: cyc >10, cog >15, nest >4, len >50. Refresh: `uv run python scripts/
 
 From code review of `8d4d13a`. Deferred from backlog-implementer pass (commits: `6a27e23`, `edbb9f0`, `c412c78`).
 
-- [ ] **SC-01** (High) Silent failure on wrong CWD: uses relative paths (`src/ast_grep_mcp/...`), `extract_functions_from_file` returns `[]` with no error if run outside project root. Fix: resolve paths relative to `__file__` or add startup guard `pathlib.Path("src/ast_grep_mcp").is_dir()`.
-- [ ] **SC-02** (Medium) `_extract_name` fragile with decorators (line 40-42): `code.split("(")[0]` can hit a decorator's `(` before `def`. Fix: scan lines for `def`/`async def` first, then split on `(`.
-- [ ] **SC-03** (Medium) Language hardcoded to `"python"` (line 53): silent assumption. If a non-Python file is added to `FILES`, calls silently return `[]`. Fix: add per-entry language field or comment.
-- [ ] **SC-04** (Low) `FILES` lacks type annotation: should be `FILES: list[str] = [...]` per project conventions.
+- [x] **SC-01** (High) Silent failure on wrong CWD: resolved paths via `_PROJECT_ROOT = Path(__file__).parent.parent`. (`9d88886`)
+- [x] **SC-02** (Medium) `_extract_name` fragile with decorators: scan lines for `def`/`async def` first. (`9d88886`)
+- [x] **SC-03** (Medium) Language hardcoded to `"python"`: changed `FILES` to `list[tuple[str, str]]` with per-entry language. (`9d88886`)
+- [x] **SC-04** (Low) `FILES` lacks type annotation: added `FILES: list[tuple[str, str]]`. (`9d88886`)
 
 ## executor.py Hardening (2026-03-08)
 
