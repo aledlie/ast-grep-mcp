@@ -10,7 +10,7 @@ import re
 import subprocess
 from typing import Any, Dict, List, Tuple
 
-from ast_grep_mcp.constants import SemanticVolumeDefaults, SubprocessDefaults
+from ast_grep_mcp.constants import SubprocessDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.complexity import (
     ComplexityMetrics,
@@ -274,69 +274,6 @@ def _count_function_parameters(code: str, language: str) -> int:
             param_count += 1
 
     return param_count
-
-
-def _find_magic_numbers(content: str, lines: List[str], language: str) -> List[Dict[str, Any]]:
-    """Find magic numbers in code.
-
-    Magic numbers are hard-coded numeric literals that should be named constants.
-    Excludes common values: 0, 1, -1, 2, 10, 100, 1000.
-
-    Args:
-        content: Full file content
-        lines: List of lines in the file
-        language: Programming language
-
-    Returns:
-        List of magic number findings with line and value
-    """
-    magic_numbers: List[Dict[str, Any]] = []
-
-    # Common values that aren't magic
-    allowed_values = {"0", "1", "-1", "2", "10", "100", "1000", "0.0", "1.0", "0.5"}
-
-    # Patterns for different contexts to exclude
-    exclude_patterns = [
-        r"^\s*#",  # Python comments
-        r"^\s*//",  # JS/Java comments
-        r"^\s*\*",  # Multi-line comment continuation
-        r"^\s*import",  # Import statements
-        r"^\s*from",  # Python from imports
-        r"=\s*\d+\s*$",  # Variable assignment (likely a constant definition)
-        r"range\(",  # Range calls
-        r"sleep\(",  # Sleep calls
-        r"timeout",  # Timeout settings
-        r"port\s*=",  # Port assignments
-        r"version",  # Version numbers
-    ]
-
-    for line_num, line in enumerate(lines, 1):
-        # Skip comments and certain patterns
-        should_skip = False
-        for pattern in exclude_patterns:
-            if re.search(pattern, line, re.IGNORECASE):
-                should_skip = True
-                break
-
-        if should_skip:
-            continue
-
-        # Find all numeric literals in line
-        # Match integers and floats, but not in string literals
-        # This is a simplified approach - production would need AST
-        numbers = re.findall(r"\b(\d+\.?\d*)\b", line)
-
-        for num in numbers:
-            if num not in allowed_values:
-                # Check it's not in a string
-                # Simple check: not between quotes
-                before_num = line[: line.find(num)]
-                quote_count = before_num.count('"') + before_num.count("'")
-                if quote_count % 2 == 0:  # Even number of quotes = not in string
-                    magic_numbers.append({"line": line_num, "value": num})
-
-    # Limit to avoid overwhelming output
-    return magic_numbers[: SemanticVolumeDefaults.MAGIC_NUMBER_SAMPLE_LIMIT]
 
 
 def _extract_function_name(func: Dict[str, Any]) -> str:
