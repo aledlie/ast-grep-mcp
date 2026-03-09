@@ -12,6 +12,83 @@ from typing import Any, Callable
 from ...constants import UnifiedDiffRegexGroups
 
 
+class _DiffCounts:
+    """Accumulator for diff change counts."""
+
+    __slots__ = ("additions", "deletions", "modifications")
+
+    def __init__(self) -> None:
+        self.additions = 0
+        self.deletions = 0
+        self.modifications = 0
+
+    def to_summary(self) -> dict[str, int]:
+        return {
+            "additions": self.additions,
+            "deletions": self.deletions,
+            "modifications": self.modifications,
+            "total_changes": self.additions + self.deletions + self.modifications,
+        }
+
+
+def _classify_diff_line(
+    diff_lines: list[str], i: int, counts: _DiffCounts, changes: list[dict[str, Any]]
+) -> int:
+    """Classify a single diff line and update counts/changes. Returns next index."""
+    line = diff_lines[i]
+
+    if line.startswith(("---", "+++", "@@")):
+        return i + 1
+
+    if line.startswith("-"):
+        # Check if next line is an addition (modification pair)
+        if i + 1 < len(diff_lines) and diff_lines[i + 1].startswith("+"):
+            counts.modifications += 1
+            changes.append({
+                "type": "modification",
+                "old": line[1:].rstrip("\n"),
+                "new": diff_lines[i + 1][1:].rstrip("\n"),
+            })
+            return i + 2
+        counts.deletions += 1
+        changes.append({"type": "deletion", "content": line[1:].rstrip("\n")})
+    elif line.startswith("+"):
+        counts.additions += 1
+        changes.append({"type": "addition", "content": line[1:].rstrip("\n")})
+
+    return i + 1
+
+
+def _parse_unified_diff_lines(diff_lines: list[str]) -> tuple[_DiffCounts, list[dict[str, Any]]]:
+    """Parse unified diff lines into counts and a changes list."""
+    counts = _DiffCounts()
+    changes: list[dict[str, Any]] = []
+    i = 0
+    while i < len(diff_lines):
+        i = _classify_diff_line(diff_lines, i, counts, changes)
+    return counts, changes
+
+
+def _build_nested_structure(
+    changes: list[dict[str, Any]], language: str | None
+) -> dict[str, Any]:
+    """Wrap changes into a nested diff root node."""
+    return {
+        "root": {
+            "type": "diff_root",
+            "language": language,
+            "children": [{"type": c["type"], "data": c} for c in changes],
+        }
+    }
+
+
+_EMPTY_NESTED_RESULT: dict[str, Any] = {
+    "nested_diff": {},
+    "summary": {"additions": 0, "deletions": 0, "modifications": 0},
+    "changes": [],
+}
+
+
 def build_nested_diff_tree(code1: str, code2: str, language: str | None = None) -> dict[str, Any]:
     """Build a nested diff tree from two code snippets.
 
@@ -30,82 +107,17 @@ def build_nested_diff_tree(code1: str, code2: str, language: str | None = None) 
         - changes: List of individual changes with context
     """
     if not code1 and not code2:
-        return {"nested_diff": {}, "summary": {"additions": 0, "deletions": 0, "modifications": 0}, "changes": []}
+        return dict(_EMPTY_NESTED_RESULT)
 
     lines1 = code1.splitlines(keepends=True) if code1 else []
     lines2 = code2.splitlines(keepends=True) if code2 else []
 
-    differ = difflib.unified_diff(lines1, lines2, lineterm="")
-    diff_lines = list(differ)
-
-    # Parse unified diff into structured format
-    additions = 0
-    deletions = 0
-    modifications = 0
-    changes: list[dict[str, Any]] = []
-
-    i = 0
-    while i < len(diff_lines):
-        line = diff_lines[i]
-
-        if line.startswith("---") or line.startswith("+++"):
-            i += 1
-            continue
-
-        if line.startswith("@@"):
-            # Parse hunk header
-            i += 1
-            continue
-
-        if line.startswith("-") and not line.startswith("---"):
-            deletions += 1
-            # Check if next line is an addition (modification)
-            if i + 1 < len(diff_lines) and diff_lines[i + 1].startswith("+"):
-                modifications += 1
-                deletions -= 1
-                changes.append(
-                    {
-                        "type": "modification",
-                        "old": line[1:].rstrip("\n"),
-                        "new": diff_lines[i + 1][1:].rstrip("\n"),
-                    }
-                )
-                i += 2
-                continue
-            changes.append({"type": "deletion", "content": line[1:].rstrip("\n")})
-
-        elif line.startswith("+") and not line.startswith("+++"):
-            additions += 1
-            changes.append({"type": "addition", "content": line[1:].rstrip("\n")})
-
-        i += 1
-
-    # Build nested structure
-    children: list[dict[str, Any]] = []
-    nested_diff: dict[str, Any] = {
-        "root": {
-            "type": "diff_root",
-            "language": language,
-            "children": children,
-        }
-    }
-
-    # Group changes by type
-    for change in changes:
-        change_node = {
-            "type": change["type"],
-            "data": change,
-        }
-        children.append(change_node)
+    diff_lines = list(difflib.unified_diff(lines1, lines2, lineterm=""))
+    counts, changes = _parse_unified_diff_lines(diff_lines)
 
     return {
-        "nested_diff": nested_diff,
-        "summary": {
-            "additions": additions,
-            "deletions": deletions,
-            "modifications": modifications,
-            "total_changes": additions + deletions + modifications,
-        },
+        "nested_diff": _build_nested_structure(changes, language),
+        "summary": counts.to_summary(),
         "changes": changes,
     }
 
