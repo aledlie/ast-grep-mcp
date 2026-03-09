@@ -28,23 +28,10 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 - **`core/executor.py:filter_files_by_size`** (uncommitted) — extracted `_walk_and_classify` for os.walk loop and file classification. cyc 19→10, cog 18→8, nest 4→3, len 52→36. Helper below thresholds.
 - **`refactoring/analyzer.py`** (`e3ceabb`–`40516c1`) — all 4 offenders resolved. `_find_python_base_variables` (cog 25→7): extracted `_collect_python_identifiers` helper + `_PYTHON_BASE_VAR_PATTERNS` constant. `_get_variable_classification` (cyc 13→7): merged two MODIFIED-return branches. `_scan_and_register_identifiers` (nest 5→4): collapsed for+if into generator. `analyze_selection` (len 63→37): extracted `_build_code_selection`.
 
-### Remaining Offenders (live scan at `cbe5588` — 2026-03-09)
+### Remaining Offenders
 
-Thresholds: cyc >10, cog >15, nest >4, len >50. Refresh: `uv run python scripts/scan_complexity_offenders.py`
+Thresholds: cyc >10, cog >15, nest >4, len >50. All items from this section have been migrated to [2026-03-09 changelog](../changelog/2026-03-09-complexity-offender-reductions.md). Refresh: `uv run python scripts/scan_complexity_offenders.py`
 
-- [x] **CX-01** `refactoring/extractor.py:_scan_imports` — cyc=10, cog=18, nest=5 (exceeds: cog, nest). Extracted `_process_scan_line` helper; `_scan_imports` flattened to loop + break. (`040bb64`, `8ae886b`)
-- [x] **CX-02** `refactoring/extractor.py:extract_function` — cyc=9, cog=12, nest=5, len=79 (exceeds: nest, len). Extracted `_perform_extraction_steps`; body reduced from 79→49 lines. (`040bb64`)
-- [x] **CX-03** `deduplication/diff.py:_format_alignment_entry` — cyc=11, cog=12 (exceeds: cyc). Extracted `_format_diff_alignment` for old/new pair handling. (`040bb64`)
-- [x] **CX-04** `deduplication/diff.py:generate_file_diff` — cyc=11, cog=6 (exceeds: cyc). Extracted `_ensure_trailing_newline`; main function simplified. (`040bb64`)
-
-## scan_complexity_offenders.py Hardening (2026-03-08)
-
-From code review of `8d4d13a`. Deferred from backlog-implementer pass (commits: `6a27e23`, `edbb9f0`, `c412c78`).
-
-- [x] **SC-01** (High) Silent failure on wrong CWD: resolved paths via `_PROJECT_ROOT = Path(__file__).parent.parent`. (`9d88886`)
-- [x] **SC-02** (Medium) `_extract_name` fragile with decorators: scan lines for `def`/`async def` first. (`9d88886`)
-- [x] **SC-03** (Medium) Language hardcoded to `"python"`: changed `FILES` to `list[tuple[str, str]]` with per-entry language. (`9d88886`)
-- [x] **SC-04** (Low) `FILES` lacks type annotation: added `FILES: list[tuple[str, str]]`. (`9d88886`)
 
 ## executor.py Hardening (2026-03-08)
 
