@@ -34,6 +34,28 @@ class FunctionExtractor:
         """
         self.language = language
 
+    def _perform_extraction_steps(
+        self,
+        selection: CodeSelection,
+        function_name: str,
+        extract_location: str,
+        dry_run: bool,
+    ) -> tuple[FunctionSignature, str, str, int, str, Optional[str]]:
+        """Run all extraction steps and return the resulting components."""
+        signature = self._generate_signature(selection, function_name)
+        function_body = self._generate_function_body(selection, signature)
+        call_replacement = self._generate_call_site(selection, signature)
+        insertion_line = self._determine_insertion_line(selection, extract_location)
+        diff_preview = self._generate_diff_preview(
+            selection, function_body, call_replacement, insertion_line
+        )
+        backup_id = (
+            self._apply_extraction(selection, function_body, call_replacement, insertion_line)
+            if not dry_run
+            else None
+        )
+        return signature, function_body, call_replacement, insertion_line, diff_preview, backup_id
+
     def extract_function(
         self,
         selection: CodeSelection,
@@ -62,41 +84,11 @@ class FunctionExtractor:
         )
 
         try:
-            # Generate function name if not provided
             if not function_name:
                 function_name = self._generate_function_name(selection)
-
-            # Generate function signature
-            signature = self._generate_signature(selection, function_name)
-
-            # Generate function body
-            function_body = self._generate_function_body(selection, signature)
-
-            # Generate call site replacement
-            call_replacement = self._generate_call_site(selection, signature)
-
-            # Determine insertion line
-            insertion_line = self._determine_insertion_line(selection, extract_location)
-
-            # Generate diff preview
-            diff_preview = self._generate_diff_preview(
-                selection,
-                function_body,
-                call_replacement,
-                insertion_line,
+            signature, function_body, call_replacement, insertion_line, diff_preview, backup_id = (
+                self._perform_extraction_steps(selection, function_name, extract_location, dry_run)
             )
-
-            if not dry_run:
-                # Apply the refactoring
-                backup_id = self._apply_extraction(
-                    selection,
-                    function_body,
-                    call_replacement,
-                    insertion_line,
-                )
-            else:
-                backup_id = None
-
             return ExtractFunctionResult(
                 success=True,
                 function_signature=signature,
@@ -349,6 +341,24 @@ class FunctionExtractor:
         last_import_line, _ = self._scan_imports(lines)
         return last_import_line + 1 if last_import_line > 0 else 1
 
+    def _process_scan_line(
+        self, stripped: str, i: int, last_import_line: int, in_multiline: bool
+    ) -> tuple[int, bool, bool]:
+        """Process one line during import scan.
+
+        Returns:
+            Tuple of (last_import_line, in_multiline, should_break)
+        """
+        if self._should_skip_line(stripped):
+            return last_import_line, in_multiline, False
+        if self._is_import_start(stripped):
+            return i, self._check_multiline_import(stripped), False
+        if in_multiline:
+            return i, ")" not in stripped, False
+        if last_import_line > 0:
+            return last_import_line, in_multiline, True
+        return last_import_line, in_multiline, False
+
     def _scan_imports(self, lines: list[str]) -> tuple[int, bool]:
         """Scan lines for import statements.
 
@@ -362,19 +372,10 @@ class FunctionExtractor:
         in_multiline = False
 
         for i, line in enumerate(lines, start=1):
-            stripped = line.strip()
-
-            if self._should_skip_line(stripped):
-                continue
-
-            if self._is_import_start(stripped):
-                last_import_line = i
-                in_multiline = self._check_multiline_import(stripped)
-            elif in_multiline:
-                last_import_line = i
-                if ")" in stripped:
-                    in_multiline = False
-            elif last_import_line > 0:
+            last_import_line, in_multiline, should_break = self._process_scan_line(
+                line.strip(), i, last_import_line, in_multiline
+            )
+            if should_break:
                 break
 
         return last_import_line, in_multiline

@@ -190,18 +190,23 @@ def build_diff_tree(code1: str, code2: str, language: str | None = None) -> dict
     }
 
 
+def _format_diff_alignment(alignment: dict[str, Any], lines: list[str]) -> None:
+    """Handle diff-type alignment entries (old/new pair)."""
+    old_val = alignment.get("old", "")
+    new_val = alignment.get("new", "")
+    if old_val:
+        lines.append(f"- {old_val}")
+    if new_val:
+        lines.append(f"+ {new_val}")
+
+
 def _format_alignment_entry(alignment: dict[str, Any], lines: list[str]) -> None:
     """Format a single alignment entry and append to lines."""
     align_type = alignment.get("type", "unknown")
     if align_type == "match":
         lines.append(f"  {alignment.get('value', '')}")
     elif align_type == "diff":
-        old_val = alignment.get("old", "")
-        new_val = alignment.get("new", "")
-        if old_val:
-            lines.append(f"- {old_val}")
-        if new_val:
-            lines.append(f"+ {new_val}")
+        _format_diff_alignment(alignment, lines)
     elif align_type == "delete":
         lines.append(f"- {alignment.get('value', alignment.get('content', ''))}")
     elif align_type == "insert":
@@ -383,6 +388,12 @@ def diff_preview_to_dict(diff_text: str) -> dict[str, Any]:
     }
 
 
+def _ensure_trailing_newline(lines: list[str]) -> None:
+    """Ensure the last line ends with a newline, in-place."""
+    if lines and not lines[-1].endswith("\n"):
+        lines[-1] += "\n"
+
+
 def generate_file_diff(old_content: str, new_content: str, filename: str) -> str:
     """Generate unified diff for a single file.
 
@@ -396,20 +407,14 @@ def generate_file_diff(old_content: str, new_content: str, filename: str) -> str
     """
     old_lines = old_content.splitlines(keepends=True) if old_content else []
     new_lines = new_content.splitlines(keepends=True) if new_content else []
-
-    # Ensure lines end with newlines for proper diff output
-    if old_lines and not old_lines[-1].endswith("\n"):
-        old_lines[-1] += "\n"
-    if new_lines and not new_lines[-1].endswith("\n"):
-        new_lines[-1] += "\n"
-
-    diff = difflib.unified_diff(
+    _ensure_trailing_newline(old_lines)
+    _ensure_trailing_newline(new_lines)
+    return "".join(difflib.unified_diff(
         old_lines,
         new_lines,
         fromfile=f"a/{filename}",
         tofile=f"b/{filename}",
-    )
-    return "".join(diff)
+    ))
 
 
 def generate_multi_file_diff(changes: list[dict[str, Any]]) -> str:
