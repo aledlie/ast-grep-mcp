@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # Optional input directory (defaults to repo root)
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
 # file names
 TREE_FILE="token-tree"
@@ -33,9 +33,9 @@ INPUT_DIR="$ROOT/$INPUT_PATH"
 TOKEN_TREE_SCRIPT="$INPUT_DIR/$TREE_FILE.sh"
 COMPRESS_SCRIPT="$INPUT_DIR/$COMPRESSED_FILE.sh"
 LOSSLESS_SCRIPT="$INPUT_DIR/$LOSSLESS_FILE.sh"
-DOCS_ONLY_SCRIPT="$INPUT_DIR/$DOCS_ONLY_FILE.sh"
-GIT_RANKED_SCRIPT="$INPUT_DIR/$GIT_RANKED_FILE.sh"
-GITLOG_TOP_SCRIPT="$INPUT_DIR/$DIFF_SUMMARY.sh"
+DOCS_ONLY_SCRIPT="$INPUT_DIR/generate-repomix-docs.sh"
+GIT_RANKED_SCRIPT="$INPUT_DIR/generate-repomix-git-ranked.sh"
+DIFF_SUMMARY_SCRIPT="$INPUT_DIR/generate-diff-summary.sh"
 GIT_RANKED_INCLUDE_LOGS_COUNT="${REPOMIX_GIT_RANKED_INCLUDE_LOGS_COUNT:-200}"
 
 echo "File set up..."
@@ -92,7 +92,7 @@ echo
 echo "Generating top-file git history at $GITLOG_TOP_FILE_NAME"
 (
   cd "$ROOT"
-  bash "$GITLOG_TOP_SCRIPT"
+  bash "$DIFF_SUMMARY_SCRIPT"
 )
 echo "Success!"
 echo
@@ -106,13 +106,13 @@ print_artifact() {
   if [[ -f "$file_path" ]]; then
     chars=$(wc -c < "$file_path" | tr -d ' ')
     tokens=$((chars / 4))
-    echo " - $display_namZZe (~$tokens tokens, $chars chars)"
+    echo " - $display_name (~$tokens tokens, $chars chars)"
   else
     echo " - $display_name (missing)"
   fi
 }
 
-print_artifact "$TOKEN_TREE_FILE" "$TREE_FILE_NAME"
+print_artifact "$TOKEN_TREE_FILE" "$TREE_FILE"
 print_artifact "$COMPRESSED_REPO_FILE" "$COMPRESSED_FILE_NAME"
 print_artifact "$LOSSLESS_REPO_FILE" "$LOSSLESS_FILE_NAME"
 print_artifact "$DOCS_ONLY_REPO_FILE" "$DOCS_ONLY_FILE_NAME"
