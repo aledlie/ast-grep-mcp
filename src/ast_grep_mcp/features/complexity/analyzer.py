@@ -33,6 +33,28 @@ __all__ = [
 ]
 
 
+_FUNCTION_PATTERN_KEYS = ("function", "async_function", "arrow_function", "method")
+
+
+def _run_pattern_search(file_path: str, language: str, pattern: str) -> List[Dict[str, Any]]:
+    """Run ast-grep for one pattern against a file and return matches."""
+    try:
+        result = subprocess.run(
+            ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path],
+            capture_output=True,
+            text=True,
+            timeout=SubprocessDefaults.AST_GREP_TIMEOUT_SECONDS,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            matches = json.loads(result.stdout)
+            if isinstance(matches, list):
+                return matches
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, Exception) as e:
+        logger = get_logger("complexity.extract")
+        logger.warning("extract_functions_failed", file=file_path, error=str(e))
+    return []
+
+
 def extract_functions_from_file(file_path: str, language: str) -> List[Dict[str, Any]]:
     """Extract all functions from a file using ast-grep.
 
@@ -44,28 +66,10 @@ def extract_functions_from_file(file_path: str, language: str) -> List[Dict[str,
         List of function matches with metadata
     """
     patterns = get_complexity_patterns(language)
+    function_patterns = [patterns[k] for k in _FUNCTION_PATTERN_KEYS if k in patterns]
     all_functions: List[Dict[str, Any]] = []
-
-    # Get all function patterns for this language
-    _PATTERN_KEYS = ("function", "async_function", "arrow_function", "method")
-    function_patterns = [patterns[k] for k in _PATTERN_KEYS if k in patterns]
-
     for pattern in function_patterns:
-        try:
-            result = subprocess.run(
-                ["ast-grep", "run", "--pattern", pattern, "--lang", language, "--json", file_path],
-                capture_output=True,
-                text=True,
-                timeout=SubprocessDefaults.AST_GREP_TIMEOUT_SECONDS,
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                matches = json.loads(result.stdout)
-                if isinstance(matches, list):
-                    all_functions.extend(matches)
-        except (subprocess.TimeoutExpired, json.JSONDecodeError, Exception) as e:
-            logger = get_logger("complexity.extract")
-            logger.warning("extract_functions_failed", file=file_path, error=str(e))
-
+        all_functions.extend(_run_pattern_search(file_path, language, pattern))
     return all_functions
 
 
@@ -244,6 +248,8 @@ def _strip_python_self_cls(params: str) -> str:
 
 def _count_params_by_depth(params: str) -> int:
     """Count comma-separated params while respecting bracket depth."""
+    if not params:
+        return 0
     depth = 0
     count = 1
     for char in params:
@@ -416,6 +422,28 @@ def _check_threshold_violations(metrics: ComplexityMetrics, thresholds: Complexi
     return exceeds
 
 
+def _build_function_complexity(
+    func: Dict[str, Any], file_path: str, language: str, thresholds: ComplexityThresholds
+) -> FunctionComplexity | None:
+    """Build a FunctionComplexity object from one ast-grep match, or None if code is empty."""
+    code = func.get("text", "")
+    if not code:
+        return None
+    func_name = _extract_function_name(func)
+    start_line, end_line = _get_line_numbers(func)
+    metrics = _calculate_all_metrics(code, language)
+    exceeds = _check_threshold_violations(metrics, thresholds)
+    return FunctionComplexity(
+        file_path=file_path,
+        function_name=func_name,
+        start_line=start_line,
+        end_line=end_line,
+        metrics=metrics,
+        language=language,
+        exceeds=exceeds,
+    )
+
+
 def analyze_file_complexity(file_path: str, language: str, thresholds: ComplexityThresholds) -> List[FunctionComplexity]:
     """Analyze complexity of all functions in a file.
 
@@ -428,34 +456,13 @@ def analyze_file_complexity(file_path: str, language: str, thresholds: Complexit
         List of FunctionComplexity objects
     """
     results: List[FunctionComplexity] = []
-
     try:
         functions = extract_functions_from_file(file_path, language)
-
         for func in functions:
-            code = func.get("text", "")
-            if not code:
-                continue
-
-            func_name = _extract_function_name(func)
-            start_line, end_line = _get_line_numbers(func)
-            metrics = _calculate_all_metrics(code, language)
-            exceeds = _check_threshold_violations(metrics, thresholds)
-
-            results.append(
-                FunctionComplexity(
-                    file_path=file_path,
-                    function_name=func_name,
-                    start_line=start_line,
-                    end_line=end_line,
-                    metrics=metrics,
-                    language=language,
-                    exceeds=exceeds,
-                )
-            )
-
+            fc = _build_function_complexity(func, file_path, language, thresholds)
+            if fc is not None:
+                results.append(fc)
     except Exception as e:
         logger = get_logger("complexity.analyze")
         logger.error("analyze_file_failed", file=file_path, error=str(e))
-
     return results
