@@ -11,6 +11,7 @@ This module registers MCP tools for:
 import os
 import time
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Dict, List, Optional, cast
 
 import sentry_sdk
@@ -624,6 +625,10 @@ def generate_quality_report_tool(
 
     with tool_context("generate_quality_report", project_name=project_name, output_format=output_format) as start_time:
         result_obj = _dict_to_enforcement_result(enforcement_result)
+
+        if project_name == "Project":
+            inferred_folder = _infer_project_folder(enforcement_result.get("violations", []))
+            project_name = Path(inferred_folder).name or "Project"
 
         report = generate_quality_report_impl(
             result=result_obj,

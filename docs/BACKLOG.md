@@ -56,13 +56,6 @@ From code review of `8d4d13a`:
 - **`FILES` lacks type annotation**: Should be `FILES: list[str] = [...]` per project conventions.
 - ~~**`run_command` listed as both resolved and remaining offender**~~: Resolved — clarified that `tool_context` wrapping reduced len/boilerplate but cog/nest remain above thresholds.
 
-## Magic Number/String Migration — Done (`4976bef`, `f79f686`)
-
-- [x] `"ast-grep"` (6 occurrences in executor.py) → `ExecutorDefaults.AST_GREP_COMMAND`
-- [x] `timeout=2` (2 occurrences in executor.py) → `StreamDefaults.PROCESS_TERMINATE_TIMEOUT_SECONDS`
-- [x] `timeout=5` (3 occurrences in executor.py) → `StreamDefaults.PROCESS_KILL_TIMEOUT_SECONDS`
-- [x] Backup magic strings (13 occurrences across applicator_backup.py, rewrite/backup.py) → `BackupDefaults.DIR_NAME`, `.METADATA_FILE`, `.DEDUP_PREFIX`, `.REWRITE_PREFIX` (parallel session `f79f686`)
-
 ## executor.py Hardening (2026-03-08)
 
 From final code review of `9ad6a2c`–`9d7ea65`:
