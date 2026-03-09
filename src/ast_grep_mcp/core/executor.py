@@ -209,6 +209,30 @@ def _process_file(
         return (None, None)
 
 
+def _walk_and_classify(
+    directory: str, lang_extensions: Optional[List[str]], max_size_bytes: int, logger: Any
+) -> Tuple[List[str], List[str]]:
+    """Walk directory tree and classify files by size.
+
+    Returns:
+        Tuple of (files_to_search, skipped_files)
+    """
+    files_to_search: List[str] = []
+    skipped_files: List[str] = []
+
+    for root, dirs, files in os.walk(directory):
+        dirs[:] = [d for d in dirs if not _should_skip_directory(d)]
+
+        for file in files:
+            found, skipped = _process_file(file, root, lang_extensions, max_size_bytes, logger)
+            if found:
+                files_to_search.append(found)
+            elif skipped:
+                skipped_files.append(skipped)
+
+    return files_to_search, skipped_files
+
+
 def filter_files_by_size(directory: str, max_size_mb: Optional[int] = None, language: Optional[str] = None) -> Tuple[List[str], List[str]]:
     """Filter files in directory by size.
 
@@ -226,30 +250,14 @@ def filter_files_by_size(directory: str, max_size_mb: Optional[int] = None, lang
         - skipped_files: List of file paths that exceeded the limit
         When max_size_mb is None or <= 0 returns ([], []) as a no-op signal.
     """
-    logger = get_logger("file_filter")
-
     if max_size_mb is None or max_size_mb <= 0:
         return ([], [])
 
+    logger = get_logger("file_filter")
     max_size_bytes = max_size_mb * FileConstants.BYTES_PER_MB
-    files_to_search: List[str] = []
-    skipped_files: List[str] = []
-
-    # Get language extensions if specified
     lang_extensions = _get_language_extensions(language) if language else None
 
-    # Walk directory and check file sizes
-    for root, dirs, files in os.walk(directory):
-        # Filter directories in-place
-        dirs[:] = [d for d in dirs if not _should_skip_directory(d)]
-
-        for file in files:
-            file_to_search, skipped_file = _process_file(file, root, lang_extensions, max_size_bytes, logger)
-
-            if file_to_search:
-                files_to_search.append(file_to_search)
-            elif skipped_file:
-                skipped_files.append(skipped_file)
+    files_to_search, skipped_files = _walk_and_classify(directory, lang_extensions, max_size_bytes, logger)
 
     if skipped_files:
         logger.info(
