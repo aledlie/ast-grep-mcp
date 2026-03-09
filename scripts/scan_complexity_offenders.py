@@ -7,6 +7,7 @@ By default only prints functions exceeding thresholds (cyc>10, cog>15, nest>4, l
 With --all, prints every function from the scanned files.
 """
 
+import pathlib
 import sys
 
 from ast_grep_mcp.features.complexity.metrics import (
@@ -16,14 +17,16 @@ from ast_grep_mcp.features.complexity.metrics import (
 )
 from ast_grep_mcp.features.complexity.analyzer import extract_functions_from_file
 
-FILES = [
-    "src/ast_grep_mcp/features/deduplication/applicator_backup.py",
-    "src/ast_grep_mcp/features/refactoring/extractor.py",
-    "src/ast_grep_mcp/core/executor.py",
-    "src/ast_grep_mcp/features/condense/service.py",
-    "src/ast_grep_mcp/features/deduplication/diff.py",
-    "src/ast_grep_mcp/features/refactoring/analyzer.py",
-    "src/ast_grep_mcp/features/complexity/analyzer.py",
+_PROJECT_ROOT = pathlib.Path(__file__).parent.parent
+
+FILES: list[tuple[str, str]] = [
+    ("src/ast_grep_mcp/features/deduplication/applicator_backup.py", "python"),
+    ("src/ast_grep_mcp/features/refactoring/extractor.py", "python"),
+    ("src/ast_grep_mcp/core/executor.py", "python"),
+    ("src/ast_grep_mcp/features/condense/service.py", "python"),
+    ("src/ast_grep_mcp/features/deduplication/diff.py", "python"),
+    ("src/ast_grep_mcp/features/refactoring/analyzer.py", "python"),
+    ("src/ast_grep_mcp/features/complexity/analyzer.py", "python"),
 ]
 
 CYC_THRESHOLD = 10
@@ -37,8 +40,11 @@ def _short_path(path: str) -> str:
 
 
 def _extract_name(code: str) -> str:
-    if "(" in code:
-        return code.split("(")[0].split()[-1]
+    for line in code.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("def ") or stripped.startswith("async def "):
+            if "(" in stripped:
+                return stripped.split("(")[0].split()[-1]
     return "unknown"
 
 
@@ -48,14 +54,15 @@ def main() -> None:
     print("| File | Function | Cyc | Cog | Nest | Len |")
     print("|------|----------|-----|-----|------|-----|")
 
-    for path in FILES:
+    for path, lang in FILES:
         short = _short_path(path)
-        funcs = extract_functions_from_file(path, "python")
+        resolved = str(_PROJECT_ROOT / path)
+        funcs = extract_functions_from_file(resolved, lang)
         for f in funcs:
             code = f["text"]
-            cyc = calculate_cyclomatic_complexity(code, "python")
-            cog = calculate_cognitive_complexity(code, "python")
-            nest = calculate_nesting_depth(code, "python")
+            cyc = calculate_cyclomatic_complexity(code, lang)
+            cog = calculate_cognitive_complexity(code, lang)
+            nest = calculate_nesting_depth(code, lang)
             lines = code.count("\n") + 1
             name = _extract_name(code)
 
