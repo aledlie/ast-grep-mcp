@@ -5,7 +5,7 @@
 
 Thresholds: cyc >10, cog >15, nest >4, len >50.
 
-Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08) → **80** (2026-03-08 shared-util) → **25** (2026-03-08 helper-adoption) → **19** (2026-03-08 condense-decompose).
+Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08) → **80** (2026-03-08 shared-util) → **25** (2026-03-08 helper-adoption) → **19** (2026-03-08 condense-decompose) → **18** (2026-03-08 dead-code-removal).
 
 ### Recently Resolved
 
@@ -19,16 +19,16 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 - **`core/executor.py:run_command`** (`0a679bb`) — wrapped with `tool_context()`, eliminated ~35 lines of manual timing + Sentry boilerplate. Still exceeds thresholds (cog=17, nest=5, len=56) — listed in remaining offenders table below.
 - **`schema/enhancement_service.py`** (`0a679bb`) — replaced hardcoded 16-entry `_EXCLUDED_DIRS` with derivation from `FilePatterns.DEFAULT_EXCLUDE`.
 - **`refactoring/extractor.py`** (`0a679bb`) — `_generate_docstring` (was cog=31), `_generate_function_body` (was cog=25), `_generate_signature` (was cog=13), `_apply_extraction` (was cog=11) all dropped below thresholds via further decomposition.
+- **`complexity/analyzer.py:_find_magic_numbers`** (uncommitted) — deleted dead code (was cyc=13, cog=25, nest=5, len=61). Function was never called; active implementation lives in `quality/smells_detectors.py:MagicNumberDetector._find_magic_numbers` (already well-decomposed). Removed unused `SemanticVolumeDefaults` import.
 
 ### Remaining Offenders (live scan at `5fdd930` + uncommitted)
 
-19 functions exceed at least one threshold. Sorted by cognitive complexity.
+18 functions exceed at least one threshold. Sorted by cognitive complexity.
 
 | File | Function | Cyc | Cog | Nest | Len | Exceeds |
 |------|----------|-----|-----|------|-----|---------|
 | `deduplication/diff.py` | `build_nested_diff_tree` | 20 | 25 | 6 | 96 | cyc,cog,nest,len |
 | `refactoring/analyzer.py` | `_find_python_base_variables` | 10 | 25 | 4 | 44 | cog |
-| `complexity/analyzer.py` | `_find_magic_numbers` | 13 | 25 | 5 | 61 | cyc,cog,nest,len |
 | `complexity/analyzer.py` | `_find_docstring_extent` | 11 | 21 | 4 | 28 | cyc,cog |
 | `core/executor.py` | `filter_files_by_size` | 19 | 18 | 4 | 52 | cyc,cog,len |
 | `refactoring/extractor.py` | `_scan_imports` | 10 | 18 | 5 | 29 | cog,nest |
@@ -46,7 +46,7 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 | `core/executor.py` | `stream_ast_grep_results` | 4 | 2 | 2 | 52 | len |
 | `refactoring/analyzer.py` | `analyze_selection` | 6 | 0 | 3 | 63 | len |
 
-**By file:** `complexity/analyzer.py` (5), `deduplication/diff.py` (4), `refactoring/analyzer.py` (4), `core/executor.py` (4), `refactoring/extractor.py` (2)
+**By file:** `complexity/analyzer.py` (4), `deduplication/diff.py` (4), `refactoring/analyzer.py` (4), `core/executor.py` (4), `refactoring/extractor.py` (2)
 
 Refresh: `uv run python scripts/scan_complexity_offenders.py`
 
