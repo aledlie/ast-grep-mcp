@@ -33,8 +33,6 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 | `refactoring/analyzer.py` | `_find_python_base_variables` | 10 | 25 | 4 | 44 | cog |
 | `refactoring/extractor.py` | `_scan_imports` | 10 | 18 | 5 | 29 | cog,nest |
 | `complexity/analyzer.py` | `_count_function_parameters` | 18 | 18 | 3 | 49 | cyc,cog |
-| ~~`core/executor.py`~~ | ~~`run_command`~~ | 9 | 17 | 5 | 56 | cog,nest,len | Done (`a650811`) |
-| ~~`core/executor.py`~~ | ~~`get_supported_languages`~~ | 8 | 16 | 5 | 44 | cog,nest | Done (`9ad6a2c`) |
 | `complexity/analyzer.py` | `extract_functions_from_file` | 10 | 15 | 5 | 34 | nest |
 | `refactoring/analyzer.py` | `_get_variable_classification` | 13 | 13 | 3 | 40 | cyc |
 | `refactoring/extractor.py` | `extract_function` | 9 | 12 | 5 | 79 | nest,len |
@@ -43,10 +41,9 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 | `complexity/analyzer.py` | `analyze_file_complexity` | 4 | 9 | 5 | 43 | nest |
 | `deduplication/diff.py` | `generate_file_diff` | 11 | 6 | 2 | 27 | cyc |
 | `deduplication/diff.py` | `build_diff_tree` | 11 | 5 | 2 | 35 | cyc |
-| ~~`core/executor.py`~~ | ~~`stream_ast_grep_results`~~ | 4 | 2 | 2 | 52 | len | Done (`9d7ea65`) |
 | `refactoring/analyzer.py` | `analyze_selection` | 6 | 0 | 3 | 63 | len |
 
-**By file:** `complexity/analyzer.py` (3), `deduplication/diff.py` (3), `refactoring/analyzer.py` (4), `core/executor.py` (3), `refactoring/extractor.py` (2)
+**By file:** `complexity/analyzer.py` (3), `deduplication/diff.py` (3), `refactoring/analyzer.py` (4), `refactoring/extractor.py` (2) — `core/executor.py` (1 remaining: `filter_files_by_size`)
 
 Refresh: `uv run python scripts/scan_complexity_offenders.py`
 

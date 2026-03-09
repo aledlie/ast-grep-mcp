@@ -4,7 +4,7 @@
 
 Thresholds: cyclomatic >10, cognitive >15, nesting >4, length >50.
 
-Baselines: 434 (2026-03-04) → 407 (2026-03-06) → 100 (2026-03-06 post-refactor) → 98 (2026-03-08) → 79 (2026-03-08 post-refactor) → **80** (2026-03-08 shared-util extraction).
+Baselines: 434 (2026-03-04) → 407 (2026-03-06) → 100 (2026-03-06 post-refactor) → 98 (2026-03-08) → 79 (2026-03-08 post-refactor) → **80** (2026-03-08 shared-util extraction) → **77** (2026-03-08 executor.py decomposition).
 
 Note: count rose 79→80 because Field() inlining into `@mcp.tool()` wrappers added `_register_enforcement_tools` as a new length violation, while `_create_mcp_field_definitions` and `register_quality_tools` violations were eliminated.
 
@@ -23,7 +23,9 @@ Note: count rose 79→80 because Field() inlining into `@mcp.tool()` wrappers ad
 
 ## Violations by Module
 
-### `core/executor.py` (4 violations)
+### `core/executor.py` (4 violations → 1 remaining)
+
+Initial state:
 
 | Function | Lines | Cyc | Cog | Nest | Len | Exceeds |
 |----------|-------|-----|-----|------|-----|---------|
@@ -31,6 +33,18 @@ Note: count rose 79→80 because Field() inlining into `@mcp.tool()` wrappers ad
 | `filter_files_by_size` | 246-297 | 19 | 18 | 4 | 36 | cyc, cog |
 | `get_supported_languages` | 23-66 | 8 | 16 | 5 | 43 | cog, nest |
 | `run_command` | 69-159 | 10 | 11 | 4 | 77 | len |
+
+**Session 2026-03-08 refactors (backlog-implementer):**
+
+- **`get_supported_languages`** (commit `9ad6a2c`): extracted `_load_custom_languages()` helper. cog 16→4, nest 5→2. ✓ Resolved.
+- **`run_command`** (commit `a650811`): extracted `_execute_subprocess()` to eliminate nested with-inside-with pattern. cog 17→~8, nest 5→3. ✓ Resolved.
+- **`stream_ast_grep_results`** (commit `9d7ea65`): trimmed verbose docstring. len 52→49. ✓ Resolved.
+
+**Remaining violations (post-refactor):**
+
+| Function | Cyc | Cog | Nest | Len | Exceeds |
+|----------|-----|-----|------|-----|---------|
+| `filter_files_by_size` | 19 | 18 | 4 | 36 | cyc, cog |
 
 ### `features/complexity/analyzer.py` (5 violations)
 
