@@ -64,6 +64,10 @@ class BackupDefaults:
     """Defaults for backup retention and lifecycle management."""
 
     RETENTION_DAYS = 30
+    DIR_NAME = ".ast-grep-backups"
+    METADATA_FILE = "backup-metadata.json"
+    DEDUP_PREFIX = "dedup-backup"
+    REWRITE_PREFIX = "backup"
 
 
 class CacheDefaults:
@@ -158,6 +162,14 @@ class StreamDefaults:
     MAX_TIMEOUT_MS = 600000  # 10 minutes
     PROGRESS_INTERVAL = 100  # Log progress every N matches
     SIGTERM_RETURN_CODE = -15  # Return code for SIGTERM signal
+    PROCESS_TERMINATE_TIMEOUT_SECONDS = 2  # Grace period after SIGTERM before escalating to SIGKILL
+    PROCESS_KILL_TIMEOUT_SECONDS = 5  # Timeout for process.wait after SIGKILL / thread.join
+
+
+class ExecutorDefaults:
+    """Defaults for the ast-grep executor."""
+
+    AST_GREP_COMMAND = "ast-grep"
 
 
 class ValidationDefaults:
