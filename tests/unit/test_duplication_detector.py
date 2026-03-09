@@ -980,6 +980,10 @@ class TestTrivialConstructorFilter:
         ]
         assert detector._is_trivial_constructor_group(group) is True
 
+    def test_empty_group_returns_false(self):
+        detector = DuplicationDetector()
+        assert detector._is_trivial_constructor_group([]) is False
+
 
 class TestDelegationWrapperFilter:
     """Tests for _is_delegation_wrapper_group."""
@@ -1005,6 +1009,19 @@ class TestDelegationWrapperFilter:
             _make_match("def detect(self, path):\n    super().detect(path)", "b.py"),
         ]
         assert detector._is_delegation_wrapper_group(group) is True
+
+    def test_chained_attribute_call_detected(self):
+        """self._logger.info(...) is a thin chained delegation wrapper."""
+        detector = DuplicationDetector()
+        group = [
+            _make_match("def warn(self, msg):\n    self._logger.warn(msg)", "a.py"),
+            _make_match("def info(self, msg):\n    self._logger.info(msg)", "a.py", 10),
+        ]
+        assert detector._is_delegation_wrapper_group(group) is True
+
+    def test_empty_group_returns_false(self):
+        detector = DuplicationDetector()
+        assert detector._is_delegation_wrapper_group([]) is False
 
 
 class TestParallelFormatterFilter:
@@ -1063,6 +1080,27 @@ class TestMinSavingsFilter:
     def test_empty_group(self):
         detector = DuplicationDetector()
         assert detector._meets_min_savings([]) is False
+
+    def test_variable_length_members_use_sum_minus_min(self):
+        """Near-duplicates with different lengths: savings = sum - min(lengths)."""
+        detector = DuplicationDetector()
+        # long: 22 lines, short: 5 lines → savings = 27 - 5 = 22 >= 20
+        long_code = "def big():\n" + "\n".join([f"    x{i} = {i}" for i in range(20)])
+        short_code = "def small():\n" + "\n".join([f"    x{i} = {i}" for i in range(3)])
+        group = [_make_match(long_code, "a.py"), _make_match(short_code, "b.py")]
+        assert detector._meets_min_savings(group) is True
+
+    def test_savings_boundary_at_threshold(self):
+        """savings == MIN_LINE_SAVINGS - 1 should fail; == MIN_LINE_SAVINGS should pass."""
+        detector = DuplicationDetector()
+        # 9 lines * 2 copies → savings = 9, below threshold of 20
+        code_short = "def f():\n" + "\n".join([f"    x{i} = {i}" for i in range(8)])
+        group = [_make_match(code_short, "a.py"), _make_match(code_short, "b.py")]
+        assert detector._meets_min_savings(group) is False
+        # 21 lines * 2 copies → savings = 21, at/above threshold
+        code_long = "def g():\n" + "\n".join([f"    x{i} = {i}" for i in range(20)])
+        group2 = [_make_match(code_long, "a.py"), _make_match(code_long, "b.py")]
+        assert detector._meets_min_savings(group2) is True
 
 
 class TestApplyPrecisionFilters:
