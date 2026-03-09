@@ -257,46 +257,31 @@ class CodeSelectionAnalyzer:
                 var_type=VariableType.LOCAL, is_written=True,
             )
 
+    # Patterns for base variable detection: subscript, attribute, non-method call
+    _PYTHON_BASE_VAR_PATTERNS = (
+        r"\b([a-zA-Z_]\w*)\s*\[",           # var[...]
+        r"\b([a-zA-Z_]\w*)\s*\.",            # var.attr
+        r"(?<!\.)\b([a-zA-Z_]\w*)\s*\(",    # var(...) not method calls
+    )
+
+    def _collect_python_identifiers(self, content: str, pattern: str) -> set:
+        """Return non-keyword identifiers matching a regex capture group."""
+        return {
+            m.group(1) for m in re.finditer(pattern, content)
+            if m.group(1) not in self._PYTHON_KEYWORDS
+        }
+
     def _find_python_base_variables(
         self,
         content: str,
         selection: CodeSelection,
         variables: Dict[str, VariableInfo],
     ) -> None:
-        """Find base variables used in subscripts, attributes, and calls.
-
-        Identifies variables in patterns like:
-        - variable[...] (subscript)
-        - variable.attr (attribute access)
-        - variable(...) (function call, excluding method calls)
-
-        Args:
-            content: Source code content
-            selection: Code selection metadata
-            variables: Dict to populate with variable info
-        """
-        base_vars_found = set()
-
-        # Array/dict access: var[...]
-        for match in re.finditer(r"\b([a-zA-Z_]\w*)\s*\[", content):
-            var_name = match.group(1)
-            if var_name not in self._PYTHON_KEYWORDS:
-                base_vars_found.add(var_name)
-
-        # Attribute access: var.attr
-        for match in re.finditer(r"\b([a-zA-Z_]\w*)\s*\.", content):
-            var_name = match.group(1)
-            if var_name not in self._PYTHON_KEYWORDS:
-                base_vars_found.add(var_name)
-
-        # Function call: var(...) but NOT method calls like obj.method()
-        for match in re.finditer(r"(?<!\.)\b([a-zA-Z_]\w*)\s*\(", content):
-            var_name = match.group(1)
-            if var_name not in self._PYTHON_KEYWORDS:
-                base_vars_found.add(var_name)
-
-        # Register base variables as reads
-        for var_name in base_vars_found:
+        """Find base variables used in subscripts, attributes, and calls."""
+        base_vars: set = set()
+        for pattern in self._PYTHON_BASE_VAR_PATTERNS:
+            base_vars |= self._collect_python_identifiers(content, pattern)
+        for var_name in base_vars:
             self._register_variable(
                 variables, var_name, selection.start_line,
                 var_type=VariableType.PARAMETER, is_read=True,
