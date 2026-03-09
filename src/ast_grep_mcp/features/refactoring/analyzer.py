@@ -36,7 +36,7 @@ class CodeSelectionAnalyzer:
 
     def _build_code_selection(
         self, file_path: str, start_line: int, end_line: int
-    ) -> tuple:
+    ) -> tuple[List[str], CodeSelection]:
         """Read file and construct a CodeSelection for the given line range.
 
         Returns:
@@ -258,7 +258,7 @@ class CodeSelectionAnalyzer:
         r"(?<!\.)\b([a-zA-Z_]\w*)\s*\(",    # var(...) not method calls
     )
 
-    def _collect_python_identifiers(self, content: str, pattern: str) -> set:
+    def _collect_python_identifiers(self, content: str, pattern: str) -> set[str]:
         """Return non-keyword identifiers matching a regex capture group."""
         return {
             m.group(1) for m in re.finditer(pattern, content)
@@ -272,7 +272,7 @@ class CodeSelectionAnalyzer:
         variables: Dict[str, VariableInfo],
     ) -> None:
         """Find base variables used in subscripts, attributes, and calls."""
-        base_vars: set = set()
+        base_vars: set[str] = set()
         for pattern in self._PYTHON_BASE_VAR_PATTERNS:
             base_vars |= self._collect_python_identifiers(content, pattern)
         for var_name in base_vars:
