@@ -70,6 +70,29 @@ class TestAsyncToolContext:
             async with async_tool_context("test_tool"):
                 raise ValueError("boom")
 
+    def test_handle_tool_error_uses_provided_logger(self) -> None:
+        """_handle_tool_error uses caller-supplied logger instead of creating one."""
+        from unittest.mock import MagicMock
+
+        from ast_grep_mcp.utils.tool_context import _handle_tool_error
+
+        custom_logger = MagicMock()
+        with patch("ast_grep_mcp.utils.tool_context.sentry_sdk.capture_exception"):
+            with patch("ast_grep_mcp.utils.tool_context.get_logger") as mock_get:
+                _handle_tool_error("my_tool", time.time(), RuntimeError("x"), {}, logger=custom_logger)
+                mock_get.assert_not_called()
+                custom_logger.error.assert_called_once()
+
+    def test_handle_tool_error_creates_logger_when_none(self) -> None:
+        """_handle_tool_error creates logger when none provided."""
+        from ast_grep_mcp.utils.tool_context import _handle_tool_error
+
+        with patch("ast_grep_mcp.utils.tool_context.sentry_sdk.capture_exception"):
+            with patch("ast_grep_mcp.utils.tool_context.get_logger") as mock_get:
+                mock_get.return_value.error = lambda *a, **kw: None
+                _handle_tool_error("my_tool", time.time(), RuntimeError("x"), {})
+                mock_get.assert_called_once_with("tool.my_tool")
+
     @pytest.mark.asyncio
     @patch("ast_grep_mcp.utils.tool_context.sentry_sdk.capture_exception")
     async def test_captures_to_sentry_on_error(self, mock_capture: object) -> None:

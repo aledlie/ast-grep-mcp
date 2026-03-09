@@ -13,6 +13,8 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
+import sentry_sdk
+
 from ast_grep_mcp.constants import ConversionFactors, RegexCaptureGroups, SemanticVolumeDefaults, SEODefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.schema.client import SchemaOrgClient, get_schema_org_client
@@ -766,6 +768,7 @@ async def analyze_entity_graph(input_source: str, input_type: str = "file", outp
 
     except Exception as e:
         logger.error("analyze_entity_graph_failed", error=str(e))
+        sentry_sdk.capture_exception(e, extras={"input_source": input_source, "input_type": input_type})
         raise
 
 

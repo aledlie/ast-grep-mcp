@@ -70,12 +70,12 @@ See [docs/duplicate-detector-misses.md](duplicate-detector-misses.md) for full i
 - Add minimum line savings threshold
 - Consider excluding parallel `to_*` formatters
 
-## e74b8de Review Follow-ups (2026-03-08)
+## ~~e74b8de Review Follow-ups (2026-03-08)~~ (Resolved)
 
-- **Sentry gap in `analyze_entity_graph`** — `enhancement_service.py:754` lost its inner `capture_exception` during consolidation. Currently only called from `enhance_entity_graph_tool` (which wraps with `async_tool_context`), so coverage holds. Add a comment documenting the single-caller assumption, or restore a lightweight `capture_exception` if new callers are added.
-- **`_handle_tool_error` logger duplication** — `tool_context.py:16` calls `get_logger(f"tool.{tool_name}")` on every error. Caller already has a logger bound to the same name. Low severity if `get_logger` caches; document or accept logger as parameter.
+- ~~**Sentry gap in `analyze_entity_graph`**~~ — restored `sentry_sdk.capture_exception` in `enhancement_service.py:analyze_entity_graph`.
+- ~~**`_handle_tool_error` logger duplication**~~ — `_handle_tool_error` now accepts optional `logger` keyword parameter; callers can pass their existing logger.
 
-## changelog_generator.py Hardening (2026-03-08)
+## ~~changelog_generator.py Hardening (2026-03-08)~~ (Resolved)
 
-- **`from_version` resolution asymmetry** — `_get_commit_range` only tries v-prefix for `from_version`, falling back to raw string passthrough. `to_version` uses full `_resolve_version_ref`. Fix: use `_resolve_version_ref` for both. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+- ~~**`from_version` resolution asymmetry**~~ — `_get_commit_range` now uses `_resolve_version_ref` for both `from_version` and `to_version`.
 
