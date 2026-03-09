@@ -136,8 +136,7 @@ def _get_commit_range(
     to_ref = _resolve_version_ref(project_folder, to_version)
 
     if from_version:
-        success, _ = _run_git_command(project_folder, ["rev-parse", f"v{from_version}"])
-        from_ref = f"v{from_version}" if success else from_version
+        from_ref = _resolve_version_ref(project_folder, from_version)
     else:
         previous_tag = _find_previous_tag(project_folder, to_ref)
         if previous_tag is None:

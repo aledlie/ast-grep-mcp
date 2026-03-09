@@ -686,23 +686,20 @@ class TestChangelogHelpers:
             from_ref, to_ref = _get_commit_range("/fake", None, "2.0.0")
             assert to_ref == "v2.0.0"
 
-    def test_get_commit_range_from_version_asymmetry(self):
-        """Test from_version only tries v-prefix, no bare-ref fallback.
-
-        Note: this pins known-broken behavior — see KNOWN_ISSUES.md
-        'from_version / to_version resolution asymmetry'.
-        """
+    def test_get_commit_range_from_version_uses_resolve(self):
+        """Test from_version uses _resolve_version_ref (bare-ref fallback)."""
         from ast_grep_mcp.features.documentation.changelog_generator import (
             _get_commit_range,
         )
 
         with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
-                (True, "abc123"),      # _resolve_version_ref for to_version
-                (False, "not found"),  # from_version v-prefix fails
+                (True, "abc123"),      # _resolve_version_ref for to_version: v2.0.0
+                (False, "not found"),  # _resolve_version_ref for from_version: vbad-ref fails
+                (True, "def789"),      # _resolve_version_ref for from_version: bad-ref succeeds
             ]
             from_ref, to_ref = _get_commit_range("/fake", "bad-ref", "2.0.0")
-            assert from_ref == "bad-ref"  # raw string passthrough
+            assert from_ref == "bad-ref"  # resolved via bare-ref fallback
             assert to_ref == "v2.0.0"
 
     def test_get_commit_range_from_version_vprefixed(self):
@@ -718,6 +715,22 @@ class TestChangelogHelpers:
             ]
             from_ref, to_ref = _get_commit_range("/fake", "1.0.0", "2.0.0")
             assert from_ref == "v1.0.0"
+            assert to_ref == "v2.0.0"
+
+    def test_get_commit_range_from_version_falls_back_to_head(self):
+        """Test from_version falls back to HEAD when both v-prefix and bare ref fail."""
+        from ast_grep_mcp.features.documentation.changelog_generator import (
+            _get_commit_range,
+        )
+
+        with patch(self._MOCK_TARGET) as mock_git:
+            mock_git.side_effect = [
+                (True, "abc123"),      # _resolve_version_ref for to_version: v2.0.0
+                (False, "not found"),  # _resolve_version_ref for from_version: vbogus fails
+                (False, "not found"),  # _resolve_version_ref for from_version: bogus fails
+            ]
+            from_ref, to_ref = _get_commit_range("/fake", "bogus", "2.0.0")
+            assert from_ref == "HEAD"  # falls back to HEAD
             assert to_ref == "v2.0.0"
 
     def test_get_commit_range_no_from_uses_previous_tag(self):

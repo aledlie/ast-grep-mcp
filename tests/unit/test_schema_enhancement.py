@@ -644,6 +644,27 @@ class TestIntegration:
     """Integration tests with mocked Schema.org client."""
 
     @pytest.mark.asyncio
+    async def test_analyze_entity_graph_error_captures_sentry(self):
+        """Test that analyze_entity_graph calls sentry_sdk.capture_exception on error."""
+        from ast_grep_mcp.features.schema.enhancement_service import (
+            analyze_entity_graph,
+        )
+
+        with (
+            patch("ast_grep_mcp.features.schema.enhancement_service._load_graph_from_source") as mock_load,
+            patch("ast_grep_mcp.features.schema.enhancement_service.sentry_sdk.capture_exception") as mock_capture,
+        ):
+            mock_load.side_effect = RuntimeError("kaboom")
+            with pytest.raises(RuntimeError, match="kaboom"):
+                await analyze_entity_graph(input_source="/bad", input_type="file")
+            mock_capture.assert_called_once()
+            exc_arg = mock_capture.call_args[0][0]
+            assert isinstance(exc_arg, RuntimeError)
+            extras = mock_capture.call_args[1]["extras"]
+            assert extras["input_source"] == "/bad"
+            assert extras["input_type"] == "file"
+
+    @pytest.mark.asyncio
     async def test_analyze_entity_graph_simple(self):
         """Test full analysis flow with simple organization."""
         from ast_grep_mcp.features.schema.enhancement_service import (

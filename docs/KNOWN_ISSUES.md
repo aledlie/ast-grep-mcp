@@ -2,15 +2,9 @@
 
 ## changelog_generator.py
 
-### `from_version` / `to_version` resolution asymmetry
+### ~~`from_version` / `to_version` resolution asymmetry~~ (Resolved)
 
-**Severity:** Medium
-**File:** `src/ast_grep_mcp/features/documentation/changelog_generator.py`
-**Function:** `_get_commit_range`
-
-`_resolve_version_ref` (v-prefix tag, bare ref, HEAD fallback) is only used for `to_version`. The `from_version` path only tries the v-prefix tag and falls back to the raw string — no bare-ref validation, no HEAD fallback. An invalid `from_version` is silently passed to `git log`, which fails downstream.
-
-**Fix:** Replace the `from_version` branch in `_get_commit_range` with `from_ref = _resolve_version_ref(project_folder, from_version)`. Accepts a behavior delta: invalid `from_version` falls back to HEAD instead of passing the raw string.
+`_get_commit_range` now uses `_resolve_version_ref` for both `from_version` and `to_version`. Invalid `from_version` falls back to HEAD via `_resolve_version_ref` instead of passing the raw string.
 
 ### ~~Missing unit tests for extracted helpers~~ (Resolved)
 

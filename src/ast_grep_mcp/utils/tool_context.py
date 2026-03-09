@@ -10,10 +10,13 @@ from ast_grep_mcp.constants import DisplayDefaults, FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
 
 
-def _handle_tool_error(tool_name: str, start_time: float, e: Exception, sentry_extras: dict[str, Any]) -> None:
+def _handle_tool_error(
+    tool_name: str, start_time: float, e: Exception, sentry_extras: dict[str, Any], *, logger: Any = None
+) -> None:
     """Log error and capture to Sentry for a failed tool invocation."""
     execution_time = time.time() - start_time
-    logger = get_logger(f"tool.{tool_name}")
+    if logger is None:
+        logger = get_logger(f"tool.{tool_name}")
     logger.error(
         "tool_failed",
         tool=tool_name,
