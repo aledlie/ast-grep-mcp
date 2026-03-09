@@ -6,6 +6,7 @@ All notable changes to ast-grep-mcp are documented in version-dated files in the
 
 ## Versions
 
+- [2026-03-08: Deduplication Precision Filters](changelog/2026-03-08-deduplication-precision-filters.md) — 5 false-positive group filters, constants + regex refactor, 32 tests
 - [2026-03-08: Backup Refactoring & Helper Adoption](changelog/2026-03-08-backup-refactoring-helper-adoption.md) — shared backup utils, applicator_backup complexity reduction, tool_context adoption, offender scan script
 - [2026-03-08: Review Follow-ups & Test Coverage](changelog/2026-03-08-review-follow-ups-testing.md) — Sentry exception capture, logger parameter deduplication, version resolution consistency
 - [2026-03-08: Shared Utils & Tool Consolidation](changelog/2026-03-08-shared-utils-consolidation.md) — shared utility extractions, tool_context, normalize_excludes, inline Field() pattern
