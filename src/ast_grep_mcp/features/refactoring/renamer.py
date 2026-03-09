@@ -81,34 +81,9 @@ class SymbolRenamer:
                 matches = json.loads(result.stdout)
 
                 for match in matches:
-                    # ast-grep JSON format: {"file": "path", "range": {"start": {"line": 0, "column": 4}}, "lines": "context"}
-                    # Note: ast-grep returns absolute paths and 0-indexed line numbers
-                    file_path = match.get("file", "")
-
-                    # Apply file filter if provided
-                    if file_filter and not self._matches_filter(file_path, file_filter):
-                        continue
-
-                    # Extract line and column from nested range object
-                    range_info = match.get("range", {})
-                    start_info = range_info.get("start", {})
-                    line = start_info.get("line", 0) + 1  # Convert from 0-indexed to 1-indexed
-                    column = start_info.get("column", 0)
-
-                    # Create reference
-                    # ast-grep returns absolute paths, so use directly without joining
-                    ref = SymbolReference(
-                        file_path=file_path,
-                        line=line,
-                        column=column,
-                        context=match.get("lines", ""),
-                        scope="",  # Will be determined by scope analysis
-                    )
-
-                    # Determine if it's a definition, import, or regular reference
-                    self._classify_reference(ref)
-
-                    references.append(ref)
+                    ref = self._parse_match_to_reference(match, file_filter)
+                    if ref is not None:
+                        references.append(ref)
 
         except Exception as e:
             logger.error("find_symbol_references_failed", error=str(e))
@@ -120,6 +95,32 @@ class SymbolRenamer:
         )
 
         return references
+
+    def _parse_match_to_reference(self, match: dict, file_filter: Optional[str]) -> Optional[SymbolReference]:
+        """Parse a single ast-grep match dict into a SymbolReference, applying file filter.
+
+        Args:
+            match: ast-grep JSON match object
+            file_filter: Optional glob pattern to filter by file path
+
+        Returns:
+            SymbolReference if the match passes the filter, None otherwise
+        """
+        # ast-grep returns absolute paths and 0-indexed line numbers
+        file_path = match.get("file", "")
+        if file_filter and not self._matches_filter(file_path, file_filter):
+            return None
+
+        start_info = match.get("range", {}).get("start", {})
+        ref = SymbolReference(
+            file_path=file_path,
+            line=start_info.get("line", 0) + 1,  # Convert 0-indexed to 1-indexed
+            column=start_info.get("column", 0),
+            context=match.get("lines", ""),
+            scope="",  # Determined by scope analysis
+        )
+        self._classify_reference(ref)
+        return ref
 
     def _get_symbol_pattern(self, symbol_name: str) -> str:
         """Get ast-grep pattern for finding symbol references.
