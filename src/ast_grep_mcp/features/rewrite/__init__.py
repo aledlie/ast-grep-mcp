@@ -3,7 +3,6 @@
 from ast_grep_mcp.features.rewrite.backup import (
     create_backup,
     create_deduplication_backup,
-    get_file_hash,
     list_available_backups,
     restore_backup,
     verify_backup_integrity,
@@ -16,6 +15,7 @@ from ast_grep_mcp.features.rewrite.service import (
     validate_syntax,
 )
 from ast_grep_mcp.features.rewrite.tools import register_rewrite_tools
+from ast_grep_mcp.utils.backup import get_file_hash
 
 __all__ = [
     # Backup functions
