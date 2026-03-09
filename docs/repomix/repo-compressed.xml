@@ -361,6 +361,7 @@ src/
       backup.py
       console_logger.py
       formatters.py
+      parsing.py
       slicing.py
       syntax_validation.py
       templates.py
@@ -457,6 +458,7 @@ tests/
     test_normalize_indentation.py
     test_orchestrator_optimizations.py
     test_orphan_import_helpers.py
+    test_parsing_utils.py
     test_pattern_debug.py
     test_prefer_const_reassignment.py
     test_progress_callbacks.py
@@ -9186,6 +9188,424 @@ __all__ = [
 # Tools
 </file>
 
+<file path="src/ast_grep_mcp/features/quality/fixer.py">
+"""Auto-fix system for code quality violations.
+
+This module provides functionality to automatically fix code quality violations:
+- Safe fix application (guaranteed-safe fixes only)
+- Suggested fix application (may need review)
+- Fix validation (syntax checking, behavior preservation)
+- Multi-fix coordination (batch operations with rollback)
+"""
+⋮----
+logger = get_logger(__name__)
+REVIEW_EMPTY_CATCH_CONFIDENCE = 0.75
+⋮----
+# =============================================================================
+# Fix Classification - Determine Safety Level
+⋮----
+# Safe patterns that can be auto-applied without review
+SAFE_FIX_PATTERNS: Dict[str, Dict[str, Any]] = {
+⋮----
+# JavaScript/TypeScript
+⋮----
+# Python
+⋮----
+# Java
+⋮----
+# Patterns that require review (lower confidence)
+REVIEW_REQUIRED_PATTERNS: Dict[str, Dict[str, Any]] = {
+⋮----
+def classify_fix_safety(rule_id: str, violation: RuleViolation) -> FixValidation
+⋮----
+"""Classify a fix as safe, suggested, or requiring review.
+
+    Args:
+        rule_id: ID of the rule being fixed
+        violation: The violation to be fixed
+
+    Returns:
+        FixValidation with safety assessment
+    """
+# Check if this is a known safe pattern
+⋮----
+pattern_info = SAFE_FIX_PATTERNS[rule_id]
+⋮----
+# Check if this requires review
+⋮----
+pattern_info = REVIEW_REQUIRED_PATTERNS[rule_id]
+⋮----
+# Unknown pattern - conservative approach
+⋮----
+# Fix Application - Apply Fixes to Files
+⋮----
+def _splice_fixed_code(lines: List[str], start_line: int, end_line: int, snippet: str, fixed_code: str) -> List[str]
+⋮----
+"""Replace a range of file lines with fixed code, preserving indentation.
+
+    ast-grep snippets strip the leading indent from the first line but keep
+    absolute indentation on subsequent lines.  This helper re-applies the
+    stripped indent so the replacement integrates cleanly into the file.
+
+    Each replacement line is emitted as a separate list entry (one ``\\n``
+    per entry) so that line indices remain valid for subsequent operations
+    on the same ``lines`` list.
+
+    Args:
+        lines: File lines (with line endings, from ``str.splitlines(keepends=True)``).
+        start_line: 0-indexed first line of the span to replace.
+        end_line: 0-indexed last line (inclusive) of the span to replace.
+        snippet: The original ``code_snippet`` returned by ast-grep.
+        fixed_code: The transformed code to splice in.
+
+    Returns:
+        A new list of lines with the replacement applied.
+    """
+result = list(lines)
+⋮----
+# Single-line — the snippet is a substring of the line, so a simple
+# str.replace preserves surrounding whitespace.
+⋮----
+# Multi-line — compute the indent that ast-grep stripped from line 0.
+file_first = result[start_line]
+leading_indent = file_first[: len(file_first) - len(file_first.lstrip())]
+⋮----
+fixed_lines = fixed_code.split("\n")
+⋮----
+# Emit each line as a separate entry with its own newline so that
+# downstream line-index arithmetic stays correct.
+replacement = [fl + "\n" for fl in fixed_lines]
+⋮----
+def apply_pattern_fix(file_path: str, violation: RuleViolation, fix_pattern: str, language: str) -> FixResult
+⋮----
+"""Apply a pattern-based fix to a single violation.
+
+    Args:
+        file_path: Path to the file to fix
+        violation: The violation to fix
+        fix_pattern: The fix pattern (can be a literal string or metavar replacement)
+        language: Programming language for syntax validation
+
+    Returns:
+        FixResult with fix outcome
+    """
+⋮----
+# Read the file
+⋮----
+content = f.read()
+⋮----
+lines = content.splitlines(keepends=True)
+⋮----
+# Get the original code snippet
+start_line = violation.line - 1  # Convert to 0-indexed
+end_line = violation.end_line - 1
+⋮----
+original_code = violation.code_snippet
+⋮----
+# Apply fix pattern
+fixed_code = _apply_fix_pattern(original_code, fix_pattern, violation.meta_vars or {})
+⋮----
+# If no change, skip
+⋮----
+# Replace in file (indent-aware)
+lines = _splice_fixed_code(lines, start_line, end_line, original_code, fixed_code)
+⋮----
+# Write back
+new_content = "".join(lines)
+⋮----
+# Validate syntax
+validation = validate_syntax(file_path, language)
+syntax_valid = validation["valid"]
+⋮----
+# Rollback the change
+⋮----
+def _apply_fix_pattern(code: str, fix_pattern: str, meta_vars: Dict[str, "str | list[str]"]) -> str
+⋮----
+"""Apply a fix pattern with metavariable substitution.
+
+    Args:
+        code: Original code
+        fix_pattern: Fix pattern (may contain $VAR placeholders)
+        meta_vars: Metavariables captured during pattern matching
+
+    Returns:
+        Fixed code with metavariables substituted
+    """
+fixed = fix_pattern
+⋮----
+# Replace metavariables (e.g., $VAR, $ARGS, $$$)
+⋮----
+var_value = " ".join(var_value)
+fixed = fixed.replace(f"${var_name}", var_value)
+⋮----
+def apply_removal_fix(file_path: str, violation: RuleViolation, language: str) -> FixResult
+⋮----
+"""Apply a removal fix (delete the violating code).
+
+    Args:
+        file_path: Path to the file to fix
+        violation: The violation to fix (will be removed)
+        language: Programming language for syntax validation
+
+    Returns:
+        FixResult with fix outcome
+    """
+⋮----
+# Remove the lines
+⋮----
+# Batch Fix Coordinator - Apply Multiple Fixes
+⋮----
+"""Apply fixes to multiple violations in a coordinated manner.
+
+    Args:
+        violations: List of violations to fix
+        language: Programming language for syntax validation
+        project_folder: Project root folder
+        fix_types: Types of fixes to apply ('safe', 'suggested', 'all')
+        dry_run: If True, preview fixes without applying
+        create_backup_flag: If True, create backup before applying fixes
+
+    Returns:
+        FixBatchResult with batch fix outcome
+    """
+start_time = time.time()
+⋮----
+# Filter violations by fix type
+fixable_violations = _filter_violations_by_fix_type(violations, fix_types)
+⋮----
+result = _execute_dry_run(fixable_violations, start_time)
+⋮----
+# Real run - apply fixes
+backup_id = _create_backup_if_needed(fixable_violations, project_folder, create_backup_flag)
+⋮----
+# Group violations by file
+violations_by_file = _group_violations_by_file(fixable_violations)
+⋮----
+# Apply fixes and collect results
+⋮----
+# If any fixes failed and we have a backup, offer rollback
+⋮----
+def _execute_dry_run(fixable_violations: List[RuleViolation], start_time: float) -> FixBatchResult
+⋮----
+"""Execute a dry run preview of fixes without applying them.
+
+    Args:
+        fixable_violations: Violations to preview
+        start_time: Batch operation start time
+
+    Returns:
+        FixBatchResult with preview information
+    """
+results = []
+⋮----
+validation = classify_fix_safety(violation.rule_id, violation)
+⋮----
+# Create a preview fix result
+⋮----
+execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
+⋮----
+def _create_backup_if_needed(fixable_violations: List[RuleViolation], project_folder: str, create_backup_flag: bool) -> Optional[str]
+⋮----
+"""Create backup of files if requested.
+
+    Args:
+        fixable_violations: Violations with files to backup
+        project_folder: Project root folder
+        create_backup_flag: Whether to create backup
+
+    Returns:
+        Backup ID if created, None otherwise
+    """
+⋮----
+# Get unique file paths
+file_paths = list(set(v.file for v in fixable_violations))
+⋮----
+# Create backup
+backup_id = create_backup(file_paths, project_folder)
+⋮----
+def _group_violations_by_file(fixable_violations: List[RuleViolation]) -> Dict[str, List[RuleViolation]]
+⋮----
+"""Group violations by file path.
+
+    Args:
+        fixable_violations: Violations to group
+
+    Returns:
+        Dictionary mapping file paths to their violations
+    """
+violations_by_file: Dict[str, List[RuleViolation]] = {}
+⋮----
+"""Execute actual fix application.
+
+    Args:
+        violations_by_file: Violations grouped by file
+        language: Programming language for validation
+
+    Returns:
+        Tuple of (results, files_modified, fixes_successful, fixes_failed, validation_passed)
+    """
+fix_results: List[FixResult] = []
+files_modified: Set[str] = set()
+fixes_successful = 0
+fixes_failed = 0
+validation_passed = True
+⋮----
+# Sort by line number (reverse order to avoid line number shifts)
+⋮----
+result = _apply_single_fix(file_path, violation, language)
+⋮----
+# Update counters based on result
+⋮----
+# Pattern matching assignment operators after a variable name.
+# Covers: =, +=, -=, *=, /=, %=, <<=, >>=, >>>=, &=, |=, ^=, &&=, ||=, ??=
+_ASSIGNMENT_OPS = re.compile(
+⋮----
+r"(?:\+\+|--"  # postfix increment/decrement
+r"|\?\?=|\|\|=|&&="  # logical assignment (check before single-char)
+r"|>>>=|<<=|>>="  # shift assignment
+r"|[+\-*/%&|^]=)"  # compound assignment
+r"|(?<![=!<>])=[^=>]"  # plain assignment (not ==, !=, <=, >=, =>)
+⋮----
+def _line_reassigns_var(line: str, var_pattern: re.Pattern[str]) -> bool
+⋮----
+"""Check if a single line reassigns the variable matched by var_pattern."""
+⋮----
+after = line[match.end() :].lstrip()
+before = line[: match.start()].rstrip()
+⋮----
+def _decl_line_has_reassignment(line: str, var_pattern: re.Pattern[str]) -> bool
+⋮----
+"""Check if a declaration line also reassigns the variable (e.g., for-loop iterators).
+
+    Skips the first occurrence (the declaration) and checks subsequent occurrences.
+    """
+first = var_pattern.search(line)
+⋮----
+rest = line[first.end() :]
+⋮----
+def _is_variable_reassigned(file_path: str, var_name: str, decl_line: int) -> bool
+⋮----
+"""Check if a let-declared variable is reassigned after its declaration.
+
+    Args:
+        file_path: Path to the source file
+        var_name: Variable name to check
+        decl_line: 1-indexed line number of the declaration
+
+    Returns:
+        True if the variable appears to be reassigned
+    """
+⋮----
+lines = f.readlines()
+⋮----
+return True  # Assume reassigned if we can't read
+⋮----
+var_pattern = re.compile(rf"\b{re.escape(var_name)}\b")
+decl_idx = decl_line - 1  # Convert to 0-indexed
+⋮----
+stripped = line.lstrip()
+⋮----
+def _extract_var_name_from_let(code_snippet: str) -> Optional[str]
+⋮----
+"""Extract variable name from a let declaration snippet.
+
+    Returns None for destructuring patterns (too complex to verify).
+    """
+m = re.match(r"\s*let\s+(\w+)\s*[=;:,)]", code_snippet)
+⋮----
+# Rule-specific code transformations for rules whose fix field is a
+# human-readable description rather than an ast-grep rewrite pattern.
+# Each handler takes original code and returns transformed code.
+_RULE_CODE_TRANSFORMS: Dict[str, Any] = {
+⋮----
+# Rules that should use line removal instead of pattern replacement.
+_REMOVAL_RULES = {"no-console-log", "no-debugger", "no-print-production", "no-system-out"}
+⋮----
+def _apply_single_fix(file_path: str, violation: RuleViolation, language: str) -> FixResult
+⋮----
+"""Apply a single fix to a violation.
+
+    Args:
+        file_path: Path to file containing violation
+        violation: The violation to fix
+        language: Programming language for validation
+
+    Returns:
+        FixResult with outcome
+    """
+# 1. Check for a known code transformation
+⋮----
+# prefer-const: verify the variable is not reassigned before fixing
+⋮----
+var_name = _extract_var_name_from_let(violation.code_snippet)
+⋮----
+transform = _RULE_CODE_TRANSFORMS[violation.rule_id]
+fixed_code = transform(violation.code_snippet)
+⋮----
+# 2. Check for removal rules (no-console-log, no-debugger, etc.)
+⋮----
+# 3. Fallback: use the fix_suggestion as a literal pattern
+⋮----
+"""Process a single fix result and update counters.
+
+    Args:
+        result: The fix result to process
+        file_path: Path to the modified file
+        fixes_successful: Current successful fix count
+        fixes_failed: Current failed fix count
+        validation_passed: Current validation status
+        files_modified: Set of modified file paths
+
+    Returns:
+        Tuple of (updated_fixes_successful, updated_fixes_failed, updated_validation_passed)
+    """
+⋮----
+validation_passed = False
+⋮----
+"""Build the final batch result.
+
+    Args:
+        fixable_violations: All violations that were fixable
+        fix_results: Results from all fix attempts
+        files_modified: Set of modified file paths
+        fixes_successful: Number of successful fixes
+        fixes_failed: Number of failed fixes
+        validation_passed: Whether all validations passed
+        backup_id: Backup ID if created
+        start_time: Batch operation start time
+
+    Returns:
+        FixBatchResult with complete batch information
+    """
+⋮----
+def _filter_violations_by_fix_type(violations: List[RuleViolation], fix_types: List[str]) -> List[RuleViolation]
+⋮----
+"""Filter violations based on fix type preference.
+
+    Args:
+        violations: All violations
+        fix_types: Allowed fix types ('safe', 'suggested', 'all')
+
+    Returns:
+        Filtered list of violations that can be fixed
+    """
+⋮----
+fixable = []
+⋮----
+# Fix Preview - Generate Diff Without Applying
+⋮----
+def preview_fix(violation: RuleViolation) -> Dict[str, Any]
+⋮----
+"""Preview a fix without applying it.
+
+    Args:
+        violation: The violation to preview fix for
+
+    Returns:
+        Dictionary with fix preview information
+    """
+</file>
+
 <file path="src/ast_grep_mcp/features/quality/rules.py">
 """Rule management for linting and code quality standards.
 
@@ -11034,6 +11454,319 @@ priority_summary: Dict[str, int] = field(default_factory=dict)
 enhanced_graph: Optional[Dict[str, Any]] = None
 diff: Optional[Dict[str, Any]] = None
 execution_time_ms: int = 0
+</file>
+
+<file path="src/ast_grep_mcp/models/standards.py">
+"""Data models for code quality standards and linting rules."""
+⋮----
+class RuleValidationError(Exception)
+⋮----
+"""Raised when a linting rule validation fails."""
+⋮----
+class RuleStorageError(Exception)
+⋮----
+"""Raised when saving/loading rules fails."""
+⋮----
+@dataclass
+class LintingRule
+⋮----
+"""Represents a custom linting rule.
+
+    Attributes:
+        id: Unique rule identifier (e.g., 'no-console-log')
+        language: Target language (python, typescript, javascript, java, etc.)
+        severity: Severity level ('error', 'warning', or 'info')
+        message: Human-readable error message shown when rule is violated
+        pattern: ast-grep pattern to match (e.g., 'console.log($$$)')
+        note: Optional additional note or explanation
+        fix: Optional replacement pattern or fix suggestion
+        constraints: Optional additional ast-grep constraints
+    """
+⋮----
+id: str
+language: str
+severity: str  # 'error', 'warning', 'info'
+message: str
+pattern: str
+note: Optional[str] = None
+fix: Optional[str] = None
+constraints: Optional[Dict[str, Any]] = None
+exclude_files: List[str] = field(default_factory=list)
+⋮----
+def to_yaml_dict(self) -> Dict[str, Any]
+⋮----
+"""Convert to ast-grep YAML format.
+
+        Returns:
+            Dictionary ready for YAML serialization in ast-grep format
+        """
+yaml_dict: Dict[str, Any] = {
+⋮----
+# Add rule configuration
+rule_config: Dict[str, Any] = {}
+⋮----
+# Add constraints if present
+⋮----
+# Add optional fields
+⋮----
+@dataclass
+class RuleTemplate
+⋮----
+"""Pre-built rule template.
+
+    Attributes:
+        id: Template identifier
+        name: Human-readable name
+        description: What the rule checks for
+        language: Target language
+        severity: Default severity level
+        pattern: ast-grep pattern
+        message: Error message
+        note: Optional additional explanation
+        fix: Optional fix suggestion
+        category: Rule category (general, security, performance, style)
+        constraints: Optional additional ast-grep constraints (e.g., kind field)
+    """
+⋮----
+name: str
+description: str
+⋮----
+severity: str
+⋮----
+category: str = "general"
+⋮----
+@dataclass
+class RuleValidationResult
+⋮----
+"""Result of rule validation.
+
+    Attributes:
+        is_valid: Whether the rule is valid
+        errors: List of error messages (blocking issues)
+        warnings: List of warning messages (non-blocking issues)
+    """
+⋮----
+is_valid: bool
+errors: List[str] = field(default_factory=list)
+warnings: List[str] = field(default_factory=list)
+⋮----
+@dataclass
+class RuleViolation
+⋮----
+"""Single violation of a linting rule.
+
+    Attributes:
+        file: Absolute path to file containing violation
+        line: Line number where violation occurs (1-indexed)
+        column: Column number (1-indexed)
+        end_line: End line of violation range
+        end_column: End column of violation range
+        severity: 'error', 'warning', or 'info'
+        rule_id: ID of the rule that was violated
+        message: Human-readable error message
+        code_snippet: Actual code that violated the rule
+        fix_suggestion: Optional fix suggestion from rule definition
+        meta_vars: Optional metavariables captured by pattern
+    """
+⋮----
+file: str
+line: int
+column: int
+end_line: int
+end_column: int
+⋮----
+rule_id: str
+⋮----
+code_snippet: str
+fix_suggestion: Optional[str] = None
+meta_vars: Optional[Dict[str, "str | list[str]"]] = None
+⋮----
+@dataclass
+class RuleSet
+⋮----
+"""Collection of linting rules with metadata.
+
+    Attributes:
+        name: Rule set identifier ('recommended', 'security', etc.)
+        description: Human-readable description
+        rules: List of LintingRule objects in this set
+        priority: Execution priority (higher = run first)
+    """
+⋮----
+rules: List[LintingRule]
+priority: int = 0
+⋮----
+@dataclass
+class EnforcementResult
+⋮----
+"""Complete results from standards enforcement scan.
+
+    Attributes:
+        summary: Summary statistics
+        violations: All violations found
+        violations_by_file: Violations grouped by file path
+        violations_by_severity: Violations grouped by severity level
+        violations_by_rule: Violations grouped by rule ID
+        rules_executed: List of rule IDs that were executed
+        execution_time_ms: Total execution time in milliseconds
+        files_scanned: Number of files scanned
+    """
+⋮----
+summary: Dict[str, Any]
+violations: List[RuleViolation]
+violations_by_file: Dict[str, List[RuleViolation]]
+violations_by_severity: Dict[str, List[RuleViolation]]
+violations_by_rule: Dict[str, List[RuleViolation]]
+rules_executed: List[str]
+execution_time_ms: int
+files_scanned: int
+⋮----
+@dataclass
+class RuleExecutionContext
+⋮----
+"""Context for executing rules (internal use).
+
+    Attributes:
+        project_folder: Absolute path to project
+        language: Target language
+        include_patterns: File patterns to include
+        exclude_patterns: File patterns to exclude
+        max_violations: Stop after this many violations (0 = unlimited)
+        max_threads: Number of parallel threads
+        logger: Structured logger instance
+    """
+⋮----
+project_folder: str
+⋮----
+include_patterns: List[str]
+exclude_patterns: List[str]
+max_violations: int
+max_threads: int
+logger: Any  # structlog logger
+⋮----
+# =============================================================================
+# Auto-Fix Data Models
+⋮----
+@dataclass
+class FixResult
+⋮----
+"""Result of applying a single fix to a violation.
+
+    Attributes:
+        violation: The original violation that was fixed
+        success: Whether the fix was applied successfully
+        file_modified: Whether the file was actually changed
+        original_code: Code before the fix
+        fixed_code: Code after the fix
+        syntax_valid: Whether syntax validation passed after fix
+        error: Error message if fix failed
+        fix_type: Type of fix applied ('safe', 'suggested', 'pattern')
+    """
+⋮----
+violation: RuleViolation
+success: bool
+file_modified: bool
+original_code: str
+fixed_code: Optional[str] = None
+syntax_valid: bool = True
+error: Optional[str] = None
+fix_type: str = "safe"
+⋮----
+@dataclass
+class FixValidation
+⋮----
+"""Result of validating a proposed fix.
+
+    Attributes:
+        is_safe: Whether the fix is safe to auto-apply
+        confidence: Confidence score 0.0-1.0
+        warnings: Non-blocking warnings about the fix
+        errors: Blocking errors that prevent auto-fix
+        requires_review: Whether manual review is recommended
+    """
+⋮----
+is_safe: bool
+confidence: float  # 0.0 to 1.0
+⋮----
+requires_review: bool = False
+⋮----
+@dataclass
+class FixBatchResult
+⋮----
+"""Result of applying multiple fixes.
+
+    Attributes:
+        total_violations: Total number of violations processed
+        fixes_attempted: Number of fixes attempted
+        fixes_successful: Number of fixes applied successfully
+        fixes_failed: Number of fixes that failed
+        files_modified: List of file paths that were modified
+        backup_id: Backup identifier for rollback
+        validation_passed: Whether all fixes passed syntax validation
+        results: Individual fix results
+        execution_time_ms: Total execution time
+    """
+⋮----
+total_violations: int
+fixes_attempted: int
+fixes_successful: int
+fixes_failed: int
+files_modified: List[str]
+backup_id: Optional[str] = None
+validation_passed: bool = True
+results: List[FixResult] = field(default_factory=list)
+execution_time_ms: int = 0
+⋮----
+# Security Scanner Data Models
+⋮----
+@dataclass
+class SecurityIssue
+⋮----
+"""Represents a detected security vulnerability.
+
+    Attributes:
+        file: Absolute path to file containing the issue
+        line: Line number where issue occurs (1-indexed)
+        column: Column number (1-indexed)
+        end_line: End line of issue range
+        end_column: End column of issue range
+        issue_type: Type of security issue (sql_injection, xss, etc.)
+        severity: Severity level ('critical', 'high', 'medium', 'low')
+        title: Short title of the issue
+        description: Detailed description of the vulnerability
+        code_snippet: Code that contains the vulnerability
+        remediation: How to fix the issue
+        cwe_id: Optional CWE (Common Weakness Enumeration) ID
+        confidence: Confidence score 0.0-1.0 (1.0 = definitely vulnerable)
+        references: Optional list of reference URLs
+    """
+⋮----
+issue_type: str
+severity: str  # 'critical', 'high', 'medium', 'low'
+title: str
+⋮----
+remediation: str
+cwe_id: Optional[str] = None
+confidence: float = 1.0
+references: List[str] = field(default_factory=list)
+⋮----
+@dataclass
+class SecurityScanResult
+⋮----
+"""Result from security vulnerability scan.
+
+    Attributes:
+        summary: Summary statistics
+        issues: All security issues found
+        issues_by_severity: Issues grouped by severity
+        issues_by_type: Issues grouped by issue type
+        files_scanned: Number of files scanned
+        execution_time_ms: Total execution time
+    """
+⋮----
+issues: List[SecurityIssue]
+issues_by_severity: Dict[str, List[SecurityIssue]]
+issues_by_type: Dict[str, List[SecurityIssue]]
 </file>
 
 <file path="src/ast_grep_mcp/server/__init__.py">
@@ -41162,424 +41895,6 @@ new_content = new_file.read_text(encoding="utf-8")
 filename = new_file.name
 </file>
 
-<file path="src/ast_grep_mcp/features/quality/fixer.py">
-"""Auto-fix system for code quality violations.
-
-This module provides functionality to automatically fix code quality violations:
-- Safe fix application (guaranteed-safe fixes only)
-- Suggested fix application (may need review)
-- Fix validation (syntax checking, behavior preservation)
-- Multi-fix coordination (batch operations with rollback)
-"""
-⋮----
-logger = get_logger(__name__)
-REVIEW_EMPTY_CATCH_CONFIDENCE = 0.75
-⋮----
-# =============================================================================
-# Fix Classification - Determine Safety Level
-⋮----
-# Safe patterns that can be auto-applied without review
-SAFE_FIX_PATTERNS: Dict[str, Dict[str, Any]] = {
-⋮----
-# JavaScript/TypeScript
-⋮----
-# Python
-⋮----
-# Java
-⋮----
-# Patterns that require review (lower confidence)
-REVIEW_REQUIRED_PATTERNS: Dict[str, Dict[str, Any]] = {
-⋮----
-def classify_fix_safety(rule_id: str, violation: RuleViolation) -> FixValidation
-⋮----
-"""Classify a fix as safe, suggested, or requiring review.
-
-    Args:
-        rule_id: ID of the rule being fixed
-        violation: The violation to be fixed
-
-    Returns:
-        FixValidation with safety assessment
-    """
-# Check if this is a known safe pattern
-⋮----
-pattern_info = SAFE_FIX_PATTERNS[rule_id]
-⋮----
-# Check if this requires review
-⋮----
-pattern_info = REVIEW_REQUIRED_PATTERNS[rule_id]
-⋮----
-# Unknown pattern - conservative approach
-⋮----
-# Fix Application - Apply Fixes to Files
-⋮----
-def _splice_fixed_code(lines: List[str], start_line: int, end_line: int, snippet: str, fixed_code: str) -> List[str]
-⋮----
-"""Replace a range of file lines with fixed code, preserving indentation.
-
-    ast-grep snippets strip the leading indent from the first line but keep
-    absolute indentation on subsequent lines.  This helper re-applies the
-    stripped indent so the replacement integrates cleanly into the file.
-
-    Each replacement line is emitted as a separate list entry (one ``\\n``
-    per entry) so that line indices remain valid for subsequent operations
-    on the same ``lines`` list.
-
-    Args:
-        lines: File lines (with line endings, from ``str.splitlines(keepends=True)``).
-        start_line: 0-indexed first line of the span to replace.
-        end_line: 0-indexed last line (inclusive) of the span to replace.
-        snippet: The original ``code_snippet`` returned by ast-grep.
-        fixed_code: The transformed code to splice in.
-
-    Returns:
-        A new list of lines with the replacement applied.
-    """
-result = list(lines)
-⋮----
-# Single-line — the snippet is a substring of the line, so a simple
-# str.replace preserves surrounding whitespace.
-⋮----
-# Multi-line — compute the indent that ast-grep stripped from line 0.
-file_first = result[start_line]
-leading_indent = file_first[: len(file_first) - len(file_first.lstrip())]
-⋮----
-fixed_lines = fixed_code.split("\n")
-⋮----
-# Emit each line as a separate entry with its own newline so that
-# downstream line-index arithmetic stays correct.
-replacement = [fl + "\n" for fl in fixed_lines]
-⋮----
-def apply_pattern_fix(file_path: str, violation: RuleViolation, fix_pattern: str, language: str) -> FixResult
-⋮----
-"""Apply a pattern-based fix to a single violation.
-
-    Args:
-        file_path: Path to the file to fix
-        violation: The violation to fix
-        fix_pattern: The fix pattern (can be a literal string or metavar replacement)
-        language: Programming language for syntax validation
-
-    Returns:
-        FixResult with fix outcome
-    """
-⋮----
-# Read the file
-⋮----
-content = f.read()
-⋮----
-lines = content.splitlines(keepends=True)
-⋮----
-# Get the original code snippet
-start_line = violation.line - 1  # Convert to 0-indexed
-end_line = violation.end_line - 1
-⋮----
-original_code = violation.code_snippet
-⋮----
-# Apply fix pattern
-fixed_code = _apply_fix_pattern(original_code, fix_pattern, violation.meta_vars or {})
-⋮----
-# If no change, skip
-⋮----
-# Replace in file (indent-aware)
-lines = _splice_fixed_code(lines, start_line, end_line, original_code, fixed_code)
-⋮----
-# Write back
-new_content = "".join(lines)
-⋮----
-# Validate syntax
-validation = validate_syntax(file_path, language)
-syntax_valid = validation["valid"]
-⋮----
-# Rollback the change
-⋮----
-def _apply_fix_pattern(code: str, fix_pattern: str, meta_vars: Dict[str, "str | list[str]"]) -> str
-⋮----
-"""Apply a fix pattern with metavariable substitution.
-
-    Args:
-        code: Original code
-        fix_pattern: Fix pattern (may contain $VAR placeholders)
-        meta_vars: Metavariables captured during pattern matching
-
-    Returns:
-        Fixed code with metavariables substituted
-    """
-fixed = fix_pattern
-⋮----
-# Replace metavariables (e.g., $VAR, $ARGS, $$$)
-⋮----
-var_value = " ".join(var_value)
-fixed = fixed.replace(f"${var_name}", var_value)
-⋮----
-def apply_removal_fix(file_path: str, violation: RuleViolation, language: str) -> FixResult
-⋮----
-"""Apply a removal fix (delete the violating code).
-
-    Args:
-        file_path: Path to the file to fix
-        violation: The violation to fix (will be removed)
-        language: Programming language for syntax validation
-
-    Returns:
-        FixResult with fix outcome
-    """
-⋮----
-# Remove the lines
-⋮----
-# Batch Fix Coordinator - Apply Multiple Fixes
-⋮----
-"""Apply fixes to multiple violations in a coordinated manner.
-
-    Args:
-        violations: List of violations to fix
-        language: Programming language for syntax validation
-        project_folder: Project root folder
-        fix_types: Types of fixes to apply ('safe', 'suggested', 'all')
-        dry_run: If True, preview fixes without applying
-        create_backup_flag: If True, create backup before applying fixes
-
-    Returns:
-        FixBatchResult with batch fix outcome
-    """
-start_time = time.time()
-⋮----
-# Filter violations by fix type
-fixable_violations = _filter_violations_by_fix_type(violations, fix_types)
-⋮----
-result = _execute_dry_run(fixable_violations, start_time)
-⋮----
-# Real run - apply fixes
-backup_id = _create_backup_if_needed(fixable_violations, project_folder, create_backup_flag)
-⋮----
-# Group violations by file
-violations_by_file = _group_violations_by_file(fixable_violations)
-⋮----
-# Apply fixes and collect results
-⋮----
-# If any fixes failed and we have a backup, offer rollback
-⋮----
-def _execute_dry_run(fixable_violations: List[RuleViolation], start_time: float) -> FixBatchResult
-⋮----
-"""Execute a dry run preview of fixes without applying them.
-
-    Args:
-        fixable_violations: Violations to preview
-        start_time: Batch operation start time
-
-    Returns:
-        FixBatchResult with preview information
-    """
-results = []
-⋮----
-validation = classify_fix_safety(violation.rule_id, violation)
-⋮----
-# Create a preview fix result
-⋮----
-execution_time = int((time.time() - start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
-⋮----
-def _create_backup_if_needed(fixable_violations: List[RuleViolation], project_folder: str, create_backup_flag: bool) -> Optional[str]
-⋮----
-"""Create backup of files if requested.
-
-    Args:
-        fixable_violations: Violations with files to backup
-        project_folder: Project root folder
-        create_backup_flag: Whether to create backup
-
-    Returns:
-        Backup ID if created, None otherwise
-    """
-⋮----
-# Get unique file paths
-file_paths = list(set(v.file for v in fixable_violations))
-⋮----
-# Create backup
-backup_id = create_backup(file_paths, project_folder)
-⋮----
-def _group_violations_by_file(fixable_violations: List[RuleViolation]) -> Dict[str, List[RuleViolation]]
-⋮----
-"""Group violations by file path.
-
-    Args:
-        fixable_violations: Violations to group
-
-    Returns:
-        Dictionary mapping file paths to their violations
-    """
-violations_by_file: Dict[str, List[RuleViolation]] = {}
-⋮----
-"""Execute actual fix application.
-
-    Args:
-        violations_by_file: Violations grouped by file
-        language: Programming language for validation
-
-    Returns:
-        Tuple of (results, files_modified, fixes_successful, fixes_failed, validation_passed)
-    """
-fix_results: List[FixResult] = []
-files_modified: Set[str] = set()
-fixes_successful = 0
-fixes_failed = 0
-validation_passed = True
-⋮----
-# Sort by line number (reverse order to avoid line number shifts)
-⋮----
-result = _apply_single_fix(file_path, violation, language)
-⋮----
-# Update counters based on result
-⋮----
-# Pattern matching assignment operators after a variable name.
-# Covers: =, +=, -=, *=, /=, %=, <<=, >>=, >>>=, &=, |=, ^=, &&=, ||=, ??=
-_ASSIGNMENT_OPS = re.compile(
-⋮----
-r"(?:\+\+|--"  # postfix increment/decrement
-r"|\?\?=|\|\|=|&&="  # logical assignment (check before single-char)
-r"|>>>=|<<=|>>="  # shift assignment
-r"|[+\-*/%&|^]=)"  # compound assignment
-r"|(?<![=!<>])=[^=>]"  # plain assignment (not ==, !=, <=, >=, =>)
-⋮----
-def _line_reassigns_var(line: str, var_pattern: re.Pattern[str]) -> bool
-⋮----
-"""Check if a single line reassigns the variable matched by var_pattern."""
-⋮----
-after = line[match.end() :].lstrip()
-before = line[: match.start()].rstrip()
-⋮----
-def _decl_line_has_reassignment(line: str, var_pattern: re.Pattern[str]) -> bool
-⋮----
-"""Check if a declaration line also reassigns the variable (e.g., for-loop iterators).
-
-    Skips the first occurrence (the declaration) and checks subsequent occurrences.
-    """
-first = var_pattern.search(line)
-⋮----
-rest = line[first.end() :]
-⋮----
-def _is_variable_reassigned(file_path: str, var_name: str, decl_line: int) -> bool
-⋮----
-"""Check if a let-declared variable is reassigned after its declaration.
-
-    Args:
-        file_path: Path to the source file
-        var_name: Variable name to check
-        decl_line: 1-indexed line number of the declaration
-
-    Returns:
-        True if the variable appears to be reassigned
-    """
-⋮----
-lines = f.readlines()
-⋮----
-return True  # Assume reassigned if we can't read
-⋮----
-var_pattern = re.compile(rf"\b{re.escape(var_name)}\b")
-decl_idx = decl_line - 1  # Convert to 0-indexed
-⋮----
-stripped = line.lstrip()
-⋮----
-def _extract_var_name_from_let(code_snippet: str) -> Optional[str]
-⋮----
-"""Extract variable name from a let declaration snippet.
-
-    Returns None for destructuring patterns (too complex to verify).
-    """
-m = re.match(r"\s*let\s+(\w+)\s*[=;:,)]", code_snippet)
-⋮----
-# Rule-specific code transformations for rules whose fix field is a
-# human-readable description rather than an ast-grep rewrite pattern.
-# Each handler takes original code and returns transformed code.
-_RULE_CODE_TRANSFORMS: Dict[str, Any] = {
-⋮----
-# Rules that should use line removal instead of pattern replacement.
-_REMOVAL_RULES = {"no-console-log", "no-debugger", "no-print-production", "no-system-out"}
-⋮----
-def _apply_single_fix(file_path: str, violation: RuleViolation, language: str) -> FixResult
-⋮----
-"""Apply a single fix to a violation.
-
-    Args:
-        file_path: Path to file containing violation
-        violation: The violation to fix
-        language: Programming language for validation
-
-    Returns:
-        FixResult with outcome
-    """
-# 1. Check for a known code transformation
-⋮----
-# prefer-const: verify the variable is not reassigned before fixing
-⋮----
-var_name = _extract_var_name_from_let(violation.code_snippet)
-⋮----
-transform = _RULE_CODE_TRANSFORMS[violation.rule_id]
-fixed_code = transform(violation.code_snippet)
-⋮----
-# 2. Check for removal rules (no-console-log, no-debugger, etc.)
-⋮----
-# 3. Fallback: use the fix_suggestion as a literal pattern
-⋮----
-"""Process a single fix result and update counters.
-
-    Args:
-        result: The fix result to process
-        file_path: Path to the modified file
-        fixes_successful: Current successful fix count
-        fixes_failed: Current failed fix count
-        validation_passed: Current validation status
-        files_modified: Set of modified file paths
-
-    Returns:
-        Tuple of (updated_fixes_successful, updated_fixes_failed, updated_validation_passed)
-    """
-⋮----
-validation_passed = False
-⋮----
-"""Build the final batch result.
-
-    Args:
-        fixable_violations: All violations that were fixable
-        fix_results: Results from all fix attempts
-        files_modified: Set of modified file paths
-        fixes_successful: Number of successful fixes
-        fixes_failed: Number of failed fixes
-        validation_passed: Whether all validations passed
-        backup_id: Backup ID if created
-        start_time: Batch operation start time
-
-    Returns:
-        FixBatchResult with complete batch information
-    """
-⋮----
-def _filter_violations_by_fix_type(violations: List[RuleViolation], fix_types: List[str]) -> List[RuleViolation]
-⋮----
-"""Filter violations based on fix type preference.
-
-    Args:
-        violations: All violations
-        fix_types: Allowed fix types ('safe', 'suggested', 'all')
-
-    Returns:
-        Filtered list of violations that can be fixed
-    """
-⋮----
-fixable = []
-⋮----
-# Fix Preview - Generate Diff Without Applying
-⋮----
-def preview_fix(violation: RuleViolation) -> Dict[str, Any]
-⋮----
-"""Preview a fix without applying it.
-
-    Args:
-        violation: The violation to preview fix for
-
-    Returns:
-        Dictionary with fix preview information
-    """
-</file>
-
 <file path="src/ast_grep_mcp/features/quality/reporter.py">
 """Quality reporting system for code standards enforcement.
 
@@ -42907,319 +43222,6 @@ def to_dict(self) -> Dict[str, Any]
 """Convert to dictionary for JSON serialization."""
 </file>
 
-<file path="src/ast_grep_mcp/models/standards.py">
-"""Data models for code quality standards and linting rules."""
-⋮----
-class RuleValidationError(Exception)
-⋮----
-"""Raised when a linting rule validation fails."""
-⋮----
-class RuleStorageError(Exception)
-⋮----
-"""Raised when saving/loading rules fails."""
-⋮----
-@dataclass
-class LintingRule
-⋮----
-"""Represents a custom linting rule.
-
-    Attributes:
-        id: Unique rule identifier (e.g., 'no-console-log')
-        language: Target language (python, typescript, javascript, java, etc.)
-        severity: Severity level ('error', 'warning', or 'info')
-        message: Human-readable error message shown when rule is violated
-        pattern: ast-grep pattern to match (e.g., 'console.log($$$)')
-        note: Optional additional note or explanation
-        fix: Optional replacement pattern or fix suggestion
-        constraints: Optional additional ast-grep constraints
-    """
-⋮----
-id: str
-language: str
-severity: str  # 'error', 'warning', 'info'
-message: str
-pattern: str
-note: Optional[str] = None
-fix: Optional[str] = None
-constraints: Optional[Dict[str, Any]] = None
-exclude_files: List[str] = field(default_factory=list)
-⋮----
-def to_yaml_dict(self) -> Dict[str, Any]
-⋮----
-"""Convert to ast-grep YAML format.
-
-        Returns:
-            Dictionary ready for YAML serialization in ast-grep format
-        """
-yaml_dict: Dict[str, Any] = {
-⋮----
-# Add rule configuration
-rule_config: Dict[str, Any] = {}
-⋮----
-# Add constraints if present
-⋮----
-# Add optional fields
-⋮----
-@dataclass
-class RuleTemplate
-⋮----
-"""Pre-built rule template.
-
-    Attributes:
-        id: Template identifier
-        name: Human-readable name
-        description: What the rule checks for
-        language: Target language
-        severity: Default severity level
-        pattern: ast-grep pattern
-        message: Error message
-        note: Optional additional explanation
-        fix: Optional fix suggestion
-        category: Rule category (general, security, performance, style)
-        constraints: Optional additional ast-grep constraints (e.g., kind field)
-    """
-⋮----
-name: str
-description: str
-⋮----
-severity: str
-⋮----
-category: str = "general"
-⋮----
-@dataclass
-class RuleValidationResult
-⋮----
-"""Result of rule validation.
-
-    Attributes:
-        is_valid: Whether the rule is valid
-        errors: List of error messages (blocking issues)
-        warnings: List of warning messages (non-blocking issues)
-    """
-⋮----
-is_valid: bool
-errors: List[str] = field(default_factory=list)
-warnings: List[str] = field(default_factory=list)
-⋮----
-@dataclass
-class RuleViolation
-⋮----
-"""Single violation of a linting rule.
-
-    Attributes:
-        file: Absolute path to file containing violation
-        line: Line number where violation occurs (1-indexed)
-        column: Column number (1-indexed)
-        end_line: End line of violation range
-        end_column: End column of violation range
-        severity: 'error', 'warning', or 'info'
-        rule_id: ID of the rule that was violated
-        message: Human-readable error message
-        code_snippet: Actual code that violated the rule
-        fix_suggestion: Optional fix suggestion from rule definition
-        meta_vars: Optional metavariables captured by pattern
-    """
-⋮----
-file: str
-line: int
-column: int
-end_line: int
-end_column: int
-⋮----
-rule_id: str
-⋮----
-code_snippet: str
-fix_suggestion: Optional[str] = None
-meta_vars: Optional[Dict[str, "str | list[str]"]] = None
-⋮----
-@dataclass
-class RuleSet
-⋮----
-"""Collection of linting rules with metadata.
-
-    Attributes:
-        name: Rule set identifier ('recommended', 'security', etc.)
-        description: Human-readable description
-        rules: List of LintingRule objects in this set
-        priority: Execution priority (higher = run first)
-    """
-⋮----
-rules: List[LintingRule]
-priority: int = 0
-⋮----
-@dataclass
-class EnforcementResult
-⋮----
-"""Complete results from standards enforcement scan.
-
-    Attributes:
-        summary: Summary statistics
-        violations: All violations found
-        violations_by_file: Violations grouped by file path
-        violations_by_severity: Violations grouped by severity level
-        violations_by_rule: Violations grouped by rule ID
-        rules_executed: List of rule IDs that were executed
-        execution_time_ms: Total execution time in milliseconds
-        files_scanned: Number of files scanned
-    """
-⋮----
-summary: Dict[str, Any]
-violations: List[RuleViolation]
-violations_by_file: Dict[str, List[RuleViolation]]
-violations_by_severity: Dict[str, List[RuleViolation]]
-violations_by_rule: Dict[str, List[RuleViolation]]
-rules_executed: List[str]
-execution_time_ms: int
-files_scanned: int
-⋮----
-@dataclass
-class RuleExecutionContext
-⋮----
-"""Context for executing rules (internal use).
-
-    Attributes:
-        project_folder: Absolute path to project
-        language: Target language
-        include_patterns: File patterns to include
-        exclude_patterns: File patterns to exclude
-        max_violations: Stop after this many violations (0 = unlimited)
-        max_threads: Number of parallel threads
-        logger: Structured logger instance
-    """
-⋮----
-project_folder: str
-⋮----
-include_patterns: List[str]
-exclude_patterns: List[str]
-max_violations: int
-max_threads: int
-logger: Any  # structlog logger
-⋮----
-# =============================================================================
-# Auto-Fix Data Models
-⋮----
-@dataclass
-class FixResult
-⋮----
-"""Result of applying a single fix to a violation.
-
-    Attributes:
-        violation: The original violation that was fixed
-        success: Whether the fix was applied successfully
-        file_modified: Whether the file was actually changed
-        original_code: Code before the fix
-        fixed_code: Code after the fix
-        syntax_valid: Whether syntax validation passed after fix
-        error: Error message if fix failed
-        fix_type: Type of fix applied ('safe', 'suggested', 'pattern')
-    """
-⋮----
-violation: RuleViolation
-success: bool
-file_modified: bool
-original_code: str
-fixed_code: Optional[str] = None
-syntax_valid: bool = True
-error: Optional[str] = None
-fix_type: str = "safe"
-⋮----
-@dataclass
-class FixValidation
-⋮----
-"""Result of validating a proposed fix.
-
-    Attributes:
-        is_safe: Whether the fix is safe to auto-apply
-        confidence: Confidence score 0.0-1.0
-        warnings: Non-blocking warnings about the fix
-        errors: Blocking errors that prevent auto-fix
-        requires_review: Whether manual review is recommended
-    """
-⋮----
-is_safe: bool
-confidence: float  # 0.0 to 1.0
-⋮----
-requires_review: bool = False
-⋮----
-@dataclass
-class FixBatchResult
-⋮----
-"""Result of applying multiple fixes.
-
-    Attributes:
-        total_violations: Total number of violations processed
-        fixes_attempted: Number of fixes attempted
-        fixes_successful: Number of fixes applied successfully
-        fixes_failed: Number of fixes that failed
-        files_modified: List of file paths that were modified
-        backup_id: Backup identifier for rollback
-        validation_passed: Whether all fixes passed syntax validation
-        results: Individual fix results
-        execution_time_ms: Total execution time
-    """
-⋮----
-total_violations: int
-fixes_attempted: int
-fixes_successful: int
-fixes_failed: int
-files_modified: List[str]
-backup_id: Optional[str] = None
-validation_passed: bool = True
-results: List[FixResult] = field(default_factory=list)
-execution_time_ms: int = 0
-⋮----
-# Security Scanner Data Models
-⋮----
-@dataclass
-class SecurityIssue
-⋮----
-"""Represents a detected security vulnerability.
-
-    Attributes:
-        file: Absolute path to file containing the issue
-        line: Line number where issue occurs (1-indexed)
-        column: Column number (1-indexed)
-        end_line: End line of issue range
-        end_column: End column of issue range
-        issue_type: Type of security issue (sql_injection, xss, etc.)
-        severity: Severity level ('critical', 'high', 'medium', 'low')
-        title: Short title of the issue
-        description: Detailed description of the vulnerability
-        code_snippet: Code that contains the vulnerability
-        remediation: How to fix the issue
-        cwe_id: Optional CWE (Common Weakness Enumeration) ID
-        confidence: Confidence score 0.0-1.0 (1.0 = definitely vulnerable)
-        references: Optional list of reference URLs
-    """
-⋮----
-issue_type: str
-severity: str  # 'critical', 'high', 'medium', 'low'
-title: str
-⋮----
-remediation: str
-cwe_id: Optional[str] = None
-confidence: float = 1.0
-references: List[str] = field(default_factory=list)
-⋮----
-@dataclass
-class SecurityScanResult
-⋮----
-"""Result from security vulnerability scan.
-
-    Attributes:
-        summary: Summary statistics
-        issues: All security issues found
-        issues_by_severity: Issues grouped by severity
-        issues_by_type: Issues grouped by issue type
-        files_scanned: Number of files scanned
-        execution_time_ms: Total execution time
-    """
-⋮----
-issues: List[SecurityIssue]
-issues_by_severity: Dict[str, List[SecurityIssue]]
-issues_by_type: Dict[str, List[SecurityIssue]]
-</file>
-
 <file path="src/ast_grep_mcp/utils/__init__.py">
 """Utilities module for ast-grep MCP server.
 
@@ -43324,6 +43326,25 @@ entry: Dict[str, str] = {
     Raises:
         Any OS-level error from the copy (caller should handle).
     """
+</file>
+
+<file path="src/ast_grep_mcp/utils/parsing.py">
+"""Line-oriented parsing utilities for docstring and blank-line handling.
+
+Shared primitives used by complexity analysis, deduplication, and other
+features that need to detect triple-quoted strings or skip blank lines.
+"""
+⋮----
+__all__ = [
+⋮----
+def detect_triple_quote(line: str) -> Optional[str]
+⋮----
+"""Return the triple-quote delimiter if line starts with one, else None."""
+⋮----
+def skip_blank_lines(lines: List[str], start: int) -> int
+⋮----
+"""Return index of first non-blank line at or after start, or len(lines)."""
+i = start
 </file>
 
 <file path="tests/unit/features/condense/test_condense_tools.py">
@@ -44111,6 +44132,100 @@ ranges = find_orphaned_imports(lines)
 def test_orphaned_indented_block(self)
 ⋮----
 lines = [
+</file>
+
+<file path="tests/unit/test_parsing_utils.py">
+"""Tests for utils.parsing shared primitives."""
+⋮----
+class TestDetectTripleQuote
+⋮----
+def test_double_quote(self) -> None
+⋮----
+def test_single_quote(self) -> None
+⋮----
+def test_no_triple_quote(self) -> None
+⋮----
+def test_empty_string(self) -> None
+⋮----
+def test_single_quote_char(self) -> None
+⋮----
+def test_double_quote_only(self) -> None
+⋮----
+def test_triple_quote_start_only(self) -> None
+⋮----
+class TestSkipBlankLines
+⋮----
+def test_no_blanks(self) -> None
+⋮----
+lines = ["code", "more code"]
+⋮----
+def test_skip_blanks(self) -> None
+⋮----
+lines = ["", "  ", "code"]
+⋮----
+def test_start_midway(self) -> None
+⋮----
+lines = ["code", "", "", "more"]
+⋮----
+def test_all_blank(self) -> None
+⋮----
+lines = ["", "  ", "\t"]
+⋮----
+def test_empty_list(self) -> None
+⋮----
+def test_start_at_end(self) -> None
+⋮----
+lines = ["code"]
+⋮----
+def test_whitespace_only_lines(self) -> None
+⋮----
+lines = ["  \t  ", "code"]
+⋮----
+class TestMeasureDocstring
+⋮----
+def test_single_line_double_quote(self) -> None
+⋮----
+lines = ['    """One liner."""', '    pass']
+⋮----
+def test_single_line_single_quote(self) -> None
+⋮----
+lines = ["    '''One liner.'''", '    pass']
+⋮----
+def test_multi_line(self) -> None
+⋮----
+lines = ['    """', '    Multi line.', '    """', '    pass']
+⋮----
+def test_no_docstring(self) -> None
+⋮----
+lines = ['    pass']
+⋮----
+def test_unclosed_docstring(self) -> None
+⋮----
+lines = ['    """Start', '    no closing']
+⋮----
+class TestFindDocstringExtent
+⋮----
+def test_single_line_docstring(self) -> None
+⋮----
+lines = ['def foo():', '    """One liner."""', '    pass']
+⋮----
+def test_multi_line_docstring(self) -> None
+⋮----
+lines = ['def foo():', '    """', '    Multi line.', '    """', '    pass']
+⋮----
+lines = ['def foo():', '    pass']
+⋮----
+def test_skips_blank_lines(self) -> None
+⋮----
+lines = ['def foo():', '', '    """Docstring."""', '    pass']
+⋮----
+def test_all_blank_after_start(self) -> None
+⋮----
+lines = ['def foo():', '', '']
+⋮----
+def test_start_beyond_end(self) -> None
+⋮----
+lines = ['def foo():']
 </file>
 
 <file path="tests/unit/test_reporting_helpers.py">
@@ -45939,364 +46054,6 @@ args = parser.parse_args()
 CONFIG_PATH = _resolve_and_validate_config_path(args)
 ⋮----
 # Configure cache
-</file>
-
-<file path="src/ast_grep_mcp/features/complexity/analyzer.py">
-"""
-Code complexity analysis.
-
-This module provides functions for analyzing code complexity at the file level,
-extracting functions, and calculating complexity metrics for each function.
-"""
-⋮----
-__all__ = [
-⋮----
-def extract_functions_from_file(file_path: str, language: str) -> List[Dict[str, Any]]
-⋮----
-"""Extract all functions from a file using ast-grep.
-
-    Args:
-        file_path: Path to source file
-        language: Programming language
-
-    Returns:
-        List of function matches with metadata
-    """
-patterns = get_complexity_patterns(language)
-all_functions: List[Dict[str, Any]] = []
-⋮----
-# Get all function patterns for this language
-_PATTERN_KEYS = ("function", "async_function", "arrow_function", "method")
-function_patterns = [patterns[k] for k in _PATTERN_KEYS if k in patterns]
-⋮----
-result = subprocess.run(
-⋮----
-matches = json.loads(result.stdout)
-⋮----
-logger = get_logger("complexity.extract")
-⋮----
-def _extract_classes_from_file(file_path: str, language: str) -> List[Dict[str, Any]]
-⋮----
-"""Extract all classes from a file using ast-grep.
-
-    Args:
-        file_path: Path to source file
-        language: Programming language
-
-    Returns:
-        List of class info dicts with name, start_line, end_line, method_count
-    """
-pattern = _get_class_extraction_pattern(language)
-⋮----
-matches = _execute_ast_grep_for_classes(file_path, language, pattern)
-⋮----
-logger = get_logger("code_smell.extract_classes")
-⋮----
-def _get_class_extraction_pattern(language: str) -> str
-⋮----
-"""Get the ast-grep pattern for class detection based on language.
-
-    Args:
-        language: Programming language
-
-    Returns:
-        Pattern string for ast-grep
-    """
-class_patterns = {
-⋮----
-def _execute_ast_grep_for_classes(file_path: str, language: str, pattern: str) -> List[Dict[str, Any]]
-⋮----
-"""Run ast-grep to find class matches.
-
-    Args:
-        file_path: Path to file to analyze
-        language: Programming language
-        pattern: ast-grep pattern to use
-
-    Returns:
-        List of match dictionaries from ast-grep output
-    """
-⋮----
-# Early return for failed or empty results
-⋮----
-def _process_class_match_results(matches: List[Dict[str, Any]], language: str) -> List[Dict[str, Any]]
-⋮----
-"""Process ast-grep matches into class information.
-
-    Args:
-        matches: Raw match data from ast-grep
-        language: Programming language
-
-    Returns:
-        List of class information dictionaries
-    """
-classes = []
-⋮----
-cls_info = _extract_single_class_info(match, language)
-⋮----
-def _extract_single_class_info(match: Dict[str, Any], language: str) -> Dict[str, Any]
-⋮----
-"""Extract class information from a single ast-grep match.
-
-    Args:
-        match: Single match dictionary from ast-grep
-        language: Programming language
-
-    Returns:
-        Dictionary with class name, lines, method count, and code
-    """
-cls_name = _extract_class_name_from_match(match)
-⋮----
-code = match.get("text", "")
-method_count = _count_class_methods(code, language)
-⋮----
-def _extract_class_name_from_match(match: Dict[str, Any]) -> str
-⋮----
-"""Extract class name from ast-grep match metavariables.
-
-    Args:
-        match: Match dictionary from ast-grep
-
-    Returns:
-        Class name or "unknown" if not found
-    """
-meta_vars = match.get("metaVariables", {})
-⋮----
-name_data = meta_vars["NAME"]
-⋮----
-# Handle both dict and string formats
-⋮----
-result = name_data.get("text", "unknown")
-⋮----
-def _extract_class_line_range(match: Dict[str, Any]) -> Tuple[int, int]
-⋮----
-"""Extract start and end line numbers from ast-grep match.
-
-    Args:
-        match: Match dictionary from ast-grep
-
-    Returns:
-        Tuple of (start_line, end_line), 1-indexed
-    """
-range_info = match.get("range", {})
-start_line = range_info.get("start", {}).get("line", 0) + 1
-end_line = range_info.get("end", {}).get("line", 0) + 1
-⋮----
-def _count_class_methods(code: str, language: str) -> int
-⋮----
-"""Count the number of methods in a class.
-
-    Args:
-        code: Class code as string
-        language: Programming language
-
-    Returns:
-        Number of methods found
-    """
-⋮----
-# Count function/method patterns in class body
-⋮----
-def _count_function_parameters(code: str, language: str) -> int
-⋮----
-"""Count the number of parameters in a function.
-
-    Args:
-        code: Function source code
-        language: Programming language
-
-    Returns:
-        Number of parameters
-    """
-# Find the parameter list
-⋮----
-# Match def name(params): or async def name(params):
-match = re.search(r"def\s+\w+\s*\(([^)]*)\)", code)
-⋮----
-# Match function name(params) { or (params) =>
-match = re.search(r"(?:function\s+\w+|\w+)\s*\(([^)]*)\)", code)
-⋮----
-params = match.group(1).strip()
-⋮----
-# Handle self/this as non-parameter
-⋮----
-# Remove 'self' and 'cls' from count
-params = re.sub(r"\bself\b\s*,?\s*", "", params)
-params = re.sub(r"\bcls\b\s*,?\s*", "", params)
-⋮----
-# Count commas + 1 (unless empty)
-params = params.strip()
-⋮----
-# Handle default values and type annotations
-# Count actual parameters by splitting on commas at the right depth
-depth = 0
-param_count = 1 if params else 0
-⋮----
-def _find_magic_numbers(content: str, lines: List[str], language: str) -> List[Dict[str, Any]]
-⋮----
-"""Find magic numbers in code.
-
-    Magic numbers are hard-coded numeric literals that should be named constants.
-    Excludes common values: 0, 1, -1, 2, 10, 100, 1000.
-
-    Args:
-        content: Full file content
-        lines: List of lines in the file
-        language: Programming language
-
-    Returns:
-        List of magic number findings with line and value
-    """
-magic_numbers: List[Dict[str, Any]] = []
-⋮----
-# Common values that aren't magic
-allowed_values = {"0", "1", "-1", "2", "10", "100", "1000", "0.0", "1.0", "0.5"}
-⋮----
-# Patterns for different contexts to exclude
-exclude_patterns = [
-⋮----
-r"^\s*#",  # Python comments
-r"^\s*//",  # JS/Java comments
-r"^\s*\*",  # Multi-line comment continuation
-r"^\s*import",  # Import statements
-r"^\s*from",  # Python from imports
-r"=\s*\d+\s*$",  # Variable assignment (likely a constant definition)
-r"range\(",  # Range calls
-r"sleep\(",  # Sleep calls
-r"timeout",  # Timeout settings
-r"port\s*=",  # Port assignments
-r"version",  # Version numbers
-⋮----
-# Skip comments and certain patterns
-should_skip = False
-⋮----
-should_skip = True
-⋮----
-# Find all numeric literals in line
-# Match integers and floats, but not in string literals
-# This is a simplified approach - production would need AST
-numbers = re.findall(r"\b(\d+\.?\d*)\b", line)
-⋮----
-# Check it's not in a string
-# Simple check: not between quotes
-before_num = line[: line.find(num)]
-quote_count = before_num.count('"') + before_num.count("'")
-if quote_count % 2 == 0:  # Even number of quotes = not in string
-⋮----
-# Limit to avoid overwhelming output
-⋮----
-def _extract_function_name(func: Dict[str, Any]) -> str
-⋮----
-"""Extract function name from ast-grep match.
-
-    Args:
-        func: Function match from ast-grep
-
-    Returns:
-        Function name or "unknown" if not found
-    """
-meta_vars = func.get("metaVariables", {})
-⋮----
-def _get_line_numbers(func: Dict[str, Any]) -> Tuple[int, int]
-⋮----
-"""Extract line numbers from ast-grep range info.
-
-    Args:
-        func: Function match from ast-grep
-
-    Returns:
-        Tuple of (start_line, end_line), 1-indexed
-    """
-range_info = func.get("range", {})
-⋮----
-def _find_signature_end(code_lines: List[str]) -> int
-⋮----
-"""Find the line index where a Python function signature ends (the colon line)."""
-in_signature = False
-⋮----
-stripped = line.strip()
-⋮----
-in_signature = True
-⋮----
-def _find_docstring_extent(code_lines: List[str], start: int) -> int
-⋮----
-"""Count docstring lines starting from the given line index.
-
-    Returns the number of lines the docstring occupies, or 0 if no docstring found.
-    """
-# Skip blank lines to find docstring start
-doc_start = start
-⋮----
-first_content = code_lines[doc_start].strip()
-⋮----
-# Single-line docstring: """text"""
-⋮----
-# Multi-line: find closing quote
-⋮----
-def _count_docstring_lines(code: str, language: str) -> int
-⋮----
-"""Count lines occupied by the leading docstring in a function body.
-
-    Excludes docstring lines from length calculations so that well-documented
-    functions are not penalized for having MCP/API documentation.
-    """
-⋮----
-code_lines = code.split("\n")
-sig_end = _find_signature_end(code_lines)
-⋮----
-def _calculate_all_metrics(code: str, language: str) -> ComplexityMetrics
-⋮----
-"""Calculate all complexity metrics for a function.
-
-    Args:
-        code: Function source code
-        language: Programming language
-
-    Returns:
-        ComplexityMetrics with all calculated values
-    """
-cyclomatic = calculate_cyclomatic_complexity(code, language)
-cognitive = calculate_cognitive_complexity(code, language)
-nesting = calculate_nesting_depth(code, language)
-lines = len(code.split("\n")) - _count_docstring_lines(code, language)
-param_count = _count_function_parameters(code, language)
-⋮----
-def _check_threshold_violations(metrics: ComplexityMetrics, thresholds: ComplexityThresholds) -> List[str]
-⋮----
-"""Check which thresholds are exceeded.
-
-    Args:
-        metrics: Calculated metrics
-        thresholds: Threshold values
-
-    Returns:
-        List of exceeded threshold names
-    """
-exceeds: List[str] = []
-⋮----
-def analyze_file_complexity(file_path: str, language: str, thresholds: ComplexityThresholds) -> List[FunctionComplexity]
-⋮----
-"""Analyze complexity of all functions in a file.
-
-    Args:
-        file_path: Path to source file
-        language: Programming language
-        thresholds: Complexity thresholds
-
-    Returns:
-        List of FunctionComplexity objects
-    """
-results: List[FunctionComplexity] = []
-⋮----
-functions = extract_functions_from_file(file_path, language)
-⋮----
-code = func.get("text", "")
-⋮----
-func_name = _extract_function_name(func)
-⋮----
-metrics = _calculate_all_metrics(code, language)
-exceeds = _check_threshold_violations(metrics, thresholds)
-⋮----
-logger = get_logger("complexity.analyze")
 </file>
 
 <file path="src/ast_grep_mcp/features/complexity/complexity_analyzer.py">
@@ -56435,454 +56192,294 @@ uv run python analyze_codebase.py <path> -l <lang> --fix  # analysis + auto-fix
 - [Schema.org](https://schema.org/) - Structured data vocabulary
 </file>
 
-<file path="docs/repomix/token-tree.txt">
-🔢 Token Count Tree:
-────────────────────
-├── .claudeignore (7 tokens)
-├── .gitignore (85 tokens)
-├── .python-version (3 tokens)
-├── analyze_codebase.py (5,156 tokens)
-├── ast-grep.mdc (3,151 tokens)
-├── CHANGELOG.md (33 tokens)
-├── CLAUDE.md (1,317 tokens)
-├── GEMINI.md (1,021 tokens)
-├── main.py (68 tokens)
-├── pyproject.toml (881 tokens)
-├── QUALITY_REPORT.md (463 tokens)
-├── README.md (2,283 tokens)
-├── renovate.json (36 tokens)
-├── .claude/ (78,274 tokens)
-│   ├── settings.local.json (5,395 tokens)
-│   ├── telemetry-observability.md (1,975 tokens)
-│   ├── cache/ (1,392 tokens)
-│   │   └── mcp-tools.md (1,392 tokens)
-│   ├── commands/ (124 tokens)
-│   │   └── list-tools.md (124 tokens)
-│   ├── hooks/ (415 tokens)
-│   │   └── update-tools-cache.sh (415 tokens)
-│   └── skills/ (68,973 tokens)
-│       ├── base-controller-pattern.md (4,366 tokens)
-│       ├── react-context-performance.md (3,281 tokens)
-│       ├── ast-grep-mcp-expert/ (56,068 tokens)
-│       │   ├── SKILL.md (501 tokens)
-│       │   └── references/ (55,567 tokens)
-│       │       ├── files.md (54,251 tokens)
-│       │       ├── project-structure.md (476 tokens)
-│       │       ├── summary.md (821 tokens)
-│       │       └── tech-stack.md (19 tokens)
-│       ├── environment-setup-analyzer/ (2,400 tokens)
-│       │   └── SKILL.md (2,400 tokens)
-│       ├── review/ (2,022 tokens)
-│       │   └── SKILL.md (2,022 tokens)
-│       └── verification-loop/ (836 tokens)
-│           ├── .skillfish.json (91 tokens)
-│           ├── SKILL.md (682 tokens)
-│           └── agents/ (63 tokens)
-│               └── openai.yaml (63 tokens)
-├── .github/ (1,003 tokens)
-│   └── workflows/ (1,003 tokens)
-│       └── ci.yml (1,003 tokens)
-├── docs/ (66,908 tokens)
-│   ├── BACKFILLING.md (1,248 tokens)
-│   ├── BACKLOG.md (2,184 tokens)
-│   ├── BENCHMARKING.md (2,221 tokens)
-│   ├── CHANGELOG.md (1,414 tokens)
-│   ├── CODE-CONDENSE-PHASE-2.md (3,078 tokens)
-│   ├── CODE-CONDENSE-PREP.md (3,495 tokens)
-│   ├── CONFIGURATION.md (4,992 tokens)
-│   ├── DEDUPLICATION-GUIDE.md (6,923 tokens)
-│   ├── DRY-review.md (2,739 tokens)
-│   ├── duplicate-detector-misses.md (749 tokens)
-│   ├── KNOWN_ISSUES.md (94 tokens)
-│   ├── magic_number_semantic_analysis_2026-03-04.tsv (5,676 tokens)
-│   ├── PATTERNS.md (5,143 tokens)
-│   ├── README.md (1,976 tokens)
-│   ├── SENTRY-INTEGRATION.md (5,119 tokens)
-│   ├── changelog/ (19,824 tokens)
-│   │   ├── 2025-11-23-thru-2025-11-29.md (595 tokens)
-│   │   ├── 2025-12-02-thru-2025-12-04-dedup-phase5-modular.md (319 tokens)
-│   │   ├── 2026-01-09-pattern-debugging.md (146 tokens)
-│   │   ├── 2026-01-10-docs-rule-builder.md (161 tokens)
-│   │   ├── 2026-02-10-test-stability-docs.md (230 tokens)
-│   │   ├── 2026-02-12-formatting-refactoring.md (88 tokens)
-│   │   ├── 2026-02-25-code-condensation.md (305 tokens)
-│   │   ├── 2026-02-25-condense-cleanup.md (218 tokens)
-│   │   ├── 2026-02-26-jsdoc-fixes.md (68 tokens)
-│   │   ├── 2026-02-28-analyzer-cli-quality.md (462 tokens)
-│   │   ├── 2026-03-04-maintenance-quality.md (357 tokens)
-│   │   ├── 2026-03-06-complexity-review-fixes.md (2,464 tokens)
-│   │   ├── 2026-03-06-critical-bug-fixes.md (142 tokens)
-│   │   ├── 2026-03-07-type-fixes-formatting.md (88 tokens)
-│   │   ├── 2026-03-08-backup-refactoring-helper-adoption.md (588 tokens)
-│   │   ├── 2026-03-08-changelog-hardening-test-quality.md (875 tokens)
-│   │   ├── 2026-03-08-code-review-findings.md (349 tokens)
-│   │   ├── 2026-03-08-complexity-analysis.md (9,746 tokens)
-│   │   ├── 2026-03-08-deduplication-precision-filters.md (995 tokens)
-│   │   ├── 2026-03-08-quality-fixes.md (187 tokens)
-│   │   ├── 2026-03-08-review-follow-ups-testing.md (899 tokens)
-│   │   └── 2026-03-08-shared-utils-consolidation.md (542 tokens)
-│   └── repomix/ (33 tokens)
-│       ├── repomix-instruction.md (33 tokens)
-│       └── token-tree.txt (0 tokens)
-├── mcp-docs/ (9,007 tokens)
-│   ├── README.md (994 tokens)
-│   ├── ast-grep/ (313 tokens)
-│   │   ├── README.md (188 tokens)
-│   │   └── schema.json (125 tokens)
-│   ├── browserbase/ (344 tokens)
-│   │   ├── README.md (190 tokens)
-│   │   └── schema.json (154 tokens)
-│   ├── cloudflare-ai-gateway/ (385 tokens)
-│   │   ├── README.md (216 tokens)
-│   │   └── schema.json (169 tokens)
-│   ├── cloudflare-browser-rendering/ (375 tokens)
-│   │   ├── README.md (210 tokens)
-│   │   └── schema.json (165 tokens)
-│   ├── cloudflare-observability/ (373 tokens)
-│   │   ├── README.md (210 tokens)
-│   │   └── schema.json (163 tokens)
-│   ├── cloudflare-radar/ (368 tokens)
-│   │   ├── README.md (207 tokens)
-│   │   └── schema.json (161 tokens)
-│   ├── cloudflare-workers-bindings/ (379 tokens)
-│   │   ├── README.md (212 tokens)
-│   │   └── schema.json (167 tokens)
-│   ├── doppler-custom/ (295 tokens)
-│   │   ├── README.md (170 tokens)
-│   │   └── schema.json (125 tokens)
-│   ├── fetch/ (347 tokens)
-│   │   ├── README.md (211 tokens)
-│   │   └── schema.json (136 tokens)
-│   ├── filesystem/ (367 tokens)
-│   │   ├── README.md (229 tokens)
-│   │   └── schema.json (138 tokens)
-│   ├── github/ (445 tokens)
-│   │   ├── README.md (248 tokens)
-│   │   └── schema.json (197 tokens)
-│   ├── linkedin/ (265 tokens)
-│   │   ├── README.md (149 tokens)
-│   │   └── schema.json (116 tokens)
-│   ├── mcp-cron/ (263 tokens)
-│   │   ├── README.md (148 tokens)
-│   │   └── schema.json (115 tokens)
-│   ├── memory/ (353 tokens)
-│   │   ├── README.md (214 tokens)
-│   │   └── schema.json (139 tokens)
-│   ├── openapi/ (373 tokens)
-│   │   ├── README.md (210 tokens)
-│   │   └── schema.json (163 tokens)
-│   ├── porkbun/ (502 tokens)
-│   │   ├── README.md (312 tokens)
-│   │   └── schema.json (190 tokens)
-│   ├── porkbun-custom/ (428 tokens)
-│   │   ├── README.md (256 tokens)
-│   │   └── schema.json (172 tokens)
-│   ├── postgres/ (426 tokens)
-│   │   ├── README.md (251 tokens)
-│   │   └── schema.json (175 tokens)
-│   ├── redis/ (438 tokens)
-│   │   ├── README.md (240 tokens)
-│   │   └── schema.json (198 tokens)
-│   ├── scheduler-mcp/ (334 tokens)
-│   │   ├── README.md (213 tokens)
-│   │   └── schema.json (121 tokens)
-│   ├── schema-org/ (298 tokens)
-│   │   ├── README.md (170 tokens)
-│   │   └── schema.json (128 tokens)
-│   └── supabase/ (342 tokens)
-│       ├── README.md (189 tokens)
-│       └── schema.json (153 tokens)
-├── scripts/ (61,551 tokens)
-│   ├── analysis_output_helpers.py (419 tokens)
-│   ├── analyze_analyticsbot.py (1,679 tokens)
-│   ├── analyze_violations.py (1,387 tokens)
-│   ├── analyze-duplicates.py (588 tokens)
-│   ├── backfill-skill-spans.py (2,905 tokens)
-│   ├── benchmark_batch_coverage.py (2,531 tokens)
-│   ├── benchmark_parallel_enrichment.py (784 tokens)
-│   ├── categorize-magic-numbers.ts (4,861 tokens)
-│   ├── cleanup-error-logs.ts (2,695 tokens)
-│   ├── deploy-traditional-server.sh (4,501 tokens)
-│   ├── find_duplication.sh (441 tokens)
-│   ├── find_large_classes.sh (354 tokens)
-│   ├── fix_import_orphans.py (1,161 tokens)
-│   ├── fix_imports.py (665 tokens)
-│   ├── fix_migration_errors.py (667 tokens)
-│   ├── fix-types.ts (807 tokens)
-│   ├── generate-http-status-constants.ts (901 tokens)
-│   ├── generate-sidequest-gitlog.sh (318 tokens)
-│   ├── import_helpers.py (512 tokens)
-│   ├── list_complexity_violations.py (887 tokens)
-│   ├── migrate_print_to_logger.py (3,188 tokens)
-│   ├── migrate_prints_smart.py (2,569 tokens)
-│   ├── migration_common.py (637 tokens)
-│   ├── README.md (1,158 tokens)
-│   ├── replace-magic.sh (1,405 tokens)
-│   ├── run_all_analysis.py (1,592 tokens)
-│   ├── run_benchmarks.py (975 tokens)
-│   ├── run-python-tests.sh (513 tokens)
-│   ├── scan_complexity_offenders.py (581 tokens)
-│   ├── schema-graph-builder.py (5,482 tokens)
-│   ├── validate-permissions.ts (1,292 tokens)
-│   ├── verify-bugfixes.sh (5,468 tokens)
-│   ├── verify-setup.ts (1,825 tokens)
-│   ├── warm-doppler-cache.sh (647 tokens)
-│   └── repomix/ (5,156 tokens)
-│       ├── generate-diff-summary.sh (309 tokens)
-│       ├── generate-repomix-docs.sh (333 tokens)
-│       ├── generate-repomix-git-ranked.sh (1,934 tokens)
-│       ├── repo-compressed.sh (104 tokens)
-│       ├── repomix-docs.config.json (264 tokens)
-│       ├── repomix-regen.sh (1,065 tokens)
-│       ├── repomix.config.json (881 tokens)
-│       ├── repomix.sh (82 tokens)
-│       └── token-tree.sh (184 tokens)
-├── src/ (363,873 tokens)
-│   └── ast_grep_mcp/ (363,873 tokens)
-│       ├── __init__.py (0 tokens)
-│       ├── constants.py (6,944 tokens)
-│       ├── core/ (15,520 tokens)
-│       │   ├── __init__.py (449 tokens)
-│       │   ├── cache.py (1,052 tokens)
-│       │   ├── config.py (1,767 tokens)
-│       │   ├── exceptions.py (744 tokens)
-│       │   ├── executor.py (4,115 tokens)
-│       │   ├── logging.py (427 tokens)
-│       │   ├── sentry.py (509 tokens)
-│       │   └── usage_tracking.py (6,457 tokens)
-│       ├── features/ (304,914 tokens)
-│       │   ├── __init__.py (0 tokens)
-│       │   ├── complexity/ (17,392 tokens)
-│       │   │   ├── __init__.py (228 tokens)
-│       │   │   ├── analyzer.py (3,816 tokens)
-│       │   │   ├── complexity_analyzer.py (562 tokens)
-│       │   │   ├── complexity_file_finder.py (761 tokens)
-│       │   │   ├── complexity_statistics.py (1,602 tokens)
-│       │   │   ├── metrics.py (3,700 tokens)
-│       │   │   ├── storage.py (1,809 tokens)
-│       │   │   └── tools.py (4,914 tokens)
-│       │   ├── condense/ (13,189 tokens)
-│       │   │   ├── __init__.py (341 tokens)
-│       │   │   ├── dictionary.py (1,453 tokens)
-│       │   │   ├── estimator.py (1,413 tokens)
-│       │   │   ├── normalizer.py (858 tokens)
-│       │   │   ├── service.py (4,972 tokens)
-│       │   │   ├── strategies.py (475 tokens)
-│       │   │   ├── strip.py (614 tokens)
-│       │   │   └── tools.py (3,063 tokens)
-│       │   ├── cross_language/ (28,311 tokens)
-│       │   │   ├── __init__.py (166 tokens)
-│       │   │   ├── binding_generator.py (4,583 tokens)
-│       │   │   ├── language_converter.py (4,548 tokens)
-│       │   │   ├── multi_language_search.py (3,025 tokens)
-│       │   │   ├── pattern_database.py (7,552 tokens)
-│       │   │   ├── pattern_equivalence.py (2,041 tokens)
-│       │   │   ├── polyglot_refactoring.py (3,171 tokens)
-│       │   │   └── tools.py (3,225 tokens)
-│       │   ├── deduplication/ (90,097 tokens)
-│       │   │   ├── __init__.py (540 tokens)
-│       │   │   ├── analysis_orchestrator.py (5,688 tokens)
-│       │   │   ├── analyzer.py (9,640 tokens)
-│       │   │   ├── applicator_backup.py (1,702 tokens)
-│       │   │   ├── applicator_executor.py (1,702 tokens)
-│       │   │   ├── applicator_post_validator.py (1,712 tokens)
-│       │   │   ├── applicator_validator.py (1,373 tokens)
-│       │   │   ├── applicator.py (5,686 tokens)
-│       │   │   ├── benchmark.py (4,222 tokens)
-│       │   │   ├── config.py (928 tokens)
-│       │   │   ├── coverage.py (4,876 tokens)
-│       │   │   ├── detector.py (6,795 tokens)
-│       │   │   ├── diff.py (3,621 tokens)
-│       │   │   ├── generator.py (9,236 tokens)
-│       │   │   ├── impact.py (5,147 tokens)
-│       │   │   ├── ranker.py (4,017 tokens)
-│       │   │   ├── recommendations.py (2,824 tokens)
-│       │   │   ├── reporting.py (2,477 tokens)
-│       │   │   ├── scoring_scales.py (552 tokens)
-│       │   │   ├── similarity.py (15,118 tokens)
-│       │   │   └── tools.py (2,241 tokens)
-│       │   ├── documentation/ (33,659 tokens)
-│       │   │   ├── __init__.py (156 tokens)
-│       │   │   ├── api_docs_generator.py (4,882 tokens)
-│       │   │   ├── changelog_generator.py (4,419 tokens)
-│       │   │   ├── docstring_generator.py (10,427 tokens)
-│       │   │   ├── readme_generator.py (6,267 tokens)
-│       │   │   ├── sync_checker.py (4,057 tokens)
-│       │   │   └── tools.py (3,451 tokens)
-│       │   ├── quality/ (48,592 tokens)
-│       │   │   ├── __init__.py (538 tokens)
-│       │   │   ├── enforcer.py (5,645 tokens)
-│       │   │   ├── fixer.py (6,101 tokens)
-│       │   │   ├── orphan_detector.py (4,923 tokens)
-│       │   │   ├── reporter.py (3,582 tokens)
-│       │   │   ├── rules.py (4,040 tokens)
-│       │   │   ├── security_scanner.py (5,141 tokens)
-│       │   │   ├── smells_detectors.py (5,398 tokens)
-│       │   │   ├── smells_helpers.py (1,597 tokens)
-│       │   │   ├── smells.py (808 tokens)
-│       │   │   ├── tools.py (9,543 tokens)
-│       │   │   └── validator.py (1,276 tokens)
-│       │   ├── refactoring/ (15,170 tokens)
-│       │   │   ├── __init__.py (116 tokens)
-│       │   │   ├── analyzer.py (4,651 tokens)
-│       │   │   ├── extractor.py (3,345 tokens)
-│       │   │   ├── rename_coordinator.py (1,919 tokens)
-│       │   │   ├── renamer.py (3,611 tokens)
-│       │   │   └── tools.py (1,528 tokens)
-│       │   ├── rewrite/ (8,357 tokens)
-│       │   │   ├── __init__.py (220 tokens)
-│       │   │   ├── backup.py (2,361 tokens)
-│       │   │   ├── service.py (4,971 tokens)
-│       │   │   └── tools.py (805 tokens)
-│       │   ├── schema/ (17,898 tokens)
-│       │   │   ├── __init__.py (82 tokens)
-│       │   │   ├── client.py (5,357 tokens)
-│       │   │   ├── enhancement_rules.py (2,178 tokens)
-│       │   │   ├── enhancement_service.py (6,669 tokens)
-│       │   │   └── tools.py (3,612 tokens)
-│       │   └── search/ (32,249 tokens)
-│       │       ├── __init__.py (115 tokens)
-│       │       ├── docs.py (13,276 tokens)
-│       │       ├── service.py (15,657 tokens)
-│       │       └── tools.py (3,201 tokens)
-│       ├── models/ (19,388 tokens)
-│       │   ├── __init__.py (463 tokens)
-│       │   ├── base.py (35 tokens)
-│       │   ├── complexity.py (308 tokens)
-│       │   ├── condense.py (200 tokens)
-│       │   ├── config.py (459 tokens)
-│       │   ├── cross_language.py (2,521 tokens)
-│       │   ├── deduplication.py (3,771 tokens)
-│       │   ├── documentation.py (2,635 tokens)
-│       │   ├── orphan.py (1,910 tokens)
-│       │   ├── pattern_debug.py (1,284 tokens)
-│       │   ├── pattern_develop.py (1,014 tokens)
-│       │   ├── refactoring.py (1,521 tokens)
-│       │   ├── schema_enhancement.py (926 tokens)
-│       │   └── standards.py (2,341 tokens)
-│       ├── server/ (764 tokens)
-│       │   ├── __init__.py (39 tokens)
-│       │   ├── registry.py (521 tokens)
-│       │   └── runner.py (204 tokens)
-│       └── utils/ (16,343 tokens)
-│           ├── __init__.py (553 tokens)
-│           ├── backup.py (758 tokens)
-│           ├── console_logger.py (1,429 tokens)
-│           ├── formatters.py (6,477 tokens)
-│           ├── slicing.py (99 tokens)
-│           ├── syntax_validation.py (1,232 tokens)
-│           ├── templates.py (3,984 tokens)
-│           ├── text.py (1,100 tokens)
-│           ├── tool_context.py (626 tokens)
-│           └── validation.py (85 tokens)
-└── tests/ (242,369 tokens)
-    ├── conftest.py (6,543 tokens)
-    ├── DEVELOPER_ONBOARDING.md (3,005 tokens)
-    ├── README.md (977 tokens)
-    ├── e2e/ (5,218 tokens)
-    │   ├── __init__.py (0 tokens)
-    │   ├── test_quality_pipeline_e2e.py (3,099 tokens)
-    │   └── test_search_workflow_e2e.py (2,119 tokens)
-    ├── fixtures/ (740 tokens)
-    │   ├── config_with_custom_lang.yaml (41 tokens)
-    │   ├── empty_config.yaml (6 tokens)
-    │   ├── example.py (75 tokens)
-    │   ├── invalid_config_empty.yaml (15 tokens)
-    │   ├── invalid_config_extensions.yaml (37 tokens)
-    │   ├── invalid_config_not_dict.yaml (20 tokens)
-    │   ├── invalid_config_yaml_error.yaml (22 tokens)
-    │   ├── valid_config.yaml (83 tokens)
-    │   └── schema_graphs/ (441 tokens)
-    │       ├── complete_organization.json (381 tokens)
-    │       └── simple_organization.json (60 tokens)
-    ├── integration/ (12,513 tokens)
-    │   ├── __init__.py (13 tokens)
-    │   ├── test_benchmark.py (7,284 tokens)
-    │   ├── test_integration.py (806 tokens)
-    │   ├── test_rename_symbol_integration.py (2,161 tokens)
-    │   └── test_semantic_integration.py (2,249 tokens)
-    ├── performance/ (2,273 tokens)
-    │   └── test_minhash_performance.py (2,273 tokens)
-    ├── quality/ (7,906 tokens)
-    │   ├── test_complexity_regression.py (5,442 tokens)
-    │   └── test_minhash_regression.py (2,464 tokens)
-    ├── scripts/ (17,569 tokens)
-    │   ├── benchmark_fixtures.py (2,290 tokens)
-    │   ├── detect_fixture_patterns.py (3,543 tokens)
-    │   ├── README.md (1,599 tokens)
-    │   ├── score_test_file.py (4,759 tokens)
-    │   ├── track_fixture_metrics.py (2,858 tokens)
-    │   └── validate_refactoring.py (2,520 tokens)
-    └── unit/ (185,625 tokens)
-        ├── __init__.py (13 tokens)
-        ├── conftest.py (5,091 tokens)
-        ├── test_analysis_config.py (2,182 tokens)
-        ├── test_analysis_orchestrator.py (6,992 tokens)
-        ├── test_analysis_output_helpers.py (270 tokens)
-        ├── test_applicator_backup.py (7,628 tokens)
-        ├── test_applicator_executor.py (3,979 tokens)
-        ├── test_apply_deduplication.py (4,759 tokens)
-        ├── test_batch_coverage.py (2,250 tokens)
-        ├── test_cache_ttl_config.py (133 tokens)
-        ├── test_code_smells.py (2,250 tokens)
-        ├── test_complexity.py (5,397 tokens)
-        ├── test_config_validation_helpers.py (867 tokens)
-        ├── test_conftest_fixtures.py (2,120 tokens)
-        ├── test_coverage_detector.py (7,231 tokens)
-        ├── test_deduplication_analysis.py (1,218 tokens)
-        ├── test_deduplication_detection.py (1,197 tokens)
-        ├── test_deduplication_key_names.py (1,881 tokens)
-        ├── test_develop_pattern.py (2,851 tokens)
-        ├── test_docs_and_rule_builder.py (3,948 tokens)
-        ├── test_documentation.py (7,841 tokens)
-        ├── test_duplication_detector.py (9,884 tokens)
-        ├── test_enhanced_reporting.py (4,289 tokens)
-        ├── test_extract_function.py (2,356 tokens)
-        ├── test_fix_migration_errors.py (381 tokens)
-        ├── test_fixer_list_metavars.py (309 tokens)
-        ├── test_flask_parser_helpers.py (676 tokens)
-        ├── test_hybrid_similarity.py (4,231 tokens)
-        ├── test_impact_call_site_helpers.py (821 tokens)
-        ├── test_import_helpers.py (441 tokens)
-        ├── test_logging_handle.py (499 tokens)
-        ├── test_migrate_print_to_logger.py (886 tokens)
-        ├── test_migration_common.py (236 tokens)
-        ├── test_minhash_similarity.py (8,338 tokens)
-        ├── test_normalize_helpers.py (2,008 tokens)
-        ├── test_normalize_indentation.py (342 tokens)
-        ├── test_orchestrator_optimizations.py (7,065 tokens)
-        ├── test_orphan_import_helpers.py (802 tokens)
-        ├── test_pattern_debug.py (3,030 tokens)
-        ├── test_prefer_const_reassignment.py (1,425 tokens)
-        ├── test_progress_callbacks.py (2,893 tokens)
-        ├── test_ranker_caching.py (2,888 tokens)
-        ├── test_ranker.py (1,595 tokens)
-        ├── test_rename_symbol.py (4,877 tokens)
-        ├── test_reporting_helpers.py (1,050 tokens)
-        ├── test_schema_enhancement.py (5,793 tokens)
-        ├── test_schema.py (7,861 tokens)
-        ├── test_semantic_similarity.py (4,366 tokens)
-        ├── test_splice_fixed_code.py (1,917 tokens)
-        ├── test_split_params_guard.py (392 tokens)
-        ├── test_standards_enforcement.py (14,031 tokens)
-        ├── test_structural_braces.py (446 tokens)
-        ├── test_tool_context.py (989 tokens)
-        ├── test_usage_tracking.py (3,750 tokens)
-        ├── test_venv_exclusions.py (737 tokens)
-        └── features/ (13,923 tokens)
-            ├── condense/ (8,840 tokens)
-            │   ├── __init__.py (7 tokens)
-            │   ├── test_condense_tools.py (2,456 tokens)
-            │   ├── test_dictionary.py (1,160 tokens)
-            │   ├── test_estimator.py (1,267 tokens)
-            │   ├── test_normalizer.py (677 tokens)
-            │   ├── test_pack_pipeline.py (931 tokens)
-            │   ├── test_strategies.py (467 tokens)
-            │   ├── test_strip.py (828 tokens)
-            │   └── test_surface_extraction.py (1,047 tokens)
-            └── cross_language/ (5,083 tokens)
-                ├── __init__.py (8 tokens)
-                └── test_cross_language.py (5,075 tokens)
+<file path="src/ast_grep_mcp/core/executor.py">
+"""Command execution and ast-grep interface for ast-grep MCP server."""
+⋮----
+def get_supported_languages() -> List[str]
+⋮----
+"""Get all supported languages as a field description string."""
+languages = [  # https://ast-grep.github.io/reference/languages.html
+⋮----
+# Check for custom languages in config file
+# https://ast-grep.github.io/advanced/custom-language.html#register-language-in-sgconfig-yml
+⋮----
+config = yaml.safe_load(f)
+⋮----
+custom_langs = list(config["customLanguages"].keys())
+⋮----
+def run_command(args: List[str], input_text: Optional[str] = None, *, allow_nonzero: bool = False) -> subprocess.CompletedProcess[str]
+⋮----
+"""Execute a command with proper error handling.
+
+    Args:
+        args: Command arguments list
+        input_text: Optional stdin input
+        allow_nonzero: If True, don't raise on non-zero exit codes
+
+    Returns:
+        CompletedProcess instance
+
+    Raises:
+        AstGrepNotFoundError: If command binary not found
+        AstGrepExecutionError: If command execution fails (unless allow_nonzero)
+    """
+logger = get_logger("subprocess")
+sanitized_args = args.copy()
+has_stdin = input_text is not None
+⋮----
+use_shell = sys.platform == "win32" and args[0] == ExecutorDefaults.AST_GREP_COMMAND
+⋮----
+result = subprocess.run(
+⋮----
+execution_time = time.time() - start_time
+⋮----
+stderr_msg = e.stderr.strip() if e.stderr else ""
+⋮----
+def _get_language_extensions(language: str) -> Optional[List[str]]
+⋮----
+"""Get file extensions for a language.
+
+    Args:
+        language: Programming language name
+
+    Returns:
+        List of extensions or None if language not found
+    """
+lang_map = {
+⋮----
+def _should_skip_directory(dirname: str) -> bool
+⋮----
+"""Check if directory should be skipped.
+
+    Args:
+        dirname: Directory name
+
+    Returns:
+        True if should skip, False otherwise
+    """
+⋮----
+"""Process a single file for size filtering.
+
+    Args:
+        file: File name
+        root: Root directory path
+        lang_extensions: Language-specific extensions
+        max_size_bytes: Maximum size in bytes
+        logger: Logger instance
+
+    Returns:
+        Tuple of (file_to_search, skipped_file) - only one will be non-None
+    """
+# Skip hidden files
+⋮----
+# Check language filter
+⋮----
+file_path = os.path.join(root, file)
+⋮----
+file_size = os.path.getsize(file_path)
+⋮----
+def filter_files_by_size(directory: str, max_size_mb: Optional[int] = None, language: Optional[str] = None) -> Tuple[List[str], List[str]]
+⋮----
+"""Filter files in directory by size.
+
+    Args:
+        directory: Directory to search
+        max_size_mb: Maximum file size in megabytes. Must be > 0 to apply filtering.
+            Pass None or <= 0 only when the caller will handle the unlimited case itself
+            (returns ([], []) so callers can detect the no-op and fall back to their
+            own file-discovery logic).
+        language: Optional language filter for file extensions
+
+    Returns:
+        Tuple of (files_to_search, skipped_files)
+        - files_to_search: List of file paths under size limit
+        - skipped_files: List of file paths that exceeded the limit
+        When max_size_mb is None or <= 0 returns ([], []) as a no-op signal.
+    """
+logger = get_logger("file_filter")
+⋮----
+max_size_bytes = max_size_mb * FileConstants.BYTES_PER_MB
+files_to_search: List[str] = []
+skipped_files: List[str] = []
+⋮----
+# Get language extensions if specified
+lang_extensions = _get_language_extensions(language) if language else None
+⋮----
+# Walk directory and check file sizes
+⋮----
+# Filter directories in-place
+⋮----
+def run_ast_grep(command: str, args: List[str], input_text: Optional[str] = None) -> subprocess.CompletedProcess[str]
+⋮----
+"""Execute ast-grep command with optional config.
+
+    Args:
+        command: ast-grep subcommand (run, scan, etc.)
+        args: Command arguments
+        input_text: Optional stdin input
+
+    Returns:
+        CompletedProcess instance
+    """
+⋮----
+args = ["--config", CONFIG_PATH] + args
+# --debug-query outputs to stderr and returns exit code 1 even on success
+allow_nonzero = any(arg.startswith("--debug-query") for arg in args)
+⋮----
+def _prepare_stream_command(command: str, args: List[str]) -> List[str]
+⋮----
+"""Prepare the full ast-grep command with optional config.
+
+    Args:
+        command: ast-grep subcommand
+        args: Command arguments
+
+    Returns:
+        Full command list
+    """
+final_args = args.copy()
+⋮----
+final_args = ["--config", CONFIG_PATH] + final_args
+⋮----
+def _create_stream_process(full_command: List[str]) -> subprocess.Popen[str]
+⋮----
+"""Create and start the subprocess for streaming.
+
+    Args:
+        full_command: Complete command list
+
+    Returns:
+        Started Popen process
+
+    Raises:
+        FileNotFoundError: If command not found
+    """
+use_shell = sys.platform == "win32" and full_command[0] == ExecutorDefaults.AST_GREP_COMMAND
+⋮----
+def _parse_json_line(line: str, logger: Any) -> Optional[Dict[str, Any]]
+⋮----
+"""Parse a line of JSON output.
+
+    Args:
+        line: Line to parse
+        logger: Logger instance
+
+    Returns:
+        Parsed JSON dict or None if invalid
+    """
+line = line.strip()
+⋮----
+def _should_log_progress(match_count: int, last_progress_log: int, progress_interval: int) -> bool
+⋮----
+"""Check if progress should be logged.
+
+    Args:
+        match_count: Current match count
+        last_progress_log: Last logged count
+        progress_interval: Interval for logging
+
+    Returns:
+        True if should log progress
+    """
+⋮----
+def _terminate_process(process: subprocess.Popen[str], logger: Any, reason: str) -> None
+⋮----
+"""Terminate a process gracefully, then forcefully if needed.
+
+    Args:
+        process: Process to terminate
+        logger: Logger instance
+        reason: Reason for termination
+    """
+⋮----
+"""Handle non-zero return codes from the process.
+
+    Args:
+        returncode: Process return code
+        stderr_output: Captured stderr text
+        full_command: Command that was run
+        start_time: Start time for execution
+        match_count: Number of matches found
+        logger: Logger instance
+
+    Raises:
+        AstGrepExecutionError: If process failed
+    """
+# SIGTERM from early termination is not an error
+⋮----
+error = AstGrepExecutionError(command=full_command, returncode=returncode, stderr=stderr_output)
+⋮----
+def _cleanup_process(process: Optional[subprocess.Popen[str]]) -> None
+⋮----
+"""Ensure subprocess is properly cleaned up.
+
+    Args:
+        process: Process to cleanup (may be None)
+    """
+⋮----
+def _drain_stderr_to_list(process: subprocess.Popen[str], output: List[str]) -> None
+⋮----
+"""Read stderr in background to prevent pipe buffer deadlock."""
+⋮----
+"""Iterate over stdout lines, yielding parsed matches.
+
+    Returns:
+        Total match count (accessible via ``yield from``).
+    """
+match_count = 0
+last_progress_log = 0
+⋮----
+match = _parse_json_line(line, logger)
+⋮----
+last_progress_log = match_count
+⋮----
+def _log_stream_completion(match_count: int, start_time: float, max_results: int, logger: Any) -> None
+⋮----
+"""Log final stream metrics."""
+⋮----
+def _raise_not_found_error(full_command: List[str], cause: Exception) -> None
+⋮----
+"""Raise an AstGrepNotFoundError with Sentry capture."""
+⋮----
+error = AstGrepNotFoundError()
+⋮----
+error = AstGrepNotFoundError(f"Command '{full_command[0]}' not found")
+⋮----
+"""Stream ast-grep JSON results line-by-line with early termination support.
+
+    This function uses subprocess.Popen to read ast-grep output incrementally,
+    parsing each JSON object as it arrives. This approach:
+    - Reduces memory usage for large result sets
+    - Enables early termination when max_results is reached
+    - Provides progress logging during long searches
+
+    Args:
+        command: ast-grep subcommand (run, scan, etc.)
+        args: Command arguments (must include --json=stream flag)
+        max_results: Maximum results to yield (0 = unlimited)
+        progress_interval: Log progress every N matches
+
+    Yields:
+        Individual match dictionaries from ast-grep JSON output
+
+    Raises:
+        AstGrepNotFoundError: If ast-grep binary not found
+        AstGrepExecutionError: If ast-grep execution fails
+    """
+logger = get_logger("stream_results")
+start_time = time.time()
+full_command = _prepare_stream_command(command, args)
+⋮----
+process = None
+stderr_chunks: List[str] = []
+⋮----
+process = _create_stream_process(full_command)
+⋮----
+stderr_thread = threading.Thread(target=_drain_stderr_to_list, args=(process, stderr_chunks), daemon=True)
+⋮----
+match_count = yield from _iter_stdout_matches(process, max_results, progress_interval, start_time, logger)
+⋮----
+returncode = process.wait()
 </file>
 
 <file path="src/ast_grep_mcp/core/usage_tracking.py">
@@ -57312,6 +56909,317 @@ def format_usage_report(stats: UsageStats) -> str
 lines = _format_report_header(stats)
 ⋮----
 cost = stats.cost_by_tool.get(tool, 0.0)
+</file>
+
+<file path="src/ast_grep_mcp/features/complexity/analyzer.py">
+"""
+Code complexity analysis.
+
+This module provides functions for analyzing code complexity at the file level,
+extracting functions, and calculating complexity metrics for each function.
+"""
+⋮----
+__all__ = [
+⋮----
+def extract_functions_from_file(file_path: str, language: str) -> List[Dict[str, Any]]
+⋮----
+"""Extract all functions from a file using ast-grep.
+
+    Args:
+        file_path: Path to source file
+        language: Programming language
+
+    Returns:
+        List of function matches with metadata
+    """
+patterns = get_complexity_patterns(language)
+all_functions: List[Dict[str, Any]] = []
+⋮----
+# Get all function patterns for this language
+_PATTERN_KEYS = ("function", "async_function", "arrow_function", "method")
+function_patterns = [patterns[k] for k in _PATTERN_KEYS if k in patterns]
+⋮----
+result = subprocess.run(
+⋮----
+matches = json.loads(result.stdout)
+⋮----
+logger = get_logger("complexity.extract")
+⋮----
+def _extract_classes_from_file(file_path: str, language: str) -> List[Dict[str, Any]]
+⋮----
+"""Extract all classes from a file using ast-grep.
+
+    Args:
+        file_path: Path to source file
+        language: Programming language
+
+    Returns:
+        List of class info dicts with name, start_line, end_line, method_count
+    """
+pattern = _get_class_extraction_pattern(language)
+⋮----
+matches = _execute_ast_grep_for_classes(file_path, language, pattern)
+⋮----
+logger = get_logger("code_smell.extract_classes")
+⋮----
+def _get_class_extraction_pattern(language: str) -> str
+⋮----
+"""Get the ast-grep pattern for class detection based on language.
+
+    Args:
+        language: Programming language
+
+    Returns:
+        Pattern string for ast-grep
+    """
+class_patterns = {
+⋮----
+def _execute_ast_grep_for_classes(file_path: str, language: str, pattern: str) -> List[Dict[str, Any]]
+⋮----
+"""Run ast-grep to find class matches.
+
+    Args:
+        file_path: Path to file to analyze
+        language: Programming language
+        pattern: ast-grep pattern to use
+
+    Returns:
+        List of match dictionaries from ast-grep output
+    """
+⋮----
+# Early return for failed or empty results
+⋮----
+def _process_class_match_results(matches: List[Dict[str, Any]], language: str) -> List[Dict[str, Any]]
+⋮----
+"""Process ast-grep matches into class information.
+
+    Args:
+        matches: Raw match data from ast-grep
+        language: Programming language
+
+    Returns:
+        List of class information dictionaries
+    """
+classes = []
+⋮----
+cls_info = _extract_single_class_info(match, language)
+⋮----
+def _extract_single_class_info(match: Dict[str, Any], language: str) -> Dict[str, Any]
+⋮----
+"""Extract class information from a single ast-grep match.
+
+    Args:
+        match: Single match dictionary from ast-grep
+        language: Programming language
+
+    Returns:
+        Dictionary with class name, lines, method count, and code
+    """
+cls_name = _extract_class_name_from_match(match)
+⋮----
+code = match.get("text", "")
+method_count = _count_class_methods(code, language)
+⋮----
+def _extract_class_name_from_match(match: Dict[str, Any]) -> str
+⋮----
+"""Extract class name from ast-grep match metavariables.
+
+    Args:
+        match: Match dictionary from ast-grep
+
+    Returns:
+        Class name or "unknown" if not found
+    """
+meta_vars = match.get("metaVariables", {})
+⋮----
+name_data = meta_vars["NAME"]
+⋮----
+# Handle both dict and string formats
+⋮----
+result = name_data.get("text", "unknown")
+⋮----
+def _extract_class_line_range(match: Dict[str, Any]) -> Tuple[int, int]
+⋮----
+"""Extract start and end line numbers from ast-grep match.
+
+    Args:
+        match: Match dictionary from ast-grep
+
+    Returns:
+        Tuple of (start_line, end_line), 1-indexed
+    """
+range_info = match.get("range", {})
+start_line = range_info.get("start", {}).get("line", 0) + 1
+end_line = range_info.get("end", {}).get("line", 0) + 1
+⋮----
+def _count_class_methods(code: str, language: str) -> int
+⋮----
+"""Count the number of methods in a class.
+
+    Args:
+        code: Class code as string
+        language: Programming language
+
+    Returns:
+        Number of methods found
+    """
+⋮----
+# Count function/method patterns in class body
+⋮----
+def _count_function_parameters(code: str, language: str) -> int
+⋮----
+"""Count the number of parameters in a function.
+
+    Args:
+        code: Function source code
+        language: Programming language
+
+    Returns:
+        Number of parameters
+    """
+# Find the parameter list
+⋮----
+# Match def name(params): or async def name(params):
+match = re.search(r"def\s+\w+\s*\(([^)]*)\)", code)
+⋮----
+# Match function name(params) { or (params) =>
+match = re.search(r"(?:function\s+\w+|\w+)\s*\(([^)]*)\)", code)
+⋮----
+params = match.group(1).strip()
+⋮----
+# Handle self/this as non-parameter
+⋮----
+# Remove 'self' and 'cls' from count
+params = re.sub(r"\bself\b\s*,?\s*", "", params)
+params = re.sub(r"\bcls\b\s*,?\s*", "", params)
+⋮----
+# Count commas + 1 (unless empty)
+params = params.strip()
+⋮----
+# Handle default values and type annotations
+# Count actual parameters by splitting on commas at the right depth
+depth = 0
+param_count = 1 if params else 0
+⋮----
+def _extract_function_name(func: Dict[str, Any]) -> str
+⋮----
+"""Extract function name from ast-grep match.
+
+    Args:
+        func: Function match from ast-grep
+
+    Returns:
+        Function name or "unknown" if not found
+    """
+meta_vars = func.get("metaVariables", {})
+⋮----
+def _get_line_numbers(func: Dict[str, Any]) -> Tuple[int, int]
+⋮----
+"""Extract line numbers from ast-grep range info.
+
+    Args:
+        func: Function match from ast-grep
+
+    Returns:
+        Tuple of (start_line, end_line), 1-indexed
+    """
+range_info = func.get("range", {})
+⋮----
+def _find_signature_end(code_lines: List[str]) -> int
+⋮----
+"""Find the line index where a Python function signature ends (the colon line)."""
+in_signature = False
+⋮----
+stripped = line.strip()
+⋮----
+in_signature = True
+⋮----
+def _measure_docstring(code_lines: List[str], doc_start: int) -> int
+⋮----
+"""Measure lines occupied by a docstring starting at doc_start.
+
+    Returns number of lines, or 0 if no docstring found.
+    """
+first_content = code_lines[doc_start].strip()
+quote = detect_triple_quote(first_content)
+⋮----
+# Single-line docstring
+⋮----
+# Multi-line: find closing quote
+⋮----
+def _find_docstring_extent(code_lines: List[str], start: int) -> int
+⋮----
+"""Count docstring lines starting from the given line index.
+
+    Returns the number of lines the docstring occupies, or 0 if no docstring found.
+    """
+doc_start = skip_blank_lines(code_lines, start)
+⋮----
+def _count_docstring_lines(code: str, language: str) -> int
+⋮----
+"""Count lines occupied by the leading docstring in a function body.
+
+    Excludes docstring lines from length calculations so that well-documented
+    functions are not penalized for having MCP/API documentation.
+    """
+⋮----
+code_lines = code.split("\n")
+sig_end = _find_signature_end(code_lines)
+⋮----
+def _calculate_all_metrics(code: str, language: str) -> ComplexityMetrics
+⋮----
+"""Calculate all complexity metrics for a function.
+
+    Args:
+        code: Function source code
+        language: Programming language
+
+    Returns:
+        ComplexityMetrics with all calculated values
+    """
+cyclomatic = calculate_cyclomatic_complexity(code, language)
+cognitive = calculate_cognitive_complexity(code, language)
+nesting = calculate_nesting_depth(code, language)
+lines = len(code.split("\n")) - _count_docstring_lines(code, language)
+param_count = _count_function_parameters(code, language)
+⋮----
+def _check_threshold_violations(metrics: ComplexityMetrics, thresholds: ComplexityThresholds) -> List[str]
+⋮----
+"""Check which thresholds are exceeded.
+
+    Args:
+        metrics: Calculated metrics
+        thresholds: Threshold values
+
+    Returns:
+        List of exceeded threshold names
+    """
+exceeds: List[str] = []
+⋮----
+def analyze_file_complexity(file_path: str, language: str, thresholds: ComplexityThresholds) -> List[FunctionComplexity]
+⋮----
+"""Analyze complexity of all functions in a file.
+
+    Args:
+        file_path: Path to source file
+        language: Programming language
+        thresholds: Complexity thresholds
+
+    Returns:
+        List of FunctionComplexity objects
+    """
+results: List[FunctionComplexity] = []
+⋮----
+functions = extract_functions_from_file(file_path, language)
+⋮----
+code = func.get("text", "")
+⋮----
+func_name = _extract_function_name(func)
+⋮----
+metrics = _calculate_all_metrics(code, language)
+exceeds = _check_threshold_violations(metrics, thresholds)
+⋮----
+logger = get_logger("complexity.analyze")
 </file>
 
 <file path="src/ast_grep_mcp/features/complexity/tools.py">
@@ -58767,660 +58675,6 @@ results = self.executor.run_all_benchmarks(iterations)
 execution_time = time.time() - start_time
 </file>
 
-<file path="src/ast_grep_mcp/features/deduplication/generator.py">
-"""
-Code generation module for deduplication refactoring.
-
-This module provides functionality for generating refactored code,
-including function extraction, parameter inference, and import generation.
-"""
-⋮----
-# Language-specific configuration for function generation
-FUNCTION_GENERATORS: Dict[str, Callable[..., str]] = {}
-⋮----
-# Language-specific configuration for type inference
-TYPE_INFERENCE_CONFIG: Dict[str, Dict[str, Dict[str, Union[str, bool]]]] = {
-⋮----
-# Identifier naming patterns for type inference
-IDENTIFIER_TYPE_PATTERNS: Dict[str, List[Tuple[str, str]]] = {
-⋮----
-def _infer_from_identifier_name(identifier: str, language: str) -> str
-⋮----
-"""Infer type from identifier naming conventions.
-
-    Analyzes the identifier name to guess its type based on common
-    naming patterns (e.g., 'user_id' suggests int, 'is_valid' suggests bool).
-
-    Args:
-        identifier: The identifier name to analyze
-        language: Programming language for type syntax
-
-    Returns:
-        Inferred type string for the language
-    """
-identifier_lower = identifier.lower()
-⋮----
-# Get language-specific patterns, fall back to python
-patterns = IDENTIFIER_TYPE_PATTERNS.get(language, IDENTIFIER_TYPE_PATTERNS.get("python", []))
-⋮----
-# Check each pattern
-⋮----
-# Fall back to default type for the language
-config = TYPE_INFERENCE_CONFIG.get(language, TYPE_INFERENCE_CONFIG.get("python", {}))
-⋮----
-# Null/undefined type mappings by language
-NULL_TYPE_MAP: Dict[str, Dict[str, str]] = {
-⋮----
-# Collection type mappings by language
-COLLECTION_TYPE_MAP: Dict[str, Dict[str, str]] = {
-⋮----
-def _is_boolean_literal(value: str) -> bool
-⋮----
-"""Check if value is a boolean literal."""
-⋮----
-def _is_null_literal(value: str) -> bool
-⋮----
-"""Check if value is a null/None/undefined literal."""
-⋮----
-def _is_quoted_string(value: str) -> bool
-⋮----
-"""Check if value is a quoted string literal."""
-⋮----
-def _is_integer_literal(value: str) -> bool
-⋮----
-"""Check if value is an integer literal."""
-⋮----
-def _try_get_float_type(value: str, literal_types: Dict[str, Any]) -> Optional[str]
-⋮----
-"""Try to parse value as float and return appropriate type."""
-⋮----
-def _get_collection_type(value: str, language: str) -> Optional[str]
-⋮----
-"""Get collection type for list/dict literals."""
-lang_types = COLLECTION_TYPE_MAP.get(language, COLLECTION_TYPE_MAP["python"])
-⋮----
-def _infer_single_value_type(value: str, language: str) -> str
-⋮----
-"""Infer type from a single literal value.
-
-    Analyzes the value to determine its type based on its format
-    (e.g., '123' is int, '"hello"' is string, 'True' is bool).
-
-    Args:
-        value: The literal value as a string
-        language: Programming language for type syntax
-
-    Returns:
-        Inferred type string for the language
-    """
-value_stripped = value.strip()
-⋮----
-literal_types = config.get("literal", {})
-⋮----
-null_map = NULL_TYPE_MAP.get(language, NULL_TYPE_MAP.get("python", {}))
-⋮----
-float_type = _try_get_float_type(value_stripped, literal_types)
-⋮----
-collection_type = _get_collection_type(value_stripped, language)
-⋮----
-class CodeGenerator
-⋮----
-"""Generates refactored code for deduplication."""
-⋮----
-def __init__(self, language: str = "python") -> None
-⋮----
-"""Initialize the code generator.
-
-        Args:
-            language: Programming language for code generation
-        """
-⋮----
-"""Generate Python function using template system."""
-param_tuples = [(p["name"], p.get("type")) for p in parameters]
-template = FunctionTemplate(name=function_name, parameters=param_tuples, body=body, return_type=return_type, docstring=docstring)
-⋮----
-"""Generate JavaScript/TypeScript function."""
-param_list = self._format_js_parameters(parameters)
-type_annotation = f": {return_type}" if return_type and self.language == "typescript" else ""
-⋮----
-function_code = f"function {function_name}({param_list}){type_annotation} {{\n"
-⋮----
-indented_body = "\n".join(f"    {line}" for line in body.split("\n"))
-⋮----
-"""Generate Java method."""
-param_list = ", ".join(f"{p.get('type', 'Object')} {p['name']}" for p in parameters)
-return_annotation = return_type if return_type else "void"
-⋮----
-function_code = f"public {return_annotation} {function_name}({param_list}) {{\n"
-⋮----
-def _generate_generic_function(self, function_name: str, parameters: List[Dict[str, str]], body: str, **kwargs: Any) -> str
-⋮----
-"""Generate generic function format."""
-param_list = ", ".join(p["name"] for p in parameters)
-⋮----
-"""
-        Generate an extracted function from duplicated code.
-
-        Args:
-            function_name: Name of the extracted function
-            parameters: List of parameter dicts with 'name' and optionally 'type'
-            body: Function body code
-            return_type: Optional return type annotation
-            docstring: Optional function documentation
-
-        Returns:
-            Generated function code
-        """
-⋮----
-# Language-specific generators map
-generators = {
-⋮----
-# Get the appropriate generator or use generic
-generator = generators.get(self.language, self._generate_generic_function)
-function_code = generator(function_name, parameters, body, return_type=return_type, docstring=docstring)
-⋮----
-# Format the generated code
-⋮----
-def _format_generated_code(self, function_code: str, function_name: str) -> str
-⋮----
-"""Format generated code with error handling."""
-⋮----
-formatted_code = format_generated_code(function_code, self.language)
-⋮----
-def generate_function_call(self, function_name: str, arguments: List[str], assign_to: Optional[str] = None) -> str
-⋮----
-"""
-        Generate a function call to replace duplicated code.
-
-        Args:
-            function_name: Name of the function to call
-            arguments: List of argument values
-            assign_to: Optional variable to assign result to
-
-        Returns:
-            Generated function call code
-        """
-call = f"{function_name}({', '.join(arguments)})"
-⋮----
-assign_formats = {
-⋮----
-def _generate_python_import(self, module_path: str, import_names: List[str], is_relative: bool) -> str
-⋮----
-"""Generate Python import statement."""
-names = ", ".join(import_names)
-⋮----
-prefix = "." if module_path else ""
-⋮----
-def _generate_js_import(self, module_path: str, import_names: List[str], is_relative: bool) -> str
-⋮----
-"""Generate JavaScript/TypeScript import statement."""
-names = "{" + ", ".join(import_names) + "}"
-extension = ".js" if self.language == "javascript" else ""
-path = f"./{module_path}" if is_relative else module_path
-⋮----
-def generate_import_statement(self, module_path: str, import_names: List[str], is_relative: bool = False) -> str
-⋮----
-"""
-        Generate an import statement for the extracted function.
-
-        Args:
-            module_path: Module or file path to import from
-            import_names: Names to import
-            is_relative: Whether to use relative import
-
-        Returns:
-            Generated import statement
-        """
-⋮----
-def _collect_variation_params(self, code_variations: List[Dict[str, Any]], seen_names: set[str]) -> List[Dict[str, str]]
-⋮----
-"""Collect parameters from code variations, deduplicating by name."""
-params: List[Dict[str, str]] = []
-⋮----
-param_name = variation.get("suggested_param_name")
-⋮----
-def _collect_external_params(self, base_code: str, seen_names: set[str]) -> List[Dict[str, str]]
-⋮----
-"""Collect parameters from external dependencies not already seen."""
-⋮----
-def infer_function_parameters(self, code_variations: List[Dict[str, Any]], base_code: str) -> List[Dict[str, str]]
-⋮----
-"""
-        Infer function parameters from code variations.
-
-        Args:
-            code_variations: List of code variations
-            base_code: Base code to analyze
-
-        Returns:
-            List of inferred parameters
-        """
-seen_names: set[str] = set()
-parameters = self._collect_variation_params(code_variations, seen_names)
-⋮----
-def _format_python_parameters(self, parameters: List[Dict[str, str]]) -> str
-⋮----
-"""Format parameters for Python function signature."""
-formatted = []
-⋮----
-def _format_ts_param(self, param: Dict[str, str]) -> str
-⋮----
-"""Format a single TypeScript parameter with optional type annotation."""
-⋮----
-def _format_js_parameters(self, parameters: List[Dict[str, str]]) -> str
-⋮----
-"""Format parameters for JavaScript/TypeScript function signature."""
-⋮----
-def _get_python_number_type(self, value: str, lang_config: Dict[str, Any]) -> Optional[str]
-⋮----
-"""Get Python-specific number type (int vs float)."""
-⋮----
-def _get_literal_type(self, literal_type: str, value: str, lang_config: Dict[str, Any]) -> Optional[str]
-⋮----
-"""Get type mapping for literal values."""
-⋮----
-def _infer_literal_type(self, variation: Dict[str, Any], value: str, category_config: Dict[str, Any]) -> Optional[str]
-⋮----
-"""Infer type for a literal variation."""
-literal_type = variation.get("literal_type", "")
-⋮----
-def _infer_type_category(self, value: str, category_config: Dict[str, Any]) -> Optional[str]
-⋮----
-"""Infer type for a 'type' category variation."""
-⋮----
-def _infer_parameter_type(self, variation: Dict[str, Any]) -> Optional[str]
-⋮----
-"""Infer parameter type from variation."""
-category = variation.get("category", "")
-value = variation.get("old_value", "")
-⋮----
-lang_config = TYPE_INFERENCE_CONFIG.get(self.language, {})
-⋮----
-category_config = lang_config.get(category, {})
-⋮----
-def _find_external_dependencies(self, code: str) -> List[str]
-⋮----
-"""Find external dependencies that should be parameters."""
-dependencies: List[str] = []
-⋮----
-# Simple heuristic: find identifiers that look like they come from outside
-# This is language-specific and simplified
-⋮----
-# Look for common patterns like self.x, module.function, etc.
-patterns = [
-⋮----
-r"\bself\.(\w+)",  # Class attributes
-r"(?<!\.)(\w+)\(",  # Function calls (not methods)
-⋮----
-matches = re.findall(pattern, code)
-⋮----
-return list(set(dependencies))[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]  # Limit to top dependencies
-⋮----
-def _module_docstring_lines(self, module_name: str) -> List[str]
-⋮----
-"""Generate language-specific module docstring lines."""
-desc = f"{module_name} - Extracted common functionality"
-⋮----
-def generate_module_structure(self, module_name: str, functions: List[Dict[str, str]], imports: Optional[List[str]] = None) -> str
-⋮----
-"""
-        Generate a complete module with extracted functions.
-
-        Args:
-            module_name: Name of the module
-            functions: List of function definitions
-            imports: Optional list of import statements
-
-        Returns:
-            Complete module code
-        """
-module_code: List[str] = self._module_docstring_lines(module_name)
-⋮----
-export_names = [f.get("name", "") for f in functions]
-⋮----
-def _validate_python_code(self, code: str) -> Tuple[bool, Optional[str]]
-⋮----
-"""Validate Python code syntax."""
-⋮----
-def _validate_js_ts_code(self, code: str) -> Tuple[bool, Optional[str]]
-⋮----
-"""Validate JavaScript/TypeScript code via bracket matching."""
-⋮----
-def validate_generated_code(self, code: str) -> Tuple[bool, Optional[str]]
-⋮----
-"""
-        Validate generated code for syntax errors.
-
-        Args:
-            code: Generated code to validate
-
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
-⋮----
-def _reindent_body(self, body: str) -> List[str]
-⋮----
-"""Re-indent body lines to 4-space base indent, preserving relative indentation."""
-body_lines = body.split("\n")
-base_indent = len(body_lines[0]) - len(body_lines[0].lstrip()) if body_lines else 0
-result = []
-⋮----
-stripped = line.lstrip()
-⋮----
-original_indent = len(line) - len(stripped)
-relative_indent = original_indent - base_indent
-indent = "    " + " " * max(0, relative_indent)
-⋮----
-"""
-        Render a Python function from components.
-
-        Args:
-            name: Function name
-            params: Formatted parameter string
-            body: Function body code
-            return_type: Optional return type annotation
-            docstring: Optional function docstring
-            decorators: Optional list of decorator strings
-
-        Returns:
-            Complete Python function code
-        """
-lines: List[str] = []
-⋮----
-return_annotation = f" -> {return_type}" if return_type else ""
-⋮----
-def _process_conditional(self, match: re.Match[str], variables: Dict[str, str]) -> str
-⋮----
-"""Process conditional template blocks."""
-condition_type = match.group(RegexCaptureGroups.FIRST)  # 'if' or 'unless'
-var_name = match.group(RegexCaptureGroups.SECOND)
-content = match.group(RegexCaptureGroups.THIRD)
-⋮----
-var_value = variables.get(var_name, "")
-is_truthy = var_value and var_value.lower() not in ("false", "0", "")
-⋮----
-return "" if is_truthy else content  # unless
-⋮----
-def _process_each_loop(self, match: re.Match[str], variables: Dict[str, str], strict: bool) -> str
-⋮----
-"""Process each loop template blocks."""
-var_name = match.group(RegexCaptureGroups.FIRST)
-loop_content = match.group(RegexCaptureGroups.SECOND)
-⋮----
-items = variables[var_name].split(",") if variables[var_name] else []
-result = "".join(loop_content.replace("{{.}}", item.strip()) for item in items)
-⋮----
-# Remove trailing space if the loop content ends with a space
-⋮----
-result = result.rstrip()
-⋮----
-def _substitute_simple_variable(self, match: re.Match[str], variables: Dict[str, str], strict: bool) -> str
-⋮----
-"""Substitute simple template variable."""
-⋮----
-def substitute_template_variables(self, template: str, variables: Dict[str, str], strict: bool = False) -> str
-⋮----
-"""
-        Substitute template variables in a string template.
-
-        Supports:
-        - Simple variables: {{name}}
-        - Conditionals: {{#if var}}...{{/if}}, {{#unless var}}...{{/unless}}
-        - Loops: {{#each items}}{{.}}{{/each}}
-
-        Args:
-            template: Template string with {{variable}} placeholders
-            variables: Dictionary of variable values
-            strict: If True, raise error on missing variables
-
-        Returns:
-            Template with variables substituted
-
-        Raises:
-            ValueError: If strict=True and required variable is missing
-        """
-result = template
-⋮----
-# Process conditionals (if/unless)
-result = re.sub(
-⋮----
-# Process loops {{#each items}}{{.}}{{/each}}
-⋮----
-# Process simple variables {{var}}
-result = re.sub(r"\{\{(\w+)\}\}", lambda m: self._substitute_simple_variable(m, variables, strict), result)
-⋮----
-def preserve_call_site_indentation(self, original_code: str, replacement: str) -> str
-⋮----
-"""
-        Preserve the indentation from the original code when replacing it.
-
-        Args:
-            original_code: Original code with indentation
-            replacement: Replacement code to indent
-
-        Returns:
-            Replacement code with original indentation preserved
-        """
-⋮----
-# Extract indentation from original
-indent = ""
-⋮----
-# Apply indentation to replacement
-⋮----
-def detect_import_insertion_point(self, content: str, language: str) -> int
-⋮----
-"""
-        Detect where to insert import statements in a file.
-
-        Args:
-            content: File content
-            language: Programming language
-
-        Returns:
-            Line number (1-indexed) where imports should be inserted
-        """
-lines = content.split("\n")
-⋮----
-# Generic: after first line
-⋮----
-def _detect_python_import_point(self, lines: List[str]) -> int
-⋮----
-"""Find import insertion point for Python files."""
-# Handle empty file
-⋮----
-# Skip module docstring (if present)
-position = self._skip_python_module_docstring(lines, start=0)
-⋮----
-# Skip top-level comments
-position = self._skip_python_comments(lines, start=position)
-⋮----
-# Find end of existing imports
-last_import_line = self._find_last_import_line(lines, start=position)
-⋮----
-def _get_triple_quotes(self, line: str) -> Optional[str]
-⋮----
-"""Return the triple-quote delimiter if line starts with one, else None."""
-⋮----
-def _process_docstring_scan_line(self, line: str, i: int, docstring_quotes: Optional[str]) -> Tuple[Optional[int], Optional[str]]
-⋮----
-"""Process one line of docstring scanning. Returns (result_pos_or_None, updated_docstring_quotes)."""
-quotes = self._get_triple_quotes(line)
-⋮----
-def _skip_python_module_docstring(self, lines: List[str], start: int) -> int
-⋮----
-"""Skip module-level docstring and return position after it."""
-docstring_quotes: Optional[str] = None
-⋮----
-line = raw_line.strip()
-⋮----
-def _skip_python_comments(self, lines: List[str], start: int) -> int
-⋮----
-"""Skip comment lines and return position after comments.
-
-        Args:
-            lines: List of file lines
-            start: Starting position
-
-        Returns:
-            Position after comments
-        """
-position = start
-⋮----
-def _find_last_import_line(self, lines: List[str], start: int) -> int
-⋮----
-"""Find the last import statement line.
-
-        Args:
-            lines: List of file lines
-            start: Starting position
-
-        Returns:
-            Position of last import (or start if no imports found)
-        """
-⋮----
-last_import = start
-⋮----
-line = lines[position].strip()
-⋮----
-# Track import statements
-⋮----
-last_import = position + 1
-# Stop at first non-import, non-comment, non-empty line
-⋮----
-def _is_import_line(self, line: str) -> bool
-⋮----
-"""Check if line is an import statement.
-
-        Args:
-            line: Stripped line to check
-
-        Returns:
-            True if line is an import statement
-        """
-⋮----
-_USE_STRICT_DIRECTIVES = ('"use strict";', "'use strict';")
-⋮----
-def _skip_use_strict(self, lines: List[str], start: int) -> int
-⋮----
-"""Skip 'use strict' directive and following blank line. Returns new position."""
-i = start
-⋮----
-line = lines[i].strip()
-⋮----
-def _is_js_import_line(self, line: str) -> bool
-⋮----
-"""Check if line is a JS/TS import or require statement."""
-⋮----
-def _detect_js_import_point(self, lines: List[str]) -> int
-⋮----
-"""Find import insertion point for JavaScript/TypeScript files."""
-i = self._skip_use_strict(lines, 0)
-⋮----
-last_import = i
-⋮----
-last_import = i + 1
-⋮----
-def _skip_blank_lines(self, lines: List[str], start: int) -> int
-⋮----
-"""Skip blank lines and return new position."""
-⋮----
-def _skip_java_package(self, lines: List[str], start: int) -> int
-⋮----
-"""Skip Java package declaration and blank lines after it. Returns new position."""
-⋮----
-def _detect_java_import_point(self, lines: List[str]) -> int
-⋮----
-"""Find import insertion point for Java files."""
-i = self._skip_java_package(lines, 0)
-⋮----
-_PARAM_PREFIXES_TO_STRIP = ["get_", "set_", "is_", "has_", "_"]
-⋮----
-def _strip_param_prefix(name: str) -> str
-⋮----
-"""Strip common prefixes from an identifier to form a base parameter name."""
-⋮----
-def _build_param_candidates(base_name: str) -> List[str]
-⋮----
-"""Build ordered list of candidate parameter names from a base name."""
-candidates = [base_name, f"{base_name}_value", f"{base_name}_param", f"new_{base_name}"]
-⋮----
-def generate_parameter_name(identifier: str, all_identifiers: List[str]) -> str
-⋮----
-"""
-    Generate a unique parameter name based on an identifier.
-
-    Creates a meaningful parameter name from an identifier, ensuring
-    it doesn't conflict with existing identifiers.
-
-    Args:
-        identifier: The original identifier to base the parameter name on
-        all_identifiers: List of existing identifiers to avoid conflicts
-
-    Returns:
-        A unique parameter name
-    """
-base_name = _strip_param_prefix(identifier.lower().strip()) or "param"
-existing_lower = {ident.lower() for ident in all_identifiers}
-⋮----
-def _find_type_annotation(identifier: str, context: str, language: str) -> Optional[str]
-⋮----
-"""Find explicit type annotation for identifier in context."""
-⋮----
-pattern = rf"{re.escape(identifier)}\s*:\s*([A-Za-z_][A-Za-z0-9_\[\],\s]*)"
-⋮----
-pattern = rf"{re.escape(identifier)}\s*:\s*([A-Za-z_][A-Za-z0-9_<>\[\],\s]*)"
-⋮----
-match = re.search(pattern, context)
-⋮----
-def _get_usage_patterns(identifier: str) -> List[Tuple[str, str, str]]
-⋮----
-"""Get usage patterns for type inference."""
-esc_id = re.escape(identifier)
-⋮----
-def _infer_from_usage_patterns(identifier: str, context: str, language: str) -> Optional[str]
-⋮----
-"""Infer type from common usage patterns in context."""
-⋮----
-def _infer_from_operations(identifier: str, context: str, language: str) -> Optional[str]
-⋮----
-"""Infer type from arithmetic/string operations."""
-⋮----
-# Check for numeric comparisons
-⋮----
-# Check for string concatenation
-⋮----
-def infer_parameter_type(identifier: str, context: str, language: str = "python") -> str
-⋮----
-"""
-    Infer the type of a parameter from its identifier and usage context.
-
-    Combines identifier name analysis with contextual clues to determine
-    the most likely type for a parameter.
-
-    Args:
-        identifier: The identifier/parameter name
-        context: Surrounding code context where the identifier is used
-        language: Programming language (default: python)
-
-    Returns:
-        Inferred type string appropriate for the language
-    """
-⋮----
-default_type = str(config.get("identifier", {}).get("default", "Any"))
-⋮----
-# Try to infer from identifier name first
-type_from_name = _infer_from_identifier_name(identifier, language)
-⋮----
-# Try explicit type annotation
-annotation = _find_type_annotation(identifier, context, language)
-⋮----
-# Try usage patterns
-usage_type = _infer_from_usage_patterns(identifier, context, language)
-⋮----
-# Try operations
-op_type = _infer_from_operations(identifier, context, language)
-</file>
-
 <file path="src/ast_grep_mcp/features/documentation/api_docs_generator.py">
 """API documentation generation service.
 
@@ -60552,6 +59806,458 @@ def test_add_import_to_content_accepts_str(self)
 result = _add_import_to_content("content", "import os", "python")
 </file>
 
+<file path="docs/repomix/token-tree.txt">
+🔢 Token Count Tree:
+────────────────────
+├── .claudeignore (7 tokens)
+├── .gitignore (85 tokens)
+├── .python-version (3 tokens)
+├── analyze_codebase.py (5,156 tokens)
+├── ast-grep.mdc (3,151 tokens)
+├── CHANGELOG.md (33 tokens)
+├── CLAUDE.md (1,317 tokens)
+├── GEMINI.md (1,021 tokens)
+├── main.py (68 tokens)
+├── pyproject.toml (881 tokens)
+├── QUALITY_REPORT.md (463 tokens)
+├── README.md (2,283 tokens)
+├── renovate.json (36 tokens)
+├── .claude/ (78,274 tokens)
+│   ├── settings.local.json (5,395 tokens)
+│   ├── telemetry-observability.md (1,975 tokens)
+│   ├── cache/ (1,392 tokens)
+│   │   └── mcp-tools.md (1,392 tokens)
+│   ├── commands/ (124 tokens)
+│   │   └── list-tools.md (124 tokens)
+│   ├── hooks/ (415 tokens)
+│   │   └── update-tools-cache.sh (415 tokens)
+│   └── skills/ (68,973 tokens)
+│       ├── base-controller-pattern.md (4,366 tokens)
+│       ├── react-context-performance.md (3,281 tokens)
+│       ├── ast-grep-mcp-expert/ (56,068 tokens)
+│       │   ├── SKILL.md (501 tokens)
+│       │   └── references/ (55,567 tokens)
+│       │       ├── files.md (54,251 tokens)
+│       │       ├── project-structure.md (476 tokens)
+│       │       ├── summary.md (821 tokens)
+│       │       └── tech-stack.md (19 tokens)
+│       ├── environment-setup-analyzer/ (2,400 tokens)
+│       │   └── SKILL.md (2,400 tokens)
+│       ├── review/ (2,022 tokens)
+│       │   └── SKILL.md (2,022 tokens)
+│       └── verification-loop/ (836 tokens)
+│           ├── .skillfish.json (91 tokens)
+│           ├── SKILL.md (682 tokens)
+│           └── agents/ (63 tokens)
+│               └── openai.yaml (63 tokens)
+├── .github/ (1,003 tokens)
+│   └── workflows/ (1,003 tokens)
+│       └── ci.yml (1,003 tokens)
+├── docs/ (67,055 tokens)
+│   ├── BACKFILLING.md (1,248 tokens)
+│   ├── BACKLOG.md (2,331 tokens)
+│   ├── BENCHMARKING.md (2,221 tokens)
+│   ├── CHANGELOG.md (1,414 tokens)
+│   ├── CODE-CONDENSE-PHASE-2.md (3,078 tokens)
+│   ├── CODE-CONDENSE-PREP.md (3,495 tokens)
+│   ├── CONFIGURATION.md (4,992 tokens)
+│   ├── DEDUPLICATION-GUIDE.md (6,923 tokens)
+│   ├── DRY-review.md (2,739 tokens)
+│   ├── duplicate-detector-misses.md (749 tokens)
+│   ├── KNOWN_ISSUES.md (94 tokens)
+│   ├── magic_number_semantic_analysis_2026-03-04.tsv (5,676 tokens)
+│   ├── PATTERNS.md (5,143 tokens)
+│   ├── README.md (1,976 tokens)
+│   ├── SENTRY-INTEGRATION.md (5,119 tokens)
+│   ├── changelog/ (19,824 tokens)
+│   │   ├── 2025-11-23-thru-2025-11-29.md (595 tokens)
+│   │   ├── 2025-12-02-thru-2025-12-04-dedup-phase5-modular.md (319 tokens)
+│   │   ├── 2026-01-09-pattern-debugging.md (146 tokens)
+│   │   ├── 2026-01-10-docs-rule-builder.md (161 tokens)
+│   │   ├── 2026-02-10-test-stability-docs.md (230 tokens)
+│   │   ├── 2026-02-12-formatting-refactoring.md (88 tokens)
+│   │   ├── 2026-02-25-code-condensation.md (305 tokens)
+│   │   ├── 2026-02-25-condense-cleanup.md (218 tokens)
+│   │   ├── 2026-02-26-jsdoc-fixes.md (68 tokens)
+│   │   ├── 2026-02-28-analyzer-cli-quality.md (462 tokens)
+│   │   ├── 2026-03-04-maintenance-quality.md (357 tokens)
+│   │   ├── 2026-03-06-complexity-review-fixes.md (2,464 tokens)
+│   │   ├── 2026-03-06-critical-bug-fixes.md (142 tokens)
+│   │   ├── 2026-03-07-type-fixes-formatting.md (88 tokens)
+│   │   ├── 2026-03-08-backup-refactoring-helper-adoption.md (588 tokens)
+│   │   ├── 2026-03-08-changelog-hardening-test-quality.md (875 tokens)
+│   │   ├── 2026-03-08-code-review-findings.md (349 tokens)
+│   │   ├── 2026-03-08-complexity-analysis.md (9,746 tokens)
+│   │   ├── 2026-03-08-deduplication-precision-filters.md (995 tokens)
+│   │   ├── 2026-03-08-quality-fixes.md (187 tokens)
+│   │   ├── 2026-03-08-review-follow-ups-testing.md (899 tokens)
+│   │   └── 2026-03-08-shared-utils-consolidation.md (542 tokens)
+│   └── repomix/ (33 tokens)
+│       ├── repomix-instruction.md (33 tokens)
+│       └── token-tree.txt (0 tokens)
+├── mcp-docs/ (9,007 tokens)
+│   ├── README.md (994 tokens)
+│   ├── ast-grep/ (313 tokens)
+│   │   ├── README.md (188 tokens)
+│   │   └── schema.json (125 tokens)
+│   ├── browserbase/ (344 tokens)
+│   │   ├── README.md (190 tokens)
+│   │   └── schema.json (154 tokens)
+│   ├── cloudflare-ai-gateway/ (385 tokens)
+│   │   ├── README.md (216 tokens)
+│   │   └── schema.json (169 tokens)
+│   ├── cloudflare-browser-rendering/ (375 tokens)
+│   │   ├── README.md (210 tokens)
+│   │   └── schema.json (165 tokens)
+│   ├── cloudflare-observability/ (373 tokens)
+│   │   ├── README.md (210 tokens)
+│   │   └── schema.json (163 tokens)
+│   ├── cloudflare-radar/ (368 tokens)
+│   │   ├── README.md (207 tokens)
+│   │   └── schema.json (161 tokens)
+│   ├── cloudflare-workers-bindings/ (379 tokens)
+│   │   ├── README.md (212 tokens)
+│   │   └── schema.json (167 tokens)
+│   ├── doppler-custom/ (295 tokens)
+│   │   ├── README.md (170 tokens)
+│   │   └── schema.json (125 tokens)
+│   ├── fetch/ (347 tokens)
+│   │   ├── README.md (211 tokens)
+│   │   └── schema.json (136 tokens)
+│   ├── filesystem/ (367 tokens)
+│   │   ├── README.md (229 tokens)
+│   │   └── schema.json (138 tokens)
+│   ├── github/ (445 tokens)
+│   │   ├── README.md (248 tokens)
+│   │   └── schema.json (197 tokens)
+│   ├── linkedin/ (265 tokens)
+│   │   ├── README.md (149 tokens)
+│   │   └── schema.json (116 tokens)
+│   ├── mcp-cron/ (263 tokens)
+│   │   ├── README.md (148 tokens)
+│   │   └── schema.json (115 tokens)
+│   ├── memory/ (353 tokens)
+│   │   ├── README.md (214 tokens)
+│   │   └── schema.json (139 tokens)
+│   ├── openapi/ (373 tokens)
+│   │   ├── README.md (210 tokens)
+│   │   └── schema.json (163 tokens)
+│   ├── porkbun/ (502 tokens)
+│   │   ├── README.md (312 tokens)
+│   │   └── schema.json (190 tokens)
+│   ├── porkbun-custom/ (428 tokens)
+│   │   ├── README.md (256 tokens)
+│   │   └── schema.json (172 tokens)
+│   ├── postgres/ (426 tokens)
+│   │   ├── README.md (251 tokens)
+│   │   └── schema.json (175 tokens)
+│   ├── redis/ (438 tokens)
+│   │   ├── README.md (240 tokens)
+│   │   └── schema.json (198 tokens)
+│   ├── scheduler-mcp/ (334 tokens)
+│   │   ├── README.md (213 tokens)
+│   │   └── schema.json (121 tokens)
+│   ├── schema-org/ (298 tokens)
+│   │   ├── README.md (170 tokens)
+│   │   └── schema.json (128 tokens)
+│   └── supabase/ (342 tokens)
+│       ├── README.md (189 tokens)
+│       └── schema.json (153 tokens)
+├── scripts/ (61,551 tokens)
+│   ├── analysis_output_helpers.py (419 tokens)
+│   ├── analyze_analyticsbot.py (1,679 tokens)
+│   ├── analyze_violations.py (1,387 tokens)
+│   ├── analyze-duplicates.py (588 tokens)
+│   ├── backfill-skill-spans.py (2,905 tokens)
+│   ├── benchmark_batch_coverage.py (2,531 tokens)
+│   ├── benchmark_parallel_enrichment.py (784 tokens)
+│   ├── categorize-magic-numbers.ts (4,861 tokens)
+│   ├── cleanup-error-logs.ts (2,695 tokens)
+│   ├── deploy-traditional-server.sh (4,501 tokens)
+│   ├── find_duplication.sh (441 tokens)
+│   ├── find_large_classes.sh (354 tokens)
+│   ├── fix_import_orphans.py (1,161 tokens)
+│   ├── fix_imports.py (665 tokens)
+│   ├── fix_migration_errors.py (667 tokens)
+│   ├── fix-types.ts (807 tokens)
+│   ├── generate-http-status-constants.ts (901 tokens)
+│   ├── generate-sidequest-gitlog.sh (318 tokens)
+│   ├── import_helpers.py (512 tokens)
+│   ├── list_complexity_violations.py (887 tokens)
+│   ├── migrate_print_to_logger.py (3,188 tokens)
+│   ├── migrate_prints_smart.py (2,569 tokens)
+│   ├── migration_common.py (637 tokens)
+│   ├── README.md (1,158 tokens)
+│   ├── replace-magic.sh (1,405 tokens)
+│   ├── run_all_analysis.py (1,592 tokens)
+│   ├── run_benchmarks.py (975 tokens)
+│   ├── run-python-tests.sh (513 tokens)
+│   ├── scan_complexity_offenders.py (581 tokens)
+│   ├── schema-graph-builder.py (5,482 tokens)
+│   ├── validate-permissions.ts (1,292 tokens)
+│   ├── verify-bugfixes.sh (5,468 tokens)
+│   ├── verify-setup.ts (1,825 tokens)
+│   ├── warm-doppler-cache.sh (647 tokens)
+│   └── repomix/ (5,156 tokens)
+│       ├── generate-diff-summary.sh (309 tokens)
+│       ├── generate-repomix-docs.sh (333 tokens)
+│       ├── generate-repomix-git-ranked.sh (1,934 tokens)
+│       ├── repo-compressed.sh (104 tokens)
+│       ├── repomix-docs.config.json (264 tokens)
+│       ├── repomix-regen.sh (1,065 tokens)
+│       ├── repomix.config.json (881 tokens)
+│       ├── repomix.sh (82 tokens)
+│       └── token-tree.sh (184 tokens)
+├── src/ (363,418 tokens)
+│   └── ast_grep_mcp/ (363,418 tokens)
+│       ├── __init__.py (0 tokens)
+│       ├── constants.py (6,944 tokens)
+│       ├── core/ (15,520 tokens)
+│       │   ├── __init__.py (449 tokens)
+│       │   ├── cache.py (1,052 tokens)
+│       │   ├── config.py (1,767 tokens)
+│       │   ├── exceptions.py (744 tokens)
+│       │   ├── executor.py (4,115 tokens)
+│       │   ├── logging.py (427 tokens)
+│       │   ├── sentry.py (509 tokens)
+│       │   └── usage_tracking.py (6,457 tokens)
+│       ├── features/ (304,269 tokens)
+│       │   ├── __init__.py (0 tokens)
+│       │   ├── complexity/ (16,854 tokens)
+│       │   │   ├── __init__.py (228 tokens)
+│       │   │   ├── analyzer.py (3,278 tokens)
+│       │   │   ├── complexity_analyzer.py (562 tokens)
+│       │   │   ├── complexity_file_finder.py (761 tokens)
+│       │   │   ├── complexity_statistics.py (1,602 tokens)
+│       │   │   ├── metrics.py (3,700 tokens)
+│       │   │   ├── storage.py (1,809 tokens)
+│       │   │   └── tools.py (4,914 tokens)
+│       │   ├── condense/ (13,189 tokens)
+│       │   │   ├── __init__.py (341 tokens)
+│       │   │   ├── dictionary.py (1,453 tokens)
+│       │   │   ├── estimator.py (1,413 tokens)
+│       │   │   ├── normalizer.py (858 tokens)
+│       │   │   ├── service.py (4,972 tokens)
+│       │   │   ├── strategies.py (475 tokens)
+│       │   │   ├── strip.py (614 tokens)
+│       │   │   └── tools.py (3,063 tokens)
+│       │   ├── cross_language/ (28,311 tokens)
+│       │   │   ├── __init__.py (166 tokens)
+│       │   │   ├── binding_generator.py (4,583 tokens)
+│       │   │   ├── language_converter.py (4,548 tokens)
+│       │   │   ├── multi_language_search.py (3,025 tokens)
+│       │   │   ├── pattern_database.py (7,552 tokens)
+│       │   │   ├── pattern_equivalence.py (2,041 tokens)
+│       │   │   ├── polyglot_refactoring.py (3,171 tokens)
+│       │   │   └── tools.py (3,225 tokens)
+│       │   ├── deduplication/ (89,990 tokens)
+│       │   │   ├── __init__.py (540 tokens)
+│       │   │   ├── analysis_orchestrator.py (5,688 tokens)
+│       │   │   ├── analyzer.py (9,640 tokens)
+│       │   │   ├── applicator_backup.py (1,702 tokens)
+│       │   │   ├── applicator_executor.py (1,702 tokens)
+│       │   │   ├── applicator_post_validator.py (1,712 tokens)
+│       │   │   ├── applicator_validator.py (1,373 tokens)
+│       │   │   ├── applicator.py (5,686 tokens)
+│       │   │   ├── benchmark.py (4,222 tokens)
+│       │   │   ├── config.py (928 tokens)
+│       │   │   ├── coverage.py (4,876 tokens)
+│       │   │   ├── detector.py (6,795 tokens)
+│       │   │   ├── diff.py (3,621 tokens)
+│       │   │   ├── generator.py (9,129 tokens)
+│       │   │   ├── impact.py (5,147 tokens)
+│       │   │   ├── ranker.py (4,017 tokens)
+│       │   │   ├── recommendations.py (2,824 tokens)
+│       │   │   ├── reporting.py (2,477 tokens)
+│       │   │   ├── scoring_scales.py (552 tokens)
+│       │   │   ├── similarity.py (15,118 tokens)
+│       │   │   └── tools.py (2,241 tokens)
+│       │   ├── documentation/ (33,659 tokens)
+│       │   │   ├── __init__.py (156 tokens)
+│       │   │   ├── api_docs_generator.py (4,882 tokens)
+│       │   │   ├── changelog_generator.py (4,419 tokens)
+│       │   │   ├── docstring_generator.py (10,427 tokens)
+│       │   │   ├── readme_generator.py (6,267 tokens)
+│       │   │   ├── sync_checker.py (4,057 tokens)
+│       │   │   └── tools.py (3,451 tokens)
+│       │   ├── quality/ (48,592 tokens)
+│       │   │   ├── __init__.py (538 tokens)
+│       │   │   ├── enforcer.py (5,645 tokens)
+│       │   │   ├── fixer.py (6,101 tokens)
+│       │   │   ├── orphan_detector.py (4,923 tokens)
+│       │   │   ├── reporter.py (3,582 tokens)
+│       │   │   ├── rules.py (4,040 tokens)
+│       │   │   ├── security_scanner.py (5,141 tokens)
+│       │   │   ├── smells_detectors.py (5,398 tokens)
+│       │   │   ├── smells_helpers.py (1,597 tokens)
+│       │   │   ├── smells.py (808 tokens)
+│       │   │   ├── tools.py (9,543 tokens)
+│       │   │   └── validator.py (1,276 tokens)
+│       │   ├── refactoring/ (15,170 tokens)
+│       │   │   ├── __init__.py (116 tokens)
+│       │   │   ├── analyzer.py (4,651 tokens)
+│       │   │   ├── extractor.py (3,345 tokens)
+│       │   │   ├── rename_coordinator.py (1,919 tokens)
+│       │   │   ├── renamer.py (3,611 tokens)
+│       │   │   └── tools.py (1,528 tokens)
+│       │   ├── rewrite/ (8,357 tokens)
+│       │   │   ├── __init__.py (220 tokens)
+│       │   │   ├── backup.py (2,361 tokens)
+│       │   │   ├── service.py (4,971 tokens)
+│       │   │   └── tools.py (805 tokens)
+│       │   ├── schema/ (17,898 tokens)
+│       │   │   ├── __init__.py (82 tokens)
+│       │   │   ├── client.py (5,357 tokens)
+│       │   │   ├── enhancement_rules.py (2,178 tokens)
+│       │   │   ├── enhancement_service.py (6,669 tokens)
+│       │   │   └── tools.py (3,612 tokens)
+│       │   └── search/ (32,249 tokens)
+│       │       ├── __init__.py (115 tokens)
+│       │       ├── docs.py (13,276 tokens)
+│       │       ├── service.py (15,657 tokens)
+│       │       └── tools.py (3,201 tokens)
+│       ├── models/ (19,388 tokens)
+│       │   ├── __init__.py (463 tokens)
+│       │   ├── base.py (35 tokens)
+│       │   ├── complexity.py (308 tokens)
+│       │   ├── condense.py (200 tokens)
+│       │   ├── config.py (459 tokens)
+│       │   ├── cross_language.py (2,521 tokens)
+│       │   ├── deduplication.py (3,771 tokens)
+│       │   ├── documentation.py (2,635 tokens)
+│       │   ├── orphan.py (1,910 tokens)
+│       │   ├── pattern_debug.py (1,284 tokens)
+│       │   ├── pattern_develop.py (1,014 tokens)
+│       │   ├── refactoring.py (1,521 tokens)
+│       │   ├── schema_enhancement.py (926 tokens)
+│       │   └── standards.py (2,341 tokens)
+│       ├── server/ (764 tokens)
+│       │   ├── __init__.py (39 tokens)
+│       │   ├── registry.py (521 tokens)
+│       │   └── runner.py (204 tokens)
+│       └── utils/ (16,533 tokens)
+│           ├── __init__.py (553 tokens)
+│           ├── backup.py (758 tokens)
+│           ├── console_logger.py (1,429 tokens)
+│           ├── formatters.py (6,477 tokens)
+│           ├── parsing.py (190 tokens)
+│           ├── slicing.py (99 tokens)
+│           ├── syntax_validation.py (1,232 tokens)
+│           ├── templates.py (3,984 tokens)
+│           ├── text.py (1,100 tokens)
+│           ├── tool_context.py (626 tokens)
+│           └── validation.py (85 tokens)
+└── tests/ (243,321 tokens)
+    ├── conftest.py (6,543 tokens)
+    ├── DEVELOPER_ONBOARDING.md (3,005 tokens)
+    ├── README.md (977 tokens)
+    ├── e2e/ (5,218 tokens)
+    │   ├── __init__.py (0 tokens)
+    │   ├── test_quality_pipeline_e2e.py (3,099 tokens)
+    │   └── test_search_workflow_e2e.py (2,119 tokens)
+    ├── fixtures/ (740 tokens)
+    │   ├── config_with_custom_lang.yaml (41 tokens)
+    │   ├── empty_config.yaml (6 tokens)
+    │   ├── example.py (75 tokens)
+    │   ├── invalid_config_empty.yaml (15 tokens)
+    │   ├── invalid_config_extensions.yaml (37 tokens)
+    │   ├── invalid_config_not_dict.yaml (20 tokens)
+    │   ├── invalid_config_yaml_error.yaml (22 tokens)
+    │   ├── valid_config.yaml (83 tokens)
+    │   └── schema_graphs/ (441 tokens)
+    │       ├── complete_organization.json (381 tokens)
+    │       └── simple_organization.json (60 tokens)
+    ├── integration/ (12,513 tokens)
+    │   ├── __init__.py (13 tokens)
+    │   ├── test_benchmark.py (7,284 tokens)
+    │   ├── test_integration.py (806 tokens)
+    │   ├── test_rename_symbol_integration.py (2,161 tokens)
+    │   └── test_semantic_integration.py (2,249 tokens)
+    ├── performance/ (2,273 tokens)
+    │   └── test_minhash_performance.py (2,273 tokens)
+    ├── quality/ (7,906 tokens)
+    │   ├── test_complexity_regression.py (5,442 tokens)
+    │   └── test_minhash_regression.py (2,464 tokens)
+    ├── scripts/ (17,569 tokens)
+    │   ├── benchmark_fixtures.py (2,290 tokens)
+    │   ├── detect_fixture_patterns.py (3,543 tokens)
+    │   ├── README.md (1,599 tokens)
+    │   ├── score_test_file.py (4,759 tokens)
+    │   ├── track_fixture_metrics.py (2,858 tokens)
+    │   └── validate_refactoring.py (2,520 tokens)
+    └── unit/ (186,577 tokens)
+        ├── __init__.py (13 tokens)
+        ├── conftest.py (5,091 tokens)
+        ├── test_analysis_config.py (2,182 tokens)
+        ├── test_analysis_orchestrator.py (6,992 tokens)
+        ├── test_analysis_output_helpers.py (270 tokens)
+        ├── test_applicator_backup.py (7,628 tokens)
+        ├── test_applicator_executor.py (3,979 tokens)
+        ├── test_apply_deduplication.py (4,759 tokens)
+        ├── test_batch_coverage.py (2,250 tokens)
+        ├── test_cache_ttl_config.py (133 tokens)
+        ├── test_code_smells.py (2,250 tokens)
+        ├── test_complexity.py (5,397 tokens)
+        ├── test_config_validation_helpers.py (867 tokens)
+        ├── test_conftest_fixtures.py (2,120 tokens)
+        ├── test_coverage_detector.py (7,231 tokens)
+        ├── test_deduplication_analysis.py (1,218 tokens)
+        ├── test_deduplication_detection.py (1,197 tokens)
+        ├── test_deduplication_key_names.py (1,881 tokens)
+        ├── test_develop_pattern.py (2,851 tokens)
+        ├── test_docs_and_rule_builder.py (3,948 tokens)
+        ├── test_documentation.py (7,841 tokens)
+        ├── test_duplication_detector.py (9,884 tokens)
+        ├── test_enhanced_reporting.py (4,289 tokens)
+        ├── test_extract_function.py (2,356 tokens)
+        ├── test_fix_migration_errors.py (381 tokens)
+        ├── test_fixer_list_metavars.py (309 tokens)
+        ├── test_flask_parser_helpers.py (676 tokens)
+        ├── test_hybrid_similarity.py (4,231 tokens)
+        ├── test_impact_call_site_helpers.py (821 tokens)
+        ├── test_import_helpers.py (441 tokens)
+        ├── test_logging_handle.py (499 tokens)
+        ├── test_migrate_print_to_logger.py (886 tokens)
+        ├── test_migration_common.py (236 tokens)
+        ├── test_minhash_similarity.py (8,338 tokens)
+        ├── test_normalize_helpers.py (2,008 tokens)
+        ├── test_normalize_indentation.py (342 tokens)
+        ├── test_orchestrator_optimizations.py (7,065 tokens)
+        ├── test_orphan_import_helpers.py (802 tokens)
+        ├── test_parsing_utils.py (952 tokens)
+        ├── test_pattern_debug.py (3,030 tokens)
+        ├── test_prefer_const_reassignment.py (1,425 tokens)
+        ├── test_progress_callbacks.py (2,893 tokens)
+        ├── test_ranker_caching.py (2,888 tokens)
+        ├── test_ranker.py (1,595 tokens)
+        ├── test_rename_symbol.py (4,877 tokens)
+        ├── test_reporting_helpers.py (1,050 tokens)
+        ├── test_schema_enhancement.py (5,793 tokens)
+        ├── test_schema.py (7,861 tokens)
+        ├── test_semantic_similarity.py (4,366 tokens)
+        ├── test_splice_fixed_code.py (1,917 tokens)
+        ├── test_split_params_guard.py (392 tokens)
+        ├── test_standards_enforcement.py (14,031 tokens)
+        ├── test_structural_braces.py (446 tokens)
+        ├── test_tool_context.py (989 tokens)
+        ├── test_usage_tracking.py (3,750 tokens)
+        ├── test_venv_exclusions.py (737 tokens)
+        └── features/ (13,923 tokens)
+            ├── condense/ (8,840 tokens)
+            │   ├── __init__.py (7 tokens)
+            │   ├── test_condense_tools.py (2,456 tokens)
+            │   ├── test_dictionary.py (1,160 tokens)
+            │   ├── test_estimator.py (1,267 tokens)
+            │   ├── test_normalizer.py (677 tokens)
+            │   ├── test_pack_pipeline.py (931 tokens)
+            │   ├── test_strategies.py (467 tokens)
+            │   ├── test_strip.py (828 tokens)
+            │   └── test_surface_extraction.py (1,047 tokens)
+            └── cross_language/ (5,083 tokens)
+                ├── __init__.py (8 tokens)
+                └── test_cross_language.py (5,075 tokens)
+</file>
+
 <file path="docs/KNOWN_ISSUES.md">
 # Known Issues
 
@@ -60562,294 +60268,650 @@ Previously tracked items were resolved and migrated to:
 - `changelog/2026-03-08-review-follow-ups-testing.md` — Sentry gap in `analyze_entity_graph`, `_handle_tool_error` logger duplication
 </file>
 
-<file path="src/ast_grep_mcp/core/executor.py">
-"""Command execution and ast-grep interface for ast-grep MCP server."""
+<file path="src/ast_grep_mcp/features/deduplication/generator.py">
+"""
+Code generation module for deduplication refactoring.
+
+This module provides functionality for generating refactored code,
+including function extraction, parameter inference, and import generation.
+"""
 ⋮----
-def get_supported_languages() -> List[str]
+# Language-specific configuration for function generation
+FUNCTION_GENERATORS: Dict[str, Callable[..., str]] = {}
 ⋮----
-"""Get all supported languages as a field description string."""
-languages = [  # https://ast-grep.github.io/reference/languages.html
+# Language-specific configuration for type inference
+TYPE_INFERENCE_CONFIG: Dict[str, Dict[str, Dict[str, Union[str, bool]]]] = {
 ⋮----
-# Check for custom languages in config file
-# https://ast-grep.github.io/advanced/custom-language.html#register-language-in-sgconfig-yml
+# Identifier naming patterns for type inference
+IDENTIFIER_TYPE_PATTERNS: Dict[str, List[Tuple[str, str]]] = {
 ⋮----
-config = yaml.safe_load(f)
+def _infer_from_identifier_name(identifier: str, language: str) -> str
 ⋮----
-custom_langs = list(config["customLanguages"].keys())
-⋮----
-def run_command(args: List[str], input_text: Optional[str] = None, *, allow_nonzero: bool = False) -> subprocess.CompletedProcess[str]
-⋮----
-"""Execute a command with proper error handling.
+"""Infer type from identifier naming conventions.
+
+    Analyzes the identifier name to guess its type based on common
+    naming patterns (e.g., 'user_id' suggests int, 'is_valid' suggests bool).
 
     Args:
-        args: Command arguments list
-        input_text: Optional stdin input
-        allow_nonzero: If True, don't raise on non-zero exit codes
+        identifier: The identifier name to analyze
+        language: Programming language for type syntax
 
     Returns:
-        CompletedProcess instance
-
-    Raises:
-        AstGrepNotFoundError: If command binary not found
-        AstGrepExecutionError: If command execution fails (unless allow_nonzero)
+        Inferred type string for the language
     """
-logger = get_logger("subprocess")
-sanitized_args = args.copy()
-has_stdin = input_text is not None
+identifier_lower = identifier.lower()
 ⋮----
-use_shell = sys.platform == "win32" and args[0] == ExecutorDefaults.AST_GREP_COMMAND
+# Get language-specific patterns, fall back to python
+patterns = IDENTIFIER_TYPE_PATTERNS.get(language, IDENTIFIER_TYPE_PATTERNS.get("python", []))
 ⋮----
-result = subprocess.run(
+# Check each pattern
 ⋮----
-execution_time = time.time() - start_time
+# Fall back to default type for the language
+config = TYPE_INFERENCE_CONFIG.get(language, TYPE_INFERENCE_CONFIG.get("python", {}))
 ⋮----
-stderr_msg = e.stderr.strip() if e.stderr else ""
+# Null/undefined type mappings by language
+NULL_TYPE_MAP: Dict[str, Dict[str, str]] = {
 ⋮----
-def _get_language_extensions(language: str) -> Optional[List[str]]
+# Collection type mappings by language
+COLLECTION_TYPE_MAP: Dict[str, Dict[str, str]] = {
 ⋮----
-"""Get file extensions for a language.
+def _is_boolean_literal(value: str) -> bool
+⋮----
+"""Check if value is a boolean literal."""
+⋮----
+def _is_null_literal(value: str) -> bool
+⋮----
+"""Check if value is a null/None/undefined literal."""
+⋮----
+def _is_quoted_string(value: str) -> bool
+⋮----
+"""Check if value is a quoted string literal."""
+⋮----
+def _is_integer_literal(value: str) -> bool
+⋮----
+"""Check if value is an integer literal."""
+⋮----
+def _try_get_float_type(value: str, literal_types: Dict[str, Any]) -> Optional[str]
+⋮----
+"""Try to parse value as float and return appropriate type."""
+⋮----
+def _get_collection_type(value: str, language: str) -> Optional[str]
+⋮----
+"""Get collection type for list/dict literals."""
+lang_types = COLLECTION_TYPE_MAP.get(language, COLLECTION_TYPE_MAP["python"])
+⋮----
+def _infer_single_value_type(value: str, language: str) -> str
+⋮----
+"""Infer type from a single literal value.
+
+    Analyzes the value to determine its type based on its format
+    (e.g., '123' is int, '"hello"' is string, 'True' is bool).
 
     Args:
-        language: Programming language name
+        value: The literal value as a string
+        language: Programming language for type syntax
 
     Returns:
-        List of extensions or None if language not found
+        Inferred type string for the language
     """
-lang_map = {
+value_stripped = value.strip()
 ⋮----
-def _should_skip_directory(dirname: str) -> bool
+literal_types = config.get("literal", {})
 ⋮----
-"""Check if directory should be skipped.
+null_map = NULL_TYPE_MAP.get(language, NULL_TYPE_MAP.get("python", {}))
+⋮----
+float_type = _try_get_float_type(value_stripped, literal_types)
+⋮----
+collection_type = _get_collection_type(value_stripped, language)
+⋮----
+class CodeGenerator
+⋮----
+"""Generates refactored code for deduplication."""
+⋮----
+def __init__(self, language: str = "python") -> None
+⋮----
+"""Initialize the code generator.
+
+        Args:
+            language: Programming language for code generation
+        """
+⋮----
+"""Generate Python function using template system."""
+param_tuples = [(p["name"], p.get("type")) for p in parameters]
+template = FunctionTemplate(name=function_name, parameters=param_tuples, body=body, return_type=return_type, docstring=docstring)
+⋮----
+"""Generate JavaScript/TypeScript function."""
+param_list = self._format_js_parameters(parameters)
+type_annotation = f": {return_type}" if return_type and self.language == "typescript" else ""
+⋮----
+function_code = f"function {function_name}({param_list}){type_annotation} {{\n"
+⋮----
+indented_body = "\n".join(f"    {line}" for line in body.split("\n"))
+⋮----
+"""Generate Java method."""
+param_list = ", ".join(f"{p.get('type', 'Object')} {p['name']}" for p in parameters)
+return_annotation = return_type if return_type else "void"
+⋮----
+function_code = f"public {return_annotation} {function_name}({param_list}) {{\n"
+⋮----
+def _generate_generic_function(self, function_name: str, parameters: List[Dict[str, str]], body: str, **kwargs: Any) -> str
+⋮----
+"""Generate generic function format."""
+param_list = ", ".join(p["name"] for p in parameters)
+⋮----
+"""
+        Generate an extracted function from duplicated code.
+
+        Args:
+            function_name: Name of the extracted function
+            parameters: List of parameter dicts with 'name' and optionally 'type'
+            body: Function body code
+            return_type: Optional return type annotation
+            docstring: Optional function documentation
+
+        Returns:
+            Generated function code
+        """
+⋮----
+# Language-specific generators map
+generators = {
+⋮----
+# Get the appropriate generator or use generic
+generator = generators.get(self.language, self._generate_generic_function)
+function_code = generator(function_name, parameters, body, return_type=return_type, docstring=docstring)
+⋮----
+# Format the generated code
+⋮----
+def _format_generated_code(self, function_code: str, function_name: str) -> str
+⋮----
+"""Format generated code with error handling."""
+⋮----
+formatted_code = format_generated_code(function_code, self.language)
+⋮----
+def generate_function_call(self, function_name: str, arguments: List[str], assign_to: Optional[str] = None) -> str
+⋮----
+"""
+        Generate a function call to replace duplicated code.
+
+        Args:
+            function_name: Name of the function to call
+            arguments: List of argument values
+            assign_to: Optional variable to assign result to
+
+        Returns:
+            Generated function call code
+        """
+call = f"{function_name}({', '.join(arguments)})"
+⋮----
+assign_formats = {
+⋮----
+def _generate_python_import(self, module_path: str, import_names: List[str], is_relative: bool) -> str
+⋮----
+"""Generate Python import statement."""
+names = ", ".join(import_names)
+⋮----
+prefix = "." if module_path else ""
+⋮----
+def _generate_js_import(self, module_path: str, import_names: List[str], is_relative: bool) -> str
+⋮----
+"""Generate JavaScript/TypeScript import statement."""
+names = "{" + ", ".join(import_names) + "}"
+extension = ".js" if self.language == "javascript" else ""
+path = f"./{module_path}" if is_relative else module_path
+⋮----
+def generate_import_statement(self, module_path: str, import_names: List[str], is_relative: bool = False) -> str
+⋮----
+"""
+        Generate an import statement for the extracted function.
+
+        Args:
+            module_path: Module or file path to import from
+            import_names: Names to import
+            is_relative: Whether to use relative import
+
+        Returns:
+            Generated import statement
+        """
+⋮----
+def _collect_variation_params(self, code_variations: List[Dict[str, Any]], seen_names: set[str]) -> List[Dict[str, str]]
+⋮----
+"""Collect parameters from code variations, deduplicating by name."""
+params: List[Dict[str, str]] = []
+⋮----
+param_name = variation.get("suggested_param_name")
+⋮----
+def _collect_external_params(self, base_code: str, seen_names: set[str]) -> List[Dict[str, str]]
+⋮----
+"""Collect parameters from external dependencies not already seen."""
+⋮----
+def infer_function_parameters(self, code_variations: List[Dict[str, Any]], base_code: str) -> List[Dict[str, str]]
+⋮----
+"""
+        Infer function parameters from code variations.
+
+        Args:
+            code_variations: List of code variations
+            base_code: Base code to analyze
+
+        Returns:
+            List of inferred parameters
+        """
+seen_names: set[str] = set()
+parameters = self._collect_variation_params(code_variations, seen_names)
+⋮----
+def _format_python_parameters(self, parameters: List[Dict[str, str]]) -> str
+⋮----
+"""Format parameters for Python function signature."""
+formatted = []
+⋮----
+def _format_ts_param(self, param: Dict[str, str]) -> str
+⋮----
+"""Format a single TypeScript parameter with optional type annotation."""
+⋮----
+def _format_js_parameters(self, parameters: List[Dict[str, str]]) -> str
+⋮----
+"""Format parameters for JavaScript/TypeScript function signature."""
+⋮----
+def _get_python_number_type(self, value: str, lang_config: Dict[str, Any]) -> Optional[str]
+⋮----
+"""Get Python-specific number type (int vs float)."""
+⋮----
+def _get_literal_type(self, literal_type: str, value: str, lang_config: Dict[str, Any]) -> Optional[str]
+⋮----
+"""Get type mapping for literal values."""
+⋮----
+def _infer_literal_type(self, variation: Dict[str, Any], value: str, category_config: Dict[str, Any]) -> Optional[str]
+⋮----
+"""Infer type for a literal variation."""
+literal_type = variation.get("literal_type", "")
+⋮----
+def _infer_type_category(self, value: str, category_config: Dict[str, Any]) -> Optional[str]
+⋮----
+"""Infer type for a 'type' category variation."""
+⋮----
+def _infer_parameter_type(self, variation: Dict[str, Any]) -> Optional[str]
+⋮----
+"""Infer parameter type from variation."""
+category = variation.get("category", "")
+value = variation.get("old_value", "")
+⋮----
+lang_config = TYPE_INFERENCE_CONFIG.get(self.language, {})
+⋮----
+category_config = lang_config.get(category, {})
+⋮----
+def _find_external_dependencies(self, code: str) -> List[str]
+⋮----
+"""Find external dependencies that should be parameters."""
+dependencies: List[str] = []
+⋮----
+# Simple heuristic: find identifiers that look like they come from outside
+# This is language-specific and simplified
+⋮----
+# Look for common patterns like self.x, module.function, etc.
+patterns = [
+⋮----
+r"\bself\.(\w+)",  # Class attributes
+r"(?<!\.)(\w+)\(",  # Function calls (not methods)
+⋮----
+matches = re.findall(pattern, code)
+⋮----
+return list(set(dependencies))[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]  # Limit to top dependencies
+⋮----
+def _module_docstring_lines(self, module_name: str) -> List[str]
+⋮----
+"""Generate language-specific module docstring lines."""
+desc = f"{module_name} - Extracted common functionality"
+⋮----
+def generate_module_structure(self, module_name: str, functions: List[Dict[str, str]], imports: Optional[List[str]] = None) -> str
+⋮----
+"""
+        Generate a complete module with extracted functions.
+
+        Args:
+            module_name: Name of the module
+            functions: List of function definitions
+            imports: Optional list of import statements
+
+        Returns:
+            Complete module code
+        """
+module_code: List[str] = self._module_docstring_lines(module_name)
+⋮----
+export_names = [f.get("name", "") for f in functions]
+⋮----
+def _validate_python_code(self, code: str) -> Tuple[bool, Optional[str]]
+⋮----
+"""Validate Python code syntax."""
+⋮----
+def _validate_js_ts_code(self, code: str) -> Tuple[bool, Optional[str]]
+⋮----
+"""Validate JavaScript/TypeScript code via bracket matching."""
+⋮----
+def validate_generated_code(self, code: str) -> Tuple[bool, Optional[str]]
+⋮----
+"""
+        Validate generated code for syntax errors.
+
+        Args:
+            code: Generated code to validate
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+⋮----
+def _reindent_body(self, body: str) -> List[str]
+⋮----
+"""Re-indent body lines to 4-space base indent, preserving relative indentation."""
+body_lines = body.split("\n")
+base_indent = len(body_lines[0]) - len(body_lines[0].lstrip()) if body_lines else 0
+result = []
+⋮----
+stripped = line.lstrip()
+⋮----
+original_indent = len(line) - len(stripped)
+relative_indent = original_indent - base_indent
+indent = "    " + " " * max(0, relative_indent)
+⋮----
+"""
+        Render a Python function from components.
+
+        Args:
+            name: Function name
+            params: Formatted parameter string
+            body: Function body code
+            return_type: Optional return type annotation
+            docstring: Optional function docstring
+            decorators: Optional list of decorator strings
+
+        Returns:
+            Complete Python function code
+        """
+lines: List[str] = []
+⋮----
+return_annotation = f" -> {return_type}" if return_type else ""
+⋮----
+def _process_conditional(self, match: re.Match[str], variables: Dict[str, str]) -> str
+⋮----
+"""Process conditional template blocks."""
+condition_type = match.group(RegexCaptureGroups.FIRST)  # 'if' or 'unless'
+var_name = match.group(RegexCaptureGroups.SECOND)
+content = match.group(RegexCaptureGroups.THIRD)
+⋮----
+var_value = variables.get(var_name, "")
+is_truthy = var_value and var_value.lower() not in ("false", "0", "")
+⋮----
+return "" if is_truthy else content  # unless
+⋮----
+def _process_each_loop(self, match: re.Match[str], variables: Dict[str, str], strict: bool) -> str
+⋮----
+"""Process each loop template blocks."""
+var_name = match.group(RegexCaptureGroups.FIRST)
+loop_content = match.group(RegexCaptureGroups.SECOND)
+⋮----
+items = variables[var_name].split(",") if variables[var_name] else []
+result = "".join(loop_content.replace("{{.}}", item.strip()) for item in items)
+⋮----
+# Remove trailing space if the loop content ends with a space
+⋮----
+result = result.rstrip()
+⋮----
+def _substitute_simple_variable(self, match: re.Match[str], variables: Dict[str, str], strict: bool) -> str
+⋮----
+"""Substitute simple template variable."""
+⋮----
+def substitute_template_variables(self, template: str, variables: Dict[str, str], strict: bool = False) -> str
+⋮----
+"""
+        Substitute template variables in a string template.
+
+        Supports:
+        - Simple variables: {{name}}
+        - Conditionals: {{#if var}}...{{/if}}, {{#unless var}}...{{/unless}}
+        - Loops: {{#each items}}{{.}}{{/each}}
+
+        Args:
+            template: Template string with {{variable}} placeholders
+            variables: Dictionary of variable values
+            strict: If True, raise error on missing variables
+
+        Returns:
+            Template with variables substituted
+
+        Raises:
+            ValueError: If strict=True and required variable is missing
+        """
+result = template
+⋮----
+# Process conditionals (if/unless)
+result = re.sub(
+⋮----
+# Process loops {{#each items}}{{.}}{{/each}}
+⋮----
+# Process simple variables {{var}}
+result = re.sub(r"\{\{(\w+)\}\}", lambda m: self._substitute_simple_variable(m, variables, strict), result)
+⋮----
+def preserve_call_site_indentation(self, original_code: str, replacement: str) -> str
+⋮----
+"""
+        Preserve the indentation from the original code when replacing it.
+
+        Args:
+            original_code: Original code with indentation
+            replacement: Replacement code to indent
+
+        Returns:
+            Replacement code with original indentation preserved
+        """
+⋮----
+# Extract indentation from original
+indent = ""
+⋮----
+# Apply indentation to replacement
+⋮----
+def detect_import_insertion_point(self, content: str, language: str) -> int
+⋮----
+"""
+        Detect where to insert import statements in a file.
+
+        Args:
+            content: File content
+            language: Programming language
+
+        Returns:
+            Line number (1-indexed) where imports should be inserted
+        """
+lines = content.split("\n")
+⋮----
+# Generic: after first line
+⋮----
+def _detect_python_import_point(self, lines: List[str]) -> int
+⋮----
+"""Find import insertion point for Python files."""
+# Handle empty file
+⋮----
+# Skip module docstring (if present)
+position = self._skip_python_module_docstring(lines, start=0)
+⋮----
+# Skip top-level comments
+position = self._skip_python_comments(lines, start=position)
+⋮----
+# Find end of existing imports
+last_import_line = self._find_last_import_line(lines, start=position)
+⋮----
+def _process_docstring_scan_line(self, line: str, i: int, docstring_quotes: Optional[str]) -> Tuple[Optional[int], Optional[str]]
+⋮----
+"""Process one line of docstring scanning. Returns (result_pos_or_None, updated_docstring_quotes)."""
+quotes = detect_triple_quote(line)
+⋮----
+def _skip_python_module_docstring(self, lines: List[str], start: int) -> int
+⋮----
+"""Skip module-level docstring and return position after it."""
+docstring_quotes: Optional[str] = None
+⋮----
+line = raw_line.strip()
+⋮----
+def _skip_python_comments(self, lines: List[str], start: int) -> int
+⋮----
+"""Skip comment lines and return position after comments.
+
+        Args:
+            lines: List of file lines
+            start: Starting position
+
+        Returns:
+            Position after comments
+        """
+position = start
+⋮----
+def _find_last_import_line(self, lines: List[str], start: int) -> int
+⋮----
+"""Find the last import statement line.
+
+        Args:
+            lines: List of file lines
+            start: Starting position
+
+        Returns:
+            Position of last import (or start if no imports found)
+        """
+⋮----
+last_import = start
+⋮----
+line = lines[position].strip()
+⋮----
+# Track import statements
+⋮----
+last_import = position + 1
+# Stop at first non-import, non-comment, non-empty line
+⋮----
+def _is_import_line(self, line: str) -> bool
+⋮----
+"""Check if line is an import statement.
+
+        Args:
+            line: Stripped line to check
+
+        Returns:
+            True if line is an import statement
+        """
+⋮----
+_USE_STRICT_DIRECTIVES = ('"use strict";', "'use strict';")
+⋮----
+def _skip_use_strict(self, lines: List[str], start: int) -> int
+⋮----
+"""Skip 'use strict' directive and following blank line. Returns new position."""
+i = start
+⋮----
+line = lines[i].strip()
+⋮----
+def _is_js_import_line(self, line: str) -> bool
+⋮----
+"""Check if line is a JS/TS import or require statement."""
+⋮----
+def _detect_js_import_point(self, lines: List[str]) -> int
+⋮----
+"""Find import insertion point for JavaScript/TypeScript files."""
+i = self._skip_use_strict(lines, 0)
+⋮----
+last_import = i
+⋮----
+last_import = i + 1
+⋮----
+def _skip_java_package(self, lines: List[str], start: int) -> int
+⋮----
+"""Skip Java package declaration and blank lines after it. Returns new position."""
+⋮----
+def _detect_java_import_point(self, lines: List[str]) -> int
+⋮----
+"""Find import insertion point for Java files."""
+i = self._skip_java_package(lines, 0)
+⋮----
+_PARAM_PREFIXES_TO_STRIP = ["get_", "set_", "is_", "has_", "_"]
+⋮----
+def _strip_param_prefix(name: str) -> str
+⋮----
+"""Strip common prefixes from an identifier to form a base parameter name."""
+⋮----
+def _build_param_candidates(base_name: str) -> List[str]
+⋮----
+"""Build ordered list of candidate parameter names from a base name."""
+candidates = [base_name, f"{base_name}_value", f"{base_name}_param", f"new_{base_name}"]
+⋮----
+def generate_parameter_name(identifier: str, all_identifiers: List[str]) -> str
+⋮----
+"""
+    Generate a unique parameter name based on an identifier.
+
+    Creates a meaningful parameter name from an identifier, ensuring
+    it doesn't conflict with existing identifiers.
 
     Args:
-        dirname: Directory name
+        identifier: The original identifier to base the parameter name on
+        all_identifiers: List of existing identifiers to avoid conflicts
 
     Returns:
-        True if should skip, False otherwise
+        A unique parameter name
     """
+base_name = _strip_param_prefix(identifier.lower().strip()) or "param"
+existing_lower = {ident.lower() for ident in all_identifiers}
 ⋮----
-"""Process a single file for size filtering.
+def _find_type_annotation(identifier: str, context: str, language: str) -> Optional[str]
+⋮----
+"""Find explicit type annotation for identifier in context."""
+⋮----
+pattern = rf"{re.escape(identifier)}\s*:\s*([A-Za-z_][A-Za-z0-9_\[\],\s]*)"
+⋮----
+pattern = rf"{re.escape(identifier)}\s*:\s*([A-Za-z_][A-Za-z0-9_<>\[\],\s]*)"
+⋮----
+match = re.search(pattern, context)
+⋮----
+def _get_usage_patterns(identifier: str) -> List[Tuple[str, str, str]]
+⋮----
+"""Get usage patterns for type inference."""
+esc_id = re.escape(identifier)
+⋮----
+def _infer_from_usage_patterns(identifier: str, context: str, language: str) -> Optional[str]
+⋮----
+"""Infer type from common usage patterns in context."""
+⋮----
+def _infer_from_operations(identifier: str, context: str, language: str) -> Optional[str]
+⋮----
+"""Infer type from arithmetic/string operations."""
+⋮----
+# Check for numeric comparisons
+⋮----
+# Check for string concatenation
+⋮----
+def infer_parameter_type(identifier: str, context: str, language: str = "python") -> str
+⋮----
+"""
+    Infer the type of a parameter from its identifier and usage context.
+
+    Combines identifier name analysis with contextual clues to determine
+    the most likely type for a parameter.
 
     Args:
-        file: File name
-        root: Root directory path
-        lang_extensions: Language-specific extensions
-        max_size_bytes: Maximum size in bytes
-        logger: Logger instance
+        identifier: The identifier/parameter name
+        context: Surrounding code context where the identifier is used
+        language: Programming language (default: python)
 
     Returns:
-        Tuple of (file_to_search, skipped_file) - only one will be non-None
-    """
-# Skip hidden files
-⋮----
-# Check language filter
-⋮----
-file_path = os.path.join(root, file)
-⋮----
-file_size = os.path.getsize(file_path)
-⋮----
-def filter_files_by_size(directory: str, max_size_mb: Optional[int] = None, language: Optional[str] = None) -> Tuple[List[str], List[str]]
-⋮----
-"""Filter files in directory by size.
-
-    Args:
-        directory: Directory to search
-        max_size_mb: Maximum file size in megabytes. Must be > 0 to apply filtering.
-            Pass None or <= 0 only when the caller will handle the unlimited case itself
-            (returns ([], []) so callers can detect the no-op and fall back to their
-            own file-discovery logic).
-        language: Optional language filter for file extensions
-
-    Returns:
-        Tuple of (files_to_search, skipped_files)
-        - files_to_search: List of file paths under size limit
-        - skipped_files: List of file paths that exceeded the limit
-        When max_size_mb is None or <= 0 returns ([], []) as a no-op signal.
-    """
-logger = get_logger("file_filter")
-⋮----
-max_size_bytes = max_size_mb * FileConstants.BYTES_PER_MB
-files_to_search: List[str] = []
-skipped_files: List[str] = []
-⋮----
-# Get language extensions if specified
-lang_extensions = _get_language_extensions(language) if language else None
-⋮----
-# Walk directory and check file sizes
-⋮----
-# Filter directories in-place
-⋮----
-def run_ast_grep(command: str, args: List[str], input_text: Optional[str] = None) -> subprocess.CompletedProcess[str]
-⋮----
-"""Execute ast-grep command with optional config.
-
-    Args:
-        command: ast-grep subcommand (run, scan, etc.)
-        args: Command arguments
-        input_text: Optional stdin input
-
-    Returns:
-        CompletedProcess instance
+        Inferred type string appropriate for the language
     """
 ⋮----
-args = ["--config", CONFIG_PATH] + args
-# --debug-query outputs to stderr and returns exit code 1 even on success
-allow_nonzero = any(arg.startswith("--debug-query") for arg in args)
+default_type = str(config.get("identifier", {}).get("default", "Any"))
 ⋮----
-def _prepare_stream_command(command: str, args: List[str]) -> List[str]
+# Try to infer from identifier name first
+type_from_name = _infer_from_identifier_name(identifier, language)
 ⋮----
-"""Prepare the full ast-grep command with optional config.
-
-    Args:
-        command: ast-grep subcommand
-        args: Command arguments
-
-    Returns:
-        Full command list
-    """
-final_args = args.copy()
+# Try explicit type annotation
+annotation = _find_type_annotation(identifier, context, language)
 ⋮----
-final_args = ["--config", CONFIG_PATH] + final_args
+# Try usage patterns
+usage_type = _infer_from_usage_patterns(identifier, context, language)
 ⋮----
-def _create_stream_process(full_command: List[str]) -> subprocess.Popen[str]
-⋮----
-"""Create and start the subprocess for streaming.
-
-    Args:
-        full_command: Complete command list
-
-    Returns:
-        Started Popen process
-
-    Raises:
-        FileNotFoundError: If command not found
-    """
-use_shell = sys.platform == "win32" and full_command[0] == ExecutorDefaults.AST_GREP_COMMAND
-⋮----
-def _parse_json_line(line: str, logger: Any) -> Optional[Dict[str, Any]]
-⋮----
-"""Parse a line of JSON output.
-
-    Args:
-        line: Line to parse
-        logger: Logger instance
-
-    Returns:
-        Parsed JSON dict or None if invalid
-    """
-line = line.strip()
-⋮----
-def _should_log_progress(match_count: int, last_progress_log: int, progress_interval: int) -> bool
-⋮----
-"""Check if progress should be logged.
-
-    Args:
-        match_count: Current match count
-        last_progress_log: Last logged count
-        progress_interval: Interval for logging
-
-    Returns:
-        True if should log progress
-    """
-⋮----
-def _terminate_process(process: subprocess.Popen[str], logger: Any, reason: str) -> None
-⋮----
-"""Terminate a process gracefully, then forcefully if needed.
-
-    Args:
-        process: Process to terminate
-        logger: Logger instance
-        reason: Reason for termination
-    """
-⋮----
-"""Handle non-zero return codes from the process.
-
-    Args:
-        returncode: Process return code
-        stderr_output: Captured stderr text
-        full_command: Command that was run
-        start_time: Start time for execution
-        match_count: Number of matches found
-        logger: Logger instance
-
-    Raises:
-        AstGrepExecutionError: If process failed
-    """
-# SIGTERM from early termination is not an error
-⋮----
-error = AstGrepExecutionError(command=full_command, returncode=returncode, stderr=stderr_output)
-⋮----
-def _cleanup_process(process: Optional[subprocess.Popen[str]]) -> None
-⋮----
-"""Ensure subprocess is properly cleaned up.
-
-    Args:
-        process: Process to cleanup (may be None)
-    """
-⋮----
-def _drain_stderr_to_list(process: subprocess.Popen[str], output: List[str]) -> None
-⋮----
-"""Read stderr in background to prevent pipe buffer deadlock."""
-⋮----
-"""Iterate over stdout lines, yielding parsed matches.
-
-    Returns:
-        Total match count (accessible via ``yield from``).
-    """
-match_count = 0
-last_progress_log = 0
-⋮----
-match = _parse_json_line(line, logger)
-⋮----
-last_progress_log = match_count
-⋮----
-def _log_stream_completion(match_count: int, start_time: float, max_results: int, logger: Any) -> None
-⋮----
-"""Log final stream metrics."""
-⋮----
-def _raise_not_found_error(full_command: List[str], cause: Exception) -> None
-⋮----
-"""Raise an AstGrepNotFoundError with Sentry capture."""
-⋮----
-error = AstGrepNotFoundError()
-⋮----
-error = AstGrepNotFoundError(f"Command '{full_command[0]}' not found")
-⋮----
-"""Stream ast-grep JSON results line-by-line with early termination support.
-
-    This function uses subprocess.Popen to read ast-grep output incrementally,
-    parsing each JSON object as it arrives. This approach:
-    - Reduces memory usage for large result sets
-    - Enables early termination when max_results is reached
-    - Provides progress logging during long searches
-
-    Args:
-        command: ast-grep subcommand (run, scan, etc.)
-        args: Command arguments (must include --json=stream flag)
-        max_results: Maximum results to yield (0 = unlimited)
-        progress_interval: Log progress every N matches
-
-    Yields:
-        Individual match dictionaries from ast-grep JSON output
-
-    Raises:
-        AstGrepNotFoundError: If ast-grep binary not found
-        AstGrepExecutionError: If ast-grep execution fails
-    """
-logger = get_logger("stream_results")
-start_time = time.time()
-full_command = _prepare_stream_command(command, args)
-⋮----
-process = None
-stderr_chunks: List[str] = []
-⋮----
-process = _create_stream_process(full_command)
-⋮----
-stderr_thread = threading.Thread(target=_drain_stderr_to_list, args=(process, stderr_chunks), daemon=True)
-⋮----
-match_count = yield from _iter_stdout_matches(process, max_results, progress_interval, start_time, logger)
-⋮----
-returncode = process.wait()
+# Try operations
+op_type = _infer_from_operations(identifier, context, language)
 </file>
 
 <file path="src/ast_grep_mcp/features/documentation/changelog_generator.py">
@@ -66168,7 +66230,7 @@ def get_cache_stats(self) -> Dict[str, int]
 
 Thresholds: cyc >10, cog >15, nest >4, len >50.
 
-Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08) → **80** (2026-03-08 shared-util) → **25** (2026-03-08 helper-adoption) → **19** (2026-03-08 condense-decompose).
+Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08) → **80** (2026-03-08 shared-util) → **25** (2026-03-08 helper-adoption) → **19** (2026-03-08 condense-decompose) → **18** (2026-03-08 dead-code-removal) → **17** (2026-03-08 docstring-extent-decompose).
 
 ### Recently Resolved
 
@@ -66182,17 +66244,17 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 - **`core/executor.py:run_command`** (`0a679bb`) — wrapped with `tool_context()`, eliminated ~35 lines of manual timing + Sentry boilerplate. Still exceeds thresholds (cog=17, nest=5, len=56) — listed in remaining offenders table below.
 - **`schema/enhancement_service.py`** (`0a679bb`) — replaced hardcoded 16-entry `_EXCLUDED_DIRS` with derivation from `FilePatterns.DEFAULT_EXCLUDE`.
 - **`refactoring/extractor.py`** (`0a679bb`) — `_generate_docstring` (was cog=31), `_generate_function_body` (was cog=25), `_generate_signature` (was cog=13), `_apply_extraction` (was cog=11) all dropped below thresholds via further decomposition.
+- **`complexity/analyzer.py:_find_magic_numbers`** (uncommitted) — deleted dead code (was cyc=13, cog=25, nest=5, len=61). Function was never called; active implementation lives in `quality/smells_detectors.py:MagicNumberDetector._find_magic_numbers` (already well-decomposed). Removed unused `SemanticVolumeDefaults` import.
+- **`complexity/analyzer.py:_find_docstring_extent`** (uncommitted) — decomposed into `_measure_docstring` + shared `utils/parsing.py` primitives (`detect_triple_quote`, `skip_blank_lines`). cyc 11→4, cog 21→3. All helpers below thresholds. DRY: `deduplication/generator.py` `_get_triple_quotes` and `_skip_blank_lines` now delegate to same shared utils.
 
 ### Remaining Offenders (live scan at `5fdd930` + uncommitted)
 
-19 functions exceed at least one threshold. Sorted by cognitive complexity.
+17 functions exceed at least one threshold. Sorted by cognitive complexity.
 
 | File | Function | Cyc | Cog | Nest | Len | Exceeds |
 |------|----------|-----|-----|------|-----|---------|
 | `deduplication/diff.py` | `build_nested_diff_tree` | 20 | 25 | 6 | 96 | cyc,cog,nest,len |
 | `refactoring/analyzer.py` | `_find_python_base_variables` | 10 | 25 | 4 | 44 | cog |
-| `complexity/analyzer.py` | `_find_magic_numbers` | 13 | 25 | 5 | 61 | cyc,cog,nest,len |
-| `complexity/analyzer.py` | `_find_docstring_extent` | 11 | 21 | 4 | 28 | cyc,cog |
 | `core/executor.py` | `filter_files_by_size` | 19 | 18 | 4 | 52 | cyc,cog,len |
 | `refactoring/extractor.py` | `_scan_imports` | 10 | 18 | 5 | 29 | cog,nest |
 | `complexity/analyzer.py` | `_count_function_parameters` | 18 | 18 | 3 | 49 | cyc,cog |
@@ -66209,7 +66271,7 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 | `core/executor.py` | `stream_ast_grep_results` | 4 | 2 | 2 | 52 | len |
 | `refactoring/analyzer.py` | `analyze_selection` | 6 | 0 | 3 | 63 | len |
 
-**By file:** `complexity/analyzer.py` (5), `deduplication/diff.py` (4), `refactoring/analyzer.py` (4), `core/executor.py` (4), `refactoring/extractor.py` (2)
+**By file:** `complexity/analyzer.py` (3), `deduplication/diff.py` (4), `refactoring/analyzer.py` (4), `core/executor.py` (4), `refactoring/extractor.py` (2)
 
 Refresh: `uv run python scripts/scan_complexity_offenders.py`
 
