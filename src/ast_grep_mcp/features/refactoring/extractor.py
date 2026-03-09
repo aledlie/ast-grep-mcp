@@ -351,7 +351,7 @@ class FunctionExtractor:
         """
         if self._should_skip_line(stripped):
             return last_import_line, in_multiline, False
-        if self._is_import_start(stripped):
+        if not in_multiline and self._is_import_start(stripped):
             return i, self._check_multiline_import(stripped), False
         if in_multiline:
             return i, ")" not in stripped, False
