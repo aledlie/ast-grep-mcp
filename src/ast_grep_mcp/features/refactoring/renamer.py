@@ -14,6 +14,7 @@ from typing import Callable, Dict, List, Optional
 
 from ast_grep_mcp.core.logging import get_logger
 
+from ...constants import CondenseParsing
 from ...core.executor import run_ast_grep
 from ...models.refactoring import (
     ScopeInfo,
@@ -488,11 +489,11 @@ class SymbolRenamer:
             line = lines[i]
 
             for char in line:
-                if char == "{":
-                    brace_count += 1
-                    started = True
-                elif char == "}":
-                    brace_count -= 1
+                delta = CondenseParsing.BRACE_DELTA.get(char, 0)
+                if delta:
+                    brace_count += delta
+                    if delta > 0:
+                        started = True
 
                 if started and brace_count == 0:
                     return i + 1
