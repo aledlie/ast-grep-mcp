@@ -419,39 +419,16 @@ class CodeSelectionAnalyzer:
         defined_before: bool,
         used_after: bool,
     ) -> VariableType:
-        """Classify variable type based on usage pattern.
-
-        Classification rules:
-        - Written in selection, not defined before, used after → MODIFIED
-        - Written in selection, not defined before, not used after → LOCAL
-        - Only read, defined before → PARAMETER
-        - Only read, not defined before → PARAMETER (global/builtin)
-        - Written and defined before and used after → MODIFIED
-
-        Args:
-            var_info: Variable information
-            defined_before: True if defined before selection
-            used_after: True if used after selection
-
-        Returns:
-            Appropriate VariableType
-        """
+        """Classify variable type based on usage pattern."""
         is_written = var_info.is_written
         is_read = var_info.is_read
 
-        # Created in selection
+        if is_written and used_after:
+            return VariableType.MODIFIED
         if is_written and not defined_before:
-            return VariableType.MODIFIED if used_after else VariableType.LOCAL
-
-        # Only read (must be parameter)
+            return VariableType.LOCAL
         if is_read and not is_written:
             return VariableType.PARAMETER
-
-        # Modified existing variable
-        if is_written and defined_before and used_after:
-            return VariableType.MODIFIED
-
-        # Default: keep existing type
         return var_info.variable_type
 
     def _analyze_js_ts_variables(
