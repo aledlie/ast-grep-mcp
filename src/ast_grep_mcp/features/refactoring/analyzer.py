@@ -229,13 +229,11 @@ class CodeSelectionAnalyzer:
             variables: Dict to populate with variable info
             selection: Code selection metadata
         """
-        for match in re.finditer(pattern, content):
-            var_name = match.group(1)
-            if var_name not in keywords:
-                self._register_variable(
-                    variables, var_name, selection.start_line,
-                    var_type=VariableType.PARAMETER, is_read=True,
-                )
+        for var_name in (m.group(1) for m in re.finditer(pattern, content) if m.group(1) not in keywords):
+            self._register_variable(
+                variables, var_name, selection.start_line,
+                var_type=VariableType.PARAMETER, is_read=True,
+            )
 
     def _find_python_assignments(
         self,
