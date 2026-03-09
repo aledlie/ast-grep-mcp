@@ -12,6 +12,7 @@ from ...constants import RegexCaptureGroups, SemanticVolumeDefaults
 from ...core.logging import get_logger
 from ...models.deduplication import FunctionTemplate
 from ...utils.formatters import format_generated_code
+from ...utils.parsing import detect_triple_quote, skip_blank_lines
 from ...utils.text import indent_lines
 
 # Language-specific configuration for function generation
@@ -796,15 +797,9 @@ class CodeGenerator:
 
         return last_import_line + 1
 
-    def _get_triple_quotes(self, line: str) -> Optional[str]:
-        """Return the triple-quote delimiter if line starts with one, else None."""
-        if line.startswith('"""') or line.startswith("'''"):
-            return line[:3]
-        return None
-
     def _process_docstring_scan_line(self, line: str, i: int, docstring_quotes: Optional[str]) -> Tuple[Optional[int], Optional[str]]:
         """Process one line of docstring scanning. Returns (result_pos_or_None, updated_docstring_quotes)."""
-        quotes = self._get_triple_quotes(line)
+        quotes = detect_triple_quote(line)
         if docstring_quotes is None:
             if quotes is None:
                 return i, None
@@ -891,7 +886,7 @@ class CodeGenerator:
             line = lines[i].strip()
             if line in self._USE_STRICT_DIRECTIVES:
                 i += 1
-                return self._skip_blank_lines(lines, i)
+                return skip_blank_lines(lines, i)
             if line:
                 return i
             i += 1
@@ -920,20 +915,13 @@ class CodeGenerator:
 
         return last_import + 1
 
-    def _skip_blank_lines(self, lines: List[str], start: int) -> int:
-        """Skip blank lines and return new position."""
-        i = start
-        while i < len(lines) and not lines[i].strip():
-            i += 1
-        return i
-
     def _skip_java_package(self, lines: List[str], start: int) -> int:
         """Skip Java package declaration and blank lines after it. Returns new position."""
         i = start
         while i < len(lines):
             line = lines[i].strip()
             if line.startswith("package "):
-                return self._skip_blank_lines(lines, i + 1)
+                return skip_blank_lines(lines, i + 1)
             if line and not line.startswith("//"):
                 return i
             i += 1

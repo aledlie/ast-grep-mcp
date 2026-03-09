@@ -1,3 +1,9 @@
+5fdd930 2026-03-08 (chore) update docs, repomix, and backlog
+  docs/repomix/repo-compressed.xml
+  docs/repomix/repomix-docs.xml
+  docs/repomix/repomix-git-ranked.xml
+  docs/repomix/repomix.xml
+
 c412c78 2026-03-08 fix(dedup): resolve high/medium reviewer findings in precision filters
   tests/unit/test_duplication_detector.py
 
