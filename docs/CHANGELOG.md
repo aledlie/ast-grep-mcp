@@ -2,7 +2,7 @@
 
 All notable changes to ast-grep-mcp are documented in version-dated files in the `changelog/` directory.
 
-**Current Total:** 53 MCP tools | 121 modules | 1,663 tests
+**Current Total:** 53 MCP tools | 121 modules | 1,668 tests
 
 ## Versions
 

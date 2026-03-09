@@ -12,7 +12,7 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 - **`core/executor.py:stream_ast_grep_results`** (`0642b3f`) — extracted `_iter_stdout_matches` (yield-from delegation), `_log_stream_completion`, `_raise_not_found_error`. cyc 16→4, cog 29→2, nest 6→2, len 101→52.
 - **`deduplication/applicator_backup.py`** (`7880737`, `c847003`) — all 4 functions now below thresholds. Extracted helpers to class + shared `utils/backup.py` primitives (`get_file_hash`, `resolve_backup_dir`, `copy_file_to_backup`, `restore_file_from_backup`). `cleanup_old_backups` cog 33→14, `list_backups` cog 23→14, `create_backup` cog 20→10, `rollback` cog 18→15.
 - **`rewrite/backup.py`** (`c847003`) — consolidated duplicate backup primitives into shared `utils/backup.py`, eliminating ~60 lines of duplication. `create_backup`, `create_deduplication_backup`, `_restore_single_file`, `_check_file_conflicts` now delegate to shared utils.
-- **`core/executor.py:run_command`** (`0a679bb`) — wrapped with `tool_context()`, eliminated ~35 lines of manual timing + Sentry boilerplate. Note: still at cog=17 due to inherent branching; `tool_context` reduced len, not cognitive complexity.
+- **`core/executor.py:run_command`** (`0a679bb`) — wrapped with `tool_context()`, eliminated ~35 lines of manual timing + Sentry boilerplate. Still exceeds thresholds (cog=17, nest=5, len=56) — listed in remaining offenders table below.
 - **`schema/enhancement_service.py`** (`0a679bb`) — replaced hardcoded 16-entry `_EXCLUDED_DIRS` with derivation from `FilePatterns.DEFAULT_EXCLUDE`.
 - **`refactoring/extractor.py`** (`0a679bb`) — `_generate_docstring` (was cog=31), `_generate_function_body` (was cog=25), `_generate_signature` (was cog=13), `_apply_extraction` (was cog=11) all dropped below thresholds via further decomposition.
 
@@ -64,7 +64,7 @@ From code review of `8d4d13a`:
 
 ### Low
 - **`FILES` lacks type annotation**: Should be `FILES: list[str] = [...]` per project conventions.
-- **`run_command` listed as both resolved and remaining offender** in BACKLOG.md: "Recently Resolved" says it was wrapped with `tool_context()`, but the offender table still lists it at `cog=17`. The wrapping doesn't lower cognitive complexity — reword the resolved entry or remove it.
+- ~~**`run_command` listed as both resolved and remaining offender**~~: Resolved — clarified that `tool_context` wrapping reduced len/boilerplate but cog/nest remain above thresholds.
 
 ## Deferred (2026-03-08)
 
@@ -73,7 +73,7 @@ From code review of `8d4d13a`:
 - Medium: `_extract_name` fragile with decorators
 - Medium: Language hardcoded to `"python"`
 - Low: `FILES` lacks type annotation
-- Low: `run_command` documentation issue (listed as both resolved and remaining offender)
+- ~~Low: `run_command` documentation issue~~ (resolved — clarified in Recently Resolved section)
 
 **Strategy pattern filter for deduplication** — Low-priority per docs/duplicate-detector-misses.md investigation notes. Only candidate (Group 5) would save ~18 lines with minor signature mismatch; over-engineering for marginal benefit.
 
