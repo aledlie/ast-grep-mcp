@@ -101,13 +101,13 @@ python scripts/run_benchmarks.py --save-baseline
 
 ```bash
 # Run all benchmarks
-uv run python -m pytest tests/test_benchmark.py -v
+uv run python -m pytest tests/integration/test_benchmark.py -v
 
 # Run specific benchmark
-uv run python -m pytest tests/test_benchmark.py::TestPerformanceBenchmarks::test_benchmark_simple_pattern_search -v
+uv run python -m pytest tests/integration/test_benchmark.py::TestPerformanceBenchmarks::test_benchmark_simple_pattern_search -v
 
 # Run with verbose output
-uv run python -m pytest tests/test_benchmark.py -v -s
+uv run python -m pytest tests/integration/test_benchmark.py -v -s
 ```
 
 ### CI Integration
@@ -129,7 +129,7 @@ The benchmarks will:
 
 ### Custom Benchmarks
 
-Add custom benchmarks to `tests/test_benchmark.py`:
+Add custom benchmarks to `tests/integration/test_benchmark.py`:
 
 ```python
 def test_benchmark_custom_query(
@@ -263,7 +263,7 @@ diff tests/baseline_main.json tests/baseline_feature.json
 
 ### Custom Regression Thresholds
 
-Modify threshold in `test_benchmark.py`:
+Modify threshold in `tests/integration/test_benchmark.py`:
 
 ```python
 # Default: 10% regression threshold

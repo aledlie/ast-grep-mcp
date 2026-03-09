@@ -161,15 +161,18 @@ src/ast_grep_mcp/          # 120 modules
 ├── core/                  # Config, cache, executor, logging, sentry, usage tracking
 ├── models/                # Data models (13 modules)
 ├── utils/                 # Formatters, validation, templates, text processing
-├── features/              # 11 feature modules (search, rewrite, refactoring, deduplication,
+├── features/              # 10 feature modules (search, rewrite, refactoring, deduplication,
 │                          #   complexity, quality, documentation, cross_language, schema, condense)
 └── server/                # MCP registry + runner
 ```
 
-- `tests/` - 1,469 collected tests (unit + integration + quality regression)
+- `tests/` - 1,622 collected tests (unit + integration + quality regression)
 
 ## Recent Updates
 
+- [changelog/2026-03-08-changelog-hardening-test-quality.md](changelog/2026-03-08-changelog-hardening-test-quality.md) - Changelog hardening and test quality improvements.
+- [changelog/2026-03-08-quality-fixes.md](changelog/2026-03-08-quality-fixes.md) - Quality fixes.
+- [changelog/2026-03-06-complexity-review-fixes.md](changelog/2026-03-06-complexity-review-fixes.md) - Complexity review and fixes.
 - [changelog/2026-03-04-maintenance-quality.md](changelog/2026-03-04-maintenance-quality.md) - Constants consolidation, analyzer false-positive reduction, exclusion hardening, and diff parser fix.
 
 ## Related
