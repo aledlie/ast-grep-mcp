@@ -53,11 +53,9 @@ Commits `52b1f3f`..`70a4762` addressed 6 hotspot areas:
 
 Refresh: `uv run python scripts/run_all_analysis.py`
 
-## Mypy Unused type:ignore Comments (2026-03-08)
+## ~~Mypy Unused type:ignore Comments (2026-03-08)~~ (Resolved)
 
-7 unused `type: ignore[misc]` comments flagged by mypy:
-- `complexity/tools.py` lines 632, 666, 677
-- `deduplication/tools.py` lines 220, 237, 258, 279
+All 7 unused `type: ignore[misc]` comments were removed in prior refactoring that inlined `Field()` into `@mcp.tool()` wrappers and eliminated `_create_mcp_field_definitions` indirection.
 
 ## Duplicate Detection Precision (2026-03-08)
 
@@ -69,13 +67,4 @@ See [docs/duplicate-detector-misses.md](duplicate-detector-misses.md) for full i
 - Reduce weight for strategy pattern implementations
 - Add minimum line savings threshold
 - Consider excluding parallel `to_*` formatters
-
-## ~~e74b8de Review Follow-ups (2026-03-08)~~ (Resolved)
-
-- ~~**Sentry gap in `analyze_entity_graph`**~~ — restored `sentry_sdk.capture_exception` in `enhancement_service.py:analyze_entity_graph`.
-- ~~**`_handle_tool_error` logger duplication**~~ — `_handle_tool_error` now accepts optional `logger` keyword parameter; callers can pass their existing logger.
-
-## ~~changelog_generator.py Hardening (2026-03-08)~~ (Resolved)
-
-- ~~**`from_version` resolution asymmetry**~~ — `_get_commit_range` now uses `_resolve_version_ref` for both `from_version` and `to_version`.
 

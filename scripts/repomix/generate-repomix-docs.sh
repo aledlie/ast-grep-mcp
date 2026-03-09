@@ -35,5 +35,5 @@ jq \
   ' \
   "$CONFIG_FILE" > "$TMP_CONFIG"
 
-FORCE_COLOR=0 NO_COLOR=1 timeout 60 \
+FORCE_COLOR=0 NO_COLOR=1 timeout 120 \
 npx repomix "$ROOT" -c "$TMP_CONFIG" -o "$OUTPUT_FILE" >/dev/null 2>&1
