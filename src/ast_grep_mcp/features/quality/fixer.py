@@ -556,6 +556,32 @@ def _decl_line_has_reassignment(line: str, var_pattern: re.Pattern[str]) -> bool
     return var_pattern.search(rest) is not None and _line_reassigns_var(rest, var_pattern)
 
 
+def _line_is_comment(line: str) -> bool:
+    """Return True if the line is a single-line comment (JS/TS style)."""
+    stripped = line.lstrip()
+    return stripped.startswith("//") or stripped.startswith("*")
+
+
+def _check_line_for_reassignment(
+    i: int,
+    line: str,
+    decl_idx: int,
+    var_pattern: "re.Pattern[str]",
+) -> Optional[bool]:
+    """Check one source line for a variable reassignment.
+
+    Returns:
+        True  — reassignment found, stop scanning.
+        False — skip this line (comment or no pattern match).
+        None  — this is the declaration line with no reassignment; continue.
+    """
+    if _line_is_comment(line) or not var_pattern.search(line):
+        return False
+    if i == decl_idx:
+        return True if _decl_line_has_reassignment(line, var_pattern) else None
+    return _line_reassigns_var(line, var_pattern)
+
+
 def _is_variable_reassigned(file_path: str, var_name: str, decl_line: int) -> bool:
     """Check if a let-declared variable is reassigned after its declaration.
 
@@ -579,16 +605,8 @@ def _is_variable_reassigned(file_path: str, var_name: str, decl_line: int) -> bo
     for i, line in enumerate(lines):
         if i < decl_idx:
             continue
-        stripped = line.lstrip()
-        if stripped.startswith("//") or stripped.startswith("*"):
-            continue
-        if not var_pattern.search(line):
-            continue
-        if i == decl_idx:
-            if _decl_line_has_reassignment(line, var_pattern):
-                return True
-            continue
-        if _line_reassigns_var(line, var_pattern):
+        result = _check_line_for_reassignment(i, line, decl_idx, var_pattern)
+        if result is True:
             return True
 
     return False
