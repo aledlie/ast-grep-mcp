@@ -37,9 +37,18 @@ PRE_TOOL_DURATION_NS = 8_000_000  # 8ms synthetic pre-tool span duration
 RESOURCE = {"serviceName": "claude-code-hooks", "serviceVersion": "1.0.0"}
 BACKFILL_SOURCE = "backfill:agent-span-recovery"
 
+# Agent log field indices and counts
+# STARTED line format:  timestamp \t name \t category \t status \t STARTED \t flags
+# COMPLETED line format: timestamp \t name \t COMPLETED[_*] \t Nbytes
+_SPAN_ID_BYTES = 8          # 8 bytes → 16 hex chars (64-bit OTEL span ID)
+_LOG_MIN_FIELDS = 4         # minimum fields in a COMPLETED log line
+_LOG_STARTED_MIN_FIELDS = 5  # minimum fields to safely check index 4
+_LOG_STARTED_STATUS_IDX = 4  # index of "STARTED" token in STARTED lines
+_LOG_BYTES_FIELD_IDX = 3    # index of the Nbytes field in COMPLETED lines
+
 
 def new_span_id() -> str:
-    return secrets.token_hex(8)
+    return secrets.token_hex(_SPAN_ID_BYTES)
 
 
 def iso_to_otel_time(iso_str: str) -> list[int]:
@@ -102,11 +111,11 @@ def parse_agent_cache(agent_name: str, project_filter: str | None = None,
         pending: dict[str, str] = {}  # agent_name -> started_iso
         for line in log_file.read_text().splitlines():
             parts = line.split("\t")
-            if len(parts) < 4:
+            if len(parts) < _LOG_MIN_FIELDS:
                 continue
 
-            if (len(parts) >= 5 and parts[1] == agent_name
-                    and parts[4] == "STARTED"):
+            if (len(parts) >= _LOG_STARTED_MIN_FIELDS and parts[1] == agent_name
+                    and parts[_LOG_STARTED_STATUS_IDX] == "STARTED"):
                 pending[agent_name] = parts[0]
 
             elif (parts[1] == agent_name
@@ -116,9 +125,9 @@ def parse_agent_cache(agent_name: str, project_filter: str | None = None,
                     continue
 
                 output_bytes = 0
-                if len(parts) > 3 and parts[3].endswith("bytes"):
+                if len(parts) > _LOG_BYTES_FIELD_IDX and parts[_LOG_BYTES_FIELD_IDX].endswith("bytes"):
                     try:
-                        output_bytes = int(parts[3].replace("bytes", ""))
+                        output_bytes = int(parts[_LOG_BYTES_FIELD_IDX].replace("bytes", ""))
                     except ValueError:
                         pass
 

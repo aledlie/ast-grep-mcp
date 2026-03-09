@@ -10,7 +10,7 @@ This module handles safe symbol renaming across files:
 
 import os
 import re
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from ast_grep_mcp.core.logging import get_logger
 
@@ -96,7 +96,7 @@ class SymbolRenamer:
 
         return references
 
-    def _parse_match_to_reference(self, match: dict, file_filter: Optional[str]) -> Optional[SymbolReference]:
+    def _parse_match_to_reference(self, match: Dict[str, Any], file_filter: Optional[str]) -> Optional[SymbolReference]:
         """Parse a single ast-grep match dict into a SymbolReference, applying file filter.
 
         Args:
