@@ -5,6 +5,9 @@ and other text processing operations.
 """
 
 import difflib
+import os
+import tempfile
+from typing import Union
 
 __all__ = [
     "normalize_code",
@@ -14,6 +17,7 @@ __all__ = [
     "indent_lines",
     "read_file_lines",
     "write_file_lines",
+    "FilePath",
 ]
 
 
@@ -115,28 +119,51 @@ def indent_lines(text: str, prefix: str = "    ") -> list[str]:
     return [f"{prefix}{line}" if line.strip() else "" for line in text.split("\n")]
 
 
-def read_file_lines(file_path: str) -> list[str]:
+FilePath = Union[str, "os.PathLike[str]"]
+
+
+def read_file_lines(file_path: FilePath) -> list[str]:
     """Read a file and return its lines (including newlines).
 
     Args:
-        file_path: Path to the file
+        file_path: Path to the file (str or PathLike)
 
     Returns:
         List of lines with trailing newlines preserved
+
+    Raises:
+        OSError: If the file cannot be read, with the path in the message
     """
-    with open(file_path, "r", encoding="utf-8") as f:
-        return f.readlines()
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            return f.readlines()
+    except OSError as e:
+        raise OSError(f"Failed to read {file_path}: {e}") from e
 
 
-def write_file_lines(file_path: str, lines: list[str]) -> None:
-    """Write lines to a file.
+def write_file_lines(file_path: FilePath, lines: list[str]) -> None:
+    """Write lines to a file atomically via temp-file-then-rename.
 
     Args:
-        file_path: Path to the file
+        file_path: Path to the file (str or PathLike)
         lines: Lines to write (should include trailing newlines)
+
+    Raises:
+        OSError: If the file cannot be written, with the path in the message
     """
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.writelines(lines)
+    target = str(file_path)
+    dir_name = os.path.dirname(target) or "."
+    try:
+        fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.writelines(lines)
+            os.replace(tmp_path, target)
+        except BaseException:
+            os.unlink(tmp_path)
+            raise
+    except OSError as e:
+        raise OSError(f"Failed to write {file_path}: {e}") from e
 
 
 # Alias for backward compatibility

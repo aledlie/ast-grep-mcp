@@ -16,17 +16,6 @@ from .applicator import DeduplicationApplicator
 from .benchmark import DeduplicationBenchmark
 from .detector import DuplicationDetector
 
-_DEDUP_EXCLUDE_DEFAULTS = [
-    "**/site-packages/**",
-    "**/node_modules/**",
-    "**/.venv/**",
-    "**/venv/**",
-    "**/vendor/**",
-    "**/__pycache__/**",
-    "**/.git/**",
-]
-
-
 def find_duplication_tool(
     project_folder: str,
     language: str,
@@ -50,7 +39,7 @@ def find_duplication_tool(
     """
     logger = get_logger("deduplication.tool.find")
 
-    exclude_patterns = FilePatterns.normalize_excludes(exclude_patterns, defaults=_DEDUP_EXCLUDE_DEFAULTS)
+    exclude_patterns = FilePatterns.normalize_excludes(exclude_patterns)
 
     detector = DuplicationDetector(language=language)
     results = detector.find_duplication(
@@ -83,7 +72,7 @@ def analyze_deduplication_candidates_tool(
     """Analyze a project for deduplication candidates and return ranked results."""
     logger = get_logger("deduplication.tool.analyze")
 
-    exclude_patterns = FilePatterns.normalize_excludes(exclude_patterns, defaults=_DEDUP_EXCLUDE_DEFAULTS)
+    exclude_patterns = FilePatterns.normalize_excludes(exclude_patterns)
 
     # Delegate to orchestrator
     orchestrator = DeduplicationAnalysisOrchestrator()

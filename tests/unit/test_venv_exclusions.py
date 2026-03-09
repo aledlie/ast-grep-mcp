@@ -6,7 +6,6 @@ from ast_grep_mcp.features.complexity.tools import (
     _prepare_smell_detection_params,
 )
 from ast_grep_mcp.features.deduplication.detector import DuplicationDetector
-from ast_grep_mcp.features.deduplication.tools import _DEDUP_EXCLUDE_DEFAULTS
 from ast_grep_mcp.features.documentation.sync_checker import _find_source_files
 
 
@@ -74,7 +73,7 @@ def test_duplication_detector_enforces_venv_excludes_with_custom_patterns(monkey
 
 
 def test_dedup_tools_normalization_enforces_venv_patterns() -> None:
-    normalized = FilePatterns.normalize_excludes(["**/node_modules/**"], defaults=_DEDUP_EXCLUDE_DEFAULTS)
+    normalized = FilePatterns.normalize_excludes(["**/node_modules/**"])
 
     assert "**/node_modules/**" in normalized
     for pattern in FilePatterns.VENV_EXCLUDE:
