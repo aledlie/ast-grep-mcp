@@ -8,7 +8,7 @@ Full analysis: [docs/COMPLEXITY-REPORT.md](COMPLEXITY-REPORT.md) (generated 2026
 
 > **Maintenance:** When resolving a CX-* item, update both this backlog (mark `[x]`) and the Recommendations section of `docs/COMPLEXITY-REPORT.md` to reflect the new metrics. Re-run the complexity tools to refresh the report when the remaining offender count changes significantly.
 
-Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08) → **80** (2026-03-08 shared-util) → **25** (2026-03-08 helper-adoption) → **19** (2026-03-08 condense-decompose) → **18** (2026-03-08 dead-code-removal) → **17** (2026-03-08 docstring-extent-decompose) → **16** (2026-03-08 nested-diff-decompose) → **15** (2026-03-08 filter-files-decompose) → **11** (2026-03-09 analyzer-decompose) → **7** (2026-03-09 complexity-reductions).
+Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08) → **80** (2026-03-08 shared-util) → **25** (2026-03-08 helper-adoption) → **19** (2026-03-08 condense-decompose) → **18** (2026-03-08 dead-code-removal) → **17** (2026-03-08 docstring-extent-decompose) → **16** (2026-03-08 nested-diff-decompose) → **15** (2026-03-08 filter-files-decompose) → **11** (2026-03-09 analyzer-decompose) → **7** (2026-03-09 complexity-reductions) → **0** (2026-03-09 remaining-offenders).
 
 ### Recently Resolved
 
@@ -32,10 +32,10 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 
 Thresholds: cyc >10, cog >15, nest >4, len >50. Refresh: `uv run python scripts/scan_complexity_offenders.py`
 
-- [ ] **CX-01** `refactoring/extractor.py:_scan_imports` — cyc=10, cog=18, nest=5 (exceeds: cog, nest). Reduce nesting via early returns or extract helper.
-- [ ] **CX-02** `refactoring/extractor.py:extract_function` — cyc=9, cog=12, nest=5, len=79 (exceeds: nest, len). Decompose into smaller phases.
-- [ ] **CX-03** `deduplication/diff.py:_format_alignment_entry` — cyc=11, cog=12 (exceeds: cyc). Reduce branching via lookup table or helper extraction.
-- [ ] **CX-04** `deduplication/diff.py:generate_file_diff` — cyc=11, cog=6 (exceeds: cyc). Reduce branching via early returns or dispatch.
+- [x] **CX-01** `refactoring/extractor.py:_scan_imports` — cyc=10, cog=18, nest=5 (exceeds: cog, nest). Extracted `_process_scan_line` helper; `_scan_imports` flattened to loop + break. (`040bb64`, `8ae886b`)
+- [x] **CX-02** `refactoring/extractor.py:extract_function` — cyc=9, cog=12, nest=5, len=79 (exceeds: nest, len). Extracted `_perform_extraction_steps`; body reduced from 79→49 lines. (`040bb64`)
+- [x] **CX-03** `deduplication/diff.py:_format_alignment_entry` — cyc=11, cog=12 (exceeds: cyc). Extracted `_format_diff_alignment` for old/new pair handling. (`040bb64`)
+- [x] **CX-04** `deduplication/diff.py:generate_file_diff` — cyc=11, cog=6 (exceeds: cyc). Extracted `_ensure_trailing_newline`; main function simplified. (`040bb64`)
 
 ## scan_complexity_offenders.py Hardening (2026-03-08)
 
