@@ -594,6 +594,313 @@ class TestListBackups:
             assert backups == []
 
 
+class TestGenerateBackupId:
+    """Tests for _generate_backup_id helper."""
+
+    def test_returns_prefixed_id(self):
+        """Test that generated ID has the expected prefix."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            backup_id = manager._generate_backup_id()
+
+            assert backup_id.startswith("dedup-backup-")
+
+    def test_no_collision_suffix_when_dir_absent(self):
+        """Test that no counter suffix is added when no collision exists."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            backup_id = manager._generate_backup_id()
+
+            # Should not have a trailing -N counter
+            parts = backup_id.split("-")
+            # Format: dedup-backup-YYYYMMDD-HHMMSS-fff
+            assert len(parts) == 5
+
+
+class TestComputeFileHashes:
+    """Tests for _compute_file_hashes helper."""
+
+    def test_returns_hashes_for_existing_files(self):
+        """Test that hashes are computed for existing files."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            fp = os.path.join(tmpdir, "a.py")
+            with open(fp, "w") as f:
+                f.write("hello")
+
+            hashes = manager._compute_file_hashes([fp])
+
+            assert fp in hashes
+            assert len(hashes[fp]) == 64  # SHA-256 hex length
+
+    def test_skips_nonexistent_files(self):
+        """Test that nonexistent files are excluded from result."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            hashes = manager._compute_file_hashes(["/nonexistent/file.py"])
+
+            assert hashes == {}
+
+    def test_mixed_existing_and_missing(self):
+        """Test with a mix of real and missing files."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            real = os.path.join(tmpdir, "real.py")
+            with open(real, "w") as f:
+                f.write("data")
+
+            hashes = manager._compute_file_hashes([real, "/no/such/file.py"])
+
+            assert len(hashes) == 1
+            assert real in hashes
+
+
+class TestBackupSingleFile:
+    """Tests for _backup_single_file helper."""
+
+    def test_returns_none_for_missing_file(self):
+        """Test that None is returned when source file doesn't exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+            backup_dir = Path(tmpdir) / "backup"
+            backup_dir.mkdir()
+
+            result = manager._backup_single_file("/no/such/file.py", backup_dir, {})
+
+            assert result is None
+
+    def test_returns_entry_dict_with_correct_keys(self):
+        """Test that returned dict has the expected keys."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+            backup_dir = Path(tmpdir) / "backup"
+            backup_dir.mkdir()
+
+            fp = os.path.join(tmpdir, "mod.py")
+            with open(fp, "w") as f:
+                f.write("code")
+
+            result = manager._backup_single_file(fp, backup_dir, {fp: "abc123"})
+
+            assert result is not None
+            assert set(result.keys()) == {"original", "relative", "backup", "original_hash"}
+            assert result["original"] == fp
+            assert result["original_hash"] == "abc123"
+
+    def test_falls_back_to_empty_hash_when_missing(self):
+        """Test that original_hash defaults to empty string when file not in hashes dict."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+            backup_dir = Path(tmpdir) / "backup"
+            backup_dir.mkdir()
+
+            fp = os.path.join(tmpdir, "mod.py")
+            with open(fp, "w") as f:
+                f.write("code")
+
+            result = manager._backup_single_file(fp, backup_dir, {})
+
+            assert result is not None
+            assert result["original_hash"] == ""
+
+
+class TestRestoreSingleFile:
+    """Tests for _restore_single_file helper."""
+
+    def test_returns_path_on_success(self):
+        """Test that original path is returned after successful restore."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            original = os.path.join(tmpdir, "orig.py")
+            backup = os.path.join(tmpdir, "bak.py")
+
+            with open(backup, "w") as f:
+                f.write("original content")
+            with open(original, "w") as f:
+                f.write("modified")
+
+            result = manager._restore_single_file({"original": original, "backup": backup})
+
+            assert result == original
+            with open(original) as f:
+                assert f.read() == "original content"
+
+    def test_returns_none_when_backup_missing(self):
+        """Test that None is returned when backup file doesn't exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            result = manager._restore_single_file(
+                {"original": "/some/file.py", "backup": "/no/such/backup.py"}
+            )
+
+            assert result is None
+
+    def test_returns_none_on_copy_error(self):
+        """Test that None is returned when copy2 raises."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            backup = os.path.join(tmpdir, "bak.py")
+            with open(backup, "w") as f:
+                f.write("data")
+
+            with patch("ast_grep_mcp.features.deduplication.applicator_backup.shutil.copy2", side_effect=PermissionError("denied")):
+                result = manager._restore_single_file(
+                    {"original": "/dst/file.py", "backup": backup}
+                )
+
+            assert result is None
+
+
+class TestTryCleanupBackup:
+    """Tests for _try_cleanup_backup helper."""
+
+    def test_returns_false_for_no_metadata(self):
+        """Test that False is returned when metadata is missing."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+            empty_dir = Path(tmpdir) / "empty"
+            empty_dir.mkdir()
+
+            result = manager._try_cleanup_backup(empty_dir, datetime.now())
+
+            assert result is False
+
+    def test_returns_false_for_empty_timestamp(self):
+        """Test that False is returned when timestamp is empty string."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+            bdir = Path(tmpdir) / "bak"
+            bdir.mkdir()
+            with open(bdir / "backup-metadata.json", "w") as f:
+                json.dump({"timestamp": ""}, f)
+
+            result = manager._try_cleanup_backup(bdir, datetime.now())
+
+            assert result is False
+
+    def test_returns_false_for_malformed_timestamp(self):
+        """Test that False is returned when timestamp is not valid ISO format."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+            bdir = Path(tmpdir) / "bak"
+            bdir.mkdir()
+            with open(bdir / "backup-metadata.json", "w") as f:
+                json.dump({"timestamp": "not-a-date"}, f)
+
+            result = manager._try_cleanup_backup(bdir, datetime.now())
+
+            assert result is False
+            assert bdir.exists()  # directory not removed
+
+    def test_returns_false_for_recent_backup(self):
+        """Test that False is returned and dir kept when backup is recent."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+            bdir = Path(tmpdir) / "bak"
+            bdir.mkdir()
+            with open(bdir / "backup-metadata.json", "w") as f:
+                json.dump({"timestamp": datetime.now().isoformat()}, f)
+
+            cutoff = datetime.now() - timedelta(days=30)
+            result = manager._try_cleanup_backup(bdir, cutoff)
+
+            assert result is False
+            assert bdir.exists()
+
+    def test_returns_true_and_removes_old_backup(self):
+        """Test that True is returned and dir removed when backup is old."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+            bdir = Path(tmpdir) / "bak"
+            bdir.mkdir()
+            old_date = datetime.now() - timedelta(days=60)
+            with open(bdir / "backup-metadata.json", "w") as f:
+                json.dump({"timestamp": old_date.isoformat(), "backup_id": "test"}, f)
+
+            cutoff = datetime.now() - timedelta(days=30)
+            result = manager._try_cleanup_backup(bdir, cutoff)
+
+            assert result is True
+            assert not bdir.exists()
+
+
+class TestCreateBackupEdgeCases:
+    """Edge case tests for create_backup."""
+
+    def test_empty_file_list(self):
+        """Test backup with no files produces valid metadata with empty files list."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            backup_id = manager.create_backup([], {"reason": "test"})
+
+            metadata_path = manager.backup_base_dir / backup_id / "backup-metadata.json"
+            with open(metadata_path) as f:
+                metadata = json.load(f)
+
+            assert metadata["files"] == []
+            assert metadata["deduplication_metadata"]["original_hashes"] == {}
+
+
+class TestRollbackEdgeCases:
+    """Edge case tests for rollback."""
+
+    def test_empty_files_in_metadata(self):
+        """Test rollback with backup that has empty files list."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            backup_id = manager.create_backup([], {})
+
+            restored = manager.rollback(backup_id)
+
+            assert restored == []
+
+
+class TestCleanupMultiple:
+    """Tests for cleanup_old_backups with multiple backups."""
+
+    def test_removes_multiple_old_keeps_recent(self):
+        """Test that multiple old backups are removed while recent ones kept."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            fp = os.path.join(tmpdir, "test.py")
+            with open(fp, "w") as f:
+                f.write("content")
+
+            # Create 3 backups
+            ids = []
+            for _ in range(3):
+                ids.append(manager.create_backup([fp], {}))
+                time.sleep(0.01)
+
+            # Make first two old
+            old_date = datetime.now() - timedelta(days=60)
+            for bid in ids[:2]:
+                mp = manager.backup_base_dir / bid / "backup-metadata.json"
+                with open(mp) as f:
+                    meta = json.load(f)
+                meta["timestamp"] = old_date.isoformat()
+                with open(mp, "w") as f:
+                    json.dump(meta, f)
+
+            removed = manager.cleanup_old_backups(days=30)
+
+            assert removed == 2
+            assert not (manager.backup_base_dir / ids[0]).exists()
+            assert not (manager.backup_base_dir / ids[1]).exists()
+            assert (manager.backup_base_dir / ids[2]).exists()
+
+
 class TestIntegration:
     """Integration tests for backup workflow."""
 

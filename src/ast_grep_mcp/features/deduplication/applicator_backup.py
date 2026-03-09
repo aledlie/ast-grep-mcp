@@ -4,16 +4,21 @@ This module handles creating, storing, and restoring backups
 during deduplication refactoring operations.
 """
 
-import hashlib
 import json
 import os
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List
 
 from ...constants import BackupDefaults, FormattingDefaults
 from ...core.logging import get_logger
+from ...utils.backup import (
+    copy_file_to_backup,
+    get_file_hash,
+    resolve_backup_dir,
+    restore_file_from_backup,
+)
 
 
 class DeduplicationBackupManager:
@@ -41,31 +46,12 @@ class DeduplicationBackupManager:
         """
         self.logger.info("create_backup_start", file_count=len(files))
 
-        # Generate backup ID with timestamp
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[: -FormattingDefaults.TIMESTAMP_MS_TRIM]
-        backup_id = f"dedup-backup-{timestamp}"
-        backup_dir = self.backup_base_dir / backup_id
-
-        # Handle collision by appending counter
-        counter = 1
-        while backup_dir.exists():
-            backup_id = f"dedup-backup-{timestamp}-{counter}"
-            backup_dir = self.backup_base_dir / backup_id
-            counter += 1
-
-        # Create backup directory
+        backup_id, backup_dir = self._generate_backup_id()
         backup_dir.mkdir(parents=True, exist_ok=True)
 
-        # Compute hashes for all files
-        original_hashes: Dict[str, str] = {}
-        for file_path in files:
-            if os.path.exists(file_path):
-                original_hashes[file_path] = self.get_file_hash(file_path)
-
-        # Add original_hashes to metadata
+        original_hashes = self._compute_file_hashes(files)
         metadata_with_hashes = {**metadata, "original_hashes": original_hashes}
 
-        # Build backup metadata
         backup_metadata: Dict[str, Any] = {
             "backup_id": backup_id,
             "backup_type": "deduplication",
@@ -75,37 +61,18 @@ class DeduplicationBackupManager:
             "deduplication_metadata": metadata_with_hashes,
         }
 
-        # Copy files to backup
         for file_path in files:
-            if not os.path.exists(file_path):
+            entry = copy_file_to_backup(file_path, self.project_folder, backup_dir, original_hashes)
+            if entry is None:
                 self.logger.warning("file_not_found_for_backup", file=file_path)
-                continue
+            else:
+                backup_metadata["files"].append(entry)
 
-            rel_path = os.path.relpath(file_path, self.project_folder)
-            backup_file_path = backup_dir / rel_path
-
-            # Create parent directories
-            backup_file_path.parent.mkdir(parents=True, exist_ok=True)
-
-            # Copy file preserving metadata
-            shutil.copy2(file_path, backup_file_path)
-
-            backup_metadata["files"].append(
-                {
-                    "original": file_path,
-                    "relative": rel_path,
-                    "backup": str(backup_file_path),
-                    "original_hash": original_hashes.get(file_path, ""),
-                }
-            )
-
-        # Save metadata
         metadata_path = backup_dir / "backup-metadata.json"
         with open(metadata_path, "w") as f:
             json.dump(backup_metadata, f, indent=2)
 
         self.logger.info("create_backup_complete", backup_id=backup_id, files_backed_up=len(backup_metadata["files"]))
-
         return backup_id
 
     def rollback(self, backup_id: str) -> List[str]:
@@ -125,49 +92,17 @@ class DeduplicationBackupManager:
         if not metadata_path.exists():
             raise ValueError(f"Backup '{backup_id}' not found or invalid")
 
-        # Load metadata
         with open(metadata_path, "r") as f:
             metadata = json.load(f)
 
-        restored_files = []
-
-        # Restore each file
-        for file_info in metadata.get("files", []):
-            original_path = file_info["original"]
-            backup_path = file_info["backup"]
-
-            if not os.path.exists(backup_path):
-                self.logger.warning("backup_file_not_found", original=original_path, backup=backup_path)
-                continue
-
-            try:
-                # Restore file
-                shutil.copy2(backup_path, original_path)
-                restored_files.append(original_path)
-                self.logger.debug("file_restored", file=original_path)
-
-            except Exception as e:
-                self.logger.error("restore_failed", file=original_path, error=str(e))
+        restored_files = [
+            path
+            for file_info in metadata.get("files", [])
+            if (path := self._restore_single_file(file_info)) is not None
+        ]
 
         self.logger.info("rollback_complete", backup_id=backup_id, files_restored=len(restored_files))
-
         return restored_files
-
-    def _load_backup_metadata(self, backup_dir: Path) -> Dict[str, Any] | None:
-        """Load and parse backup-metadata.json from a backup directory.
-
-        Returns:
-            Parsed metadata dict, or None if missing/unreadable.
-        """
-        metadata_path = backup_dir / "backup-metadata.json"
-        if not metadata_path.exists():
-            return None
-        try:
-            with open(metadata_path, "r") as f:
-                return json.load(f)  # type: ignore[no-any-return]
-        except Exception as e:
-            self.logger.warning("metadata_read_failed", backup_dir=str(backup_dir), error=str(e))
-            return None
 
     def cleanup_old_backups(self, days: int = BackupDefaults.RETENTION_DAYS) -> int:
         """Remove backups older than specified days.
@@ -181,33 +116,14 @@ class DeduplicationBackupManager:
         if not self.backup_base_dir.exists():
             return 0
 
-        from datetime import timedelta
-
         cutoff_date = datetime.now() - timedelta(days=days)
         removed_count = 0
 
         for backup_dir in self.backup_base_dir.iterdir():
             if not backup_dir.is_dir():
                 continue
-
-            metadata = self._load_backup_metadata(backup_dir)
-            if metadata is None:
-                continue
-
-            timestamp_str = metadata.get("timestamp", "")
-            if not timestamp_str:
-                continue
-
-            try:
-                backup_date = datetime.fromisoformat(timestamp_str)
-                if backup_date < cutoff_date:
-                    shutil.rmtree(backup_dir)
-                    removed_count += 1
-                    self.logger.info(
-                        "old_backup_removed", backup_id=metadata.get("backup_id"), age_days=(datetime.now() - backup_date).days
-                    )
-            except Exception as e:
-                self.logger.warning("cleanup_failed", backup_dir=str(backup_dir), error=str(e))
+            if self._try_cleanup_backup(backup_dir, cutoff_date):
+                removed_count += 1
 
         return removed_count
 
@@ -220,12 +136,10 @@ class DeduplicationBackupManager:
         Returns:
             SHA-256 hash as hexadecimal string
         """
-        try:
-            with open(file_path, "rb") as f:
-                return hashlib.sha256(f.read()).hexdigest()
-        except (OSError, IOError) as e:
-            self.logger.warning("hash_calculation_failed", file=file_path, error=str(e))
-            return ""
+        result = get_file_hash(file_path)
+        if not result:
+            self.logger.warning("hash_calculation_failed", file=file_path)
+        return result
 
     def list_backups(self) -> List[Dict[str, Any]]:
         """List all available backups.
@@ -246,7 +160,85 @@ class DeduplicationBackupManager:
             if metadata is not None:
                 backups.append(metadata)
 
-        # Sort by timestamp (newest first)
         backups.sort(key=lambda b: b.get("timestamp", ""), reverse=True)
-
         return backups
+
+    # -- Private helpers --
+
+    def _generate_backup_id(self) -> tuple[str, Path]:
+        """Generate a unique backup ID with timestamp, handling collisions."""
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[: -FormattingDefaults.TIMESTAMP_MS_TRIM]
+        return resolve_backup_dir("dedup-backup", timestamp, self.backup_base_dir)
+
+    def _compute_file_hashes(self, files: List[str]) -> Dict[str, str]:
+        """Compute SHA-256 hashes for all existing files."""
+        return {
+            fp: get_file_hash(fp)
+            for fp in files
+            if os.path.exists(fp)
+        }
+
+    def _restore_single_file(self, file_info: Dict[str, str]) -> str | None:
+        """Restore a single file from backup.
+
+        Returns:
+            Original file path if restored, or None on skip/error.
+        """
+        original_path = file_info["original"]
+        backup_path = file_info["backup"]
+
+        try:
+            result = restore_file_from_backup(backup_path, original_path)
+            if result is None:
+                self.logger.warning("backup_file_not_found", original=original_path, backup=backup_path)
+                return None
+            self.logger.debug("file_restored", file=original_path)
+            return result
+        except Exception as e:
+            self.logger.error("restore_failed", file=original_path, error=str(e))
+            return None
+
+    def _load_backup_metadata(self, backup_dir: Path) -> Dict[str, Any] | None:
+        """Load and parse backup-metadata.json from a backup directory.
+
+        Returns:
+            Parsed metadata dict, or None if missing/unreadable.
+        """
+        metadata_path = backup_dir / "backup-metadata.json"
+        if not metadata_path.exists():
+            return None
+        try:
+            with open(metadata_path, "r") as f:
+                return json.load(f)  # type: ignore[no-any-return]
+        except Exception as e:
+            self.logger.warning("metadata_read_failed", backup_dir=str(backup_dir), error=str(e))
+            return None
+
+    def _try_cleanup_backup(self, backup_dir: Path, cutoff_date: datetime) -> bool:
+        """Attempt to remove a single backup if older than cutoff.
+
+        Returns:
+            True if the backup was removed.
+        """
+        metadata = self._load_backup_metadata(backup_dir)
+        if metadata is None:
+            return False
+
+        timestamp_str = metadata.get("timestamp", "")
+        if not timestamp_str:
+            return False
+
+        try:
+            backup_date = datetime.fromisoformat(timestamp_str)
+            if backup_date >= cutoff_date:
+                return False
+            shutil.rmtree(backup_dir)
+            self.logger.info(
+                "old_backup_removed",
+                backup_id=metadata.get("backup_id"),
+                age_days=(datetime.now() - backup_date).days,
+            )
+            return True
+        except Exception as e:
+            self.logger.warning("cleanup_failed", backup_dir=str(backup_dir), error=str(e))
+            return False
