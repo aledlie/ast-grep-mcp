@@ -52,6 +52,161 @@ IMPORT_PATTERN_CONFIG: Dict[str, Callable[[str], List[str]]] = {
 }
 
 
+_GENERIC_TEST_PATTERNS: List[str] = [
+    "**/test*",
+    "**/tests/*",
+    "**/*test*",
+    "**/*spec*",
+]
+
+_TEST_FILE_PATTERNS: Dict[str, List[str]] = {
+    "python": [
+        "test_*.py",
+        "*_test.py",
+        "tests/*.py",
+        "**/tests/*.py",
+        "**/test/*.py",
+        "**/*_test.py",
+        "**/test_*.py",
+    ],
+    "javascript": [
+        "*.test.js",
+        "*.spec.js",
+        "__tests__/*.js",
+        "**/__tests__/*.js",
+        "**/tests/*.js",
+        "**/test/*.js",
+        "**/*.test.js",
+        "**/*.spec.js",
+    ],
+    "typescript": [
+        "*.test.ts",
+        "*.test.tsx",
+        "*.spec.ts",
+        "*.spec.tsx",
+        "__tests__/*.ts",
+        "__tests__/*.tsx",
+        "**/__tests__/*.ts",
+        "**/__tests__/*.tsx",
+        "**/tests/*.ts",
+        "**/tests/*.tsx",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
+    ],
+    "java": [
+        "*Test.java",
+        "*Tests.java",
+        "**/*Test.java",
+        "**/*Tests.java",
+        "**/test/**/*.java",
+        "src/test/**/*.java",
+    ],
+    "go": [
+        "*_test.go",
+        "**/*_test.go",
+    ],
+    "ruby": [
+        "*_test.rb",
+        "*_spec.rb",
+        "test/*.rb",
+        "spec/*.rb",
+        "**/test/*.rb",
+        "**/spec/*.rb",
+        "**/*_test.rb",
+        "**/*_spec.rb",
+    ],
+    "rust": [
+        "**/tests/*.rs",
+        "**/tests/**/*.rs",
+    ],
+    "csharp": [
+        "*Tests.cs",
+        "*Test.cs",
+        "**/*Tests.cs",
+        "**/*Test.cs",
+        "**/Tests/**/*.cs",
+    ],
+}
+# Language aliases
+def _python_test_paths(name: str, dir_path: str, root: str, _ext: str) -> List[str]:
+    return [
+        os.path.join(root, dir_path, f"test_{name}.py"),
+        os.path.join(root, dir_path, f"{name}_test.py"),
+        os.path.join(root, "tests", f"test_{name}.py"),
+        os.path.join(root, "tests", dir_path, f"test_{name}.py"),
+        os.path.join(root, "test", f"test_{name}.py"),
+        os.path.join(root, "tests", "unit", f"test_{name}.py"),
+        os.path.join(root, "tests", "integration", f"test_{name}.py"),
+    ]
+
+
+def _js_test_paths(name: str, dir_path: str, root: str, _ext: str) -> List[str]:
+    return [
+        os.path.join(root, dir_path, f"{name}.test.js"),
+        os.path.join(root, dir_path, f"{name}.spec.js"),
+        os.path.join(root, dir_path, "__tests__", f"{name}.js"),
+        os.path.join(root, "tests", f"{name}.test.js"),
+        os.path.join(root, "__tests__", f"{name}.js"),
+    ]
+
+
+def _ts_test_paths(name: str, dir_path: str, root: str, ext: str) -> List[str]:
+    ts_ext = ".tsx" if ext == ".tsx" else ".ts"
+    return [
+        os.path.join(root, dir_path, f"{name}.test{ts_ext}"),
+        os.path.join(root, dir_path, f"{name}.spec{ts_ext}"),
+        os.path.join(root, dir_path, "__tests__", f"{name}{ts_ext}"),
+        os.path.join(root, "tests", f"{name}.test{ts_ext}"),
+        os.path.join(root, "__tests__", f"{name}{ts_ext}"),
+    ]
+
+
+def _java_test_paths(name: str, dir_path: str, root: str, _ext: str) -> List[str]:
+    maven_dir = dir_path.replace("src/main/java/", "").replace("src\\main\\java\\", "")
+    return [
+        os.path.join(root, dir_path, f"{name}Test.java"),
+        os.path.join(root, dir_path, f"{name}Tests.java"),
+        os.path.join(root, "src", "test", "java", maven_dir, f"{name}Test.java"),
+    ]
+
+
+def _go_test_paths(name: str, dir_path: str, root: str, _ext: str) -> List[str]:
+    return [os.path.join(root, dir_path, f"{name}_test.go")]
+
+
+def _ruby_test_paths(name: str, dir_path: str, root: str, _ext: str) -> List[str]:
+    return [
+        os.path.join(root, dir_path, f"{name}_test.rb"),
+        os.path.join(root, dir_path, f"{name}_spec.rb"),
+        os.path.join(root, "test", f"{name}_test.rb"),
+        os.path.join(root, "spec", f"{name}_spec.rb"),
+    ]
+
+
+_TEST_PATH_BUILDERS: Dict[str, Callable[[str, str, str, str], List[str]]] = {
+    "python": _python_test_paths,
+    "javascript": _js_test_paths,
+    "js": _js_test_paths,
+    "typescript": _ts_test_paths,
+    "ts": _ts_test_paths,
+    "tsx": _ts_test_paths,
+    "java": _java_test_paths,
+    "go": _go_test_paths,
+    "ruby": _ruby_test_paths,
+    "rb": _ruby_test_paths,
+}
+
+_TEST_FILE_PATTERNS["js"] = _TEST_FILE_PATTERNS["javascript"]
+_TEST_FILE_PATTERNS["ts"] = _TEST_FILE_PATTERNS["typescript"]
+_TEST_FILE_PATTERNS["tsx"] = _TEST_FILE_PATTERNS["typescript"]
+_TEST_FILE_PATTERNS["rb"] = _TEST_FILE_PATTERNS["ruby"]
+_TEST_FILE_PATTERNS["rs"] = _TEST_FILE_PATTERNS["rust"]
+_TEST_FILE_PATTERNS["cs"] = _TEST_FILE_PATTERNS["csharp"]
+_TEST_FILE_PATTERNS["c#"] = _TEST_FILE_PATTERNS["csharp"]
+
+
 class CoverageDetector:
     """Detects test coverage for source files to assess refactoring risk."""
 
@@ -68,92 +223,7 @@ class CoverageDetector:
         Returns:
             List of glob patterns for test files in that language
         """
-        lang = language.lower()
-
-        if lang == "python":
-            return [
-                "test_*.py",
-                "*_test.py",
-                "tests/*.py",
-                "**/tests/*.py",
-                "**/test/*.py",
-                "**/*_test.py",
-                "**/test_*.py",
-            ]
-        elif lang in ("javascript", "js"):
-            return [
-                "*.test.js",
-                "*.spec.js",
-                "__tests__/*.js",
-                "**/__tests__/*.js",
-                "**/tests/*.js",
-                "**/test/*.js",
-                "**/*.test.js",
-                "**/*.spec.js",
-            ]
-        elif lang in ("typescript", "ts", "tsx"):
-            return [
-                "*.test.ts",
-                "*.test.tsx",
-                "*.spec.ts",
-                "*.spec.tsx",
-                "__tests__/*.ts",
-                "__tests__/*.tsx",
-                "**/__tests__/*.ts",
-                "**/__tests__/*.tsx",
-                "**/tests/*.ts",
-                "**/tests/*.tsx",
-                "**/*.test.ts",
-                "**/*.test.tsx",
-                "**/*.spec.ts",
-                "**/*.spec.tsx",
-            ]
-        elif lang == "java":
-            return [
-                "*Test.java",
-                "*Tests.java",
-                "**/*Test.java",
-                "**/*Tests.java",
-                "**/test/**/*.java",
-                "src/test/**/*.java",
-            ]
-        elif lang == "go":
-            return [
-                "*_test.go",
-                "**/*_test.go",
-            ]
-        elif lang in ("ruby", "rb"):
-            return [
-                "*_test.rb",
-                "*_spec.rb",
-                "test/*.rb",
-                "spec/*.rb",
-                "**/test/*.rb",
-                "**/spec/*.rb",
-                "**/*_test.rb",
-                "**/*_spec.rb",
-            ]
-        elif lang in ("rust", "rs"):
-            return [
-                "**/tests/*.rs",
-                "**/tests/**/*.rs",
-            ]
-        elif lang in ("csharp", "cs", "c#"):
-            return [
-                "*Tests.cs",
-                "*Test.cs",
-                "**/*Tests.cs",
-                "**/*Test.cs",
-                "**/Tests/**/*.cs",
-            ]
-        else:
-            # Generic patterns for unknown languages
-            return [
-                "**/test*",
-                "**/tests/*",
-                "**/*test*",
-                "**/*spec*",
-            ]
+        return _TEST_FILE_PATTERNS.get(language.lower(), _GENERIC_TEST_PATTERNS)
 
     def _get_potential_test_paths(self, file_path: str, language: str, project_root: str) -> List[str]:
         """Generate potential test file paths for a source file.
@@ -166,95 +236,19 @@ class CoverageDetector:
         Returns:
             List of potential test file paths that could contain tests for this file
         """
-        # Get relative path from project root
         try:
             rel_path = os.path.relpath(file_path, project_root)
         except ValueError:
             rel_path = os.path.basename(file_path)
 
-        # Get base name without extension
         basename = os.path.basename(file_path)
-        name_without_ext = os.path.splitext(basename)[0]
-        ext = os.path.splitext(basename)[1]
+        name_without_ext, ext = os.path.splitext(basename)
         dir_path = os.path.dirname(rel_path)
 
-        potential_paths: List[str] = []
-        lang = language.lower()
-
-        if lang == "python":
-            # test_<name>.py, <name>_test.py
-            potential_paths.extend(
-                [
-                    os.path.join(project_root, dir_path, f"test_{name_without_ext}.py"),
-                    os.path.join(project_root, dir_path, f"{name_without_ext}_test.py"),
-                    os.path.join(project_root, "tests", f"test_{name_without_ext}.py"),
-                    os.path.join(project_root, "tests", dir_path, f"test_{name_without_ext}.py"),
-                    os.path.join(project_root, "test", f"test_{name_without_ext}.py"),
-                    os.path.join(project_root, "tests", "unit", f"test_{name_without_ext}.py"),
-                    os.path.join(project_root, "tests", "integration", f"test_{name_without_ext}.py"),
-                ]
-            )
-
-        elif lang in ("javascript", "js"):
-            potential_paths.extend(
-                [
-                    os.path.join(project_root, dir_path, f"{name_without_ext}.test.js"),
-                    os.path.join(project_root, dir_path, f"{name_without_ext}.spec.js"),
-                    os.path.join(project_root, dir_path, "__tests__", f"{name_without_ext}.js"),
-                    os.path.join(project_root, "tests", f"{name_without_ext}.test.js"),
-                    os.path.join(project_root, "__tests__", f"{name_without_ext}.js"),
-                ]
-            )
-
-        elif lang in ("typescript", "ts", "tsx"):
-            # Handle both .ts and .tsx
-            ts_ext = ".tsx" if ext == ".tsx" else ".ts"
-            potential_paths.extend(
-                [
-                    os.path.join(project_root, dir_path, f"{name_without_ext}.test{ts_ext}"),
-                    os.path.join(project_root, dir_path, f"{name_without_ext}.spec{ts_ext}"),
-                    os.path.join(project_root, dir_path, "__tests__", f"{name_without_ext}{ts_ext}"),
-                    os.path.join(project_root, "tests", f"{name_without_ext}.test{ts_ext}"),
-                    os.path.join(project_root, "__tests__", f"{name_without_ext}{ts_ext}"),
-                ]
-            )
-
-        elif lang == "java":
-            # Convert class name: MyClass.java -> MyClassTest.java
-            potential_paths.extend(
-                [
-                    os.path.join(project_root, dir_path, f"{name_without_ext}Test.java"),
-                    os.path.join(project_root, dir_path, f"{name_without_ext}Tests.java"),
-                    # Maven/Gradle standard: src/test/java mirrors src/main/java
-                    os.path.join(
-                        project_root,
-                        "src",
-                        "test",
-                        "java",
-                        dir_path.replace("src/main/java/", "").replace("src\\main\\java\\", ""),
-                        f"{name_without_ext}Test.java",
-                    ),
-                ]
-            )
-
-        elif lang == "go":
-            potential_paths.extend(
-                [
-                    os.path.join(project_root, dir_path, f"{name_without_ext}_test.go"),
-                ]
-            )
-
-        elif lang in ("ruby", "rb"):
-            potential_paths.extend(
-                [
-                    os.path.join(project_root, dir_path, f"{name_without_ext}_test.rb"),
-                    os.path.join(project_root, dir_path, f"{name_without_ext}_spec.rb"),
-                    os.path.join(project_root, "test", f"{name_without_ext}_test.rb"),
-                    os.path.join(project_root, "spec", f"{name_without_ext}_spec.rb"),
-                ]
-            )
-
-        return [os.path.normpath(p) for p in potential_paths]
+        builder = _TEST_PATH_BUILDERS.get(language.lower())
+        if builder is None:
+            return []
+        return [os.path.normpath(p) for p in builder(name_without_ext, dir_path, project_root, ext)]
 
     def _read_file_content(self, file_path: str) -> Optional[str]:
         """Read file content safely.
