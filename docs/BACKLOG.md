@@ -5,7 +5,7 @@
 
 Thresholds: cyc >10, cog >15, nest >4, len >50.
 
-Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08) → **80** (2026-03-08 shared-util) → **25** (2026-03-08 helper-adoption) → **19** (2026-03-08 condense-decompose) → **18** (2026-03-08 dead-code-removal) → **17** (2026-03-08 docstring-extent-decompose) → **16** (2026-03-08 nested-diff-decompose) → **15** (2026-03-08 filter-files-decompose) → **11** (2026-03-09 analyzer-decompose).
+Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08) → **80** (2026-03-08 shared-util) → **25** (2026-03-08 helper-adoption) → **19** (2026-03-08 condense-decompose) → **18** (2026-03-08 dead-code-removal) → **17** (2026-03-08 docstring-extent-decompose) → **16** (2026-03-08 nested-diff-decompose) → **15** (2026-03-08 filter-files-decompose) → **11** (2026-03-09 analyzer-decompose) → **7** (2026-03-09 complexity-reductions).
 
 ### Recently Resolved
 
@@ -25,22 +25,19 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 - **`core/executor.py:filter_files_by_size`** (uncommitted) — extracted `_walk_and_classify` for os.walk loop and file classification. cyc 19→10, cog 18→8, nest 4→3, len 52→36. Helper below thresholds.
 - **`refactoring/analyzer.py`** (`e3ceabb`–`40516c1`) — all 4 offenders resolved. `_find_python_base_variables` (cog 25→7): extracted `_collect_python_identifiers` helper + `_PYTHON_BASE_VAR_PATTERNS` constant. `_get_variable_classification` (cyc 13→7): merged two MODIFIED-return branches. `_scan_and_register_identifiers` (nest 5→4): collapsed for+if into generator. `analyze_selection` (len 63→37): extracted `_build_code_selection`.
 
-### Remaining Offenders (live scan at `40516c1`)
+### Remaining Offenders (live scan at `cbe5588` — 2026-03-09)
 
-11 functions exceed at least one threshold. Sorted by cognitive complexity.
+7 functions exceed at least one threshold (down from 11; 4 resolved 2026-03-09). Sorted by cognitive complexity.
 
 | File | Function | Cyc | Cog | Nest | Len | Exceeds |
 |------|----------|-----|-----|------|-----|---------|
 | `refactoring/extractor.py` | `_scan_imports` | 10 | 18 | 5 | 29 | cog,nest |
-| ~~`complexity/analyzer.py`~~ | ~~`_count_function_parameters`~~ | ~~18~~ | ~~18~~ | ~~3~~ | ~~49~~ | ~~cyc,cog~~ — Done `1f87654` |
-| ~~`complexity/analyzer.py`~~ | ~~`extract_functions_from_file`~~ | ~~10~~ | ~~15~~ | ~~5~~ | ~~34~~ | ~~nest~~ — Done `c52edbe` |
 | `refactoring/extractor.py` | `extract_function` | 9 | 12 | 5 | 79 | nest,len |
 | `deduplication/diff.py` | `_format_alignment_entry` | 11 | 12 | 3 | 16 | cyc |
-| ~~`complexity/analyzer.py`~~ | ~~`analyze_file_complexity`~~ | ~~4~~ | ~~9~~ | ~~5~~ | ~~43~~ | ~~nest~~ — Done `c52edbe` |
 | `deduplication/diff.py` | `generate_file_diff` | 11 | 6 | 2 | 27 | cyc |
-| ~~`deduplication/diff.py`~~ | ~~`build_diff_tree`~~ | ~~11~~ | ~~5~~ | ~~2~~ | ~~35~~ | ~~cyc~~ — Done `53e025a` |
 
-**By file:** `complexity/analyzer.py` (3), `deduplication/diff.py` (3), `refactoring/extractor.py` (2) — `core/executor.py` (1 remaining: `filter_files_by_size`)
+**By file:** `deduplication/diff.py` (2), `refactoring/extractor.py` (2) — `core/executor.py` (1 remaining: `filter_files_by_size`)
+**Status:** 4 items completed and migrated to changelog/2026-03-09. Remaining: 7 offenders (from original 11).
 
 Refresh: `uv run python scripts/scan_complexity_offenders.py`
 
