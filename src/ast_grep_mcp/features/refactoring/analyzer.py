@@ -34,6 +34,28 @@ class CodeSelectionAnalyzer:
         self.language = language
         self._variable_patterns = self._get_variable_patterns(language)
 
+    def _build_code_selection(
+        self, file_path: str, start_line: int, end_line: int
+    ) -> tuple:
+        """Read file and construct a CodeSelection for the given line range.
+
+        Returns:
+            (all_lines, selection) tuple
+        """
+        lines = read_file_lines(file_path)
+        selection_lines = lines[start_line - 1 : end_line]
+        content = "".join(selection_lines)
+        indentation = self._detect_indentation(selection_lines)
+        selection = CodeSelection(
+            file_path=file_path,
+            start_line=start_line,
+            end_line=end_line,
+            language=self.language,
+            content=content,
+            indentation=indentation,
+        )
+        return lines, selection
+
     def analyze_selection(
         self,
         file_path: str,
@@ -59,43 +81,17 @@ class CodeSelectionAnalyzer:
             end_line=end_line,
             language=self.language,
         )
-
-        # Read the selected code
-        lines = read_file_lines(file_path)
-
-        selection_lines = lines[start_line - 1 : end_line]
-        content = "".join(selection_lines)
-
-        # Detect indentation
-        indentation = self._detect_indentation(selection_lines)
-
-        # Create selection object
-        selection = CodeSelection(
-            file_path=file_path,
-            start_line=start_line,
-            end_line=end_line,
-            language=self.language,
-            content=content,
-            indentation=indentation,
-        )
-
-        # Analyze variables
+        lines, selection = self._build_code_selection(file_path, start_line, end_line)
         self._analyze_variables(selection, lines, project_folder)
-
-        # Determine parameters and return values
         self._determine_parameters_and_returns(selection)
-
-        # Check for early returns and exceptions
-        selection.has_early_returns = self._has_early_returns(content)
-        selection.has_exceptions = self._has_exception_handling(content)
-
+        selection.has_early_returns = self._has_early_returns(selection.content)
+        selection.has_exceptions = self._has_exception_handling(selection.content)
         logger.info(
             "code_selection_analyzed",
             variables_found=len(selection.variables),
             parameters_needed=len(selection.parameters_needed),
             return_values=len(selection.return_values),
         )
-
         return selection
 
     def _detect_indentation(self, lines: List[str]) -> str:
