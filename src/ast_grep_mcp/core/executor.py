@@ -21,6 +21,25 @@ from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.utils.tool_context import tool_context
 
 
+def _load_custom_languages() -> List[str]:
+    """Load custom language names from sgconfig.yml.
+
+    Returns:
+        List of custom language names, or empty list if none configured or on error.
+    """
+    # https://ast-grep.github.io/advanced/custom-language.html#register-language-in-sgconfig-yml
+    if not CONFIG_PATH or not os.path.exists(CONFIG_PATH):
+        return []
+    try:
+        with open(CONFIG_PATH, "r") as f:
+            config = yaml.safe_load(f)
+            if config and "customLanguages" in config:
+                return list(config["customLanguages"].keys())
+    except Exception:
+        pass
+    return []
+
+
 def get_supported_languages() -> List[str]:
     """Get all supported languages as a field description string."""
     languages = [  # https://ast-grep.github.io/reference/languages.html
@@ -51,19 +70,7 @@ def get_supported_languages() -> List[str]:
         "typescript",
         "yaml",
     ]
-
-    # Check for custom languages in config file
-    # https://ast-grep.github.io/advanced/custom-language.html#register-language-in-sgconfig-yml
-    if CONFIG_PATH and os.path.exists(CONFIG_PATH):
-        try:
-            with open(CONFIG_PATH, "r") as f:
-                config = yaml.safe_load(f)
-                if config and "customLanguages" in config:
-                    custom_langs = list(config["customLanguages"].keys())
-                    languages += custom_langs
-        except Exception:
-            pass
-
+    languages += _load_custom_languages()
     return sorted(set(languages))
 
 
