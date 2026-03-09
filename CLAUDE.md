@@ -55,8 +55,8 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 
 When calling tools programmatically, use these field names (NOT `line`/`file_path`):
 
-- **analyze_complexity** (`complexity.tools`): `functions[]` with `name`, `file`, `lines`, `cyclomatic`, `cognitive`, `nesting_depth`, `length`, `exceeds`
-- **detect_code_smells** (`complexity.tools`): `smells[]` with `file`, `line`, `severity`, `smell_type`, `message`
+- **analyze_complexity** (`complexity.tools`): top-level keys: `summary`, `thresholds`, `functions`, `message`, `storage`. `summary` keys: `total_functions`, `total_files`, `exceeding_threshold` (no trailing `s`), `avg_cyclomatic`, `avg_cognitive`, `max_cyclomatic`, `max_cognitive`, `max_nesting`, `analysis_time_seconds`. `functions[]` with `name`, `file`, `lines`, `cyclomatic`, `cognitive`, `nesting_depth`, `length`, `exceeds`
+- **detect_code_smells** (`complexity.tools`): top-level keys: `project_folder`, `language`, `files_analyzed`, `total_smells`, `summary`, `smells`, `thresholds`, `execution_time_ms`. `summary` has `by_type` and `by_severity` (`high`/`medium`/`low`). `smells[]` with `file`, `line`, `severity`, `smell_type`, `message`
 - **find_duplication** (`deduplication.tools`): `summary`, `duplication_groups[]`, `refactoring_suggestions[]`; group keys: `group_id`, `similarity_score`, `instances[]` (with `file`, `lines`, `code_preview`)
 - **benchmark_deduplication** (`deduplication.tools`): `results[]` with `name`, `mean_ms`, `median_ms`, `p95_ms`
 - **enforce_standards** (`quality.tools`): `summary`, `violations[]` with `file`, `line`, `column`, `severity`, `rule_id`, `message`, `code_snippet`

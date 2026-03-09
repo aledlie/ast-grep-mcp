@@ -7,6 +7,7 @@ All notable changes to ast-grep-mcp are documented in version-dated files in the
 ## Versions
 
 - [2026-03-09: Complexity Offender Reductions](changelog/2026-03-09-complexity-offender-reductions.md) — 4 complexity items refactored via helper extraction, nest/cyc reduced on 4 functions
+- [2026-03-08: Magic Constants Migration](changelog/2026-03-08-magic-constants-migration.md) — 22 magic strings/numbers replaced with named constants (executor, backup)
 - [2026-03-08: Deduplication Precision Filters](changelog/2026-03-08-deduplication-precision-filters.md) — 5 false-positive group filters, constants + regex refactor, 32 tests
 - [2026-03-08: Backup Refactoring & Helper Adoption](changelog/2026-03-08-backup-refactoring-helper-adoption.md) — shared backup utils, applicator_backup complexity reduction, tool_context adoption, offender scan script
 - [2026-03-08: Review Follow-ups & Test Coverage](changelog/2026-03-08-review-follow-ups-testing.md) — Sentry exception capture, logger parameter deduplication, version resolution consistency
