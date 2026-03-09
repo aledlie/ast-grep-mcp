@@ -27,54 +27,31 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 
 ### Remaining Offenders (live scan at `cbe5588` — 2026-03-09)
 
-7 functions exceed at least one threshold (down from 11; 4 resolved 2026-03-09). Sorted by cognitive complexity.
+Thresholds: cyc >10, cog >15, nest >4, len >50. Refresh: `uv run python scripts/scan_complexity_offenders.py`
 
-| File | Function | Cyc | Cog | Nest | Len | Exceeds |
-|------|----------|-----|-----|------|-----|---------|
-| `refactoring/extractor.py` | `_scan_imports` | 10 | 18 | 5 | 29 | cog,nest |
-| `refactoring/extractor.py` | `extract_function` | 9 | 12 | 5 | 79 | nest,len |
-| `deduplication/diff.py` | `_format_alignment_entry` | 11 | 12 | 3 | 16 | cyc |
-| `deduplication/diff.py` | `generate_file_diff` | 11 | 6 | 2 | 27 | cyc |
-
-**By file:** `deduplication/diff.py` (2), `refactoring/extractor.py` (2) — `core/executor.py` (1 remaining: `filter_files_by_size`)
-**Status:** 4 items completed and migrated to changelog/2026-03-09. Remaining: 7 offenders (from original 11).
-
-Refresh: `uv run python scripts/scan_complexity_offenders.py`
+- [ ] **CX-01** `refactoring/extractor.py:_scan_imports` — cyc=10, cog=18, nest=5 (exceeds: cog, nest). Reduce nesting via early returns or extract helper.
+- [ ] **CX-02** `refactoring/extractor.py:extract_function` — cyc=9, cog=12, nest=5, len=79 (exceeds: nest, len). Decompose into smaller phases.
+- [ ] **CX-03** `deduplication/diff.py:_format_alignment_entry` — cyc=11, cog=12 (exceeds: cyc). Reduce branching via lookup table or helper extraction.
+- [ ] **CX-04** `deduplication/diff.py:generate_file_diff` — cyc=11, cog=6 (exceeds: cyc). Reduce branching via early returns or dispatch.
 
 ## scan_complexity_offenders.py Hardening (2026-03-08)
 
-From code review of `8d4d13a`:
+From code review of `8d4d13a`. Deferred from backlog-implementer pass (commits: `6a27e23`, `edbb9f0`, `c412c78`).
 
-### High
-- **Silent failure on wrong CWD**: Uses relative paths (`src/ast_grep_mcp/...`). If run from anywhere but the project root, `extract_functions_from_file` returns `[]` and the script prints an empty table with no error. Fix: resolve paths relative to `__file__` or add a startup guard checking `pathlib.Path("src/ast_grep_mcp").is_dir()`.
-
-### Medium
-- **`_extract_name` fragile with decorators** (line 40-42): `code.split("(")[0]` can hit a decorator's `(` before `def`. Fix: scan lines for `def`/`async def` first, then split on `(`.
-- **Language hardcoded to `"python"`** (line 53): Silent assumption. If a non-Python file is ever added to `FILES`, calls silently return `[]`. Add a comment or per-entry language field.
-
-### Low
-- **`FILES` lacks type annotation**: Should be `FILES: list[str] = [...]` per project conventions.
-- ~~**`run_command` listed as both resolved and remaining offender**~~: Resolved — clarified that `tool_context` wrapping reduced len/boilerplate but cog/nest remain above thresholds.
+- [ ] **SC-01** (High) Silent failure on wrong CWD: uses relative paths (`src/ast_grep_mcp/...`), `extract_functions_from_file` returns `[]` with no error if run outside project root. Fix: resolve paths relative to `__file__` or add startup guard `pathlib.Path("src/ast_grep_mcp").is_dir()`.
+- [ ] **SC-02** (Medium) `_extract_name` fragile with decorators (line 40-42): `code.split("(")[0]` can hit a decorator's `(` before `def`. Fix: scan lines for `def`/`async def` first, then split on `(`.
+- [ ] **SC-03** (Medium) Language hardcoded to `"python"` (line 53): silent assumption. If a non-Python file is added to `FILES`, calls silently return `[]`. Fix: add per-entry language field or comment.
+- [ ] **SC-04** (Low) `FILES` lacks type annotation: should be `FILES: list[str] = [...]` per project conventions.
 
 ## executor.py Hardening (2026-03-08)
 
-From final code review of `9ad6a2c`–`9d7ea65`:
+From final code review of `9ad6a2c`–`9d7ea65`.
 
-### Medium
-- **`_execute_subprocess` Sentry span missing `returncode` on error path**: When `check=True` and `subprocess.run` raises `CalledProcessError`, `span.set_data("returncode", ...)` is never reached. Pre-existing gap, now more visible after extraction. Fix: wrap `subprocess.run` in a try/except inside `_execute_subprocess` to set `returncode` before re-raising.
-
-### Low
-- **`_execute_subprocess` `use_shell` should be keyword-only**: Add `*` before `use_shell: bool` to prevent future positional misuse.
-- **`_load_custom_languages` silently swallows errors**: `except Exception: pass` should log at debug level for diagnosability.
+- [ ] **EX-01** (Medium) `_execute_subprocess` Sentry span missing `returncode` on error path: when `check=True` and `subprocess.run` raises `CalledProcessError`, `span.set_data("returncode", ...)` is never reached. Fix: wrap in try/except to set `returncode` before re-raising.
+- [ ] **EX-02** (Low) `_execute_subprocess` `use_shell` should be keyword-only: add `*` before `use_shell: bool` to prevent positional misuse.
+- [ ] **EX-03** (Low) `_load_custom_languages` silently swallows errors: `except Exception: pass` should log at debug level for diagnosability.
 
 ## Deferred (2026-03-08)
 
-**scan_complexity_offenders.py Hardening** — Skipped in backlog-implementer pass; user scope "non-complexity related items" excludes complexity tooling. (Commits: `6a27e23`, `edbb9f0`, `c412c78`)
-- High: Silent failure on wrong CWD (uses relative paths, needs startup guard)
-- Medium: `_extract_name` fragile with decorators
-- Medium: Language hardcoded to `"python"`
-- Low: `FILES` lacks type annotation
-- ~~Low: `run_command` documentation issue~~ (resolved — clarified in Recently Resolved section)
-
-**Strategy pattern filter for deduplication** — Low-priority per docs/duplicate-detector-misses.md investigation notes. Only candidate (Group 5) would save ~18 lines with minor signature mismatch; over-engineering for marginal benefit.
+- [ ] **DF-01** (Low) Strategy pattern filter for deduplication — per `docs/duplicate-detector-misses.md` investigation. Only candidate (Group 5) would save ~18 lines with minor signature mismatch; over-engineering for marginal benefit.
 
