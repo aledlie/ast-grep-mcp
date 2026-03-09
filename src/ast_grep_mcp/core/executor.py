@@ -11,7 +11,7 @@ from typing import Any, Dict, Generator, List, Optional, Tuple, cast
 import sentry_sdk
 import yaml
 
-from ast_grep_mcp.constants import DisplayDefaults, FileConstants, FormattingDefaults, StreamDefaults
+from ast_grep_mcp.constants import DisplayDefaults, ExecutorDefaults, FileConstants, FormattingDefaults, StreamDefaults
 from ast_grep_mcp.core.config import CONFIG_PATH
 from ast_grep_mcp.core.exceptions import (
     AstGrepExecutionError,
@@ -90,7 +90,7 @@ def run_command(args: List[str], input_text: Optional[str] = None, *, allow_nonz
 
     with tool_context("run_command", command=" ".join(args), has_stdin=has_stdin) as start_time:
         try:
-            use_shell = sys.platform == "win32" and args[0] == "ast-grep"
+            use_shell = sys.platform == "win32" and args[0] == ExecutorDefaults.AST_GREP_COMMAND
 
             with sentry_sdk.start_span(op="subprocess.run", name=f"Running {args[0]}") as span:
                 span.set_data("command", sanitized_args[0])
@@ -120,7 +120,7 @@ def run_command(args: List[str], input_text: Optional[str] = None, *, allow_nonz
             stderr_msg = e.stderr.strip() if e.stderr else ""
             raise AstGrepExecutionError(command=args, returncode=e.returncode, stderr=stderr_msg) from e
         except FileNotFoundError as e:
-            if args[0] == "ast-grep":
+            if args[0] == ExecutorDefaults.AST_GREP_COMMAND:
                 raise AstGrepNotFoundError() from e
             raise AstGrepNotFoundError(f"Command '{args[0]}' not found") from e
 
@@ -278,7 +278,7 @@ def run_ast_grep(command: str, args: List[str], input_text: Optional[str] = None
         args = ["--config", CONFIG_PATH] + args
     # --debug-query outputs to stderr and returns exit code 1 even on success
     allow_nonzero = any(arg.startswith("--debug-query") for arg in args)
-    return run_command(["ast-grep", command] + args, input_text, allow_nonzero=allow_nonzero)
+    return run_command([ExecutorDefaults.AST_GREP_COMMAND, command] + args, input_text, allow_nonzero=allow_nonzero)
 
 
 def _prepare_stream_command(command: str, args: List[str]) -> List[str]:
@@ -294,7 +294,7 @@ def _prepare_stream_command(command: str, args: List[str]) -> List[str]:
     final_args = args.copy()
     if CONFIG_PATH:
         final_args = ["--config", CONFIG_PATH] + final_args
-    return ["ast-grep", command] + final_args
+    return [ExecutorDefaults.AST_GREP_COMMAND, command] + final_args
 
 
 def _create_stream_process(full_command: List[str]) -> subprocess.Popen[str]:
@@ -309,7 +309,7 @@ def _create_stream_process(full_command: List[str]) -> subprocess.Popen[str]:
     Raises:
         FileNotFoundError: If command not found
     """
-    use_shell = sys.platform == "win32" and full_command[0] == "ast-grep"
+    use_shell = sys.platform == "win32" and full_command[0] == ExecutorDefaults.AST_GREP_COMMAND
     return subprocess.Popen(full_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=use_shell)
 
 
@@ -368,11 +368,11 @@ def _terminate_process(process: subprocess.Popen[str], logger: Any, reason: str)
     logger.info(f"stream_{reason}")
     process.terminate()
     try:
-        process.wait(timeout=2)
+        process.wait(timeout=StreamDefaults.PROCESS_TERMINATE_TIMEOUT_SECONDS)
     except subprocess.TimeoutExpired:
         process.kill()
         try:
-            process.wait(timeout=5)
+            process.wait(timeout=StreamDefaults.PROCESS_KILL_TIMEOUT_SECONDS)
         except subprocess.TimeoutExpired:
             logger.error("process_kill_timeout", pid=process.pid)
 
@@ -429,11 +429,11 @@ def _cleanup_process(process: Optional[subprocess.Popen[str]]) -> None:
 
     process.terminate()
     try:
-        process.wait(timeout=2)
+        process.wait(timeout=StreamDefaults.PROCESS_TERMINATE_TIMEOUT_SECONDS)
     except subprocess.TimeoutExpired:
         process.kill()
         try:
-            process.wait(timeout=5)
+            process.wait(timeout=StreamDefaults.PROCESS_KILL_TIMEOUT_SECONDS)
         except subprocess.TimeoutExpired:
             pass
 
@@ -501,7 +501,7 @@ def _log_stream_completion(match_count: int, start_time: float, max_results: int
 
 def _raise_not_found_error(full_command: List[str], cause: Exception) -> None:
     """Raise an AstGrepNotFoundError with Sentry capture."""
-    if full_command[0] == "ast-grep":
+    if full_command[0] == ExecutorDefaults.AST_GREP_COMMAND:
         error = AstGrepNotFoundError()
     else:
         error = AstGrepNotFoundError(f"Command '{full_command[0]}' not found")
@@ -551,7 +551,7 @@ def stream_ast_grep_results(
         match_count = yield from _iter_stdout_matches(process, max_results, progress_interval, start_time, logger)
 
         returncode = process.wait()
-        stderr_thread.join(timeout=5)
+        stderr_thread.join(timeout=StreamDefaults.PROCESS_KILL_TIMEOUT_SECONDS)
         _handle_stream_error(returncode, "".join(stderr_chunks), full_command, start_time, match_count, logger)
         _log_stream_completion(match_count, start_time, max_results, logger)
 
