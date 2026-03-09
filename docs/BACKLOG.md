@@ -41,6 +41,15 @@ From final code review of `9ad6a2c`–`9d7ea65`.
 - [ ] **EX-02** (Low) `_execute_subprocess` `use_shell` should be keyword-only: add `*` before `use_shell: bool` to prevent positional misuse.
 - [ ] **EX-03** (Low) `_load_custom_languages` silently swallows errors: `except Exception: pass` should log at debug level for diagnosability.
 
+## Test Coverage Gaps (2026-03-09)
+
+From backlog-implementer session implementing CX-01–CX-04 and SC-01–SC-04. New helpers introduced during complexity refactoring and script hardening have no direct test coverage.
+
+- [ ] **TC-01** (Medium) `scripts/scan_complexity_offenders.py` has zero tests. No coverage for `_extract_name` (decorator/async handling from SC-02), `_PROJECT_ROOT` resolution (CWD-independence from SC-01), `FILES` language tuple unpacking (SC-03), or `main()` output format. Fix: add `tests/unit/test_scan_complexity_offenders.py` with cases for: decorated functions (`@cache\ndef foo()`), `async def`, running from wrong CWD, `--all` flag, and functions exceeding thresholds.
+- [ ] **TC-02** (Medium) `FunctionExtractor._process_scan_line` (`refactoring/extractor.py:344`) — new helper from CX-01. No direct unit test. Handles 5 branches: skip blank/comment, import start, multiline continuation, post-import break, default. `_scan_imports` itself also untested — existing `test_extract_function.py` exercises end-to-end extraction but never imports. Fix: add parametrized test in `test_extract_function.py` covering multiline `from x import (\n  a,\n  b\n)`, stacked imports, `import x` vs `from x import y`, and the post-import stop condition.
+- [ ] **TC-03** (Low) `_ensure_trailing_newline` (`deduplication/diff.py:391`) — new helper from CX-04. `test_generate_file_diff` exists but uses simple single-line inputs and weak assertions (`assert "def foo()" in diff or diff == ""`). Does not verify trailing newline edge cases (content already ending with `\n` vs not, empty content). Fix: add tests for `_ensure_trailing_newline` directly: empty list, single line with newline, single line without newline, multi-line.
+- [ ] **TC-04** (Low) `_format_diff_alignment` (`deduplication/diff.py:193`) — new helper from CX-03. `test_format_alignment_diff` covers the `diff` alignment type but uses a weak assertion (`assert formatted is not None`). Does not verify the `- old`/`+ new` prefix formatting, empty old/new values, or both empty. Fix: strengthen `test_format_alignment_diff` to assert specific output lines, and add edge cases for empty `old`/`new` fields.
+
 ## Deferred (2026-03-08)
 
 - [ ] **DF-01** (Low) Strategy pattern filter for deduplication — per `docs/duplicate-detector-misses.md` investigation. Only candidate (Group 5) would save ~18 lines with minor signature mismatch; over-engineering for marginal benefit.
