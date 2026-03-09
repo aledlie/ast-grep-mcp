@@ -17,6 +17,7 @@ from ast_grep_mcp.models.complexity import (
     ComplexityThresholds,
     FunctionComplexity,
 )
+from ast_grep_mcp.utils.parsing import detect_triple_quote, skip_blank_lines
 
 from .metrics import (
     calculate_cognitive_complexity,
@@ -325,34 +326,34 @@ def _find_signature_end(code_lines: List[str]) -> int:
     return -1
 
 
+def _measure_docstring(code_lines: List[str], doc_start: int) -> int:
+    """Measure lines occupied by a docstring starting at doc_start.
+
+    Returns number of lines, or 0 if no docstring found.
+    """
+    first_content = code_lines[doc_start].strip()
+    quote = detect_triple_quote(first_content)
+    if quote is None:
+        return 0
+    # Single-line docstring
+    if first_content.count(quote) >= 2:
+        return 1
+    # Multi-line: find closing quote
+    for j in range(doc_start + 1, len(code_lines)):
+        if quote in code_lines[j]:
+            return j - doc_start + 1
+    return 0
+
+
 def _find_docstring_extent(code_lines: List[str], start: int) -> int:
     """Count docstring lines starting from the given line index.
 
     Returns the number of lines the docstring occupies, or 0 if no docstring found.
     """
-    # Skip blank lines to find docstring start
-    doc_start = start
-    while doc_start < len(code_lines) and not code_lines[doc_start].strip():
-        doc_start += 1
-
+    doc_start = skip_blank_lines(code_lines, start)
     if doc_start >= len(code_lines):
         return 0
-
-    first_content = code_lines[doc_start].strip()
-
-    for quote in ('"""', "'''"):
-        if not first_content.startswith(quote):
-            continue
-        # Single-line docstring: """text"""
-        if first_content.count(quote) >= 2:
-            return 1
-        # Multi-line: find closing quote
-        for j in range(doc_start + 1, len(code_lines)):
-            if quote in code_lines[j]:
-                return j - doc_start + 1
-        return 0
-
-    return 0
+    return _measure_docstring(code_lines, doc_start)
 
 
 def _count_docstring_lines(code: str, language: str) -> int:
