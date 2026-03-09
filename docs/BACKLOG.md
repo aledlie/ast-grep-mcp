@@ -5,7 +5,7 @@
 
 Thresholds: cyc >10, cog >15, nest >4, len >50.
 
-Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08) → **80** (2026-03-08 shared-util) → **25** (2026-03-08 helper-adoption) → **19** (2026-03-08 condense-decompose) → **18** (2026-03-08 dead-code-removal) → **17** (2026-03-08 docstring-extent-decompose) → **16** (2026-03-08 nested-diff-decompose).
+Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2026-03-08) → **80** (2026-03-08 shared-util) → **25** (2026-03-08 helper-adoption) → **19** (2026-03-08 condense-decompose) → **18** (2026-03-08 dead-code-removal) → **17** (2026-03-08 docstring-extent-decompose) → **16** (2026-03-08 nested-diff-decompose) → **15** (2026-03-08 filter-files-decompose).
 
 ### Recently Resolved
 
@@ -22,19 +22,19 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 - **`complexity/analyzer.py:_find_magic_numbers`** (uncommitted) — deleted dead code (was cyc=13, cog=25, nest=5, len=61). Function was never called; active implementation lives in `quality/smells_detectors.py:MagicNumberDetector._find_magic_numbers` (already well-decomposed). Removed unused `SemanticVolumeDefaults` import.
 - **`complexity/analyzer.py:_find_docstring_extent`** (uncommitted) — decomposed into `_measure_docstring` + shared `utils/parsing.py` primitives (`detect_triple_quote`, `skip_blank_lines`). cyc 11→4, cog 21→3. All helpers below thresholds. DRY: `deduplication/generator.py` `_get_triple_quotes` and `_skip_blank_lines` now delegate to same shared utils.
 - **`deduplication/diff.py:build_nested_diff_tree`** (`b5e9d52`) — extracted `_DiffCounts` accumulator, `_classify_diff_line`, `_parse_unified_diff_lines`, `_build_nested_structure`. cyc 20→7, cog 25→3, nest 6→2, len 96→31. All helpers below thresholds.
+- **`core/executor.py:filter_files_by_size`** (uncommitted) — extracted `_walk_and_classify` for os.walk loop and file classification. cyc 19→10, cog 18→8, nest 4→3, len 52→36. Helper below thresholds.
 
-### Remaining Offenders (live scan at `b5e9d52`)
+### Remaining Offenders (live scan at `b5e9d52` + uncommitted)
 
-16 functions exceed at least one threshold. Sorted by cognitive complexity.
+15 functions exceed at least one threshold. Sorted by cognitive complexity.
 
 | File | Function | Cyc | Cog | Nest | Len | Exceeds |
 |------|----------|-----|-----|------|-----|---------|
 | `refactoring/analyzer.py` | `_find_python_base_variables` | 10 | 25 | 4 | 44 | cog |
-| `core/executor.py` | `filter_files_by_size` | 19 | 18 | 4 | 52 | cyc,cog,len |
 | `refactoring/extractor.py` | `_scan_imports` | 10 | 18 | 5 | 29 | cog,nest |
 | `complexity/analyzer.py` | `_count_function_parameters` | 18 | 18 | 3 | 49 | cyc,cog |
-| `core/executor.py` | `run_command` | 9 | 17 | 5 | 56 | cog,nest,len |
-| `core/executor.py` | `get_supported_languages` | 8 | 16 | 5 | 44 | cog,nest |
+| ~~`core/executor.py`~~ | ~~`run_command`~~ | 9 | 17 | 5 | 56 | cog,nest,len | Done (`a650811`) |
+| ~~`core/executor.py`~~ | ~~`get_supported_languages`~~ | 8 | 16 | 5 | 44 | cog,nest | Done (`9ad6a2c`) |
 | `complexity/analyzer.py` | `extract_functions_from_file` | 10 | 15 | 5 | 34 | nest |
 | `refactoring/analyzer.py` | `_get_variable_classification` | 13 | 13 | 3 | 40 | cyc |
 | `refactoring/extractor.py` | `extract_function` | 9 | 12 | 5 | 79 | nest,len |
@@ -43,10 +43,10 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 | `complexity/analyzer.py` | `analyze_file_complexity` | 4 | 9 | 5 | 43 | nest |
 | `deduplication/diff.py` | `generate_file_diff` | 11 | 6 | 2 | 27 | cyc |
 | `deduplication/diff.py` | `build_diff_tree` | 11 | 5 | 2 | 35 | cyc |
-| `core/executor.py` | `stream_ast_grep_results` | 4 | 2 | 2 | 52 | len |
+| ~~`core/executor.py`~~ | ~~`stream_ast_grep_results`~~ | 4 | 2 | 2 | 52 | len | Done (`9d7ea65`) |
 | `refactoring/analyzer.py` | `analyze_selection` | 6 | 0 | 3 | 63 | len |
 
-**By file:** `complexity/analyzer.py` (3), `deduplication/diff.py` (3), `refactoring/analyzer.py` (4), `core/executor.py` (4), `refactoring/extractor.py` (2)
+**By file:** `complexity/analyzer.py` (3), `deduplication/diff.py` (3), `refactoring/analyzer.py` (4), `core/executor.py` (3), `refactoring/extractor.py` (2)
 
 Refresh: `uv run python scripts/scan_complexity_offenders.py`
 
@@ -71,6 +71,17 @@ From code review of `8d4d13a`:
 - [x] `timeout=2` (2 occurrences in executor.py) → `StreamDefaults.PROCESS_TERMINATE_TIMEOUT_SECONDS`
 - [x] `timeout=5` (3 occurrences in executor.py) → `StreamDefaults.PROCESS_KILL_TIMEOUT_SECONDS`
 - [x] Backup magic strings (13 occurrences across applicator_backup.py, rewrite/backup.py) → `BackupDefaults.DIR_NAME`, `.METADATA_FILE`, `.DEDUP_PREFIX`, `.REWRITE_PREFIX` (parallel session `f79f686`)
+
+## executor.py Hardening (2026-03-08)
+
+From final code review of `9ad6a2c`–`9d7ea65`:
+
+### Medium
+- **`_execute_subprocess` Sentry span missing `returncode` on error path**: When `check=True` and `subprocess.run` raises `CalledProcessError`, `span.set_data("returncode", ...)` is never reached. Pre-existing gap, now more visible after extraction. Fix: wrap `subprocess.run` in a try/except inside `_execute_subprocess` to set `returncode` before re-raising.
+
+### Low
+- **`_execute_subprocess` `use_shell` should be keyword-only**: Add `*` before `use_shell: bool` to prevent future positional misuse.
+- **`_load_custom_languages` silently swallows errors**: `except Exception: pass` should log at debug level for diagnosability.
 
 ## Deferred (2026-03-08)
 
