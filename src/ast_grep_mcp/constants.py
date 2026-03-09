@@ -753,6 +753,13 @@ class DetectorDefaults:
 
     UTILITY_FUNCTION_LINE_THRESHOLD = 10
 
+    # Precision filter thresholds (reduce false positives)
+    TRIVIAL_INIT_MAX_LINES = 10
+    MIN_LINE_SAVINGS = 20
+    DELEGATION_MAX_BODY_STATEMENTS = 2
+    CONSTRUCTOR_NAMES = frozenset({"__init__", "constructor", "__new__", "init"})
+    PARALLEL_FORMATTER_PREFIXES = ("to_", "from_", "as_", "into_")
+
 
 class ComplexityStorageDefaults:
     """Defaults for complexity trend storage and queries."""
