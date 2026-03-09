@@ -9,14 +9,26 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 
 ### Recently Resolved
 
-**Shared utility extractions (2026-03-08):**
+**Shared utility extractions (`e74b8de`..`a97f344`):**
 
-- **`FilePatterns.normalize_excludes()`** — new classmethod on `constants.py:FilePatterns`. Consolidates all `_normalize_exclude_patterns` functions across quality, complexity, deduplication, and documentation tools. Dedup migrated from substring-match to glob format (`"**/site-packages/**"` etc.) with module-local `_DEDUP_EXCLUDE_DEFAULTS`.
-- **`utils/tool_context.py`** — extracted `tool_context` context manager (timing + error logging + Sentry capture) from `quality/tools.py`. Adopted by `complexity/tools.py` (replaced `_log_tool_error` + 3 manual try/except blocks) and all 6 `condense/tools.py` tool functions. Added `status="failed"` to error log. Unit tests: `tests/unit/test_tool_context.py` (8 tests). `cross_language/tools.py` kept its `_run_tool` callable wrapper (different API shape, no violations).
-- **`complexity/tools.py`** — removed `_log_tool_error` (16 lines), `_get_default_complexity_exclude_patterns` (3 lines), `DisplayDefaults` import.
-- **`quality/tools.py`** — removed local `_tool_context` (28 lines), `_normalize_exclude_patterns` (5 lines), `contextlib`/`Generator`/`DisplayDefaults` imports. `_create_mcp_field_definitions` and field-dict indirection removed; `Field()` inlined into `@mcp.tool()` wrappers.
+- **`FilePatterns.normalize_excludes()`** — staticmethod on `constants.py:FilePatterns`. Consolidates all `_normalize_exclude_patterns` functions across quality, complexity, deduplication, and documentation tools. Dedup migrated from substring-match to glob format. Simplified in `a97f344` to use `DEFAULT_EXCLUDE` directly as default arg, removing None-as-sentinel pattern; `_DEDUP_EXCLUDE_DEFAULTS` removed (strict subset of shared default).
+- **`utils/tool_context.py`** — extracted `tool_context`/`async_tool_context` context managers (timing + error logging + Sentry capture). Adopted by complexity (3 tools), condense (6 tools), documentation (5 tools), schema (9 async tools). `status="failed"` added to error log. Optional `logger` param added (`ad109ab`) to avoid redundant `get_logger` calls. Unit tests: `tests/unit/test_tool_context.py` (8 tests).
+- **`utils/text.py`** — promoted `indent_lines`, `read_file_lines`, `write_file_lines` to shared utils (`eac6227`). Replaced 7 inline open()/readlines()/writelines() patterns and 3 duplicate indent implementations. Widened to accept `PathLike`; added atomic write via temp-file-then-rename (`a97f344`).
+- **`quality/tools.py`** — removed `_tool_context` (28 lines), `_normalize_exclude_patterns`, `_create_mcp_field_definitions`; `Field()` inlined into `@mcp.tool()` wrappers.
+- **`complexity/tools.py`** — removed `_log_tool_error`, `_get_default_complexity_exclude_patterns`, `DisplayDefaults` import.
 
-Commits `52b1f3f`..`70a4762` addressed 6 hotspot areas:
+**Bug fixes and hardening (`ad109ab`):**
+
+- **`schema/enhancement_service.py`** — restored `sentry_sdk.capture_exception` in `analyze_entity_graph` (was removed prematurely in `e74b8de` when async_tool_context was added at tool layer).
+- **`documentation/changelog_generator.py`** — fixed `from_version` resolution asymmetry: `_get_commit_range` now uses `_resolve_version_ref` for both `from_version` and `to_version`.
+
+**Infra and test fixes (`783f5f6`..`a5c7879`):**
+
+- **Benchmark test stability** — replaced flaky speedup-ratio assertion with absolute ceiling (500ms) for cache-hit benchmark.
+- **Repomix scripts** — fixed ROOT path, script name references, config file paths across `repomix-regen.sh`, `generate-repomix-docs.sh`, `generate-repomix-git-ranked.sh`.
+- **Docs refresh** — updated test count (1,622), module count (10), sentry init location, benchmark test path; deleted stale `schema/tools.py.backup` (849 lines).
+
+Commits `52b1f3f`..`70a4762` addressed 6 complexity hotspot areas:
 
 - **`deduplication/applicator_executor.py`** (was cog=33) — extracted loop bodies into `_create_single_file`, `_update_single_file`, `_apply_import_addition`; removed duplicated import logic. Worst remaining: cog=16.
 - **`documentation/changelog_generator.py`** (was cog=30) — extracted `_get_commits`, `_group_commits_by_version`, `_format_changelog_entry` helpers; added unit tests. Hardened with `str | None` types (`1b5f331`). Worst remaining: `_format_conventional_section` cog=18.
