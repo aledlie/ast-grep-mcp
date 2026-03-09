@@ -32,11 +32,11 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 | File | Function | Cyc | Cog | Nest | Len | Exceeds |
 |------|----------|-----|-----|------|-----|---------|
 | `refactoring/extractor.py` | `_scan_imports` | 10 | 18 | 5 | 29 | cog,nest |
-| `complexity/analyzer.py` | `_count_function_parameters` | 18 | 18 | 3 | 49 | cyc,cog |
-| `complexity/analyzer.py` | `extract_functions_from_file` | 10 | 15 | 5 | 34 | nest |
+| ~~`complexity/analyzer.py`~~ | ~~`_count_function_parameters`~~ | ~~18~~ | ~~18~~ | ~~3~~ | ~~49~~ | ~~cyc,cog~~ — Done `1f87654` |
+| ~~`complexity/analyzer.py`~~ | ~~`extract_functions_from_file`~~ | ~~10~~ | ~~15~~ | ~~5~~ | ~~34~~ | ~~nest~~ — Done `c52edbe` |
 | `refactoring/extractor.py` | `extract_function` | 9 | 12 | 5 | 79 | nest,len |
 | `deduplication/diff.py` | `_format_alignment_entry` | 11 | 12 | 3 | 16 | cyc |
-| `complexity/analyzer.py` | `analyze_file_complexity` | 4 | 9 | 5 | 43 | nest |
+| ~~`complexity/analyzer.py`~~ | ~~`analyze_file_complexity`~~ | ~~4~~ | ~~9~~ | ~~5~~ | ~~43~~ | ~~nest~~ — Done `c52edbe` |
 | `deduplication/diff.py` | `generate_file_diff` | 11 | 6 | 2 | 27 | cyc |
 | ~~`deduplication/diff.py`~~ | ~~`build_diff_tree`~~ | ~~11~~ | ~~5~~ | ~~2~~ | ~~35~~ | ~~cyc~~ — Done `53e025a` |
 
