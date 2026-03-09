@@ -9,19 +9,19 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 
 ### Recently Resolved
 
+- **`core/executor.py:stream_ast_grep_results`** (`0642b3f`) — extracted `_iter_stdout_matches` (yield-from delegation), `_log_stream_completion`, `_raise_not_found_error`. cyc 16→4, cog 29→2, nest 6→2, len 101→52.
 - **`deduplication/applicator_backup.py`** (`7880737`, `c847003`) — all 4 functions now below thresholds. Extracted helpers to class + shared `utils/backup.py` primitives (`get_file_hash`, `resolve_backup_dir`, `copy_file_to_backup`, `restore_file_from_backup`). `cleanup_old_backups` cog 33→14, `list_backups` cog 23→14, `create_backup` cog 20→10, `rollback` cog 18→15.
 - **`rewrite/backup.py`** (`c847003`) — consolidated duplicate backup primitives into shared `utils/backup.py`, eliminating ~60 lines of duplication. `create_backup`, `create_deduplication_backup`, `_restore_single_file`, `_check_file_conflicts` now delegate to shared utils.
 - **`core/executor.py:run_command`** (`0a679bb`) — wrapped with `tool_context()`, eliminated ~35 lines of manual timing + Sentry boilerplate. Note: still at cog=17 due to inherent branching; `tool_context` reduced len, not cognitive complexity.
 - **`schema/enhancement_service.py`** (`0a679bb`) — replaced hardcoded 16-entry `_EXCLUDED_DIRS` with derivation from `FilePatterns.DEFAULT_EXCLUDE`.
 - **`refactoring/extractor.py`** (`0a679bb`) — `_generate_docstring` (was cog=31), `_generate_function_body` (was cog=25), `_generate_signature` (was cog=13), `_apply_extraction` (was cog=11) all dropped below thresholds via further decomposition.
 
-### Remaining Offenders (live scan at `c847003`)
+### Remaining Offenders (live scan at `0642b3f`)
 
-25 functions exceed at least one threshold. Sorted by cognitive complexity.
+24 functions exceed at least one threshold. Sorted by cognitive complexity.
 
 | File | Function | Cyc | Cog | Nest | Len | Exceeds |
 |------|----------|-----|-----|------|-----|---------|
-| `core/executor.py` | `stream_ast_grep_results` | 16 | 29 | 6 | 101 | cyc,cog,nest,len |
 | `condense/service.py` | `condense_pack_impl` | 15 | 29 | 5 | 115 | cyc,cog,nest,len |
 | `deduplication/diff.py` | `diff_preview_to_dict` | 14 | 29 | 5 | 53 | cyc,cog,nest,len |
 | `condense/service.py` | `_count_structural_braces` | 17 | 28 | 5 | 33 | cyc,cog,nest |
@@ -40,14 +40,14 @@ Previous baselines: **434** (2026-03-04) → **407** (2026-03-06) → **100** (2
 | `complexity/analyzer.py` | `extract_functions_from_file` | 10 | 15 | 5 | 34 | nest |
 | `refactoring/analyzer.py` | `_get_variable_classification` | 13 | 13 | 3 | 40 | cyc |
 | `refactoring/extractor.py` | `extract_function` | 9 | 12 | 5 | 79 | nest,len |
-| `deduplication/diff.py` | `build_diff_tree` | 11 | 5 | 2 | 35 | cyc |
 | `deduplication/diff.py` | `_format_alignment_entry` | 11 | 12 | 3 | 16 | cyc |
+| `deduplication/diff.py` | `build_diff_tree` | 11 | 5 | 2 | 35 | cyc |
 | `deduplication/diff.py` | `generate_file_diff` | 11 | 6 | 2 | 27 | cyc |
 | `refactoring/analyzer.py` | `analyze_selection` | 6 | 0 | 3 | 63 | len |
 | `refactoring/analyzer.py` | `_scan_and_register_identifiers` | 9 | 9 | 5 | 26 | nest |
 | `complexity/analyzer.py` | `analyze_file_complexity` | 4 | 9 | 5 | 43 | nest |
 
-**By file:** `condense/service.py` (5), `core/executor.py` (4), `deduplication/diff.py` (5), `complexity/analyzer.py` (4), `refactoring/analyzer.py` (4), `refactoring/extractor.py` (2)
+**By file:** `condense/service.py` (5), `deduplication/diff.py` (5), `complexity/analyzer.py` (4), `refactoring/analyzer.py` (4), `core/executor.py` (3), `refactoring/extractor.py` (2)
 
 Refresh: `uv run python scripts/scan_complexity_offenders.py`
 
@@ -65,17 +65,6 @@ From code review of `8d4d13a`:
 ### Low
 - **`FILES` lacks type annotation**: Should be `FILES: list[str] = [...]` per project conventions.
 - **`run_command` listed as both resolved and remaining offender** in BACKLOG.md: "Recently Resolved" says it was wrapped with `tool_context()`, but the offender table still lists it at `cog=17`. The wrapping doesn't lower cognitive complexity — reword the resolved entry or remove it.
-
-## Duplicate Detection Precision (2026-03-08) — Done (`6a27e23`)
-
-All 5 false-positive groups from the 2026-03-08 `find_duplication` run (sim >= 0.82) are now suppressed by precision filters added to `DuplicationDetector._apply_precision_filters`. Common causes addressed: trivial constructors, intentionally parallel APIs, thin semantic wrappers, and strategy pattern boilerplate.
-
-Implemented filters (see `features/deduplication/detector.py`):
-- [x] Exclude short `__init__` methods (`_is_trivial_constructor_group`, <=10 lines)
-- [x] Discount methods delegating to shared helpers (`_is_delegation_wrapper_group`)
-- [x] Parallel formatter filter (`_is_parallel_formatter_group`, to_/from_/as_/into_ variants)
-- [x] Minimum line savings threshold (`_meets_min_savings`, >=20 lines)
-- Strategy pattern filter deferred — the only candidate (Group 5) is low-priority per investigation notes
 
 ## Deferred (2026-03-08)
 
