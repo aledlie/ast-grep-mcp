@@ -621,8 +621,14 @@ def _extract_var_name_from_let(code_snippet: str) -> Optional[str]:
     return m.group(1) if m else None
 
 
-# == null / != null is intentional TypeScript idiom (checks both null and undefined)
-_NULL_EQUALITY_RE = re.compile(r"\b(null|undefined)\s*[!=]=\s*|[!=]=\s*(null|undefined)\b")
+# == null / != null is intentional TypeScript idiom (checks both null and undefined).
+# Lookahead/lookbehind prevents matching === or !==.
+_NULL_EQUALITY_RE = re.compile(
+    r"(?<![=!])(==|!=)(?!=)\s*(null|undefined)\b"
+    r"|\b(null|undefined)\s*(?<![=!])(==|!=)(?!=)"
+)
+_LOOSE_EQ_RE = re.compile(r"(?<![=!])==(?!=)")
+_LOOSE_NEQ_RE = re.compile(r"(?<![=!])!=(?!=)")
 
 
 def _is_null_equality_check(code: str) -> bool:
@@ -634,9 +640,11 @@ def _fix_double_equals(code: str) -> str:
     """Fix loose equality, preserving == null/undefined idiom."""
     if _is_null_equality_check(code):
         return code
-    if "!==" not in code:
-        return code.replace("==", "===", 1)
-    return code.replace("!=", "!==", 1)
+    if _LOOSE_EQ_RE.search(code):
+        return _LOOSE_EQ_RE.sub("===", code, count=1)
+    if _LOOSE_NEQ_RE.search(code):
+        return _LOOSE_NEQ_RE.sub("!==", code, count=1)
+    return code
 
 
 # Rule-specific code transformations for rules whose fix field is a
