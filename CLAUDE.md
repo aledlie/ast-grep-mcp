@@ -68,7 +68,9 @@ Exception: **search** tools use `_impl` functions — `from ast_grep_mcp.feature
 
 ## Public API vs Internals
 
-- **search tools** — use `find_code_impl`, `find_code_by_rule_impl`, `dump_syntax_tree_impl`, etc. from `search.service`. The `tools.py` registers inner functions via `@mcp.tool()` that are not importable.
+- **search tools** — use `find_code_impl`, `find_code_by_rule_impl`, `dump_syntax_tree_impl`, `debug_pattern_impl`, `build_rule_impl`, `develop_pattern_impl` from `search.service`. The `tools.py` registers inner functions via `@mcp.tool()` that are not importable.
+- **search doc helpers** — `get_docs(topic)` and `get_pattern_examples(language, category)` live in `search.docs`, not `search.service`. There is no `get_ast_grep_docs_impl` or `get_pattern_examples_tool`.
+- **rewrite_code** — signature is `rewrite_code_impl(project_folder, yaml_rule, dry_run, ...)` from `rewrite.service`. The `yaml_rule` must be a complete YAML rule string with `fix` field — do NOT pass separate `pattern`/`replacement`/`language` positional args.
 - **extract_function** — always call via `extract_function_tool(project_folder, file_path, start_line, end_line, language)` from `refactoring.tools`. Do NOT instantiate `FunctionExtractor` directly; it is an internal class that requires `language` and does not accept `project_folder`.
 - **refactor_polyglot** — `refactoring_type` accepts `rename_api`, `extract_constant`, `update_contract`. `rename` is also accepted as an alias for `rename_api`.
 
