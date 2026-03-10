@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 # Import modular functions - signatures now support optional language parameter
 from ast_grep_mcp.features.deduplication.diff import (
+    _ensure_trailing_newline,
     build_diff_tree,
     build_nested_diff_tree,
     diff_preview_to_dict,
@@ -157,3 +158,40 @@ class TestDiffPreview:
 
         diff = generate_diff_from_file_paths("old.py", "new.py")
         assert isinstance(diff, str)
+
+
+class TestEnsureTrailingNewline:
+    """Unit tests for _ensure_trailing_newline (in-place mutation helper)."""
+
+    def test_empty_list_unchanged(self):
+        lines: list[str] = []
+        _ensure_trailing_newline(lines)
+        assert lines == []
+
+    def test_single_line_without_newline_gets_appended(self):
+        lines = ["hello"]
+        _ensure_trailing_newline(lines)
+        assert lines == ["hello\n"]
+
+    def test_single_line_already_has_newline_unchanged(self):
+        lines = ["hello\n"]
+        _ensure_trailing_newline(lines)
+        assert lines == ["hello\n"]
+
+    def test_multi_line_last_without_newline(self):
+        lines = ["foo\n", "bar\n", "baz"]
+        _ensure_trailing_newline(lines)
+        assert lines[-1] == "baz\n"
+        assert lines[0] == "foo\n"
+        assert lines[1] == "bar\n"
+
+    def test_multi_line_last_already_has_newline(self):
+        lines = ["foo\n", "bar\n", "baz\n"]
+        _ensure_trailing_newline(lines)
+        assert lines == ["foo\n", "bar\n", "baz\n"]
+
+    def test_modifies_in_place(self):
+        lines = ["x"]
+        original_ref = lines
+        _ensure_trailing_newline(lines)
+        assert lines is original_ref
