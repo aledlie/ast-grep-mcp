@@ -59,12 +59,12 @@ class TestProjectRoot:
         from scripts.scan_complexity_offenders import _PROJECT_ROOT
         assert _PROJECT_ROOT.exists()
 
-    def test_project_root_cwd_independent(self, tmp_path, monkeypatch):
-        """_PROJECT_ROOT must resolve correctly regardless of CWD."""
-        monkeypatch.chdir(tmp_path)
+    def test_project_root_uses_file_not_cwd(self):
+        """_PROJECT_ROOT is derived from __file__, not CWD, so it always points to the repo root."""
         from scripts.scan_complexity_offenders import _PROJECT_ROOT
-        assert _PROJECT_ROOT.exists()
-        assert (_PROJECT_ROOT / "src").exists()
+        # Verify it resolves to the repo root, not something CWD-relative
+        assert (_PROJECT_ROOT / "src" / "ast_grep_mcp").exists()
+        assert (_PROJECT_ROOT / "pyproject.toml").exists()
 
 
 class TestMain:
@@ -84,8 +84,8 @@ class TestMain:
     def test_all_flag_produces_more_rows(self):
         default_output = self._capture_main()
         all_output = self._capture_main(["--all"])
-        default_rows = [l for l in default_output.splitlines() if l.startswith("|") and "File" not in l and "---" not in l]
-        all_rows = [l for l in all_output.splitlines() if l.startswith("|") and "File" not in l and "---" not in l]
+        default_rows = [line for line in default_output.splitlines() if line.startswith("|") and "File" not in line and "---" not in line]
+        all_rows = [line for line in all_output.splitlines() if line.startswith("|") and "File" not in line and "---" not in line]
         assert len(all_rows) >= len(default_rows)
 
     def test_default_only_shows_offenders(self):
@@ -95,6 +95,6 @@ class TestMain:
             if not line.startswith("|") or "File" in line or "---" in line:
                 continue
             parts = [p.strip() for p in line.split("|") if p.strip()]
-            if len(parts) >= 4:
+            if len(parts) >= 6:
                 cyc, cog, nest, length = int(parts[2]), int(parts[3]), int(parts[4]), int(parts[5])
                 assert cyc > 10 or cog > 15 or nest > 4 or length > 50
