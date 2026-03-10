@@ -40,21 +40,26 @@ RULE_TEMPLATES: Dict[str, RuleTemplate] = {
         description="Disallow == and !=, prefer === and !==",
         language="typescript",
         severity="warning",
-        pattern="$A == $B",
+        pattern="",
         message="Use === instead of == for type-safe comparison",
         note="Loose equality (==) performs type coercion which can lead to unexpected results. "
         "Exception: == null is intentional TypeScript idiom for checking both null and undefined.",
         fix="Replace == with === or != with !==",
         category="security",
         constraints={
-            "not": {
-                "any": [
-                    {"pattern": "$_ == null"},
-                    {"pattern": "$_ == undefined"},
-                    {"pattern": "null == $_"},
-                    {"pattern": "undefined == $_"},
-                ]
-            }
+            "all": [
+                {"pattern": "$A == $B"},
+                {
+                    "not": {
+                        "any": [
+                            {"pattern": "$_ == null"},
+                            {"pattern": "$_ == undefined"},
+                            {"pattern": "null == $_"},
+                            {"pattern": "undefined == $_"},
+                        ]
+                    }
+                },
+            ]
         },
     ),
     "no-console-log": RuleTemplate(
