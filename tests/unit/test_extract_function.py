@@ -351,3 +351,109 @@ function processOrder(order: Order): OrderResult {
     return { total, tax, finalTotal };
 }
 """
+
+
+class TestProcessScanLine:
+    """Unit tests for FunctionExtractor._process_scan_line and _scan_imports."""
+
+    def setup_method(self):
+        self.extractor = FunctionExtractor("python")
+
+    # --- _process_scan_line branch coverage ---
+
+    def test_skip_blank_line(self):
+        last, multi, should_break = self.extractor._process_scan_line("", 1, 0, False)
+        assert last == 0
+        assert multi is False
+        assert should_break is False
+
+    def test_skip_comment_line(self):
+        last, multi, should_break = self.extractor._process_scan_line("# a comment", 1, 0, False)
+        assert last == 0
+        assert multi is False
+        assert should_break is False
+
+    def test_import_start_single_line(self):
+        last, multi, should_break = self.extractor._process_scan_line("import os", 3, 0, False)
+        assert last == 3
+        assert multi is False
+        assert should_break is False
+
+    def test_from_import_single_line(self):
+        last, multi, should_break = self.extractor._process_scan_line("from os import path", 5, 0, False)
+        assert last == 5
+        assert multi is False
+        assert should_break is False
+
+    def test_import_start_multiline_opens_paren(self):
+        last, multi, should_break = self.extractor._process_scan_line(
+            "from ast_grep_mcp.models import (", 4, 0, False
+        )
+        assert last == 4
+        assert multi is True
+        assert should_break is False
+
+    def test_multiline_continuation(self):
+        last, multi, should_break = self.extractor._process_scan_line("    Foo,", 5, 3, True)
+        assert last == 5
+        assert multi is True
+        assert should_break is False
+
+    def test_multiline_closing_paren(self):
+        last, multi, should_break = self.extractor._process_scan_line("    Bar,\n)", 6, 3, True)
+        assert last == 6
+        assert multi is False
+        assert should_break is False
+
+    def test_post_import_break(self):
+        """Non-import line after imports have been seen triggers break."""
+        last, multi, should_break = self.extractor._process_scan_line("class Foo:", 8, 5, False)
+        assert last == 5
+        assert should_break is True
+
+    def test_no_imports_seen_no_break(self):
+        """Non-import line with last_import_line==0 does not break."""
+        last, multi, should_break = self.extractor._process_scan_line("class Foo:", 2, 0, False)
+        assert last == 0
+        assert should_break is False
+
+    # --- _scan_imports integration ---
+
+    def test_scan_imports_simple(self):
+        lines = ["import os\n", "import sys\n", "\n", "def main():\n", "    pass\n"]
+        last_line, in_multiline = self.extractor._scan_imports(lines)
+        assert last_line == 2
+        assert in_multiline is False
+
+    def test_scan_imports_multiline(self):
+        lines = [
+            "from x import (\n",
+            "    Foo,\n",
+            "    Bar,\n",
+            ")\n",
+            "\n",
+            "def main():\n",
+        ]
+        last_line, in_multiline = self.extractor._scan_imports(lines)
+        assert last_line == 4
+        assert in_multiline is False
+
+    def test_scan_imports_stacked(self):
+        lines = [
+            "import os\n",
+            "from pathlib import Path\n",
+            "import sys\n",
+            "class Foo:\n",
+        ]
+        last_line, in_multiline = self.extractor._scan_imports(lines)
+        assert last_line == 3
+
+    def test_scan_imports_no_imports(self):
+        lines = ["class Foo:\n", "    pass\n"]
+        last_line, _ = self.extractor._scan_imports(lines)
+        assert last_line == 0
+
+    def test_scan_imports_only_comments_and_blanks(self):
+        lines = ["# header\n", "\n", "# comment\n"]
+        last_line, _ = self.extractor._scan_imports(lines)
+        assert last_line == 0
