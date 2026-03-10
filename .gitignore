@@ -20,3 +20,4 @@ htmlcov/
 analysis_reports/
 benchmark_comparisons/
 .claude/py-cache/
+.claude/tsc-cache/

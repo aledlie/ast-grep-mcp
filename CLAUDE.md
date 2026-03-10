@@ -64,9 +64,11 @@ When calling tools programmatically, use these field names (NOT `line`/`file_pat
 - **detect_orphans** (`quality.tools`): `summary`, `orphan_files[]` (with `file_path`, `lines`, `status`), `orphan_functions[]` (with `file`, `line`, `name`)
 
 Import pattern: `from ast_grep_mcp.features.<module>.tools import <tool_name>_tool`
+Exception: **search** tools use `_impl` functions — `from ast_grep_mcp.features.search.service import find_code_impl` (there is no `find_code_tool`).
 
 ## Public API vs Internals
 
+- **search tools** — use `find_code_impl`, `find_code_by_rule_impl`, `dump_syntax_tree_impl`, etc. from `search.service`. The `tools.py` registers inner functions via `@mcp.tool()` that are not importable.
 - **extract_function** — always call via `extract_function_tool(project_folder, file_path, start_line, end_line, language)` from `refactoring.tools`. Do NOT instantiate `FunctionExtractor` directly; it is an internal class that requires `language` and does not accept `project_folder`.
 - **refactor_polyglot** — `refactoring_type` accepts `rename_api`, `extract_constant`, `update_contract`. `rename` is also accepted as an alias for `rename_api`.
 
