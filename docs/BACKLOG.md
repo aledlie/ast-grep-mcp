@@ -37,9 +37,9 @@ Thresholds: cyc >10, cog >15, nest >4, len >50. All items from this section have
 
 From final code review of `9ad6a2c`–`9d7ea65`.
 
-- [ ] **EX-01** (Medium) `_execute_subprocess` Sentry span missing `returncode` on error path: when `check=True` and `subprocess.run` raises `CalledProcessError`, `span.set_data("returncode", ...)` is never reached. Fix: wrap in try/except to set `returncode` before re-raising.
-- [ ] **EX-02** (Low) `_execute_subprocess` `use_shell` should be keyword-only: add `*` before `use_shell: bool` to prevent positional misuse.
-- [ ] **EX-03** (Low) `_load_custom_languages` silently swallows errors: `except Exception: pass` should log at debug level for diagnosability.
+- [x] **EX-01** (Medium) `_execute_subprocess` Sentry span missing `returncode` on error path: when `check=True` and `subprocess.run` raises `CalledProcessError`, `span.set_data("returncode", ...)` is never reached. Fix: wrap in try/except to set `returncode` before re-raising. (commit e118fe0)
+- [x] **EX-02** (Low) `_execute_subprocess` `use_shell` should be keyword-only: add `*` before `use_shell: bool` to prevent positional misuse. (commit 0e537a7)
+- [x] **EX-03** (Low) `_load_custom_languages` silently swallows errors: `except Exception: pass` should log at debug level for diagnosability. (commit c5e10f5)
 
 ## Test Coverage Gaps (2026-03-09)
 
