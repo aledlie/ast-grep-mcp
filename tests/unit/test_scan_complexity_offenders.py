@@ -7,7 +7,22 @@ from unittest.mock import patch
 
 import pytest
 
-from scripts.scan_complexity_offenders import _extract_name, _short_path, main
+from scripts.scan_complexity_offenders import (
+    COG_THRESHOLD,
+    CYC_THRESHOLD,
+    LEN_THRESHOLD,
+    NEST_THRESHOLD,
+    _extract_name,
+    _short_path,
+    main,
+)
+
+# Column indices in the markdown table output: | path | name | cyc | cog | nest | len |
+_COL_CYC = 2
+_COL_COG = 3
+_COL_NEST = 4
+_COL_LEN = 5
+_MIN_COLUMNS = 6
 
 
 class TestExtractName:
@@ -95,6 +110,14 @@ class TestMain:
             if not line.startswith("|") or "File" in line or "---" in line:
                 continue
             parts = [p.strip() for p in line.split("|") if p.strip()]
-            if len(parts) >= 6:
-                cyc, cog, nest, length = int(parts[2]), int(parts[3]), int(parts[4]), int(parts[5])
-                assert cyc > 10 or cog > 15 or nest > 4 or length > 50
+            if len(parts) >= _MIN_COLUMNS:
+                cyc = int(parts[_COL_CYC])
+                cog = int(parts[_COL_COG])
+                nest = int(parts[_COL_NEST])
+                length = int(parts[_COL_LEN])
+                assert (
+                    cyc > CYC_THRESHOLD
+                    or cog > COG_THRESHOLD
+                    or nest > NEST_THRESHOLD
+                    or length > LEN_THRESHOLD
+                )
