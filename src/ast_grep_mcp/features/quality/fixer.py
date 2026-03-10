@@ -621,13 +621,31 @@ def _extract_var_name_from_let(code_snippet: str) -> Optional[str]:
     return m.group(1) if m else None
 
 
+# == null / != null is intentional TypeScript idiom (checks both null and undefined)
+_NULL_EQUALITY_RE = re.compile(r"\b(null|undefined)\s*[!=]=\s*|[!=]=\s*(null|undefined)\b")
+
+
+def _is_null_equality_check(code: str) -> bool:
+    """Return True if code is a == null or == undefined idiom."""
+    return bool(_NULL_EQUALITY_RE.search(code))
+
+
+def _fix_double_equals(code: str) -> str:
+    """Fix loose equality, preserving == null/undefined idiom."""
+    if _is_null_equality_check(code):
+        return code
+    if "!==" not in code:
+        return code.replace("==", "===", 1)
+    return code.replace("!=", "!==", 1)
+
+
 # Rule-specific code transformations for rules whose fix field is a
 # human-readable description rather than an ast-grep rewrite pattern.
 # Each handler takes original code and returns transformed code.
 _RULE_CODE_TRANSFORMS: Dict[str, Any] = {
     "prefer-const": lambda code: code.replace("let ", "const ", 1),
     "no-var": lambda code: code.replace("var ", "const ", 1),
-    "no-double-equals": lambda code: code.replace("==", "===", 1) if "!==" not in code else code.replace("!=", "!==", 1),
+    "no-double-equals": _fix_double_equals,
     "no-bare-except": lambda code: code.replace("except:", "except Exception:", 1),
 }
 
