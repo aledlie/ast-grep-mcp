@@ -159,7 +159,7 @@ result = rewrite_code_impl(project_folder, yaml_rule, dry_run=True)
 
 ## Observability Toolkit Optimization (2026-03-10)
 
-Full analysis: [docs/OBSERVABILITY-TOOLKIT-QUALITY-REPORT.md](OBSERVABILITY-TOOLKIT-QUALITY-REPORT.md)
+Full analysis: [docs/reports/OBSERVABILITY-TOOLKIT-QUALITY-REPORT.md](reports/OBSERVABILITY-TOOLKIT-QUALITY-REPORT.md)
 
 Target: `~/.claude/mcp-servers/observability-toolkit/src/` (217 files, 102K lines TypeScript)
 
@@ -174,8 +174,9 @@ Analyzed with all 53 ast-grep-mcp tools (complexity, smells, standards, security
 - [ ] **OT-STD-01** (Low) Batch `let` → `const` for ~50 non-reassigned variables in production code.
 - [ ] **OT-AP-01** (Low) Replace `ToolDefinition<any>[]` in `server.ts:82` with specific generic type.
 - [ ] **OT-SM-02** (Low) Monitor `instrumentation.ts` class size (377 lines/13 methods) — decompose if growth continues.
-- [ ] **OT-SEC-01** (Info) Extract test fixture Bearer tokens to shared constant to reduce secret-scanning noise.
+- [ ] **OT-SEC-01** (Info) Extract test fixture Bearer tokens to per-file named constants (e.g., `const TEST_BEARER_TOKEN`) to reduce secret-scanning noise.
 - [ ] **OT-STD-02** (Info) Add suppression comment for intentional `console.log` in `logger.ts:72`.
+- [ ] **OT-DOC-01** (Info) Add baseline token count to Table 8 (Token Condensation Estimates) in quality report. Include source total (e.g., "~910,000 tokens raw") to allow readers to verify reduction percentages. -- `docs/reports/OBSERVABILITY-TOOLKIT-QUALITY-REPORT.md:160-165`
 
 ## Deferred (2026-03-08)
 
