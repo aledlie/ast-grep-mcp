@@ -105,11 +105,44 @@ def outer():
         assert diff_tree is not None
 
     def test_format_alignment_diff(self):
-        """Test formatting alignment diff."""
-        diff_data = {"alignments": [{"type": "match", "value": "def foo():"}, {"type": "diff", "old": "return 1", "new": "return 2"}]}
+        """Test formatting alignment diff produces correct - old / + new prefixes."""
+        diff_data = {
+            "alignments": [
+                {"type": "match", "value": "def foo():"},
+                {"type": "diff", "old": "return 1", "new": "return 2"},
+            ]
+        }
         formatted = format_alignment_diff(diff_data)
-        assert formatted is not None
-        assert isinstance(formatted, str) or isinstance(formatted, dict)
+        assert isinstance(formatted, str)
+        lines = formatted.splitlines()
+        assert "  def foo():" in lines
+        assert "- return 1" in lines
+        assert "+ return 2" in lines
+
+    def test_format_alignment_diff_empty_old(self):
+        """Test diff entry with empty old value only appends + new line."""
+        diff_data = {"alignments": [{"type": "diff", "old": "", "new": "added line"}]}
+        formatted = format_alignment_diff(diff_data)
+        assert isinstance(formatted, str)
+        lines = formatted.splitlines()
+        assert "+ added line" in lines
+        assert not any(line.startswith("- ") for line in lines)
+
+    def test_format_alignment_diff_empty_new(self):
+        """Test diff entry with empty new value only appends - old line."""
+        diff_data = {"alignments": [{"type": "diff", "old": "removed line", "new": ""}]}
+        formatted = format_alignment_diff(diff_data)
+        assert isinstance(formatted, str)
+        lines = formatted.splitlines()
+        assert "- removed line" in lines
+        assert not any(line.startswith("+ ") for line in lines)
+
+    def test_format_alignment_diff_both_empty(self):
+        """Test diff entry with both old and new empty produces no output lines."""
+        diff_data = {"alignments": [{"type": "diff", "old": "", "new": ""}]}
+        formatted = format_alignment_diff(diff_data)
+        assert isinstance(formatted, str)
+        assert formatted == ""
 
 
 class TestDiffPreview:
