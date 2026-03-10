@@ -122,7 +122,7 @@ Top files by violation count:
 
 ### Recommendations
 
-- **OT-SEC-01** (Info) These are intentional test fixtures (`phx_secret_key_12345`, truncated JWTs). No action needed, but consider extracting to a shared test constant to reduce secret-scanning noise.
+- **OT-SEC-01** (Info) These are intentional test fixtures (`phx_secret_key_12345`, truncated JWTs). No action needed, but consider extracting to per-file named constants (e.g., `const TEST_BEARER_TOKEN = '...'`) to reduce secret-scanning noise.
 
 ---
 
@@ -202,11 +202,11 @@ The codebase shows excellent code reuse discipline. One borderline pair was dete
 | `detect_code_smells` | 113 | 2.50s |
 | `enforce_standards` | 28 | 0.45s |
 | `detect_security_issues` | 3 | 0.38s |
-| `detect_orphans` | 0* | 0.01s |
+| `detect_orphans` | 0 | 0.01s |
 | `find_duplication` | 1,000 constructs | 0.09s |
 | `find_code_impl` (3 patterns) | full src | ~1s ea |
 | `generate_quality_report` | 34 | 0.42s |
 | `condense_estimate` | 217 | <1s |
 | `list_rule_templates` | n/a | <1s |
 
-*Orphan detection short-circuited — TypeScript heuristic has limited coverage for this project structure.
+Note: `detect_orphans` ran successfully but has limited TypeScript heuristic coverage — results may undercount actual orphaned code.
