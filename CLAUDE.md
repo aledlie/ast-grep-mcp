@@ -73,12 +73,12 @@ Exception: **search** tools use `_impl` functions — `from ast_grep_mcp.feature
 - **rewrite_code** — `from ast_grep_mcp.features.rewrite.service import rewrite_code_impl`; signature is `rewrite_code_impl(project_folder, yaml_rule, dry_run=True, backup=True, ...)`. The `yaml_rule` must be a complete YAML rule string with `fix` field — do NOT pass separate `pattern`/`replacement`/`language` positional args.
 - **extract_function** — always call via `extract_function_tool(project_folder, file_path, start_line, end_line, language)` from `refactoring.tools`. Do NOT instantiate `FunctionExtractor` directly; it is an internal class that requires `language` and does not accept `project_folder`.
 - **refactor_polyglot** — `refactoring_type` accepts `rename_api`, `extract_constant`, `update_contract`. `rename` is also accepted as an alias for `rename_api`.
-- **deduplication** — there is no `find_dedup_candidates`. Use `analyze_deduplication_candidates_tool()` or `find_duplication_tool()` from `deduplication.tools`.
-- **search MCP-only tools** — `find_by_rule`, `test_match`, `pattern_examples` are inner functions registered via `@mcp.tool()`. They are NOT importable via Python; use the MCP server or call the underlying `_impl` functions in `search.service`.
-- **rewrite_code YAML patterns** — patterns containing `$VAR` (e.g. `$MSG`) are passed to ast-grep via `--inline-rules`, not shell-interpolated. Always use raw strings or single-quoted YAML to avoid shell expansion of `$`.
-- **generate_language_bindings** — expects an OpenAPI/Swagger spec file (`.json`/`.yaml`), NOT `package.json`. Raises `ValueError` if spec lacks `openapi` or `swagger` keys.
-- **build_entity_graph** — expects a list of entity definition dicts (`{type, properties, relationships}`), NOT raw JSON-LD. Outputs JSON-LD `@graph`.
-- **enhance_entity_graph** — expects actual JSON-LD files with `@context`/`@type`/`@graph`. Use `analyze_entity_graph(input_source, input_type, output_mode)` from `schema.enhancement_service`.
+- **deduplication** — use `analyze_deduplication_candidates_tool()` or `find_duplication_tool()` from `deduplication.tools`. There is no `find_dedup_candidates`.
+- **generate_language_bindings** — expects OpenAPI/Swagger spec, NOT `package.json`.
+- **build_entity_graph** — expects entity definition dicts, NOT raw JSON-LD. **enhance_entity_graph** → use `analyze_entity_graph()` from `schema.enhancement_service`; expects existing JSON-LD files.
+- **YAML `$VAR` in patterns** — use raw strings or single-quoted YAML to prevent shell expansion of `$MSG`, `$NAME`, etc.
+
+See [docs/BACKLOG.md](docs/BACKLOG.md) § "Tool Invocation Failures" for full error descriptions, root causes, and correct usage patterns (TF-01–TF-12).
 
 ## Analysis Scripts
 
