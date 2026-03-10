@@ -157,6 +157,26 @@ result = rewrite_code_impl(project_folder, yaml_rule, dry_run=True)
 
 **Key distinction:** `build_entity_graph` *creates* JSON-LD from scratch; `analyze_entity_graph` *analyzes and improves* existing JSON-LD.
 
+## Observability Toolkit Optimization (2026-03-10)
+
+Full analysis: [docs/OBSERVABILITY-TOOLKIT-QUALITY-REPORT.md](OBSERVABILITY-TOOLKIT-QUALITY-REPORT.md)
+
+Target: `~/.claude/mcp-servers/observability-toolkit/src/` (217 files, 102K lines TypeScript)
+
+Analyzed with all 53 ast-grep-mcp tools (complexity, smells, standards, security, duplication, anti-patterns, orphans, condense, quality report, rule templates). Summary: 0 errors, 5 complexity offenders, 554 magic numbers, 93 prefer-const, 0 duplication, 0 orphans.
+
+- [x] **OT-CX-01** (High) Decompose `cost-estimation.ts:424-613` — cyc=32, cog=36, len=190. Extracted `_executeRecordSpend` + `_buildTrackerSummary` + `BudgetTrackerState` (commit 3f21ac8, review: PASS)
+- [x] **OT-CX-02** (Medium) Decompose `server.ts:146-304` — cyc=21, len=159. Extracted `_registerRequestHandlers`, `_connectStdioTransport`, `_setupGracefulShutdown` (commit ece0615, review: PASS)
+- [x] **OT-CX-03** (Medium) Decompose `estimate-cost.ts:31-125` — cyc=20, len=95. Extracted `_buildModelRows`, `_sortModelRows`, `_formatModelRow` (commit 6df8542, review: PASS)
+- [ ] **OT-SM-01** (Medium) Extract magic numbers to named constants in `cost-estimation.ts`, `quality-feature-engineering.ts`, `export-utils.ts`.
+- [x] **OT-CX-04** (Low) Decompose `query-metrics.ts:65-133` — cyc=17. Extracted `_processSpanForCost` with `CostAccumulator` state (commit 9c17b7a, review: PASS)
+- [x] **OT-CX-05** (Low) Decompose `context-stats.ts:187-316` — cyc=13, len=130. Extracted `_findSessionById`, `_buildBaseResult`, `_appendCostSection`, `_appendBreakdownSection`, `_appendHistorySection` (commit f0fb17a, review: PASS)
+- [ ] **OT-STD-01** (Low) Batch `let` → `const` for ~50 non-reassigned variables in production code.
+- [ ] **OT-AP-01** (Low) Replace `ToolDefinition<any>[]` in `server.ts:82` with specific generic type.
+- [ ] **OT-SM-02** (Low) Monitor `instrumentation.ts` class size (377 lines/13 methods) — decompose if growth continues.
+- [ ] **OT-SEC-01** (Info) Extract test fixture Bearer tokens to shared constant to reduce secret-scanning noise.
+- [ ] **OT-STD-02** (Info) Add suppression comment for intentional `console.log` in `logger.ts:72`.
+
 ## Deferred (2026-03-08)
 
 - [ ] **DF-01** (Low) Strategy pattern filter for deduplication — per `docs/duplicate-detector-misses.md` investigation. Only candidate (Group 5) would save ~18 lines with minor signature mismatch; over-engineering for marginal benefit.
