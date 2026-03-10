@@ -80,6 +80,11 @@ COMMON_IDENTIFIERS = {"id", "type", "class", "name", "value"}
 DEFAULT_LANGUAGES = ["python", "typescript", "javascript", "java", "go"]
 LARGE_REFACTORING_CHANGE_THRESHOLD = 50
 
+# Accepted aliases for refactoring type values
+REFACTORING_TYPE_ALIASES: Dict[str, str] = {
+    "rename": "rename_api",
+}
+
 
 # =============================================================================
 # File Discovery
@@ -342,6 +347,7 @@ def _validate_inputs(
     if not os.path.isdir(project_folder):
         raise ValueError(f"Project folder not found: {project_folder}")
 
+    refactoring_type = REFACTORING_TYPE_ALIASES.get(refactoring_type, refactoring_type)
     try:
         refactor_type = RefactoringType(refactoring_type)
     except ValueError:

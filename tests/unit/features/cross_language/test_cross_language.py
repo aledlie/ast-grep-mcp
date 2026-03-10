@@ -400,6 +400,18 @@ class TestPolyglotRefactoring:
             assert "newSymbol" in content
             assert "oldSymbol" not in content
 
+    def test_refactor_polyglot_rename_alias(self):
+        """Test that 'rename' is accepted as alias for 'rename_api'."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = refactor_polyglot_impl(
+                project_folder=tmpdir,
+                refactoring_type="rename",
+                symbol_name="oldName",
+                new_name="newName",
+                dry_run=True,
+            )
+            assert result.plan.refactoring_type.value == "rename_api"
+
     def test_refactor_polyglot_invalid_type(self):
         """Test refactoring with invalid type."""
         with tempfile.TemporaryDirectory() as tmpdir:

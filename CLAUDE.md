@@ -65,6 +65,11 @@ When calling tools programmatically, use these field names (NOT `line`/`file_pat
 
 Import pattern: `from ast_grep_mcp.features.<module>.tools import <tool_name>_tool`
 
+## Public API vs Internals
+
+- **extract_function** — always call via `extract_function_tool(project_folder, file_path, start_line, end_line, language)` from `refactoring.tools`. Do NOT instantiate `FunctionExtractor` directly; it is an internal class that requires `language` and does not accept `project_folder`.
+- **refactor_polyglot** — `refactoring_type` accepts `rename_api`, `extract_constant`, `update_contract`. `rename` is also accepted as an alias for `rename_api`.
+
 ## Analysis Scripts
 
 - Full analysis suite: `uv run python scripts/run_all_analysis.py [src_path]`
