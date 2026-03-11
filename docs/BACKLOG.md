@@ -178,6 +178,80 @@ Analyzed with all 53 ast-grep-mcp tools (complexity, smells, standards, security
 - [ ] **OT-STD-02** (Info) Add suppression comment for intentional `console.log` in `logger.ts:72`.
 - [ ] **OT-DOC-01** (Info) Add baseline token count to Table 8 (Token Condensation Estimates) in quality report. Include source total (e.g., "~910,000 tokens raw") to allow readers to verify reduction percentages. -- `docs/reports/OBSERVABILITY-TOOLKIT-QUALITY-REPORT.md:160-165`
 
+## Config File Support in MCP (2026-03-11)
+
+Session: `run_all_tools.py` testing against `~/code/jobs/config/` revealed ast-grep-mcp tools lack config-file awareness.
+
+#### CF-01: Add `languageGlobs` support to MCP tool invocations
+**Priority**: P2 | **Source**: session:2026-03-11
+
+Pipe `languageGlobs` through to `ast-grep scan --config` so non-standard extensions are parsed with the correct Tree-sitter grammar. Implementation:
+1. Add optional `language_globs: dict[str, list[str]]` param to `run_command` / `stream_ast_grep_results` in `core/executor.py`
+2. When provided, generate a temporary `sgconfig.yml` with the `languageGlobs` key and pass `--config <tmpdir>/sgconfig.yml` to ast-grep
+3. Expose the param on tool wrappers that accept `project_folder` (search, rewrite, complexity, quality, dedup, condense)
+4. Default mapping when no explicit globs provided and target contains only config files:
+   - `.cjs` → `javascript`
+   - `.json`, `.schema.json`, `.eslintrc`, `.babelrc` → `json`
+   - `.yml`, `.yaml` → `yaml`
+
+**How to add support for config files** (from ast-grep docs research):
+
+**Option 1: `languageGlobs` in `sgconfig.yml`** (Recommended)
+```yaml
+languageGlobs:
+  javascript: ['**/*.cjs', 'config/**/*.js']
+  json: ['.eslintrc', '.babelrc', '*.schema.json']
+  yaml: ['*.config.yml']
+```
+This tells ast-grep to:
+- Parse `.cjs` files as JavaScript (already default, but explicit)
+- Parse `.schema.json` as JSON
+- Parse `.eslintrc` (no extension) as JSON
+
+**Option 2: Register custom language** (for non-standard config formats)
+```yaml
+customLanguages:
+  myconfig:
+    libraryPath: ./path/to/custom.so  # compiled Tree-sitter grammar
+    extensions: [myconfig]
+    expandoChar: _  # char to replace $ in patterns
+```
+
+-- `src/ast_grep_mcp/core/executor.py`
+
+#### CF-02: Config-aware search patterns documentation
+**Priority**: P3 | **Source**: session:2026-03-11
+
+Config files contain declarations/objects, not executable code. Current sample patterns (`function $NAME($$$ARGS)`, `console.log($$$ARGS)`) return zero matches on config dirs. Document patterns that work:
+- **CommonJS config** (`.cjs`): `module.exports = $VALUE`, `apps: [$$$ITEMS]`, `env: { $$$PROPS }`
+- **JSON data**: `"$KEY": $VALUE` (requires `json` language)
+- **YAML config**: `$KEY: $VALUE`, `- $ITEM` (requires `yml` language)
+- **PM2 ecosystem**: `name: $APP`, `script: $PATH`, `cron_restart: $CRON`, `env_production: { $$$VARS }`
+- **Zod schemas**: `z.object({ $$$FIELDS })`, `z.string()`, `z.array($INNER)`
+- **JSON-LD / Schema.org**: `"@type": $TYPE`, `"@context": $CTX`, `"@id": $ID`
+
+-- `docs/CONFIG_PATTERNS.md` (new file)
+
+#### CF-03: Auto-detect config file types in `run_all_tools.py`
+**Priority**: P3 | **Source**: session:2026-03-11
+
+Before running tools, scan the target directory for file extensions and print language recommendations. If all files are config types (`.cjs`, `.json`, `.yml`, `.schema.json`), suggest running with multiple languages or warn that function-oriented patterns will return empty.
+
+-- `scripts/run_all_tools.py`
+
+#### CF-04: Config-aware search mode
+**Priority**: P3 | **Source**: session:2026-03-11
+
+Add a `search_config_files` tool or `config_mode` flag to existing search tools that understands common config file structures:
+- **PM2 ecosystem** (`ecosystem.config.cjs`): extract `apps[]` entries, environment variables, cron schedules, cluster settings
+- **Zod schemas**: extract type definitions, validators, default values
+- **JSON-LD markup**: extract `@graph` entities, `@type` declarations, cross-references via `@id`
+- **JSON Schema** (`.schema.json`): extract `properties`, `required` fields, `$ref` references
+
+Implementation: pattern library per config type, auto-selected based on filename conventions.
+
+-- `src/ast_grep_mcp/features/search/`
+
 ## Deferred (2026-03-08)
 
 - [ ] **DF-01** (Low) Strategy pattern filter for deduplication — per `docs/duplicate-detector-misses.md` investigation. Only candidate (Group 5) would save ~18 lines with minor signature mismatch; over-engineering for marginal benefit.
