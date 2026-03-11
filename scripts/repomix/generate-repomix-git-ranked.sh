@@ -72,7 +72,8 @@ TMP_LOG="$(mktemp "${TMPDIR:-/tmp}/repomix-run.XXXXXX.log")"
 trap 'rm -f "$TMP_CONFIG" "$TMP_FILES" "$TMP_LOG"' EXIT INT TERM
 
 # Generated bundle patterns sourced from base repomix config.
-BUNDLE_IGNORE_PATTERNS_FILE="$ROOT/repomix.config.json"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BUNDLE_IGNORE_PATTERNS_FILE="$SCRIPT_DIR/repomix.config.json"
 if [[ -f "$BUNDLE_IGNORE_PATTERNS_FILE" ]]; then
   BUNDLE_IGNORE_PATTERNS_JSON="$(
     jq -c '

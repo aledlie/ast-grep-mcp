@@ -4,8 +4,9 @@ set -euo pipefail
 
 ROOT="${1:?Usage: $0 <root_dir> <output_file>}"
 OUTPUT_FILE="${2:?Usage: $0 <root_dir> <output_file>}"
-CONFIG_FILE="$ROOT/repomix-docs.config.json"
-BASE_CONFIG_FILE="$ROOT/repomix.config.json"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONFIG_FILE="$SCRIPT_DIR/repomix-docs.config.json"
+BASE_CONFIG_FILE="$SCRIPT_DIR/repomix.config.json"
 TMP_CONFIG="$(mktemp "${TMPDIR:-/tmp}/repomix-docs.XXXXXX.json")"
 
 cleanup() {
