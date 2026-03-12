@@ -1,7 +1,7 @@
 """Tests for utils.parsing shared primitives."""
 
-import pytest
 
+from ast_grep_mcp.features.complexity.analyzer import _find_docstring_extent, _measure_docstring
 from ast_grep_mcp.utils.parsing import detect_triple_quote, skip_blank_lines
 
 
@@ -56,8 +56,6 @@ class TestSkipBlankLines:
         lines = ["  \t  ", "code"]
         assert skip_blank_lines(lines, 0) == 1
 
-
-from ast_grep_mcp.features.complexity.analyzer import _find_docstring_extent, _measure_docstring
 
 
 class TestMeasureDocstring:

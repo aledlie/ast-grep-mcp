@@ -234,7 +234,11 @@ def _execute_search(
     language_globs: Optional[Dict[str, List[str]]] = None,
 ) -> List[Dict[str, Any]]:
     """Execute the search and optionally cache results."""
-    matches = list(stream_ast_grep_results("run", stream_args, max_results=max_results, progress_interval=StreamDefaults.PROGRESS_INTERVAL, language_globs=language_globs))
+    matches = list(stream_ast_grep_results(
+        "run", stream_args, max_results=max_results,
+        progress_interval=StreamDefaults.PROGRESS_INTERVAL,
+        language_globs=language_globs,
+    ))
 
     # Store in cache if available
     if cache and max_results == 0:
