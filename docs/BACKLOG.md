@@ -182,8 +182,8 @@ Analyzed with all 53 ast-grep-mcp tools (complexity, smells, standards, security
 
 Session: `run_all_tools.py` testing against `~/code/jobs/config/` revealed ast-grep-mcp tools lack config-file awareness.
 
-#### CF-01: Add `languageGlobs` support to MCP tool invocations
-**Priority**: P2 | **Source**: session:2026-03-11
+#### CF-01: Add `languageGlobs` support to MCP tool invocations ✅
+**Priority**: P2 | **Source**: session:2026-03-11 | **Done**: commits f5fb506, 3a42b76
 
 Pipe `languageGlobs` through to `ast-grep scan --config` so non-standard extensions are parsed with the correct Tree-sitter grammar. Implementation:
 1. Add optional `language_globs: dict[str, list[str]]` param to `run_command` / `stream_ast_grep_results` in `core/executor.py`
