@@ -219,8 +219,8 @@ customLanguages:
 
 -- `src/ast_grep_mcp/core/executor.py`
 
-#### CF-02: Config-aware search patterns documentation
-**Priority**: P3 | **Source**: session:2026-03-11
+#### CF-02: Config-aware search patterns documentation ✅
+**Priority**: P3 | **Source**: session:2026-03-11 | **Done**: commits 5b470da, d0bc59c, 6b571a7
 
 Config files contain declarations/objects, not executable code. Current sample patterns (`function $NAME($$$ARGS)`, `console.log($$$ARGS)`) return zero matches on config dirs. Document patterns that work:
 - **CommonJS config** (`.cjs`): `module.exports = $VALUE`, `apps: [$$$ITEMS]`, `env: { $$$PROPS }`
