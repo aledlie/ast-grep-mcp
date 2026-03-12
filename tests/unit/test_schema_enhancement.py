@@ -402,6 +402,27 @@ class TestMissingEntityDetection:
         assert "FAQPage" not in entity_types
         assert "WebSite" not in entity_types
 
+    def test_suggest_missing_entities_dict_type_skipped(self):
+        """Test that dict @type values are skipped without unhashable type error."""
+        entities = [
+            {"@type": "Organization", "name": "Acme"},
+            {"@type": {"@id": "https://schema.org/Person"}, "name": "John"},
+        ]
+        mock_client = MagicMock()
+        # Should not raise "unhashable type: 'dict'"
+        suggestions = _suggest_missing_entities(entities, mock_client)
+        assert isinstance(suggestions, list)
+
+    def test_suggest_missing_entities_list_with_dict_type_skipped(self):
+        """Test that list @type containing dicts skips non-string entries."""
+        entities = [
+            {"@type": ["Organization", {"@id": "https://schema.org/LocalBusiness"}], "name": "Acme"},
+        ]
+        mock_client = MagicMock()
+        # Should not raise, and should still process the string "Organization"
+        suggestions = _suggest_missing_entities(entities, mock_client)
+        assert isinstance(suggestions, list)
+
     def test_generate_example_entity_faqpage(self):
         """Test generating FAQPage example."""
         example = _generate_example_entity("FAQPage")

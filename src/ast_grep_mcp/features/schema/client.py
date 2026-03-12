@@ -550,14 +550,19 @@ class SchemaOrgClient:
         """Resolve a relationship target to @id references.
 
         Args:
-            rel_target: Target value (string or list)
+            rel_target: Target value (string, dict, or list)
             entity_id_map: Mapping of id_fragments to @ids
 
         Returns:
             Resolved relationship value
         """
+        if isinstance(rel_target, dict):
+            return rel_target
         if isinstance(rel_target, list):
-            return [{"@id": entity_id_map[t]} if t in entity_id_map else t for t in rel_target]
+            return [
+                t if isinstance(t, dict) else {"@id": entity_id_map[t]} if t in entity_id_map else t
+                for t in rel_target
+            ]
         if rel_target in entity_id_map:
             return {"@id": entity_id_map[rel_target]}
         return rel_target

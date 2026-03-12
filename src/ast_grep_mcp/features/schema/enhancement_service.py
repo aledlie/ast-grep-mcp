@@ -372,6 +372,8 @@ def _suggest_missing_entities(existing_entities: List[Dict[str, Any]], _client: 
         if entity_type_value:
             types = entity_type_value if isinstance(entity_type_value, list) else [entity_type_value]
             for etype in types:
+                if not isinstance(etype, str):
+                    continue
                 entity_types.add(etype)
                 type_counts[etype] = type_counts.get(etype, 0) + 1
 

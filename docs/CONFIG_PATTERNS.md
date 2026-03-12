@@ -23,6 +23,8 @@ Example `language_globs`:
 ```python
 language_globs = {
     "javascript": ["**/*.cjs", "**/*.mjs"],
+    # Note: ".eslintrc" is an exact filename match (not a shell glob) — ast-grep's
+    # languageGlobs supports exact filenames as well as glob patterns.
     "json": [".eslintrc", ".babelrc", "*.schema.json"],
     "yaml": ["*.config.yml"],
 }
@@ -34,41 +36,47 @@ language_globs = {
 
 Language: `javascript`
 
+**Note:** These are JavaScript object expression patterns, not YAML key patterns.
+Object properties must be matched inside their containing object literal context.
+
 ```
 # Module exports (top-level config object)
 module.exports = $VALUE
 
-# Array of app entries (e.g. PM2 ecosystem)
-apps: [$$$ITEMS]
+# Module exports with specific property
+module.exports = { $KEY: $VALUE, $$$REST }
 
-# Environment object
-env: { $$$PROPS }
+# Module exports with apps array (e.g. PM2)
+module.exports = { apps: [$$$ITEMS], $$$REST }
 
-# Any property access
+# Property assignment
 $OBJ.$PROP = $VALUE
+
+# Require call
+require($MODULE)
 ```
 
 ### PM2 Ecosystem (`ecosystem.config.cjs`)
 
+PM2 apps are entries in the `apps` array. Match the whole exports object to find
+all app configs, or search for specific string values:
+
 ```
-# App name
-name: $APP
+# All exports (contains the apps array)
+module.exports = { apps: [$$$ITEMS], $$$REST }
 
-# Script path
-script: $PATH
+# String value for a specific field anywhere in the file
+"$VALUE"
 
-# Cron restart schedule
-cron_restart: $CRON
+# Function call (e.g. process.env access)
+process.env.$VAR
 
-# Production env vars
-env_production: { $$$VARS }
-
-# Cluster mode
-exec_mode: $MODE
-
-# Number of instances
-instances: $N
+# Arrow function in config
+$KEY: ($$$ARGS) => $BODY
 ```
+
+For PM2-specific field extraction, use `find_code_by_rule_impl` with a rule that
+matches string literals or property assignments within the `apps` array context.
 
 ---
 
