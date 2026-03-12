@@ -4,7 +4,9 @@ Detects JSON-LD script tags, microdata attributes, and RDFa properties
 in HTML files via ast-grep pattern matching.
 """
 
+import fnmatch
 import json
+import os
 import re
 from typing import Any, Dict, List, Optional
 
@@ -22,13 +24,14 @@ id: find-json-ld-scripts
 language: html
 rule:
   kind: element
-  has:
-    stopBy: { kind: tag_name }
-    kind: tag_name
-    pattern: script
-  has:
-    kind: attribute_value
-    regex: application/ld\\+json
+  all:
+    - has:
+        stopBy: { kind: tag_name }
+        kind: tag_name
+        pattern: script
+    - has:
+        kind: attribute_value
+        regex: application/ld\\+json
 """
 
 RULE_JSONLD_CONTENT = """\
@@ -39,13 +42,14 @@ rule:
   pattern: $JSON_CONTENT
   inside:
     kind: element
-    has:
-      stopBy: { kind: tag_name }
-      kind: tag_name
-      pattern: script
-    has:
-      kind: attribute_value
-      regex: application/ld\\+json
+    all:
+      - has:
+          stopBy: { kind: tag_name }
+          kind: tag_name
+          pattern: script
+      - has:
+          kind: attribute_value
+          regex: application/ld\\+json
 """
 
 RULE_MICRODATA_ATTRS = """\
@@ -61,12 +65,13 @@ id: find-microdata-elements
 language: html
 rule:
   kind: element
-  has:
-    kind: attribute_name
-    regex: ^itemscope$
-  has:
-    kind: attribute_value
-    pattern: $SCHEMA_TYPE
+  all:
+    - has:
+        kind: attribute_name
+        regex: ^itemscope$
+    - has:
+        kind: attribute_value
+        pattern: $SCHEMA_TYPE
 constraints:
   SCHEMA_TYPE:
     regex: schema\\.org
@@ -104,15 +109,33 @@ rule:
 _SCHEMA_TYPE_RE = re.compile(r"https?://schema\.org/(\w+)")
 
 
-def _run_rule(project_folder: str, yaml_rule: str) -> List[Dict[str, Any]]:
-    """Run an ast-grep YAML rule and return JSON matches."""
+def _match_globs(file_path: str, project_folder: str, globs: List[str]) -> bool:
+    """Check if a file path matches any of the given glob patterns."""
+    rel = os.path.relpath(file_path, project_folder)
+    return any(fnmatch.fnmatch(rel, g) for g in globs)
+
+
+def _run_rule(
+    project_folder: str,
+    yaml_rule: str,
+    file_globs: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+    """Run an ast-grep YAML rule and return JSON matches, optionally filtered by globs."""
     result = find_code_by_rule_impl(project_folder, yaml_rule, output_format="json")
+    matches: List[Dict[str, Any]]
     if isinstance(result, list):
-        return result
-    if isinstance(result, dict):
-        matches: List[Dict[str, Any]] = result.get("matches", [])
-        return matches
-    return []
+        matches = result
+    elif isinstance(result, dict):
+        matches = result.get("matches", [])
+    else:
+        matches = []
+
+    if file_globs and matches:
+        matches = [
+            m for m in matches
+            if _match_globs(m.get("file", ""), project_folder, file_globs)
+        ]
+    return matches
 
 
 def _parse_jsonld_text(text: str) -> Optional[Dict[str, Any]]:
@@ -137,8 +160,8 @@ def detect_jsonld_in_html(
     Returns:
         Dict with scripts list, parsed content, and error details
     """
-    _ = file_globs  # reserved for future glob filtering
-    content_matches = _run_rule(project_folder, RULE_JSONLD_CONTENT)
+    globs = file_globs or DEFAULT_HTML_GLOBS
+    content_matches = _run_rule(project_folder, RULE_JSONLD_CONTENT, globs)
 
     scripts: List[Dict[str, Any]] = []
     parse_errors: List[Dict[str, Any]] = []
@@ -183,10 +206,10 @@ def detect_microdata_in_html(
     Returns:
         Dict with attributes, typed elements, and validation issues
     """
-    _ = file_globs
-    attr_matches = _run_rule(project_folder, RULE_MICRODATA_ATTRS)
-    element_matches = _run_rule(project_folder, RULE_MICRODATA_ELEMENTS)
-    missing_type_matches = _run_rule(project_folder, RULE_MISSING_ITEMTYPE)
+    globs = file_globs or DEFAULT_HTML_GLOBS
+    attr_matches = _run_rule(project_folder, RULE_MICRODATA_ATTRS, globs)
+    element_matches = _run_rule(project_folder, RULE_MICRODATA_ELEMENTS, globs)
+    missing_type_matches = _run_rule(project_folder, RULE_MISSING_ITEMTYPE, globs)
 
     # Extract schema types from element matches
     typed_elements: List[Dict[str, Any]] = []
@@ -230,8 +253,8 @@ def detect_rdfa_in_html(
     Returns:
         Dict with RDFa property matches grouped by attribute type
     """
-    _ = file_globs
-    matches = _run_rule(project_folder, RULE_RDFA_PROPERTIES)
+    globs = file_globs or DEFAULT_HTML_GLOBS
+    matches = _run_rule(project_folder, RULE_RDFA_PROPERTIES, globs)
 
     by_attribute: Dict[str, int] = {}
     properties: List[Dict[str, Any]] = []
