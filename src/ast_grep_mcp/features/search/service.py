@@ -204,8 +204,23 @@ def _format_cached_results(matches: List[Dict[str, Any]], output_format: str) ->
     return matches
 
 
+def _cache_args_with_globs(stream_args: List[str], language_globs: Optional[Dict[str, List[str]]]) -> List[str]:
+    """Return cache key args that include a stable serialization of language_globs."""
+    if not language_globs:
+        return stream_args
+    import json as _json
+    globs_key = _json.dumps(language_globs, sort_keys=True)
+    return stream_args + [f"__language_globs__={globs_key}"]
+
+
 def _check_cache(
-    cache: Any, stream_args: List[str], project_folder: str, max_results: int, output_format: str, logger: Any
+    cache: Any,
+    stream_args: List[str],
+    project_folder: str,
+    max_results: int,
+    output_format: str,
+    logger: Any,
+    language_globs: Optional[Dict[str, List[str]]] = None,
 ) -> Union[str, List[Dict[str, Any]], None]:
     """
     Check cache for existing results.
@@ -216,7 +231,8 @@ def _check_cache(
     if not cache or max_results != 0:
         return None
 
-    cached_result = cache.get("run", stream_args, project_folder)
+    cache_args = _cache_args_with_globs(stream_args, language_globs)
+    cached_result = cache.get("run", cache_args, project_folder)
     if cached_result is None:
         logger.info("find_code_cache_miss")
         return None
@@ -241,7 +257,8 @@ def _execute_search(
 
     # Store in cache if available
     if cache and max_results == 0:
-        cache.put("run", stream_args, project_folder, matches)
+        cache_args = _cache_args_with_globs(stream_args, language_globs)
+        cache.put("run", cache_args, project_folder, matches)
         logger.info("find_code_cache_stored", stored_results=len(matches), cache_size=len(cache.cache))
 
     return matches
@@ -336,7 +353,7 @@ def _run_find_code_search(
     """Execute find_code search with pre-validated targets."""
     stream_args = _build_search_args(pattern, language, workers, search_targets)
     cache = get_query_cache()
-    cached_result = _check_cache(cache, stream_args, project_folder, max_results, output_format, logger)
+    cached_result = _check_cache(cache, stream_args, project_folder, max_results, output_format, logger, language_globs=language_globs)
     if cached_result is not None:
         return cached_result
 

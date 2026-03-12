@@ -306,7 +306,7 @@ def _write_language_globs_config(language_globs: Dict[str, List[str]], tmpdir: s
         Absolute path to the written sgconfig.yml.
     """
     config_path = os.path.join(tmpdir, "sgconfig.yml")
-    with open(config_path, "w") as f:
+    with open(config_path, "w", encoding="utf-8") as f:
         yaml.dump({"languageGlobs": language_globs}, f)
     return config_path
 
