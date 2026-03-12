@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from ast_grep_mcp.constants import SEODefaults
 from ast_grep_mcp.features.schema.enhancement_rules import (
     get_all_properties_for_entity,
     get_property_example,
@@ -462,7 +463,7 @@ class TestSEOScoring:
             seo_score=0.0,
         )
         score = _calculate_entity_seo_score(entity)
-        assert score == 100.0  # Perfect + validation bonus capped at 100
+        assert score == SEODefaults.BASE_SCORE  # Perfect + validation bonus capped
 
     def test_calculate_entity_seo_score_critical_missing(self, sample_entity_enhancement: EntityEnhancement):
         """Test score with critical property missing."""
@@ -481,7 +482,7 @@ class TestSEOScoring:
             seo_score=0.0,
         )
         score = _calculate_entity_seo_score(entity)
-        assert score == 100.0  # No bonus for validation issues
+        assert score == SEODefaults.BASE_SCORE  # No bonus for validation issues
 
     def test_calculate_overall_seo_score(self, sample_entity_enhancement: EntityEnhancement):
         """Test overall score calculation."""

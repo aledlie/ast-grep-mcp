@@ -177,7 +177,7 @@ Add to `features/schema/html_service.py`:
 | `detect_rdfa_in_html(project_folder, file_globs)` | Find RDFa properties |
 | `validate_html_structured_data(project_folder, file_globs)` | Run all detections, cross-reference with schema.org vocabulary |
 
-Each function uses `find_code_impl` or `find_code_by_rule_impl` with the YAML rules above, then post-processes matches.
+Each function uses `find_code_by_rule_impl` with the YAML rules above, then post-processes matches.
 
 ### Phase 2: Markdown Frontmatter Tools
 

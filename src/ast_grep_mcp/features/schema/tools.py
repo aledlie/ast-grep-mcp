@@ -303,7 +303,7 @@ def _reg_get_search(mcp: FastMCP) -> None:
     async def get_schema_type(
         type_name: str = Field(description="The schema.org type name (e.g., 'Person', 'Organization', 'Article')"),
     ) -> Dict[str, Any]:
-        """Wrapper that calls the standalone get_schema_type_tool function."""
+        """Look up a Schema.org type definition with its properties and parent types."""
         return await get_schema_type_tool(type_name=type_name)
 
     @mcp.tool()
@@ -311,14 +311,14 @@ def _reg_get_search(mcp: FastMCP) -> None:
         query: str = Field(description="Search query to find schema types (searches in names and descriptions)"),
         limit: int = Field(default=10, description="Maximum number of results to return (1-100)"),
     ) -> List[Dict[str, Any]]:
-        """Wrapper that calls the standalone search_schemas_tool function."""
+        """Search Schema.org vocabulary by keyword, returning matching types sorted by relevance."""
         return await search_schemas_tool(query=query, limit=limit)
 
 
 def _reg_hierarchy_properties(mcp: FastMCP) -> None:
     @mcp.tool()
     async def get_type_hierarchy(type_name: str = Field(description="The schema.org type name")) -> Dict[str, Any]:
-        """Wrapper that calls the standalone get_type_hierarchy_tool function."""
+        """Get parent (superTypes) and child (subTypes) types for a Schema.org type."""
         return await get_type_hierarchy_tool(type_name=type_name)
 
     @mcp.tool()
@@ -326,7 +326,7 @@ def _reg_hierarchy_properties(mcp: FastMCP) -> None:
         type_name: str = Field(description="The schema.org type name"),
         include_inherited: bool = Field(default=True, description="Include properties inherited from parent types"),
     ) -> List[Dict[str, Any]]:
-        """Wrapper that calls the standalone get_type_properties_tool function."""
+        """List all properties for a Schema.org type, optionally including inherited ones."""
         return await get_type_properties_tool(type_name=type_name, include_inherited=include_inherited)
 
 
@@ -338,7 +338,7 @@ def _reg_example_entity_id(mcp: FastMCP) -> None:
             default=None, description="Custom property values to include in the example (JSON object)"
         ),
     ) -> Dict[str, Any]:
-        """Wrapper that calls the standalone generate_schema_example_tool function."""
+        """Generate a valid JSON-LD example for a Schema.org type with optional custom properties."""
         return await generate_schema_example_tool(type_name=type_name, custom_properties=custom_properties)
 
     @mcp.tool()
@@ -349,7 +349,7 @@ def _reg_example_entity_id(mcp: FastMCP) -> None:
             default=None, description="Optional URL slug for specific entity instances (e.g., 'john-doe', 'products/widget-a')"
         ),
     ) -> str:
-        """Wrapper that calls the standalone generate_entity_id_tool function."""
+        """Generate a Schema.org @id value following SEO best practices for entity identification."""
         return generate_entity_id_tool(base_url=base_url, entity_type=entity_type, entity_slug=entity_slug)
 
 
@@ -358,7 +358,7 @@ def _reg_validate_build(mcp: FastMCP) -> None:
     def validate_entity_id(
         entity_id: str = Field(description="The @id value to validate (e.g., 'https://example.com/#organization')"),
     ) -> Dict[str, Any]:
-        """Wrapper that calls the standalone validate_entity_id_tool function."""
+        """Validate a Schema.org @id value against best practices, returning warnings and suggestions."""
         return validate_entity_id_tool(entity_id=entity_id)
 
     @mcp.tool()
@@ -366,7 +366,7 @@ def _reg_validate_build(mcp: FastMCP) -> None:
         entities: List[Dict[str, Any]] = Field(description="List of entity definitions with type, properties, and relationships"),
         base_url: str = Field(description="Base canonical URL for generating @id values"),
     ) -> Dict[str, Any]:
-        """Wrapper that calls the standalone build_entity_graph_tool function."""
+        """Build a complete JSON-LD @graph from entity definitions with proper @id references."""
         return await build_entity_graph_tool(entities=entities, base_url=base_url)
 
 
@@ -468,7 +468,7 @@ def _reg_enhance(mcp: FastMCP) -> None:
             description=("Output: 'analysis' for suggestions, 'enhanced' for complete graph, 'diff' for additions only"),
         ),
     ) -> Dict[str, Any]:
-        """Wrapper that calls the standalone enhance_entity_graph_tool function."""
+        """Analyze a JSON-LD entity graph for missing properties, types, and SEO improvements."""
         return await enhance_entity_graph_tool(input_source=input_source, input_type=input_type, output_mode=output_mode)
 
 
@@ -484,7 +484,7 @@ def _reg_structured_data(mcp: FastMCP) -> None:
             description="Formats to detect: json-ld, microdata, rdfa, frontmatter (default: all)",
         ),
     ) -> Dict[str, Any]:
-        """Wrapper that calls the standalone detect_structured_data_tool function."""
+        """Detect structured data (JSON-LD, microdata, RDFa, frontmatter) in a project's HTML and markdown files."""
         return detect_structured_data_tool(
             project_folder=project_folder, file_globs=file_globs, formats=formats
         )
@@ -496,7 +496,7 @@ def _reg_structured_data(mcp: FastMCP) -> None:
             default=None, description="File patterns to scan (default: **/*.html, **/*.md)"
         ),
     ) -> Dict[str, Any]:
-        """Wrapper that calls the standalone validate_structured_data_tool function."""
+        """Validate structured data in HTML files, checking JSON-LD, microdata, and RDFa for errors."""
         return validate_structured_data_tool(
             project_folder=project_folder, file_globs=file_globs
         )

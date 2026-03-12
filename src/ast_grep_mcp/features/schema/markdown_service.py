@@ -56,7 +56,7 @@ COMMON_FRONTMATTER_TYPES: Set[str] = {
 TYPE_REQUIRED_PROPERTIES: Dict[str, List[str]] = {
     "Article": ["headline", "author", "datePublished"],
     "BlogPosting": ["headline", "author", "datePublished"],
-    "NewsArticle": ["headline", "author", "datePublished", "dateline"],
+    "NewsArticle": ["headline", "author", "datePublished", "locationCreated"],
     "HowTo": ["name", "step"],
     "FAQPage": ["mainEntity"],
     "Product": ["name", "description"],
