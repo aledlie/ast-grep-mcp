@@ -17,13 +17,17 @@ LANG = sys.argv[2] if len(sys.argv) > 2 else "typescript"
 results: dict[str, dict] = {}
 
 # Extensions considered "config-only" (non-executable, no function definitions)
-_CONFIG_EXTS = {".json", ".yaml", ".yml", ".toml", ".ini", ".cjs", ".env"}
+# Note: dotfiles like .env have no suffix via Path.suffix and are handled separately
+_CONFIG_EXTS = {".json", ".yaml", ".yml", ".toml", ".ini", ".cjs"}
 _CODE_EXTS = {".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".rs", ".go", ".java", ".rb", ".cs"}
+_SKIP_DIRS = {"node_modules", ".git", "__pycache__", "venv", ".venv", "dist", "build"}
+_MAX_DISPLAY_EXTS = 8
 
 # Known language mappings for auto-suggestion
+# .jsx maps to javascript — ast-grep does not have a separate "jsx" language
 _EXT_TO_LANG: dict[str, str] = {
     ".py": "python", ".ts": "typescript", ".tsx": "tsx", ".js": "javascript",
-    ".jsx": "jsx", ".mjs": "javascript", ".cjs": "javascript",
+    ".jsx": "javascript", ".mjs": "javascript", ".cjs": "javascript",
     ".rs": "rust", ".go": "go", ".java": "java", ".rb": "ruby",
     ".json": "json", ".yaml": "yaml", ".yml": "yaml",
 }
@@ -49,9 +53,8 @@ def _detect_target_info(target: str) -> dict:
             "is_config_only": False, "recommended_langs": [LANG], "warnings": [f"Target directory not found: {target}"],
         }
 
-    _SKIP_DIRS = {"node_modules", ".git", "__pycache__", "venv", ".venv", "dist", "build"}
     for p in target_path.rglob("*"):
-        if p.is_file() and not any(part in _SKIP_DIRS for part in p.parts):
+        if p.is_file() and not any(part in _SKIP_DIRS for part in p.relative_to(target_path).parts):
             ext = p.suffix.lower()
             if ext:
                 ext_counts[ext] = ext_counts.get(ext, 0) + 1
@@ -66,15 +69,17 @@ def _detect_target_info(target: str) -> dict:
         recommended_langs = [LANG]
 
     warnings = []
-    if is_config_only:
+    if not ext_counts:
+        warnings.append("WARNING: No files with recognized extensions found in target directory.")
+    elif is_config_only:
         warnings.append(
-            "⚠  Target appears to contain config files only (no .py/.ts/.js/etc found)."
+            "WARNING: Target appears to contain config files only (no .py/.ts/.js/etc found)."
         )
         warnings.append(
-            "   Function-oriented patterns (function $NAME, class $C) will return 0 matches."
+            "  Function-oriented patterns (function $NAME, class $C) will return 0 matches."
         )
         warnings.append(
-            "   See docs/CONFIG_PATTERNS.md for patterns that work against config formats."
+            "  See docs/CONFIG_PATTERNS.md for patterns that work against config formats."
         )
         if config_ext_counts:
             suggestions = ", ".join(
@@ -83,7 +88,7 @@ def _detect_target_info(target: str) -> dict:
                 if e in _EXT_TO_LANG
             )
             if suggestions:
-                warnings.append(f"   Suggested languages: {suggestions}")
+                warnings.append(f"  Suggested languages: {suggestions}")
 
     return {
         "ext_counts": ext_counts,
@@ -668,7 +673,7 @@ def main():
     # Detect target directory contents and warn about config-only targets
     target_info = _detect_target_info(TARGET)
     if target_info["ext_counts"]:
-        top_exts = sorted(target_info["ext_counts"].items(), key=lambda x: -x[1])[:8]
+        top_exts = sorted(target_info["ext_counts"].items(), key=lambda x: -x[1])[:_MAX_DISPLAY_EXTS]
         print(f"Detected extensions: {', '.join(f'{e}({c})' for e, c in top_exts)}")
     for warning in target_info["warnings"]:
         print(warning)
