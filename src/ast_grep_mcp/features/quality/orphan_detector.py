@@ -77,27 +77,33 @@ class OrphanDetector:
         return result
 
     def _build_dependency_graph(self, base_path: Path) -> DependencyGraph:
-        """Build the import dependency graph for the project."""
+        """Build the import dependency graph for the project.
+
+        Two-pass approach: first collect all files, then extract imports.
+        This ensures target files are in graph.files before edge resolution.
+        """
         graph = DependencyGraph()
 
+        # Pass 1: collect all files
+        all_files: List[Tuple[Path, str]] = []
         for pattern in self.config.include_patterns:
             glob_pattern = pattern.split("**/")[-1] if "**/" in pattern else pattern
             for file_path in base_path.rglob(glob_pattern):
-                self._add_file_to_graph(file_path, base_path, graph)
+                if self._should_exclude(file_path, base_path) or not file_path.is_file():
+                    continue
+                rel_path = str(file_path.relative_to(base_path))
+                graph.files.add(rel_path)
+                all_files.append((file_path, rel_path))
+
+        # Pass 2: extract imports (all targets now resolvable)
+        for file_path, rel_path in all_files:
+            if file_path.suffix == ".py":
+                self._extract_python_imports(file_path, rel_path, base_path, graph)
+            elif file_path.suffix in (".ts", ".js", ".tsx", ".jsx"):
+                self._extract_js_imports(file_path, rel_path, base_path, graph)
 
         self.logger.debug("dependency_graph_built", files=len(graph.files), edges=len(graph.edges))
         return graph
-
-    def _add_file_to_graph(self, file_path: Path, base_path: Path, graph: DependencyGraph) -> None:
-        """Add a single file and its imports to the dependency graph."""
-        if self._should_exclude(file_path, base_path) or not file_path.is_file():
-            return
-        rel_path = str(file_path.relative_to(base_path))
-        graph.files.add(rel_path)
-        if file_path.suffix == ".py":
-            self._extract_python_imports(file_path, rel_path, base_path, graph)
-        elif file_path.suffix in (".ts", ".js", ".tsx", ".jsx"):
-            self._extract_js_imports(file_path, rel_path, base_path, graph)
 
     def _should_exclude(self, file_path: Path, base_path: Path) -> bool:
         """Check if a file should be excluded from analysis."""
@@ -312,9 +318,20 @@ class OrphanDetector:
     _JS_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", "/index.ts", "/index.js"]
 
     def _resolve_js_relative_import(self, file_path: Path, import_path: str, base_path: Path) -> Optional[str]:
-        """Resolve a relative JavaScript/TypeScript import."""
+        """Resolve a relative JavaScript/TypeScript import.
+
+        Handles: extensionless imports, .js→.ts remapping (TS ESM convention),
+        and index file resolution.
+        """
         target_path = (file_path.parent / import_path).resolve()
         candidates = [Path(str(target_path) + ext) for ext in self._JS_EXTENSIONS] + [target_path]
+        # TS ESM convention: source imports use .js but files on disk are .ts
+        if import_path.endswith(".js"):
+            ts_path = (file_path.parent / import_path[:-3]).resolve()
+            candidates = [Path(str(ts_path) + ext) for ext in (".ts", ".tsx")] + candidates
+        elif import_path.endswith(".jsx"):
+            tsx_path = (file_path.parent / import_path[:-4]).resolve()
+            candidates = [Path(str(tsx_path) + ".tsx")] + candidates
         return self._first_relative_path(candidates, base_path)
 
     def _first_relative_path(self, candidates: List[Path], base_path: Path) -> Optional[str]:
@@ -350,7 +367,7 @@ class OrphanDetector:
     @staticmethod
     def _file_matches_ep(file_path: str, full_path: Path, pattern: str) -> bool:
         """Check one entry-point pattern against a file."""
-        stripped = pattern.lstrip("**/")
+        stripped = pattern.removeprefix("**/")
         return fnmatch.fnmatch(file_path, stripped) or fnmatch.fnmatch(full_path.name, stripped.split("/")[-1])
 
     _LANGUAGE_MAP: Dict[str, str] = {".py": "python", ".js": "javascript", ".ts": "typescript", ".tsx": "typescript", ".jsx": "javascript"}

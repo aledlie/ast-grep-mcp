@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT="${1:-.}"
+OUT="${2:-$ROOT/docs/repomix/gitlog-top20.txt}"
+
 N=20
 COMMITS=200
-OUT="docs/repomix/gitlog-top${N}.txt"
 
 mkdir -p "$(dirname "$OUT")"
 
-# Get Top-N tracked files by blob size (bytes)
-# Get Top-N tracked files by blob size (bytes) without xargs (macOS-safe)
+# Get Top-N tracked files by blob size (bytes), macOS-safe
 TOP_FILES=()
 while IFS= read -r f; do
   [[ -n "$f" ]] && TOP_FILES+=("$f")
 done < <(
-  git ls-files -z \
+  git -C "$ROOT" ls-files -z \
   | while IFS= read -r -d '' f; do
-      sz="$(git cat-file -s ":$f" 2>/dev/null || echo 0)"
+      sz="$(git -C "$ROOT" cat-file -s ":$f" 2>/dev/null || echo 0)"
       printf '%s\t%s\n' "$sz" "$f"
     done \
   | sort -nr \
@@ -24,7 +25,7 @@ done < <(
 )
 
 # Log: commit header + filenames (no statuses), only for those Top-N files
-git log -n "$COMMITS" \
+git -C "$ROOT" log -n "$COMMITS" \
   --date=short \
   --pretty='format:%h %ad %s' \
   --name-only \

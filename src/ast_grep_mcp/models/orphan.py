@@ -199,17 +199,25 @@ class OrphanAnalysisConfig:
     entry_point_patterns: List[str] = field(
         default_factory=lambda: [
             "**/main.py",
+            "**/main.ts",
             "**/index.ts",
             "**/index.js",
             "**/__main__.py",
             "**/cli.py",
+            "**/cli.ts",
             "**/app.py",
+            "**/app.ts",
             "**/server.py",
+            "**/server.ts",
             "**/conftest.py",
             "**/test_*.py",
             "**/*_test.py",
             "**/*.test.ts",
+            "**/*.test.js",
             "**/*.spec.ts",
+            "**/*.spec.js",
+            "**/*-runner.ts",
+            "**/*-runner.js",
         ]
     )
     analyze_functions: bool = True

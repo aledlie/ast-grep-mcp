@@ -107,6 +107,8 @@ interface SummaryReport {
   literals: LiteralGroupSummary[];
 }
 
+const EXCLUDED_PATH_SEGMENTS = ['node_modules', 'dist', '.next', 'build', 'coverage'];
+
 const STOPWORDS = new Set([
   'const', 'let', 'var', 'function', 'return', 'true', 'false', 'null', 'undefined',
   'import', 'from', 'export', 'default', 'async', 'await', 'new', 'class', 'extends',
@@ -271,6 +273,7 @@ function gatherOccurrences(results: EslintResult[], contextLines: number): Magic
   for (const result of results) {
     const filePath = path.resolve(result.filePath);
     const relativePath = path.relative(process.cwd(), filePath);
+    if (EXCLUDED_PATH_SEGMENTS.some((seg) => relativePath.split(path.sep).includes(seg))) continue;
     let lines = contentCache.get(filePath);
     if (!lines) {
       if (!fs.existsSync(filePath)) continue;
@@ -325,6 +328,10 @@ function listConstantFiles(): string[] {
     '-g', '*http-status.ts',
     '-g', '!docs/repomix/**',
     '-g', '!node_modules/**',
+    '-g', '!dist/**',
+    '-g', '!build/**',
+    '-g', '!.next/**',
+    '-g', '!coverage/**',
   ], process.cwd());
 
   return stdout
