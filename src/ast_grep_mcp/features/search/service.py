@@ -228,9 +228,16 @@ def _check_cache(
     return _format_cached_results(matches, output_format)
 
 
-def _execute_search(stream_args: List[str], max_results: int, cache: Any, project_folder: str, logger: Any) -> List[Dict[str, Any]]:
+def _execute_search(
+    stream_args: List[str],
+    max_results: int,
+    cache: Any,
+    project_folder: str,
+    logger: Any,
+    language_globs: Optional[Dict[str, List[str]]] = None,
+) -> List[Dict[str, Any]]:
     """Execute the search and optionally cache results."""
-    matches = list(stream_ast_grep_results("run", stream_args, max_results=max_results, progress_interval=StreamDefaults.PROGRESS_INTERVAL))
+    matches = list(stream_ast_grep_results("run", stream_args, max_results=max_results, progress_interval=StreamDefaults.PROGRESS_INTERVAL, language_globs=language_globs))
 
     # Store in cache if available
     if cache and max_results == 0:
@@ -324,6 +331,7 @@ def _run_find_code_search(
     search_targets: List[str],
     logger: Any,
     start_time: float,
+    language_globs: Optional[Dict[str, List[str]]] = None,
 ) -> Union[str, List[Dict[str, Any]]]:
     """Execute find_code search with pre-validated targets."""
     stream_args = _build_search_args(pattern, language, workers, search_targets)
@@ -332,7 +340,7 @@ def _run_find_code_search(
     if cached_result is not None:
         return cached_result
 
-    matches = _execute_search(stream_args, max_results, cache, project_folder, logger)
+    matches = _execute_search(stream_args, max_results, cache, project_folder, logger, language_globs=language_globs)
     result = _format_search_results(matches, output_format)
     execution_time = time.time() - start_time
     logger.info(
@@ -373,8 +381,17 @@ def find_code_impl(
     output_format: Literal["text", "json"] = "text",
     max_file_size_mb: int = 0,
     workers: int = 0,
+    language_globs: Optional[Dict[str, List[str]]] = None,
 ) -> Union[str, List[Dict[str, Any]]]:
-    """Find code in a project folder using a pattern."""
+    """Find code in a project folder using a pattern.
+
+    Args:
+        language_globs: Optional mapping of language name to glob patterns, e.g.
+            ``{"javascript": ["**/*.cjs"], "json": [".eslintrc", "*.schema.json"]}``.
+            When provided a temporary sgconfig.yml is written and passed to ast-grep
+            via ``--config``, enabling non-standard file extensions to be parsed with
+            the correct Tree-sitter grammar.
+    """
     logger = get_logger("search.find_code")
     start_time = time.time()
     size_display: Union[int, str] = max_file_size_mb if max_file_size_mb > 0 else "unlimited"
@@ -396,7 +413,8 @@ def find_code_impl(
         if empty_result is not None:
             return empty_result
         return _run_find_code_search(
-            project_folder, pattern, language, max_results, output_format, workers, search_targets, logger, start_time
+            project_folder, pattern, language, max_results, output_format, workers, search_targets, logger, start_time,
+            language_globs=language_globs,
         )
     except Exception as e:
         _log_find_code_error(e, project_folder, pattern, language, start_time, logger)
