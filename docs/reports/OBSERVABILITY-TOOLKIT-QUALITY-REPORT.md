@@ -157,12 +157,15 @@ The codebase shows excellent code reuse discipline. One borderline pair was dete
 
 ## 8. Token Condensation Estimates
 
-| Mode | Est. Tokens | Reduction |
-|------|-------------|-----------|
-| AI Chat | 136,534 | 85% |
-| AI Analysis | 546,138 | 40% |
-| Archival | 637,161 | 30% |
-| Polyglot | 318,580 | 65% |
+**Source baseline:** ~910,000 tokens raw (102K lines across 217 files)
+
+| Mode | Est. Tokens | Reduction vs Raw |
+|------|-------------|-----------------|
+| Raw (baseline) | ~910,000 | — |
+| AI Chat | 136,534 | ~85% |
+| AI Analysis | 546,138 | ~40% |
+| Archival | 637,161 | ~30% |
+| Polyglot | 318,580 | ~65% |
 
 **Top reduction candidates** (largest files):
 
