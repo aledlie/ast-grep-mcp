@@ -1,12 +1,4 @@
-"""MCP tool definitions for code quality and standards features.
-
-This module registers MCP tools for:
-- detect_code_smells: Code smell detection
-- create_linting_rule: Create custom linting rules
-- list_rule_templates: Browse pre-built rule templates
-- enforce_standards: Standards enforcement engine
-- detect_orphans: Detect orphan files and functions not imported/called anywhere
-"""
+"""MCP tool definitions for code quality and standards features."""
 
 import os
 import time
@@ -37,6 +29,14 @@ from ast_grep_mcp.models.standards import (
 )
 from ast_grep_mcp.utils.tool_context import tool_context
 
+# Field description constants reused across MCP tool registrations
+_PROJECT_FOLDER_DESC = "Absolute path to the project root directory"
+_LANGUAGE_DESC = "Programming language (python, typescript, javascript, java, etc.)"
+_OUTPUT_FORMAT_DESC = "Output format: 'json' (structured data) or 'text' (human-readable report)"
+_SEVERITY_THRESHOLD_DESC = "Minimum severity to report: 'error', 'warning', 'info'"
+_EXCLUDE_PATTERNS_DESC = "Glob patterns for files to exclude"
+_INCLUDE_PATTERNS_DESC = "Glob patterns for files to include (e.g., ['src/**/*.py'])"
+
 
 def _create_rule_from_params(
     rule_name: str,
@@ -48,18 +48,16 @@ def _create_rule_from_params(
     note: Optional[str],
     use_template: Optional[str],
 ) -> LintingRule:
-    """Helper to create a rule from parameters."""
+    """Create a LintingRule from parameters or a template."""
     if use_template:
-        overrides = {
+        overrides = {k: v for k, v in {
             "language": language,
             "severity": severity,
             "message": description,
             "pattern": pattern,
             "note": note,
             "fix": suggested_fix,
-        }
-        # Remove None values
-        overrides = {k: v for k, v in overrides.items() if v is not None}
+        }.items() if v is not None}
         return create_rule_from_template(use_template, rule_name, overrides)
 
     return LintingRule(
@@ -70,22 +68,19 @@ def _create_rule_from_params(
 def _save_rule_if_requested(
     rule: LintingRule, save_to_project: bool, project_folder: Optional[str], validation_result: Any
 ) -> Optional[str]:
-    """Helper to save rule to project if requested."""
+    """Save rule to project if requested; returns saved path or None."""
     if not save_to_project:
         return None
-
     if not project_folder:
         raise ValueError("project_folder is required when save_to_project=True")
-
     if not validation_result.is_valid:
         raise RuleValidationError(f"Cannot save invalid rule. Errors: {', '.join(validation_result.errors)}")
-
     with sentry_sdk.start_span(op="save_rule", name="Save rule to project"):
         return save_rule_to_project(rule, project_folder)
 
 
 def _format_rule_result(rule: LintingRule, validation_result: Any, saved_path: Optional[str]) -> Dict[str, Any]:
-    """Helper to format the rule creation result."""
+    """Format the rule creation result dict."""
     rule_dict = rule.to_yaml_dict()
     yaml_str = yaml.dump(rule_dict, default_flow_style=False, sort_keys=False)
 
@@ -106,7 +101,6 @@ def _format_rule_result(rule: LintingRule, validation_result: Any, saved_path: O
     }
 
 
-
 def create_linting_rule_tool(
     rule_name: str,
     description: str,
@@ -119,36 +113,7 @@ def create_linting_rule_tool(
     project_folder: Optional[str] = None,
     use_template: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """
-    Create a custom linting rule using ast-grep patterns.
-
-    This function allows you to define custom code quality rules that can be enforced
-    across your codebase. Rules can detect code smells, anti-patterns, security
-    vulnerabilities, or enforce style guidelines.
-
-    **Templates:** Use `use_template` parameter to start from a pre-built template
-    (see list_rule_templates_tool).
-
-    **Pattern Syntax Examples:**
-    - `console.log($$$)` - matches any console.log call
-    - `var $NAME = $$$` - matches var declarations
-    - `except:` - matches bare except clauses in Python
-
-    Args:
-        rule_name: Unique rule identifier (e.g., 'no-console-log')
-        description: Human-readable description of what the rule checks
-        pattern: ast-grep pattern to match (e.g., 'console.log($$$)')
-        severity: Severity level: 'error', 'warning', or 'info'
-        language: Target language (python, typescript, javascript, java, etc.)
-        suggested_fix: Optional replacement pattern or fix suggestion
-        note: Additional note or explanation
-        save_to_project: If True, save rule to project's .ast-grep-rules/
-        project_folder: Project folder (required if save_to_project=True)
-        use_template: Optional template ID to use as base
-
-    Returns:
-        Dictionary containing rule definition, validation results, saved path, and YAML
-    """
+    """Create a custom linting rule using ast-grep patterns."""
     logger = get_logger("tool.create_linting_rule")
     logger.info(
         "tool_invoked",
@@ -187,26 +152,7 @@ def create_linting_rule_tool(
 
 
 def list_rule_templates_tool(language: Optional[str] = None, category: Optional[str] = None) -> Dict[str, Any]:
-    """
-    List available pre-built rule templates.
-
-    This function returns a library of pre-built linting rules that can be used
-    as-is or customized for your needs. Templates cover common patterns across
-    multiple languages including JavaScript/TypeScript, Python, and Java.
-
-    **Template Categories:**
-    - `general`: General code quality and best practices
-    - `security`: Security vulnerabilities and risks
-    - `performance`: Performance anti-patterns
-    - `style`: Code style and consistency
-
-    Args:
-        language: Filter by language (python, typescript, javascript, java, etc.)
-        category: Filter by category (general, security, performance, style)
-
-    Returns:
-        Dictionary with total count, available languages/categories, and template list
-    """
+    """List available pre-built rule templates, optionally filtered by language or category."""
     logger = get_logger("tool.list_rule_templates")
     logger.info("tool_invoked", tool="list_rule_templates", language=language, category=category)
 
@@ -253,20 +199,11 @@ def list_rule_templates_tool(language: Optional[str] = None, category: Optional[
 
 
 def _get_default_exclude_patterns() -> List[str]:
-    """Get default exclude patterns for file scanning."""
     return FilePatterns.normalize_excludes(None)
 
 
 def _validate_enforcement_inputs(severity_threshold: str, output_format: str) -> None:
-    """Validate input parameters for enforce_standards.
-
-    Args:
-        severity_threshold: Severity threshold to validate
-        output_format: Output format to validate
-
-    Raises:
-        ValueError: If parameters are invalid
-    """
+    """Validate severity_threshold and output_format; raises ValueError if invalid."""
     if severity_threshold not in ["error", "warning", "info"]:
         raise ValueError(f"Invalid severity_threshold: {severity_threshold}. Must be 'error', 'warning', or 'info'.")
 
@@ -275,11 +212,10 @@ def _validate_enforcement_inputs(severity_threshold: str, output_format: str) ->
 
 
 def _format_enforcement_output(result: EnforcementResult, output_format: str) -> Dict[str, Any]:
-    """Format enforcement result based on output format."""
+    """Format enforcement result as 'text' or structured JSON dict."""
     if output_format == "text":
         return {"summary": result.summary, "report": format_violation_report(result)}
 
-    # JSON format - return structured data
     violations_data = []
     for v in result.violations:
         violations_data.append(
@@ -325,40 +261,7 @@ def enforce_standards_tool(
     max_threads: int = ParallelProcessing.DEFAULT_WORKERS,
     output_format: str = "json",
 ) -> Dict[str, Any]:
-    """
-    Enforce coding standards by executing linting rules against a project.
-
-    This function runs a set of linting rules (built-in or custom) against your codebase
-    and reports all violations with file locations, severity levels, and fix suggestions.
-
-    **Rule Sets:**
-    - `recommended`: General best practices (10 rules)
-    - `security`: Security-focused rules (9 rules)
-    - `performance`: Performance anti-patterns
-    - `style`: Code style and formatting rules (9 rules)
-    - `custom`: Load custom rules from .ast-grep-rules/
-    - `all`: All built-in rules for the language
-
-    Args:
-        project_folder: The absolute path to the project folder to scan
-        language: The programming language (python, typescript, javascript, java)
-        rule_set: Rule set to use: 'recommended', 'security', 'performance', 'style', 'custom', 'all'
-        custom_rules: List of custom rule IDs from .ast-grep-rules/ (used with rule_set='custom')
-        include_patterns: Glob patterns for files to include (e.g., ['src/**/*.py'])
-        exclude_patterns: Glob patterns for files to exclude
-        severity_threshold: Only report violations >= this severity ('error', 'warning', 'info')
-        max_violations: Maximum violations to find (0 = unlimited). Stops execution early when reached.
-        max_threads: Number of parallel threads for rule execution (default: 4)
-        output_format: Output format: 'json' (structured data) or 'text' (human-readable report)
-
-    Returns:
-        Dictionary with summary, violations, and execution statistics
-
-    Example usage:
-        enforce_standards_tool(project_folder="/path/to/project", language="python")
-        enforce_standards_tool(project_folder="/path/to/project", language="typescript", rule_set="security")
-    """
-    # Set defaults
+    """Run linting rules against a project and return violations with statistics."""
     if custom_rules is None:
         custom_rules = []
     if include_patterns is None:
@@ -405,7 +308,6 @@ def enforce_standards_tool(
 
 
 def _convert_violations_to_objects(violations: List[Dict[str, Any]]) -> List[RuleViolation]:
-    """Convert violation dictionaries to RuleViolation objects."""
     violation_objects = []
     for v_dict in violations:
         violation = RuleViolation(
@@ -426,23 +328,19 @@ def _convert_violations_to_objects(violations: List[Dict[str, Any]]) -> List[Rul
 
 
 def _infer_project_folder(violations: List[Dict[str, Any]]) -> str:
-    """Infer project folder from violation file paths."""
+    """Infer project folder from the common prefix of violation file paths."""
     if not violations:
         return os.getcwd()
-
     all_files = [v.get("file", "") for v in violations if v.get("file")]
     if not all_files:
         return os.getcwd()
-
     common_prefix = os.path.commonprefix(all_files)
-    # Get the directory part
     if not os.path.isdir(common_prefix):
         return cast(str, os.path.dirname(common_prefix))
     return cast(str, common_prefix)
 
 
 def _format_fix_results(result: Any, dry_run: bool) -> Dict[str, Any]:
-    """Format fix results for output."""
     return {
         "summary": {
             "total_violations": result.total_violations,
@@ -477,55 +375,7 @@ def _format_fix_results(result: Any, dry_run: bool) -> Dict[str, Any]:
 def apply_standards_fixes_tool(
     violations: List[Dict[str, Any]], language: str, fix_types: List[str] | None = None, dry_run: bool = True, create_backup: bool = True
 ) -> Dict[str, Any]:
-    """
-    Automatically fix code quality violations detected by enforce_standards.
-
-    This function takes violations from enforce_standards and applies fixes automatically.
-    It supports safe fixes (guaranteed-safe), suggested fixes (may need review), or all fixes.
-
-    **Fix Types:**
-    - `safe`: Only apply guaranteed-safe fixes (e.g., var → const, console.log removal)
-    - `suggested`: Apply fixes that may need review (e.g., exception handling changes)
-    - `all`: Apply all available fixes
-
-    **Safety:**
-    - All fixes are validated with syntax checking
-    - Backup is created automatically (unless disabled)
-    - Dry-run mode previews changes without applying
-    - Failed fixes are rolled back automatically
-
-    Args:
-        violations: List of violations from enforce_standards (each must have 'file', 'line', 'rule_id', etc.)
-        language: Programming language for syntax validation
-        fix_types: Types of fixes to apply ('safe', 'suggested', 'all')
-        dry_run: If True, preview fixes without applying them
-        create_backup: If True, create backup before applying fixes
-
-    Returns:
-        Dictionary with fix results, backup ID, and statistics
-
-    Example usage:
-        # First, find violations
-        result = enforce_standards_tool(project_folder="/path", language="python")
-
-        # Preview fixes (dry run)
-        preview = apply_standards_fixes_tool(
-            violations=result["violations"],
-            language="python",
-            fix_types=["safe"],
-            dry_run=True
-        )
-
-        # Apply safe fixes
-        fixed = apply_standards_fixes_tool(
-            violations=result["violations"],
-            language="python",
-            fix_types=["safe"],
-            dry_run=False,
-            create_backup=True
-        )
-    """
-    # Set defaults
+    """Apply automatic fixes for violations from enforce_standards."""
     if fix_types is None:
         fix_types = ["safe"]
 
@@ -576,48 +426,7 @@ def generate_quality_report_tool(
     include_code_snippets: bool = False,
     save_to_file: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """
-    Generate a comprehensive code quality report from enforcement results.
-
-    This function creates professional quality reports in Markdown or JSON format,
-    summarizing violations, top issues, and providing actionable recommendations.
-
-    **Output Formats:**
-    - `markdown`: Human-readable report with tables and sections
-    - `json`: Machine-readable structured data
-
-    **Report Sections:**
-    - Summary statistics (violations by severity)
-    - Violations by severity level
-    - Top issues by rule
-    - Files with most violations
-    - Recommendations and auto-fix suggestions
-
-    Args:
-        enforcement_result: Result dictionary from enforce_standards tool
-        project_name: Name of the project for report header
-        output_format: Report format ('markdown' or 'json')
-        include_violations: Whether to include detailed violation listings
-        include_code_snippets: Whether to include code snippets (JSON only)
-        save_to_file: Optional file path to save the report
-
-    Returns:
-        Dictionary with report content and metadata
-
-    Example usage:
-        # Run enforcement
-        result = enforce_standards(project_folder="/path", language="python")
-
-        # Generate Markdown report
-        report = generate_quality_report(
-            enforcement_result=result,
-            project_name="My Project",
-            output_format="markdown",
-            save_to_file="quality-report.md"
-        )
-
-        print(report["content"])
-    """
+    """Generate a markdown or JSON quality report from enforce_standards results."""
     logger = get_logger("tool.generate_quality_report")
     logger.info(
         "tool_invoked", tool="generate_quality_report", project_name=project_name, output_format=output_format, save_to_file=save_to_file
@@ -658,7 +467,6 @@ def _group_violations(
     Dict[str, List[RuleViolation]],
     Dict[str, List[RuleViolation]],
 ]:
-    """Group violations by file, severity, and rule_id."""
     by_file: Dict[str, List[RuleViolation]] = defaultdict(list)
     by_severity: Dict[str, List[RuleViolation]] = defaultdict(list)
     by_rule: Dict[str, List[RuleViolation]] = defaultdict(list)
@@ -672,7 +480,6 @@ def _group_violations(
 
 
 def _dict_to_enforcement_result(data: Dict[str, Any]) -> EnforcementResult:
-    """Convert enforcement result dictionary to EnforcementResult object."""
     violations = _convert_violations_to_objects(data.get("violations", []))
     by_file, by_severity, by_rule = _group_violations(violations)
 
@@ -689,7 +496,6 @@ def _dict_to_enforcement_result(data: Dict[str, Any]) -> EnforcementResult:
 
 
 def _format_security_issues(issues: List[SecurityIssue]) -> List[Dict[str, Any]]:
-    """Format security issues for output."""
     return [
         {
             "file": issue.file,
@@ -712,7 +518,6 @@ def _format_security_issues(issues: List[SecurityIssue]) -> List[Dict[str, Any]]
 
 
 def _format_issues_by_severity(result: Any) -> Dict[str, List[Dict[str, Any]]]:
-    """Format issues grouped by severity."""
     formatted = {}
     for severity, issues in result.issues_by_severity.items():
         formatted[severity] = [
@@ -729,62 +534,7 @@ def detect_security_issues_tool(
     severity_threshold: str = "low",
     max_issues: int = SecurityScanDefaults.MAX_ISSUES,
 ) -> Dict[str, Any]:
-    """
-    Scan code for security vulnerabilities and common weaknesses.
-
-    This function performs comprehensive security scanning using ast-grep patterns
-    and regex-based detection to identify vulnerabilities like SQL injection, XSS,
-    command injection, hardcoded secrets, and insecure cryptography.
-
-    **Vulnerability Types:**
-    - `sql_injection`: SQL injection via f-strings, .format(), concatenation
-    - `xss`: Cross-site scripting via innerHTML, document.write
-    - `command_injection`: Command injection via os.system, subprocess, eval/exec
-    - `hardcoded_secrets`: API keys, tokens, passwords in source code
-    - `insecure_crypto`: Weak hash algorithms (MD5, SHA-1)
-
-    **Severity Levels:**
-    - `critical`: Immediate security risk requiring urgent fix
-    - `high`: Serious security weakness
-    - `medium`: Moderate security concern
-    - `low`: Minor security issue or code smell
-
-    **CWE References:**
-    Each issue includes CWE (Common Weakness Enumeration) IDs for standardized
-    vulnerability classification.
-
-    Args:
-        project_folder: Absolute path to project root directory
-        language: Programming language (python, javascript, typescript, java)
-        issue_types: Types to scan for, or None for all types
-        severity_threshold: Minimum severity to report (critical/high/medium/low)
-        max_issues: Maximum number of issues to return (0 = unlimited)
-
-    Returns:
-        Dictionary containing security scan results with summary and issues
-
-    Example usage:
-        # Scan for all security issues
-        result = detect_security_issues(
-            project_folder="/path/to/project",
-            language="python",
-            issue_types=["all"],
-            severity_threshold="medium"
-        )
-
-        # Scan for specific vulnerability types
-        result = detect_security_issues(
-            project_folder="/path/to/project",
-            language="javascript",
-            issue_types=["sql_injection", "xss"],
-            severity_threshold="high",
-            max_issues=50
-        )
-
-        print(f"Found {result['summary']['total_issues']} security issues")
-        for issue in result['issues']:
-            print(f"{issue['severity']}: {issue['title']} at {issue['file']}:{issue['line']}")
-    """
+    """Scan code for security vulnerabilities (SQL injection, XSS, hardcoded secrets, etc.)."""
     if issue_types is None:
         issue_types = ["all"]
 
@@ -836,71 +586,7 @@ def detect_orphans_tool(
     analyze_functions: bool = True,
     verify_with_grep: bool = True,
 ) -> Dict[str, Any]:
-    """
-    Detect orphan files and functions in a codebase.
-
-    This function identifies code that is never imported or called, helping to find
-    dead code that can be safely removed. It builds a dependency graph, identifies
-    entry points, and verifies orphan status using multiple methods.
-
-    **What it detects:**
-    - **Orphan Files**: Files that are not imported by any other file
-    - **Orphan Functions**: Functions that are defined but never called
-
-    **How it works:**
-    1. Builds a dependency graph from import statements
-    2. Identifies entry points (main.py, test files, __init__.py, etc.)
-    3. Finds files not reachable from any entry point
-    4. Optionally verifies with grep to reduce false positives
-    5. Analyzes function-level orphans within non-orphan files
-
-    **Supported Languages:**
-    - Python: AST-based import parsing (handles relative imports)
-    - TypeScript/JavaScript: Regex-based import parsing
-
-    **Entry Points (automatically detected):**
-    - main.py, __main__.py, cli.py, app.py, server.py
-    - index.ts, index.js
-    - conftest.py, test_*.py, *_test.py, *.test.ts, *.spec.ts
-
-    Args:
-        project_folder: Absolute path to project root directory
-        include_patterns: Glob patterns for files to include (default: ['**/*.py', '**/*.ts', '**/*.js'])
-        exclude_patterns: Glob patterns to exclude (default: node_modules, __pycache__, .git, etc.)
-        analyze_functions: Whether to analyze function-level orphans (default: True)
-        verify_with_grep: Whether to double-check with grep for string references (default: True)
-
-    Returns:
-        Dictionary containing:
-        - summary: Statistics about orphan detection
-        - orphan_files: List of orphan files with details
-        - orphan_functions: List of orphan functions with details
-
-    Example usage:
-        # Basic orphan detection
-        result = detect_orphans(
-            project_folder="/path/to/project"
-        )
-
-        # Focus on Python files only
-        result = detect_orphans(
-            project_folder="/path/to/project",
-            include_patterns=["**/*.py"],
-            analyze_functions=True
-        )
-
-        # Quick scan without function analysis
-        result = detect_orphans(
-            project_folder="/path/to/project",
-            analyze_functions=False,
-            verify_with_grep=False
-        )
-
-        print(f"Found {result['summary']['orphan_files']} orphan files")
-        print(f"Found {result['summary']['orphan_functions']} orphan functions")
-        for f in result['orphan_files']:
-            print(f"  {f['file_path']} ({f['lines']} lines) - {f['status']}")
-    """
+    """Detect orphan files and functions never imported or called in a project."""
     logger = get_logger("tool.detect_orphans")
     logger.info(
         "tool_invoked",
@@ -943,11 +629,11 @@ def _register_linting_tools(mcp: FastMCP) -> None:
         description: str = Field(description="Human-readable description of what the rule checks"),
         pattern: str = Field(description="ast-grep pattern to match (e.g., 'console.log($$$)')"),
         severity: str = Field(description="Severity level: 'error', 'warning', or 'info'"),
-        language: str = Field(description="Target language (python, typescript, javascript, java, etc.)"),
+        language: str = Field(description=_LANGUAGE_DESC),
         suggested_fix: Optional[str] = Field(default=None, description="Optional replacement pattern or fix suggestion"),
         note: Optional[str] = Field(default=None, description="Additional note or explanation"),
         save_to_project: bool = Field(default=False, description="If True, save rule to project's .ast-grep-rules/"),
-        project_folder: Optional[str] = Field(default=None, description="Project folder (required if save_to_project=True)"),
+        project_folder: Optional[str] = Field(default=None, description=_PROJECT_FOLDER_DESC),
         use_template: Optional[str] = Field(default=None, description="Optional template ID to use as base"),
     ) -> Dict[str, Any]:
         """Create a custom linting rule from an ast-grep pattern."""
@@ -966,7 +652,7 @@ def _register_linting_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def list_rule_templates(
-        language: Optional[str] = Field(default=None, description="Filter by language (python, typescript, javascript, java, etc.)"),
+        language: Optional[str] = Field(default=None, description=_LANGUAGE_DESC),
         category: Optional[str] = Field(default=None, description="Filter by category (general, security, performance, style)"),
     ) -> Dict[str, Any]:
         """List available pre-built rule templates."""
@@ -978,8 +664,8 @@ def _register_enforcement_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def enforce_standards(
-        project_folder: str = Field(description="The absolute path to the project folder to scan"),
-        language: str = Field(description="The programming language (python, typescript, javascript, java)"),
+        project_folder: str = Field(description=_PROJECT_FOLDER_DESC),
+        language: str = Field(description=_LANGUAGE_DESC),
         rule_set: str = Field(
             default="recommended", description="Rule set to use: 'recommended', 'security', 'performance', 'style', 'custom', 'all'"
         ),
@@ -987,12 +673,12 @@ def _register_enforcement_tools(mcp: FastMCP) -> None:
             default_factory=list, description="List of custom rule IDs from .ast-grep-rules/ (used with rule_set='custom')"
         ),
         include_patterns: List[str] = Field(
-            default_factory=lambda: ["**/*"], description="Glob patterns for files to include (e.g., ['src/**/*.py'])"
+            default_factory=lambda: ["**/*"], description=_INCLUDE_PATTERNS_DESC
         ),
         exclude_patterns: List[str] = Field(
-            default_factory=_get_default_exclude_patterns, description="Glob patterns for files to exclude"
+            default_factory=_get_default_exclude_patterns, description=_EXCLUDE_PATTERNS_DESC
         ),
-        severity_threshold: str = Field(default="info", description="Only report violations >= this severity ('error', 'warning', 'info')"),
+        severity_threshold: str = Field(default="info", description=_SEVERITY_THRESHOLD_DESC),
         max_violations: int = Field(
             default=SecurityScanDefaults.MAX_ISSUES,
             description="Maximum violations to find (0 = unlimited). Stops execution early when reached.",
@@ -1000,7 +686,7 @@ def _register_enforcement_tools(mcp: FastMCP) -> None:
         max_threads: int = Field(
             default=ParallelProcessing.DEFAULT_WORKERS, description="Number of parallel threads for rule execution (default: 4)"
         ),
-        output_format: str = Field(default="json", description="Output format: 'json' (structured data) or 'text' (human-readable report)"),
+        output_format: str = Field(default="json", description=_OUTPUT_FORMAT_DESC),
     ) -> Dict[str, Any]:
         """Enforce coding standards using ast-grep rules."""
         return enforce_standards_tool(
@@ -1019,7 +705,7 @@ def _register_enforcement_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     def apply_standards_fixes(
         violations: List[Dict[str, Any]] = Field(description="List of violations from enforce_standards to fix"),
-        language: str = Field(description="Programming language for syntax validation"),
+        language: str = Field(description=_LANGUAGE_DESC),
         fix_types: List[str] = Field(
             default_factory=lambda: ["safe"],
             description="Types of fixes to apply: 'safe' (guaranteed-safe), 'suggested' (may need review), 'all'",
@@ -1057,8 +743,8 @@ def _register_scanning_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def detect_security_issues(
-        project_folder: str = Field(description="Absolute path to project root directory"),
-        language: str = Field(description="Programming language (python, javascript, typescript, java)"),
+        project_folder: str = Field(description=_PROJECT_FOLDER_DESC),
+        language: str = Field(description=_LANGUAGE_DESC),
         issue_types: List[str] | None = Field(
             default=None,
             description="Types: 'sql_injection', 'xss', 'command_injection', 'hardcoded_secrets', 'insecure_crypto', or None for all",
@@ -1077,14 +763,14 @@ def _register_scanning_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def detect_orphans(
-        project_folder: str = Field(description="Absolute path to project root directory"),
+        project_folder: str = Field(description=_PROJECT_FOLDER_DESC),
         include_patterns: List[str] | None = Field(
             default=None,
             description="Glob patterns for files to include (e.g., ['**/*.py', '**/*.ts']). Defaults to Python and TypeScript files.",
         ),
         exclude_patterns: List[str] | None = Field(
             default=None,
-            description="Glob patterns for files to exclude (e.g., ['**/node_modules/**']). Has sensible defaults.",
+            description=_EXCLUDE_PATTERNS_DESC,
         ),
         analyze_functions: bool = Field(default=True, description="Whether to analyze function-level orphans in addition to files"),
         verify_with_grep: bool = Field(default=True, description="Whether to double-check orphans with grep to reduce false positives"),
@@ -1102,12 +788,8 @@ def _register_scanning_tools(mcp: FastMCP) -> None:
 def register_quality_tools(mcp: FastMCP) -> None:
     """Register all quality feature tools with MCP server.
 
-    Args:
-        mcp: FastMCP server instance
-
-    Note:
-        detect_code_smells is registered in the complexity module's register_complexity_tools() function
-        to consolidate code smell detection with complexity analysis.
+    Note: detect_code_smells is registered in register_complexity_tools() to consolidate
+    code smell detection with complexity analysis.
     """
     _register_linting_tools(mcp)
     _register_enforcement_tools(mcp)
