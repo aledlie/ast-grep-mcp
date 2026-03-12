@@ -10,6 +10,17 @@ from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.schema.client import get_schema_org_client
 from ast_grep_mcp.features.schema.enhancement_service import analyze_entity_graph
+from ast_grep_mcp.features.schema.html_service import (
+    detect_jsonld_in_html,
+    detect_microdata_in_html,
+    detect_rdfa_in_html,
+    validate_html_structured_data,
+)
+from ast_grep_mcp.features.schema.markdown_service import (
+    extract_schema_from_frontmatter,
+    suggest_frontmatter_enhancements,
+    validate_frontmatter_schema,
+)
 from ast_grep_mcp.utils.tool_context import async_tool_context, tool_context
 
 
@@ -359,6 +370,92 @@ def _reg_validate_build(mcp: FastMCP) -> None:
         return await build_entity_graph_tool(entities=entities, base_url=base_url)
 
 
+def detect_structured_data_tool(
+    project_folder: str,
+    file_globs: Optional[List[str]] = None,
+    formats: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """Detect Schema.org structured data in HTML and markdown files.
+
+    Args:
+        project_folder: Project root path
+        file_globs: File patterns to scan (default: **/*.html, **/*.md)
+        formats: Formats to detect: json-ld, microdata, rdfa, frontmatter (default: all)
+
+    Returns:
+        Detection results grouped by format
+    """
+    logger = get_logger("tool.detect_structured_data")
+    logger.info("tool_invoked", tool="detect_structured_data", project_folder=project_folder)
+    with tool_context("detect_structured_data", project_folder=project_folder) as start_time:
+        all_formats = {"json-ld", "microdata", "rdfa", "frontmatter"}
+        active = set(formats) & all_formats if formats else all_formats
+
+        results: Dict[str, Any] = {}
+        if "json-ld" in active:
+            results["json_ld"] = detect_jsonld_in_html(project_folder, file_globs)
+        if "microdata" in active:
+            results["microdata"] = detect_microdata_in_html(project_folder, file_globs)
+        if "rdfa" in active:
+            results["rdfa"] = detect_rdfa_in_html(project_folder, file_globs)
+        if "frontmatter" in active:
+            results["frontmatter"] = extract_schema_from_frontmatter(project_folder, file_globs)
+
+        elapsed = time.time() - start_time
+        logger.info(
+            "tool_completed",
+            tool="detect_structured_data",
+            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
+            formats_scanned=list(active),
+            status="success",
+        )
+        return results
+
+
+def validate_structured_data_tool(
+    project_folder: str,
+    file_globs: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """Validate Schema.org structured data in HTML/markdown against schema.org vocabulary.
+
+    Returns validation errors, warnings, and enhancement suggestions.
+
+    Args:
+        project_folder: Project root path
+        file_globs: File patterns to scan
+
+    Returns:
+        Validation results with errors, warnings, and suggestions
+    """
+    logger = get_logger("tool.validate_structured_data")
+    logger.info("tool_invoked", tool="validate_structured_data", project_folder=project_folder)
+    with tool_context("validate_structured_data", project_folder=project_folder) as start_time:
+        html_validation = validate_html_structured_data(project_folder, file_globs)
+        md_validation = validate_frontmatter_schema(project_folder, file_globs)
+        md_suggestions = suggest_frontmatter_enhancements(project_folder, file_globs)
+
+        result: Dict[str, Any] = {
+            "html": html_validation,
+            "markdown": md_validation,
+            "suggestions": md_suggestions,
+            "summary": {
+                "html_issues": html_validation["summary"]["total_issues"],
+                "markdown_errors": md_validation["total_errors"],
+                "markdown_warnings": md_validation["total_warnings"],
+                "enhancement_suggestions": md_suggestions["files_with_suggestions"],
+            },
+        }
+
+        elapsed = time.time() - start_time
+        logger.info(
+            "tool_completed",
+            tool="validate_structured_data",
+            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
+            status="success",
+        )
+        return result
+
+
 def _reg_enhance(mcp: FastMCP) -> None:
     @mcp.tool()
     async def enhance_entity_graph(
@@ -375,6 +472,36 @@ def _reg_enhance(mcp: FastMCP) -> None:
         return await enhance_entity_graph_tool(input_source=input_source, input_type=input_type, output_mode=output_mode)
 
 
+def _reg_structured_data(mcp: FastMCP) -> None:
+    @mcp.tool()
+    def detect_structured_data(
+        project_folder: str = Field(description="Project root path"),
+        file_globs: Optional[List[str]] = Field(
+            default=None, description="File patterns to scan (default: **/*.html, **/*.md)"
+        ),
+        formats: Optional[List[str]] = Field(
+            default=None,
+            description="Formats to detect: json-ld, microdata, rdfa, frontmatter (default: all)",
+        ),
+    ) -> Dict[str, Any]:
+        """Wrapper that calls the standalone detect_structured_data_tool function."""
+        return detect_structured_data_tool(
+            project_folder=project_folder, file_globs=file_globs, formats=formats
+        )
+
+    @mcp.tool()
+    def validate_structured_data(
+        project_folder: str = Field(description="Project root path"),
+        file_globs: Optional[List[str]] = Field(
+            default=None, description="File patterns to scan (default: **/*.html, **/*.md)"
+        ),
+    ) -> Dict[str, Any]:
+        """Wrapper that calls the standalone validate_structured_data_tool function."""
+        return validate_structured_data_tool(
+            project_folder=project_folder, file_globs=file_globs
+        )
+
+
 def register_schema_tools(mcp: FastMCP) -> None:
     """Register Schema.org-related MCP tools.
 
@@ -386,3 +513,4 @@ def register_schema_tools(mcp: FastMCP) -> None:
     _reg_example_entity_id(mcp)
     _reg_validate_build(mcp)
     _reg_enhance(mcp)
+    _reg_structured_data(mcp)
