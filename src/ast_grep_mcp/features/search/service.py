@@ -1,9 +1,10 @@
 """Search feature service - implements the core search functionality."""
 
+import contextlib
 import json
 import re
 import time
-from typing import Any, Dict, List, Literal, Optional, Union, cast
+from typing import Any, Dict, Generator, List, Literal, Optional, Union, cast
 
 import sentry_sdk
 import yaml
@@ -48,30 +49,26 @@ from ast_grep_mcp.models.pattern_develop import (
 from ast_grep_mcp.utils.formatters import format_matches_as_text
 
 
-def dump_syntax_tree_impl(code: str, language: str, format: DumpFormat = "cst") -> str:
-    """Dump code's syntax structure. format: pattern|ast|cst."""
-    logger = get_logger("search.dump_syntax_tree")
-    start_time = time.time()
+@contextlib.contextmanager
+def _op_error_handler(
+    op_name: str,
+    logger: Any,
+    start_time: float,
+    sentry_extras: Dict[str, Any],
+    passthrough: tuple[type, ...] = (),
+) -> Generator[None, None, None]:
+    """Context manager: log error, capture in Sentry, re-raise on exception.
 
-    logger.info("dump_syntax_tree_started", language=language, format=format, code_length=len(code))
-
+    Exceptions listed in *passthrough* are re-raised without logging or Sentry capture.
+    """
     try:
-        result = run_ast_grep("run", ["--pattern", code, "--lang", language, f"--debug-query={format}"])
-        output = result.stderr.strip()
-
-        execution_time = time.time() - start_time
-        logger.info(
-            "dump_syntax_tree_completed",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            output_length=len(output),
-            status="success",
-        )
-
-        return output
+        yield
     except Exception as e:
+        if passthrough and isinstance(e, passthrough):
+            raise
         execution_time = time.time() - start_time
         logger.error(
-            "dump_syntax_tree_failed",
+            f"{op_name}_failed",
             execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
             status="failed",
@@ -79,19 +76,51 @@ def dump_syntax_tree_impl(code: str, language: str, format: DumpFormat = "cst") 
         sentry_sdk.capture_exception(
             e,
             extras={
-                "function": "dump_syntax_tree_impl",
-                "language": language,
-                "format": format,
-                "code_length": len(code),
+                **sentry_extras,
                 "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
             },
         )
         raise
 
 
+def dump_syntax_tree_impl(code: str, language: str, format: DumpFormat = "cst") -> str:
+    """Dump code's syntax structure. format: pattern|ast|cst."""
+    logger = get_logger("search.dump_syntax_tree")
+    start_time = time.time()
+    logger.info("dump_syntax_tree_started", language=language, format=format, code_length=len(code))
+
+    with _op_error_handler(
+        "dump_syntax_tree",
+        logger,
+        start_time,
+        {"function": "dump_syntax_tree_impl", "language": language, "format": format, "code_length": len(code)},
+    ):
+        result = run_ast_grep("run", ["--pattern", code, "--lang", language, f"--debug-query={format}"])
+        output = result.stderr.strip()
+        execution_time = time.time() - start_time
+        logger.info(
+            "dump_syntax_tree_completed",
+            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            output_length=len(output),
+            status="success",
+        )
+        return output
+
+
 def _run_scan_against_code(code: str, yaml_rule: str, start_time: float, logger: Any, parsed_yaml: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Execute ast-grep scan and return matches, raising on failure."""
-    try:
+    with _op_error_handler(
+        "test_match_code_rule",
+        logger,
+        start_time,
+        {
+            "function": "test_match_code_rule_impl",
+            "rule_id": parsed_yaml.get("id"),
+            "language": parsed_yaml.get("language"),
+            "code_length": len(code),
+        },
+        passthrough=(InvalidYAMLError, NoMatchesError),
+    ):
         result = run_ast_grep("scan", ["--inline-rules", yaml_rule, "--json", "--stdin"], input_text=code)
         matches = cast(List[Dict[str, Any]], json.loads(result.stdout.strip()))
         execution_time = time.time() - start_time
@@ -103,28 +132,7 @@ def _run_scan_against_code(code: str, yaml_rule: str, start_time: float, logger:
         )
         if not matches:
             raise NoMatchesError("No matches found for the given code and rule")
-        return matches
-    except (InvalidYAMLError, NoMatchesError):
-        raise
-    except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "test_match_code_rule_failed",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-            status="failed",
-        )
-        sentry_sdk.capture_exception(
-            e,
-            extras={
-                "function": "test_match_code_rule_impl",
-                "rule_id": parsed_yaml.get("id"),
-                "language": parsed_yaml.get("language"),
-                "code_length": len(code),
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            },
-        )
-        raise
+        return matches  # type: ignore[return-value]
 
 
 def test_match_code_rule_impl(code: str, yaml_rule: str) -> List[Dict[str, Any]]:
@@ -146,12 +154,7 @@ def test_match_code_rule_impl(code: str, yaml_rule: str) -> List[Dict[str, Any]]
 
 
 def _prepare_search_targets(project_folder: str, max_file_size_mb: int, language: str, logger: Any) -> List[str]:
-    """
-    Prepare search targets with optional file size filtering.
-
-    Returns:
-        List of search targets (directories or filtered files)
-    """
+    """Return search targets (directories or filtered files) based on file size limit."""
     if max_file_size_mb <= 0:
         return [project_folder]
 
@@ -187,23 +190,6 @@ def _build_search_args(pattern: str, language: str, workers: int, search_targets
     return args + ["--json=stream"] + search_targets
 
 
-def _format_cached_results(matches: List[Dict[str, Any]], output_format: str) -> Union[str, List[Dict[str, Any]]]:
-    """
-    Format cached search results based on output format.
-
-    Returns:
-        Formatted results (string for text, list for json)
-    """
-    if output_format == "text":
-        if not matches:
-            return "No matches found"
-        text_output = format_matches_as_text(matches)
-        header = f"Found {len(matches)} matches"
-        return header + ":\n\n" + text_output
-
-    return matches
-
-
 def _cache_args_with_globs(stream_args: List[str], language_globs: Optional[Dict[str, List[str]]]) -> List[str]:
     """Return cache key args that include a stable serialization of language_globs."""
     if not language_globs:
@@ -222,12 +208,7 @@ def _check_cache(
     logger: Any,
     language_globs: Optional[Dict[str, List[str]]] = None,
 ) -> Union[str, List[Dict[str, Any]], None]:
-    """
-    Check cache for existing results.
-
-    Returns:
-        Cached results or None if not found
-    """
+    """Return formatted cached results, or None on a cache miss."""
     if not cache or max_results != 0:
         return None
 
@@ -241,7 +222,7 @@ def _check_cache(
     matches = cached_result[:max_results] if max_results > 0 else cached_result
     logger.info("find_code_cache_hit", cache_size=len(cache.cache), cached_results=len(matches))
 
-    return _format_cached_results(matches, output_format)
+    return _format_search_results(matches, output_format)
 
 
 def _execute_search(
@@ -276,66 +257,17 @@ def _format_search_results(matches: List[Dict[str, Any]], output_format: str) ->
     return matches
 
 
-def _is_early_return_value(value: Any) -> bool:
-    """
-    Check if a value represents an early return (empty results).
-
-    Returns:
-        True if value is an empty result or string message
-    """
-    if isinstance(value, str):
-        return True
-    if isinstance(value, list) and len(value) == 0:
-        return True
-    if isinstance(value, list) and value and not isinstance(value[0], str):
-        return True
-    return False
-
-
 def _validate_output_format(output_format: str) -> None:
-    """
-    Validate output format parameter.
-
-    Raises:
-        ValueError: If output format is invalid
-    """
+    """Raise ValueError if output_format is not 'text' or 'json'."""
     if output_format not in ["text", "json"]:
         raise ValueError(f"Invalid output_format: {output_format}. Must be 'text' or 'json'.")
 
 
 def _handle_empty_search_targets(search_targets: List[str], output_format: str) -> Union[str, List[Any], None]:
-    """
-    Handle case where all files were skipped by size filtering.
-
-    Returns:
-        Empty result message/list, or None if search_targets is not empty
-    """
+    """Return empty result when all files were size-filtered, or None if targets remain."""
     if not search_targets:
         return "No matches found (all files exceeded size limit)" if output_format == "text" else []
     return None
-
-
-def _validate_and_prepare_search(
-    project_folder: str, pattern: str, language: str, max_file_size_mb: int, output_format: str, logger: Any
-) -> Union[List[str], str, List[Any]]:
-    """
-    Validate inputs and prepare search targets.
-
-    Returns:
-        Search targets list, or early return value (empty result) if validation fails
-    """
-    # Validate output format
-    _validate_output_format(output_format)
-
-    # Prepare search targets with file size filtering
-    search_targets = _prepare_search_targets(project_folder, max_file_size_mb, language, logger)
-
-    # Handle case where all files were skipped
-    empty_result = _handle_empty_search_targets(search_targets, output_format)
-    if empty_result is not None:
-        return empty_result
-
-    return search_targets
 
 
 def _run_find_code_search(
@@ -367,27 +299,6 @@ def _run_find_code_search(
         status="success",
     )
     return result
-
-
-def _log_find_code_error(e: Exception, project_folder: str, pattern: str, language: str, start_time: float, logger: Any) -> None:
-    """Log error and capture in Sentry for find_code_impl."""
-    execution_time = time.time() - start_time
-    logger.error(
-        "find_code_failed",
-        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-        error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-        status="failed",
-    )
-    sentry_sdk.capture_exception(
-        e,
-        extras={
-            "function": "find_code_impl",
-            "project_folder": project_folder,
-            "pattern": pattern[:100],
-            "language": language,
-            "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-        },
-    )
 
 
 def find_code_impl(
@@ -423,7 +334,12 @@ def find_code_impl(
         max_file_size_mb=size_display,
         workers=workers_display,
     )
-    try:
+    with _op_error_handler(
+        "find_code",
+        logger,
+        start_time,
+        {"function": "find_code_impl", "project_folder": project_folder, "pattern": pattern[:100], "language": language},
+    ):
         _validate_output_format(output_format)
         search_targets = _prepare_search_targets(project_folder, max_file_size_mb, language, logger)
         empty_result = _handle_empty_search_targets(search_targets, output_format)
@@ -432,22 +348,11 @@ def find_code_impl(
         return _run_find_code_search(
             project_folder, pattern, language, max_results, output_format, workers, search_targets, logger, start_time,
             language_globs=language_globs,
-        )
-    except Exception as e:
-        _log_find_code_error(e, project_folder, pattern, language, start_time, logger)
-        raise
+        )  # type: ignore[return-value]
 
 
 def _validate_yaml_rule(yaml_rule: str) -> Dict[str, Any]:
-    """
-    Validate YAML rule structure.
-
-    Returns:
-        Parsed YAML dictionary
-
-    Raises:
-        InvalidYAMLError: If YAML is invalid
-    """
+    """Parse and validate YAML rule; raise InvalidYAMLError if invalid."""
     try:
         parsed_yaml = yaml.safe_load(yaml_rule)
         if not isinstance(parsed_yaml, dict):
@@ -498,16 +403,7 @@ def _check_composite_entries(rule_obj: Dict[str, Any], path: str) -> List[str]:
 
 
 def _check_relational_rule_for_stopby(rule_obj: Any, path: str = "rule") -> List[str]:
-    """
-    Recursively check a rule object for relational rules missing stopBy.
-
-    Args:
-        rule_obj: The rule object to check
-        path: Current path in the rule tree for error messages
-
-    Returns:
-        List of warning messages
-    """
+    """Recursively check a rule object for relational rules missing stopBy; return warnings."""
     if not isinstance(rule_obj, dict):
         return []
     warnings: List[str] = []
@@ -518,15 +414,7 @@ def _check_relational_rule_for_stopby(rule_obj: Any, path: str = "rule") -> List
 
 
 def _check_yaml_rule_for_common_mistakes(parsed_yaml: Dict[str, Any]) -> List[str]:
-    """
-    Check a parsed YAML rule for common mistakes.
-
-    Args:
-        parsed_yaml: The parsed YAML rule dictionary
-
-    Returns:
-        List of warning messages
-    """
+    """Check parsed YAML rule for common mistakes; return list of warning messages."""
     warnings: List[str] = []
 
     rule = parsed_yaml.get("rule", {})
@@ -569,17 +457,7 @@ def _execute_rule_search(
 def _prepend_warnings_to_result(
     result: Union[str, List[Dict[str, Any]]], warnings: List[str], output_format: str
 ) -> Union[str, List[Dict[str, Any]], Dict[str, Any]]:
-    """
-    Prepend warnings to the search result.
-
-    Args:
-        result: The search result
-        warnings: List of warning messages
-        output_format: Output format ('text' or 'json')
-
-    Returns:
-        Result with warnings included
-    """
+    """Prepend warnings to result; for JSON wraps as {warnings, matches} dict."""
     if not warnings:
         return result
 
@@ -678,29 +556,21 @@ def find_code_by_rule_impl(
         output_format=output_format,
     )
 
-    try:
-        return _run_rule_search_with_cache(project_folder, yaml_rule, max_results, output_format, warnings, parsed_yaml, logger, start_time)
-    except Exception as e:
-        if isinstance(e, InvalidYAMLError):
-            raise
-        execution_time = time.time() - start_time
-        logger.error(
-            "find_code_by_rule_failed",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-            status="failed",
+    with _op_error_handler(
+        "find_code_by_rule",
+        logger,
+        start_time,
+        {
+            "function": "find_code_by_rule_impl",
+            "project_folder": project_folder,
+            "rule_id": parsed_yaml.get("id"),
+            "language": parsed_yaml.get("language"),
+        },
+        passthrough=(InvalidYAMLError,),
+    ):
+        return _run_rule_search_with_cache(  # type: ignore[return-value]
+            project_folder, yaml_rule, max_results, output_format, warnings, parsed_yaml, logger, start_time
         )
-        sentry_sdk.capture_exception(
-            e,
-            extras={
-                "function": "find_code_by_rule_impl",
-                "project_folder": project_folder,
-                "rule_id": parsed_yaml.get("id"),
-                "language": parsed_yaml.get("language"),
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            },
-        )
-        raise
 
 
 # =============================================================================
@@ -709,17 +579,7 @@ def find_code_by_rule_impl(
 
 
 def _build_relational_rule(pattern_or_kind: str, stop_by: str, is_kind: bool = False) -> Dict[str, Any]:
-    """
-    Build a relational rule object with proper stopBy configuration.
-
-    Args:
-        pattern_or_kind: The pattern string or kind identifier
-        stop_by: The stopBy value ('neighbor', 'end', or custom)
-        is_kind: If True, use 'kind' instead of 'pattern'
-
-    Returns:
-        Properly structured relational rule dict
-    """
+    """Build a relational rule dict with stopBy; uses 'kind' key when is_kind=True."""
     rule: Dict[str, Any] = {"stopBy": stop_by}
     if is_kind:
         rule["kind"] = pattern_or_kind
@@ -734,15 +594,7 @@ def _add_relational_to_rule(
     value: Optional[str],
     stop_by: str,
 ) -> None:
-    """
-    Add a relational rule if the value is provided.
-
-    Args:
-        rule_obj: The rule object to modify
-        relational_type: 'inside', 'has', 'follows', or 'precedes'
-        value: The pattern for the relational rule (None to skip)
-        stop_by: The stopBy configuration
-    """
+    """Add a relational rule entry to rule_obj if value is provided."""
     if value:
         rule_obj[relational_type] = _build_relational_rule(value, stop_by)
 
@@ -863,14 +715,7 @@ def _add_metavar_if_new(
     seen: Dict[str, int],
     metavars: List[MetavariableInfo],
 ) -> None:
-    """Add metavariable if not already seen, otherwise increment count.
-
-    Args:
-        display_name: The metavariable name
-        mv_type: Type of metavariable
-        seen: Dictionary tracking seen metavariables
-        metavars: List to append new metavariables to
-    """
+    """Append metavar to metavars if unseen; otherwise increment its occurrence count."""
     if display_name in seen:
         seen[display_name] += 1
     else:
@@ -925,14 +770,7 @@ def _extract_single_metavariables(pattern: str, seen: Dict[str, int], metavars: 
 
 
 def _extract_metavariables(pattern: str) -> List[MetavariableInfo]:
-    """Extract and validate all metavariables from a pattern.
-
-    Args:
-        pattern: The ast-grep pattern
-
-    Returns:
-        List of MetavariableInfo objects
-    """
+    """Extract and validate all metavariables from a pattern."""
     metavars: List[MetavariableInfo] = []
     seen: Dict[str, int] = {}
 
@@ -1020,15 +858,7 @@ def _check_fragment_issues(pattern: str) -> List[PatternIssue]:
 
 
 def _check_pattern_issues(pattern: str, metavars: List[MetavariableInfo]) -> List[PatternIssue]:
-    """Check for common pattern issues.
-
-    Args:
-        pattern: The ast-grep pattern
-        metavars: Extracted metavariables
-
-    Returns:
-        List of PatternIssue objects
-    """
+    """Check for common pattern issues and return a list of PatternIssue objects."""
     issues: List[PatternIssue] = []
 
     issues.extend(_check_invalid_metavar_issues(metavars))
@@ -1039,14 +869,7 @@ def _check_pattern_issues(pattern: str, metavars: List[MetavariableInfo]) -> Lis
 
 
 def _extract_root_kind(ast_output: str) -> Optional[str]:
-    """Extract the root node kind from AST output.
-
-    Args:
-        ast_output: The AST dump output from ast-grep
-
-    Returns:
-        Root node kind or None if not found
-    """
+    """Extract the root node kind from AST output, or None if not found."""
     kind_match = re.search(r"kind:\s*(\w+)", ast_output)
     if kind_match:
         return kind_match.group(1)
@@ -1084,15 +907,7 @@ def _collect_ast_differences(pattern_root: Optional[str], code_root: Optional[st
 
 
 def _compare_asts(pattern_ast: str, code_ast: str) -> AstComparison:
-    """Compare pattern and code ASTs to find structural differences.
-
-    Args:
-        pattern_ast: The pattern's AST structure
-        code_ast: The code's AST structure
-
-    Returns:
-        AstComparison with comparison results
-    """
+    """Compare pattern and code ASTs; return AstComparison with structural differences."""
     pattern_root = _extract_root_kind(pattern_ast)
     code_root = _extract_root_kind(code_ast)
     kinds_match = pattern_root == code_root if (pattern_root and code_root) else False
@@ -1109,16 +924,7 @@ def _compare_asts(pattern_ast: str, code_ast: str) -> AstComparison:
 
 
 def _attempt_match(pattern: str, code: str, language: str) -> MatchAttempt:
-    """Attempt to match the pattern against the code.
-
-    Args:
-        pattern: The ast-grep pattern
-        code: The code to match against
-        language: The programming language
-
-    Returns:
-        MatchAttempt with match results
-    """
+    """Try to match the pattern against the code; return a MatchAttempt."""
     logger = get_logger("search.debug_pattern")
 
     try:
@@ -1230,19 +1036,7 @@ def _generate_suggestions(
     ast_comparison: AstComparison,
     match_attempt: MatchAttempt,
 ) -> List[str]:
-    """Generate prioritized suggestions for fixing pattern issues.
-
-    Args:
-        pattern: The ast-grep pattern (unused but kept for API consistency)
-        code: The code to match against (unused but kept for API consistency)
-        language: The programming language (unused but kept for API consistency)
-        issues: List of issues found
-        ast_comparison: AST comparison results
-        match_attempt: Match attempt results
-
-    Returns:
-        Prioritized list of suggestions
-    """
+    """Generate prioritized suggestions for fixing pattern issues."""
     suggestions: List[str] = []
 
     _add_suggestions_by_severity(IssueSeverity.ERROR, issues, suggestions)
@@ -1331,27 +1125,13 @@ def debug_pattern_impl(
     logger = get_logger("search.debug_pattern")
     start_time = time.time()
     logger.info("debug_pattern_started", language=language, pattern_length=len(pattern), code_length=len(code))
-    try:
-        return _run_debug_analysis(pattern, code, language, start_time, logger)
-    except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "debug_pattern_failed",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-            status="failed",
-        )
-        sentry_sdk.capture_exception(
-            e,
-            extras={
-                "function": "debug_pattern_impl",
-                "language": language,
-                "pattern_length": len(pattern),
-                "code_length": len(code),
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            },
-        )
-        raise
+    with _op_error_handler(
+        "debug_pattern",
+        logger,
+        start_time,
+        {"function": "debug_pattern_impl", "language": language, "pattern_length": len(pattern), "code_length": len(code)},
+    ):
+        return _run_debug_analysis(pattern, code, language, start_time, logger)  # type: ignore[return-value]
 
 
 # =============================================================================
@@ -1998,23 +1778,10 @@ def develop_pattern_impl(
     logger = get_logger("search.develop_pattern")
     start_time = time.time()
     logger.info("develop_pattern_started", language=language, code_length=len(code), has_goal=goal is not None)
-    try:
-        return _run_develop_analysis(code, language, start_time, logger)
-    except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(
-            "develop_pattern_failed",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-            status="failed",
-        )
-        sentry_sdk.capture_exception(
-            e,
-            extras={
-                "function": "develop_pattern_impl",
-                "language": language,
-                "code_length": len(code),
-                "execution_time_seconds": round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            },
-        )
-        raise
+    with _op_error_handler(
+        "develop_pattern",
+        logger,
+        start_time,
+        {"function": "develop_pattern_impl", "language": language, "code_length": len(code)},
+    ):
+        return _run_develop_analysis(code, language, start_time, logger)  # type: ignore[return-value]

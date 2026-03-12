@@ -1,28 +1,9 @@
 """
-MinHash-based similarity calculation module with hybrid two-stage pipeline.
+MinHash-based similarity calculation with hybrid two/three-stage pipeline.
 
-This module provides O(n) similarity detection using MinHash signatures
-and Locality Sensitive Hashing (LSH) for scalable code clone detection.
-
-Hybrid Pipeline (v0.3.0):
-- Stage 1: Fast MinHash filter (O(n)) - quickly eliminate dissimilar code pairs
-- Stage 2: AST verification for candidates that pass Stage 1 - precise structural comparison
-- Scientific basis: TACC (ICSE 2023) demonstrates hybrid approaches yield optimal precision/recall
-
-Original Scientific basis:
-- MinHash: Broder (1997) - "On the resemblance and containment of documents"
-- LSH: Indyk & Motwani (1998) - "Approximate nearest neighbors"
-
-Performance characteristics:
-- MinHash estimation: O(n) where n is token count
-- LSH querying: O(1) amortized
-- Memory: O(num_permutations * num_documents)
-- Hybrid verification: O(n) for most pairs (early exit), O(n log n) for candidates
-
-Compared to SequenceMatcher O(n²), this enables:
-- 100 functions: 0.5s -> 0.01s
-- 1,000 functions: 50s -> 0.1s
-- 10,000 functions: 14 hours -> 1 second
+Stage 1: Fast MinHash filter (O(n)) — eliminates dissimilar pairs quickly.
+Stage 2: AST structural verification for Stage 1 candidates.
+Stage 3: Optional CodeBERT semantic similarity for Type-4 clone detection.
 """
 
 import re
@@ -58,10 +39,10 @@ class SimilarityConfig:
     """Configuration for MinHash similarity calculation."""
 
     num_permutations: int = MinHashDefaults.NUM_PERMUTATIONS
-    """Number of hash permutations for MinHash. Higher = more accurate but slower."""
+    """Number of hash permutations. Higher = more accurate but slower."""
 
     shingle_size: int = MinHashDefaults.SHINGLE_SIZE
-    """Size of token n-grams (shingles). 3 is optimal for code per research."""
+    """Token n-gram size. 3 is optimal for code."""
 
     similarity_threshold: float = DeduplicationDefaults.MIN_SIMILARITY
     """Minimum Jaccard similarity for LSH candidate retrieval."""
@@ -70,30 +51,22 @@ class SimilarityConfig:
     """Use token-based shingles (True) vs character-based (False)."""
 
     small_code_token_threshold: int = MinHashDefaults.SMALL_CODE_TOKEN_THRESHOLD
-    """Code with fewer tokens than this is considered 'small' and may need special handling."""
+    """Code with fewer tokens than this is considered 'small'."""
 
     lsh_recall_margin: float = MinHashDefaults.LSH_RECALL_MARGIN
-    """LSH threshold is set to (min_similarity - margin) to improve recall. Must be < min_similarity."""
+    """LSH threshold offset below min_similarity to improve recall."""
 
     enable_small_code_fallback: bool = True
-    """When True, fall back to all-pairs comparison for small datasets when LSH finds no candidates."""
+    """Fall back to all-pairs comparison for small datasets with no LSH candidates."""
 
     max_fallback_items: int = MinHashDefaults.MAX_FALLBACK_ITEMS
-    """Maximum number of items to use all-pairs fallback (O(n²) becomes expensive above this)."""
+    """Maximum items for all-pairs fallback before O(n²) becomes too expensive."""
 
     small_code_threshold: int = MinHashDefaults.SEQUENCEMATCHER_TOKEN_THRESHOLD
-    """Tokens below this threshold use SequenceMatcher for accurate similarity (Phase 4).
-
-    MinHash accuracy degrades for small code due to insufficient shingles.
-    SequenceMatcher provides exact O(n^2) similarity for small snippets.
-    """
+    """Tokens below this use SequenceMatcher; MinHash is unreliable for small code."""
 
     use_small_code_fallback: bool = True
-    """Enable SequenceMatcher fallback for small code snippets (Phase 4).
-
-    When True, estimate_similarity() uses SequenceMatcher for code with fewer
-    than small_code_threshold tokens, providing accurate results for small functions.
-    """
+    """Use SequenceMatcher for code below small_code_threshold tokens."""
 
 
 @dataclass
@@ -107,10 +80,7 @@ class SimilarityResult:
     """Method used: 'minhash', 'exact', or 'hybrid'."""
 
     verified: bool = False
-    """Whether result was verified with precise calculation."""
-
     candidate_count: int = 0
-    """Number of LSH candidates considered (for diagnostics)."""
 
 
 SimilarityMethod = Literal["minhash", "ast", "hybrid", "sequence_matcher"]
@@ -118,53 +88,26 @@ SimilarityMethod = Literal["minhash", "ast", "hybrid", "sequence_matcher"]
 
 @dataclass
 class HybridSimilarityConfig:
-    """Configuration for hybrid two/three-stage similarity pipeline.
-
-    Scientific basis: TACC (Token and AST-based Code Clone detector)
-    from ICSE 2023 demonstrates that combining MinHash filtering with
-    AST/structural verification yields optimal precision/recall balance.
-
-    Phase 5 adds optional Stage 3: CodeBERT semantic similarity for
-    Type-4 (semantic) clone detection. When enabled, weights are
-    rebalanced to include semantic contribution.
-    """
+    """Configuration for the hybrid two/three-stage similarity pipeline."""
 
     minhash_early_exit_threshold: float = HybridSimilarityDefaults.MINHASH_EARLY_EXIT_THRESHOLD
-    """MinHash similarity below this threshold triggers early exit (skips Stage 2)."""
+    """MinHash similarity below this triggers early exit (skips Stage 2)."""
 
     minhash_weight: float = HybridSimilarityDefaults.MINHASH_WEIGHT
-    """Weight for MinHash similarity in final hybrid score (0.0-1.0)."""
-
     ast_weight: float = HybridSimilarityDefaults.AST_WEIGHT
-    """Weight for AST similarity in final hybrid score (0.0-1.0)."""
-
     min_tokens_for_ast: int = HybridSimilarityDefaults.MIN_TOKENS_FOR_AST
-    """Minimum token count to use AST analysis."""
-
     max_lines_for_full_ast: int = HybridSimilarityDefaults.MAX_LINES_FOR_FULL_AST
-    """Maximum lines for full AST analysis."""
-
     use_sequence_matcher_for_ast: bool = True
-    """Use SequenceMatcher for AST-like structural comparison (more accurate than tree edit)."""
 
-    # Phase 5: Semantic similarity options
+    # Stage 3: CodeBERT semantic similarity (requires transformers + torch)
     enable_semantic: bool = SemanticSimilarityDefaults.ENABLE_SEMANTIC
-    """Enable Stage 3 CodeBERT semantic similarity (requires transformers + torch)."""
-
     semantic_weight: float = SemanticSimilarityDefaults.SEMANTIC_WEIGHT
-    """Weight for semantic similarity when enabled (0.0-1.0)."""
-
     semantic_stage_threshold: float = SemanticSimilarityDefaults.SEMANTIC_STAGE_THRESHOLD
-    """Minimum AST similarity to proceed to Stage 3 (second early-exit point)."""
-
+    """Minimum AST similarity to proceed to Stage 3."""
     semantic_model_name: str = SemanticSimilarityDefaults.MODEL_NAME
-    """CodeBERT model name for semantic embeddings."""
-
     semantic_device: str = SemanticSimilarityDefaults.DEFAULT_DEVICE
-    """Device for semantic model inference: 'auto', 'cpu', 'cuda', 'mps'."""
 
     def __post_init__(self) -> None:
-        """Validate configuration values."""
         self._apply_semantic_rebalance_if_needed()
         self._validate_weight_bounds()
         self._validate_weight_sum()
@@ -213,52 +156,24 @@ class HybridSimilarityConfig:
 
 @dataclass
 class HybridSimilarityResult:
-    """Result of hybrid two/three-stage similarity calculation.
-
-    Provides detailed information about which stages were executed
-    and the individual similarity scores from each stage.
-
-    Stages:
-    - Stage 1: MinHash filter (fast, O(n))
-    - Stage 2: AST structural verification (precise, O(n))
-    - Stage 3: CodeBERT semantic similarity (optional, requires GPU)
-    """
+    """Result of hybrid two/three-stage similarity calculation."""
 
     similarity: float
     """Final combined similarity score (0.0 to 1.0)."""
 
     method: SimilarityMethod
-    """Method that produced the final score: 'minhash' (early exit) or 'hybrid' (full pipeline)."""
+    """'minhash' (early exit) or 'hybrid' (full pipeline)."""
 
     verified: bool
-    """Whether the result was verified with Stage 2 (AST analysis)."""
-
     minhash_similarity: float
-    """Stage 1 MinHash similarity score."""
-
     ast_similarity: Optional[float] = None
-    """Stage 2 AST similarity score (None if Stage 2 was skipped)."""
-
     semantic_similarity: Optional[float] = None
-    """Stage 3 CodeBERT semantic similarity (None if Stage 3 disabled or skipped)."""
-
     stage1_passed: bool = False
-    """Whether the code pair passed Stage 1 filtering."""
-
     stage2_passed: bool = False
-    """Whether the code pair passed Stage 2 filtering (for Stage 3)."""
-
     early_exit: bool = False
-    """Whether Stage 2 was skipped due to low Stage 1 similarity."""
-
     semantic_skipped: bool = False
-    """Whether Stage 3 was skipped (disabled, unavailable, or low Stage 2 similarity)."""
-
     token_count: int = 0
-    """Number of tokens in the compared code (for diagnostics)."""
-
     semantic_model: Optional[str] = None
-    """CodeBERT model used for semantic similarity (if applicable)."""
 
     @property
     def combined_similarity(self) -> float:
@@ -291,38 +206,20 @@ class MinHashSimilarity:
     """
     MinHash-based similarity calculator for code clone detection.
 
-    Uses token shingles and MinHash signatures to estimate Jaccard similarity
-    in O(n) time instead of SequenceMatcher's O(n²).
+    Estimates Jaccard similarity in O(n) using token shingles and MinHash
+    signatures, versus SequenceMatcher's O(n²).
     """
 
     def __init__(self, config: Optional[SimilarityConfig] = None) -> None:
-        """Initialize the similarity calculator.
-
-        Args:
-            config: Configuration options. Uses defaults if not provided.
-        """
         self.config = config or SimilarityConfig()
         self.logger = get_logger("deduplication.similarity")
-
-        # Cache for MinHash signatures (code_hash -> MinHash)
         self._signature_cache: Dict[int, MinHash] = {}
-
-        # LSH index for fast candidate retrieval
         self._lsh_index: Optional[MinHashLSH] = None
-        self._lsh_keys: Dict[str, int] = {}  # key -> code_hash mapping
+        self._lsh_keys: Dict[str, int] = {}
 
     def create_minhash(self, code: str) -> MinHash:
-        """Create a MinHash signature from code.
-
-        Args:
-            code: Source code to create signature for.
-
-        Returns:
-            MinHash signature for the code.
-        """
+        """Create a MinHash signature from code."""
         code_hash = hash(code)
-
-        # Check cache first
         if code_hash in self._signature_cache:
             return self._signature_cache[code_hash]
 
@@ -332,98 +229,55 @@ class MinHashSimilarity:
             tokens = self._tokenize(code)
             shingles = self._create_token_shingles(tokens, self.config.shingle_size)
         else:
-            # Character-based shingles (less accurate for code)
             shingles = self._create_char_shingles(code, self.config.shingle_size)
 
         for shingle in shingles:
             m.update(shingle.encode("utf8"))
 
-        # Cache the signature
         self._signature_cache[code_hash] = m
-
         return m
 
     def estimate_similarity(self, code1: str, code2: str) -> float:
-        """Estimate similarity between two code snippets using MinHash with fallback.
-
-        Strategy:
-        - For code < small_code_threshold tokens: Use SequenceMatcher (exact but O(n^2))
-        - For code >= small_code_threshold tokens: Use MinHash (approximate but O(1))
-
-        The fallback to SequenceMatcher for small code ensures accuracy when MinHash
-        would produce unreliable results due to insufficient shingles.
-
-        Args:
-            code1: First code snippet.
-            code2: Second code snippet.
-
-        Returns:
-            Estimated similarity (0.0 to 1.0).
-        """
+        """Estimate similarity using MinHash, with SequenceMatcher fallback for small code."""
         if not code1 or not code2:
             return 0.0
 
         tokens1 = self._tokenize(code1)
         tokens2 = self._tokenize(code2)
-
         min_tokens = min(len(tokens1), len(tokens2))
 
         if self.config.use_small_code_fallback and min_tokens < self.config.small_code_threshold:
-            # Use SequenceMatcher for accuracy on small code
             self.logger.debug(
                 "small_code_fallback",
                 token_count=min_tokens,
                 threshold=self.config.small_code_threshold,
                 method="SequenceMatcher",
             )
-            matcher = SequenceMatcher(None, tokens1, tokens2)
-            return matcher.ratio()
+            return SequenceMatcher(None, tokens1, tokens2).ratio()
 
-        # Use MinHash for larger code
         self.logger.debug(
             "minhash_standard_path",
             token_count=min_tokens,
             threshold=self.config.small_code_threshold,
         )
-
         m1 = self.create_minhash(code1)
         m2 = self.create_minhash(code2)
-
         return float(m1.jaccard(m2))
 
     def calculate_similarity(self, code1: str, code2: str) -> SimilarityResult:
-        """Calculate similarity with full result details.
-
-        Args:
-            code1: First code snippet.
-            code2: Second code snippet.
-
-        Returns:
-            SimilarityResult with similarity score and metadata.
-        """
+        """Calculate similarity with full result details."""
         if not code1 or not code2:
             return SimilarityResult(similarity=0.0, method="exact", verified=True)
 
-        # Fast MinHash estimation
         similarity = self.estimate_similarity(code1, code2)
-
-        return SimilarityResult(
-            similarity=similarity,
-            method="minhash",
-            verified=False,  # MinHash is an estimation
-        )
+        return SimilarityResult(similarity=similarity, method="minhash", verified=False)
 
     def build_lsh_index(
         self,
         code_items: List[Tuple[str, str]],
         threshold: Optional[float] = None,
     ) -> None:
-        """Build LSH index for fast near-duplicate queries.
-
-        Args:
-            code_items: List of (key, code) tuples to index.
-            threshold: LSH threshold override (default: config.similarity_threshold).
-        """
+        """Build LSH index for fast near-duplicate queries."""
         effective_threshold = threshold if threshold is not None else self.config.similarity_threshold
 
         self._lsh_index = MinHashLSH(
@@ -451,14 +305,7 @@ class MinHashSimilarity:
             self.logger.debug("lsh_key_duplicate", key=key)
 
     def query_similar(self, code: str) -> List[str]:
-        """Query the LSH index for similar code snippets.
-
-        Args:
-            code: Code to find similar matches for.
-
-        Returns:
-            List of keys for similar code snippets.
-        """
+        """Query the LSH index for similar code snippets."""
         if self._lsh_index is None:
             self.logger.warning("lsh_index_not_built")
             return []
@@ -471,15 +318,7 @@ class MinHashSimilarity:
         code_items: List[Tuple[str, str]],
         min_similarity: float = DeduplicationDefaults.MIN_SIMILARITY,
     ) -> List[Tuple[str, str, float]]:
-        """Find all pairs of similar code snippets using LSH.
-
-        Args:
-            code_items: List of (key, code) tuples.
-            min_similarity: Minimum similarity threshold.
-
-        Returns:
-            List of (key1, key2, similarity) tuples for similar pairs.
-        """
+        """Find all pairs of similar code snippets using LSH."""
         if not code_items:
             return []
 
@@ -503,14 +342,7 @@ class MinHashSimilarity:
         return similar_pairs
 
     def _count_small_code_items(self, code_items: List[Tuple[str, str]]) -> int:
-        """Count code items with fewer tokens than the small code threshold.
-
-        Args:
-            code_items: List of (key, code) tuples.
-
-        Returns:
-            Number of items below the small code token threshold.
-        """
+        """Count items below the small code token threshold."""
         small_code_count = sum(1 for _, code in code_items if len(self._tokenize(code)) < self.config.small_code_token_threshold)
 
         if small_code_count > 0:
@@ -524,17 +356,7 @@ class MinHashSimilarity:
         return small_code_count
 
     def _calculate_adaptive_threshold(self, min_similarity: float) -> float:
-        """Calculate adaptive LSH threshold for better recall.
-
-        Uses a lower threshold than min_similarity to catch more candidates,
-        which are then filtered precisely.
-
-        Args:
-            min_similarity: The minimum similarity threshold requested.
-
-        Returns:
-            Adaptive LSH threshold (always >= 0.1).
-        """
+        """Lower LSH threshold below min_similarity to improve recall."""
         return max(HybridSimilarityDefaults.LSH_THRESHOLD_FLOOR, min_similarity - self.config.lsh_recall_margin)
 
     def _find_lsh_candidates(
@@ -542,15 +364,7 @@ class MinHashSimilarity:
         code_items: List[Tuple[str, str]],
         lsh_threshold: float,
     ) -> Set[Tuple[str, str]]:
-        """Find candidate pairs using LSH index.
-
-        Args:
-            code_items: List of (key, code) tuples.
-            lsh_threshold: The LSH threshold used for indexing.
-
-        Returns:
-            Set of (key1, key2) candidate pairs.
-        """
+        """Find candidate pairs using the LSH index."""
         candidates: Set[Tuple[str, str]] = set()
 
         for key, code in code_items:
@@ -572,27 +386,11 @@ class MinHashSimilarity:
         code_items: List[Tuple[str, str]],
         small_code_count: int,
     ) -> bool:
-        """Determine if all-pairs fallback should be used.
-
-        Fallback is used when LSH finds no candidates and:
-        - Fallback is enabled in config
-        - Dataset is small enough (≤ max_fallback_items)
-        - There are small code items or very few items
-
-        Args:
-            candidates: Candidate pairs found by LSH.
-            code_items: Original code items.
-            small_code_count: Number of small code items detected.
-
-        Returns:
-            True if fallback should be used.
-        """
+        """Return True if all-pairs fallback should replace empty LSH results."""
         if len(candidates) > 0:
             return False
-
         if not self.config.enable_small_code_fallback:
             return False
-
         if len(code_items) > self.config.max_fallback_items:
             return False
 
@@ -614,16 +412,7 @@ class MinHashSimilarity:
         code_items: List[Tuple[str, str]],
         min_similarity: float,
     ) -> List[Tuple[str, str, float]]:
-        """Verify candidate pairs meet the minimum similarity threshold.
-
-        Args:
-            candidates: Set of (key1, key2) candidate pairs.
-            code_items: Original code items for lookup.
-            min_similarity: Minimum similarity threshold.
-
-        Returns:
-            List of (key1, key2, similarity) tuples above threshold.
-        """
+        """Filter candidate pairs to those meeting the minimum similarity threshold."""
         code_map = dict(code_items)
         return [
             (k1, k2, sim)
@@ -636,24 +425,13 @@ class MinHashSimilarity:
         self,
         code_items: List[Tuple[str, str]],
     ) -> Set[Tuple[str, str]]:
-        """Generate all unique pairs of code items for brute-force comparison.
-
-        This is O(n²) and should only be used as a fallback for small datasets.
-
-        Args:
-            code_items: List of (key, code) tuples.
-
-        Returns:
-            Set of (key1, key2) tuples representing all unique pairs.
-        """
+        """Generate all unique pairs for brute-force O(n²) fallback on small datasets."""
         pairs: Set[Tuple[str, str]] = set()
         keys = [key for key, _ in code_items]
 
         for i, key1 in enumerate(keys):
             for key2 in keys[i + 1 :]:
-                # Normalize ordering
-                pair = (min(key1, key2), max(key1, key2))
-                pairs.add(pair)
+                pairs.add((min(key1, key2), max(key1, key2)))
 
         return pairs
 
@@ -664,55 +442,23 @@ class MinHashSimilarity:
         self._lsh_keys.clear()
 
     def _tokenize(self, code: str) -> List[str]:
-        """Tokenize code into meaningful tokens.
-
-        Splits on whitespace and punctuation while preserving
-        identifiers, keywords, and operators.
-        """
-        # Normalize whitespace
+        """Tokenize code into identifiers, numbers, operators, and punctuation."""
         code = re.sub(r"\s+", " ", code)
-
-        # Split on common delimiters while keeping operators
-        tokens = re.findall(
+        return re.findall(
             r"[a-zA-Z_][a-zA-Z0-9_]*|[0-9]+|[+\-*/=<>!&|%^~]+|[(){}\[\],;:.]",
             code,
         )
 
-        return tokens
-
     def _create_token_shingles(self, tokens: List[str], size: int) -> List[str]:
-        """Create n-gram shingles from tokens.
-
-        Args:
-            tokens: List of tokens.
-            size: Shingle size (n-gram length).
-
-        Returns:
-            List of token n-gram strings.
-        """
+        """Create token n-gram shingles."""
         if len(tokens) < size:
             return [" ".join(tokens)] if tokens else []
-
-        shingles = []
-        for i in range(len(tokens) - size + 1):
-            shingle = " ".join(tokens[i : i + size])
-            shingles.append(shingle)
-
-        return shingles
+        return [" ".join(tokens[i : i + size]) for i in range(len(tokens) - size + 1)]
 
     def _create_char_shingles(self, text: str, size: int) -> List[str]:
-        """Create character-based shingles.
-
-        Args:
-            text: Input text.
-            size: Shingle size.
-
-        Returns:
-            List of character n-gram strings.
-        """
+        """Create character n-gram shingles."""
         if len(text) < size:
             return [text] if text else []
-
         return [text[i : i + size] for i in range(len(text) - size + 1)]
 
 
@@ -720,20 +466,9 @@ class HybridSimilarity:
     """
     Hybrid two/three-stage similarity calculator combining MinHash, AST, and CodeBERT.
 
-    Implements a multi-stage pipeline for optimal precision/recall balance:
-    - Stage 1: Fast MinHash filter (O(n)) - quickly eliminate dissimilar code pairs
-    - Stage 2: Precise structural verification for candidates that pass Stage 1
-    - Stage 3: CodeBERT semantic similarity (optional) for Type-4 clone detection
-
-    Scientific basis:
-    - TACC (ICSE 2023): Token + AST hybrid yields optimal precision/recall
-    - GraphCodeBERT (2024): Semantic embeddings capture functional equivalence
-
-    Key benefits:
-    - Returns quickly for obviously dissimilar code (Stage 1 only)
-    - Provides high-precision results for similar code candidates (Stage 1 + Stage 2)
-    - Optional semantic analysis for detecting functionally equivalent code
-    - Reports which method was used and confidence level
+    Stage 1: Fast MinHash filter (O(n)) — eliminates dissimilar pairs.
+    Stage 2: Structural verification via SequenceMatcher on normalized code.
+    Stage 3: CodeBERT semantic similarity (optional, requires transformers + torch).
     """
 
     def __init__(
@@ -741,14 +476,7 @@ class HybridSimilarity:
         minhash_config: Optional[SimilarityConfig] = None,
         hybrid_config: Optional[HybridSimilarityConfig] = None,
     ) -> None:
-        """Initialize the hybrid similarity calculator.
-
-        Args:
-            minhash_config: Configuration for MinHash similarity (Stage 1).
-            hybrid_config: Configuration for hybrid pipeline behavior.
-        """
-        # Backward compatibility: some callers pass HybridSimilarityConfig as
-        # the first positional argument.
+        # Backward compatibility: some callers pass HybridSimilarityConfig as first arg.
         if isinstance(minhash_config, HybridSimilarityConfig) and hybrid_config is None:
             hybrid_config = minhash_config
             minhash_config = None
@@ -756,11 +484,7 @@ class HybridSimilarity:
         self.minhash_config = minhash_config or SimilarityConfig()
         self.hybrid_config = hybrid_config or HybridSimilarityConfig()
         self.logger = get_logger("deduplication.hybrid_similarity")
-
-        # Initialize MinHash calculator for Stage 1
         self._minhash = MinHashSimilarity(self.minhash_config)
-
-        # Lazy-initialized semantic similarity calculator for Stage 3
         self._semantic: Optional["SemanticSimilarity"] = None
         self._semantic_available: Optional[bool] = None
 
@@ -779,11 +503,7 @@ class HybridSimilarity:
             return None
 
     def _get_semantic_calculator(self) -> Optional["SemanticSimilarity"]:
-        """Get or create the semantic similarity calculator.
-
-        Returns:
-            SemanticSimilarity instance if available and enabled, None otherwise.
-        """
+        """Get or lazily create the semantic similarity calculator."""
         if not self.hybrid_config.enable_semantic:
             return None
         if self._semantic_available is False:
@@ -797,7 +517,6 @@ class HybridSimilarity:
         return self._try_init_semantic()
 
     def _build_empty_similarity_result(self) -> HybridSimilarityResult:
-        """Build result for empty input comparison."""
         return HybridSimilarityResult(
             similarity=0.0,
             method="minhash",
@@ -821,7 +540,7 @@ class HybridSimilarity:
         tokens2: List[str],
         avg_token_count: int,
     ) -> Tuple[float, Optional[HybridSimilarityResult]]:
-        """Run Stage 1 filter and return early-exit result when applicable."""
+        """Run Stage 1 MinHash filter. Returns (score, early_exit_result or None)."""
         minhash_sim = self._minhash.estimate_similarity(code1, code2)
 
         below_threshold = minhash_sim < self.hybrid_config.minhash_early_exit_threshold
@@ -883,15 +602,7 @@ class HybridSimilarity:
         code1: str,
         code2: str,
     ) -> HybridSimilarityResult:
-        """Calculate similarity using hybrid two/three-stage pipeline.
-
-        Args:
-            code1: First code snippet.
-            code2: Second code snippet.
-
-        Returns:
-            HybridSimilarityResult with detailed similarity information.
-        """
+        """Calculate similarity using the hybrid two/three-stage pipeline."""
         if not code1 or not code2:
             return self._build_empty_similarity_result()
 
@@ -920,19 +631,7 @@ class HybridSimilarity:
         token_count: int,
         semantic_calc: "SemanticSimilarity",
     ) -> HybridSimilarityResult:
-        """Calculate three-stage similarity with semantic analysis.
-
-        Args:
-            code1: First code snippet.
-            code2: Second code snippet.
-            minhash_sim: Stage 1 MinHash similarity.
-            ast_sim: Stage 2 AST similarity.
-            token_count: Average token count for diagnostics.
-            semantic_calc: SemanticSimilarity calculator instance.
-
-        Returns:
-            HybridSimilarityResult with all three stages.
-        """
+        """Run Stage 3 semantic similarity, falling back to two-stage on error."""
         try:
             semantic_sim = semantic_calc.calculate_similarity(code1, code2)
             return self._build_three_stage_result(minhash_sim, ast_sim, semantic_sim, token_count, semantic_calc)
@@ -991,50 +690,19 @@ class HybridSimilarity:
         )
 
     def _calculate_ast_similarity(self, code1: str, code2: str) -> float:
-        """Calculate AST-like structural similarity between two code snippets.
-
-        Uses normalized code comparison with SequenceMatcher to capture
-        structural similarity while being resilient to identifier renaming.
-
-        This approach is inspired by AST tree edit distance algorithms but
-        uses a more practical token-sequence comparison that achieves
-        similar accuracy with better performance characteristics.
-
-        Args:
-            code1: First code snippet.
-            code2: Second code snippet.
-
-        Returns:
-            Structural similarity score (0.0 to 1.0).
-        """
-        # Check line limits
+        """Calculate structural similarity via SequenceMatcher on normalized code."""
         lines1 = len(code1.split("\n"))
         lines2 = len(code2.split("\n"))
 
         if max(lines1, lines2) > self.hybrid_config.max_lines_for_full_ast:
-            # For very large code, use simplified comparison
             return self._calculate_simplified_ast_similarity(code1, code2)
 
-        # Normalize code for structural comparison
         norm1 = self._normalize_for_ast(code1)
         norm2 = self._normalize_for_ast(code2)
-
-        # Use SequenceMatcher for precise structural comparison
-        matcher = SequenceMatcher(None, norm1, norm2)
-        return matcher.ratio()
+        return SequenceMatcher(None, norm1, norm2).ratio()
 
     def _normalize_for_ast(self, code: str) -> str:
-        """Normalize code for AST-like structural comparison.
-
-        Pipeline: strip trailing ws → skip blanks → skip comment lines →
-        strip inline comments → normalize indentation → filter empty.
-
-        Args:
-            code: Source code to normalize.
-
-        Returns:
-            Normalized code string for comparison.
-        """
+        """Strip comments, blank lines, and normalize indentation for structural comparison."""
         lines = []
         for line in code.split("\n"):
             line = line.rstrip()
@@ -1049,7 +717,7 @@ class HybridSimilarity:
 
     @staticmethod
     def _is_comment_line(stripped: str) -> bool:
-        """Check if a stripped line is a comment-only line (Python # or JS //)."""
+        """Return True if the line is a Python # or JS // comment."""
         return stripped.startswith("#") or stripped.startswith("//")
 
     @staticmethod
@@ -1071,17 +739,13 @@ class HybridSimilarity:
 
     @staticmethod
     def _strip_inline_comments(line: str) -> str:
-        """Remove inline comments from a line (Python # and JS // style)."""
+        """Remove inline Python # and JS // comments from a line."""
         line = HybridSimilarity._strip_hash_comment(line)
         return HybridSimilarity._strip_slash_comment(line)
 
     @staticmethod
     def _normalize_indentation(line: str) -> str:
-        """Canonicalize leading whitespace to 4-space units.
-
-        Detects whether the line uses 4-space or 2-space indentation and
-        converts to a uniform 4-space-per-level representation.
-        """
+        """Canonicalize leading whitespace to 4-space units."""
         indent_count = len(line) - len(line.lstrip())
         divisor = (
             IndentationDefaults.SPACES_PER_LEVEL
@@ -1092,32 +756,17 @@ class HybridSimilarity:
         return "    " * indent_level + line.lstrip()
 
     def _calculate_simplified_ast_similarity(self, code1: str, code2: str) -> float:
-        """Calculate simplified structural similarity for large code.
-
-        Uses structure hash comparison combined with sample-based matching
-        for code that exceeds the full AST analysis threshold.
-
-        Args:
-            code1: First code snippet.
-            code2: Second code snippet.
-
-        Returns:
-            Simplified structural similarity score (0.0 to 1.0).
-        """
-        # Extract structural patterns
+        """Jaccard similarity of structural keyword patterns for large code."""
         patterns1 = self._extract_structural_patterns(code1)
         patterns2 = self._extract_structural_patterns(code2)
 
         if not patterns1 or not patterns2:
             return 0.0
 
-        # Calculate Jaccard similarity of structural patterns
         set1 = set(patterns1)
         set2 = set(patterns2)
-
         intersection = len(set1 & set2)
         union = len(set1 | set2)
-
         return intersection / union if union > 0 else 0.0
 
     _STRUCTURAL_KEYWORDS: frozenset[str] = frozenset(
@@ -1145,19 +794,7 @@ class HybridSimilarity:
     )
 
     def _extract_structural_patterns(self, code: str) -> List[str]:
-        """Extract structural patterns from code for simplified comparison.
-
-        Extracts:
-        - Control flow keywords with context
-        - Function/class definitions
-        - Nesting patterns
-
-        Args:
-            code: Source code to analyze.
-
-        Returns:
-            List of structural pattern strings.
-        """
+        """Extract indented control-flow keyword sequences for structural comparison."""
         patterns = []
         prev_keyword = None
 
@@ -1181,19 +818,8 @@ class HybridSimilarity:
         return patterns
 
     def estimate_similarity(self, code1: str, code2: str) -> float:
-        """Convenience method returning only the similarity score.
-
-        Use calculate_hybrid_similarity() for detailed results.
-
-        Args:
-            code1: First code snippet.
-            code2: Second code snippet.
-
-        Returns:
-            Similarity score (0.0 to 1.0).
-        """
-        result = self.calculate_hybrid_similarity(code1, code2)
-        return result.similarity
+        """Convenience wrapper returning only the similarity score."""
+        return self.calculate_hybrid_similarity(code1, code2).similarity
 
     def clear_cache(self) -> None:
         """Clear the MinHash signature cache."""
@@ -1206,143 +832,83 @@ class SimilarityBucket:
 
     structure_hash: int
     items: List[Tuple[str, str]] = field(default_factory=list)
-    """List of (key, code) tuples in this bucket."""
 
 
 class EnhancedStructureHash:
     """
-    Improved structure hash algorithm using AST-like node sequence patterns.
+    Structure hash using AST-like node sequence patterns for bucket distribution.
 
-    Provides better bucket distribution by extracting structural node sequences
-    rather than simple token counts. Based on scientific recommendations from
-    code clone detection research (ICSE 2023, ACL 2024).
-
-    Key improvements over simple line count + keyword hash:
-    1. AST node sequence fingerprinting (first 20 structural tokens)
-    2. Control flow graph signature (branching complexity)
-    3. Call pattern detection (function invocation fingerprint)
-    4. Logarithmic size bucketing (uniform distribution)
-    5. Multi-factor combined hash (reduces collisions)
+    Combines five factors: node sequence fingerprint, control flow complexity,
+    call pattern signature, nesting depth, and logarithmic size bucket.
     """
 
-    # AST-like node type mappings for structural fingerprinting
     # Maps keywords/patterns to pseudo-AST node types
     NODE_TYPES: Dict[str, str] = {
-        # Function/Method definitions
         "def": "FN",
         "function": "FN",
         "async": "AS",
-        # Class definitions
         "class": "CL",
-        # Control flow - conditionals
         "if": "IF",
         "else": "EL",
         "elif": "EI",
         "switch": "SW",
         "case": "CA",
         "match": "MA",
-        # Control flow - loops
         "for": "FR",
         "while": "WH",
         "do": "DO",
-        # Control flow - exception handling
         "try": "TR",
         "except": "EX",
         "catch": "CT",
         "finally": "FI",
         "raise": "RA",
         "throw": "TH",
-        # Returns and yields
         "return": "RT",
         "yield": "YD",
-        # Context managers and comprehensions
         "with": "WT",
         "lambda": "LM",
-        # Variable declarations (JS/TS)
         "const": "CN",
         "let": "LT",
         "var": "VR",
-        # Imports
         "import": "IM",
         "from": "FM",
         "require": "RQ",
-        # Assertions and debugging
         "assert": "AS",
         "pass": "PS",
         "break": "BK",
         "continue": "CO",
     }
 
-    # Patterns that indicate function calls (regex patterns)
     CALL_PATTERN = re.compile(r"([a-zA-Z_][a-zA-Z0-9_]*)\s*\(")
 
     def __init__(self) -> None:
-        """Initialize the structure hash calculator."""
         self.logger = get_logger("deduplication.structure_hash")
 
     def calculate(self, code: str) -> int:
-        """Calculate structure hash using AST-like node sequence fingerprinting.
-
-        Creates a multi-factor hash combining:
-        1. Node sequence fingerprint (first 20 structural nodes)
-        2. Control flow complexity metric
-        3. Call pattern signature
-        4. Size bucket
-
-        Args:
-            code: Source code to hash.
-
-        Returns:
-            Structure hash integer for bucket assignment.
-        """
-        # Extract AST-like node sequence
+        """Calculate structure hash combining node sequence, complexity, calls, depth, and size."""
         node_sequence = self._extract_node_sequence(code)
 
-        # Build multi-factor fingerprint
-        fingerprint_parts = []
-
-        # 1. Node sequence fingerprint (first N nodes)
-        # This captures the structural "shape" of the code
         node_fingerprint = "->".join(node_sequence[: ASTFingerprintDefaults.MAX_NODE_SEQUENCE_LENGTH])
-        fingerprint_parts.append(f"N:{node_fingerprint}")
-
-        # 2. Control flow complexity (cyclomatic-like)
         complexity = self._calculate_control_flow_complexity(node_sequence)
-        fingerprint_parts.append(f"X{min(complexity, ASTFingerprintDefaults.MAX_COMPLEXITY_HEX_VALUE):X}")  # Hex digit 0-F
-
-        # 3. Call pattern signature
         call_signature = self._extract_call_signature(code)
-        fingerprint_parts.append(f"C:{call_signature}")
-
-        # 4. Nesting depth estimate
         max_depth = self._estimate_nesting_depth(code)
-        fingerprint_parts.append(f"D{min(max_depth, ASTFingerprintDefaults.MAX_NESTING_DEPTH_DIGIT)}")
-
-        # 5. Logarithmic size bucket for uniform distribution
         lines = [line for line in code.split("\n") if line.strip()]
         size_bucket = self._logarithmic_bucket(len(lines))
-        fingerprint_parts.append(f"S{size_bucket:02d}")
 
-        # Combine all factors into final hash
+        fingerprint_parts = [
+            f"N:{node_fingerprint}",
+            f"X{min(complexity, ASTFingerprintDefaults.MAX_COMPLEXITY_HEX_VALUE):X}",
+            f"C:{call_signature}",
+            f"D{min(max_depth, ASTFingerprintDefaults.MAX_NESTING_DEPTH_DIGIT)}",
+            f"S{size_bucket:02d}",
+        ]
+
         fingerprint = "|".join(fingerprint_parts)
         struct_hash = hash(fingerprint) % ASTFingerprintDefaults.HASH_MODULO
-
-        # Combined hash: structure * multiplier + size_bucket
-        # This ensures similar structures in same size range group together
         return struct_hash * ASTFingerprintDefaults.HASH_BUCKET_MULTIPLIER + size_bucket
 
     def _extract_node_sequence(self, code: str) -> List[str]:
-        """Extract AST-like node type sequence from code.
-
-        Scans code line by line and extracts structural tokens in order
-        of appearance, creating a pseudo-AST node sequence.
-
-        Args:
-            code: Source code to analyze.
-
-        Returns:
-            List of node type identifiers (e.g., ['FN', 'IF', 'RT', 'FR', 'RT'])
-        """
+        """Extract pseudo-AST node type sequence from code."""
         nodes: List[str] = []
         for line in code.split("\n"):
             stripped = line.strip()
@@ -1355,21 +921,9 @@ class EnhancedStructureHash:
         return nodes
 
     def _calculate_control_flow_complexity(self, nodes: List[str]) -> int:
-        """Calculate control flow complexity from node sequence.
-
-        Approximates cyclomatic complexity by counting decision points.
-
-        Args:
-            nodes: List of node type identifiers.
-
-        Returns:
-            Complexity score (1 = minimal, 15+ = very complex)
-        """
-        # Decision nodes that increase complexity
+        """Approximate cyclomatic complexity by counting decision-point nodes."""
         decision_nodes = {"IF", "EI", "FR", "WH", "TR", "EX", "CT", "CA", "MA"}
-        complexity = 1  # Base complexity
-        complexity += sum(1 for n in nodes if n in decision_nodes)
-        return complexity
+        return 1 + sum(1 for n in nodes if n in decision_nodes)
 
     _CALL_EXCLUDED: frozenset[str] = frozenset(
         {
@@ -1442,17 +996,7 @@ class EnhancedStructureHash:
         return {n for n in names if n is not None}
 
     def _extract_call_signature(self, code: str) -> str:
-        """Extract function call signature for fingerprinting.
-
-        Creates a short hash of called function names to identify
-        code that uses similar APIs/functions.
-
-        Args:
-            code: Source code to analyze.
-
-        Returns:
-            4-character hex signature of call pattern.
-        """
+        """4-character hex hash of called (non-builtin) function names."""
         calls = self.CALL_PATTERN.findall(code)
         defined_names = self._collect_defined_names(code)
         filtered_calls = [c for c in calls if c.lower() not in self._CALL_EXCLUDED and c not in defined_names]
@@ -1475,39 +1019,14 @@ class EnhancedStructureHash:
         return indent // divisor
 
     def _estimate_nesting_depth(self, code: str) -> int:
-        """Estimate maximum nesting depth from indentation.
-
-        Args:
-            code: Source code to analyze.
-
-        Returns:
-            Estimated maximum nesting depth (0-9).
-        """
+        """Estimate maximum nesting depth from indentation."""
         return max(
             (self._line_nesting_depth(line) for line in code.split("\n") if line.strip()),
             default=0,
         )
 
     def _logarithmic_bucket(self, line_count: int) -> int:
-        """Calculate logarithmic size bucket for uniform distribution.
-
-        Uses logarithmic scaling to prevent small functions from
-        dominating buckets while still grouping similar sizes.
-
-        Buckets:
-        - 0-4 lines: bucket 0
-        - 5-9 lines: bucket 1
-        - 10-19 lines: bucket 2
-        - 20-39 lines: bucket 3
-        - 40-79 lines: bucket 4
-        - 80+ lines: bucket 5+
-
-        Args:
-            line_count: Number of non-empty lines.
-
-        Returns:
-            Bucket number (0-9).
-        """
+        """Map line count to a logarithmic size bucket (0–9) for uniform distribution."""
         thresholds = (
             (LogBucketThresholds.TINY, 0),
             (LogBucketThresholds.SMALL, 1),
@@ -1533,22 +1052,13 @@ class EnhancedStructureHash:
         self,
         code_items: List[Tuple[str, str]],
     ) -> Dict[int, SimilarityBucket]:
-        """Create structure hash buckets for code items.
-
-        Args:
-            code_items: List of (key, code) tuples.
-
-        Returns:
-            Dict mapping structure hash to SimilarityBucket.
-        """
+        """Create structure hash buckets for code items."""
         buckets: Dict[int, SimilarityBucket] = {}
 
         for key, code in code_items:
             structure_hash = self.calculate(code)
-
             if structure_hash not in buckets:
                 buckets[structure_hash] = SimilarityBucket(structure_hash=structure_hash)
-
             buckets[structure_hash].items.append((key, code))
 
         self.logger.info(
@@ -1562,18 +1072,14 @@ class EnhancedStructureHash:
 
 
 # Optional imports for semantic similarity (CodeBERT)
-# These are only loaded when SemanticSimilarity is instantiated
+# Loaded lazily when SemanticSimilarity is instantiated.
 _TRANSFORMERS_AVAILABLE: Optional[bool] = None
 _torch: Any = None
 _transformers: Any = None
 
 
 def _check_transformers_available() -> bool:
-    """Check if transformers and torch are available.
-
-    Returns:
-        True if both transformers and torch can be imported.
-    """
+    """Return True if both transformers and torch can be imported."""
     global _TRANSFORMERS_AVAILABLE, _torch, _transformers
 
     if _TRANSFORMERS_AVAILABLE is not None:
@@ -1594,65 +1100,33 @@ def _check_transformers_available() -> bool:
 
 @dataclass
 class SemanticSimilarityConfig:
-    """Configuration for CodeBERT-based semantic similarity.
-
-    CodeBERT produces 768-dimensional embeddings that capture semantic
-    meaning beyond syntactic patterns. This enables Type-4 (semantic)
-    clone detection - finding functionally equivalent code with
-    different implementations.
-
-    Scientific basis: GraphCodeBERT (2024) demonstrates superior
-    code understanding through pre-training on code-comment pairs
-    and data flow analysis.
-    """
+    """Configuration for CodeBERT-based semantic similarity (Type-4 clone detection)."""
 
     model_name: str = "microsoft/codebert-base"
-    """Pre-trained model to use for embeddings."""
-
     max_length: int = SemanticSimilarityDefaults.MAX_TOKEN_LENGTH
-    """Maximum token length for code input (CodeBERT limit)."""
-
     device: str = "auto"
     """Device for inference: 'auto', 'cpu', 'cuda', or 'mps'."""
-
     batch_size: int = SemanticSimilarityDefaults.DEFAULT_BATCH_SIZE
-    """Batch size for embedding generation (for bulk operations)."""
-
     cache_embeddings: bool = True
-    """Whether to cache computed embeddings for reuse."""
-
     normalize_embeddings: bool = True
-    """Whether to L2-normalize embeddings (recommended for cosine similarity)."""
+    """L2-normalize embeddings (recommended for cosine similarity)."""
 
 
 @dataclass
 class SemanticSimilarityResult:
-    """Result of semantic similarity calculation using CodeBERT.
-
-    Provides detailed information about the semantic comparison,
-    including confidence metrics and model information.
-    """
+    """Result of CodeBERT semantic similarity calculation."""
 
     similarity: float
     """Cosine similarity between code embeddings (0.0 to 1.0)."""
 
     model_used: str
-    """Name of the model used for embedding generation."""
-
     embedding_dim: int
     """Dimensionality of the embeddings (768 for CodeBERT)."""
 
     truncated: bool = False
-    """Whether input code was truncated to fit model's max_length."""
-
     code1_tokens: int = 0
-    """Number of tokens in first code snippet (before truncation)."""
-
     code2_tokens: int = 0
-    """Number of tokens in second code snippet (before truncation)."""
-
     computation_time_ms: int = 0
-    """Time spent computing semantic similarity."""
 
     @property
     def model_name(self) -> str:
@@ -1687,58 +1161,30 @@ class SemanticSimilarityResult:
 
 class SemanticSimilarity:
     """
-    CodeBERT-based semantic similarity calculator for Type-4 clone detection.
+    CodeBERT-based semantic similarity for Type-4 clone detection.
 
-    Uses Microsoft's CodeBERT model to generate 768-dimensional embeddings
-    that capture semantic meaning of code, enabling detection of functionally
-    equivalent code with different implementations.
-
-    Key features:
-    - Lazy model loading (model loaded on first use)
-    - Embedding caching for performance
-    - Automatic device selection (CUDA/MPS/CPU)
-    - Graceful fallback when transformers not available
-
-    Example usage:
-        >>> semantic = SemanticSimilarity()
-        >>> similarity = semantic.calculate_similarity(code1, code2)
-        >>> print(f"Semantic similarity: {similarity:.2f}")
-
-    Note: Requires optional dependencies: `pip install transformers torch`
+    Generates 768-dim embeddings capturing semantic meaning, enabling detection
+    of functionally equivalent code with different implementations.
+    Requires optional deps: `pip install transformers torch`
     """
 
     def __init__(self, config: Optional[SemanticSimilarityConfig] = None) -> None:
-        """Initialize the semantic similarity calculator.
-
-        Args:
-            config: Configuration options. Uses defaults if not provided.
-
-        Raises:
-            ImportError: If transformers or torch are not installed.
+        """
+        Raises ImportError if transformers or torch are not installed.
         """
         self.config = config or SemanticSimilarityConfig()
         self.logger = get_logger("deduplication.semantic_similarity")
-
-        # Lazy-loaded model and tokenizer
         self._model: Any = None
         self._tokenizer: Any = None
         self._device: Optional[str] = None
-
-        # Embedding cache (code_hash -> embedding tensor)
         self._embedding_cache: Dict[int, Any] = {}
         self._cache_hits = 0
         self._cache_misses = 0
-
-        # Track initialization state
         self._initialized = False
 
     @staticmethod
     def is_available() -> bool:
-        """Check if semantic similarity is available.
-
-        Returns:
-            True if transformers and torch are installed.
-        """
+        """Return True if transformers and torch are installed."""
         return _check_transformers_available()
 
     def _init_model_components(self) -> None:
@@ -1754,15 +1200,7 @@ class SemanticSimilarity:
         self.logger.info("codebert_model_loaded", model_name=self.config.model_name, device=self._device)
 
     def _load_model(self) -> None:
-        """Load the CodeBERT model and tokenizer.
-
-        This is called lazily on first use to avoid loading the model
-        (~400MB) until actually needed.
-
-        Raises:
-            ImportError: If transformers or torch are not installed.
-            RuntimeError: If model loading fails.
-        """
+        """Lazily load the CodeBERT model (~400MB) on first use."""
         if self._initialized:
             return
         if not _check_transformers_available():
@@ -1777,25 +1215,13 @@ class SemanticSimilarity:
             raise RuntimeError(f"Failed to load CodeBERT model: {e}") from e
 
     def _select_device(self, torch_module: Any) -> str:
-        """Select the appropriate device for inference.
-
-        Args:
-            torch_module: The torch module.
-
-        Returns:
-            Device string ('cuda', 'mps', or 'cpu').
-        """
+        """Select the best available device: CUDA > MPS > CPU."""
         if self.config.device != "auto":
             return self.config.device
-
-        # Check for CUDA (NVIDIA GPU)
         if torch_module.cuda.is_available():
             return "cuda"
-
-        # Check for MPS (Apple Silicon)
         if hasattr(torch_module.backends, "mps") and torch_module.backends.mps.is_available():
             return "mps"
-
         return "cpu"
 
     def _run_model_inference(self, code: str) -> Any:
@@ -1817,18 +1243,7 @@ class SemanticSimilarity:
         return embedding
 
     def get_embedding(self, code: str) -> Any:
-        """Generate embedding vector for code using CodeBERT.
-
-        Args:
-            code: Source code to embed.
-
-        Returns:
-            PyTorch tensor of shape (768,) containing the embedding.
-
-        Raises:
-            ImportError: If transformers/torch not available.
-            RuntimeError: If embedding generation fails.
-        """
+        """Generate a (768,) embedding tensor for code using CodeBERT."""
         self._load_model()
         code_hash = hash(code)
         if self.config.cache_embeddings and code_hash in self._embedding_cache:
@@ -1841,20 +1256,7 @@ class SemanticSimilarity:
         return embedding
 
     def calculate_similarity(self, code1: str, code2: str) -> float:
-        """Calculate semantic similarity between two code snippets.
-
-        Uses cosine similarity between CodeBERT embeddings.
-
-        Args:
-            code1: First code snippet.
-            code2: Second code snippet.
-
-        Returns:
-            Similarity score (0.0 to 1.0).
-
-        Raises:
-            ImportError: If transformers/torch not available.
-        """
+        """Cosine similarity between CodeBERT embeddings, blended with lexical overlap."""
         if not code1 or not code2:
             return 0.0
 
@@ -1863,23 +1265,21 @@ class SemanticSimilarity:
         emb1 = self.get_embedding(code1)
         emb2 = self.get_embedding(code2)
 
-        # Cosine similarity from embeddings
         embedding_cosine: float = functional.cosine_similarity(
             emb1.unsqueeze(0),
             emb2.unsqueeze(0),
             dim=1,
         ).item()
 
-        # Normalize cosine to 0-1 and calibrate with lexical overlap.
-        # CodeBERT cosine is highly anisotropic for short snippets; blending a
-        # light lexical signal improves separation of unrelated code.
+        # Normalize cosine to [0,1] and blend with lexical score.
+        # CodeBERT cosine is anisotropic for short snippets; lexical signal improves separation.
         semantic_score = (embedding_cosine + 1.0) / COSINE_UNIT_INTERVAL_DIVISOR
         lexical_score = self._calculate_lexical_similarity(code1, code2)
         similarity = 0.5 * semantic_score + 0.5 * lexical_score
         return max(0.0, min(1.0, similarity))
 
     def _calculate_lexical_similarity(self, code1: str, code2: str) -> float:
-        """Compute token-level lexical similarity for semantic calibration."""
+        """Token-level lexical similarity for semantic calibration."""
         tokens1 = re.findall(
             r"[a-zA-Z_][a-zA-Z0-9_]*|[0-9]+|[+\-*/=<>!&|%^~]+|[(){}\[\],;:.]",
             re.sub(r"\s+", " ", code1),
@@ -1893,15 +1293,7 @@ class SemanticSimilarity:
         return float(SequenceMatcher(None, tokens1, tokens2).ratio())
 
     def calculate_similarity_detailed(self, code1: str, code2: str) -> SemanticSimilarityResult:
-        """Calculate semantic similarity with detailed results.
-
-        Args:
-            code1: First code snippet.
-            code2: Second code snippet.
-
-        Returns:
-            SemanticSimilarityResult with detailed information.
-        """
+        """Calculate semantic similarity with full result metadata."""
         if not code1 or not code2:
             return SemanticSimilarityResult(
                 similarity=0.0,
@@ -1916,10 +1308,8 @@ class SemanticSimilarity:
         self._load_model()
         start_time = time.perf_counter()
 
-        # Get token counts before truncation
         tokens1: int = self._tokenizer(code1, return_tensors="pt")["input_ids"].shape[1]
         tokens2: int = self._tokenizer(code2, return_tensors="pt")["input_ids"].shape[1]
-
         truncated = tokens1 > self.config.max_length or tokens2 > self.config.max_length
 
         similarity = self.calculate_similarity(code1, code2)
@@ -1943,11 +1333,7 @@ class SemanticSimilarity:
         self.logger.debug("embedding_cache_cleared")
 
     def get_cache_stats(self) -> Dict[str, int]:
-        """Get cache statistics.
-
-        Returns:
-            Dictionary with cache size and hit count.
-        """
+        """Return cache size, hits, and misses."""
         return {
             "cache_size": len(self._embedding_cache),
             "hits": self._cache_hits,

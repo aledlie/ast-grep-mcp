@@ -1,0 +1,964 @@
+{
+  "javascript": {
+    "function": [
+      {
+        "pattern": "function $NAME($$$PARAMS) { $$$BODY }",
+        "description": "Function declaration",
+        "notes": "Use $$$PARAMS for any number of parameters"
+      },
+      {
+        "pattern": "const $NAME = ($$$PARAMS) => $BODY",
+        "description": "Arrow function (expression body)"
+      },
+      {
+        "pattern": "const $NAME = ($$$PARAMS) => { $$$BODY }",
+        "description": "Arrow function (block body)"
+      },
+      {
+        "pattern": "async function $NAME($$$PARAMS) { $$$BODY }",
+        "description": "Async function declaration"
+      },
+      {
+        "pattern": "$OBJ.$METHOD($$$ARGS)",
+        "description": "Method call on object",
+        "notes": "Matches console.log(), arr.push(), etc."
+      }
+    ],
+    "class": [
+      {
+        "pattern": "class $NAME { $$$BODY }",
+        "description": "Class declaration"
+      },
+      {
+        "pattern": "class $NAME extends $PARENT { $$$BODY }",
+        "description": "Class with inheritance"
+      },
+      {
+        "pattern": "constructor($$$PARAMS) { $$$BODY }",
+        "description": "Class constructor"
+      }
+    ],
+    "import": [
+      {
+        "pattern": "import $NAME from '$PATH'",
+        "description": "Default import"
+      },
+      {
+        "pattern": "import { $$$NAMES } from '$PATH'",
+        "description": "Named imports"
+      },
+      {
+        "pattern": "import * as $NAME from '$PATH'",
+        "description": "Namespace import"
+      },
+      {
+        "pattern": "require('$PATH')",
+        "description": "CommonJS require"
+      }
+    ],
+    "variable": [
+      {
+        "pattern": "const $NAME = $VALUE",
+        "description": "Const declaration"
+      },
+      {
+        "pattern": "let $NAME = $VALUE",
+        "description": "Let declaration"
+      },
+      {
+        "pattern": "var $NAME = $VALUE",
+        "description": "Var declaration (legacy)"
+      },
+      {
+        "pattern": "const { $$$PROPS } = $OBJ",
+        "description": "Object destructuring"
+      },
+      {
+        "pattern": "const [$$$ITEMS] = $ARR",
+        "description": "Array destructuring"
+      }
+    ],
+    "control_flow": [
+      {
+        "pattern": "if ($COND) { $$$BODY }",
+        "description": "If statement"
+      },
+      {
+        "pattern": "if ($COND) { $$$THEN } else { $$$ELSE }",
+        "description": "If-else statement"
+      },
+      {
+        "pattern": "for (const $ITEM of $ITERABLE) { $$$BODY }",
+        "description": "For-of loop"
+      },
+      {
+        "pattern": "while ($COND) { $$$BODY }",
+        "description": "While loop"
+      },
+      {
+        "pattern": "$COND ? $THEN : $ELSE",
+        "description": "Ternary expression"
+      }
+    ],
+    "error_handling": [
+      {
+        "pattern": "try { $$$TRY } catch ($ERR) { $$$CATCH }",
+        "description": "Try-catch block"
+      },
+      {
+        "pattern": "throw new Error($MSG)",
+        "description": "Throw error"
+      },
+      {
+        "pattern": "throw $ERR",
+        "description": "Throw any value"
+      }
+    ],
+    "async": [
+      {
+        "pattern": "await $PROMISE",
+        "description": "Await expression"
+      },
+      {
+        "pattern": "Promise.all([$$$PROMISES])",
+        "description": "Promise.all"
+      },
+      {
+        "pattern": "new Promise(($RESOLVE, $REJECT) => { $$$BODY })",
+        "description": "Promise constructor"
+      },
+      {
+        "pattern": "$PROMISE.then($HANDLER)",
+        "description": "Promise then"
+      },
+      {
+        "pattern": "$PROMISE.catch($HANDLER)",
+        "description": "Promise catch"
+      }
+    ]
+  },
+  "typescript": {
+    "function": [
+      {
+        "pattern": "function $NAME($$$PARAMS): $RET { $$$BODY }",
+        "description": "Typed function declaration"
+      },
+      {
+        "pattern": "const $NAME = ($$$PARAMS): $RET => $BODY",
+        "description": "Typed arrow function"
+      },
+      {
+        "pattern": "async function $NAME($$$PARAMS): Promise<$T> { $$$BODY }",
+        "description": "Async function with Promise return type"
+      }
+    ],
+    "class": [
+      {
+        "pattern": "class $NAME implements $INTERFACE { $$$BODY }",
+        "description": "Class implementing interface"
+      },
+      {
+        "pattern": "private $NAME: $TYPE",
+        "description": "Private property declaration"
+      },
+      {
+        "pattern": "public $NAME: $TYPE",
+        "description": "Public property declaration"
+      }
+    ],
+    "import": [
+      {
+        "pattern": "import type { $$$NAMES } from '$PATH'",
+        "description": "Type-only import"
+      },
+      {
+        "pattern": "import { type $NAME } from '$PATH'",
+        "description": "Inline type import"
+      }
+    ],
+    "variable": [
+      {
+        "pattern": "const $NAME: $TYPE = $VALUE",
+        "description": "Typed const declaration"
+      },
+      {
+        "pattern": "let $NAME: $TYPE = $VALUE",
+        "description": "Typed let declaration"
+      },
+      {
+        "pattern": "$VAR as $TYPE",
+        "description": "Type assertion"
+      },
+      {
+        "pattern": "<$TYPE>$VAR",
+        "description": "Type assertion (angle bracket)"
+      }
+    ],
+    "control_flow": [
+      {
+        "pattern": "if ($VAR !== null && $VAR !== undefined) { $$$BODY }",
+        "description": "Null check pattern"
+      }
+    ],
+    "error_handling": [
+      {
+        "pattern": "try { $$$TRY } catch ($ERR: unknown) { $$$CATCH }",
+        "description": "Typed catch clause"
+      }
+    ],
+    "async": [
+      {
+        "pattern": "await $PROMISE as $TYPE",
+        "description": "Await with type assertion"
+      }
+    ]
+  },
+  "python": {
+    "function": [
+      {
+        "pattern": "def $NAME($$$PARAMS):\n    $$$BODY",
+        "description": "Function definition",
+        "notes": "Python patterns need proper indentation"
+      },
+      {
+        "pattern": "def $NAME($$$PARAMS) -> $RET:\n    $$$BODY",
+        "description": "Function with return type hint"
+      },
+      {
+        "pattern": "async def $NAME($$$PARAMS):\n    $$$BODY",
+        "description": "Async function definition"
+      },
+      {
+        "pattern": "lambda $PARAMS: $BODY",
+        "description": "Lambda expression"
+      },
+      {
+        "pattern": "@$DECORATOR\ndef $NAME($$$PARAMS):\n    $$$BODY",
+        "description": "Decorated function"
+      }
+    ],
+    "class": [
+      {
+        "pattern": "class $NAME:\n    $$$BODY",
+        "description": "Class definition"
+      },
+      {
+        "pattern": "class $NAME($PARENT):\n    $$$BODY",
+        "description": "Class with inheritance"
+      },
+      {
+        "pattern": "def __init__(self, $$$PARAMS):\n    $$$BODY",
+        "description": "Constructor method"
+      },
+      {
+        "pattern": "@dataclass\nclass $NAME:\n    $$$BODY",
+        "description": "Dataclass definition"
+      }
+    ],
+    "import": [
+      {
+        "pattern": "import $MODULE",
+        "description": "Simple import"
+      },
+      {
+        "pattern": "from $MODULE import $NAME",
+        "description": "From import"
+      },
+      {
+        "pattern": "from $MODULE import $$$NAMES",
+        "description": "Multiple from imports"
+      },
+      {
+        "pattern": "import $MODULE as $ALIAS",
+        "description": "Import with alias"
+      }
+    ],
+    "variable": [
+      {
+        "pattern": "$NAME = $VALUE",
+        "description": "Assignment"
+      },
+      {
+        "pattern": "$NAME: $TYPE = $VALUE",
+        "description": "Typed assignment"
+      },
+      {
+        "pattern": "$A, $B = $VALUE",
+        "description": "Tuple unpacking"
+      }
+    ],
+    "control_flow": [
+      {
+        "pattern": "if $COND:\n    $$$BODY",
+        "description": "If statement"
+      },
+      {
+        "pattern": "for $VAR in $ITERABLE:\n    $$$BODY",
+        "description": "For loop"
+      },
+      {
+        "pattern": "while $COND:\n    $$$BODY",
+        "description": "While loop"
+      },
+      {
+        "pattern": "[$EXPR for $VAR in $ITERABLE]",
+        "description": "List comprehension"
+      },
+      {
+        "pattern": "{$KEY: $VALUE for $VAR in $ITERABLE}",
+        "description": "Dict comprehension"
+      },
+      {
+        "pattern": "$THEN if $COND else $ELSE",
+        "description": "Ternary expression"
+      }
+    ],
+    "error_handling": [
+      {
+        "pattern": "try:\n    $$$TRY\nexcept $EXC:\n    $$$EXCEPT",
+        "description": "Try-except block"
+      },
+      {
+        "pattern": "raise $EXC",
+        "description": "Raise exception"
+      },
+      {
+        "pattern": "with $CTX as $VAR:\n    $$$BODY",
+        "description": "Context manager"
+      }
+    ],
+    "async": [
+      {
+        "pattern": "await $AWAITABLE",
+        "description": "Await expression"
+      },
+      {
+        "pattern": "async with $CTX as $VAR:\n    $$$BODY",
+        "description": "Async context manager"
+      },
+      {
+        "pattern": "async for $VAR in $ITERABLE:\n    $$$BODY",
+        "description": "Async for loop"
+      }
+    ]
+  },
+  "go": {
+    "function": [
+      {
+        "pattern": "func $NAME($$$PARAMS) $RET { $$$BODY }",
+        "description": "Function declaration"
+      },
+      {
+        "pattern": "func ($RECV $TYPE) $NAME($$$PARAMS) $RET { $$$BODY }",
+        "description": "Method with receiver"
+      },
+      {
+        "pattern": "func($$$PARAMS) $RET { $$$BODY }",
+        "description": "Anonymous function"
+      }
+    ],
+    "class": [
+      {
+        "pattern": "type $NAME struct { $$$FIELDS }",
+        "description": "Struct definition"
+      },
+      {
+        "pattern": "type $NAME interface { $$$METHODS }",
+        "description": "Interface definition"
+      }
+    ],
+    "import": [
+      {
+        "pattern": "import \"$PATH\"",
+        "description": "Single import"
+      },
+      {
+        "pattern": "import (\n$$$IMPORTS\n)",
+        "description": "Import block"
+      }
+    ],
+    "variable": [
+      {
+        "pattern": "$NAME := $VALUE",
+        "description": "Short variable declaration"
+      },
+      {
+        "pattern": "var $NAME $TYPE = $VALUE",
+        "description": "Full variable declaration"
+      },
+      {
+        "pattern": "const $NAME = $VALUE",
+        "description": "Constant declaration"
+      }
+    ],
+    "control_flow": [
+      {
+        "pattern": "if $COND { $$$BODY }",
+        "description": "If statement"
+      },
+      {
+        "pattern": "if $INIT; $COND { $$$BODY }",
+        "description": "If with initialization"
+      },
+      {
+        "pattern": "for $INIT; $COND; $POST { $$$BODY }",
+        "description": "For loop"
+      },
+      {
+        "pattern": "for $KEY, $VALUE := range $ITERABLE { $$$BODY }",
+        "description": "Range loop"
+      },
+      {
+        "pattern": "switch $EXPR { $$$CASES }",
+        "description": "Switch statement"
+      },
+      {
+        "pattern": "select { $$$CASES }",
+        "description": "Select statement"
+      }
+    ],
+    "error_handling": [
+      {
+        "pattern": "if err != nil { $$$BODY }",
+        "description": "Error check pattern"
+      },
+      {
+        "pattern": "$VAL, err := $CALL",
+        "description": "Error return pattern"
+      },
+      {
+        "pattern": "defer $CALL",
+        "description": "Defer statement"
+      },
+      {
+        "pattern": "panic($MSG)",
+        "description": "Panic call"
+      },
+      {
+        "pattern": "recover()",
+        "description": "Recover call"
+      }
+    ],
+    "async": [
+      {
+        "pattern": "go $FUNC($$$ARGS)",
+        "description": "Goroutine"
+      },
+      {
+        "pattern": "$CHAN <- $VALUE",
+        "description": "Channel send"
+      },
+      {
+        "pattern": "$VAR := <-$CHAN",
+        "description": "Channel receive"
+      },
+      {
+        "pattern": "make(chan $TYPE)",
+        "description": "Create channel"
+      }
+    ]
+  },
+  "rust": {
+    "function": [
+      {
+        "pattern": "fn $NAME($$$PARAMS) -> $RET { $$$BODY }",
+        "description": "Function with return type"
+      },
+      {
+        "pattern": "fn $NAME($$$PARAMS) { $$$BODY }",
+        "description": "Function without return"
+      },
+      {
+        "pattern": "pub fn $NAME($$$PARAMS) -> $RET { $$$BODY }",
+        "description": "Public function"
+      },
+      {
+        "pattern": "async fn $NAME($$$PARAMS) -> $RET { $$$BODY }",
+        "description": "Async function"
+      },
+      {
+        "pattern": "|$$$PARAMS| $BODY",
+        "description": "Closure"
+      }
+    ],
+    "class": [
+      {
+        "pattern": "struct $NAME { $$$FIELDS }",
+        "description": "Struct definition"
+      },
+      {
+        "pattern": "impl $NAME { $$$METHODS }",
+        "description": "Implementation block"
+      },
+      {
+        "pattern": "impl $TRAIT for $NAME { $$$METHODS }",
+        "description": "Trait implementation"
+      },
+      {
+        "pattern": "trait $NAME { $$$METHODS }",
+        "description": "Trait definition"
+      },
+      {
+        "pattern": "enum $NAME { $$$VARIANTS }",
+        "description": "Enum definition"
+      }
+    ],
+    "import": [
+      {
+        "pattern": "use $PATH;",
+        "description": "Use statement"
+      },
+      {
+        "pattern": "use $PATH::{$$$ITEMS};",
+        "description": "Multiple imports from path"
+      },
+      {
+        "pattern": "use $PATH::*;",
+        "description": "Glob import"
+      }
+    ],
+    "variable": [
+      {
+        "pattern": "let $NAME = $VALUE;",
+        "description": "Immutable binding"
+      },
+      {
+        "pattern": "let mut $NAME = $VALUE;",
+        "description": "Mutable binding"
+      },
+      {
+        "pattern": "let $NAME: $TYPE = $VALUE;",
+        "description": "Typed binding"
+      },
+      {
+        "pattern": "const $NAME: $TYPE = $VALUE;",
+        "description": "Constant"
+      }
+    ],
+    "control_flow": [
+      {
+        "pattern": "if $COND { $$$BODY }",
+        "description": "If expression"
+      },
+      {
+        "pattern": "match $EXPR { $$$ARMS }",
+        "description": "Match expression"
+      },
+      {
+        "pattern": "for $VAR in $ITER { $$$BODY }",
+        "description": "For loop"
+      },
+      {
+        "pattern": "while $COND { $$$BODY }",
+        "description": "While loop"
+      },
+      {
+        "pattern": "loop { $$$BODY }",
+        "description": "Infinite loop"
+      }
+    ],
+    "error_handling": [
+      {
+        "pattern": "$EXPR?",
+        "description": "Error propagation"
+      },
+      {
+        "pattern": "unwrap()",
+        "description": "Unwrap Result/Option"
+      },
+      {
+        "pattern": "expect($MSG)",
+        "description": "Expect with message"
+      },
+      {
+        "pattern": "Ok($VALUE)",
+        "description": "Ok variant"
+      },
+      {
+        "pattern": "Err($VALUE)",
+        "description": "Err variant"
+      },
+      {
+        "pattern": "panic!($MSG)",
+        "description": "Panic macro"
+      }
+    ],
+    "async": [
+      {
+        "pattern": "$FUTURE.await",
+        "description": "Await future"
+      },
+      {
+        "pattern": "tokio::spawn($FUTURE)",
+        "description": "Tokio spawn"
+      }
+    ]
+  },
+  "java": {
+    "function": [
+      {
+        "pattern": "public $RET $NAME($$$PARAMS) { $$$BODY }",
+        "description": "Public method"
+      },
+      {
+        "pattern": "private $RET $NAME($$$PARAMS) { $$$BODY }",
+        "description": "Private method"
+      },
+      {
+        "pattern": "public static $RET $NAME($$$PARAMS) { $$$BODY }",
+        "description": "Static method"
+      }
+    ],
+    "class": [
+      {
+        "pattern": "public class $NAME { $$$BODY }",
+        "description": "Public class"
+      },
+      {
+        "pattern": "public class $NAME extends $PARENT { $$$BODY }",
+        "description": "Class with inheritance"
+      },
+      {
+        "pattern": "public class $NAME implements $INTERFACE { $$$BODY }",
+        "description": "Class implementing interface"
+      },
+      {
+        "pattern": "public interface $NAME { $$$BODY }",
+        "description": "Interface definition"
+      }
+    ],
+    "import": [
+      {
+        "pattern": "import $PATH;",
+        "description": "Import statement"
+      },
+      {
+        "pattern": "import static $PATH;",
+        "description": "Static import"
+      }
+    ],
+    "variable": [
+      {
+        "pattern": "$TYPE $NAME = $VALUE;",
+        "description": "Variable declaration"
+      },
+      {
+        "pattern": "final $TYPE $NAME = $VALUE;",
+        "description": "Final variable"
+      },
+      {
+        "pattern": "private $TYPE $NAME;",
+        "description": "Private field"
+      }
+    ],
+    "control_flow": [
+      {
+        "pattern": "if ($COND) { $$$BODY }",
+        "description": "If statement"
+      },
+      {
+        "pattern": "for ($TYPE $VAR : $ITERABLE) { $$$BODY }",
+        "description": "Enhanced for loop"
+      },
+      {
+        "pattern": "switch ($EXPR) { $$$CASES }",
+        "description": "Switch statement"
+      }
+    ],
+    "error_handling": [
+      {
+        "pattern": "try { $$$TRY } catch ($TYPE $VAR) { $$$CATCH }",
+        "description": "Try-catch block"
+      },
+      {
+        "pattern": "throw new $TYPE($MSG);",
+        "description": "Throw exception"
+      }
+    ],
+    "async": [
+      {
+        "pattern": "CompletableFuture.supplyAsync($$$ARGS)",
+        "description": "Async computation"
+      },
+      {
+        "pattern": "$FUTURE.thenApply($FUNC)",
+        "description": "Future chain"
+      }
+    ]
+  },
+  "ruby": {
+    "function": [
+      {
+        "pattern": "def $NAME($$$PARAMS)\n  $$$BODY\nend",
+        "description": "Method definition"
+      },
+      {
+        "pattern": "def self.$NAME($$$PARAMS)\n  $$$BODY\nend",
+        "description": "Class method"
+      },
+      {
+        "pattern": "->($$$PARAMS) { $$$BODY }",
+        "description": "Lambda"
+      },
+      {
+        "pattern": "proc { |$$$PARAMS| $$$BODY }",
+        "description": "Proc"
+      }
+    ],
+    "class": [
+      {
+        "pattern": "class $NAME\n  $$$BODY\nend",
+        "description": "Class definition"
+      },
+      {
+        "pattern": "class $NAME < $PARENT\n  $$$BODY\nend",
+        "description": "Class with inheritance"
+      },
+      {
+        "pattern": "module $NAME\n  $$$BODY\nend",
+        "description": "Module definition"
+      }
+    ],
+    "import": [
+      {
+        "pattern": "require '$PATH'",
+        "description": "Require file"
+      },
+      {
+        "pattern": "require_relative '$PATH'",
+        "description": "Require relative"
+      },
+      {
+        "pattern": "include $MODULE",
+        "description": "Include module"
+      }
+    ],
+    "variable": [
+      {
+        "pattern": "$NAME = $VALUE",
+        "description": "Local variable"
+      },
+      {
+        "pattern": "@$NAME = $VALUE",
+        "description": "Instance variable"
+      },
+      {
+        "pattern": "@@$NAME = $VALUE",
+        "description": "Class variable"
+      }
+    ],
+    "control_flow": [
+      {
+        "pattern": "if $COND\n  $$$BODY\nend",
+        "description": "If statement"
+      },
+      {
+        "pattern": "unless $COND\n  $$$BODY\nend",
+        "description": "Unless statement"
+      },
+      {
+        "pattern": "$ITERABLE.each { |$VAR| $$$BODY }",
+        "description": "Each block"
+      },
+      {
+        "pattern": "$COND ? $THEN : $ELSE",
+        "description": "Ternary"
+      }
+    ],
+    "error_handling": [
+      {
+        "pattern": "begin\n  $$$TRY\nrescue $EXC\n  $$$RESCUE\nend",
+        "description": "Begin-rescue block"
+      },
+      {
+        "pattern": "raise $MSG",
+        "description": "Raise exception"
+      }
+    ],
+    "async": [
+      {
+        "pattern": "Thread.new { $$$BODY }",
+        "description": "New thread"
+      }
+    ]
+  },
+  "c": {
+    "function": [
+      {
+        "pattern": "$RET $NAME($$$PARAMS) { $$$BODY }",
+        "description": "Function definition"
+      },
+      {
+        "pattern": "static $RET $NAME($$$PARAMS) { $$$BODY }",
+        "description": "Static function"
+      }
+    ],
+    "class": [
+      {
+        "pattern": "struct $NAME { $$$FIELDS };",
+        "description": "Struct definition"
+      },
+      {
+        "pattern": "typedef struct { $$$FIELDS } $NAME;",
+        "description": "Typedef struct"
+      },
+      {
+        "pattern": "enum $NAME { $$$VALUES };",
+        "description": "Enum definition"
+      }
+    ],
+    "import": [
+      {
+        "pattern": "#include \"$PATH\"",
+        "description": "Include local header"
+      },
+      {
+        "pattern": "#include <$PATH>",
+        "description": "Include system header"
+      }
+    ],
+    "variable": [
+      {
+        "pattern": "$TYPE $NAME = $VALUE;",
+        "description": "Variable declaration"
+      },
+      {
+        "pattern": "const $TYPE $NAME = $VALUE;",
+        "description": "Const variable"
+      },
+      {
+        "pattern": "$TYPE *$NAME = $VALUE;",
+        "description": "Pointer declaration"
+      }
+    ],
+    "control_flow": [
+      {
+        "pattern": "if ($COND) { $$$BODY }",
+        "description": "If statement"
+      },
+      {
+        "pattern": "for ($INIT; $COND; $INCR) { $$$BODY }",
+        "description": "For loop"
+      },
+      {
+        "pattern": "while ($COND) { $$$BODY }",
+        "description": "While loop"
+      },
+      {
+        "pattern": "switch ($EXPR) { $$$CASES }",
+        "description": "Switch statement"
+      }
+    ],
+    "error_handling": [
+      {
+        "pattern": "if ($VAR == NULL) { $$$BODY }",
+        "description": "NULL check"
+      },
+      {
+        "pattern": "if ($RET < 0) { $$$BODY }",
+        "description": "Error return check"
+      }
+    ],
+    "async": []
+  },
+  "cpp": {
+    "function": [
+      {
+        "pattern": "$RET $NAME($$$PARAMS) { $$$BODY }",
+        "description": "Function definition"
+      },
+      {
+        "pattern": "auto $NAME($$$PARAMS) -> $RET { $$$BODY }",
+        "description": "Trailing return type"
+      },
+      {
+        "pattern": "[$$$CAPTURE]($$$PARAMS) { $$$BODY }",
+        "description": "Lambda expression"
+      }
+    ],
+    "class": [
+      {
+        "pattern": "class $NAME { $$$BODY };",
+        "description": "Class definition"
+      },
+      {
+        "pattern": "class $NAME : public $PARENT { $$$BODY };",
+        "description": "Class with inheritance"
+      },
+      {
+        "pattern": "template<$$$PARAMS>\nclass $NAME { $$$BODY };",
+        "description": "Template class"
+      }
+    ],
+    "import": [
+      {
+        "pattern": "#include \"$PATH\"",
+        "description": "Include local header"
+      },
+      {
+        "pattern": "#include <$PATH>",
+        "description": "Include system header"
+      },
+      {
+        "pattern": "using namespace $NS;",
+        "description": "Using namespace"
+      }
+    ],
+    "variable": [
+      {
+        "pattern": "auto $NAME = $VALUE;",
+        "description": "Auto type deduction"
+      },
+      {
+        "pattern": "std::unique_ptr<$TYPE> $NAME = $VALUE;",
+        "description": "Unique pointer"
+      },
+      {
+        "pattern": "std::shared_ptr<$TYPE> $NAME = $VALUE;",
+        "description": "Shared pointer"
+      }
+    ],
+    "control_flow": [
+      {
+        "pattern": "if ($COND) { $$$BODY }",
+        "description": "If statement"
+      },
+      {
+        "pattern": "for (auto& $VAR : $CONTAINER) { $$$BODY }",
+        "description": "Range-based for"
+      },
+      {
+        "pattern": "if constexpr ($COND) { $$$BODY }",
+        "description": "Compile-time if"
+      }
+    ],
+    "error_handling": [
+      {
+        "pattern": "try { $$$TRY } catch ($TYPE $VAR) { $$$CATCH }",
+        "description": "Try-catch block"
+      },
+      {
+        "pattern": "throw $EXPR;",
+        "description": "Throw exception"
+      },
+      {
+        "pattern": "std::optional<$TYPE>",
+        "description": "Optional type"
+      }
+    ],
+    "async": [
+      {
+        "pattern": "std::async($POLICY, $FUNC, $$$ARGS)",
+        "description": "Async call"
+      },
+      {
+        "pattern": "co_await $EXPR",
+        "description": "Coroutine await"
+      },
+      {
+        "pattern": "std::thread($FUNC, $$$ARGS)",
+        "description": "Create thread"
+      }
+    ]
+  }
+}

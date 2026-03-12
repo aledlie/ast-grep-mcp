@@ -31,30 +31,14 @@ logger = get_logger(__name__)
 
 
 def _split_camel_case(name: str) -> List[str]:
-    """Split camelCase or PascalCase into words.
-
-    Args:
-        name: camelCase or PascalCase string
-
-    Returns:
-        List of words
-    """
-    # Insert space before uppercase letters following lowercase
+    """Split camelCase or PascalCase into words."""
     result = re.sub(r"([a-z])([A-Z])", r"\1 \2", name)
-    # Insert space before uppercase letters followed by lowercase (for acronyms)
     result = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", result)
     return result.split()
 
 
 def _split_snake_case(name: str) -> List[str]:
-    """Split snake_case into words.
-
-    Args:
-        name: snake_case string
-
-    Returns:
-        List of words
-    """
+    """Split snake_case into words."""
     return name.split("_")
 
 
@@ -138,16 +122,7 @@ _VERB_PREFIX_MEANINGS: Dict[str, str] = {
 
 
 def _infer_description_from_name(name: str) -> str:
-    """Infer a description from a function name.
-
-    Uses common naming patterns to generate meaningful descriptions.
-
-    Args:
-        name: Function name
-
-    Returns:
-        Inferred description
-    """
+    """Infer a human-readable description from a function name using verb prefix patterns."""
     words = _function_name_words(name)
     if not words:
         return "Perform operation."
@@ -334,7 +309,7 @@ _PREFIX_PATTERNS: List[Tuple[str, str]] = [
 
 
 def _check_suffix_pattern(name: str) -> Optional[str]:
-    """Check if name matches a suffix pattern."""
+    """Return description from _SUFFIX_PATTERNS if name matches, else None."""
     for suffix, template in _SUFFIX_PATTERNS:
         if name.endswith(suffix):
             base = name[: -len(suffix)].replace("_", " ")
@@ -343,7 +318,7 @@ def _check_suffix_pattern(name: str) -> Optional[str]:
 
 
 def _check_prefix_pattern(name: str) -> Optional[str]:
-    """Check if name matches a prefix pattern."""
+    """Return description from _PREFIX_PATTERNS if name matches, else None."""
     for prefix, template in _PREFIX_PATTERNS:
         if name.startswith(prefix):
             rest = name[len(prefix) :].replace("_", " ")
@@ -352,15 +327,7 @@ def _check_prefix_pattern(name: str) -> Optional[str]:
 
 
 def _infer_parameter_description(param: ParameterInfo, function_context: str = "") -> str:
-    """Infer a description for a parameter.
-
-    Args:
-        param: Parameter information
-        function_context: Optional function name for context
-
-    Returns:
-        Inferred description
-    """
+    """Infer a description for a parameter from its name using lookup tables and patterns."""
     name = param.name.lower()
     result = _COMMON_PARAMS.get(name) or _check_suffix_pattern(name) or _check_prefix_pattern(name)
     if result:
@@ -422,15 +389,7 @@ def _function_name_words(function_name: str) -> List[str]:
 
 
 def _infer_return_description(return_type: Optional[str], function_name: str) -> str:
-    """Infer return value description.
-
-    Args:
-        return_type: Return type annotation
-        function_name: Function name for context
-
-    Returns:
-        Inferred return description
-    """
+    """Infer a return value description from the function name prefix and return type."""
     words = _function_name_words(function_name)
     if not words:
         return "The result"
@@ -460,21 +419,24 @@ def _parse_single_python_param(part: str) -> Optional[ParameterInfo]:
     return ParameterInfo(name=name, type_hint=type_hint, default_value=default)
 
 
-def _split_python_params(params_str: str) -> List[str]:
-    """Split Python params string by comma, respecting nested brackets."""
+def _split_params(params_str: str, open_brackets: str) -> List[str]:
+    """Split a params string by comma, respecting nested brackets.
+
+    Args:
+        params_str: Raw parameter string
+        open_brackets: Characters that increase nesting depth (closing chars are inferred)
+    """
+    close_map = {"(": ")", "[": "]", "{": "}", "<": ">"}
+    close_brackets = "".join(close_map[c] for c in open_brackets if c in close_map)
     parts: list[str] = []
     depth = 0
     current: list[str] = []
     for char in params_str:
-        if char in "([{":
+        if char in open_brackets:
             depth += 1
-            current.append(char)
-            continue
-        if char in ")]}":
+        elif char in close_brackets:
             depth = max(0, depth - 1)
-            current.append(char)
-            continue
-        if char == "," and depth == 0:
+        elif char == "," and depth == 0:
             parts.append("".join(current).strip())
             current = []
             continue
@@ -484,28 +446,14 @@ def _split_python_params(params_str: str) -> List[str]:
     return parts
 
 
+def _split_python_params(params_str: str) -> List[str]:
+    """Split Python params string by comma, respecting nested brackets."""
+    return _split_params(params_str, "([{")
+
+
 def _split_js_ts_params(params_str: str) -> List[str]:
     """Split JS/TS params string by commas, respecting angle brackets, braces, and parens."""
-    parts: list[str] = []
-    depth = 0
-    current: list[str] = []
-    for char in params_str:
-        if char in ("<", "{", "("):
-            depth += 1
-            current.append(char)
-            continue
-        if char in (">", "}", ")"):
-            depth = max(0, depth - 1)
-            current.append(char)
-            continue
-        if char == "," and depth == 0:
-            parts.append("".join(current))
-            current = []
-            continue
-        current.append(char)
-    if current:
-        parts.append("".join(current))
-    return parts
+    return _split_params(params_str, "<{(")
 
 
 # =============================================================================
@@ -642,23 +590,14 @@ class FunctionSignatureParser:
         """Find the end line of a Python function."""
         indent_len = len(indent)
         i = start + 1
-
         while i < len(lines):
             line = lines[i]
-            # Skip empty lines
             if not line.strip():
                 i += 1
                 continue
-
-            # Check indentation
-            current_indent = len(line) - len(line.lstrip())
-
-            # If we hit a line with same or less indentation, function ended
-            if current_indent <= indent_len and line.strip():
+            if len(line) - len(line.lstrip()) <= indent_len:
                 return i
-
             i += 1
-
         return len(lines)
 
     _JS_TS_PATTERNS = [
@@ -811,26 +750,17 @@ class FunctionSignatureParser:
         return [sig for i, m in matches if m for sig in [self._build_java_sig(lines, i, m, file_path)] if sig]
 
     def _parse_java_params(self, params_str: str) -> List[ParameterInfo]:
-        """Parse Java method parameters."""
-        params: list[ParameterInfo] = []
+        """Parse Java method parameters (format: Type name or final Type name)."""
         if not params_str.strip():
-            return params
-
-        # Split by comma
-        parts = params_str.split(",")
-
-        for part in parts:
+            return []
+        params: list[ParameterInfo] = []
+        for part in params_str.split(","):
             part = part.strip()
             if not part:
                 continue
-
-            # Java params are: Type name or final Type name
-            parts_split = part.split()
-            if len(parts_split) >= 2:
-                name = parts_split[-1]
-                type_hint = " ".join(parts_split[:-1])
-                params.append(ParameterInfo(name=name, type_hint=type_hint))
-
+            tokens = part.split()
+            if len(tokens) >= 2:
+                params.append(ParameterInfo(name=tokens[-1], type_hint=" ".join(tokens[:-1])))
         return params
 
 
@@ -916,13 +846,8 @@ def _generate_sphinx_docstring(func: FunctionSignature) -> str:
 
 def _generate_jsdoc(func: FunctionSignature) -> str:
     """Generate JSDoc-style documentation."""
-    lines = ["/**"]
+    lines = ["/**", f" * {_infer_description_from_name(func.name)}"]
 
-    # Description
-    description = _infer_description_from_name(func.name)
-    lines.append(f" * {description}")
-
-    # Add @param entries
     if func.parameters:
         lines.append(" *")
         for param in func.parameters:
@@ -933,13 +858,10 @@ def _generate_jsdoc(func: FunctionSignature) -> str:
             else:
                 lines.append(f" * @param {{{type_str}}} {param.name} - {desc}")
 
-    # Add @returns
     if func.return_type and func.return_type.lower() not in ("void", "undefined"):
         lines.append(" *")
-        return_desc = _infer_return_description(func.return_type, func.name)
-        lines.append(f" * @returns {{{func.return_type}}} {return_desc}")
+        lines.append(f" * @returns {{{func.return_type}}} {_infer_return_description(func.return_type, func.name)}")
 
-    # Add @async if applicable
     if func.is_async:
         lines.append(" * @async")
 
@@ -949,24 +871,16 @@ def _generate_jsdoc(func: FunctionSignature) -> str:
 
 def _generate_javadoc(func: FunctionSignature) -> str:
     """Generate Javadoc-style documentation."""
-    lines = ["/**"]
+    lines = ["/**", f" * {_infer_description_from_name(func.name)}"]
 
-    # Description
-    description = _infer_description_from_name(func.name)
-    lines.append(f" * {description}")
-
-    # Add @param entries
     if func.parameters:
         lines.append(" *")
         for param in func.parameters:
-            desc = _infer_parameter_description(param, func.name)
-            lines.append(f" * @param {param.name} {desc}")
+            lines.append(f" * @param {param.name} {_infer_parameter_description(param, func.name)}")
 
-    # Add @return
-    if func.return_type and func.return_type.lower() not in ("void"):
+    if func.return_type and func.return_type.lower() != "void":
         lines.append(" *")
-        return_desc = _infer_return_description(func.return_type, func.name)
-        lines.append(f" * @return {return_desc}")
+        lines.append(f" * @return {_infer_return_description(func.return_type, func.name)}")
 
     lines.append(" */")
     return "\n".join(lines)
@@ -1063,15 +977,12 @@ def _detect_project_style(project_folder: str, language: str) -> DocstringStyle:
     Returns:
         Detected style or default for language
     """
-    # Default styles by language
     defaults = {
         "python": DocstringStyle.GOOGLE,
         "typescript": DocstringStyle.JSDOC,
         "javascript": DocstringStyle.JSDOC,
         "java": DocstringStyle.JAVADOC,
     }
-
-    # Could implement scanning here - for now return default
     return defaults.get(language, DocstringStyle.GOOGLE)
 
 
@@ -1080,17 +991,7 @@ def _generate_docstring_for_function(
     style: DocstringStyle,
     language: str,
 ) -> GeneratedDocstring:
-    """Generate docstring for a single function.
-
-    Args:
-        func: Function signature
-        style: Docstring style
-        language: Programming language
-
-    Returns:
-        Generated docstring
-    """
-    # Select generator based on style
+    """Select a style-appropriate generator and return a GeneratedDocstring for func."""
     generators = {
         DocstringStyle.GOOGLE: _generate_google_docstring,
         DocstringStyle.NUMPY: _generate_numpy_docstring,
@@ -1123,14 +1024,10 @@ def _should_skip_function(func: FunctionSignature, skip_private: bool = True) ->
     Returns:
         Tuple of (should_skip, reason)
     """
-    # Skip private functions if requested
     if skip_private and func.name.startswith("_") and not func.name.startswith("__"):
         return True, "private function"
-
-    # Skip dunder methods except __init__
     if func.name.startswith("__") and func.name.endswith("__") and func.name != "__init__":
         return True, "dunder method"
-
     return False, ""
 
 
