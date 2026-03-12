@@ -168,15 +168,15 @@ Analyzed with all 53 ast-grep-mcp tools (complexity, smells, standards, security
 - [x] **OT-CX-01** (High) Decompose `cost-estimation.ts:424-613` — cyc=32, cog=36, len=190. Extracted `_executeRecordSpend` + `_buildTrackerSummary` + `BudgetTrackerState` (commit 3f21ac8, review: PASS)
 - [x] **OT-CX-02** (Medium) Decompose `server.ts:146-304` — cyc=21, len=159. Extracted `_registerRequestHandlers`, `_connectStdioTransport`, `_setupGracefulShutdown` (commit ece0615, review: PASS)
 - [x] **OT-CX-03** (Medium) Decompose `estimate-cost.ts:31-125` — cyc=20, len=95. Extracted `_buildModelRows`, `_sortModelRows`, `_formatModelRow` (commit 6df8542, review: PASS)
-- [ ] **OT-SM-01** (Medium) Extract magic numbers to named constants in `cost-estimation.ts`, `quality-feature-engineering.ts`, `export-utils.ts`.
+- [x] **OT-SM-01** (Medium) Extract magic numbers to named constants in `cost-estimation.ts`, `quality-feature-engineering.ts`, `export-utils.ts`. Investigation found `quality-feature-engineering.ts` and `export-utils.ts` already fully extracted; extracted `HARDCODED_FALLBACK_PRICING` in `cost-estimation.ts:253` (commit a8672a5, review: PASS)
 - [x] **OT-CX-04** (Low) Decompose `query-metrics.ts:65-133` — cyc=17. Extracted `_processSpanForCost` with `CostAccumulator` state (commit 9c17b7a, review: PASS)
 - [x] **OT-CX-05** (Low) Decompose `context-stats.ts:187-316` — cyc=13, len=130. Extracted `_findSessionById`, `_buildBaseResult`, `_appendCostSection`, `_appendBreakdownSection`, `_appendHistorySection` (commit f0fb17a, review: PASS)
-- [ ] **OT-STD-01** (Low) Batch `let` → `const` for ~50 non-reassigned variables in production code.
-- [ ] **OT-AP-01** (Low) Replace `ToolDefinition<any>[]` in `server.ts:82` with specific generic type.
+- [x] **OT-STD-01** (Low) Batch `let` → `const` for ~50 non-reassigned variables in production code. Investigation (ESLint `prefer-const` run) confirmed 0 actual violations — all flagged `let` declarations are legitimately reassigned. The MCP `enforce_standards` pattern (`let $NAME = $INIT`) lacks control-flow analysis and produces false positives for accumulator variables, loop variables, and switch-case targets.
+- [x] **OT-AP-01** (Low) Replace `ToolDefinition<any>[]` in `server.ts:82` with specific generic type. Introduced `AnyTool` type alias with JSDoc explaining contravariance makes `unknown` impossible; `any` is intentional (commit b25dfad, review: PASS)
 - [ ] **OT-SM-02** (Medium) Decompose `instrumentation.ts` — grew from 377 → **715 lines** (2026-03-11 check). Growth threshold exceeded; decompose into focused sub-modules (e.g., span-lifecycle, attribute-collection, hook-instrumentation). -- `~/.claude/mcp-servers/observability-toolkit/src/lib/observability/instrumentation.ts`
-- [ ] **OT-SEC-01** (Info) Extract test fixture Bearer tokens to per-file named constants (e.g., `const TEST_BEARER_TOKEN`) to reduce secret-scanning noise.
+- [x] **OT-SEC-01** (Info) Extract test fixture Bearer tokens to per-file named constants (e.g., `const TEST_BEARER_TOKEN`) to reduce secret-scanning noise. (commit 2c1ba54, review: PASS)
 - [x] **OT-STD-02** (Info) Add suppression comment for intentional `console.log` in `logger.ts:72`. (observability-toolkit commit 1e95bdf)
-- [ ] **OT-DOC-01** (Info) Add baseline token count to Table 8 (Token Condensation Estimates) in quality report. Include source total (e.g., "~910,000 tokens raw") to allow readers to verify reduction percentages. -- `docs/reports/OBSERVABILITY-TOOLKIT-QUALITY-REPORT.md:160-165`
+- [x] **OT-DOC-01** (Info) Add baseline token count to Table 8 (Token Condensation Estimates) in quality report. (commit 55b1ad8)
 
 ## Config File Support in MCP (2026-03-11)
 
