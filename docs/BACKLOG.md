@@ -173,7 +173,7 @@ Analyzed with all 53 ast-grep-mcp tools (complexity, smells, standards, security
 - [x] **OT-CX-05** (Low) Decompose `context-stats.ts:187-316` — cyc=13, len=130. Extracted `_findSessionById`, `_buildBaseResult`, `_appendCostSection`, `_appendBreakdownSection`, `_appendHistorySection` (commit f0fb17a, review: PASS)
 - [ ] **OT-STD-01** (Low) Batch `let` → `const` for ~50 non-reassigned variables in production code.
 - [ ] **OT-AP-01** (Low) Replace `ToolDefinition<any>[]` in `server.ts:82` with specific generic type.
-- [ ] **OT-SM-02** (Low) Monitor `instrumentation.ts` class size (377 lines/13 methods) — decompose if growth continues.
+- [ ] **OT-SM-02** (Medium) Decompose `instrumentation.ts` — grew from 377 → **715 lines** (2026-03-11 check). Growth threshold exceeded; decompose into focused sub-modules (e.g., span-lifecycle, attribute-collection, hook-instrumentation). -- `~/.claude/mcp-servers/observability-toolkit/src/lib/observability/instrumentation.ts`
 - [ ] **OT-SEC-01** (Info) Extract test fixture Bearer tokens to per-file named constants (e.g., `const TEST_BEARER_TOKEN`) to reduce secret-scanning noise.
 - [ ] **OT-STD-02** (Info) Add suppression comment for intentional `console.log` in `logger.ts:72`.
 - [ ] **OT-DOC-01** (Info) Add baseline token count to Table 8 (Token Condensation Estimates) in quality report. Include source total (e.g., "~910,000 tokens raw") to allow readers to verify reduction percentages. -- `docs/reports/OBSERVABILITY-TOOLKIT-QUALITY-REPORT.md:160-165`
@@ -232,8 +232,8 @@ Config files contain declarations/objects, not executable code. Current sample p
 
 -- `docs/CONFIG_PATTERNS.md` (new file)
 
-#### CF-03: Auto-detect config file types in `run_all_tools.py`
-**Priority**: P3 | **Source**: session:2026-03-11
+#### CF-03: Auto-detect config file types in `run_all_tools.py` ✅
+**Priority**: P3 | **Source**: session:2026-03-11 | **Done**: commits 2e8eb7e, 5064c82
 
 Before running tools, scan the target directory for file extensions and print language recommendations. If all files are config types (`.cjs`, `.json`, `.yml`, `.schema.json`), suggest running with multiple languages or warn that function-oriented patterns will return empty.
 
