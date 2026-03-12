@@ -23,8 +23,9 @@ Example `language_globs`:
 ```python
 language_globs = {
     "javascript": ["**/*.cjs", "**/*.mjs"],
-    # Note: ".eslintrc" is an exact filename match (not a shell glob) — ast-grep's
-    # languageGlobs supports exact filenames as well as glob patterns.
+    # ".eslintrc" is an exact filename pattern supported by ast-grep's languageGlobs.
+    # This only takes effect with the `scan` subcommand (--config sgconfig.yml).
+    # Use "**/.eslintrc" if your tool path uses glob expansion before passing to ast-grep.
     "json": [".eslintrc", ".babelrc", "*.schema.json"],
     "yaml": ["*.config.yml"],
 }
@@ -40,14 +41,11 @@ Language: `javascript`
 Object properties must be matched inside their containing object literal context.
 
 ```
-# Module exports (top-level config object)
+# Module exports (any value — broadest match)
 module.exports = $VALUE
 
-# Module exports with specific property
-module.exports = { $KEY: $VALUE, $$$REST }
-
-# Module exports with apps array (e.g. PM2)
-module.exports = { apps: [$$$ITEMS], $$$REST }
+# Module exports object with any properties (single or multi-property)
+module.exports = {$$$PROPS}
 
 # Property assignment
 $OBJ.$PROP = $VALUE
@@ -58,15 +56,12 @@ require($MODULE)
 
 ### PM2 Ecosystem (`ecosystem.config.cjs`)
 
-PM2 apps are entries in the `apps` array. Match the whole exports object to find
-all app configs, or search for specific string values:
+PM2 apps are entries in the `apps` array. Use `{$$$PROPS}` (no trailing comma)
+to match objects with any number of properties including single-property objects:
 
 ```
-# All exports (contains the apps array)
-module.exports = { apps: [$$$ITEMS], $$$REST }
-
-# String value for a specific field anywhere in the file
-"$VALUE"
+# All exports with apps array (matches single-property and multi-property objects)
+module.exports = {$$$PROPS}
 
 # Function call (e.g. process.env access)
 process.env.$VAR
