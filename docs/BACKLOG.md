@@ -175,7 +175,7 @@ Analyzed with all 53 ast-grep-mcp tools (complexity, smells, standards, security
 - [ ] **OT-AP-01** (Low) Replace `ToolDefinition<any>[]` in `server.ts:82` with specific generic type.
 - [ ] **OT-SM-02** (Medium) Decompose `instrumentation.ts` — grew from 377 → **715 lines** (2026-03-11 check). Growth threshold exceeded; decompose into focused sub-modules (e.g., span-lifecycle, attribute-collection, hook-instrumentation). -- `~/.claude/mcp-servers/observability-toolkit/src/lib/observability/instrumentation.ts`
 - [ ] **OT-SEC-01** (Info) Extract test fixture Bearer tokens to per-file named constants (e.g., `const TEST_BEARER_TOKEN`) to reduce secret-scanning noise.
-- [ ] **OT-STD-02** (Info) Add suppression comment for intentional `console.log` in `logger.ts:72`.
+- [x] **OT-STD-02** (Info) Add suppression comment for intentional `console.log` in `logger.ts:72`. (observability-toolkit commit 1e95bdf)
 - [ ] **OT-DOC-01** (Info) Add baseline token count to Table 8 (Token Condensation Estimates) in quality report. Include source total (e.g., "~910,000 tokens raw") to allow readers to verify reduction percentages. -- `docs/reports/OBSERVABILITY-TOOLKIT-QUALITY-REPORT.md:160-165`
 
 ## Config File Support in MCP (2026-03-11)
