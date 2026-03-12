@@ -607,6 +607,76 @@ class TestSchemaOrgClient:
             article = result["@graph"][0]
             assert article["url"] == "https://example.com/blog/my-post"
 
+    @pytest.mark.asyncio
+    async def test_build_entity_graph_dict_relationship_target(self, schema_client) -> None:
+        """Test that dict relationship targets pass through without unhashable type error."""
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_response = Mock()
+            mock_response.json.return_value = MOCK_SCHEMA_DATA
+            mock_response.raise_for_status = Mock()
+            mock_client.get.return_value = mock_response
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            entities = [
+                {
+                    "type": "Organization",
+                    "id_fragment": "org-acme",
+                    "properties": {"name": "Acme Corp"},
+                    "relationships": {
+                        "founder": {"@id": "https://example.com/#person-john"},
+                    },
+                },
+            ]
+
+            result = await schema_client.build_entity_graph(entities, "https://example.com")
+
+            org = result["@graph"][0]
+            assert org["founder"] == {"@id": "https://example.com/#person-john"}
+
+    @pytest.mark.asyncio
+    async def test_build_entity_graph_list_with_dict_relationship_targets(self, schema_client) -> None:
+        """Test that list relationship targets containing dicts don't raise unhashable type error."""
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_response = Mock()
+            mock_response.json.return_value = MOCK_SCHEMA_DATA
+            mock_response.raise_for_status = Mock()
+            mock_client.get.return_value = mock_response
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client_class.return_value = mock_client
+
+            entities = [
+                {
+                    "type": "Organization",
+                    "id_fragment": "org-acme",
+                    "properties": {"name": "Acme Corp"},
+                    "relationships": {
+                        "member": [
+                            {"@id": "https://example.com/#person-john"},
+                            "person-jane",
+                        ],
+                    },
+                },
+                {
+                    "type": "Person",
+                    "id_fragment": "person-jane",
+                    "properties": {"name": "Jane Doe"},
+                },
+            ]
+
+            result = await schema_client.build_entity_graph(entities, "https://example.com")
+
+            org = [e for e in result["@graph"] if e["@type"] == "Organization"][0]
+            jane = [e for e in result["@graph"] if e["@type"] == "Person"][0]
+
+            # Dict target passes through, string target resolves to @id ref
+            assert org["member"][0] == {"@id": "https://example.com/#person-john"}
+            assert org["member"][1] == {"@id": jane["@id"]}
+
 
 class TestSchemaOrgTools:
     """Tests for Schema.org MCP tools."""
