@@ -2,8 +2,10 @@
 
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from typing import Any, Dict, Generator, List, Optional, Tuple, cast
@@ -293,17 +295,50 @@ def filter_files_by_size(directory: str, max_size_mb: Optional[int] = None, lang
     return (files_to_search, skipped_files)
 
 
-def run_ast_grep(command: str, args: List[str], input_text: Optional[str] = None) -> subprocess.CompletedProcess[str]:
+def _write_language_globs_config(language_globs: Dict[str, List[str]], tmpdir: str) -> str:
+    """Write a temporary sgconfig.yml with languageGlobs and return its path.
+
+    Args:
+        language_globs: Mapping of language name to glob patterns.
+        tmpdir: Temporary directory to write the config file into.
+
+    Returns:
+        Absolute path to the written sgconfig.yml.
+    """
+    config_path = os.path.join(tmpdir, "sgconfig.yml")
+    with open(config_path, "w") as f:
+        yaml.dump({"languageGlobs": language_globs}, f)
+    return config_path
+
+
+def run_ast_grep(
+    command: str,
+    args: List[str],
+    input_text: Optional[str] = None,
+    language_globs: Optional[Dict[str, List[str]]] = None,
+) -> subprocess.CompletedProcess[str]:
     """Execute ast-grep command with optional config.
 
     Args:
         command: ast-grep subcommand (run, scan, etc.)
         args: Command arguments
         input_text: Optional stdin input
+        language_globs: Optional mapping of language → glob patterns written to a
+            temporary sgconfig.yml and passed via --config.  When provided, takes
+            precedence over the global CONFIG_PATH.
 
     Returns:
         CompletedProcess instance
     """
+    if language_globs:
+        tmpdir = tempfile.mkdtemp()
+        try:
+            config_path = _write_language_globs_config(language_globs, tmpdir)
+            effective_args = ["--config", config_path] + args
+            allow_nonzero = any(arg.startswith("--debug-query") for arg in effective_args)
+            return run_command([ExecutorDefaults.AST_GREP_COMMAND, command] + effective_args, input_text, allow_nonzero=allow_nonzero)
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
     if CONFIG_PATH:
         args = ["--config", CONFIG_PATH] + args
     # --debug-query outputs to stderr and returns exit code 1 even on success
@@ -311,19 +346,21 @@ def run_ast_grep(command: str, args: List[str], input_text: Optional[str] = None
     return run_command([ExecutorDefaults.AST_GREP_COMMAND, command] + args, input_text, allow_nonzero=allow_nonzero)
 
 
-def _prepare_stream_command(command: str, args: List[str]) -> List[str]:
+def _prepare_stream_command(command: str, args: List[str], config_override: Optional[str] = None) -> List[str]:
     """Prepare the full ast-grep command with optional config.
 
     Args:
         command: ast-grep subcommand
         args: Command arguments
+        config_override: Path to a config file that takes precedence over CONFIG_PATH.
 
     Returns:
         Full command list
     """
     final_args = args.copy()
-    if CONFIG_PATH:
-        final_args = ["--config", CONFIG_PATH] + final_args
+    effective_config = config_override or CONFIG_PATH
+    if effective_config:
+        final_args = ["--config", effective_config] + final_args
     return [ExecutorDefaults.AST_GREP_COMMAND, command] + final_args
 
 
@@ -540,7 +577,11 @@ def _raise_not_found_error(full_command: List[str], cause: Exception) -> None:
 
 
 def stream_ast_grep_results(
-    command: str, args: List[str], max_results: int = 0, progress_interval: int = StreamDefaults.PROGRESS_INTERVAL
+    command: str,
+    args: List[str],
+    max_results: int = 0,
+    progress_interval: int = StreamDefaults.PROGRESS_INTERVAL,
+    language_globs: Optional[Dict[str, List[str]]] = None,
 ) -> Generator[Dict[str, Any], None, None]:
     """Stream ast-grep JSON results line-by-line with early termination support.
 
@@ -552,6 +593,9 @@ def stream_ast_grep_results(
         args: Command arguments (must include --json=stream flag)
         max_results: Maximum results to yield (0 = unlimited)
         progress_interval: Log progress every N matches
+        language_globs: Optional mapping of language → glob patterns written to a
+            temporary sgconfig.yml and passed via --config.  When provided, takes
+            precedence over the global CONFIG_PATH.
 
     Yields:
         Individual match dictionaries from ast-grep JSON output
@@ -562,7 +606,14 @@ def stream_ast_grep_results(
     """
     logger = get_logger("stream_results")
     start_time = time.time()
-    full_command = _prepare_stream_command(command, args)
+
+    tmpdir: Optional[str] = None
+    config_override: Optional[str] = None
+    if language_globs:
+        tmpdir = tempfile.mkdtemp()
+        config_override = _write_language_globs_config(language_globs, tmpdir)
+
+    full_command = _prepare_stream_command(command, args, config_override=config_override)
 
     logger.info("stream_started", command=command, max_results=max_results, progress_interval=progress_interval)
 
@@ -588,3 +639,5 @@ def stream_ast_grep_results(
 
     finally:
         _cleanup_process(process)
+        if tmpdir:
+            shutil.rmtree(tmpdir, ignore_errors=True)
