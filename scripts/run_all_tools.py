@@ -16,6 +16,84 @@ LANG = sys.argv[2] if len(sys.argv) > 2 else "typescript"
 
 results: dict[str, dict] = {}
 
+# Extensions considered "config-only" (non-executable, no function definitions)
+_CONFIG_EXTS = {".json", ".yaml", ".yml", ".toml", ".ini", ".cjs", ".env"}
+_CODE_EXTS = {".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".rs", ".go", ".java", ".rb", ".cs"}
+
+# Known language mappings for auto-suggestion
+_EXT_TO_LANG: dict[str, str] = {
+    ".py": "python", ".ts": "typescript", ".tsx": "tsx", ".js": "javascript",
+    ".jsx": "jsx", ".mjs": "javascript", ".cjs": "javascript",
+    ".rs": "rust", ".go": "go", ".java": "java", ".rb": "ruby",
+    ".json": "json", ".yaml": "yaml", ".yml": "yaml",
+}
+
+
+def _detect_target_info(target: str) -> dict:
+    """Scan target directory and return extension counts and language recommendations.
+
+    Returns dict with keys:
+        ext_counts: {ext: count} for all found extensions
+        code_ext_counts: {ext: count} for code-only extensions
+        config_ext_counts: {ext: count} for config-only extensions
+        is_config_only: True if no code extensions were found
+        recommended_langs: list of suggested languages to pass
+        warnings: list of warning strings to print
+    """
+    ext_counts: dict[str, int] = {}
+    target_path = Path(target)
+
+    if not target_path.exists():
+        return {
+            "ext_counts": {}, "code_ext_counts": {}, "config_ext_counts": {},
+            "is_config_only": False, "recommended_langs": [LANG], "warnings": [f"Target directory not found: {target}"],
+        }
+
+    _SKIP_DIRS = {"node_modules", ".git", "__pycache__", "venv", ".venv", "dist", "build"}
+    for p in target_path.rglob("*"):
+        if p.is_file() and not any(part in _SKIP_DIRS for part in p.parts):
+            ext = p.suffix.lower()
+            if ext:
+                ext_counts[ext] = ext_counts.get(ext, 0) + 1
+
+    code_ext_counts = {e: c for e, c in ext_counts.items() if e in _CODE_EXTS}
+    config_ext_counts = {e: c for e, c in ext_counts.items() if e in _CONFIG_EXTS}
+    is_config_only = bool(config_ext_counts) and not bool(code_ext_counts)
+
+    # Build language recommendations from detected extensions
+    recommended_langs = sorted({_EXT_TO_LANG[e] for e in ext_counts if e in _EXT_TO_LANG})
+    if not recommended_langs:
+        recommended_langs = [LANG]
+
+    warnings = []
+    if is_config_only:
+        warnings.append(
+            "⚠  Target appears to contain config files only (no .py/.ts/.js/etc found)."
+        )
+        warnings.append(
+            "   Function-oriented patterns (function $NAME, class $C) will return 0 matches."
+        )
+        warnings.append(
+            "   See docs/CONFIG_PATTERNS.md for patterns that work against config formats."
+        )
+        if config_ext_counts:
+            suggestions = ", ".join(
+                f"{_EXT_TO_LANG[e]} (for {e})"
+                for e in sorted(config_ext_counts)
+                if e in _EXT_TO_LANG
+            )
+            if suggestions:
+                warnings.append(f"   Suggested languages: {suggestions}")
+
+    return {
+        "ext_counts": ext_counts,
+        "code_ext_counts": code_ext_counts,
+        "config_ext_counts": config_ext_counts,
+        "is_config_only": is_config_only,
+        "recommended_langs": recommended_langs,
+        "warnings": warnings,
+    }
+
 
 def record(name: str, result=None, error=None, skipped=None):
     entry = {"tool": name}
@@ -586,6 +664,16 @@ def main():
     start = time.time()
     print(f"Running all tools against {TARGET}")
     print(f"Language: {LANG}\n")
+
+    # Detect target directory contents and warn about config-only targets
+    target_info = _detect_target_info(TARGET)
+    if target_info["ext_counts"]:
+        top_exts = sorted(target_info["ext_counts"].items(), key=lambda x: -x[1])[:8]
+        print(f"Detected extensions: {', '.join(f'{e}({c})' for e, c in top_exts)}")
+    for warning in target_info["warnings"]:
+        print(warning)
+    if target_info["warnings"]:
+        print()
 
     run_sync_tools()
     asyncio.run(run_async_tools())
