@@ -132,7 +132,7 @@ def _run_scan_against_code(code: str, yaml_rule: str, start_time: float, logger:
         )
         if not matches:
             raise NoMatchesError("No matches found for the given code and rule")
-        return matches  # type: ignore[return-value]
+        return matches
 
 
 def test_match_code_rule_impl(code: str, yaml_rule: str) -> List[Dict[str, Any]]:
@@ -352,7 +352,7 @@ def find_code_impl(
         return _run_find_code_search(
             project_folder, pattern, language, max_results, output_format, workers, search_targets, logger, start_time,
             language_globs=language_globs,
-        )  # type: ignore[return-value]
+        )
 
 
 def _validate_yaml_rule(yaml_rule: str) -> Dict[str, Any]:
@@ -572,7 +572,7 @@ def find_code_by_rule_impl(
         },
         passthrough=(InvalidYAMLError,),
     ):
-        return _run_rule_search_with_cache(  # type: ignore[return-value]
+        return _run_rule_search_with_cache(
             project_folder, yaml_rule, max_results, output_format, warnings, parsed_yaml, logger, start_time
         )
 
@@ -1135,7 +1135,7 @@ def debug_pattern_impl(
         start_time,
         {"function": "debug_pattern_impl", "language": language, "pattern_length": len(pattern), "code_length": len(code)},
     ):
-        return _run_debug_analysis(pattern, code, language, start_time, logger)  # type: ignore[return-value]
+        return _run_debug_analysis(pattern, code, language, start_time, logger)
 
 
 # =============================================================================
@@ -1788,4 +1788,4 @@ def develop_pattern_impl(
         start_time,
         {"function": "develop_pattern_impl", "language": language, "code_length": len(code)},
     ):
-        return _run_develop_analysis(code, language, start_time, logger)  # type: ignore[return-value]
+        return _run_develop_analysis(code, language, start_time, logger)
