@@ -10,10 +10,7 @@ import re
 import time
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Set, Tuple
-
-if TYPE_CHECKING:
-    pass
+from typing import Any, Dict, List, Literal, Optional, Set, Tuple
 
 from datasketch import MinHash, MinHashLSH
 
