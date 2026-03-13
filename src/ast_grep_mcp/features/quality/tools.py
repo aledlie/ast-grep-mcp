@@ -199,6 +199,7 @@ def list_rule_templates_tool(language: Optional[str] = None, category: Optional[
 
 
 def _get_default_exclude_patterns() -> List[str]:
+    """Return the default file exclusion patterns for quality scans."""
     return FilePatterns.normalize_excludes(None)
 
 
@@ -467,6 +468,7 @@ def _group_violations(
     Dict[str, List[RuleViolation]],
     Dict[str, List[RuleViolation]],
 ]:
+    """Group violations into by-file, by-severity, and by-rule dictionaries."""
     by_file: Dict[str, List[RuleViolation]] = defaultdict(list)
     by_severity: Dict[str, List[RuleViolation]] = defaultdict(list)
     by_rule: Dict[str, List[RuleViolation]] = defaultdict(list)
@@ -480,6 +482,7 @@ def _group_violations(
 
 
 def _dict_to_enforcement_result(data: Dict[str, Any]) -> EnforcementResult:
+    """Convert a raw enforcement result dict into a typed EnforcementResult object."""
     violations = _convert_violations_to_objects(data.get("violations", []))
     by_file, by_severity, by_rule = _group_violations(violations)
 
