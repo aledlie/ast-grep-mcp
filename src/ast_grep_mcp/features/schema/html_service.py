@@ -15,7 +15,7 @@ from ast_grep_mcp.features.search.service import find_code_by_rule_impl
 
 logger = get_logger("schema.html")
 
-DEFAULT_HTML_GLOBS = ["**/*.html", "**/*.htm"]
+DEFAULT_HTML_GLOBS = ["**/*.html", "**/*.htm", "*.html", "*.htm"]
 
 # --- YAML Rules ---
 
