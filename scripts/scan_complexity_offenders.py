@@ -10,12 +10,12 @@ With --all, prints every function from the scanned files.
 import pathlib
 import sys
 
+from ast_grep_mcp.features.complexity.analyzer import extract_functions_from_file
 from ast_grep_mcp.features.complexity.metrics import (
     calculate_cognitive_complexity,
     calculate_cyclomatic_complexity,
     calculate_nesting_depth,
 )
-from ast_grep_mcp.features.complexity.analyzer import extract_functions_from_file
 
 _PROJECT_ROOT = pathlib.Path(__file__).parent.parent
 

@@ -9,6 +9,7 @@ import fnmatch
 import re
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -23,6 +24,9 @@ from ast_grep_mcp.models.orphan import (
     OrphanFunction,
     VerificationStatus,
 )
+
+
+_GREP_EXCLUDE_DIRS = ("node_modules", ".git", "dist", "build", "__pycache__", ".venv", "venv", "coverage", ".next", ".turbo")
 
 
 class OrphanDetector:
@@ -102,6 +106,7 @@ class OrphanDetector:
             elif file_path.suffix in (".ts", ".js", ".tsx", ".jsx"):
                 self._extract_js_imports(file_path, rel_path, base_path, graph)
 
+        graph.build_index()
         self.logger.debug("dependency_graph_built", files=len(graph.files), edges=len(graph.edges))
         return graph
 
@@ -397,15 +402,41 @@ class OrphanDetector:
             reason="No direct imports found",
         )
 
-    def _verify_orphans_with_grep(self, base_path: Path, orphans: List[OrphanFile]) -> List[OrphanFile]:
-        """Verify orphan candidates using grep for string references."""
-        return [self._verify_single_orphan(base_path, orphan) for orphan in orphans]
+    @staticmethod
+    def _grep_exclude_args() -> List[str]:
+        """Build --exclude-dir args to skip heavy directories."""
+        args: List[str] = []
+        for d in _GREP_EXCLUDE_DIRS:
+            args.extend(["--exclude-dir", d])
+        return args
 
-    def _verify_single_orphan(self, base_path: Path, orphan: OrphanFile) -> OrphanFile:
-        """Run grep verification for one orphan and update its status."""
+    def _verify_orphans_with_grep(self, base_path: Path, orphans: List[OrphanFile]) -> List[OrphanFile]:
+        """Verify orphan candidates using parallel grep with exclude-dirs."""
+        if not orphans:
+            return orphans
+
+        exclude_args = self._grep_exclude_args()
+        max_workers = min(8, len(orphans))
+
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {
+                pool.submit(self._verify_single_orphan, base_path, orphan, exclude_args): orphan
+                for orphan in orphans
+            }
+            for future in as_completed(futures):
+                try:
+                    future.result()
+                except Exception as e:
+                    orphan = futures[future]
+                    self.logger.debug("grep_verify_failed", file=orphan.file_path, error=str(e))
+
+        return orphans
+
+    def _verify_single_orphan(self, base_path: Path, orphan: OrphanFile, exclude_args: List[str]) -> OrphanFile:
+        """Run grep verification for one orphan with exclude-dirs."""
         try:
             result = subprocess.run(
-                ["grep", "-r", "-l", Path(orphan.file_path).stem, str(base_path)],
+                ["grep", "-r", "-l", *exclude_args, Path(orphan.file_path).stem, str(base_path)],
                 capture_output=True,
                 text=True,
                 timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
@@ -476,8 +507,11 @@ class OrphanDetector:
     def _is_function_called(self, func_name: str, base_path: Path, source_file: str) -> bool:
         """Check if a function is called anywhere in the codebase."""
         try:
+            exclude_args = self._grep_exclude_args()
+            src_path = base_path / "src"
+            search_path = str(src_path) if src_path.is_dir() else str(base_path)
             result = subprocess.run(
-                ["grep", "-r", "-E", rf"{func_name}\s*\(", str(base_path / "src")],
+                ["grep", "-r", "-E", *exclude_args, rf"{func_name}\s*\(", search_path],
                 capture_output=True,
                 text=True,
                 timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,

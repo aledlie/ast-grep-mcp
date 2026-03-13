@@ -2,10 +2,7 @@
 
 import sys
 from io import StringIO
-from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 from scripts.scan_complexity_offenders import (
     COG_THRESHOLD,

@@ -5,7 +5,6 @@ import asyncio
 import json
 import sys
 import time
-import traceback
 from pathlib import Path
 
 # Ensure src is on path
@@ -138,15 +137,15 @@ def run_sync_tools():
     _glob = _exts.get(LANG, "*.ts")
 
     # ── Search tools ──
-    from ast_grep_mcp.features.search.service import (
-        find_code_impl,
-        find_code_by_rule_impl,
-        dump_syntax_tree_impl,
-        debug_pattern_impl,
-        build_rule_impl,
-        develop_pattern_impl,
-    )
     from ast_grep_mcp.features.search.docs import get_docs, get_pattern_examples
+    from ast_grep_mcp.features.search.service import (
+        build_rule_impl,
+        debug_pattern_impl,
+        develop_pattern_impl,
+        dump_syntax_tree_impl,
+        find_code_by_rule_impl,
+        find_code_impl,
+    )
 
     sample_code = (
         'function hello(name: string) { console.log(`Hello ${name}`); }'
@@ -224,8 +223,10 @@ rule:
         record("test_match_code_rule", error=e)
 
     # ── Rewrite tools ──
-    from ast_grep_mcp.features.rewrite.service import rewrite_code_impl, rollback_rewrite_impl, list_backups_impl
-    import shutil, tempfile
+    import shutil
+    import tempfile
+
+    from ast_grep_mcp.features.rewrite.service import list_backups_impl, rewrite_code_impl, rollback_rewrite_impl
 
     try:
         yaml_rule = f"""
@@ -312,10 +313,10 @@ fix: console.info($$$ARGS)
 
     # ── Deduplication tools ──
     from ast_grep_mcp.features.deduplication.tools import (
-        find_duplication_tool,
         analyze_deduplication_candidates_tool,
         apply_deduplication_tool,
         benchmark_deduplication_tool,
+        find_duplication_tool,
     )
 
     _dedup_result = None
@@ -381,11 +382,11 @@ fix: console.info($$$ARGS)
     # ── Quality tools ──
     from ast_grep_mcp.features.quality.tools import (
         create_linting_rule_tool,
-        list_rule_templates_tool,
+        detect_orphans_tool,
+        detect_security_issues_tool,
         enforce_standards_tool,
         generate_quality_report_tool,
-        detect_security_issues_tool,
-        detect_orphans_tool,
+        list_rule_templates_tool,
     )
 
     try:
@@ -437,10 +438,10 @@ fix: console.info($$$ARGS)
 
     # ── Documentation tools ──
     from ast_grep_mcp.features.documentation.tools import (
-        generate_docstrings_tool,
-        generate_readme_sections_tool,
         generate_api_docs_tool,
         generate_changelog_tool,
+        generate_docstrings_tool,
+        generate_readme_sections_tool,
         sync_documentation_tool,
     )
 
@@ -477,11 +478,11 @@ fix: console.info($$$ARGS)
 
     # ── Cross-language tools ──
     from ast_grep_mcp.features.cross_language.tools import (
-        search_multi_language_tool,
-        find_language_equivalents_tool,
         convert_code_language_tool,
-        refactor_polyglot_tool,
+        find_language_equivalents_tool,
         generate_language_bindings_tool,
+        refactor_polyglot_tool,
+        search_multi_language_tool,
     )
 
     try:
@@ -515,7 +516,8 @@ fix: console.info($$$ARGS)
 
     # generate_language_bindings — create a minimal OpenAPI spec fixture
     try:
-        import tempfile, json as _json
+        import json as _json
+        import tempfile
         _spec = {
             "openapi": "3.0.0",
             "info": {"title": "Hooks API", "version": "1.0.0"},
@@ -544,11 +546,11 @@ fix: console.info($$$ARGS)
 
     # ── Condense tools ──
     from ast_grep_mcp.features.condense.tools import (
+        condense_estimate_tool,
         condense_extract_surface_tool,
         condense_normalize_tool,
-        condense_strip_tool,
         condense_pack_tool,
-        condense_estimate_tool,
+        condense_strip_tool,
         condense_train_dictionary_tool,
     )
 
@@ -600,14 +602,14 @@ fix: console.info($$$ARGS)
 async def run_async_tools():
     """Run schema.org async tools."""
     from ast_grep_mcp.features.schema.tools import (
+        build_entity_graph_tool,
+        generate_entity_id_tool,
+        generate_schema_example_tool,
         get_schema_type_tool,
-        search_schemas_tool,
         get_type_hierarchy_tool,
         get_type_properties_tool,
-        generate_schema_example_tool,
-        generate_entity_id_tool,
+        search_schemas_tool,
         validate_entity_id_tool,
-        build_entity_graph_tool,
     )
 
     try:
