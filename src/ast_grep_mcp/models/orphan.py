@@ -143,13 +143,29 @@ class DependencyGraph:
     edges: List[DependencyEdge] = field(default_factory=list)
     entry_points: Set[str] = field(default_factory=set)
     external_imports: Dict[str, Set[str]] = field(default_factory=dict)
+    _importers_index: Dict[str, List[str]] = field(default_factory=dict, repr=False)
+    _imports_index: Dict[str, List[str]] = field(default_factory=dict, repr=False)
+
+    def build_index(self) -> None:
+        """Build reverse-lookup indexes from edges for O(1) queries."""
+        importers: Dict[str, List[str]] = {}
+        imports: Dict[str, List[str]] = {}
+        for e in self.edges:
+            importers.setdefault(e.target, []).append(e.source)
+            imports.setdefault(e.source, []).append(e.target)
+        self._importers_index = importers
+        self._imports_index = imports
 
     def get_importers(self, file_path: str) -> List[str]:
         """Get all files that import the given file."""
+        if self._importers_index:
+            return self._importers_index.get(file_path, [])
         return [e.source for e in self.edges if e.target == file_path]
 
     def get_imports(self, file_path: str) -> List[str]:
         """Get all files imported by the given file."""
+        if self._imports_index:
+            return self._imports_index.get(file_path, [])
         return [e.target for e in self.edges if e.source == file_path]
 
     def is_reachable_from_entry(self, file_path: str) -> bool:

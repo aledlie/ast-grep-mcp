@@ -22,9 +22,9 @@ A Model Context Protocol (MCP) server providing structural code search, refactor
 ## Architecture
 
 ```
-src/ast_grep_mcp/          # 121 modules
+src/ast_grep_mcp/          # 122 modules
 ├── core/                  # Config, cache, executor, logging, sentry, usage tracking
-├── models/                # Data models (13 modules)
+├── models/                # Data models (15 modules)
 ├── utils/                 # Formatters, validation, templates, text processing
 ├── features/
 │   ├── search/            # 9 tools  — find_code, find_code_by_rule, dump_ast, debug_pattern, etc.
@@ -40,7 +40,7 @@ src/ast_grep_mcp/          # 121 modules
 └── server/                # MCP registry + runner
 ```
 
-**53 MCP tools** | **1,668 tests collected** | **Quality gates: Ruff + mypy + pytest + analyzer pipeline**
+**53 MCP tools** | **1,744 tests collected** | **Quality gates: Ruff + mypy + pytest + analyzer pipeline**
 
 ## Quick Start
 
@@ -117,13 +117,19 @@ find_code_by_rule(
 ### Code Transformation
 
 ```python
-# Dry-run preview
-rewrite_code(pattern="var $VAR = $VALUE", replacement="const $VAR = $VALUE",
-             project_folder="/path", language="javascript", dry_run=True)
+# Dry-run preview with YAML rule
+rewrite_code(
+    project_folder="/path",
+    yaml_rule="rule:\n  pattern: var $VAR = $VALUE\n  language: javascript\nfix: const $VAR = $VALUE",
+    dry_run=True
+)
 
 # Apply with automatic backup
-rewrite_code(pattern="var $VAR = $VALUE", replacement="const $VAR = $VALUE",
-             project_folder="/path", language="javascript", dry_run=False)
+rewrite_code(
+    project_folder="/path",
+    yaml_rule="rule:\n  pattern: var $VAR = $VALUE\n  language: javascript\nfix: const $VAR = $VALUE",
+    dry_run=False
+)
 
 # Rollback if needed
 rollback_rewrite(backup_id="backup-20251124-103045")
@@ -172,15 +178,6 @@ uv run python analyze_codebase.py <path> -l <lang>        # codebase analysis
 uv run python analyze_codebase.py <path> -l <lang> --fix  # analysis + auto-fix
 ```
 
-## Recent Maintenance (2026-03-08)
-
-- Extracted `tool_context` context manager and `FilePatterns.normalize_excludes` to shared utilities; adopted across complexity, quality, condense, and deduplication tools.
-- Consolidated inline `Field()` pattern across cross_language, documentation, and quality tool registrations.
-- Promoted `indent_lines`, `read_file_lines`, `write_file_lines` to shared `utils/`.
-- Decomposed high-complexity methods in `FunctionExtractor`, `changelog_generator`, `detector.py`, and `applicator_executor.py`.
-- Hardened `changelog_generator` with `str | None` types and added unit tests for helper functions.
-- Full suite passes (`1,622 tests collected`).
-
 ### Adding Features
 
 1. Create `src/ast_grep_mcp/features/<name>/` with `service.py` and `tools.py`
@@ -190,13 +187,12 @@ uv run python analyze_codebase.py <path> -l <lang> --fix  # analysis + auto-fix
 ## Documentation
 
 - [CLAUDE.md](CLAUDE.md) - Project instructions
-- [CHANGELOG.md](CHANGELOG.md) - Version history
+- [docs/CHANGELOG.md](docs/CHANGELOG.md) - Version history
 - [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Configuration options
 - [docs/PATTERNS.md](docs/PATTERNS.md) - Refactoring patterns
 - [docs/DEDUPLICATION-GUIDE.md](docs/DEDUPLICATION-GUIDE.md) - Deduplication workflow
 - [docs/BENCHMARKING.md](docs/BENCHMARKING.md) - Performance benchmarking
 - [docs/SENTRY-INTEGRATION.md](docs/SENTRY-INTEGRATION.md) - Error tracking
-- [docs/CODE-CONDENSE-PREP.md](docs/CODE-CONDENSE-PREP.md) - Condense feature design
 - [docs/CODE-CONDENSE-PHASE-2.md](docs/CODE-CONDENSE-PHASE-2.md) - Condense phase 2 design
 - [docs/BACKLOG.md](docs/BACKLOG.md) - Open backlog items
 - [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) - Known issues and workarounds

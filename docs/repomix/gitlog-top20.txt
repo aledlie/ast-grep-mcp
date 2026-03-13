@@ -1,3 +1,13 @@
+684c91d 2026-03-11 docs(backlog): add config file support section CF-01–CF-04
+  scripts/all_tools_results.json
+
+dfc4a95 2026-03-09 docs: document tool return structures + cleanup backlog/changelog
+  src/ast_grep_mcp/features/quality/tools.py
+
+354ae83 2026-03-09 docs(backlog): mark build_diff_tree done in offenders table
+  docs/repomix/repomix-docs.xml
+  docs/repomix/repomix-git-ranked.xml
+
 8a732c9 2026-03-08 (chore) regen repomix
   docs/repomix/repo-compressed.xml
   docs/repomix/repomix-git-ranked.xml
@@ -33,10 +43,6 @@ c847003 2026-03-08 refactor(backup): extract shared backup primitives to utils/b
   docs/repomix/repomix-docs.xml
   docs/repomix/repomix-git-ranked.xml
   docs/repomix/repomix.xml
-  tests/unit/test_applicator_backup.py
-
-7880737 2026-03-08 refactor(dedup): extract helpers in applicator_backup to reduce complexity
-  tests/unit/test_applicator_backup.py
 
 0a679bb 2026-03-08 refactor(executor,backup,schema): adopt tool_context, extract helpers, unify exclusions
   docs/repomix/repo-compressed.xml
@@ -224,15 +230,11 @@ e1ab927 2026-02-11 deps: add pillow to project dependencies
   uv.lock
 
 4e47157 2026-01-24 fix(tests): add missing dev deps and fix ast-grep exit code handling
-  tests/unit/test_applicator_backup.py
   tests/unit/test_duplication_detector.py
   uv.lock
 
 a08936e 2026-01-10 test(deduplication): add comprehensive tests for duplication detector
   tests/unit/test_duplication_detector.py
-
-05dd7b7 2026-01-10 test(deduplication): add comprehensive tests for backup manager
-  tests/unit/test_applicator_backup.py
 
 9641374 2026-01-10 docs(search): add matches rule documentation to get_ast_grep_docs
   src/ast_grep_mcp/features/search/docs.py

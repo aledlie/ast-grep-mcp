@@ -16,6 +16,7 @@ from .applicator import DeduplicationApplicator
 from .benchmark import DeduplicationBenchmark
 from .detector import DuplicationDetector
 
+
 def find_duplication_tool(
     project_folder: str,
     language: str,

@@ -2,17 +2,13 @@
 
 from unittest.mock import patch
 
-import pytest
-
 from ast_grep_mcp.features.schema.html_service import (
     _parse_jsonld_text,
-    _run_rule,
     detect_jsonld_in_html,
     detect_microdata_in_html,
     detect_rdfa_in_html,
     validate_html_structured_data,
 )
-
 
 # --- Unit tests for helpers ---
 

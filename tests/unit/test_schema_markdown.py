@@ -1,8 +1,5 @@
 """Tests for markdown frontmatter Schema.org extraction and validation."""
 
-import textwrap
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -14,7 +11,6 @@ from ast_grep_mcp.features.schema.markdown_service import (
     suggest_frontmatter_enhancements,
     validate_frontmatter_schema,
 )
-
 
 # --- Unit tests for helpers ---
 

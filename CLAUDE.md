@@ -4,7 +4,7 @@
 
 ```bash
 uv sync                          # Install dependencies
-uv run pytest                    # Run all tests (1,668 collected)
+uv run pytest                    # Run all tests (1,744 collected)
 uv run ruff check . && uv run mypy src/ # Lint and type check
 uv run main.py                   # Run MCP server locally
 doppler run -- uv run main.py    # Run with Doppler secrets
@@ -12,7 +12,7 @@ doppler run -- uv run main.py    # Run with Doppler secrets
 
 ## Overview
 
-Modular MCP server (121 modules) with ast-grep structural code search, Schema.org tools, refactoring, deduplication, quality, documentation generation, and semantic code condensation.
+Modular MCP server (122 modules) with ast-grep structural code search, Schema.org tools, refactoring, deduplication, quality, documentation generation, and semantic code condensation.
 
 **53 Tools:** Search (9), Rewrite (3), Refactoring (2), Deduplication (4), Schema.org (9), Complexity (3), Quality (7), Documentation (5), Cross-Language (5), Condense (6)
 
@@ -101,7 +101,6 @@ See [docs/BACKLOG.md](docs/BACKLOG.md) § "Tool Invocation Failures" for full er
 - [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Configuration options
 - [docs/SENTRY-INTEGRATION.md](docs/SENTRY-INTEGRATION.md) - Error tracking
 - [docs/BENCHMARKING.md](docs/BENCHMARKING.md) - Performance benchmarking
-- [docs/CODE-CONDENSE-PREP.md](docs/CODE-CONDENSE-PREP.md) - Condense feature design
 - [docs/CODE-CONDENSE-PHASE-2.md](docs/CODE-CONDENSE-PHASE-2.md) - Condense phase 2 design
 - [docs/BACKLOG.md](docs/BACKLOG.md) - Open backlog items
 - [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) - Known issues and workarounds
