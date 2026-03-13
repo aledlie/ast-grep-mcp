@@ -252,6 +252,54 @@ Implementation: pattern library per config type, auto-selected based on filename
 
 -- `src/ast_grep_mcp/features/search/`
 
+## Feature Gaps
+
+#### FG-01: detect_structured_data cannot parse Liquid/Jekyll templates
+**Priority**: P2 | **Source**: session:2026-03-11
+
+`detect_structured_data_tool` uses ast-grep's HTML parser to find `<script type="application/ld+json">` tags. Liquid/Jekyll templates (`{% if %}`, `{{ variable }}`) are not valid HTML, so ast-grep returns 0 matches for sites like Jekyll `_includes/*.html`.
+
+**Options**:
+- Pre-process: strip Liquid tags before scanning (risk: malformed JSON placeholders)
+- Regex fallback: use regex extraction when ast-grep returns 0 results on `.html` files containing `application/ld+json`
+- Built output: scan `_site/` (compiled HTML) instead of source templates
+
+-- `src/ast_grep_mcp/features/schema/html_service.py`
+
+## Code Review Findings (2026-03-12)
+
+From code-reviewer agent run on commits 531fb39..a70e3cb (last 5 diffs).
+
+#### CR-01: Remove spurious `type: ignore[return-value]` comments ✅
+**Priority**: P1 | **Source**: review:a70e3cb | **Done**: commit 5242488
+
+Mypy flags 5 `# type: ignore[return-value]` suppressor comments in `search/service.py` as unused (lines 92, 112, 341, 563, 1132, 1785). The comments are misleading because mypy *doesn't* actually need them — Python correctly propagates return values from `_op_error_handler` context manager yields. Removes noise and clarifies that the type signature is actually correct. -- `src/ast_grep_mcp/features/search/service.py`
+
+#### CR-02: Fix root-level HTML file exclusion in DEFAULT_HTML_GLOBS ✅
+**Priority**: P1 | **Source**: review:a70e3cb | **Done**: commit d2f885b
+
+`schema/html_service.py:115` defines `DEFAULT_HTML_GLOBS = ["**/*.html", "**/*.htm"]` — but `fnmatch.fnmatch("index.html", "**/*.html")` returns `False`, silently excluding all HTML files at project root. Fix: add `"*.html", "*.htm"` to the default globs, or switch to `pathlib.Path.match()` which handles `**` correctly at all depths. -- `src/ast_grep_mcp/features/schema/html_service.py:115`
+
+#### CR-03: Remove dead `if TYPE_CHECKING: pass` block ✅
+**Priority**: P2 | **Source**: review:a70e3cb | **Done**: commit 946e887
+
+`deduplication/similarity.py:15-16` has an empty `if TYPE_CHECKING:` block with no imports inside — leftover from refactor. Remove the block and `TYPE_CHECKING` from the `typing` import. -- `src/ast_grep_mcp/features/deduplication/similarity.py:15-16`
+
+#### CR-04: Document `_split_params` bracket fallthrough behavior ✅
+**Priority**: P2 | **Source**: review:a70e3cb | **Done**: commit 689011f
+
+`documentation/docstring_generator.py:434-443` merges `_split_python_params` and `_split_js_ts_params` into a unified `_split_params` function. Behavior is correct (tested), but the control flow has an asymmetry: bracket characters fall through to `current.append(char)` at the end, while commas at depth=0 still use `continue`. Add an inline comment explaining the fallthrough is intentional, to prevent future edits from "fixing" the control flow incorrectly. -- `src/ast_grep_mcp/features/documentation/docstring_generator.py:434-443`
+
+#### CR-05: Add missing docstrings to quality/tools.py helpers ✅
+**Priority**: P2 | **Source**: review:a70e3cb | **Done**: commit af3b1a9
+
+`quality/tools.py` has three private helpers (`_get_default_exclude_patterns` at line 199, `_group_violations`, `_dict_to_enforcement_result`) with no docstrings — inconsistent with the refactor pattern applied to other helpers in the same file. Add one-line docstrings describing what each helper does. -- `src/ast_grep_mcp/features/quality/tools.py:199`
+
+#### CR-06: Add logging for partial-result scenarios in search ✅
+**Priority**: P3 | **Source**: review:a70e3cb | **Done**: commit ff02be3
+
+`search/service.py:277` — `_run_find_code_search` is called inside `_op_error_handler`, but if streaming yields partial results then errors, neither completion nor failure is logged. Low risk given current streaming semantics, but a logging gap. Add a note or handler for the partial-result case if streaming error semantics change. -- `src/ast_grep_mcp/features/search/service.py:277`
+
 ## Deferred (2026-03-08)
 
 - [ ] **DF-01** (Low) Strategy pattern filter for deduplication — per `docs/duplicate-detector-misses.md` investigation. Only candidate (Group 5) would save ~18 lines with minor signature mismatch; over-engineering for marginal benefit.
