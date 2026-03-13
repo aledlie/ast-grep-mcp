@@ -300,7 +300,15 @@ Mypy flags 5 `# type: ignore[return-value]` suppressor comments in `search/servi
 
 `search/service.py:277` — `_run_find_code_search` is called inside `_op_error_handler`, but if streaming yields partial results then errors, neither completion nor failure is logged. Low risk given current streaming semantics, but a logging gap. Add a note or handler for the partial-result case if streaming error semantics change. -- `src/ast_grep_mcp/features/search/service.py:277`
 
+## Minor Code Quality Items (2026-03-12)
+
+From code-reviewer final review of CR-01–CR-06.
+
+- [ ] **MQ-01** (P3) Refactor inline comment in `_split_params` to multi-line format — current comment extends line to ~106 chars (cosmetic issue, ruff passes). -- `src/ast_grep_mcp/features/documentation/docstring_generator.py:443`
+- [ ] **MQ-02** (P3) Document partial-result streaming semantics in `_execute_search` — currently logs partial matches before re-raising, but accumulated data is discarded. Add docstring clarifying all-or-nothing contract if exception occurs. -- `src/ast_grep_mcp/features/search/service.py:238`
+
 ## Deferred (2026-03-08)
 
 - [ ] **DF-01** (Low) Strategy pattern filter for deduplication — per `docs/duplicate-detector-misses.md` investigation. Only candidate (Group 5) would save ~18 lines with minor signature mismatch; over-engineering for marginal benefit.
+- [ ] **CF-04** (P3) Config-aware search mode — complex feature for PM2/Zod/JSON-LD config patterns. Deferred from 2026-03-11 session as out of scope. -- `src/ast_grep_mcp/features/search/`
 
