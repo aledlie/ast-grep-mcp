@@ -462,54 +462,66 @@ class OrphanDetector:
             orphan.importers = references[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]
 
     def _find_orphan_functions(self, base_path: Path, graph: DependencyGraph) -> Tuple[List[OrphanFunction], int]:
-        """Find functions with no call sites."""
-        orphan_functions: List[OrphanFunction] = []
+        """Find functions with no call sites using parallel grep."""
+        # Collect all candidate functions first
+        candidates: List[Tuple[ast.FunctionDef, str]] = []
         total_functions = 0
 
         for file_path in graph.files:
             if not file_path.endswith(".py"):
                 continue
-
             full_path = base_path / file_path
-            functions, file_orphans = self._analyze_python_functions(full_path, file_path, base_path)
-            total_functions += functions
-            orphan_functions.extend(file_orphans)
+            try:
+                tree = ast.parse(full_path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            func_nodes = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
+            total_functions += len(func_nodes)
+            for node in func_nodes:
+                if not ((node.name.startswith("__") and node.name.endswith("__")) or node.name.startswith("test_")):
+                    candidates.append((node, file_path))
+
+        if not candidates:
+            return [], total_functions
+
+        # Parallel grep for all candidates
+        exclude_args = self._grep_exclude_args()
+        src_path = base_path / "src"
+        search_path = str(src_path) if src_path.is_dir() else str(base_path)
+        orphan_functions: List[OrphanFunction] = []
+        max_workers = min(8, len(candidates))
+
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {
+                pool.submit(self._check_function_called_grep, node.name, search_path, rel_path, exclude_args): (node, rel_path)
+                for node, rel_path in candidates
+            }
+            for future in as_completed(futures):
+                node, rel_path = futures[future]
+                try:
+                    is_called = future.result()
+                except Exception:
+                    is_called = True  # Assume called on error
+                if not is_called:
+                    orphan_functions.append(
+                        OrphanFunction(
+                            name=node.name,
+                            file_path=rel_path,
+                            line_start=node.lineno,
+                            line_end=node.end_lineno or node.lineno,
+                            status=VerificationStatus.LIKELY,
+                            reason="No call sites found in codebase",
+                            is_private=node.name.startswith("_"),
+                        )
+                    )
 
         return orphan_functions, total_functions
 
-    def _analyze_python_functions(self, file_path: Path, rel_path: str, base_path: Path) -> Tuple[int, List[OrphanFunction]]:
-        """Analyze Python file for orphan functions."""
+    def _check_function_called_grep(
+        self, func_name: str, search_path: str, source_file: str, exclude_args: List[str]
+    ) -> bool:
+        """Check if a function is called anywhere via grep (thread-safe)."""
         try:
-            tree = ast.parse(file_path.read_text(encoding="utf-8"))
-        except Exception:
-            return 0, []
-
-        func_nodes = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
-        orphans = [o for n in func_nodes if (o := self._check_function_orphan(n, rel_path, base_path)) is not None]
-        return len(func_nodes), orphans
-
-    def _check_function_orphan(self, node: ast.FunctionDef, rel_path: str, base_path: Path) -> Optional[OrphanFunction]:
-        """Return an OrphanFunction if the function has no call sites, else None."""
-        if (node.name.startswith("__") and node.name.endswith("__")) or node.name.startswith("test_"):
-            return None
-        if self._is_function_called(node.name, base_path, rel_path):
-            return None
-        return OrphanFunction(
-            name=node.name,
-            file_path=rel_path,
-            line_start=node.lineno,
-            line_end=node.end_lineno or node.lineno,
-            status=VerificationStatus.LIKELY,
-            reason="No call sites found in codebase",
-            is_private=node.name.startswith("_"),
-        )
-
-    def _is_function_called(self, func_name: str, base_path: Path, source_file: str) -> bool:
-        """Check if a function is called anywhere in the codebase."""
-        try:
-            exclude_args = self._grep_exclude_args()
-            src_path = base_path / "src"
-            search_path = str(src_path) if src_path.is_dir() else str(base_path)
             result = subprocess.run(
                 ["grep", "-r", "-E", *exclude_args, rf"{func_name}\s*\(", search_path],
                 capture_output=True,
