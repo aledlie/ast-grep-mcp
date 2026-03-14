@@ -35,19 +35,31 @@ from ast_grep_mcp.models.standards import (
     RuleViolation,
 )
 
-# Aliases for backward compatibility with underscore-prefixed names in tests
-_execute_rule = execute_rule
-_execute_rules_batch = execute_rules_batch
-_filter_violations_by_severity = filter_violations_by_severity
-_format_violation_report = format_violation_report
-_group_violations_by_file = group_violations_by_file
-_group_violations_by_rule = group_violations_by_rule
-_group_violations_by_severity = group_violations_by_severity
-_load_custom_rules = load_custom_rules
-_load_rule_set = load_rule_set
-_parse_match_to_violation = parse_match_to_violation
-_should_exclude_file = should_exclude_file
-_template_to_linting_rule = template_to_linting_rule
+def _make_violation(
+    file="/test.py",
+    line=10,
+    column=5,
+    end_line=10,
+    end_column=15,
+    severity="error",
+    rule_id="rule1",
+    message="Test",
+    code_snippet="test",
+    **kwargs,
+):
+    """Helper to create RuleViolation with sensible defaults."""
+    return RuleViolation(
+        file=file,
+        line=line,
+        column=column,
+        end_line=end_line,
+        end_column=end_column,
+        severity=severity,
+        rule_id=rule_id,
+        message=message,
+        code_snippet=code_snippet,
+        **kwargs,
+    )
 
 
 class TestRuleViolationDataClass:
@@ -278,7 +290,7 @@ class TestRuleSetsConfiguration:
 
 
 class TestTemplateToLintingRule:
-    """Test _template_to_linting_rule function."""
+    """Test template_to_linting_rule function."""
 
     def test_basic_conversion(self):
         """Test converting RuleTemplate to LintingRule."""
@@ -295,7 +307,7 @@ class TestTemplateToLintingRule:
             category="style",
         )
 
-        rule = _template_to_linting_rule(template)
+        rule = template_to_linting_rule(template)
 
         assert rule.id == "no-var"
         assert rule.language == "typescript"
@@ -309,7 +321,7 @@ class TestTemplateToLintingRule:
         """Test that all template fields are preserved."""
         template = RULE_TEMPLATES["no-bare-except"]
 
-        rule = _template_to_linting_rule(template)
+        rule = template_to_linting_rule(template)
 
         assert rule.id == template.id
         assert rule.language == template.language
@@ -322,7 +334,7 @@ class TestTemplateToLintingRule:
     def test_constraints_is_none(self):
         """Test that constraints field is None."""
         template = RULE_TEMPLATES["no-console-log"]
-        rule = _template_to_linting_rule(template)
+        rule = template_to_linting_rule(template)
 
         assert rule.constraints is None
 
@@ -332,14 +344,14 @@ class TestTemplateToLintingRule:
 
         for template_id in template_ids:
             template = RULE_TEMPLATES[template_id]
-            rule = _template_to_linting_rule(template)
+            rule = template_to_linting_rule(template)
 
             assert rule.id == template.id
             assert isinstance(rule, LintingRule)
 
 
 class TestLoadCustomRules:
-    """Test _load_custom_rules function."""
+    """Test load_custom_rules function."""
 
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.glob")
@@ -348,7 +360,7 @@ class TestLoadCustomRules:
         mock_exists.return_value = True
         mock_glob.return_value = []
 
-        result = _load_custom_rules("/fake/path", "python")
+        result = load_custom_rules("/fake/path", "python")
 
         assert isinstance(result, list)
 
@@ -357,7 +369,7 @@ class TestLoadCustomRules:
         """Test handling missing .ast-grep-rules/ directory."""
         mock_exists.return_value = False
 
-        result = _load_custom_rules("/fake/path", "python")
+        result = load_custom_rules("/fake/path", "python")
 
         assert result == []
 
@@ -371,7 +383,7 @@ class TestLoadCustomRules:
         # Mock returns both Python and JavaScript rules
         mock_load_project_rules.return_value = [python_rule, javascript_rule]
 
-        result = _load_custom_rules("/fake/path", "python")
+        result = load_custom_rules("/fake/path", "python")
 
         # Should only return Python rules (filtered)
         assert len(result) == 1
@@ -392,7 +404,7 @@ class TestLoadCustomRules:
         mock_load.side_effect = RuleStorageError("YAML parse error")
 
         # Should not raise, just skip bad files
-        result = _load_custom_rules("/fake/path", "python")
+        result = load_custom_rules("/fake/path", "python")
 
         assert result == []
 
@@ -403,7 +415,7 @@ class TestLoadCustomRules:
         mock_exists.return_value = True
         mock_glob.return_value = []
 
-        result = _load_custom_rules("/fake/path", "python")
+        result = load_custom_rules("/fake/path", "python")
 
         assert result == []
 
@@ -422,17 +434,17 @@ class TestLoadCustomRules:
 
         mock_load.return_value = ts_rule
 
-        result = _load_custom_rules("/fake/path", "python")
+        result = load_custom_rules("/fake/path", "python")
 
         assert result == []
 
 
 class TestLoadRuleSet:
-    """Test _load_rule_set function."""
+    """Test load_rule_set function."""
 
     def test_load_recommended_rule_set(self):
         """Test loading recommended rule set."""
-        rule_set = _load_rule_set("recommended", "/fake/path", "typescript")
+        rule_set = load_rule_set("recommended", "/fake/path", "typescript")
 
         assert rule_set.name == "recommended"
         assert "best practices" in rule_set.description.lower()
@@ -441,7 +453,7 @@ class TestLoadRuleSet:
 
     def test_load_security_rule_set(self):
         """Test loading security rule set."""
-        rule_set = _load_rule_set("security", "/fake/path", "python")
+        rule_set = load_rule_set("security", "/fake/path", "python")
 
         assert rule_set.name == "security"
         assert "security" in rule_set.description.lower()
@@ -449,7 +461,7 @@ class TestLoadRuleSet:
 
     def test_load_performance_rule_set(self):
         """Test loading performance rule set."""
-        rule_set = _load_rule_set("performance", "/fake/path", "typescript")
+        rule_set = load_rule_set("performance", "/fake/path", "typescript")
 
         assert rule_set.name == "performance"
         assert "performance" in rule_set.description.lower()
@@ -457,7 +469,7 @@ class TestLoadRuleSet:
 
     def test_load_style_rule_set(self):
         """Test loading style rule set."""
-        rule_set = _load_rule_set("style", "/fake/path", "python")
+        rule_set = load_rule_set("style", "/fake/path", "python")
 
         assert rule_set.name == "style"
         assert "style" in rule_set.description.lower()
@@ -465,7 +477,7 @@ class TestLoadRuleSet:
 
     def test_load_all_rule_set(self):
         """Test loading 'all' rule set."""
-        rule_set = _load_rule_set("all", "/fake/path", "python")
+        rule_set = load_rule_set("all", "/fake/path", "python")
 
         assert rule_set.name == "all"
         assert "all" in rule_set.description.lower()
@@ -477,7 +489,7 @@ class TestLoadRuleSet:
         custom_rules = [LintingRule(id="custom-rule", language="python", severity="warning", message="Custom", pattern="custom")]
         mock_load_custom.return_value = custom_rules
 
-        rule_set = _load_rule_set("custom", "/fake/path", "python")
+        rule_set = load_rule_set("custom", "/fake/path", "python")
 
         assert rule_set.name == "custom"
         assert "custom" in rule_set.description.lower()
@@ -486,7 +498,7 @@ class TestLoadRuleSet:
 
     def test_filter_by_language(self):
         """Test rules are filtered by language."""
-        rule_set = _load_rule_set("recommended", "/fake/path", "python")
+        rule_set = load_rule_set("recommended", "/fake/path", "python")
 
         # All rules should be Python
         for rule in rule_set.rules:
@@ -495,28 +507,28 @@ class TestLoadRuleSet:
     def test_invalid_rule_set_name(self):
         """Test invalid rule set name raises ValueError."""
         with pytest.raises(ValueError) as exc_info:
-            _load_rule_set("nonexistent", "/fake/path", "python")
+            load_rule_set("nonexistent", "/fake/path", "python")
 
         assert "not found" in str(exc_info.value)
 
     def test_empty_results_for_unsupported_language(self):
         """Test empty results for unsupported language."""
         # Rust is not in templates, so should get no rules
-        rule_set = _load_rule_set("recommended", "/fake/path", "rust")
+        rule_set = load_rule_set("recommended", "/fake/path", "rust")
 
         assert len(rule_set.rules) == 0
 
     def test_priority_preserved(self):
         """Test that priority from RULE_SETS is preserved."""
-        security_set = _load_rule_set("security", "/fake/path", "python")
-        style_set = _load_rule_set("style", "/fake/path", "python")
+        security_set = load_rule_set("security", "/fake/path", "python")
+        style_set = load_rule_set("style", "/fake/path", "python")
 
         assert security_set.priority > style_set.priority
 
     def test_all_set_combines_all_rules(self):
         """Test 'all' set combines rules from all sets."""
-        all_set = _load_rule_set("all", "/fake/path", "python")
-        recommended_set = _load_rule_set("recommended", "/fake/path", "python")
+        all_set = load_rule_set("all", "/fake/path", "python")
+        recommended_set = load_rule_set("recommended", "/fake/path", "python")
 
         # 'all' should have at least as many rules as recommended
         assert len(all_set.rules) >= len(recommended_set.rules)
@@ -526,13 +538,13 @@ class TestLoadRuleSet:
         """Test custom set is empty when no custom rules exist."""
         mock_load_custom.return_value = []
 
-        rule_set = _load_rule_set("custom", "/fake/path", "python")
+        rule_set = load_rule_set("custom", "/fake/path", "python")
 
         assert len(rule_set.rules) == 0
 
 
 class TestParseMatchToViolation:
-    """Test _parse_match_to_violation function."""
+    """Test parse_match_to_violation function."""
 
     def test_parse_complete_match(self):
         """Test parsing complete ast-grep match."""
@@ -548,7 +560,7 @@ class TestParseMatchToViolation:
             id="no-eval", language="python", severity="error", message="Don't use eval", pattern="eval($VAR)", fix="Use ast.literal_eval"
         )
 
-        violation = _parse_match_to_violation(match, rule)
+        violation = parse_match_to_violation(match, rule)
 
         assert violation.file == "/path/to/file.py"
         assert violation.line == 11  # ast-grep 0-indexed (10) → 1-indexed
@@ -568,7 +580,7 @@ class TestParseMatchToViolation:
 
         rule = LintingRule(id="no-bare-except", language="python", severity="error", message="Bare except", pattern="except:")
 
-        violation = _parse_match_to_violation(match, rule)
+        violation = parse_match_to_violation(match, rule)
 
         assert violation.meta_vars is None
 
@@ -578,7 +590,7 @@ class TestParseMatchToViolation:
 
         rule = LintingRule(id="test-rule", language="python", severity="warning", message="Test", pattern="test")
 
-        violation = _parse_match_to_violation(match, rule)
+        violation = parse_match_to_violation(match, rule)
 
         assert violation.line == 1  # default 0 + 1 = 1 (1-indexed)
         assert violation.column == 1  # default 0 + 1 = 1 (1-indexed)
@@ -593,42 +605,42 @@ class TestParseMatchToViolation:
 
         rule = LintingRule(id="test-rule", language="python", severity="info", message="Test", pattern="def $FUNC():\n    pass")
 
-        violation = _parse_match_to_violation(match, rule)
+        violation = parse_match_to_violation(match, rule)
 
         assert violation.line == 11  # ast-grep 0-indexed (10) → 1-indexed
         assert violation.end_line == 16  # ast-grep 0-indexed (15) → 1-indexed
 
 
 class TestShouldExcludeFile:
-    """Test _should_exclude_file function."""
+    """Test should_exclude_file function."""
 
     def test_exclude_node_modules(self):
         """Test excluding node_modules with recursive pattern."""
         file_path = "/project/node_modules/package/file.js"
         patterns = ["**/node_modules/**"]
 
-        assert _should_exclude_file(file_path, patterns) is True
+        assert should_exclude_file(file_path, patterns) is True
 
     def test_exclude_simple_glob(self):
         """Test excluding with simple glob pattern."""
         file_path = "/project/test_file.py"
         patterns = ["test_*.py"]
 
-        assert _should_exclude_file(file_path, patterns) is True
+        assert should_exclude_file(file_path, patterns) is True
 
     def test_dont_exclude_non_matching(self):
         """Test not excluding non-matching files."""
         file_path = "/project/src/main.py"
         patterns = ["**/test/**", "**/node_modules/**"]
 
-        assert _should_exclude_file(file_path, patterns) is False
+        assert should_exclude_file(file_path, patterns) is False
 
     def test_multiple_patterns(self):
         """Test handling multiple exclude patterns."""
         file_path = "/project/__pycache__/cache.pyc"
         patterns = ["**/node_modules/**", "**/__pycache__/**"]
 
-        assert _should_exclude_file(file_path, patterns) is True
+        assert should_exclude_file(file_path, patterns) is True
 
     def test_case_sensitivity(self):
         """Test case sensitivity in pattern matching."""
@@ -636,46 +648,46 @@ class TestShouldExcludeFile:
         patterns = ["**/node_modules/**"]
 
         # Should not match due to case difference
-        assert _should_exclude_file(file_path, patterns) is False
+        assert should_exclude_file(file_path, patterns) is False
 
     def test_empty_patterns(self):
         """Test with empty patterns list."""
         file_path = "/project/file.py"
         patterns = []
 
-        assert _should_exclude_file(file_path, patterns) is False
+        assert should_exclude_file(file_path, patterns) is False
 
     def test_exclude_build_directory(self):
         """Test excluding build directory."""
         file_path = "/project/build/output.js"
         patterns = ["**/build/**"]
 
-        assert _should_exclude_file(file_path, patterns) is True
+        assert should_exclude_file(file_path, patterns) is True
 
     def test_exclude_dist_directory(self):
         """Test excluding dist directory."""
         file_path = "/project/dist/bundle.js"
         patterns = ["**/dist/**"]
 
-        assert _should_exclude_file(file_path, patterns) is True
+        assert should_exclude_file(file_path, patterns) is True
 
     def test_exclude_git_directory(self):
         """Test excluding .git directory."""
         file_path = "/project/.git/config"
         patterns = ["**/.git/**"]
 
-        assert _should_exclude_file(file_path, patterns) is True
+        assert should_exclude_file(file_path, patterns) is True
 
     def test_filename_pattern(self):
         """Test pattern matching against filename only."""
         file_path = "/project/src/test.tmp"
         patterns = ["*.tmp"]
 
-        assert _should_exclude_file(file_path, patterns) is True
+        assert should_exclude_file(file_path, patterns) is True
 
 
 class TestExecuteRule:
-    """Test _execute_rule function."""
+    """Test execute_rule function."""
 
     @patch("ast_grep_mcp.features.quality.enforcer.stream_ast_grep_results")
     def test_execute_single_rule(self, mock_stream):
@@ -697,7 +709,7 @@ class TestExecuteRule:
 
         rule = LintingRule(id="no-bare-except", language="python", severity="error", message="Bare except", pattern="except:")
 
-        violations = _execute_rule(rule, context)
+        violations = execute_rule(rule, context)
 
         assert len(violations) == 1
         assert violations[0].rule_id == "no-bare-except"
@@ -723,7 +735,7 @@ class TestExecuteRule:
 
         rule = LintingRule(id="no-eval", language="python", severity="error", message="Don't use eval", pattern="eval($VAR)")
 
-        violations = _execute_rule(rule, context)
+        violations = execute_rule(rule, context)
 
         assert violations[0].line == 11  # ast-grep 0-indexed (10) → 1-indexed
         assert violations[0].column == 6  # ast-grep 0-indexed (5) → 1-indexed
@@ -752,7 +764,7 @@ class TestExecuteRule:
 
         rule = LintingRule(id="no-bare-except", language="python", severity="error", message="Bare except", pattern="except:")
 
-        violations = _execute_rule(rule, context)
+        violations = execute_rule(rule, context)
 
         # Should be excluded
         assert len(violations) == 0
@@ -779,7 +791,7 @@ class TestExecuteRule:
 
         rule = LintingRule(id="no-bare-except", language="python", severity="error", message="Bare except", pattern="except:")
 
-        violations = _execute_rule(rule, context)
+        violations = execute_rule(rule, context)
 
         # Should stop at max_violations
         assert len(violations) <= 2
@@ -802,7 +814,7 @@ class TestExecuteRule:
 
         rule = LintingRule(id="test-rule", language="python", severity="error", message="Test", pattern="test")
 
-        violations = _execute_rule(rule, context)
+        violations = execute_rule(rule, context)
 
         # Should return empty list, not raise
         assert violations == []
@@ -826,13 +838,13 @@ class TestExecuteRule:
 
         rule = LintingRule(id="test-rule", language="python", severity="error", message="Test", pattern="test")
 
-        _execute_rule(rule, context)
+        execute_rule(rule, context)
 
         mock_sentry.start_span.assert_called()
 
 
 class TestExecuteRulesBatch:
-    """Test _execute_rules_batch function."""
+    """Test execute_rules_batch function."""
 
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rule")
     def test_parallel_execution(self, mock_execute):
@@ -852,7 +864,7 @@ class TestExecuteRulesBatch:
 
         mock_execute.return_value = []
 
-        _execute_rules_batch(rules, context)
+        execute_rules_batch(rules, context)
 
         # Should call execute_rule for each rule
         assert mock_execute.call_count == 3
@@ -874,22 +886,9 @@ class TestExecuteRulesBatch:
         rules = [LintingRule(id=f"rule-{i}", language="python", severity="error", message="Test", pattern="test") for i in range(2)]
 
         # Return 2 violations per rule
-        mock_execute.return_value = [
-            RuleViolation(
-                file="/test.py",
-                line=1,
-                column=1,
-                end_line=1,
-                end_column=10,
-                severity="error",
-                rule_id="test",
-                message="Test",
-                code_snippet="test",
-            )
-            for _ in range(2)
-        ]
+        mock_execute.return_value = [_make_violation() for _ in range(2)]
 
-        violations = _execute_rules_batch(rules, context)
+        violations = execute_rules_batch(rules, context)
 
         # Should have 4 total violations
         assert len(violations) == 4
@@ -911,22 +910,9 @@ class TestExecuteRulesBatch:
         rules = [LintingRule(id=f"rule-{i}", language="python", severity="error", message="Test", pattern="test") for i in range(10)]
 
         # Return 3 violations per rule
-        mock_execute.return_value = [
-            RuleViolation(
-                file="/test.py",
-                line=1,
-                column=1,
-                end_line=1,
-                end_column=10,
-                severity="error",
-                rule_id="test",
-                message="Test",
-                code_snippet="test",
-            )
-            for _ in range(3)
-        ]
+        mock_execute.return_value = [_make_violation() for _ in range(3)]
 
-        _execute_rules_batch(rules, context)
+        execute_rules_batch(rules, context)
 
         # Should stop early (may execute all due to parallel execution, but should combine violations)
         assert mock_execute.call_count <= 10
@@ -951,7 +937,7 @@ class TestExecuteRulesBatch:
         mock_execute.side_effect = [Exception("Rule failed"), [], []]
 
         # Should not raise
-        violations = _execute_rules_batch(rules, context)
+        violations = execute_rules_batch(rules, context)
 
         assert isinstance(violations, list)
 
@@ -962,42 +948,12 @@ class TestGroupViolationsByFile:
     def test_group_by_file(self):
         """Test grouping violations by file path."""
         violations = [
-            RuleViolation(
-                file="/test1.py",
-                line=10,
-                column=5,
-                end_line=10,
-                end_column=15,
-                severity="error",
-                rule_id="rule1",
-                message="Test",
-                code_snippet="test",
-            ),
-            RuleViolation(
-                file="/test2.py",
-                line=5,
-                column=0,
-                end_line=5,
-                end_column=10,
-                severity="warning",
-                rule_id="rule2",
-                message="Test",
-                code_snippet="test",
-            ),
-            RuleViolation(
-                file="/test1.py",
-                line=15,
-                column=0,
-                end_line=15,
-                end_column=5,
-                severity="error",
-                rule_id="rule3",
-                message="Test",
-                code_snippet="test",
-            ),
+            _make_violation(file="/test1.py", rule_id="rule1"),
+            _make_violation(file="/test2.py", line=5, column=0, end_line=5, end_column=10, severity="warning", rule_id="rule2"),
+            _make_violation(file="/test1.py", line=15, column=0, end_line=15, end_column=5, rule_id="rule3"),
         ]
 
-        grouped = _group_violations_by_file(violations)
+        grouped = group_violations_by_file(violations)
 
         assert len(grouped) == 2
         assert len(grouped["/test1.py"]) == 2
@@ -1006,42 +962,12 @@ class TestGroupViolationsByFile:
     def test_sort_by_line_number(self):
         """Test violations are sorted by line and column."""
         violations = [
-            RuleViolation(
-                file="/test.py",
-                line=20,
-                column=0,
-                end_line=20,
-                end_column=10,
-                severity="error",
-                rule_id="rule1",
-                message="Test",
-                code_snippet="test",
-            ),
-            RuleViolation(
-                file="/test.py",
-                line=10,
-                column=5,
-                end_line=10,
-                end_column=15,
-                severity="error",
-                rule_id="rule2",
-                message="Test",
-                code_snippet="test",
-            ),
-            RuleViolation(
-                file="/test.py",
-                line=10,
-                column=0,
-                end_line=10,
-                end_column=5,
-                severity="error",
-                rule_id="rule3",
-                message="Test",
-                code_snippet="test",
-            ),
+            _make_violation(line=20, column=0, end_line=20, end_column=10, rule_id="rule1"),
+            _make_violation(line=10, column=5, rule_id="rule2"),
+            _make_violation(line=10, column=0, end_line=10, end_column=5, rule_id="rule3"),
         ]
 
-        grouped = _group_violations_by_file(violations)
+        grouped = group_violations_by_file(violations)
 
         file_violations = grouped["/test.py"]
         # Should be sorted: line 10 col 0, line 10 col 5, line 20 col 0
@@ -1053,7 +979,7 @@ class TestGroupViolationsByFile:
 
     def test_empty_violations(self):
         """Test grouping empty violations list."""
-        grouped = _group_violations_by_file([])
+        grouped = group_violations_by_file([])
 
         assert grouped == {}
 
@@ -1064,42 +990,12 @@ class TestGroupViolationsBySeverity:
     def test_group_by_severity(self):
         """Test grouping violations by severity level."""
         violations = [
-            RuleViolation(
-                file="/test.py",
-                line=10,
-                column=5,
-                end_line=10,
-                end_column=15,
-                severity="error",
-                rule_id="rule1",
-                message="Test",
-                code_snippet="test",
-            ),
-            RuleViolation(
-                file="/test.py",
-                line=15,
-                column=0,
-                end_line=15,
-                end_column=10,
-                severity="warning",
-                rule_id="rule2",
-                message="Test",
-                code_snippet="test",
-            ),
-            RuleViolation(
-                file="/test.py",
-                line=20,
-                column=0,
-                end_line=20,
-                end_column=5,
-                severity="error",
-                rule_id="rule3",
-                message="Test",
-                code_snippet="test",
-            ),
+            _make_violation(severity="error", rule_id="rule1"),
+            _make_violation(severity="warning", line=15, column=0, end_line=15, end_column=10, rule_id="rule2"),
+            _make_violation(severity="error", line=20, column=0, end_line=20, end_column=5, rule_id="rule3"),
         ]
 
-        grouped = _group_violations_by_severity(violations)
+        grouped = group_violations_by_severity(violations)
 
         assert len(grouped["error"]) == 2
         assert len(grouped["warning"]) == 1
@@ -1107,21 +1003,9 @@ class TestGroupViolationsBySeverity:
 
     def test_all_severity_levels_present(self):
         """Test all severity levels are in result."""
-        violations = [
-            RuleViolation(
-                file="/test.py",
-                line=10,
-                column=5,
-                end_line=10,
-                end_column=15,
-                severity="info",
-                rule_id="rule1",
-                message="Test",
-                code_snippet="test",
-            )
-        ]
+        violations = [_make_violation(severity="info")]
 
-        grouped = _group_violations_by_severity(violations)
+        grouped = group_violations_by_severity(violations)
 
         assert "error" in grouped
         assert "warning" in grouped
@@ -1129,7 +1013,7 @@ class TestGroupViolationsBySeverity:
 
     def test_empty_violations(self):
         """Test grouping empty violations list."""
-        grouped = _group_violations_by_severity([])
+        grouped = group_violations_by_severity([])
 
         assert grouped["error"] == []
         assert grouped["warning"] == []
@@ -1142,42 +1026,12 @@ class TestGroupViolationsByRule:
     def test_group_by_rule(self):
         """Test grouping violations by rule ID."""
         violations = [
-            RuleViolation(
-                file="/test.py",
-                line=10,
-                column=5,
-                end_line=10,
-                end_column=15,
-                severity="error",
-                rule_id="no-eval",
-                message="Test",
-                code_snippet="test",
-            ),
-            RuleViolation(
-                file="/test.py",
-                line=15,
-                column=0,
-                end_line=15,
-                end_column=10,
-                severity="warning",
-                rule_id="no-console",
-                message="Test",
-                code_snippet="test",
-            ),
-            RuleViolation(
-                file="/test.py",
-                line=20,
-                column=0,
-                end_line=20,
-                end_column=5,
-                severity="error",
-                rule_id="no-eval",
-                message="Test",
-                code_snippet="test",
-            ),
+            _make_violation(rule_id="no-eval"),
+            _make_violation(severity="warning", line=15, column=0, end_line=15, end_column=10, rule_id="no-console"),
+            _make_violation(line=20, column=0, end_line=20, end_column=5, rule_id="no-eval"),
         ]
 
-        grouped = _group_violations_by_rule(violations)
+        grouped = group_violations_by_rule(violations)
 
         assert len(grouped) == 2
         assert len(grouped["no-eval"]) == 2
@@ -1185,168 +1039,53 @@ class TestGroupViolationsByRule:
 
     def test_empty_violations(self):
         """Test grouping empty violations list."""
-        grouped = _group_violations_by_rule([])
+        grouped = group_violations_by_rule([])
 
         assert grouped == {}
 
 
 class TestFilterViolationsBySeverity:
-    """Test _filter_violations_by_severity function."""
+    """Test filter_violations_by_severity function."""
 
-    def test_filter_by_error(self):
-        """Test filtering by error severity threshold."""
-        violations = [
-            RuleViolation(
-                file="/test.py",
-                line=10,
-                column=5,
-                end_line=10,
-                end_column=15,
-                severity="error",
-                rule_id="rule1",
-                message="Test",
-                code_snippet="test",
-            ),
-            RuleViolation(
-                file="/test.py",
-                line=15,
-                column=0,
-                end_line=15,
-                end_column=10,
-                severity="warning",
-                rule_id="rule2",
-                message="Test",
-                code_snippet="test",
-            ),
-            RuleViolation(
-                file="/test.py",
-                line=20,
-                column=0,
-                end_line=20,
-                end_column=5,
-                severity="info",
-                rule_id="rule3",
-                message="Test",
-                code_snippet="test",
-            ),
+    @pytest.fixture
+    def _mixed_violations(self):
+        """Three violations with error/warning/info severities."""
+        return [
+            _make_violation(severity="error", rule_id="rule1"),
+            _make_violation(severity="warning", rule_id="rule2"),
+            _make_violation(severity="info", rule_id="rule3"),
         ]
 
-        filtered = _filter_violations_by_severity(violations, "error")
+    def test_filter_by_error(self, _mixed_violations):
+        """Test filtering by error severity threshold."""
+        filtered = filter_violations_by_severity(_mixed_violations, "error")
 
         assert len(filtered) == 1
         assert filtered[0].severity == "error"
 
-    def test_filter_by_warning(self):
+    def test_filter_by_warning(self, _mixed_violations):
         """Test filtering by warning severity threshold."""
-        violations = [
-            RuleViolation(
-                file="/test.py",
-                line=10,
-                column=5,
-                end_line=10,
-                end_column=15,
-                severity="error",
-                rule_id="rule1",
-                message="Test",
-                code_snippet="test",
-            ),
-            RuleViolation(
-                file="/test.py",
-                line=15,
-                column=0,
-                end_line=15,
-                end_column=10,
-                severity="warning",
-                rule_id="rule2",
-                message="Test",
-                code_snippet="test",
-            ),
-            RuleViolation(
-                file="/test.py",
-                line=20,
-                column=0,
-                end_line=20,
-                end_column=5,
-                severity="info",
-                rule_id="rule3",
-                message="Test",
-                code_snippet="test",
-            ),
-        ]
-
-        filtered = _filter_violations_by_severity(violations, "warning")
+        filtered = filter_violations_by_severity(_mixed_violations, "warning")
 
         assert len(filtered) == 2
-        # Should include error and warning, not info
 
-    def test_filter_by_info(self):
+    def test_filter_by_info(self, _mixed_violations):
         """Test filtering by info severity threshold."""
-        violations = [
-            RuleViolation(
-                file="/test.py",
-                line=10,
-                column=5,
-                end_line=10,
-                end_column=15,
-                severity="error",
-                rule_id="rule1",
-                message="Test",
-                code_snippet="test",
-            ),
-            RuleViolation(
-                file="/test.py",
-                line=15,
-                column=0,
-                end_line=15,
-                end_column=10,
-                severity="warning",
-                rule_id="rule2",
-                message="Test",
-                code_snippet="test",
-            ),
-            RuleViolation(
-                file="/test.py",
-                line=20,
-                column=0,
-                end_line=20,
-                end_column=5,
-                severity="info",
-                rule_id="rule3",
-                message="Test",
-                code_snippet="test",
-            ),
-        ]
+        filtered = filter_violations_by_severity(_mixed_violations, "info")
 
-        filtered = _filter_violations_by_severity(violations, "info")
-
-        # Should include all
         assert len(filtered) == 3
 
     def test_handle_all_severity_levels(self):
         """Test all severity levels are handled correctly."""
-        violations = [
-            RuleViolation(
-                file="/test.py",
-                line=10,
-                column=5,
-                end_line=10,
-                end_column=15,
-                severity=sev,
-                rule_id="rule1",
-                message="Test",
-                code_snippet="test",
-            )
-            for sev in ["error", "warning", "info"]
-        ]
+        violations = [_make_violation(severity=sev) for sev in ["error", "warning", "info"]]
 
-        # Test each threshold
-        assert len(_filter_violations_by_severity(violations, "error")) == 1
-        assert len(_filter_violations_by_severity(violations, "warning")) == 2
-        assert len(_filter_violations_by_severity(violations, "info")) == 3
+        assert len(filter_violations_by_severity(violations, "error")) == 1
+        assert len(filter_violations_by_severity(violations, "warning")) == 2
+        assert len(filter_violations_by_severity(violations, "info")) == 3
 
 
 class TestFormatViolationReport:
-    """Test _format_violation_report function."""
+    """Test format_violation_report function."""
 
     def test_format_complete_report(self):
         """Test formatting complete report."""
@@ -1381,7 +1120,7 @@ class TestFormatViolationReport:
             files_scanned=1,
         )
 
-        report = _format_violation_report(result)
+        report = format_violation_report(result)
 
         assert "CODE STANDARDS ENFORCEMENT REPORT" in report
         assert "Files Scanned: 1" in report
@@ -1406,7 +1145,7 @@ class TestFormatViolationReport:
             files_scanned=3,
         )
 
-        report = _format_violation_report(result)
+        report = format_violation_report(result)
 
         assert "Files Scanned: 3" in report
         assert "Rules Executed: 2" in report
@@ -1445,7 +1184,7 @@ class TestFormatViolationReport:
             files_scanned=1,
         )
 
-        report = _format_violation_report(result)
+        report = format_violation_report(result)
 
         assert "Violations by Severity" in report
         assert "ERROR: 1" in report
@@ -1468,7 +1207,7 @@ class TestFormatViolationReport:
             files_scanned=10,
         )
 
-        report = _format_violation_report(result)
+        report = format_violation_report(result)
 
         assert "Total Violations: 0" in report
 
@@ -1479,7 +1218,7 @@ class TestEnforceStandardsTool:
     @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_basic_scan_with_recommended_rules(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
+    def test_basic_scan_with_recommended_rules(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir):
         """Test basic scan with recommended rules."""
         mock_exists.return_value = True
 
@@ -1495,175 +1234,117 @@ class TestEnforceStandardsTool:
 
         mock_execute.return_value = []
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(project_folder=tmpdir, language="typescript", rule_set="recommended")
+        result = enforce_standards_tool(project_folder=temp_dir, language="typescript", rule_set="recommended")
 
         assert "summary" in result
         assert result["summary"]["total_violations"] == 0
 
+    @pytest.fixture
+    def _recommended_rule_set(self):
+        """Standard recommended RuleSet for mocked tool tests."""
+        return RuleSet(
+            name="recommended",
+            description="Best practices",
+            rules=[LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")],
+            priority=100,
+        )
+
     @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_security_rule_set(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
+    def test_security_rule_set(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir):
         """Test scan with security rule set."""
         mock_exists.return_value = True
-
-        mock_rule_set = RuleSet(
+        mock_load.return_value = RuleSet(
             name="security",
             description="Security rules",
             rules=[LintingRule(id="no-eval", language="python", severity="error", message="No eval", pattern="eval($VAR)")],
             priority=200,
         )
-        mock_load.return_value = mock_rule_set
-
         mock_execute.return_value = []
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(project_folder=tmpdir, language="python", rule_set="security")
-
+        result = enforce_standards_tool(project_folder=temp_dir, language="python", rule_set="security")
         assert result["summary"]["total_violations"] == 0
 
     @patch("ast_grep_mcp.features.quality.enforcer.load_custom_rules")
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_custom_rules_with_ids(self, mock_exists, mock_execute, mock_load_custom, mcp_main, enforce_standards_tool):
+    def test_custom_rules_with_ids(self, mock_exists, mock_execute, mock_load_custom, mcp_main, enforce_standards_tool, temp_dir):
         """Test scan with custom rules specified by IDs."""
         mock_exists.return_value = True
-
-        custom_rules = [
+        mock_load_custom.return_value = [
             LintingRule(id="custom-rule-1", language="python", severity="warning", message="Custom", pattern="custom"),
             LintingRule(id="custom-rule-2", language="python", severity="error", message="Custom 2", pattern="custom2"),
         ]
-        mock_load_custom.return_value = custom_rules
-
         mock_execute.return_value = []
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(project_folder=tmpdir, language="python", rule_set="custom", custom_rules=["custom-rule-1"])
-
+        result = enforce_standards_tool(project_folder=temp_dir, language="python", rule_set="custom", custom_rules=["custom-rule-1"])
         assert "summary" in result
 
     @patch("pathlib.Path.exists")
-    def test_invalid_severity_threshold(self, mock_exists, mcp_main, enforce_standards_tool):
+    def test_invalid_severity_threshold(self, mock_exists, mcp_main, enforce_standards_tool, temp_dir):
         """Test invalid severity_threshold raises ValueError."""
         mock_exists.return_value = True
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with pytest.raises(ValueError) as exc_info:
-                enforce_standards_tool(project_folder=tmpdir, language="python", severity_threshold="critical")
-
-        assert "severity_threshold" in str(exc_info.value)
+        with pytest.raises(ValueError, match="severity_threshold"):
+            enforce_standards_tool(project_folder=temp_dir, language="python", severity_threshold="critical")
 
     @patch("pathlib.Path.exists")
-    def test_invalid_output_format(self, mock_exists, mcp_main, enforce_standards_tool):
+    def test_invalid_output_format(self, mock_exists, mcp_main, enforce_standards_tool, temp_dir):
         """Test invalid output_format raises ValueError."""
         mock_exists.return_value = True
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with pytest.raises(ValueError) as exc_info:
-                enforce_standards_tool(project_folder=tmpdir, language="python", output_format="xml")
-
-        assert "output_format" in str(exc_info.value)
+        with pytest.raises(ValueError, match="output_format"):
+            enforce_standards_tool(project_folder=temp_dir, language="python", output_format="xml")
 
     def test_project_folder_not_found(self, enforce_standards_tool):
         """Test error when project folder doesn't exist."""
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match="does not exist"):
             enforce_standards_tool(project_folder="/nonexistent/path", language="python")
-
-        assert "does not exist" in str(exc_info.value)
 
     @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("pathlib.Path.exists")
-    def test_no_rules_for_language(self, mock_exists, mock_load, mcp_main, enforce_standards_tool):
+    def test_no_rules_for_language(self, mock_exists, mock_load, mcp_main, enforce_standards_tool, temp_dir):
         """Test handling when no rules found for language."""
         mock_exists.return_value = True
+        mock_load.return_value = RuleSet(name="recommended", description="Best practices", rules=[], priority=100)
 
-        mock_rule_set = RuleSet(
-            name="recommended",
-            description="Best practices",
-            rules=[],  # No rules
-            priority=100,
-        )
-        mock_load.return_value = mock_rule_set
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(project_folder=tmpdir, language="rust")
-
+        result = enforce_standards_tool(project_folder=temp_dir, language="rust")
         assert "message" in result or result["summary"]["total_violations"] == 0
 
     @patch("ast_grep_mcp.features.quality.enforcer.load_custom_rules")
     @patch("pathlib.Path.exists")
-    def test_empty_custom_rules_list(self, mock_exists, mock_load_custom, mcp_main, enforce_standards_tool):
+    def test_empty_custom_rules_list(self, mock_exists, mock_load_custom, mcp_main, enforce_standards_tool, temp_dir):
         """Test handling empty custom rules list."""
         mock_exists.return_value = True
         mock_load_custom.return_value = []
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with pytest.raises(ValueError) as exc_info:
-                enforce_standards_tool(project_folder=tmpdir, language="python", rule_set="custom", custom_rules=["nonexistent-rule"])
-
-            assert "No custom rules found" in str(exc_info.value)
+        with pytest.raises(ValueError, match="No custom rules found"):
+            enforce_standards_tool(project_folder=temp_dir, language="python", rule_set="custom", custom_rules=["nonexistent-rule"])
 
     @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_text_output_format(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
+    def test_text_output_format(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set):
         """Test text output format."""
         mock_exists.return_value = True
-
-        mock_rule_set = RuleSet(
-            name="recommended",
-            description="Best practices",
-            rules=[
-                LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")
-            ],
-            priority=100,
-        )
-        mock_load.return_value = mock_rule_set
-
+        mock_load.return_value = _recommended_rule_set
         mock_execute.return_value = []
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(project_folder=tmpdir, language="typescript", output_format="text")
-
+        result = enforce_standards_tool(project_folder=temp_dir, language="typescript", output_format="text")
         assert "report" in result
         assert isinstance(result["report"], str)
 
     @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_json_output_format(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
+    def test_json_output_format(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set):
         """Test JSON output format."""
         mock_exists.return_value = True
-
-        mock_rule_set = RuleSet(
-            name="recommended",
-            description="Best practices",
-            rules=[
-                LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")
-            ],
-            priority=100,
-        )
-        mock_load.return_value = mock_rule_set
-
-        violations = [
-            RuleViolation(
-                file="/test.ts",
-                line=10,
-                column=5,
-                end_line=10,
-                end_column=15,
-                severity="warning",
-                rule_id="no-var",
-                message="Use const or let",
-                code_snippet="var x = 5",
-            )
+        mock_load.return_value = _recommended_rule_set
+        mock_execute.return_value = [
+            _make_violation(file="/test.ts", severity="warning", rule_id="no-var", message="Use const or let", code_snippet="var x = 5")
         ]
-        mock_execute.return_value = violations
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(project_folder=tmpdir, language="typescript", output_format="json")
-
+        result = enforce_standards_tool(project_folder=temp_dir, language="typescript", output_format="json")
         assert "summary" in result
         assert "violations" in result
         assert isinstance(result["violations"], list)
@@ -1671,162 +1352,74 @@ class TestEnforceStandardsTool:
     @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_max_violations_enforcement(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
+    def test_max_violations_enforcement(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set):
         """Test max_violations is enforced."""
         mock_exists.return_value = True
-
-        mock_rule_set = RuleSet(
-            name="recommended",
-            description="Best practices",
-            rules=[
-                LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")
-            ],
-            priority=100,
-        )
-        mock_load.return_value = mock_rule_set
-
-        # Return 5 violations
-        violations = [
-            RuleViolation(
-                file=f"/test{i}.ts",
-                line=10,
-                column=5,
-                end_line=10,
-                end_column=15,
-                severity="warning",
-                rule_id="no-var",
-                message="Use const or let",
-                code_snippet="var x = 5",
-            )
+        mock_load.return_value = _recommended_rule_set
+        mock_execute.return_value = [
+            _make_violation(file=f"/test{i}.ts", severity="warning", rule_id="no-var", message="Use const or let", code_snippet="var x = 5")
             for i in range(5)
         ]
-        mock_execute.return_value = violations
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            enforce_standards_tool(project_folder=tmpdir, language="typescript", max_violations=3)
-
-        # Should respect max_violations in context
+        enforce_standards_tool(project_folder=temp_dir, language="typescript", max_violations=3)
         assert mock_execute.called
 
     @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_severity_threshold_filtering(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
+    def test_severity_threshold_filtering(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set):
         """Test severity threshold filtering."""
         mock_exists.return_value = True
-
-        mock_rule_set = RuleSet(
-            name="recommended",
-            description="Best practices",
-            rules=[
-                LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")
-            ],
-            priority=100,
-        )
-        mock_load.return_value = mock_rule_set
-
-        violations = [
-            RuleViolation(
-                file="/test.ts",
-                line=10,
-                column=5,
-                end_line=10,
-                end_column=15,
-                severity="info",
-                rule_id="no-var",
-                message="Use const or let",
-                code_snippet="var x = 5",
-            )
+        mock_load.return_value = _recommended_rule_set
+        mock_execute.return_value = [
+            _make_violation(file="/test.ts", severity="info", rule_id="no-var", message="Use const or let", code_snippet="var x = 5")
         ]
-        mock_execute.return_value = violations
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            result = enforce_standards_tool(project_folder=tmpdir, language="typescript", severity_threshold="error")
-
-        # Info violation should be filtered out
+        result = enforce_standards_tool(project_folder=temp_dir, language="typescript", severity_threshold="error")
         assert result["summary"]["total_violations"] == 0
 
     @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_include_exclude_patterns(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
+    def test_include_exclude_patterns(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set):
         """Test include/exclude patterns are passed to context."""
         mock_exists.return_value = True
-
-        mock_rule_set = RuleSet(
-            name="recommended",
-            description="Best practices",
-            rules=[
-                LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")
-            ],
-            priority=100,
-        )
-        mock_load.return_value = mock_rule_set
-
+        mock_load.return_value = _recommended_rule_set
         mock_execute.return_value = []
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            enforce_standards_tool(
-                project_folder=tmpdir, language="typescript", include_patterns=["src/**/*.ts"], exclude_patterns=["**/test/**"]
-            )
+        enforce_standards_tool(
+            project_folder=temp_dir, language="typescript", include_patterns=["src/**/*.ts"], exclude_patterns=["**/test/**"]
+        )
 
-        # Verify context was created with patterns
-        call_args = mock_execute.call_args
-        context = call_args[0][1]
+        context = mock_execute.call_args[0][1]
         assert "src/**/*.ts" in context.include_patterns
         assert "**/test/**" in context.exclude_patterns
 
     @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_parallel_execution_with_threads(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
+    def test_parallel_execution_with_threads(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set):
         """Test parallel execution with specified threads."""
         mock_exists.return_value = True
-
-        mock_rule_set = RuleSet(
-            name="recommended",
-            description="Best practices",
-            rules=[
-                LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")
-            ],
-            priority=100,
-        )
-        mock_load.return_value = mock_rule_set
-
+        mock_load.return_value = _recommended_rule_set
         mock_execute.return_value = []
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            enforce_standards_tool(project_folder=tmpdir, language="typescript", max_threads=8)
+        enforce_standards_tool(project_folder=temp_dir, language="typescript", max_threads=8)
 
-        # Verify context was created with correct threads
-        call_args = mock_execute.call_args
-        context = call_args[0][1]
+        context = mock_execute.call_args[0][1]
         assert context.max_threads == 8
 
     @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_error_handling(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool):
+    def test_error_handling(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set):
         """Test error handling during execution."""
         mock_exists.return_value = True
-
-        mock_rule_set = RuleSet(
-            name="recommended",
-            description="Best practices",
-            rules=[
-                LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")
-            ],
-            priority=100,
-        )
-        mock_load.return_value = mock_rule_set
-
+        mock_load.return_value = _recommended_rule_set
         mock_execute.side_effect = Exception("Execution failed")
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with pytest.raises(Exception) as exc_info:
-                enforce_standards_tool(project_folder=tmpdir, language="typescript")
-
-            assert "Execution failed" in str(exc_info.value)
+        with pytest.raises(Exception, match="Execution failed"):
+            enforce_standards_tool(project_folder=temp_dir, language="typescript")
 
 
 if __name__ == "__main__":

@@ -23,45 +23,45 @@ from ast_grep_mcp.features.deduplication.analysis_orchestrator import (
 from ast_grep_mcp.features.deduplication.config import AnalysisConfig
 
 
+@pytest.fixture
+def orchestrator():
+    """Provide a fresh DeduplicationAnalysisOrchestrator instance."""
+    return DeduplicationAnalysisOrchestrator()
+
+
 class TestOrchestratorInitialization:
     """Tests for orchestrator initialization and lazy loading."""
 
-    def test_init_creates_logger(self):
+    def test_init_creates_logger(self, orchestrator):
         """Test that initialization creates a logger."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         assert orchestrator.logger is not None
 
-    def test_lazy_detector_initialization(self):
+    def test_lazy_detector_initialization(self, orchestrator):
         """Test that detector is lazily initialized."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         assert not hasattr(orchestrator, "_detector")
         _ = orchestrator.detector
         assert hasattr(orchestrator, "_detector")
 
-    def test_lazy_ranker_initialization(self):
+    def test_lazy_ranker_initialization(self, orchestrator):
         """Test that ranker is lazily initialized."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         assert not hasattr(orchestrator, "_ranker")
         _ = orchestrator.ranker
         assert hasattr(orchestrator, "_ranker")
 
-    def test_lazy_coverage_detector_initialization(self):
+    def test_lazy_coverage_detector_initialization(self, orchestrator):
         """Test that coverage detector is lazily initialized."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         assert not hasattr(orchestrator, "_coverage_detector")
         _ = orchestrator.coverage_detector
         assert hasattr(orchestrator, "_coverage_detector")
 
-    def test_lazy_recommendation_engine_initialization(self):
+    def test_lazy_recommendation_engine_initialization(self, orchestrator):
         """Test that recommendation engine is lazily initialized."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         assert not hasattr(orchestrator, "_recommendation_engine")
         _ = orchestrator.recommendation_engine
         assert hasattr(orchestrator, "_recommendation_engine")
 
-    def test_component_setter_injection(self):
+    def test_component_setter_injection(self, orchestrator):
         """Test that components can be injected via setters."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         mock_detector = MagicMock()
         mock_ranker = MagicMock()
         mock_coverage = MagicMock()
@@ -81,65 +81,48 @@ class TestOrchestratorInitialization:
 class TestInputValidation:
     """Tests for input validation in analyze_candidates."""
 
-    def test_validate_nonexistent_project_path(self):
+    def test_validate_nonexistent_project_path(self, orchestrator):
         """Test validation fails for nonexistent project path."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         with pytest.raises(ValueError, match="does not exist"):
             orchestrator._validate_analysis_inputs("/nonexistent/path", "python", 0.8, 5, 100)
 
-    def test_validate_file_instead_of_directory(self):
+    def test_validate_file_instead_of_directory(self, orchestrator):
         """Test validation fails when project path is a file."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         with tempfile.NamedTemporaryFile() as f:
             with pytest.raises(ValueError, match="not a directory"):
                 orchestrator._validate_analysis_inputs(f.name, "python", 0.8, 5, 100)
 
-    def test_validate_min_similarity_below_zero(self):
+    def test_validate_min_similarity_below_zero(self, orchestrator, temp_dir):
         """Test validation fails for min_similarity below 0."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with pytest.raises(ValueError, match="min_similarity must be between"):
-                orchestrator._validate_analysis_inputs(tmpdir, "python", -0.1, 5, 100)
+        with pytest.raises(ValueError, match="min_similarity must be between"):
+            orchestrator._validate_analysis_inputs(temp_dir, "python", -0.1, 5, 100)
 
-    def test_validate_min_similarity_above_one(self):
+    def test_validate_min_similarity_above_one(self, orchestrator, temp_dir):
         """Test validation fails for min_similarity above 1."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with pytest.raises(ValueError, match="min_similarity must be between"):
-                orchestrator._validate_analysis_inputs(tmpdir, "python", 1.5, 5, 100)
+        with pytest.raises(ValueError, match="min_similarity must be between"):
+            orchestrator._validate_analysis_inputs(temp_dir, "python", 1.5, 5, 100)
 
-    def test_validate_min_lines_zero(self):
+    def test_validate_min_lines_zero(self, orchestrator, temp_dir):
         """Test validation fails for min_lines of zero."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with pytest.raises(ValueError, match="min_lines must be a positive"):
-                orchestrator._validate_analysis_inputs(tmpdir, "python", 0.8, 0, 100)
+        with pytest.raises(ValueError, match="min_lines must be a positive"):
+            orchestrator._validate_analysis_inputs(temp_dir, "python", 0.8, 0, 100)
 
-    def test_validate_max_candidates_zero(self):
+    def test_validate_max_candidates_zero(self, orchestrator, temp_dir):
         """Test validation fails for max_candidates of zero."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with pytest.raises(ValueError, match="max_candidates must be a positive"):
-                orchestrator._validate_analysis_inputs(tmpdir, "python", 0.8, 5, 0)
+        with pytest.raises(ValueError, match="max_candidates must be a positive"):
+            orchestrator._validate_analysis_inputs(temp_dir, "python", 0.8, 5, 0)
 
-    def test_validate_valid_inputs(self):
+    def test_validate_valid_inputs(self, orchestrator, temp_dir):
         """Test validation passes for valid inputs."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Should not raise
-            orchestrator._validate_analysis_inputs(tmpdir, "python", 0.8, 5, 100)
+        orchestrator._validate_analysis_inputs(temp_dir, "python", 0.8, 5, 100)
 
-    def test_validate_boundary_min_similarity_zero(self):
+    def test_validate_boundary_min_similarity_zero(self, orchestrator, temp_dir):
         """Test validation passes for min_similarity of 0."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            orchestrator._validate_analysis_inputs(tmpdir, "python", 0.0, 5, 100)
+        orchestrator._validate_analysis_inputs(temp_dir, "python", 0.0, 5, 100)
 
-    def test_validate_boundary_min_similarity_one(self):
+    def test_validate_boundary_min_similarity_one(self, orchestrator, temp_dir):
         """Test validation passes for min_similarity of 1."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            orchestrator._validate_analysis_inputs(tmpdir, "python", 1.0, 5, 100)
+        orchestrator._validate_analysis_inputs(temp_dir, "python", 1.0, 5, 100)
 
 
 class TestAnalysisWorkflow:
@@ -197,109 +180,94 @@ class TestAnalysisWorkflow:
 
         return orchestrator
 
-    def test_analyze_candidates_with_config(self, mock_orchestrator):
+    def test_analyze_candidates_with_config(self, mock_orchestrator, temp_dir):
         """Test analyze_candidates_with_config workflow."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            config = AnalysisConfig(
-                project_path=tmpdir,
-                language="python",
-                min_similarity=0.8,
-                max_candidates=10,
-            )
-            result = mock_orchestrator.analyze_candidates_with_config(config)
+        config = AnalysisConfig(
+            project_path=temp_dir,
+            language="python",
+            min_similarity=0.8,
+            max_candidates=10,
+        )
+        result = mock_orchestrator.analyze_candidates_with_config(config)
 
-            assert "candidates" in result
-            assert "total_groups_analyzed" in result
-            assert "top_candidates_count" in result
-            assert "top_candidates_savings_potential" in result
-            assert "analysis_metadata" in result
+        assert "candidates" in result
+        assert "total_groups_analyzed" in result
+        assert "top_candidates_count" in result
+        assert "top_candidates_savings_potential" in result
+        assert "analysis_metadata" in result
 
-    def test_analyze_candidates_legacy_interface(self, mock_orchestrator):
+    def test_analyze_candidates_legacy_interface(self, mock_orchestrator, temp_dir):
         """Test legacy analyze_candidates method."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            result = mock_orchestrator.analyze_candidates(
-                project_path=tmpdir,
-                language="python",
-                min_similarity=0.8,
-                max_candidates=10,
-            )
+        result = mock_orchestrator.analyze_candidates(
+            project_path=temp_dir,
+            language="python",
+            min_similarity=0.8,
+            max_candidates=10,
+        )
 
-            assert "candidates" in result
-            assert result["analysis_metadata"]["language"] == "python"
+        assert "candidates" in result
+        assert result["analysis_metadata"]["language"] == "python"
 
-    def test_analyze_candidates_calls_detector(self, mock_orchestrator):
+    def test_analyze_candidates_calls_detector(self, mock_orchestrator, temp_dir):
         """Test that detector.find_duplication is called."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            config = AnalysisConfig(project_path=tmpdir, language="python")
-            mock_orchestrator.analyze_candidates_with_config(config)
+        config = AnalysisConfig(project_path=temp_dir, language="python")
+        mock_orchestrator.analyze_candidates_with_config(config)
 
-            mock_orchestrator.detector.find_duplication.assert_called_once()
+        mock_orchestrator.detector.find_duplication.assert_called_once()
 
-    def test_analyze_candidates_calls_ranker(self, mock_orchestrator):
+    def test_analyze_candidates_calls_ranker(self, mock_orchestrator, temp_dir):
         """Test that ranker.rank_deduplication_candidates is called."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            config = AnalysisConfig(project_path=tmpdir, language="python")
-            mock_orchestrator.analyze_candidates_with_config(config)
+        config = AnalysisConfig(project_path=temp_dir, language="python")
+        mock_orchestrator.analyze_candidates_with_config(config)
 
-            mock_orchestrator.ranker.rank_deduplication_candidates.assert_called_once()
+        mock_orchestrator.ranker.rank_deduplication_candidates.assert_called_once()
 
 
 class TestProgressCallback:
     """Tests for progress callback functionality."""
 
-    def test_progress_callback_is_called(self):
-        """Test that progress callback is invoked during analysis."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
-
-        # Mock components
+    @pytest.fixture
+    def _empty_orchestrator(self, orchestrator):
+        """Orchestrator with mocked empty-result components."""
         mock_detector = MagicMock()
         mock_detector.find_duplication.return_value = {"duplication_groups": []}
         orchestrator.detector = mock_detector
         orchestrator.ranker = MagicMock()
         orchestrator.ranker.rank_deduplication_candidates.return_value = []
+        return orchestrator
 
+    def test_progress_callback_is_called(self, _empty_orchestrator, temp_dir):
+        """Test that progress callback is invoked during analysis."""
         progress_stages: List[tuple] = []
 
         def track_progress(stage: str, percent: float) -> None:
             progress_stages.append((stage, percent))
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            config = AnalysisConfig(
-                project_path=tmpdir,
-                language="python",
-                progress_callback=track_progress,
-            )
-            orchestrator.analyze_candidates_with_config(config)
+        config = AnalysisConfig(
+            project_path=temp_dir,
+            language="python",
+            progress_callback=track_progress,
+        )
+        _empty_orchestrator.analyze_candidates_with_config(config)
 
         assert len(progress_stages) > 0
-        # Check that we start at 0% and end at 100%
         assert progress_stages[0][1] == 0.0
         assert progress_stages[-1][1] == 1.0
 
-    def test_progress_callback_receives_stage_names(self):
+    def test_progress_callback_receives_stage_names(self, _empty_orchestrator, temp_dir):
         """Test that progress callback receives meaningful stage names."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
-
-        mock_detector = MagicMock()
-        mock_detector.find_duplication.return_value = {"duplication_groups": []}
-        orchestrator.detector = mock_detector
-        orchestrator.ranker = MagicMock()
-        orchestrator.ranker.rank_deduplication_candidates.return_value = []
-
         stages: List[str] = []
 
         def track_stages(stage: str, _: float) -> None:
             stages.append(stage)
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            config = AnalysisConfig(
-                project_path=tmpdir,
-                language="python",
-                progress_callback=track_stages,
-            )
-            orchestrator.analyze_candidates_with_config(config)
+        config = AnalysisConfig(
+            project_path=temp_dir,
+            language="python",
+            progress_callback=track_stages,
+        )
+        _empty_orchestrator.analyze_candidates_with_config(config)
 
-        # Verify we get expected stage names
         assert "Finding duplicate code" in stages
         assert "Analysis complete" in stages
 
@@ -307,9 +275,8 @@ class TestProgressCallback:
 class TestEnrichmentMethods:
     """Tests for candidate enrichment methods."""
 
-    def test_get_top_candidates_limits_results(self):
+    def test_get_top_candidates_limits_results(self, orchestrator):
         """Test that _get_top_candidates respects max_count."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         candidates = [{"id": i} for i in range(10)]
 
         result = orchestrator._get_top_candidates(candidates, 5)
@@ -317,18 +284,16 @@ class TestEnrichmentMethods:
         assert len(result) == 5
         assert result[0]["id"] == 0
 
-    def test_get_top_candidates_handles_fewer_than_max(self):
+    def test_get_top_candidates_handles_fewer_than_max(self, orchestrator):
         """Test _get_top_candidates when fewer candidates than max."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         candidates = [{"id": i} for i in range(3)]
 
         result = orchestrator._get_top_candidates(candidates, 10)
 
         assert len(result) == 3
 
-    def test_calculate_total_savings(self):
+    def test_calculate_total_savings(self, orchestrator):
         """Test total savings calculation."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         candidates = [
             {"lines_saved": 10, "files": ["a.py", "b.py"]},  # 10 * 2 = 20
             {"lines_saved": 5, "files": ["c.py", "d.py", "e.py"]},  # 5 * 3 = 15
@@ -338,17 +303,14 @@ class TestEnrichmentMethods:
 
         assert total == 35
 
-    def test_calculate_total_savings_empty_list(self):
+    def test_calculate_total_savings_empty_list(self, orchestrator):
         """Test total savings calculation with empty list."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
-
         total = orchestrator._calculate_total_savings([])
 
         assert total == 0
 
-    def test_build_analysis_metadata_from_config(self):
+    def test_build_analysis_metadata_from_config(self, orchestrator):
         """Test metadata building from config."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         config = AnalysisConfig(
             project_path="/test/path",
             language="python",
@@ -369,10 +331,8 @@ class TestEnrichmentMethods:
 class TestEnrichAndSummarize:
     """Tests for _enrich_and_summarize methods."""
 
-    def test_enrich_empty_candidates_returns_early(self):
+    def test_enrich_empty_candidates_returns_early(self, orchestrator):
         """Test that empty candidate list returns early with default structure."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
-
         config = AnalysisConfig(
             project_path="/test/path",
             language="python",
@@ -385,10 +345,8 @@ class TestEnrichAndSummarize:
         assert result["top_candidates_count"] == 0
         assert result["top_candidates_savings_potential"] == 0
 
-    def test_enrich_skips_coverage_when_disabled(self):
+    def test_enrich_skips_coverage_when_disabled(self, orchestrator):
         """Test that coverage check is skipped when include_test_coverage=False."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
-
         mock_coverage = MagicMock()
         orchestrator.coverage_detector = mock_coverage
 
@@ -415,9 +373,8 @@ class TestEnrichAndSummarize:
 class TestTestCoverageBatch:
     """Tests for batch test coverage processing."""
 
-    def test_add_test_coverage_batch_empty_candidates(self):
+    def test_add_test_coverage_batch_empty_candidates(self, orchestrator):
         """Test batch coverage with empty candidate list."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         mock_coverage = MagicMock()
         orchestrator.coverage_detector = mock_coverage
 
@@ -425,9 +382,8 @@ class TestTestCoverageBatch:
 
         mock_coverage.get_test_coverage_for_files_batch.assert_not_called()
 
-    def test_add_test_coverage_batch_collects_unique_files(self):
+    def test_add_test_coverage_batch_collects_unique_files(self, orchestrator):
         """Test that batch coverage deduplicates files."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         mock_coverage = MagicMock()
         mock_coverage.get_test_coverage_for_files_batch.return_value = {
             "a.py": True,
@@ -449,9 +405,8 @@ class TestTestCoverageBatch:
         assert "a.py" in unique_files
         assert "b.py" in unique_files
 
-    def test_add_test_coverage_batch_distributes_results(self):
+    def test_add_test_coverage_batch_distributes_results(self, orchestrator):
         """Test that batch coverage results are distributed to candidates."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         mock_coverage = MagicMock()
         mock_coverage.get_test_coverage_for_files_batch.return_value = {
             "a.py": True,
@@ -473,9 +428,8 @@ class TestTestCoverageBatch:
 class TestRecommendations:
     """Tests for recommendation generation."""
 
-    def test_enrich_with_recommendation(self):
+    def test_enrich_with_recommendation(self, orchestrator):
         """Test single candidate recommendation enrichment."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         mock_recommendation = MagicMock()
         mock_recommendation.generate_deduplication_recommendation.return_value = {
             "action": "refactor",
@@ -500,9 +454,8 @@ class TestRecommendations:
 class TestParallelProcessing:
     """Tests for parallel processing functionality."""
 
-    def test_parallel_enrich_sequential_for_single_candidate(self):
+    def test_parallel_enrich_sequential_for_single_candidate(self, orchestrator):
         """Test that single candidate uses sequential processing."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
 
         call_count = 0
 
@@ -526,9 +479,8 @@ class TestParallelProcessing:
         assert call_count == 1
         assert candidates[0]["enriched"] is True
 
-    def test_parallel_enrich_handles_exceptions(self):
+    def test_parallel_enrich_handles_exceptions(self, orchestrator):
         """Test that parallel enrichment handles exceptions gracefully."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
 
         def failing_enrich(candidate: Dict[str, Any]) -> None:
             raise RuntimeError("Test error")
@@ -552,9 +504,8 @@ class TestParallelProcessing:
 class TestErrorHandling:
     """Tests for error handling in enrichment."""
 
-    def test_handle_enrichment_error_logs_and_updates_candidate(self):
+    def test_handle_enrichment_error_logs_and_updates_candidate(self, orchestrator):
         """Test that _handle_enrichment_error updates candidate correctly."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         candidate: Dict[str, Any] = {"id": "test123"}
         error = ValueError("Something went wrong")
 
@@ -569,9 +520,8 @@ class TestErrorHandling:
         assert candidate["test_error"] == "Something went wrong"
         assert candidate["fallback"] is True
 
-    def test_handle_timeout_error(self):
+    def test_handle_timeout_error(self, orchestrator):
         """Test that timeout errors are handled correctly."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         from concurrent.futures import TimeoutError
 
         candidate: Dict[str, Any] = {"id": "test123"}
@@ -593,9 +543,8 @@ class TestErrorHandling:
 class TestLegacyMethods:
     """Tests for legacy interface methods to ensure backward compatibility."""
 
-    def test_build_analysis_metadata_legacy(self):
+    def test_build_analysis_metadata_legacy(self, orchestrator):
         """Test legacy _build_analysis_metadata method."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
 
         metadata = orchestrator._build_analysis_metadata(
             language="python",
@@ -611,9 +560,8 @@ class TestLegacyMethods:
         assert metadata["include_test_coverage"] is True
         assert metadata["project_path"] == "/legacy/path"
 
-    def test_enrich_and_summarize_legacy(self):
+    def test_enrich_and_summarize_legacy(self, orchestrator):
         """Test legacy _enrich_and_summarize method."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
 
         mock_coverage = MagicMock()
         mock_coverage.get_test_coverage_for_files_batch.return_value = {"a.py": True}
@@ -642,9 +590,8 @@ class TestLegacyMethods:
         assert "analysis_metadata" in result
         assert result["analysis_metadata"]["language"] == "python"
 
-    def test_add_test_coverage_legacy(self):
+    def test_add_test_coverage_legacy(self, orchestrator):
         """Test legacy _add_test_coverage method."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
 
         mock_coverage = MagicMock()
         mock_coverage.get_test_coverage_for_files.return_value = {"a.py": True}
@@ -664,9 +611,8 @@ class TestLegacyMethods:
         assert len(failed) == 0
         assert candidates[0]["has_tests"] is True
 
-    def test_enrich_with_test_coverage_single(self):
+    def test_enrich_with_test_coverage_single(self, orchestrator):
         """Test _enrich_with_test_coverage for single candidate."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
 
         mock_coverage = MagicMock()
         mock_coverage.get_test_coverage_for_files.return_value = {
@@ -687,21 +633,16 @@ class TestLegacyMethods:
 class TestUnsupportedLanguageWarning:
     """Tests for unsupported language warning."""
 
-    def test_unsupported_language_logs_warning(self):
+    def test_unsupported_language_logs_warning(self, orchestrator, temp_dir):
         """Test that unsupported language triggers a warning but doesn't fail."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Should not raise, just log warning
-            orchestrator._validate_analysis_inputs(tmpdir, "fortran", 0.8, 5, 100)
+        orchestrator._validate_analysis_inputs(temp_dir, "fortran", 0.8, 5, 100)
 
 
 class TestParallelProcessingAdvanced:
     """Advanced tests for parallel processing with ThreadPoolExecutor."""
 
-    def test_parallel_enrich_uses_threadpool_for_multiple_candidates(self):
+    def test_parallel_enrich_uses_threadpool_for_multiple_candidates(self, orchestrator):
         """Test that parallel processing is used for multiple candidates."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
 
         enriched_ids: List[str] = []
 
@@ -724,9 +665,8 @@ class TestParallelProcessingAdvanced:
         assert len(enriched_ids) == 3
         assert all(c["enriched"] for c in candidates)
 
-    def test_parallel_enrich_with_timeout(self):
+    def test_parallel_enrich_with_timeout(self, orchestrator):
         """Test parallel enrichment with custom timeout."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
 
         def fast_enrich(candidate: Dict[str, Any]) -> None:
             candidate["done"] = True
@@ -751,9 +691,8 @@ class TestParallelProcessingAdvanced:
 class TestParallelErrorHandling:
     """Tests for error handling in parallel processing path."""
 
-    def test_parallel_enrich_handles_exception_in_parallel_mode(self):
+    def test_parallel_enrich_handles_exception_in_parallel_mode(self, orchestrator):
         """Test that exceptions in parallel mode are handled correctly."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
 
         def failing_enrich(candidate: Dict[str, Any]) -> None:
             raise ValueError(f"Error for {candidate['id']}")
@@ -777,12 +716,10 @@ class TestParallelErrorHandling:
             assert "parallel_error" in candidate
             assert candidate["failed_parallel"] is True
 
-    def test_process_completed_future_handles_timeout(self):
+    def test_process_completed_future_handles_timeout(self, orchestrator):
         """Test _process_completed_future handles TimeoutError."""
         from concurrent.futures import Future
         from concurrent.futures import TimeoutError as FuturesTimeoutError
-
-        orchestrator = DeduplicationAnalysisOrchestrator()
         candidate: Dict[str, Any] = {"id": "timeout_test"}
         failed_candidates: List[Dict[str, Any]] = []
 
@@ -808,9 +745,8 @@ class TestParallelErrorHandling:
 class TestBatchCoverageEdgeCases:
     """Edge case tests for batch coverage processing."""
 
-    def test_add_test_coverage_batch_handles_empty_files_in_candidate(self):
+    def test_add_test_coverage_batch_handles_empty_files_in_candidate(self, orchestrator):
         """Test batch coverage handles candidates with empty file lists."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         mock_coverage = MagicMock()
         mock_coverage.get_test_coverage_for_files_batch.return_value = {}
         orchestrator.coverage_detector = mock_coverage
@@ -825,9 +761,8 @@ class TestBatchCoverageEdgeCases:
         # Should not call batch if no files
         mock_coverage.get_test_coverage_for_files_batch.assert_not_called()
 
-    def test_add_test_coverage_batch_handles_missing_files_key(self):
+    def test_add_test_coverage_batch_handles_missing_files_key(self, orchestrator):
         """Test batch coverage when candidate has no files key."""
-        orchestrator = DeduplicationAnalysisOrchestrator()
         mock_coverage = MagicMock()
         mock_coverage.get_test_coverage_for_files_batch.return_value = {"a.py": True}
         orchestrator.coverage_detector = mock_coverage
