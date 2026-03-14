@@ -25,7 +25,6 @@ from ast_grep_mcp.models.orphan import (
     VerificationStatus,
 )
 
-
 _GREP_EXCLUDE_DIRS = ("node_modules", ".git", "dist", "build", "__pycache__", ".venv", "venv", "coverage", ".next", ".turbo")
 
 
@@ -461,9 +460,53 @@ class OrphanDetector:
             orphan.reason = f"Found {len(references)} possible string references"
             orphan.importers = references[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]
 
+    _FRAMEWORK_DECORATORS = frozenset({
+        "tool", "command", "route", "get", "post", "put", "delete", "patch",
+        "property", "staticmethod", "classmethod", "abstractmethod",
+        "fixture", "parametrize", "cached_property", "validator",
+        "field_validator", "model_validator", "app", "api",
+    })
+
+    @classmethod
+    def _has_framework_decorator(cls, node: ast.FunctionDef) -> bool:
+        """Return True if the function has a decorator that implies framework invocation."""
+        for dec in node.decorator_list:
+            name = cls._decorator_name(dec)
+            if name and name in cls._FRAMEWORK_DECORATORS:
+                return True
+        return False
+
+    @staticmethod
+    def _decorator_name(dec: ast.expr) -> Optional[str]:
+        """Extract the leaf name from a decorator node."""
+        if isinstance(dec, ast.Name):
+            return dec.id
+        if isinstance(dec, ast.Attribute):
+            return dec.attr
+        if isinstance(dec, ast.Call):
+            func = dec.func
+            if isinstance(func, ast.Name):
+                return func.id
+            if isinstance(func, ast.Attribute):
+                return func.attr
+        return None
+
     def _find_orphan_functions(self, base_path: Path, graph: DependencyGraph) -> Tuple[List[OrphanFunction], int]:
         """Find functions with no call sites using parallel grep."""
-        # Collect all candidate functions first
+        candidates, total_functions = self._collect_function_candidates(base_path, graph)
+        if not candidates:
+            return [], total_functions
+
+        exclude_args = self._grep_exclude_args()
+        src_path = base_path / "src"
+        search_path = str(src_path) if src_path.is_dir() else str(base_path)
+        orphan_functions = self._grep_for_uncalled_functions(candidates, search_path, exclude_args)
+        return orphan_functions, total_functions
+
+    def _collect_function_candidates(
+        self, base_path: Path, graph: DependencyGraph
+    ) -> Tuple[List[Tuple[ast.FunctionDef, str]], int]:
+        """Collect candidate functions from all Python files, skipping non-candidates."""
         candidates: List[Tuple[ast.FunctionDef, str]] = []
         total_functions = 0
 
@@ -478,16 +521,27 @@ class OrphanDetector:
             func_nodes = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
             total_functions += len(func_nodes)
             for node in func_nodes:
-                if not ((node.name.startswith("__") and node.name.endswith("__")) or node.name.startswith("test_")):
+                if not self._should_skip_function(node):
                     candidates.append((node, file_path))
 
-        if not candidates:
-            return [], total_functions
+        return candidates, total_functions
 
-        # Parallel grep for all candidates
-        exclude_args = self._grep_exclude_args()
-        src_path = base_path / "src"
-        search_path = str(src_path) if src_path.is_dir() else str(base_path)
+    @classmethod
+    def _should_skip_function(cls, node: ast.FunctionDef) -> bool:
+        """Return True if the function should be excluded from orphan analysis."""
+        if node.name.startswith("__") and node.name.endswith("__"):
+            return True
+        if node.name.startswith("test_"):
+            return True
+        return cls._has_framework_decorator(node)
+
+    def _grep_for_uncalled_functions(
+        self,
+        candidates: List[Tuple[ast.FunctionDef, str]],
+        search_path: str,
+        exclude_args: List[str],
+    ) -> List[OrphanFunction]:
+        """Run parallel grep to find functions with no call sites."""
         orphan_functions: List[OrphanFunction] = []
         max_workers = min(8, len(candidates))
 
@@ -515,7 +569,7 @@ class OrphanDetector:
                         )
                     )
 
-        return orphan_functions, total_functions
+        return orphan_functions
 
     def _check_function_called_grep(
         self, func_name: str, search_path: str, source_file: str, exclude_args: List[str]
@@ -528,15 +582,22 @@ class OrphanDetector:
                 text=True,
                 timeout=SubprocessDefaults.GREP_TIMEOUT_SECONDS,
             )
-            return self._has_external_call_site(result.stdout, source_file)
+            return self._has_call_site(result.stdout, source_file, func_name)
         except Exception:
             return True
 
-    def _has_external_call_site(self, grep_output: str, source_file: str) -> bool:
-        """Return True if grep output contains a call site outside the definition file."""
+    def _has_call_site(self, grep_output: str, source_file: str, func_name: str) -> bool:
+        """Return True if grep output contains a call site (not just the definition)."""
+        def_pattern = re.compile(rf"\bdef\s+{re.escape(func_name)}\s*\(")
         for line in grep_output.strip().split("\n"):
-            if not line or source_file in line or line.strip().startswith("#"):
+            if not line or line.strip().startswith("#"):
                 continue
+            # For same-file matches, skip the definition line itself
+            if source_file in line:
+                # Extract the code portion after the file path
+                code_part = line.split(":", 1)[-1] if ":" in line else line
+                if def_pattern.search(code_part):
+                    continue
             return True
         return False
 
