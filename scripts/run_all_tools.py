@@ -166,12 +166,19 @@ def run_sync_tools():
         record("find_code", error=e)
 
     try:
-        _export_pattern = "module.exports = $$$DECL" if LANG == "javascript" else "export $$$DECL"
-        yaml_rule = f"""
+        if LANG == "javascript":
+            yaml_rule = f"""
 id: find-exports
 language: {LANG}
 rule:
-  pattern: {_export_pattern}
+  pattern: module.exports = $$$DECL
+"""
+        else:
+            yaml_rule = f"""
+id: find-exports
+language: {LANG}
+rule:
+  kind: export_statement
 """
         r = find_code_by_rule_impl(project_folder=TARGET, yaml_rule=yaml_rule)
         record("find_code_by_rule", r)
