@@ -77,7 +77,9 @@ _SURFACE_PATTERNS: Dict[str, List[str]] = {
 
 
 def _extract_surface_for_file(
-    fp: Path, language: str, include_docstrings: bool,
+    fp: Path,
+    language: str,
+    include_docstrings: bool,
 ) -> Tuple[str, int, int] | None:
     """Extract surface for a single file.
 
@@ -89,7 +91,9 @@ def _extract_surface_for_file(
         return None
 
     condensed = _extract_file_surface(
-        source=source, file_path=str(fp), language=language,
+        source=source,
+        file_path=str(fp),
+        language=language,
         include_docstrings=include_docstrings,
     )
     return f"# {fp}\n{condensed}", len(source), len(condensed)
@@ -103,7 +107,9 @@ def _compute_reduction_pct(condensed: int, original: int) -> float:
 
 
 def _accumulate_surface_results(
-    files: List[Path], language: str, include_docstrings: bool,
+    files: List[Path],
+    language: str,
+    include_docstrings: bool,
 ) -> Tuple[List[str], int, int]:
     """Process files and accumulate surface extraction results.
 
@@ -153,7 +159,9 @@ def extract_surface_impl(
 
     files = [root] if root.is_file() else _collect_files(root, language)
     output_parts, total_original, total_condensed = _accumulate_surface_results(
-        files, language, include_docstrings,
+        files,
+        language,
+        include_docstrings,
     )
 
     condensed_source = "\n\n".join(output_parts)
@@ -205,7 +213,10 @@ _DECL_PREFIXES = ("def ", "async def ", "class ", "@")
 
 
 def _handle_python_declaration(
-    lines: List[str], i: int, include_docstrings: bool, indent: int,
+    lines: List[str],
+    i: int,
+    include_docstrings: bool,
+    indent: int,
 ) -> Tuple[List[str], int, int]:
     """Handle a Python declaration line (def/class/@decorator).
 
@@ -234,7 +245,10 @@ def _extract_python_surface(lines: List[str], include_docstrings: bool) -> List[
 
         if stripped.startswith(_DECL_PREFIXES):
             decl_kept, body_indent, consumed = _handle_python_declaration(
-                lines, i, include_docstrings, indent,
+                lines,
+                i,
+                include_docstrings,
+                indent,
             )
             kept.extend(decl_kept)
             i += consumed
@@ -419,8 +433,11 @@ def _update_language_stats(
     lang = file_result["lang"]
     if lang not in per_language:
         per_language[lang] = LanguageCondenseStats(
-            language=lang, files_processed=0,
-            original_lines=0, condensed_lines=0, patterns_matched=0,
+            language=lang,
+            files_processed=0,
+            original_lines=0,
+            condensed_lines=0,
+            patterns_matched=0,
         )
     stats = per_language[lang]
     stats.files_processed += 1
@@ -446,7 +463,10 @@ def _serialize_language_stats(per_language: Dict[str, LanguageCondenseStats]) ->
 
 
 def _accumulate_pack_results(
-    all_files: List[Path], root: Path, strategy: str, file_type_routing: bool,
+    all_files: List[Path],
+    root: Path,
+    strategy: str,
+    file_type_routing: bool,
 ) -> Dict[str, Any]:
     """Process all files and accumulate condensation stats.
 

@@ -386,9 +386,7 @@ class TestProcessScanLine:
         assert should_break is False
 
     def test_import_start_multiline_opens_paren(self):
-        last, multi, should_break = self.extractor._process_scan_line(
-            "from ast_grep_mcp.models import (", 4, 0, False
-        )
+        last, multi, should_break = self.extractor._process_scan_line("from ast_grep_mcp.models import (", 4, 0, False)
         assert last == 4
         assert multi is True
         assert should_break is False

@@ -666,7 +666,6 @@ class DeduplicationApplicator:
         lines.insert(1, "")
 
 
-
 # Module-level functions for backward compatibility with tests
 _applicator_instance = None
 

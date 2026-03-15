@@ -160,9 +160,7 @@ class RefactoringExecutor:
             self.logger.error("file_update_failed", file=file_path, error=str(e))
             raise  # Fail fast for atomicity
 
-    def _apply_import_addition(
-        self, content: str, file_path: str, import_additions: Dict[str, Dict[str, Any]], language: str
-    ) -> str:
+    def _apply_import_addition(self, content: str, file_path: str, import_additions: Dict[str, Dict[str, Any]], language: str) -> str:
         """Add import statement if one is specified for this file.
 
         Uses a lazy import of applicator._add_import_to_content to avoid

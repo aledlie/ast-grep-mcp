@@ -31,9 +31,7 @@ class _DiffCounts:
         }
 
 
-def _classify_diff_line(
-    diff_lines: list[str], i: int, counts: _DiffCounts, changes: list[dict[str, Any]]
-) -> int:
+def _classify_diff_line(diff_lines: list[str], i: int, counts: _DiffCounts, changes: list[dict[str, Any]]) -> int:
     """Classify a single diff line and update counts/changes. Returns next index."""
     line = diff_lines[i]
 
@@ -44,11 +42,13 @@ def _classify_diff_line(
         # Check if next line is an addition (modification pair)
         if i + 1 < len(diff_lines) and diff_lines[i + 1].startswith("+"):
             counts.modifications += 1
-            changes.append({
-                "type": "modification",
-                "old": line[1:].rstrip("\n"),
-                "new": diff_lines[i + 1][1:].rstrip("\n"),
-            })
+            changes.append(
+                {
+                    "type": "modification",
+                    "old": line[1:].rstrip("\n"),
+                    "new": diff_lines[i + 1][1:].rstrip("\n"),
+                }
+            )
             return i + 2
         counts.deletions += 1
         changes.append({"type": "deletion", "content": line[1:].rstrip("\n")})
@@ -69,9 +69,7 @@ def _parse_unified_diff_lines(diff_lines: list[str]) -> tuple[_DiffCounts, list[
     return counts, changes
 
 
-def _build_nested_structure(
-    changes: list[dict[str, Any]], language: str | None
-) -> dict[str, Any]:
+def _build_nested_structure(changes: list[dict[str, Any]], language: str | None) -> dict[str, Any]:
     """Wrap changes into a nested diff root node."""
     return {
         "root": {
@@ -409,12 +407,14 @@ def generate_file_diff(old_content: str, new_content: str, filename: str) -> str
     new_lines = new_content.splitlines(keepends=True) if new_content else []
     _ensure_trailing_newline(old_lines)
     _ensure_trailing_newline(new_lines)
-    return "".join(difflib.unified_diff(
-        old_lines,
-        new_lines,
-        fromfile=f"a/{filename}",
-        tofile=f"b/{filename}",
-    ))
+    return "".join(
+        difflib.unified_diff(
+            old_lines,
+            new_lines,
+            fromfile=f"a/{filename}",
+            tofile=f"b/{filename}",
+        )
+    )
 
 
 def generate_multi_file_diff(changes: list[dict[str, Any]]) -> str:

@@ -13,8 +13,8 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-_MAX_GROUPS_DISPLAY = 15   # number of duplicate groups to show
-_MAX_FILES_DISPLAY = 4     # number of file names to show per group
+_MAX_GROUPS_DISPLAY = 15  # number of duplicate groups to show
+_MAX_FILES_DISPLAY = 4  # number of file names to show per group
 
 
 def get_file_path(location):
@@ -37,9 +37,7 @@ def analyze_report(report_path):
         hash_to_blocks[b["content_hash"]].append(b)
 
     # Get groups with 2+ occurrences, sorted by count
-    exact_dups = [
-        (h, blocks) for h, blocks in hash_to_blocks.items() if len(blocks) >= 2
-    ]
+    exact_dups = [(h, blocks) for h, blocks in hash_to_blocks.items() if len(blocks) >= 2]
     exact_dups.sort(key=lambda x: len(x[1]), reverse=True)
 
     print(f"Report: {report_path}")

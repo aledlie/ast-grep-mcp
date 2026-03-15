@@ -65,15 +65,18 @@ class TestShortPath:
 class TestProjectRoot:
     def test_project_root_is_absolute(self):
         from scripts.scan_complexity_offenders import _PROJECT_ROOT
+
         assert _PROJECT_ROOT.is_absolute()
 
     def test_project_root_exists(self):
         from scripts.scan_complexity_offenders import _PROJECT_ROOT
+
         assert _PROJECT_ROOT.exists()
 
     def test_project_root_uses_file_not_cwd(self):
         """_PROJECT_ROOT is derived from __file__, not CWD, so it always points to the repo root."""
         from scripts.scan_complexity_offenders import _PROJECT_ROOT
+
         # Verify it resolves to the repo root, not something CWD-relative
         assert (_PROJECT_ROOT / "src" / "ast_grep_mcp").exists()
         assert (_PROJECT_ROOT / "pyproject.toml").exists()
@@ -112,9 +115,4 @@ class TestMain:
                 cog = int(parts[_COL_COG])
                 nest = int(parts[_COL_NEST])
                 length = int(parts[_COL_LEN])
-                assert (
-                    cyc > CYC_THRESHOLD
-                    or cog > COG_THRESHOLD
-                    or nest > NEST_THRESHOLD
-                    or length > LEN_THRESHOLD
-                )
+                assert cyc > CYC_THRESHOLD or cog > COG_THRESHOLD or nest > NEST_THRESHOLD or length > LEN_THRESHOLD

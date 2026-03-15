@@ -10,8 +10,8 @@ import sys
 import time
 from pathlib import Path
 
-_MAX_COMPLEXITY_DISPLAY = 10    # top N complex functions to display
-_MAX_DUP_GROUPS_DISPLAY = 10   # top N duplication groups to display
+_MAX_COMPLEXITY_DISPLAY = 10  # top N complex functions to display
+_MAX_DUP_GROUPS_DISPLAY = 10  # top N duplication groups to display
 _MAX_DUP_INSTANCES_DISPLAY = 3  # max instances per duplication group
 
 

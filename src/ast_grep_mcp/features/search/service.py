@@ -195,6 +195,7 @@ def _cache_args_with_globs(stream_args: List[str], language_globs: Optional[Dict
     if not language_globs:
         return stream_args
     import json as _json
+
     globs_key = _json.dumps(language_globs, sort_keys=True)
     return stream_args + [f"__language_globs__={globs_key}"]
 
@@ -238,7 +239,9 @@ def _execute_search(
     matches: List[Dict[str, Any]] = []
     try:
         for match in stream_ast_grep_results(
-            "run", stream_args, max_results=max_results,
+            "run",
+            stream_args,
+            max_results=max_results,
             progress_interval=StreamDefaults.PROGRESS_INTERVAL,
             language_globs=language_globs,
         ):
@@ -358,7 +361,15 @@ def find_code_impl(
         if empty_result is not None:
             return empty_result
         return _run_find_code_search(
-            project_folder, pattern, language, max_results, output_format, workers, search_targets, logger, start_time,
+            project_folder,
+            pattern,
+            language,
+            max_results,
+            output_format,
+            workers,
+            search_targets,
+            logger,
+            start_time,
             language_globs=language_globs,
         )
 
@@ -580,9 +591,7 @@ def find_code_by_rule_impl(
         },
         passthrough=(InvalidYAMLError,),
     ):
-        return _run_rule_search_with_cache(
-            project_folder, yaml_rule, max_results, output_format, warnings, parsed_yaml, logger, start_time
-        )
+        return _run_rule_search_with_cache(project_folder, yaml_rule, max_results, output_format, warnings, parsed_yaml, logger, start_time)
 
 
 # =============================================================================

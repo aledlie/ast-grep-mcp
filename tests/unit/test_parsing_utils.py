@@ -1,6 +1,5 @@
 """Tests for utils.parsing shared primitives."""
 
-
 from ast_grep_mcp.features.complexity.analyzer import _find_docstring_extent, _measure_docstring
 from ast_grep_mcp.utils.parsing import detect_triple_quote, skip_blank_lines
 
@@ -57,50 +56,49 @@ class TestSkipBlankLines:
         assert skip_blank_lines(lines, 0) == 1
 
 
-
 class TestMeasureDocstring:
     def test_single_line_double_quote(self) -> None:
-        lines = ['    """One liner."""', '    pass']
+        lines = ['    """One liner."""', "    pass"]
         assert _measure_docstring(lines, 0) == 1
 
     def test_single_line_single_quote(self) -> None:
-        lines = ["    '''One liner.'''", '    pass']
+        lines = ["    '''One liner.'''", "    pass"]
         assert _measure_docstring(lines, 0) == 1
 
     def test_multi_line(self) -> None:
-        lines = ['    """', '    Multi line.', '    """', '    pass']
+        lines = ['    """', "    Multi line.", '    """', "    pass"]
         assert _measure_docstring(lines, 0) == 3
 
     def test_no_docstring(self) -> None:
-        lines = ['    pass']
+        lines = ["    pass"]
         assert _measure_docstring(lines, 0) == 0
 
     def test_unclosed_docstring(self) -> None:
-        lines = ['    """Start', '    no closing']
+        lines = ['    """Start', "    no closing"]
         assert _measure_docstring(lines, 0) == 0
 
 
 class TestFindDocstringExtent:
     def test_single_line_docstring(self) -> None:
-        lines = ['def foo():', '    """One liner."""', '    pass']
+        lines = ["def foo():", '    """One liner."""', "    pass"]
         assert _find_docstring_extent(lines, 1) == 1
 
     def test_multi_line_docstring(self) -> None:
-        lines = ['def foo():', '    """', '    Multi line.', '    """', '    pass']
+        lines = ["def foo():", '    """', "    Multi line.", '    """', "    pass"]
         assert _find_docstring_extent(lines, 1) == 3
 
     def test_no_docstring(self) -> None:
-        lines = ['def foo():', '    pass']
+        lines = ["def foo():", "    pass"]
         assert _find_docstring_extent(lines, 1) == 0
 
     def test_skips_blank_lines(self) -> None:
-        lines = ['def foo():', '', '    """Docstring."""', '    pass']
+        lines = ["def foo():", "", '    """Docstring."""', "    pass"]
         assert _find_docstring_extent(lines, 1) == 1
 
     def test_all_blank_after_start(self) -> None:
-        lines = ['def foo():', '', '']
+        lines = ["def foo():", "", ""]
         assert _find_docstring_extent(lines, 1) == 0
 
     def test_start_beyond_end(self) -> None:
-        lines = ['def foo():']
+        lines = ["def foo():"]
         assert _find_docstring_extent(lines, 5) == 0

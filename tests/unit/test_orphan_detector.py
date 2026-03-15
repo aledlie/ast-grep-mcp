@@ -10,9 +10,11 @@ from ast_grep_mcp.models.orphan import OrphanAnalysisConfig
 
 @pytest.fixture
 def detector() -> OrphanDetector:
-    return OrphanDetector(OrphanAnalysisConfig(
-        include_patterns=["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.py"],
-    ))
+    return OrphanDetector(
+        OrphanAnalysisConfig(
+            include_patterns=["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.py"],
+        )
+    )
 
 
 @pytest.fixture

@@ -17,6 +17,7 @@ Usage:
     # Limit to specific sessions
     python3 scripts/backfill-skill-spans.py --skill review --agent code-reviewer --category review --sessions 7477d8dc,a3e2e2a5
 """
+
 from __future__ import annotations
 
 import argparse
@@ -40,11 +41,11 @@ BACKFILL_SOURCE = "backfill:agent-span-recovery"
 # Agent log field indices and counts
 # STARTED line format:  timestamp \t name \t category \t status \t STARTED \t flags
 # COMPLETED line format: timestamp \t name \t COMPLETED[_*] \t Nbytes
-_SPAN_ID_BYTES = 8          # 8 bytes → 16 hex chars (64-bit OTEL span ID)
-_LOG_MIN_FIELDS = 4         # minimum fields in a COMPLETED log line
+_SPAN_ID_BYTES = 8  # 8 bytes → 16 hex chars (64-bit OTEL span ID)
+_LOG_MIN_FIELDS = 4  # minimum fields in a COMPLETED log line
 _LOG_STARTED_MIN_FIELDS = 5  # minimum fields to safely check index 4
 _LOG_STARTED_STATUS_IDX = 4  # index of "STARTED" token in STARTED lines
-_LOG_BYTES_FIELD_IDX = 3    # index of the Nbytes field in COMPLETED lines
+_LOG_BYTES_FIELD_IDX = 3  # index of the Nbytes field in COMPLETED lines
 
 
 def new_span_id() -> str:
@@ -72,8 +73,7 @@ def load_trace_ctx(session_id: str) -> dict[str, Any] | None:
     return None
 
 
-def parse_agent_cache(agent_name: str, project_filter: str | None = None,
-                      session_filter: set[str] | None = None) -> list[dict[str, Any]]:
+def parse_agent_cache(agent_name: str, project_filter: str | None = None, session_filter: set[str] | None = None) -> list[dict[str, Any]]:
     """Parse agent-cache logs for invocations of a specific agent.
 
     Returns list of dicts with keys: session_id, started_at, completed_at,
@@ -114,12 +114,10 @@ def parse_agent_cache(agent_name: str, project_filter: str | None = None,
             if len(parts) < _LOG_MIN_FIELDS:
                 continue
 
-            if (len(parts) >= _LOG_STARTED_MIN_FIELDS and parts[1] == agent_name
-                    and parts[_LOG_STARTED_STATUS_IDX] == "STARTED"):
+            if len(parts) >= _LOG_STARTED_MIN_FIELDS and parts[1] == agent_name and parts[_LOG_STARTED_STATUS_IDX] == "STARTED":
                 pending[agent_name] = parts[0]
 
-            elif (parts[1] == agent_name
-                  and parts[2].startswith("COMPLETED")):
+            elif parts[1] == agent_name and parts[2].startswith("COMPLETED"):
                 started_iso = pending.pop(agent_name, None)
                 if started_iso is None:
                     continue
@@ -131,21 +129,31 @@ def parse_agent_cache(agent_name: str, project_filter: str | None = None,
                     except ValueError:
                         pass
 
-                invocations.append({
-                    "session_id": session_id,
-                    "started_at": started_iso,
-                    "completed_at": parts[0],
-                    "output_bytes": output_bytes,
-                    "status": parts[2],
-                })
+                invocations.append(
+                    {
+                        "session_id": session_id,
+                        "started_at": started_iso,
+                        "completed_at": parts[0],
+                        "output_bytes": output_bytes,
+                        "status": parts[2],
+                    }
+                )
 
     return invocations
 
 
-def build_span(name: str, trace_id: str, session_id: str, start_time: list[int],
-               end_time: list[int], duration: list[int],
-               skill_name: str, agent_name: str, category: str,
-               extra_attrs: dict[str, Any] | None = None) -> dict[str, Any]:
+def build_span(
+    name: str,
+    trace_id: str,
+    session_id: str,
+    start_time: list[int],
+    end_time: list[int],
+    duration: list[int],
+    skill_name: str,
+    agent_name: str,
+    category: str,
+    extra_attrs: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Build a single OTEL-compatible span dict."""
     trigger = "PreToolUse" if "pre-tool" in name else "PostToolUse"
     attrs: dict[str, Any] = {
@@ -190,8 +198,7 @@ def compute_duration(start: list[int], end: list[int]) -> list[int]:
     return [ds, dns]
 
 
-def generate_spans(invocations: list[dict[str, Any]], skill_name: str,
-                   agent_name: str, category: str) -> list[tuple[str, dict[str, Any]]]:
+def generate_spans(invocations: list[dict[str, Any]], skill_name: str, agent_name: str, category: str) -> list[tuple[str, dict[str, Any]]]:
     """Generate pre/post span pairs for each invocation.
 
     Returns list of (trace_date, span_dict) tuples for grouping by target file.
@@ -219,18 +226,30 @@ def generate_spans(invocations: list[dict[str, Any]], skill_name: str,
             pre_end = [pre_end[0] + 1, pre_end[1] - NS_PER_SECOND]
 
         pre_span = build_span(
-            "hook:plugin-pre-tool", trace_id, inv["session_id"],
-            start_time, pre_end, [0, PRE_TOOL_DURATION_NS],
-            skill_name, agent_name, category,
+            "hook:plugin-pre-tool",
+            trace_id,
+            inv["session_id"],
+            start_time,
+            pre_end,
+            [0, PRE_TOOL_DURATION_NS],
+            skill_name,
+            agent_name,
+            category,
             {"plugin.has_args": True},
         )
         spans.append((trace_date, pre_span))
 
         # Post-tool span (full duration)
         post_span = build_span(
-            "hook:plugin-post-tool", trace_id, inv["session_id"],
-            start_time, end_time, duration,
-            skill_name, agent_name, category,
+            "hook:plugin-post-tool",
+            trace_id,
+            inv["session_id"],
+            start_time,
+            end_time,
+            duration,
+            skill_name,
+            agent_name,
+            category,
             {
                 "plugin.has_args": True,
                 "agent.output_bytes": inv["output_bytes"],
@@ -251,8 +270,7 @@ def check_already_backfilled(trace_file: Path, skill_name: str) -> set[str]:
         try:
             span = json.loads(line)
             attrs = span.get("attributes", {})
-            if (attrs.get("backfill.source") == BACKFILL_SOURCE
-                    and attrs.get("plugin.name") == skill_name):
+            if attrs.get("backfill.source") == BACKFILL_SOURCE and attrs.get("plugin.name") == skill_name:
                 existing.add(attrs.get("session.id", ""))
         except json.JSONDecodeError:
             continue
@@ -273,8 +291,7 @@ def main() -> None:
 
     print(f"Scanning agent-cache for '{args.agent}' invocations...", file=sys.stderr)
     invocations = parse_agent_cache(args.agent, args.project, session_filter)
-    print(f"Found {len(invocations)} invocations across {len({i['session_id'] for i in invocations})} sessions",
-          file=sys.stderr)
+    print(f"Found {len(invocations)} invocations across {len({i['session_id'] for i in invocations})} sessions", file=sys.stderr)
 
     if not invocations:
         print("No invocations found. Nothing to backfill.", file=sys.stderr)

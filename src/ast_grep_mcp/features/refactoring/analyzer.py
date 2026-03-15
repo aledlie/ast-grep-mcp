@@ -34,9 +34,7 @@ class CodeSelectionAnalyzer:
         self.language = language
         self._variable_patterns = self._get_variable_patterns(language)
 
-    def _build_code_selection(
-        self, file_path: str, start_line: int, end_line: int
-    ) -> tuple[List[str], CodeSelection]:
+    def _build_code_selection(self, file_path: str, start_line: int, end_line: int) -> tuple[List[str], CodeSelection]:
         """Read file and construct a CodeSelection for the given line range.
 
         Returns:
@@ -143,34 +141,149 @@ class CodeSelectionAnalyzer:
         selection.variables = list(variables.values())
 
     # Python keywords set - shared across multiple methods
-    _PYTHON_KEYWORDS = frozenset({
-        "False", "None", "True", "and", "as", "assert", "async", "await",
-        "break", "class", "continue", "def", "del", "elif", "else", "except",
-        "finally", "for", "from", "global", "if", "import", "in", "is",
-        "lambda", "nonlocal", "not", "or", "pass", "raise", "return", "try",
-        "while", "with", "yield",
-    })
+    _PYTHON_KEYWORDS = frozenset(
+        {
+            "False",
+            "None",
+            "True",
+            "and",
+            "as",
+            "assert",
+            "async",
+            "await",
+            "break",
+            "class",
+            "continue",
+            "def",
+            "del",
+            "elif",
+            "else",
+            "except",
+            "finally",
+            "for",
+            "from",
+            "global",
+            "if",
+            "import",
+            "in",
+            "is",
+            "lambda",
+            "nonlocal",
+            "not",
+            "or",
+            "pass",
+            "raise",
+            "return",
+            "try",
+            "while",
+            "with",
+            "yield",
+        }
+    )
 
-    _JS_TS_KEYWORDS = frozenset({
-        "await", "break", "case", "catch", "class", "const", "continue",
-        "debugger", "default", "delete", "do", "else", "enum", "export",
-        "extends", "false", "finally", "for", "function", "if", "import",
-        "in", "instanceof", "let", "new", "null", "return", "super",
-        "switch", "this", "throw", "true", "try", "typeof", "var", "void",
-        "while", "with", "yield", "async", "of",
-    })
+    _JS_TS_KEYWORDS = frozenset(
+        {
+            "await",
+            "break",
+            "case",
+            "catch",
+            "class",
+            "const",
+            "continue",
+            "debugger",
+            "default",
+            "delete",
+            "do",
+            "else",
+            "enum",
+            "export",
+            "extends",
+            "false",
+            "finally",
+            "for",
+            "function",
+            "if",
+            "import",
+            "in",
+            "instanceof",
+            "let",
+            "new",
+            "null",
+            "return",
+            "super",
+            "switch",
+            "this",
+            "throw",
+            "true",
+            "try",
+            "typeof",
+            "var",
+            "void",
+            "while",
+            "with",
+            "yield",
+            "async",
+            "of",
+        }
+    )
 
-    _JAVA_KEYWORDS = frozenset({
-        "abstract", "assert", "boolean", "break", "byte", "case", "catch",
-        "char", "class", "const", "continue", "default", "do", "double",
-        "else", "enum", "extends", "final", "finally", "float", "for",
-        "goto", "if", "implements", "import", "instanceof", "int",
-        "interface", "long", "native", "new", "package", "private",
-        "protected", "public", "return", "short", "static", "strictfp",
-        "super", "switch", "synchronized", "this", "throw", "throws",
-        "transient", "try", "void", "volatile", "while", "true", "false",
-        "null",
-    })
+    _JAVA_KEYWORDS = frozenset(
+        {
+            "abstract",
+            "assert",
+            "boolean",
+            "break",
+            "byte",
+            "case",
+            "catch",
+            "char",
+            "class",
+            "const",
+            "continue",
+            "default",
+            "do",
+            "double",
+            "else",
+            "enum",
+            "extends",
+            "final",
+            "finally",
+            "float",
+            "for",
+            "goto",
+            "if",
+            "implements",
+            "import",
+            "instanceof",
+            "int",
+            "interface",
+            "long",
+            "native",
+            "new",
+            "package",
+            "private",
+            "protected",
+            "public",
+            "return",
+            "short",
+            "static",
+            "strictfp",
+            "super",
+            "switch",
+            "synchronized",
+            "this",
+            "throw",
+            "throws",
+            "transient",
+            "try",
+            "void",
+            "volatile",
+            "while",
+            "true",
+            "false",
+            "null",
+        }
+    )
 
     def _register_variable(
         self,
@@ -227,8 +340,11 @@ class CodeSelectionAnalyzer:
         """
         for var_name in (m.group(1) for m in re.finditer(pattern, content) if m.group(1) not in keywords):
             self._register_variable(
-                variables, var_name, selection.start_line,
-                var_type=VariableType.PARAMETER, is_read=True,
+                variables,
+                var_name,
+                selection.start_line,
+                var_type=VariableType.PARAMETER,
+                is_read=True,
             )
 
     def _find_python_assignments(
@@ -247,23 +363,23 @@ class CodeSelectionAnalyzer:
         assignment_pattern = r"\b(\w+)\s*="
         for match in re.finditer(assignment_pattern, content):
             self._register_variable(
-                variables, match.group(1), selection.start_line,
-                var_type=VariableType.LOCAL, is_written=True,
+                variables,
+                match.group(1),
+                selection.start_line,
+                var_type=VariableType.LOCAL,
+                is_written=True,
             )
 
     # Patterns for base variable detection: subscript, attribute, non-method call
     _PYTHON_BASE_VAR_PATTERNS = (
-        r"\b([a-zA-Z_]\w*)\s*\[",           # var[...]
-        r"\b([a-zA-Z_]\w*)\s*\.",            # var.attr
-        r"(?<!\.)\b([a-zA-Z_]\w*)\s*\(",    # var(...) not method calls
+        r"\b([a-zA-Z_]\w*)\s*\[",  # var[...]
+        r"\b([a-zA-Z_]\w*)\s*\.",  # var.attr
+        r"(?<!\.)\b([a-zA-Z_]\w*)\s*\(",  # var(...) not method calls
     )
 
     def _collect_python_identifiers(self, content: str, pattern: str) -> set[str]:
         """Return non-keyword identifiers matching a regex capture group."""
-        return {
-            m.group(1) for m in re.finditer(pattern, content)
-            if m.group(1) not in self._PYTHON_KEYWORDS
-        }
+        return {m.group(1) for m in re.finditer(pattern, content) if m.group(1) not in self._PYTHON_KEYWORDS}
 
     def _find_python_base_variables(
         self,
@@ -277,8 +393,11 @@ class CodeSelectionAnalyzer:
             base_vars |= self._collect_python_identifiers(content, pattern)
         for var_name in base_vars:
             self._register_variable(
-                variables, var_name, selection.start_line,
-                var_type=VariableType.PARAMETER, is_read=True,
+                variables,
+                var_name,
+                selection.start_line,
+                var_type=VariableType.PARAMETER,
+                is_read=True,
             )
 
     def _is_in_string_or_comment(self, content: str, match_pos: int) -> bool:
@@ -336,8 +455,11 @@ class CodeSelectionAnalyzer:
 
             # Register identifier as read
             self._register_variable(
-                variables, var_name, selection.start_line,
-                var_type=VariableType.PARAMETER, is_read=True,
+                variables,
+                var_name,
+                selection.start_line,
+                var_type=VariableType.PARAMETER,
+                is_read=True,
             )
 
     def _analyze_python_variables(
@@ -447,14 +569,20 @@ class CodeSelectionAnalyzer:
         declaration_pattern = r"\b(?:const|let|var)?\s*(\w+)\s*="
         for match in re.finditer(declaration_pattern, content):
             self._register_variable(
-                variables, match.group(1), selection.start_line,
-                var_type=VariableType.LOCAL, is_written=True,
+                variables,
+                match.group(1),
+                selection.start_line,
+                var_type=VariableType.LOCAL,
+                is_written=True,
             )
 
         # Find variable reads
         self._scan_and_register_identifiers(
-            content, r"\b([a-zA-Z_$]\w*)\b", self._JS_TS_KEYWORDS,
-            variables, selection,
+            content,
+            r"\b([a-zA-Z_$]\w*)\b",
+            self._JS_TS_KEYWORDS,
+            variables,
+            selection,
         )
 
         self._classify_variable_types(selection, variables, all_lines)
@@ -481,14 +609,20 @@ class CodeSelectionAnalyzer:
         declaration_pattern = r"\b(?:\w+\s+)?(\w+)\s*="
         for match in re.finditer(declaration_pattern, content):
             self._register_variable(
-                variables, match.group(1), selection.start_line,
-                var_type=VariableType.LOCAL, is_written=True,
+                variables,
+                match.group(1),
+                selection.start_line,
+                var_type=VariableType.LOCAL,
+                is_written=True,
             )
 
         # Find variable reads
         self._scan_and_register_identifiers(
-            content, r"\b([a-zA-Z_]\w*)\b", self._JAVA_KEYWORDS,
-            variables, selection,
+            content,
+            r"\b([a-zA-Z_]\w*)\b",
+            self._JAVA_KEYWORDS,
+            variables,
+            selection,
         )
 
         self._classify_variable_types(selection, variables, all_lines)

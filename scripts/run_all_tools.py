@@ -25,10 +25,20 @@ _MAX_DISPLAY_EXTS = 8
 # Known language mappings for auto-suggestion
 # .jsx maps to javascript — ast-grep does not have a separate "jsx" language
 _EXT_TO_LANG: dict[str, str] = {
-    ".py": "python", ".ts": "typescript", ".tsx": "tsx", ".js": "javascript",
-    ".jsx": "javascript", ".mjs": "javascript", ".cjs": "javascript",
-    ".rs": "rust", ".go": "go", ".java": "java", ".rb": "ruby",
-    ".json": "json", ".yaml": "yaml", ".yml": "yaml",
+    ".py": "python",
+    ".ts": "typescript",
+    ".tsx": "tsx",
+    ".js": "javascript",
+    ".jsx": "javascript",
+    ".mjs": "javascript",
+    ".cjs": "javascript",
+    ".rs": "rust",
+    ".go": "go",
+    ".java": "java",
+    ".rb": "ruby",
+    ".json": "json",
+    ".yaml": "yaml",
+    ".yml": "yaml",
 }
 
 
@@ -48,8 +58,12 @@ def _detect_target_info(target: str) -> dict:
 
     if not target_path.exists():
         return {
-            "ext_counts": {}, "code_ext_counts": {}, "config_ext_counts": {},
-            "is_config_only": False, "recommended_langs": [LANG], "warnings": [f"Target directory not found: {target}"],
+            "ext_counts": {},
+            "code_ext_counts": {},
+            "config_ext_counts": {},
+            "is_config_only": False,
+            "recommended_langs": [LANG],
+            "warnings": [f"Target directory not found: {target}"],
         }
 
     for p in target_path.rglob("*"):
@@ -71,21 +85,11 @@ def _detect_target_info(target: str) -> dict:
     if not ext_counts:
         warnings.append("WARNING: No files with recognized extensions found in target directory.")
     elif is_config_only:
-        warnings.append(
-            "WARNING: Target appears to contain config files only (no .py/.ts/.js/etc found)."
-        )
-        warnings.append(
-            "  Function-oriented patterns (function $NAME, class $C) will return 0 matches."
-        )
-        warnings.append(
-            "  See docs/CONFIG_PATTERNS.md for patterns that work against config formats."
-        )
+        warnings.append("WARNING: Target appears to contain config files only (no .py/.ts/.js/etc found).")
+        warnings.append("  Function-oriented patterns (function $NAME, class $C) will return 0 matches.")
+        warnings.append("  See docs/CONFIG_PATTERNS.md for patterns that work against config formats.")
         if config_ext_counts:
-            suggestions = ", ".join(
-                f"{_EXT_TO_LANG[e]} (for {e})"
-                for e in sorted(config_ext_counts)
-                if e in _EXT_TO_LANG
-            )
+            suggestions = ", ".join(f"{_EXT_TO_LANG[e]} (for {e})" for e in sorted(config_ext_counts) if e in _EXT_TO_LANG)
             if suggestions:
                 warnings.append(f"  Suggested languages: {suggestions}")
 
@@ -148,9 +152,9 @@ def run_sync_tools():
     )
 
     sample_code = (
-        'function hello(name: string) { console.log(`Hello ${name}`); }'
+        "function hello(name: string) { console.log(`Hello ${name}`); }"
         if LANG == "typescript"
-        else 'function hello(name) { console.log(`Hello ${name}`); }'
+        else "function hello(name) { console.log(`Hello ${name}`); }"
     )
 
     try:
@@ -231,6 +235,7 @@ rule:
   pattern: console.log($$$ARGS)
 """
         from ast_grep_mcp.features.search.service import find_code_by_rule_impl as match_impl
+
         r = match_impl(project_folder=TARGET, yaml_rule=yaml_rule)
         record("test_match_code_rule", r)
     except Exception as e:
@@ -362,7 +367,11 @@ fix: console.info($$$ARGS)
             gid = group.get("group_id", 0)
             plan = {"strategy": "extract_function", "function_name": "dedup_test", "dry_run": True}
             r = apply_deduplication_tool(
-                project_folder=TARGET, group_id=gid, refactoring_plan=plan, dry_run=True, backup=False,
+                project_folder=TARGET,
+                group_id=gid,
+                refactoring_plan=plan,
+                dry_run=True,
+                backup=False,
             )
             record("apply_deduplication", r)
     except Exception as e:
@@ -513,17 +522,14 @@ fix: console.info($$$ARGS)
 
     try:
         to_lang = "typescript" if LANG == "python" else "python"
-        r = convert_code_language_tool(
-            code_snippet=sample_code, from_language=LANG, to_language=to_lang
-        )
+        r = convert_code_language_tool(code_snippet=sample_code, from_language=LANG, to_language=to_lang)
         record("convert_code_language", r)
     except Exception as e:
         record("convert_code_language", error=e)
 
     try:
         r = refactor_polyglot_tool(
-            project_folder=TARGET, refactoring_type="rename_api",
-            symbol_name="instrumentHook", new_name="instrumentHook", dry_run=True
+            project_folder=TARGET, refactoring_type="rename_api", symbol_name="instrumentHook", new_name="instrumentHook", dry_run=True
         )
         record("refactor_polyglot", r)
     except Exception as e:
@@ -533,6 +539,7 @@ fix: console.info($$$ARGS)
     try:
         import json as _json
         import tempfile
+
         _spec = {
             "openapi": "3.0.0",
             "info": {"title": "Hooks API", "version": "1.0.0"},
@@ -707,9 +714,9 @@ def main():
     err = sum(1 for r in results.values() if r["status"] == "ERROR")
     skip = sum(1 for r in results.values() if r["status"] == "SKIPPED")
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"RESULTS: {ok} OK | {err} ERROR | {skip} SKIPPED | {len(results)} total | {elapsed:.1f}s")
-    print(f"{'='*70}\n")
+    print(f"{'=' * 70}\n")
 
     for name, entry in results.items():
         status = entry["status"]

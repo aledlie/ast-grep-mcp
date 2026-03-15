@@ -50,14 +50,18 @@ def _create_rule_from_params(
 ) -> LintingRule:
     """Create a LintingRule from parameters or a template."""
     if use_template:
-        overrides = {k: v for k, v in {
-            "language": language,
-            "severity": severity,
-            "message": description,
-            "pattern": pattern,
-            "note": note,
-            "fix": suggested_fix,
-        }.items() if v is not None}
+        overrides = {
+            k: v
+            for k, v in {
+                "language": language,
+                "severity": severity,
+                "message": description,
+                "pattern": pattern,
+                "note": note,
+                "fix": suggested_fix,
+            }.items()
+            if v is not None
+        }
         return create_rule_from_template(use_template, rule_name, overrides)
 
     return LintingRule(
@@ -675,12 +679,8 @@ def _register_enforcement_tools(mcp: FastMCP) -> None:
         custom_rules: List[str] = Field(
             default_factory=list, description="List of custom rule IDs from .ast-grep-rules/ (used with rule_set='custom')"
         ),
-        include_patterns: List[str] = Field(
-            default_factory=lambda: ["**/*"], description=_INCLUDE_PATTERNS_DESC
-        ),
-        exclude_patterns: List[str] = Field(
-            default_factory=_get_default_exclude_patterns, description=_EXCLUDE_PATTERNS_DESC
-        ),
+        include_patterns: List[str] = Field(default_factory=lambda: ["**/*"], description=_INCLUDE_PATTERNS_DESC),
+        exclude_patterns: List[str] = Field(default_factory=_get_default_exclude_patterns, description=_EXCLUDE_PATTERNS_DESC),
         severity_threshold: str = Field(default="info", description=_SEVERITY_THRESHOLD_DESC),
         max_violations: int = Field(
             default=SecurityScanDefaults.MAX_ISSUES,

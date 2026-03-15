@@ -112,9 +112,7 @@ def _collect_md_files(project_folder: str, file_globs: Optional[List[str]] = Non
     files: List[Path] = []
     for glob_pattern in globs:
         for path in root.glob(glob_pattern):
-            if path.is_file() and not any(
-                exc.strip("**/") in str(path) for exc in FilePatterns.DEFAULT_EXCLUDE
-            ):
+            if path.is_file() and not any(exc.strip("**/") in str(path) for exc in FilePatterns.DEFAULT_EXCLUDE):
                 files.append(path)
     return sorted(files)
 
@@ -153,11 +151,13 @@ def extract_schema_from_frontmatter(
 
         schema_fields = _find_schema_fields(frontmatter)
         if schema_fields:
-            with_schema.append({
-                "file": rel_path,
-                "schema_fields": schema_fields,
-                "all_keys": set(frontmatter.keys()),
-            })
+            with_schema.append(
+                {
+                    "file": rel_path,
+                    "schema_fields": schema_fields,
+                    "all_keys": set(frontmatter.keys()),
+                }
+            )
         else:
             without_schema.append(rel_path)
 
@@ -212,13 +212,15 @@ def validate_frontmatter_schema(
         elif isinstance(context, str) and "schema.org" not in context:
             errors.append(f"@context does not reference schema.org: {context}")
 
-        validations.append({
-            "file": file_path,
-            "schema_type": schema_type,
-            "errors": errors,
-            "warnings": warnings,
-            "valid": len(errors) == 0,
-        })
+        validations.append(
+            {
+                "file": file_path,
+                "schema_type": schema_type,
+                "errors": errors,
+                "warnings": warnings,
+                "valid": len(errors) == 0,
+            }
+        )
 
     return {
         "files_validated": len(validations),
@@ -268,13 +270,15 @@ def suggest_frontmatter_enhancements(
 
         missing = [prop for prop in required if prop not in all_keys]
         if missing:
-            suggestions.append({
-                "file": file_path,
-                "schema_type": schema_type,
-                "missing_properties": missing,
-                "total_required": len(required),
-                "completeness": round(1 - len(missing) / len(required), 2),
-            })
+            suggestions.append(
+                {
+                    "file": file_path,
+                    "schema_type": schema_type,
+                    "missing_properties": missing,
+                    "total_required": len(required),
+                    "completeness": round(1 - len(missing) / len(required), 2),
+                }
+            )
 
     return {
         "files_with_suggestions": len(suggestions),
