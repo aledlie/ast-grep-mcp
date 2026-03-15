@@ -16,10 +16,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+from ast_grep_mcp.features.quality.orphan_detector import detect_orphans_impl
+
 TARGET = sys.argv[1] if len(sys.argv) > 1 else str(Path.home() / "code" / "jobs")
 BASELINE_S = float(sys.argv[2]) if len(sys.argv) > 2 else 764.0
-
-from ast_grep_mcp.features.quality.orphan_detector import detect_orphans_impl
 
 print(f"Target: {TARGET}")
 print(f"Baseline: {BASELINE_S:.0f}s")
