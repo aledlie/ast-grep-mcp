@@ -4,7 +4,6 @@ Migrated to pytest fixtures on 2025-11-26.
 Fixtures used: mcp_main (module-scoped), enforce_standards_tool (module-scoped)
 """
 
-import tempfile
 from unittest.mock import Mock, patch
 
 import pytest
@@ -34,6 +33,7 @@ from ast_grep_mcp.models.standards import (
     RuleTemplate,
     RuleViolation,
 )
+
 
 def _make_violation(
     file="/test.py",
@@ -1245,7 +1245,10 @@ class TestEnforceStandardsTool:
         return RuleSet(
             name="recommended",
             description="Best practices",
-            rules=[LintingRule(id="no-var", language="typescript", severity="warning", message="Use const or let", pattern="var $NAME = $$$")],
+            rules=[LintingRule(
+                id="no-var", language="typescript", severity="warning",
+                message="Use const or let", pattern="var $NAME = $$$",
+            )],
             priority=100,
         )
 
@@ -1323,7 +1326,9 @@ class TestEnforceStandardsTool:
     @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_text_output_format(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set):
+    def test_text_output_format(
+        self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set,
+    ):
         """Test text output format."""
         mock_exists.return_value = True
         mock_load.return_value = _recommended_rule_set
@@ -1336,7 +1341,9 @@ class TestEnforceStandardsTool:
     @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_json_output_format(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set):
+    def test_json_output_format(
+        self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set,
+    ):
         """Test JSON output format."""
         mock_exists.return_value = True
         mock_load.return_value = _recommended_rule_set
@@ -1352,7 +1359,9 @@ class TestEnforceStandardsTool:
     @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_max_violations_enforcement(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set):
+    def test_max_violations_enforcement(
+        self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set,
+    ):
         """Test max_violations is enforced."""
         mock_exists.return_value = True
         mock_load.return_value = _recommended_rule_set
@@ -1367,7 +1376,9 @@ class TestEnforceStandardsTool:
     @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_severity_threshold_filtering(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set):
+    def test_severity_threshold_filtering(
+        self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set,
+    ):
         """Test severity threshold filtering."""
         mock_exists.return_value = True
         mock_load.return_value = _recommended_rule_set
@@ -1381,7 +1392,9 @@ class TestEnforceStandardsTool:
     @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_include_exclude_patterns(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set):
+    def test_include_exclude_patterns(
+        self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set,
+    ):
         """Test include/exclude patterns are passed to context."""
         mock_exists.return_value = True
         mock_load.return_value = _recommended_rule_set
@@ -1398,7 +1411,9 @@ class TestEnforceStandardsTool:
     @patch("ast_grep_mcp.features.quality.enforcer.load_rule_set")
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
-    def test_parallel_execution_with_threads(self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set):
+    def test_parallel_execution_with_threads(
+        self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set,
+    ):
         """Test parallel execution with specified threads."""
         mock_exists.return_value = True
         mock_load.return_value = _recommended_rule_set
