@@ -158,7 +158,7 @@ def _print_breakdown(files: list, funcs: list) -> None:
     print("  File status:     " + "  ".join(f"[{STATUS_ICON.get(s, ' ')}] {s}: {c}" for s, c in sorted(file_status.items())))
     print("  Function status: " + "  ".join(f"[{STATUS_ICON.get(s, ' ')}] {s}: {c}" for s, c in sorted(func_status.items())))
     print(f"  Visibility:      public: {public_ct}  private: {private_ct}")
-    print(f"\n  Legend: [X] confirmed  [!] likely  [?] uncertain")
+    print("\n  Legend: [X] confirmed  [!] likely  [?] uncertain")
 
 
 if __name__ == "__main__":
