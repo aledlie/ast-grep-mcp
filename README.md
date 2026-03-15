@@ -178,6 +178,18 @@ uv run python analyze_codebase.py <path> -l <lang>        # codebase analysis
 uv run python analyze_codebase.py <path> -l <lang> --fix  # analysis + auto-fix
 ```
 
+### Quality Reports
+
+Standalone scripts for code smells, complexity, and orphan detection:
+
+```bash
+uv run python scripts/reports/code_smells.py [project] [-l lang] [--extended] [--json]
+uv run python scripts/reports/complexity.py  [project] [-l lang] [-n top] [--extended] [--json]
+uv run python scripts/reports/orphans.py     [project] [--extended] [--files-only] [--functions-only] [--json]
+```
+
+All default to the current project with `python` language. Use `--extended` for full detail, `--json` for machine-readable output.
+
 ### Adding Features
 
 1. Create `src/ast_grep_mcp/features/<name>/` with `service.py` and `tools.py`

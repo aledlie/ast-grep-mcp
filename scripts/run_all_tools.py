@@ -173,6 +173,13 @@ language: {LANG}
 rule:
   pattern: module.exports = $$$DECL
 """
+        elif LANG == "python":
+            yaml_rule = f"""
+id: find-exports
+language: {LANG}
+rule:
+  kind: import_from_statement
+"""
         else:
             yaml_rule = f"""
 id: find-exports
@@ -505,8 +512,9 @@ fix: console.info($$$ARGS)
         record("find_language_equivalents", error=e)
 
     try:
+        to_lang = "typescript" if LANG == "python" else "python"
         r = convert_code_language_tool(
-            code_snippet=sample_code, from_language=LANG, to_language="python"
+            code_snippet=sample_code, from_language=LANG, to_language=to_lang
         )
         record("convert_code_language", r)
     except Exception as e:
