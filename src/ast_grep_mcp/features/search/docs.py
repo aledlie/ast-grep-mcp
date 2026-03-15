@@ -943,7 +943,8 @@ def _load_pattern_examples() -> Dict[str, Dict[str, List[Dict[str, str]]]]:
     """Load pattern examples from the bundled JSON file."""
     data_path = Path(__file__).parent / "pattern_examples.json"
     with data_path.open(encoding="utf-8") as f:
-        return json.load(f)
+        result: Dict[str, Dict[str, List[Dict[str, str]]]] = json.load(f)
+        return result
 
 
 PATTERN_EXAMPLES: Dict[str, Dict[str, List[Dict[str, str]]]] = _load_pattern_examples()
