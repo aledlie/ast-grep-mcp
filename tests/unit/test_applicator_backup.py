@@ -750,9 +750,7 @@ class TestRestoreSingleFile:
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = DeduplicationBackupManager(tmpdir)
 
-            result = manager._restore_single_file(
-                {"original": "/some/file.py", "backup": "/no/such/backup.py"}
-            )
+            result = manager._restore_single_file({"original": "/some/file.py", "backup": "/no/such/backup.py"})
 
             assert result is None
 
@@ -766,9 +764,7 @@ class TestRestoreSingleFile:
                 f.write("data")
 
             with patch("ast_grep_mcp.features.deduplication.applicator_backup.shutil.copy2", side_effect=PermissionError("denied")):
-                result = manager._restore_single_file(
-                    {"original": "/dst/file.py", "backup": backup}
-                )
+                result = manager._restore_single_file({"original": "/dst/file.py", "backup": backup})
 
             assert result is None
 

@@ -441,13 +441,12 @@ class DuplicationDetector:
     _CLOSING_TOKENS = ("}", "pass")
     _NON_BODY_PREFIXES = ("class ", "@", "#", "//", "/*")
 
-    def _apply_precision_filters(
-        self, groups: List[List[Dict[str, Any]]]
-    ) -> List[List[Dict[str, Any]]]:
+    def _apply_precision_filters(self, groups: List[List[Dict[str, Any]]]) -> List[List[Dict[str, Any]]]:
         """Apply all precision filters and return surviving groups."""
         before = len(groups)
         result = [
-            g for g in groups
+            g
+            for g in groups
             if not self._is_trivial_constructor_group(g)
             and not self._is_delegation_wrapper_group(g)
             and not self._is_parallel_formatter_group(g)
@@ -500,7 +499,8 @@ class DuplicationDetector:
             lines = [ln.strip() for ln in code.split("\n") if ln.strip()]
             # Skip signature line(s) and closing
             body_lines = [
-                ln for ln in lines
+                ln
+                for ln in lines
                 if not ln.startswith(self._SIGNATURE_PREFIXES)
                 and ln not in self._CLOSING_TOKENS
                 and not ln.startswith(self._NON_BODY_PREFIXES)

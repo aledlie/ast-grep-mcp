@@ -720,6 +720,7 @@ class TestParallelErrorHandling:
         """Test _process_completed_future handles TimeoutError."""
         from concurrent.futures import Future
         from concurrent.futures import TimeoutError as FuturesTimeoutError
+
         candidate: Dict[str, Any] = {"id": "timeout_test"}
         failed_candidates: List[Dict[str, Any]] = []
 

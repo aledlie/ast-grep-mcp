@@ -43,7 +43,7 @@ def main() -> None:
     label = "ALL exceeding" if args.extended else f"Top {args.top}"
     print(f"{label} by cyclomatic complexity:")
     print(f"  {'Name':<40} {'File':<55} {'Lines':<12} {'Cyc':>4} {'Cog':>4} {'Nest':>5} {'Len':>4}")
-    print(f"  {'-'*40} {'-'*55} {'-'*12} {'-'*4} {'-'*4} {'-'*5} {'-'*4}")
+    print(f"  {'-' * 40} {'-' * 55} {'-' * 12} {'-' * 4} {'-' * 4} {'-' * 5} {'-' * 4}")
 
     for f in show:
         name = f["name"][:40]

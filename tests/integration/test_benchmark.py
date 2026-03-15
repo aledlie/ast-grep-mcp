@@ -343,9 +343,7 @@ rule:
         # For small fixtures both runs finish in sub-millisecond time, so
         # ratio-based assertions are dominated by scheduling jitter and
         # tracemalloc overhead.  Assert an absolute ceiling instead.
-        assert result2.execution_time < 0.5, (
-            f"Cache hit too slow: {result2.execution_time * 1000:.3f}ms (expected <500ms)"
-        )
+        assert result2.execution_time < 0.5, f"Cache hit too slow: {result2.execution_time * 1000:.3f}ms (expected <500ms)"
 
         # Log the speedup for informational purposes
         speedup = result1.execution_time / result2.execution_time if result2.execution_time > 0 else float("inf")

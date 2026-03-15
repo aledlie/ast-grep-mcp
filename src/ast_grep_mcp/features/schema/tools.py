@@ -476,30 +476,22 @@ def _reg_structured_data(mcp: FastMCP) -> None:
     @mcp.tool()
     def detect_structured_data(
         project_folder: str = Field(description="Project root path"),
-        file_globs: Optional[List[str]] = Field(
-            default=None, description="File patterns to scan (default: **/*.html, **/*.md)"
-        ),
+        file_globs: Optional[List[str]] = Field(default=None, description="File patterns to scan (default: **/*.html, **/*.md)"),
         formats: Optional[List[str]] = Field(
             default=None,
             description="Formats to detect: json-ld, microdata, rdfa, frontmatter (default: all)",
         ),
     ) -> Dict[str, Any]:
         """Detect structured data (JSON-LD, microdata, RDFa, frontmatter) in a project's HTML and markdown files."""
-        return detect_structured_data_tool(
-            project_folder=project_folder, file_globs=file_globs, formats=formats
-        )
+        return detect_structured_data_tool(project_folder=project_folder, file_globs=file_globs, formats=formats)
 
     @mcp.tool()
     def validate_structured_data(
         project_folder: str = Field(description="Project root path"),
-        file_globs: Optional[List[str]] = Field(
-            default=None, description="File patterns to scan (default: **/*.html, **/*.md)"
-        ),
+        file_globs: Optional[List[str]] = Field(default=None, description="File patterns to scan (default: **/*.html, **/*.md)"),
     ) -> Dict[str, Any]:
         """Validate structured data in HTML files, checking JSON-LD, microdata, and RDFa for errors."""
-        return validate_structured_data_tool(
-            project_folder=project_folder, file_globs=file_globs
-        )
+        return validate_structured_data_tool(project_folder=project_folder, file_globs=file_globs)
 
 
 def register_schema_tools(mcp: FastMCP) -> None:

@@ -39,9 +39,7 @@ def _make_match(file: str, line: int, text: str) -> dict:
 class TestDetectJsonldInHtml:
     @patch("ast_grep_mcp.features.schema.html_service.find_code_by_rule_impl")
     def test_single_valid_script(self, mock_find):
-        mock_find.return_value = [
-            _make_match("index.html", 5, '{"@context":"https://schema.org","@type":"Organization","name":"Acme"}')
-        ]
+        mock_find.return_value = [_make_match("index.html", 5, '{"@context":"https://schema.org","@type":"Organization","name":"Acme"}')]
         result = detect_jsonld_in_html("/project")
         assert result["format"] == "json-ld"
         assert result["count"] == 1
@@ -60,9 +58,7 @@ class TestDetectJsonldInHtml:
 
     @patch("ast_grep_mcp.features.schema.html_service.find_code_by_rule_impl")
     def test_malformed_jsonld(self, mock_find):
-        mock_find.return_value = [
-            _make_match("bad.html", 3, "{broken json")
-        ]
+        mock_find.return_value = [_make_match("bad.html", 3, "{broken json")]
         result = detect_jsonld_in_html("/project")
         assert result["count"] == 0
         assert len(result["parse_errors"]) == 1

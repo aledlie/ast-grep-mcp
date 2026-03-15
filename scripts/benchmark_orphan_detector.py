@@ -35,14 +35,14 @@ orphan_functions = summary.get("orphan_functions", 0)
 total_files = summary.get("total_files_analyzed", 0)
 total_functions = summary.get("total_functions_analyzed", 0)
 
-print(f"\n{'='*60}")
+print(f"\n{'=' * 60}")
 print(f"Time:             {elapsed:.1f}s (baseline: {BASELINE_S:.0f}s)")
 print(f"Speedup:          {BASELINE_S / elapsed:.1f}x")
 print(f"Orphan files:     {orphan_files}")
 print(f"Orphan functions: {orphan_functions}")
 print(f"Total files:      {total_files}")
 print(f"Total functions:  {total_functions}")
-print(f"{'='*60}")
+print(f"{'=' * 60}")
 
 out_path = Path("/tmp/benchmark_orphans.json")
 with open(out_path, "w") as f:

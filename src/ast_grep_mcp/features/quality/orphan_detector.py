@@ -418,10 +418,7 @@ class OrphanDetector:
         max_workers = min(8, len(orphans))
 
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            futures = {
-                pool.submit(self._verify_single_orphan, base_path, orphan, exclude_args): orphan
-                for orphan in orphans
-            }
+            futures = {pool.submit(self._verify_single_orphan, base_path, orphan, exclude_args): orphan for orphan in orphans}
             for future in as_completed(futures):
                 try:
                     future.result()
@@ -460,12 +457,30 @@ class OrphanDetector:
             orphan.reason = f"Found {len(references)} possible string references"
             orphan.importers = references[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT]
 
-    _FRAMEWORK_DECORATORS = frozenset({
-        "tool", "command", "route", "get", "post", "put", "delete", "patch",
-        "property", "staticmethod", "classmethod", "abstractmethod",
-        "fixture", "parametrize", "cached_property", "validator",
-        "field_validator", "model_validator", "app", "api",
-    })
+    _FRAMEWORK_DECORATORS = frozenset(
+        {
+            "tool",
+            "command",
+            "route",
+            "get",
+            "post",
+            "put",
+            "delete",
+            "patch",
+            "property",
+            "staticmethod",
+            "classmethod",
+            "abstractmethod",
+            "fixture",
+            "parametrize",
+            "cached_property",
+            "validator",
+            "field_validator",
+            "model_validator",
+            "app",
+            "api",
+        }
+    )
 
     @classmethod
     def _has_framework_decorator(cls, node: ast.FunctionDef) -> bool:
@@ -503,9 +518,7 @@ class OrphanDetector:
         orphan_functions = self._grep_for_uncalled_functions(candidates, search_path, exclude_args)
         return orphan_functions, total_functions
 
-    def _collect_function_candidates(
-        self, base_path: Path, graph: DependencyGraph
-    ) -> Tuple[List[Tuple[ast.FunctionDef, str]], int]:
+    def _collect_function_candidates(self, base_path: Path, graph: DependencyGraph) -> Tuple[List[Tuple[ast.FunctionDef, str]], int]:
         """Collect candidate functions from all Python files, skipping non-candidates."""
         candidates: List[Tuple[ast.FunctionDef, str]] = []
         total_functions = 0
@@ -571,9 +584,7 @@ class OrphanDetector:
 
         return orphan_functions
 
-    def _check_function_called_grep(
-        self, func_name: str, search_path: str, source_file: str, exclude_args: List[str]
-    ) -> bool:
+    def _check_function_called_grep(self, func_name: str, search_path: str, source_file: str, exclude_args: List[str]) -> bool:
         """Check if a function is called anywhere via grep (thread-safe)."""
         try:
             result = subprocess.run(

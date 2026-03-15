@@ -66,12 +66,7 @@ def main() -> None:
             lines = code.count("\n") + 1
             name = _extract_name(code)
 
-            exceeds = (
-                cyc > CYC_THRESHOLD
-                or cog > COG_THRESHOLD
-                or nest > NEST_THRESHOLD
-                or lines > LEN_THRESHOLD
-            )
+            exceeds = cyc > CYC_THRESHOLD or cog > COG_THRESHOLD or nest > NEST_THRESHOLD or lines > LEN_THRESHOLD
 
             if show_all or exceeds:
                 print(f"| `{short}` | `{name}` | {cyc} | {cog} | {nest} | {lines} |")

@@ -114,9 +114,7 @@ def main():
     )
 
     try:
-        r = generate_docstrings_tool(
-            project_folder=TARGET, file_pattern="**/*.ts", language=LANG, dry_run=True
-        )
+        r = generate_docstrings_tool(project_folder=TARGET, file_pattern="**/*.ts", language=LANG, dry_run=True)
         record("generate_docstrings", r)
     except Exception as e:
         record("generate_docstrings", error=e)

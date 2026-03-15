@@ -131,10 +131,7 @@ def _run_rule(
         matches = []
 
     if file_globs and matches:
-        matches = [
-            m for m in matches
-            if _match_globs(m.get("file", ""), project_folder, file_globs)
-        ]
+        matches = [m for m in matches if _match_globs(m.get("file", ""), project_folder, file_globs)]
     return matches
 
 
@@ -217,11 +214,13 @@ def detect_microdata_in_html(
         text = match.get("text", match.get("code", ""))
         type_match = _SCHEMA_TYPE_RE.search(text)
         schema_type = type_match.group(1) if type_match else "unknown"
-        typed_elements.append({
-            "file": match.get("file", ""),
-            "line": match.get("line", 0),
-            "schema_type": schema_type,
-        })
+        typed_elements.append(
+            {
+                "file": match.get("file", ""),
+                "line": match.get("line", 0),
+                "schema_type": schema_type,
+            }
+        )
 
     validation_issues = [
         {
@@ -261,11 +260,13 @@ def detect_rdfa_in_html(
     for match in matches:
         text = match.get("text", match.get("code", "")).strip()
         by_attribute[text] = by_attribute.get(text, 0) + 1
-        properties.append({
-            "file": match.get("file", ""),
-            "line": match.get("line", 0),
-            "attribute": text,
-        })
+        properties.append(
+            {
+                "file": match.get("file", ""),
+                "line": match.get("line", 0),
+                "attribute": text,
+            }
+        )
 
     return {
         "format": "rdfa",

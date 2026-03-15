@@ -95,11 +95,7 @@ class DeduplicationBackupManager:
         with open(metadata_path, "r") as f:
             metadata = json.load(f)
 
-        restored_files = [
-            path
-            for file_info in metadata.get("files", [])
-            if (path := self._restore_single_file(file_info)) is not None
-        ]
+        restored_files = [path for file_info in metadata.get("files", []) if (path := self._restore_single_file(file_info)) is not None]
 
         self.logger.info("rollback_complete", backup_id=backup_id, files_restored=len(restored_files))
         return restored_files
@@ -172,11 +168,7 @@ class DeduplicationBackupManager:
 
     def _compute_file_hashes(self, files: List[str]) -> Dict[str, str]:
         """Compute SHA-256 hashes for all existing files."""
-        return {
-            fp: get_file_hash(fp)
-            for fp in files
-            if os.path.exists(fp)
-        }
+        return {fp: get_file_hash(fp) for fp in files if os.path.exists(fp)}
 
     def _restore_single_file(self, file_info: Dict[str, str]) -> str | None:
         """Restore a single file from backup.

@@ -246,7 +246,6 @@ def _execute_analysis(
     return _format_response(summary, _thresholds_to_dict(thresholds), exceeding_functions, run_id, stored_at, trends, statistics)
 
 
-
 def analyze_complexity_tool(
     project_folder: str,
     language: str,

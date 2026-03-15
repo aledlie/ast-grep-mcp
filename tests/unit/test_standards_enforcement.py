@@ -1245,10 +1245,15 @@ class TestEnforceStandardsTool:
         return RuleSet(
             name="recommended",
             description="Best practices",
-            rules=[LintingRule(
-                id="no-var", language="typescript", severity="warning",
-                message="Use const or let", pattern="var $NAME = $$$",
-            )],
+            rules=[
+                LintingRule(
+                    id="no-var",
+                    language="typescript",
+                    severity="warning",
+                    message="Use const or let",
+                    pattern="var $NAME = $$$",
+                )
+            ],
             priority=100,
         )
 
@@ -1327,7 +1332,14 @@ class TestEnforceStandardsTool:
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
     def test_text_output_format(
-        self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set,
+        self,
+        mock_exists,
+        mock_execute,
+        mock_load,
+        mcp_main,
+        enforce_standards_tool,
+        temp_dir,
+        _recommended_rule_set,
     ):
         """Test text output format."""
         mock_exists.return_value = True
@@ -1342,7 +1354,14 @@ class TestEnforceStandardsTool:
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
     def test_json_output_format(
-        self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set,
+        self,
+        mock_exists,
+        mock_execute,
+        mock_load,
+        mcp_main,
+        enforce_standards_tool,
+        temp_dir,
+        _recommended_rule_set,
     ):
         """Test JSON output format."""
         mock_exists.return_value = True
@@ -1360,7 +1379,14 @@ class TestEnforceStandardsTool:
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
     def test_max_violations_enforcement(
-        self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set,
+        self,
+        mock_exists,
+        mock_execute,
+        mock_load,
+        mcp_main,
+        enforce_standards_tool,
+        temp_dir,
+        _recommended_rule_set,
     ):
         """Test max_violations is enforced."""
         mock_exists.return_value = True
@@ -1377,7 +1403,14 @@ class TestEnforceStandardsTool:
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
     def test_severity_threshold_filtering(
-        self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set,
+        self,
+        mock_exists,
+        mock_execute,
+        mock_load,
+        mcp_main,
+        enforce_standards_tool,
+        temp_dir,
+        _recommended_rule_set,
     ):
         """Test severity threshold filtering."""
         mock_exists.return_value = True
@@ -1393,7 +1426,14 @@ class TestEnforceStandardsTool:
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
     def test_include_exclude_patterns(
-        self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set,
+        self,
+        mock_exists,
+        mock_execute,
+        mock_load,
+        mcp_main,
+        enforce_standards_tool,
+        temp_dir,
+        _recommended_rule_set,
     ):
         """Test include/exclude patterns are passed to context."""
         mock_exists.return_value = True
@@ -1412,7 +1452,14 @@ class TestEnforceStandardsTool:
     @patch("ast_grep_mcp.features.quality.enforcer.execute_rules_batch")
     @patch("pathlib.Path.exists")
     def test_parallel_execution_with_threads(
-        self, mock_exists, mock_execute, mock_load, mcp_main, enforce_standards_tool, temp_dir, _recommended_rule_set,
+        self,
+        mock_exists,
+        mock_execute,
+        mock_load,
+        mcp_main,
+        enforce_standards_tool,
+        temp_dir,
+        _recommended_rule_set,
     ):
         """Test parallel execution with specified threads."""
         mock_exists.return_value = True

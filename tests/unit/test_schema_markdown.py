@@ -1,6 +1,5 @@
 """Tests for markdown frontmatter Schema.org extraction and validation."""
 
-
 import pytest
 
 from ast_grep_mcp.features.schema.markdown_service import (
@@ -126,9 +125,7 @@ class TestExtractSchemaFromFrontmatter:
 
 class TestValidateFrontmatterSchema:
     def test_valid_schema(self, tmp_path):
-        (tmp_path / "post.md").write_text(
-            '---\n"@type": Article\n"@context": https://schema.org\n---\n# Post\n'
-        )
+        (tmp_path / "post.md").write_text('---\n"@type": Article\n"@context": https://schema.org\n---\n# Post\n')
         result = validate_frontmatter_schema(str(tmp_path))
         assert result["files_validated"] == 1
         assert result["validations"][0]["valid"] is True
@@ -141,16 +138,12 @@ class TestValidateFrontmatterSchema:
         assert "@context" in result["validations"][0]["warnings"][0]
 
     def test_bad_context(self, tmp_path):
-        (tmp_path / "post.md").write_text(
-            '---\n"@type": Article\n"@context": https://example.com\n---\n# Post\n'
-        )
+        (tmp_path / "post.md").write_text('---\n"@type": Article\n"@context": https://example.com\n---\n# Post\n')
         result = validate_frontmatter_schema(str(tmp_path))
         assert result["total_errors"] == 1
 
     def test_unrecognized_type(self, tmp_path):
-        (tmp_path / "post.md").write_text(
-            '---\n"@type": CustomThing\n"@context": https://schema.org\n---\n# Post\n'
-        )
+        (tmp_path / "post.md").write_text('---\n"@type": CustomThing\n"@context": https://schema.org\n---\n# Post\n')
         result = validate_frontmatter_schema(str(tmp_path))
         assert result["total_warnings"] == 1
         assert "Unrecognized" in result["validations"][0]["warnings"][0]
@@ -167,16 +160,12 @@ class TestSuggestFrontmatterEnhancements:
         assert "datePublished" in suggestion["missing_properties"]
 
     def test_complete_article(self, tmp_path):
-        (tmp_path / "post.md").write_text(
-            '---\n"@type": Article\nheadline: Test\nauthor: Alice\ndatePublished: 2024-01-01\n---\n# Post\n'
-        )
+        (tmp_path / "post.md").write_text('---\n"@type": Article\nheadline: Test\nauthor: Alice\ndatePublished: 2024-01-01\n---\n# Post\n')
         result = suggest_frontmatter_enhancements(str(tmp_path))
         assert result["files_with_suggestions"] == 0
 
     def test_partial_completeness(self, tmp_path):
-        (tmp_path / "post.md").write_text(
-            '---\n"@type": Article\nheadline: Test\n---\n# Post\n'
-        )
+        (tmp_path / "post.md").write_text('---\n"@type": Article\nheadline: Test\n---\n# Post\n')
         result = suggest_frontmatter_enhancements(str(tmp_path))
         suggestion = result["suggestions"][0]
         assert suggestion["completeness"] == pytest.approx(0.33, abs=0.01)

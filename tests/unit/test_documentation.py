@@ -563,7 +563,7 @@ class TestChangelogHelpers:
         with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
                 (False, "not found"),  # v-prefix fails
-                (True, "abc123"),      # bare ref succeeds
+                (True, "abc123"),  # bare ref succeeds
             ]
             result = _resolve_version_ref("/fake", "some-branch")
             assert result == "some-branch"
@@ -588,9 +588,7 @@ class TestChangelogHelpers:
         with patch(self._MOCK_TARGET) as mock_git:
             mock_git.return_value = (True, "aaa111")
             assert _get_first_commit("/fake") == "aaa111"
-            mock_git.assert_called_once_with(
-                "/fake", ["rev-list", "--max-parents=0", "HEAD"]
-            )
+            mock_git.assert_called_once_with("/fake", ["rev-list", "--max-parents=0", "HEAD"])
 
     def test_get_first_commit_failure(self):
         """Test None return on failure."""
@@ -624,8 +622,8 @@ class TestChangelogHelpers:
 
         with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
-                (True, "v1.0.0"),       # tag list (only the excluded one)
-                (True, "first-commit"), # rev-list for first commit
+                (True, "v1.0.0"),  # tag list (only the excluded one)
+                (True, "first-commit"),  # rev-list for first commit
             ]
             result = _find_previous_tag("/fake", "v1.0.0")
             assert result == "first-commit"
@@ -638,8 +636,8 @@ class TestChangelogHelpers:
 
         with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
-                (True, ""),             # empty tag list
-                (True, "first-commit"), # rev-list for first commit
+                (True, ""),  # empty tag list
+                (True, "first-commit"),  # rev-list for first commit
             ]
             result = _find_previous_tag("/fake", "v2.0.0")
             assert result == "first-commit"
@@ -652,8 +650,8 @@ class TestChangelogHelpers:
 
         with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
-                (False, "error"),       # tag command fails
-                (True, "first-commit"), # rev-list for first commit
+                (False, "error"),  # tag command fails
+                (True, "first-commit"),  # rev-list for first commit
             ]
             result = _find_previous_tag("/fake", "v1.0.0")
             assert result == "first-commit"
@@ -667,7 +665,7 @@ class TestChangelogHelpers:
         with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
                 (False, "not found"),  # vv1.2.0 fails
-                (True, "abc123"),      # v1.2.0 succeeds as bare ref
+                (True, "abc123"),  # v1.2.0 succeeds as bare ref
             ]
             result = _resolve_version_ref("/fake", "v1.2.0")
             assert result == "v1.2.0"  # returned via bare-ref path
@@ -680,7 +678,7 @@ class TestChangelogHelpers:
 
         with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
-                (True, "abc123"),          # _resolve_version_ref: rev-parse v2.0.0
+                (True, "abc123"),  # _resolve_version_ref: rev-parse v2.0.0
                 (True, "v2.0.0\nv1.0.0"),  # _find_previous_tag: tag list
             ]
             from_ref, to_ref = _get_commit_range("/fake", None, "2.0.0")
@@ -694,9 +692,9 @@ class TestChangelogHelpers:
 
         with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
-                (True, "abc123"),      # _resolve_version_ref for to_version: v2.0.0
+                (True, "abc123"),  # _resolve_version_ref for to_version: v2.0.0
                 (False, "not found"),  # _resolve_version_ref for from_version: vbad-ref fails
-                (True, "def789"),      # _resolve_version_ref for from_version: bad-ref succeeds
+                (True, "def789"),  # _resolve_version_ref for from_version: bad-ref succeeds
             ]
             from_ref, to_ref = _get_commit_range("/fake", "bad-ref", "2.0.0")
             assert from_ref == "bad-ref"  # resolved via bare-ref fallback
@@ -725,7 +723,7 @@ class TestChangelogHelpers:
 
         with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
-                (True, "abc123"),      # _resolve_version_ref for to_version: v2.0.0
+                (True, "abc123"),  # _resolve_version_ref for to_version: v2.0.0
                 (False, "not found"),  # _resolve_version_ref for from_version: vbogus fails
                 (False, "not found"),  # _resolve_version_ref for from_version: bogus fails
             ]
@@ -741,8 +739,8 @@ class TestChangelogHelpers:
 
         with patch(self._MOCK_TARGET) as mock_git:
             mock_git.side_effect = [
-                (True, "abc123"),              # _resolve_version_ref for to_version
-                (True, "v2.0.0\nv1.0.0"),      # _find_previous_tag: tag list
+                (True, "abc123"),  # _resolve_version_ref for to_version
+                (True, "v2.0.0\nv1.0.0"),  # _find_previous_tag: tag list
             ]
             from_ref, to_ref = _get_commit_range("/fake", None, "2.0.0")
             assert from_ref == "v1.0.0"  # previous tag, skipping v2.0.0
