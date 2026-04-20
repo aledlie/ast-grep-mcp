@@ -33,5 +33,5 @@ Full analysis: [tmp/lib-audit-report.md](../tmp/lib-audit-report.md)
 
 - [ ] **DF-01** (Low) Strategy pattern filter for deduplication — per `docs/duplicate-detector-misses.md` investigation. Only candidate (Group 5) would save ~18 lines with minor signature mismatch; over-engineering for marginal benefit. (deferred 2026-03-08)
 - [ ] **CF-04** (P3) Config-aware search mode — complex feature for PM2/Zod/JSON-LD config patterns. Deferred from 2026-03-11 session as out of scope. -- `src/ast_grep_mcp/features/search/`
-- [ ] **FG-01** (P2) `detect_structured_data` cannot parse Liquid/Jekyll templates — ast-grep's HTML parser fails on `{% if %}`, `{{ variable }}`. Options: pre-process to strip Liquid tags, regex fallback, or scan `_site/` compiled output. (deferred 2026-03-11) -- `src/ast_grep_mcp/features/schema/html_service.py`
+- [x] **FG-01** (P2) `detect_structured_data` cannot parse Liquid/Jekyll templates — **RESOLVED** with regex fallback. ast-grep HTML parser fails on `{% if %}`, `{{ variable }}`; regex fallback detects JSON-LD, microdata, and RDFa in Liquid files. (commit 5a9476e)
 
