@@ -507,38 +507,64 @@ async def _async_terminate_process(
 
 
 async def _async_iter_stdout_matches(
-    process: asyncio.subprocess.Process,
+    process: "asyncio.subprocess.Process",
     max_results: int,
     progress_interval: int,
     start_time: float,
     logger: Any,
 ) -> AsyncGenerator[Dict[str, Any], None]:
-    """Iterate over stdout lines, yielding parsed matches."""
+    """Iterate over stdout lines, yielding parsed matches.
+    
+    Reads raw bytes to avoid asyncio StreamReader buffer limits (8KB default).
+    Manually handles newline splitting to support large JSON outputs.
+    """
     if not process.stdout:
         return
 
     match_count = 0
     last_progress_log = 0
+    buffer = b''
+    
+    # Read in 64KB chunks to handle large lines
+    chunk_size = 65536
+    
+    while True:
+        chunk = await process.stdout.read(chunk_size)
+        if not chunk:
+            # Flush remaining buffer
+            if buffer:
+                line = buffer.decode()
+                match = _parse_json_line(line, logger)
+                if match:
+                    match_count += 1
+                    yield match
+            break
+        
+        buffer += chunk
+        lines = buffer.split(b'\n')
+        buffer = lines[-1]  # Keep incomplete line
+        
+        for line in lines[:-1]:
+            if not line:
+                continue
+            
+            match = _parse_json_line(line.decode(), logger)
+            if not match:
+                continue
 
-    async for raw_line in process.stdout:
-        line = raw_line.decode() if isinstance(raw_line, bytes) else raw_line
-        match = _parse_json_line(line, logger)
-        if not match:
-            continue
+            match_count += 1
 
-        match_count += 1
+            if _should_log_progress(match_count, last_progress_log, progress_interval):
+                logger.info(
+                    "stream_progress",
+                    matches_found=match_count,
+                    execution_time_seconds=round(
+                        time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION
+                    ),
+                )
+                last_progress_log = match_count
 
-        if _should_log_progress(match_count, last_progress_log, progress_interval):
-            logger.info(
-                "stream_progress",
-                matches_found=match_count,
-                execution_time_seconds=round(
-                    time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION
-                ),
-            )
-            last_progress_log = match_count
-
-        yield match
+            yield match
 
         if max_results > 0 and match_count >= max_results:
             logger.info(
