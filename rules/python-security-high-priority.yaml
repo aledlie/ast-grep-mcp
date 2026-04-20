@@ -98,9 +98,8 @@ rule:
     # Precedes: connection is actually used
     - precedes:
         any:
-          - pattern: "db = .*\.connect(...)"
-          - pattern: "conn = .*\.connect(...)"
-          - pattern: "cursor = .*\.cursor()"
+          - pattern: 'db = .*\.connect(...)'
+          - pattern: 'cursor = .*\.cursor()'
     # Inside: within function that establishes connection
     - inside:
         any:
@@ -191,8 +190,8 @@ rule:
     # Precedes: algorithm actually used
     - precedes:
         any:
-          - pattern: ".encrypt($$$ARGS)"
-          - pattern: ".digest()|.hexdigest()"
+          - pattern: '.encrypt($$$ARGS)'
+          - pattern: '.digest()|.hexdigest()'
           - pattern: "cipher = Cipher.new(...)"
     # Inside: crypto function context
     - inside:
@@ -326,9 +325,9 @@ rule:
     # Precedes: client actually used
     - precedes:
         any:
-          - pattern: ".search(...)"
-          - pattern: ".index(...)"
-          - pattern: ".get(...)"
+          - pattern: '.search(...)'
+          - pattern: '.index(...)'
+          - pattern: '.get(...)'
     # Inside: client context
     - inside:
         any:
