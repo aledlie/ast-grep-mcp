@@ -140,22 +140,58 @@
   "typescript": {
     "function": [
       {
+        "pattern": "function $NAME($$$PARAMS) { $$$BODY }",
+        "description": "Function declaration"
+      },
+      {
         "pattern": "function $NAME($$$PARAMS): $RET { $$$BODY }",
         "description": "Typed function declaration"
       },
       {
+        "pattern": "const $NAME = ($$$PARAMS) => $BODY",
+        "description": "Arrow function (expression body)"
+      },
+      {
+        "pattern": "const $NAME = ($$$PARAMS) => { $$$BODY }",
+        "description": "Arrow function (block body)"
+      },
+      {
         "pattern": "const $NAME = ($$$PARAMS): $RET => $BODY",
-        "description": "Typed arrow function"
+        "description": "Typed arrow function (expression body)"
+      },
+      {
+        "pattern": "const $NAME = ($$$PARAMS): $RET => { $$$BODY }",
+        "description": "Typed arrow function (block body)"
+      },
+      {
+        "pattern": "async function $NAME($$$PARAMS) { $$$BODY }",
+        "description": "Async function declaration"
       },
       {
         "pattern": "async function $NAME($$$PARAMS): Promise<$T> { $$$BODY }",
         "description": "Async function with Promise return type"
+      },
+      {
+        "pattern": "$OBJ.$METHOD($$$ARGS)",
+        "description": "Method call on object"
       }
     ],
     "class": [
       {
+        "pattern": "class $NAME { $$$BODY }",
+        "description": "Class declaration"
+      },
+      {
+        "pattern": "class $NAME extends $PARENT { $$$BODY }",
+        "description": "Class with inheritance"
+      },
+      {
         "pattern": "class $NAME implements $INTERFACE { $$$BODY }",
         "description": "Class implementing interface"
+      },
+      {
+        "pattern": "constructor($$$PARAMS) { $$$BODY }",
+        "description": "Class constructor"
       },
       {
         "pattern": "private $NAME: $TYPE",
@@ -164,9 +200,29 @@
       {
         "pattern": "public $NAME: $TYPE",
         "description": "Public property declaration"
+      },
+      {
+        "pattern": "protected $NAME: $TYPE",
+        "description": "Protected property declaration"
+      },
+      {
+        "pattern": "readonly $NAME: $TYPE",
+        "description": "Readonly property declaration"
       }
     ],
     "import": [
+      {
+        "pattern": "import $NAME from '$PATH'",
+        "description": "Default import"
+      },
+      {
+        "pattern": "import { $$$NAMES } from '$PATH'",
+        "description": "Named imports"
+      },
+      {
+        "pattern": "import * as $NAME from '$PATH'",
+        "description": "Namespace import"
+      },
       {
         "pattern": "import type { $$$NAMES } from '$PATH'",
         "description": "Type-only import"
@@ -174,9 +230,25 @@
       {
         "pattern": "import { type $NAME } from '$PATH'",
         "description": "Inline type import"
+      },
+      {
+        "pattern": "require('$PATH')",
+        "description": "CommonJS require"
       }
     ],
     "variable": [
+      {
+        "pattern": "const $NAME = $VALUE",
+        "description": "Const declaration"
+      },
+      {
+        "pattern": "let $NAME = $VALUE",
+        "description": "Let declaration"
+      },
+      {
+        "pattern": "var $NAME = $VALUE",
+        "description": "Var declaration (legacy)"
+      },
       {
         "pattern": "const $NAME: $TYPE = $VALUE",
         "description": "Typed const declaration"
@@ -184,6 +256,14 @@
       {
         "pattern": "let $NAME: $TYPE = $VALUE",
         "description": "Typed let declaration"
+      },
+      {
+        "pattern": "const { $$$PROPS } = $OBJ",
+        "description": "Object destructuring"
+      },
+      {
+        "pattern": "const [$$$ITEMS] = $ARR",
+        "description": "Array destructuring"
       },
       {
         "pattern": "$VAR as $TYPE",
@@ -196,20 +276,142 @@
     ],
     "control_flow": [
       {
+        "pattern": "if ($COND) { $$$BODY }",
+        "description": "If statement"
+      },
+      {
+        "pattern": "if ($COND) { $$$THEN } else { $$$ELSE }",
+        "description": "If-else statement"
+      },
+      {
+        "pattern": "for (const $ITEM of $ITERABLE) { $$$BODY }",
+        "description": "For-of loop"
+      },
+      {
+        "pattern": "while ($COND) { $$$BODY }",
+        "description": "While loop"
+      },
+      {
+        "pattern": "$COND ? $THEN : $ELSE",
+        "description": "Ternary expression"
+      },
+      {
         "pattern": "if ($VAR !== null && $VAR !== undefined) { $$$BODY }",
-        "description": "Null check pattern"
+        "description": "Null/undefined check pattern"
+      },
+      {
+        "pattern": "switch ($EXPR) { $$$CASES }",
+        "description": "Switch statement"
       }
     ],
     "error_handling": [
       {
+        "pattern": "try { $$$TRY } catch ($ERR) { $$$CATCH }",
+        "description": "Try-catch block"
+      },
+      {
         "pattern": "try { $$$TRY } catch ($ERR: unknown) { $$$CATCH }",
         "description": "Typed catch clause"
+      },
+      {
+        "pattern": "throw new Error($MSG)",
+        "description": "Throw Error"
+      },
+      {
+        "pattern": "throw $ERR",
+        "description": "Throw any value"
       }
     ],
     "async": [
       {
+        "pattern": "await $PROMISE",
+        "description": "Await expression"
+      },
+      {
         "pattern": "await $PROMISE as $TYPE",
         "description": "Await with type assertion"
+      },
+      {
+        "pattern": "Promise.all([$$$PROMISES])",
+        "description": "Promise.all"
+      },
+      {
+        "pattern": "$PROMISE.then($HANDLER)",
+        "description": "Promise then"
+      },
+      {
+        "pattern": "$PROMISE.catch($HANDLER)",
+        "description": "Promise catch"
+      },
+      {
+        "pattern": "new Promise(($RESOLVE, $REJECT) => { $$$BODY })",
+        "description": "Promise constructor"
+      }
+    ],
+    "schema": [
+      {
+        "pattern": "z.object({ $$$FIELDS })",
+        "description": "Zod object schema definition"
+      },
+      {
+        "pattern": "z.string()",
+        "description": "Zod string schema"
+      },
+      {
+        "pattern": "z.number()",
+        "description": "Zod number schema"
+      },
+      {
+        "pattern": "z.boolean()",
+        "description": "Zod boolean schema"
+      },
+      {
+        "pattern": "z.array($SCHEMA)",
+        "description": "Zod array schema"
+      },
+      {
+        "pattern": "z.string().email()",
+        "description": "Zod string with email validation"
+      },
+      {
+        "pattern": "z.string().min($N)",
+        "description": "Zod string with minimum length"
+      },
+      {
+        "pattern": "z.number().positive()",
+        "description": "Zod number with validation"
+      },
+      {
+        "pattern": "z.union([$$$SCHEMAS])",
+        "description": "Zod union type"
+      },
+      {
+        "pattern": "z.discriminatedUnion('$FIELD', [$$$OPTIONS])",
+        "description": "Zod discriminated union"
+      },
+      {
+        "pattern": "type $NAME = z.infer<typeof $SCHEMA>",
+        "description": "Zod type inference from schema"
+      },
+      {
+        "pattern": "$SCHEMA.parse($DATA)",
+        "description": "Zod schema validation (throws on error)"
+      },
+      {
+        "pattern": "$SCHEMA.safeParse($DATA)",
+        "description": "Zod schema safe validation (returns result)"
+      },
+      {
+        "pattern": "$SCHEMA.extend({ $$$FIELDS })",
+        "description": "Zod schema extension"
+      },
+      {
+        "pattern": "z.optional($SCHEMA)",
+        "description": "Zod optional field"
+      },
+      {
+        "pattern": "z.nullable($SCHEMA)",
+        "description": "Zod nullable field"
       }
     ]
   },

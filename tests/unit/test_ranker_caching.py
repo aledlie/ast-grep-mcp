@@ -55,7 +55,7 @@ class TestScoreCaching:
 
         assert key1 == key2
         assert isinstance(key1, str)
-        assert len(key1) == 64  # SHA256 hex string length
+        assert key1.startswith("cache_")  # Fast hash format
 
     def test_cache_key_generation_different_for_different_candidates(self, ranker_with_cache, sample_candidate):
         """Test that different candidates produce different cache keys."""
@@ -231,7 +231,7 @@ class TestScoreCaching:
 
         key = ranker_with_cache._generate_cache_key(candidate)
         assert isinstance(key, str)
-        assert len(key) == 64
+        assert key.startswith("cache_")  # Fast hash format
 
 
 class TestCachePerformance:

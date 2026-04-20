@@ -9,6 +9,8 @@ import functools
 import heapq
 import json
 import logging
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional, Tuple
 
 import structlog
@@ -350,17 +352,20 @@ class DeduplicationPriorityClassifier:
 class DuplicationRanker:
     """Ranks duplication candidates by refactoring value with score caching."""
 
-    def __init__(self, enable_cache: bool = True) -> None:
+    def __init__(self, enable_cache: bool = True, max_workers: Optional[int] = None) -> None:
         """Initialize the ranker.
 
         Args:
             enable_cache: Whether to enable score caching (default: True)
+            max_workers: Max thread pool workers (None=default, 0=disable parallelization)
         """
         self.logger = get_logger("deduplication.ranker")
         self.score_calculator = DeduplicationScoreCalculator()
         self.priority_classifier = DeduplicationPriorityClassifier()
         self.enable_cache = enable_cache
+        self.max_workers = max_workers
         self._score_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+        self._cache_lock = threading.Lock()
 
     def _generate_cache_key(self, candidate: Dict[str, Any]) -> str:
         """Generate a stable cache key for candidate scores using fast hashing.
@@ -453,9 +458,11 @@ class DuplicationRanker:
             return total_score, score_components, 0, 0
 
         cache_key = self._generate_cache_key(candidate)
-        if cache_key in self._score_cache:
-            total_score, score_components = self._score_cache[cache_key]
-            return total_score, score_components, 1, 0
+        
+        with self._cache_lock:
+            if cache_key in self._score_cache:
+                total_score, score_components = self._score_cache[cache_key]
+                return total_score, score_components, 1, 0
 
         total_score, score_components = self.score_calculator.calculate_total_score(
             candidate,
@@ -463,8 +470,30 @@ class DuplicationRanker:
             test_coverage=candidate.get("test_coverage"),
             impact_analysis=candidate.get("impact_analysis"),
         )
-        self._score_cache[cache_key] = (total_score, score_components)
+        
+        with self._cache_lock:
+            self._score_cache[cache_key] = (total_score, score_components)
         return total_score, score_components, 0, 1
+
+    def _score_candidates_parallel(
+        self, candidates: List[Dict[str, Any]]
+    ) -> Tuple[List[Tuple[float, Dict[str, float], int, int]], int]:
+        """Score candidates in parallel using ThreadPoolExecutor.
+        
+        Returns tuple of (scores_list, total_workers_used)
+        """
+        results = []
+        workers_used = 0
+        
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = {executor.submit(self._score_candidate, c): i for i, c in enumerate(candidates)}
+            workers_used = executor._max_workers or 1
+            
+            for future in as_completed(futures):
+                score_result = future.result()
+                results.append(score_result)
+        
+        return results, workers_used
 
     def _build_ranked_candidate(
         self,
@@ -517,11 +546,21 @@ class DuplicationRanker:
         cache_hits = 0
         cache_misses = 0
 
-        for candidate in candidates:
-            total_score, score_components, hits, misses = self._score_candidate(candidate)
-            cache_hits += hits
-            cache_misses += misses
-            ranked.append(self._build_ranked_candidate(candidate, total_score, score_components, include_analysis))
+        if self.max_workers == 0 or len(candidates) < 2:
+            for candidate in candidates:
+                total_score, score_components, hits, misses = self._score_candidate(candidate)
+                cache_hits += hits
+                cache_misses += misses
+                ranked.append(self._build_ranked_candidate(candidate, total_score, score_components, include_analysis))
+        else:
+            score_results, workers_used = self._score_candidates_parallel(candidates)
+            for candidate, (total_score, score_components, hits, misses) in zip(candidates, score_results):
+                cache_hits += hits
+                cache_misses += misses
+                ranked.append(self._build_ranked_candidate(candidate, total_score, score_components, include_analysis))
+            
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                self.logger.debug("parallel_scoring_used", workers=workers_used)
 
         if max_results is not None and max_results > 0:
             ranked = heapq.nlargest(max_results, ranked, key=lambda x: x["score"])

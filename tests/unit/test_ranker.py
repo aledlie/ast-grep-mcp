@@ -177,3 +177,98 @@ class TestEarlyExitPerformance:
         top_10_scores = [c["score"] for c in all_ranked[:10]]
         returned_scores = [c["score"] for c in ranked]
         assert returned_scores == top_10_scores
+
+
+class TestParallelScoring:
+    """Tests for parallel scoring with ThreadPoolExecutor."""
+
+    def test_parallel_scoring_produces_same_results(self):
+        """Verify parallel scoring produces identical results to sequential."""
+        ranker_seq = DuplicationRanker(max_workers=0)  # Disable parallelization
+        ranker_par = DuplicationRanker(max_workers=4)   # Enable parallelization
+
+        candidates = [
+            {
+                "lines_saved": i * 10,
+                "complexity_score": (i % 10) + 1,
+                "has_tests": i % 2 == 0,
+                "affected_files": (i % 5) + 1,
+                "external_call_sites": i * 2,
+            }
+            for i in range(20)
+        ]
+
+        ranked_seq = ranker_seq.rank_deduplication_candidates(candidates)
+        ranked_par = ranker_par.rank_deduplication_candidates(candidates)
+
+        # Should have same number of results
+        assert len(ranked_seq) == len(ranked_par)
+
+        # Scores should be identical (allowing for float precision)
+        for seq, par in zip(ranked_seq, ranked_par):
+            assert abs(seq["score"] - par["score"]) < 1e-9
+            assert seq["rank"] == par["rank"]
+            assert seq["priority"] == par["priority"]
+
+    def test_parallel_scoring_with_small_candidate_list(self):
+        """Verify parallel scoring falls back to sequential for small lists."""
+        ranker = DuplicationRanker(max_workers=4)
+
+        candidates = [
+            {"lines_saved": 100, "complexity_score": 5, "has_tests": True, "affected_files": 3, "external_call_sites": 10},
+        ]
+
+        # Should not crash with single candidate
+        ranked = ranker.rank_deduplication_candidates(candidates)
+        assert len(ranked) == 1
+        assert "score" in ranked[0]
+
+    def test_parallel_scoring_disabled_with_max_workers_zero(self):
+        """Verify max_workers=0 disables parallelization."""
+        ranker = DuplicationRanker(max_workers=0)
+
+        candidates = [
+            {
+                "lines_saved": i * 10,
+                "complexity_score": (i % 10) + 1,
+                "has_tests": i % 2 == 0,
+                "affected_files": (i % 5) + 1,
+                "external_call_sites": i * 2,
+            }
+            for i in range(20)
+        ]
+
+        ranked = ranker.rank_deduplication_candidates(candidates)
+        assert len(ranked) == 20
+        # Verify scoring still works correctly
+        assert all("score" in c for c in ranked)
+
+    def test_parallel_scoring_with_cache(self):
+        """Verify parallel scoring with cache enabled produces correct results."""
+        ranker = DuplicationRanker(enable_cache=True, max_workers=4)
+
+        candidates = [
+            {
+                "lines_saved": 100,
+                "complexity_score": 5,
+                "has_tests": True,
+                "affected_files": 3,
+                "external_call_sites": 10,
+            }
+        ] * 5  # Duplicate candidates to test cache hits
+
+        # First call should have cache misses
+        ranked1 = ranker.rank_deduplication_candidates(candidates)
+        assert len(ranked1) == 5
+
+        # All should have same score since they're identical
+        scores = [c["score"] for c in ranked1]
+        assert len(set(scores)) == 1  # All scores are the same
+
+        # Second call should hit cache
+        ranked2 = ranker.rank_deduplication_candidates(candidates)
+        assert len(ranked2) == 5
+
+        # Scores should still be identical
+        for r1, r2 in zip(ranked1, ranked2):
+            assert abs(r1["score"] - r2["score"]) < 1e-9
