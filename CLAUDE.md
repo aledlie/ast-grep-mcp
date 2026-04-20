@@ -4,7 +4,9 @@
 
 ```bash
 uv sync                          # Install dependencies
-uv run pytest                    # Run all tests (1,803 collected)
+uv run pytest                    # Run all tests (1,807 collected)
+uv run pytest tests/unit/        # Unit tests only
+uv run pytest tests/integration/test_benchmark.py  # Benchmarks
 uv run ruff check . && uv run mypy src/ # Lint and type check
 uv run main.py                   # Run MCP server locally
 doppler run -- uv run main.py    # Run with Doppler secrets
@@ -77,8 +79,11 @@ Exception: **search** tools use `_impl` functions — `from ast_grep_mcp.feature
 - **generate_language_bindings** — expects OpenAPI/Swagger spec, NOT `package.json`.
 - **build_entity_graph** — expects entity definition dicts, NOT raw JSON-LD. **enhance_entity_graph** → use `analyze_entity_graph()` from `schema.enhancement_service`; expects existing JSON-LD files.
 - **YAML `$VAR` in patterns** — use raw strings or single-quoted YAML to prevent shell expansion of `$MSG`, `$NAME`, etc.
+- **deduplication reporting** — `create_enhanced_duplication_response(candidates, include_diffs, include_colors)` is a method on `DuplicationReporter` in `deduplication.reporting`, not a module-level function.
+- **deduplication recommendations** — `generate_deduplication_recommendation(score, complexity, lines, has_tests, files)` is a method on `RecommendationEngine` in `deduplication.recommendations`, not a module-level function.
+- **DuplicationRanker parallelization** — pass `max_workers=N` to enable parallel candidate scoring (ThreadPoolExecutor); `max_workers=0` disables it. Default (`None`) uses ThreadPoolExecutor's default pool.
 
-See [docs/BACKLOG.md](docs/BACKLOG.md) § "Tool Invocation Failures" for full error descriptions, root causes, and correct usage patterns (TF-01–TF-12).
+See [docs/BACKLOG.md](docs/BACKLOG.md) for open items and deferred work.
 
 ## Analysis Scripts
 
