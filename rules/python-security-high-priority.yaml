@@ -472,12 +472,7 @@ rule:
     # Inside: function definition
     - inside:
         pattern: "def $$$FUNC($$$ARGS): $$$BODY"
-    # Follows: implicit concatenation (no explicit os.getenv)
-    - not:
-        follows:
-          any:
-            - pattern: password = os.getenv(...)|password = environ.get(...)
-            - pattern: api_key = os.getenv(...)|api_key = environ.get(...)
+
     # Not: exclude safe patterns
     - not:
         inside:
