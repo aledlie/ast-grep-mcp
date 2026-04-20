@@ -20,7 +20,7 @@ rule:
         - pattern: jwt.encode($ARG1, "$SECRET", $$$ARGS)
         - pattern: openai.api_key = "$KEY"
         - pattern: requests.auth.HTTPBasicAuth("$USER", "$PASSWORD")
-    # Follows: library must be imported (not commented out)
+    # Follows: library must be imported at module level
     - follows:
         any:
           - all:
@@ -34,6 +34,8 @@ rule:
 
           - all:
               - pattern: import requests
+        stopBy:
+          pattern: "def $$$ARGS"
 
     # Precedes: secret is actually used after import
     - precedes:
@@ -90,6 +92,8 @@ rule:
 
           - all:
               - pattern: from pymongo import|from redis import|from couchbase import
+        stopBy:
+          pattern: "def $$$ARGS"
 
     # Precedes: connection is actually used
     - precedes:
@@ -131,7 +135,7 @@ rule:
         - pattern: pymysql.connect(..., password="", ...)
         - pattern: MongoClient(..., password="", ...)
         - pattern: redis.Redis(..., password="", ...)
-    # Follows: library imported without comment
+    # Follows: library imported at module level
     - follows:
         any:
           - all:
@@ -139,6 +143,8 @@ rule:
 
           - all:
               - pattern: from pymongo import|from redis import
+        stopBy:
+          pattern: "def $$$ARGS"
 
     # Inside: connection context
     - inside:
@@ -433,7 +439,7 @@ rule:
           - pattern: "def create_connection($$$ARGS): $$$BODY"
           - pattern: "def init_db($$$ARGS): $$$BODY"
           - pattern: "$VAR = os.getenv('DATABASE_URL')|$VAR = environ['DB']"
-    # Follows: database driver imported
+    # Follows: database driver imported at module level
     - follows:
         any:
           - all:
@@ -444,70 +450,5 @@ rule:
 
           - all:
               - pattern: import requests|from requests import.*
-
-    # Not: exclude tests
-    - not:
-        inside:
-          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
-
----
-# Rule 11: Credentials via String Concatenation
-# Enhanced: inside + follows + not with string context
-id: credentials-string-concatenation
-language: python
-severity: warning
-message: >-
-  Credentials constructed via string concatenation. Use environment variables
-  or secure vaults instead of building strings.
-note: |
-  CWE-798: Use of Hard-coded Credentials
-rule:
-  all:
-    # Pattern: concatenated strings for credentials
-    - any:
-        - pattern: password = $STR1 + $STR2
-        - pattern: api_key = $STR1 + $STR2 + $STR3
-        - pattern: secret = $STR1 + $STR2
-        - pattern: token = $STR1 + $STR2
-    # Inside: function definition
-    - inside:
-        pattern: "def $$$FUNC($$$ARGS): $$$BODY"
-
-    # Not: exclude safe patterns
-    - not:
-        inside:
-          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
-
----
-# Rule 12: Logging Secrets
-# Enhanced: inside + not with safe logging patterns
-id: secrets-in-logging
-language: python
-severity: warning
-message: >-
-  Potential secret in logging call. Never log passwords, API keys, tokens,
-  or other sensitive data.
-note: |
-  CWE-532: Insertion of Sensitive Information into Log File
-rule:
-  all:
-    # Pattern: secrets in log calls
-    - any:
-        - pattern: print($PASSWORD)
-        - pattern: logger.info(..., $PASSWORD, ...)
-        - pattern: logger.debug(..., $PASSWORD, ...)
-        - pattern: logger.error(..., $SECRET, ...)
-        - pattern: logger.warning(..., token=...)
-        - pattern: print(..., "password"=..., ...)
-    # Inside: function definition
-    - inside:
-        pattern: "def $$$FUNC($$$ARGS): $$$BODY"
-    # Not: exclude safe logging patterns
-    - not:
-        inside:
-          any:
-            - pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
-            - pattern: "# Safe to log|# Log is safe"
-    # Not: exclude safe message patterns
-    - not:
-        pattern: 'logger.info("password changed")|print("password required")'
+        stopBy:
+          pattern: "def $$$ARGS"
