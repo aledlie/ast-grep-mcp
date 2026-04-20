@@ -1,0 +1,286 @@
+# High-Priority Python Security Rules (Consolidated Composition)
+# Based on ast-grep-essentials: https://github.com/coderabbitai/ast-grep-essentials/tree/main/rules/python/security
+# Fully consolidated using all/any/not composition per ast-grep catalog patterns
+
+---
+# Rule 1: Hardcoded Secrets in Authentication Libraries (Consolidated)
+# JWT, OpenAI, Requests - all authentication methods
+id: hardcoded-auth-secret
+language: python
+severity: error
+message: >-
+  Authentication secret is hard-coded in the application.
+  Use environment variables (e.g., OPENAI_API_KEY, JWT_SECRET) instead.
+note: |
+  CWE-798: Use of Hard-coded Credentials
+  OWASP A07:2021: Identification and Authentication Failures
+rule:
+  all:
+    - any:
+        - pattern: jwt.encode($ARG1, "$SECRET", $$ARGS)
+        - pattern: openai.api_key = "$KEY"
+        - pattern: requests.auth.HTTPBasicAuth("$USER", "$PASSWORD")
+    - follows:
+        any:
+          - pattern: import jwt|from jwt import.*
+          - pattern: import openai|from openai import.*
+          - pattern: import requests|from requests import.*
+
+---
+# Rule 2: Hardcoded Database Credentials (Consolidated)
+# PostgreSQL, MySQL, MongoDB, Redis, CouchBase - all databases
+id: database-hardcoded-credential
+language: python
+severity: error
+message: >-
+  Hard-coded database credential detected in connection.
+  Use environment variables or secure credential management instead.
+note: |
+  CWE-798: Use of Hard-coded Credentials
+rule:
+  all:
+    - any:
+        # Password in connection calls
+        - pattern: psycopg2.connect(..., password="$PASSWORD", ...)
+        - pattern: mysql.connector.connect(..., password="$PASSWORD", ...)
+        - pattern: pymysql.connect(..., password="$PASSWORD", ...)
+        - pattern: MongoClient(..., password="$PASSWORD", ...)
+        - pattern: redis.Redis(..., password="$PASSWORD", ...)
+        - pattern: couchbase.Cluster(..., password="$PASSWORD", ...)
+        # Username in connection calls
+        - pattern: psycopg2.connect(..., user="$USER", password="$PASSWORD", ...)
+        - pattern: MongoClient(..., username="$USER", password="$PASSWORD", ...)
+    - follows:
+        any:
+          - pattern: import psycopg2|from psycopg2 import.*
+          - pattern: import mysql.connector|from mysql.connector import.*
+          - pattern: import pymysql|from pymysql import.*
+          - pattern: from pymongo import|import pymongo
+          - pattern: import redis|from redis import.*
+          - pattern: import couchbase|from couchbase import.*
+
+---
+# Rule 3: Empty/Default Database Passwords (Consolidated)
+# PostgreSQL, MySQL, MongoDB, Redis
+id: database-empty-credential
+language: python
+severity: warning
+message: >-
+  Empty or default password detected in database connection.
+  This indicates misconfiguration or development credentials in production.
+note: |
+  CWE-521: Weak Password Requirements
+rule:
+  all:
+    - any:
+        - pattern: psycopg2.connect(..., password="", ...)
+        - pattern: pymysql.connect(..., password="", ...)
+        - pattern: MongoClient(..., password="", ...)
+        - pattern: redis.Redis(..., password="", ...)
+    - follows:
+        any:
+          - pattern: import psycopg2|from psycopg2 import.*
+          - pattern: import pymysql|from pymysql import.*
+          - pattern: from pymongo import|import pymongo
+          - pattern: import redis|from redis import.*
+
+---
+# Rule 4: Insecure Cryptography (RC4 + deprecated algos)
+id: insecure-cryptography
+language: python
+severity: error
+message: >-
+  Insecure or deprecated cryptographic algorithm detected.
+  Use modern algorithms: AES-256, ChaCha20, or authenticated encryption.
+note: |
+  CWE-327: Use of Broken Cryptographic Algorithm
+rule:
+  all:
+    - any:
+        - pattern: Cipher.new(AES.MODE_CBC, "RC4", ...)
+        - pattern: Cipher.new("DES", ...)
+        - pattern: hashlib.md5($$$ARGS)
+        - pattern: hashlib.sha1($$$ARGS)
+    - follows:
+        any:
+          - pattern: from Crypto.Cipher import|import Crypto.Cipher
+          - pattern: import hashlib|from hashlib import.*
+
+---
+# Rule 5: Flask Debug Mode Enabled (Consolidated variants)
+# Both direct and in-main-block detection
+id: flask-debug-mode
+language: python
+severity: error
+message: >-
+  Flask debug mode is enabled. This exposes sensitive information and the debugger.
+  Use environment variables (FLASK_ENV=development) to control debug mode.
+note: |
+  CWE-489: Active Debug Code
+rule:
+  all:
+    - any:
+        # Direct debug=True in app.run()
+        - pattern: app.run(..., debug=True, ...)
+        # Debug via flask.run()
+        - pattern: flask.run(..., debug=True, ...)
+    - follows:
+        pattern: import flask|from flask import.*
+    - any:
+        # Allow inside main block (context)
+        - inside:
+            pattern: "if __name__ == '__main__': $$$BODY"
+        # Or flag anywhere if not in test
+        - not:
+            inside:
+              pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+
+---
+# Rule 6: Insecure Temporary File Creation (mktemp)
+id: insecure-temp-file
+language: python
+severity: warning
+message: >-
+  mktemp() has a race condition vulnerability.
+  Use tempfile.NamedTemporaryFile() with delete=False instead.
+note: |
+  CWE-377: Insecure Temporary File
+rule:
+  all:
+    - any:
+        - pattern: tempfile.mktemp()
+        - pattern: mktemp()
+    - follows:
+        pattern: import tempfile|from tempfile import.*
+    - not:
+        inside:
+          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+
+---
+# Rule 7: Hardcoded API/Search Engine Credentials (Consolidated)
+# Elasticsearch, OpenSearch - all search engines
+id: search-engine-hardcoded-credentials
+language: python
+severity: error
+message: >-
+  Hard-coded credentials detected in search engine connection.
+  Use environment variables or managed identity instead.
+note: |
+  CWE-798: Use of Hard-coded Credentials
+rule:
+  all:
+    - any:
+        - pattern: Elasticsearch(..., basic_auth=("$USER", "$PASSWORD"), ...)
+        - pattern: Elasticsearch(..., api_key="$KEY", ...)
+        - pattern: OpenSearch(..., basic_auth=("$USER", "$PASSWORD"), ...)
+        - pattern: OpenSearch(..., api_key="$KEY", ...)
+    - follows:
+        any:
+          - pattern: from elasticsearch import|import elasticsearch
+          - pattern: from opensearchpy import|import opensearchpy
+
+---
+# Rule 8: HTTP Requests with Embedded Credentials (Consolidated)
+id: http-embedded-credentials
+language: python
+severity: error
+message: >-
+  Credentials embedded in HTTP request URL.
+  Use environment variables and pass credentials via headers or auth parameter.
+note: |
+  CWE-798: Use of Hard-coded Credentials
+rule:
+  all:
+    - any:
+        - pattern: requests.$METHOD("http://$USER:$PASSWORD@...", ...)
+        - pattern: requests.$METHOD("https://$USER:$PASSWORD@...", ...)
+        - pattern: urllib.request.urlopen("http://$USER:$PASSWORD@...", ...)
+    - follows:
+        any:
+          - pattern: import requests|from requests import.*
+          - pattern: import urllib|from urllib import.*
+
+---
+# Rule 9: Secret Variable Assignment and Usage (with precedes)
+id: secret-variable-used-after-assignment
+language: python
+severity: error
+message: >-
+  Hard-coded secret assigned to variable then used.
+  Move secrets to environment variables, don't assign hardcoded values.
+note: |
+  CWE-798: Use of Hard-coded Credentials
+rule:
+  pattern:
+    context: $VAR = "$HARDCODED_SECRET"
+    selector: assignment
+  precedes:
+    any:
+      - pattern: jwt.encode(..., $VAR, ...)
+      - pattern: openai.api_key = $VAR
+      - pattern: "connect(..., password=$VAR, ...)"
+      - pattern: "Redis(..., password=$VAR, ...)"
+      - pattern: "Elasticsearch(..., api_key=$VAR, ...)"
+
+---
+# Rule 10: Unencrypted Connection Strings (with inside context)
+id: unencrypted-db-connection
+language: python
+severity: warning
+message: >-
+  Unencrypted connection string detected (http://).
+  Use secure protocols (https://, postgresql://, mongodb+srv://,etc.).
+note: |
+  CWE-295: Improper Certificate Validation
+rule:
+  all:
+    - pattern: $VAR = "http://$$$HOST"
+    - inside:
+        any:
+          - pattern: "def connect($$$ARGS): $$$BODY"
+          - pattern: "def create_connection($$$ARGS): $$$BODY"
+          - pattern: "def init_db($$$ARGS): $$$BODY"
+    - not:
+        pattern: "# https" # exclude if commented with https reminder
+
+---
+# Rule 11: Credentials via String Concatenation (with inside)
+id: credentials-string-concatenation
+language: python
+severity: warning
+message: >-
+  Credentials constructed via string concatenation.
+  Use environment variables or secure vaults instead of building strings.
+note: |
+  CWE-798: Use of Hard-coded Credentials
+rule:
+  all:
+    - any:
+        - pattern: password = $STR1 + $STR2
+        - pattern: api_key = $STR1 + $STR2 + $STR3
+        - pattern: secret = $STR1 + $STR2
+        - pattern: token = $STR1 + $STR2
+    - inside:
+        pattern: "def $$$FUNC($$$ARGS): $$$BODY"
+
+---
+# Rule 12: Logging Secrets (with inside pattern)
+id: secrets-in-logging
+language: python
+severity: warning
+message: >-
+  Potential secret in logging call.
+  Never log passwords, API keys, tokens, or other sensitive data.
+note: |
+  CWE-532: Insertion of Sensitive Information into Log File
+rule:
+  all:
+    - any:
+        - pattern: print($PASSWORD)
+        - pattern: logger.info(..., $PASSWORD, ...)
+        - pattern: logger.debug(..., $PASSWORD, ...)
+        - pattern: log(..., api_key=...)
+        - pattern: print(..., $SECRET, ...)
+    - not:
+        inside:
+          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
