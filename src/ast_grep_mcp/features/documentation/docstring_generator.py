@@ -440,7 +440,9 @@ def _split_params(params_str: str, open_brackets: str) -> List[str]:
             parts.append("".join(current).strip())
             current = []
             continue
-        current.append(char)  # bracket chars fall through here intentionally — appended to current after adjusting depth
+        # Bracket chars fall through here intentionally: depth has already been adjusted
+        # above, and the character itself must still be appended to the current token.
+        current.append(char)
     if current:
         parts.append("".join(current).strip())
     return parts

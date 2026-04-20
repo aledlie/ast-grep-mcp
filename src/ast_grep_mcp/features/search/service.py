@@ -234,7 +234,14 @@ def _execute_search(
     logger: Any,
     language_globs: Optional[Dict[str, List[str]]] = None,
 ) -> List[Dict[str, Any]]:
-    """Execute the search and optionally cache results."""
+    """Execute the search and optionally cache results.
+
+    Follows an all-or-nothing contract: if an exception is raised at any point
+    during streaming, the partially accumulated ``matches`` list is discarded
+    and the exception is re-raised to the caller.  Partial results are only
+    logged as a warning for diagnostic purposes and are never returned.
+    Callers should not expect a partial result set on failure.
+    """
     # Accumulate incrementally so partial results can be logged if streaming fails mid-stream.
     matches: List[Dict[str, Any]] = []
     try:
