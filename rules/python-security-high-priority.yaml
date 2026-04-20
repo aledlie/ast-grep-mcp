@@ -15,11 +15,20 @@ note: |
   CWE-798: Use of Hard-coded Credentials
 rule:
   all:
-    # Pattern: hardcoded secret
+    # Pattern: hardcoded secret (constrain string literals to credential patterns)
     - any:
         - pattern: jwt.encode($ARG1, "$SECRET", $$$ARGS)
+          constraints:
+            - kind: string_content
+              regex: "(?i).*(secret|key|password|token|credential).*"
         - pattern: openai.api_key = "$KEY"
+          constraints:
+            - kind: string_content
+              regex: ".{5,}"
         - pattern: requests.auth.HTTPBasicAuth("$USER", "$PASSWORD")
+          constraints:
+            - kind: string_content
+              regex: ".{3,}"
     # Follows: library must be imported at module level
     - follows:
         any:
@@ -51,9 +60,7 @@ rule:
     # Not: exclude tests and safe patterns
     - not:
         inside:
-          any:
-            - pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
-            - pattern: "# Example|# Demo"
+          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
 
 ---
 # Rule 2: Hardcoded Database Credentials
@@ -113,7 +120,6 @@ rule:
           any:
             - pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
             - pattern: "if os.getenv|if environ.get"
-            - pattern: "# password from env"
 
 ---
 # Rule 3: Empty/Default Database Passwords
@@ -200,12 +206,10 @@ rule:
           - pattern: "def hash($$$ARGS): $$$BODY"
           - pattern: "def digest($$$ARGS): $$$BODY"
           - pattern: "def sign($$$ARGS): $$$BODY"
-    # Not: exclude tests and comments
+    # Not: exclude tests
     - not:
         inside:
-          any:
-            - pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
-            - pattern: "# secure|# TODO: fix|# FIXME"
+          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
 
 ---
 # Rule 5: Flask Debug Mode Enabled
@@ -237,20 +241,18 @@ rule:
     # Precedes: app actually runs
     - precedes:
         any:
-          - pattern: app.run()"
-          - pattern: flask.run()"
+          - pattern: app.run()
+          - pattern: flask.run()
           - pattern: ".run()"
-    # Inside: context matters
+    # Inside: flag if inside app factory
     - inside:
-        any:
-          # Acceptable: inside main block
-          - pattern: "if __name__ == '__main__': $$$BODY"
-          # Flag: inside app factory
-          - pattern: "def create_app($$$ARGS): $$$BODY"
-    # Not: exclude tests
+        pattern: "def create_app($$$ARGS): $$$BODY"
+    # Not: exclude tests and main block
     - not:
         inside:
-          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+          any:
+            - pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+            - pattern: "if __name__ == '__main__': $$$BODY"
 
 ---
 # Rule 6: Insecure Temporary File Creation
@@ -278,17 +280,9 @@ rule:
           - all:
               - pattern: from tempfile import mktemp
 
-    # Precedes: result actually used as file
-    - precedes:
-        any:
-          - pattern: "open($VAR, ...)"
-          - pattern: "with open($VAR, ...) as"
-          - pattern: "os.path.exists($VAR)"
-    # Inside: temp file context
+    # Inside: temp file context - assignment of mktemp result
     - inside:
-        any:
-          - pattern: "def $$$FUNC($$$ARGS): $$$BODY"
-          - pattern: "$VAR = mktemp()"
+        pattern: "$VAR = mktemp()"
     # Not: exclude test context (safer)
     - not:
         inside:
@@ -396,25 +390,24 @@ note: |
   CWE-798: Use of Hard-coded Credentials
 rule:
   all:
-    # Pattern: secret assignment
-    - pattern: $VAR = "$HARDCODED_SECRET"
-    # Precedes: variable used in credential context
-    - precedes:
-        any:
-          - pattern: jwt.encode(..., $VAR, ...)
-          - pattern: openai.api_key = $VAR
-          - pattern: "connect(..., password=$VAR, ...)"
-          - pattern: "Redis(..., password=$VAR, ...)"
-          - pattern: "Elasticsearch(..., api_key=$VAR, ...)"
+    # Pattern: hardcoded secret directly assigned to credential variable or used in credential context
+    - any:
+        - pattern: $VAR = "$$$HARDCODED_SECRET"
+          constraints:
+            - kind: identifier
+              regex: "(?i)(password|secret|api_key|token|credential|auth|key).*"
+        - pattern: jwt.encode(..., "$$$SECRET", ...)
+        - pattern: openai.api_key = "$$$KEY"
+        - pattern: "connect(..., password=\"$$$CRED\", ...)"
+        - pattern: "Redis(..., password=\"$$$CRED\", ...)"
+        - pattern: "Elasticsearch(..., api_key=\"$$$CRED\", ...)"
     # Inside: function definition
     - inside:
         pattern: "def $$$FUNC($$$ARGS): $$$BODY"
-    # Not: exclude safe patterns
+    # Not: exclude tests
     - not:
         inside:
-          any:
-            - pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
-            - pattern: "# Example|# Demo"
+          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
 
 ---
 # Rule 10: Unencrypted Connection Strings
@@ -491,19 +484,32 @@ note: |-
   CWE-532: Insertion of Sensitive Information into Log File
 rule:
   all:
-    # Pattern: secrets in log calls
+    # Pattern: secrets in log calls - constrain to credential-like variable names
     - any:
-        - pattern: print($PASSWORD)
-        - pattern: logger.info(..., $PASSWORD, ...)
-        - pattern: logger.debug(..., $PASSWORD, ...)
-        - pattern: logger.error(..., $SECRET, ...)
-        - pattern: logger.warning(..., token=...)
+        - pattern: print($VAR)
+          constraints:
+            - kind: identifier
+              regex: "(?i).*(password|secret|api_key|token|credential|auth|key).*"
+        - pattern: logger.info(..., $VAR, ...)
+          constraints:
+            - kind: identifier
+              regex: "(?i).*(password|secret|api_key|token|credential|auth|key).*"
+        - pattern: logger.debug(..., $VAR, ...)
+          constraints:
+            - kind: identifier
+              regex: "(?i).*(password|secret|api_key|token|credential|auth|key).*"
+        - pattern: logger.error(..., $VAR, ...)
+          constraints:
+            - kind: identifier
+              regex: "(?i).*(password|secret|api_key|token|credential|auth|key).*"
+        - pattern: logger.warning(..., $VAR=...)
+          constraints:
+            - kind: identifier
+              regex: "(?i).*(password|secret|api_key|token|credential|auth|key).*"
     # Inside: function definition
     - inside:
         pattern: "def $$$FUNC($$$ARGS): $$$BODY"
-    # Not: exclude safe logging patterns
+    # Not: exclude tests
     - not:
         inside:
-          any:
-            - pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
-            - pattern: "# safe to log|# log is safe"
+          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
