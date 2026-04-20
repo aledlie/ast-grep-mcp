@@ -1422,6 +1422,112 @@
         "pattern": "async for $VAR in $ITERABLE:\n    $$$BODY",
         "description": "Async for loop"
       }
+    ],
+    "security": [
+      {
+        "pattern": "jwt.encode($ARG1, \"$SECRET\", $$ARGS)",
+        "description": "Hardcoded JWT secret (CWE-798)"
+      },
+      {
+        "pattern": "openai.api_key = \"$KEY\"",
+        "description": "Hardcoded OpenAI API key (CWE-798)"
+      },
+      {
+        "pattern": "requests.auth.HTTPBasicAuth(\"$USER\", \"$PASSWORD\")",
+        "description": "HTTP Basic Auth hardcoded (CWE-798)"
+      },
+      {
+        "pattern": "psycopg2.connect(..., password=\"$PASSWORD\", ...)",
+        "description": "PostgreSQL hardcoded password (CWE-798)"
+      },
+      {
+        "pattern": "pymysql.connect(..., password=\"$PASSWORD\", ...)",
+        "description": "MySQL hardcoded password (CWE-798)"
+      },
+      {
+        "pattern": "MongoClient(..., password=\"$PASSWORD\", ...)",
+        "description": "MongoDB hardcoded password (CWE-798)"
+      },
+      {
+        "pattern": "redis.Redis(..., password=\"$PASSWORD\", ...)",
+        "description": "Redis hardcoded password (CWE-798)"
+      },
+      {
+        "pattern": "couchbase.Cluster(..., password=\"$PASSWORD\", ...)",
+        "description": "CouchBase hardcoded password (CWE-798)"
+      },
+      {
+        "pattern": "psycopg2.connect(..., password=\"\", ...)",
+        "description": "Empty PostgreSQL password (CWE-521)"
+      },
+      {
+        "pattern": "pymysql.connect(..., password=\"\", ...)",
+        "description": "Empty MySQL password (CWE-521)"
+      },
+      {
+        "pattern": "MongoClient(..., password=\"\", ...)",
+        "description": "Empty MongoDB password (CWE-521)"
+      },
+      {
+        "pattern": "redis.Redis(..., password=\"\", ...)",
+        "description": "Empty Redis password (CWE-521)"
+      },
+      {
+        "pattern": "Cipher.new(AES.MODE_CBC, \"RC4\", ...)",
+        "description": "Insecure RC4 cipher (CWE-327)"
+      },
+      {
+        "pattern": "hashlib.md5($$$ARGS)",
+        "description": "Weak MD5 hash algorithm (CWE-327)"
+      },
+      {
+        "pattern": "hashlib.sha1($$$ARGS)",
+        "description": "Weak SHA1 hash algorithm (CWE-327)"
+      },
+      {
+        "pattern": "app.run(..., debug=True, ...)",
+        "description": "Flask debug mode enabled (CWE-489)"
+      },
+      {
+        "pattern": "flask.run(..., debug=True, ...)",
+        "description": "Flask.run() debug enabled (CWE-489)"
+      },
+      {
+        "pattern": "tempfile.mktemp()",
+        "description": "Insecure mktemp() race condition (CWE-377)"
+      },
+      {
+        "pattern": "mktemp()",
+        "description": "Direct mktemp() call (CWE-377)"
+      },
+      {
+        "pattern": "Elasticsearch(..., basic_auth=(\"$USER\", \"$PASSWORD\"), ...)",
+        "description": "Elasticsearch hardcoded basic_auth (CWE-798)"
+      },
+      {
+        "pattern": "Elasticsearch(..., api_key=\"$KEY\", ...)",
+        "description": "Elasticsearch hardcoded API key (CWE-798)"
+      },
+      {
+        "pattern": "requests.$METHOD(\"http://$USER:$PASSWORD@...\", ...)",
+        "description": "Credentials in HTTP URL (CWE-798)"
+      },
+      {
+        "pattern": "$VAR = \"$SECRET\"\nprecedes: jwt.encode(..., $VAR, ...)",
+        "description": "Secret var assignment then used (CWE-798)"
+      },
+      {
+        "pattern": "$VAR = \"http://$$$HOST\"\ninside: def connect(...)",
+        "description": "Unencrypted connection string (CWE-295)"
+      },
+      {
+        "pattern": "password = $STR1 + $STR2",
+        "description": "Credentials via concatenation (CWE-798)"
+      },
+      {
+        "pattern": "logger.info(..., $PASSWORD, ...)",
+        "description": "Secrets in logging (CWE-532)"
+      }
     ]
   },
   "go": {
