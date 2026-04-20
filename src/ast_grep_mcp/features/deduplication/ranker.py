@@ -5,7 +5,7 @@ This module provides functionality for scoring, classifying, and ranking
 duplicate code based on refactoring value, complexity, and impact.
 """
 
-import hashlib
+import heapq
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -324,31 +324,25 @@ class DuplicationRanker:
         self._score_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
 
     def _generate_cache_key(self, candidate: Dict[str, Any]) -> str:
-        """Generate a stable hash key for caching candidate scores.
+        """Generate a stable cache key for candidate scores using fast hashing.
 
         Args:
             candidate: Candidate dictionary
 
         Returns:
-            SHA256 hash string for cache lookup
+            Cache key string (uses Python's hash with tuple encoding)
         """
-        # Extract key fields that affect scoring
-        cache_data = {
-            "similarity": candidate.get("similarity", 0),
-            "files": sorted(candidate.get("files", [])),
-            "lines_saved": candidate.get("lines_saved", 0),
-            "potential_line_savings": candidate.get("potential_line_savings", 0),
-            "instances": len(candidate.get("instances", [])),
-            "complexity": candidate.get("complexity_analysis"),
-            "test_coverage": candidate.get("test_coverage"),
-            "impact_analysis": candidate.get("impact_analysis"),
-        }
-
-        # Create deterministic JSON representation
-        cache_str = json.dumps(cache_data, sort_keys=True, default=str)
-
-        # Generate hash
-        return hashlib.sha256(cache_str.encode()).hexdigest()
+        cache_tuple = (
+            candidate.get("similarity", 0),
+            tuple(sorted(candidate.get("files", []))),
+            candidate.get("lines_saved", 0),
+            candidate.get("potential_line_savings", 0),
+            len(candidate.get("instances", [])),
+            str(candidate.get("complexity_analysis")),
+            candidate.get("test_coverage"),
+            str(candidate.get("impact_analysis")),
+        )
+        return f"cache_{abs(hash(cache_tuple))}"
 
     def clear_cache(self) -> None:
         """Clear the score cache."""
@@ -489,10 +483,10 @@ class DuplicationRanker:
             cache_misses += misses
             ranked.append(self._build_ranked_candidate(candidate, total_score, score_components, include_analysis))
 
-        ranked.sort(key=lambda x: x["score"], reverse=True)
-
         if max_results is not None and max_results > 0:
-            ranked = ranked[:max_results]
+            ranked = heapq.nlargest(max_results, ranked, key=lambda x: x["score"])
+        else:
+            ranked.sort(key=lambda x: x["score"], reverse=True)
 
         for i, candidate in enumerate(ranked):
             candidate["rank"] = i + 1
