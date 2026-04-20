@@ -6,16 +6,63 @@ import sys
 from typing import Any, Optional, cast
 
 import yaml
+from pydantic import ConfigDict, Field, model_validator
+from pydantic_settings import BaseSettings
 
 from ast_grep_mcp.constants import CacheDefaults
 from ast_grep_mcp.core.exceptions import ConfigurationError
 from ast_grep_mcp.core.logging import configure_logging, get_logger
 from ast_grep_mcp.models.config import AstGrepConfig
 
-# Global variable for config path (will be set by parse_args_and_get_config)
-CONFIG_PATH: Optional[str] = None
 
-# Global cache configuration (set by parse_args_and_get_config)
+class ServerSettings(BaseSettings):
+    """Server configuration using pydantic-settings for automatic env var loading."""
+
+    model_config = ConfigDict(case_sensitive=False, populate_by_name=True)
+
+    config_path: Optional[str] = Field(
+        default=None,
+        alias="AST_GREP_CONFIG",
+        description="Path to sgconfig.yaml file"
+    )
+    log_level: str = Field(
+        default="INFO",
+        alias="LOG_LEVEL",
+        description="Logging level: DEBUG, INFO, WARNING, ERROR"
+    )
+    log_file: Optional[str] = Field(
+        default=None,
+        alias="LOG_FILE",
+        description="Path to log file (logs to stderr by default)"
+    )
+    cache_enabled: bool = Field(
+        default=True,
+        description="Whether to enable result caching"
+    )
+    cache_size: int = Field(
+        default=CacheDefaults.DEFAULT_CACHE_SIZE,
+        alias="CACHE_SIZE",
+        description="Maximum cached query results"
+    )
+    cache_ttl: int = Field(
+        default=CacheDefaults.TTL_SECONDS,
+        alias="CACHE_TTL",
+        description="Cache TTL in seconds"
+    )
+
+    @model_validator(mode="after")
+    def handle_cache_disabled_flag(self) -> "ServerSettings":
+        """Handle CACHE_DISABLED env var (sets cache_enabled to False)."""
+        if os.environ.get("CACHE_DISABLED"):
+            self.cache_enabled = False
+        return self
+
+
+# Global settings instance
+_settings: Optional[ServerSettings] = None
+
+# Backward-compatible globals (set by parse_args_and_get_config)
+CONFIG_PATH: Optional[str] = None
 CACHE_ENABLED: bool = True
 CACHE_SIZE: int = CacheDefaults.DEFAULT_CACHE_SIZE
 CACHE_TTL: int = CacheDefaults.TTL_SECONDS
@@ -135,101 +182,51 @@ def _try_validate_config(config_path: str) -> None:
         sys.exit(1)
 
 
-def _resolve_and_validate_config_path(args: argparse.Namespace) -> Optional[str]:
-    """Resolve and validate config file path from args or environment.
-
-    Precedence: --config flag > AST_GREP_CONFIG env > None
-
-    Args:
-        args: Parsed command-line arguments.
-
-    Returns:
-        Path to config file or None if not specified.
-
-    Note:
-        Calls sys.exit(1) if validation fails.
-    """
-    if args.config:
-        _try_validate_config(args.config)
-        return cast(str, args.config)
-    if env_config := os.environ.get("AST_GREP_CONFIG"):
-        _try_validate_config(env_config)
-        return env_config
-    return None
-
-
-def _configure_logging_from_args(args: argparse.Namespace) -> None:
-    """Configure logging based on command-line arguments and environment.
-
-    Precedence: --log-level/--log-file flags > env vars > defaults
-
-    Args:
-        args: Parsed command-line arguments.
-    """
-    # Determine log level with precedence: --log-level flag > LOG_LEVEL env > INFO
-    log_level = args.log_level or os.environ.get("LOG_LEVEL", "INFO")
-
-    # Determine log file with precedence: --log-file flag > LOG_FILE env > None (stderr)
-    log_file = args.log_file or os.environ.get("LOG_FILE")
-
-    # Configure logging
-    configure_logging(log_level=log_level, log_file=log_file)
-
-
-def _resolve_int_from_env(env_key: str, default: int, warn_key: str) -> int:
-    raw = os.environ.get(env_key)
-    if not raw:
-        return default
-    try:
-        return int(raw)
-    except ValueError:
-        get_logger("cache.init").warning(warn_key, using_default=default)
-        return default
-
-
-def _configure_cache_from_args(args: argparse.Namespace) -> tuple[bool, int, int]:
-    """Configure cache settings from command-line arguments and environment.
-
-    Precedence: command-line flags > env vars > defaults
-
-    Args:
-        args: Parsed command-line arguments.
-
-    Returns:
-        Tuple of (cache_enabled, cache_size, cache_ttl).
-    """
-    cache_logger = get_logger("cache.init")
-
-    cache_enabled = not (args.no_cache or bool(os.environ.get("CACHE_DISABLED")))
-
-    if args.cache_size is not None:
-        cache_size = args.cache_size
-    else:
-        cache_size = _resolve_int_from_env("CACHE_SIZE", CacheDefaults.DEFAULT_CACHE_SIZE, "invalid_cache_size_env")
-
-    if args.cache_ttl is not None:
-        cache_ttl = args.cache_ttl
-    else:
-        cache_ttl = _resolve_int_from_env("CACHE_TTL", CacheDefaults.CLEANUP_INTERVAL_SECONDS, "invalid_cache_ttl_env")
-
-    cache_logger.info("cache_config", cache_enabled=cache_enabled, cache_size=cache_size, cache_ttl=cache_ttl)
-
-    return cache_enabled, cache_size, cache_ttl
-
-
 def parse_args_and_get_config() -> None:
-    """Parse command-line arguments and determine config path."""
-    global CONFIG_PATH, CACHE_ENABLED, CACHE_SIZE, CACHE_TTL
+    """Parse command-line arguments and determine config path using pydantic-settings."""
+    global CONFIG_PATH, CACHE_ENABLED, CACHE_SIZE, CACHE_TTL, _settings
 
-    # Parse arguments
+    # Parse CLI arguments
     parser = _create_argument_parser()
     args = parser.parse_args()
 
-    # Resolve and validate config
-    CONFIG_PATH = _resolve_and_validate_config_path(args)
+    # Create settings from environment + CLI args (CLI takes precedence)
+    settings_dict: dict[str, Any] = {}
+
+    # Apply CLI overrides (they take precedence over env vars)
+    if args.config:
+        settings_dict["config_path"] = args.config
+    if args.log_level:
+        settings_dict["log_level"] = args.log_level
+    if args.log_file:
+        settings_dict["log_file"] = args.log_file
+    if args.no_cache:
+        settings_dict["cache_enabled"] = False
+    if args.cache_size is not None:
+        settings_dict["cache_size"] = args.cache_size
+    if args.cache_ttl is not None:
+        settings_dict["cache_ttl"] = args.cache_ttl
+
+    # Create settings instance (merges CLI args with env vars)
+    _settings = ServerSettings(**settings_dict)
+
+    # Validate config file if provided
+    if _settings.config_path:
+        _try_validate_config(_settings.config_path)
+    CONFIG_PATH = _settings.config_path
 
     # Configure logging
-    _configure_logging_from_args(args)
+    configure_logging(log_level=_settings.log_level, log_file=_settings.log_file)
 
-    # Configure cache
-    CACHE_ENABLED, CACHE_SIZE, CACHE_TTL = _configure_cache_from_args(args)
+    # Update globals for backward compatibility
+    CACHE_ENABLED = _settings.cache_enabled
+    CACHE_SIZE = _settings.cache_size
+    CACHE_TTL = _settings.cache_ttl
+
+    # Log cache configuration
+    get_logger("cache.init").info(
+        "cache_config",
+        cache_enabled=CACHE_ENABLED,
+        cache_size=CACHE_SIZE,
+        cache_ttl=CACHE_TTL
+    )
