@@ -7,7 +7,10 @@ duplicate code based on refactoring value, complexity, and impact.
 
 import heapq
 import json
+import logging
 from typing import Any, Dict, List, Optional, Tuple
+
+import structlog
 
 from ...constants import CodeAnalysisDefaults, DeduplicationDefaults, PriorityClassifierThresholds, RankerDefaults, RiskMultipliers
 from ...core.logging import get_logger
@@ -61,17 +64,19 @@ class DeduplicationScoreCalculator:
             scores["complexity"] = self.calculate_complexity_score(complexity)
             scores["risk"] = RankerDefaults.DEFAULT_MIDDLE_SCORE * self.WEIGHT_RISK
             scores["effort"] = RankerDefaults.DEFAULT_MIDDLE_SCORE * self.WEIGHT_EFFORT
-            self.logger.debug(
-                "total_score_calculated_early_exit",
-                total_score=round(sum(scores.values()), 2),
-                breakdown=scores,
-            )
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                self.logger.debug(
+                    "total_score_calculated_early_exit",
+                    total_score=round(sum(scores.values()), 2),
+                    breakdown=scores,
+                )
         else:
             # Full calculation for candidates with meaningful savings
             scores["complexity"] = self.calculate_complexity_score(complexity)
             scores["risk"] = self.calculate_risk_score(test_coverage, impact_analysis)
             scores["effort"] = self.calculate_effort_score(duplicate_group)
-            self.logger.debug("total_score_calculated", total_score=round(sum(scores.values()), 2), breakdown=scores)
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                self.logger.debug("total_score_calculated", total_score=round(sum(scores.values()), 2), breakdown=scores)
 
         # Calculate total
         total_score = sum(scores.values())
@@ -92,7 +97,8 @@ class DeduplicationScoreCalculator:
         savings_score = min(lines_saved / RankerDefaults.SAVINGS_NORMALIZATION_DIVISOR, RankerDefaults.MAX_NORMALIZED_SCORE)
         weighted_score = savings_score * self.WEIGHT_SAVINGS
 
-        self.logger.debug("savings_score_calculated", lines_saved=lines_saved, raw_score=savings_score, weighted_score=weighted_score)
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            self.logger.debug("savings_score_calculated", lines_saved=lines_saved, raw_score=savings_score, weighted_score=weighted_score)
 
         return float(weighted_score)
 
@@ -119,12 +125,13 @@ class DeduplicationScoreCalculator:
 
         weighted_score = complexity_score * self.WEIGHT_COMPLEXITY
 
-        self.logger.debug(
-            "complexity_score_calculated",
-            complexity_value=complexity.get("complexity_score") if complexity else None,
-            raw_score=complexity_score,
-            weighted_score=weighted_score,
-        )
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            self.logger.debug(
+                "complexity_score_calculated",
+                complexity_value=complexity.get("complexity_score") if complexity else None,
+                raw_score=complexity_score,
+                weighted_score=weighted_score,
+            )
 
         return float(weighted_score)
 
@@ -156,13 +163,14 @@ class DeduplicationScoreCalculator:
 
         weighted_score = risk_score * self.WEIGHT_RISK
 
-        self.logger.debug(
-            "risk_score_calculated",
-            test_coverage=test_coverage,
-            breaking_risk=impact_analysis.get("breaking_change_risk") if impact_analysis else None,
-            raw_score=risk_score,
-            weighted_score=weighted_score,
-        )
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            self.logger.debug(
+                "risk_score_calculated",
+                test_coverage=test_coverage,
+                breaking_risk=impact_analysis.get("breaking_change_risk") if impact_analysis else None,
+                raw_score=risk_score,
+                weighted_score=weighted_score,
+            )
 
         return float(weighted_score)
 
@@ -189,13 +197,14 @@ class DeduplicationScoreCalculator:
         )
         weighted_score = effort_score * self.WEIGHT_EFFORT
 
-        self.logger.debug(
-            "effort_score_calculated",
-            instance_count=instance_count,
-            file_count=file_count,
-            raw_score=effort_score,
-            weighted_score=weighted_score,
-        )
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            self.logger.debug(
+                "effort_score_calculated",
+                instance_count=instance_count,
+                file_count=file_count,
+                raw_score=effort_score,
+                weighted_score=weighted_score,
+            )
 
         return float(weighted_score)
 
@@ -267,7 +276,8 @@ class DeduplicationPriorityClassifier:
             "recommendation": self.get_recommendation(total_score, lines_saved, instance_count),
         }
 
-        self.logger.debug("score_breakdown_generated", total_score=total_score, priority=self.get_priority_label(total_score))
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            self.logger.debug("score_breakdown_generated", total_score=total_score, priority=self.get_priority_label(total_score))
 
         return breakdown
 
@@ -359,7 +369,8 @@ class DuplicationRanker:
     def clear_cache(self) -> None:
         """Clear the score cache."""
         self._score_cache.clear()
-        self.logger.debug("score_cache_cleared")
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            self.logger.debug("score_cache_cleared")
 
     def get_cache_stats(self) -> Dict[str, int]:
         """Get cache statistics.
