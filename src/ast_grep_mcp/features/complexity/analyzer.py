@@ -8,7 +8,8 @@ extracting functions, and calculating complexity metrics for each function.
 import json
 import re
 import subprocess
-from typing import Any, Dict, List, Tuple
+from functools import lru_cache
+from typing import Any, Dict, List, Pattern, Tuple
 
 from ast_grep_mcp.constants import SubprocessDefaults
 from ast_grep_mcp.core.logging import get_logger
@@ -34,6 +35,30 @@ __all__ = [
 
 
 _FUNCTION_PATTERN_KEYS = ("function", "async_function", "arrow_function", "method")
+
+
+@lru_cache(maxsize=32)
+def _compile_pattern(pattern: str, flags: int = 0) -> Pattern[str]:
+  """Compile and cache a regex pattern."""
+  return re.compile(pattern, flags)
+
+
+def _findall_cached(pattern: str, string: str, flags: int = 0) -> List[str]:
+  """Find all matches using a cached compiled pattern."""
+  compiled = _compile_pattern(pattern, flags)
+  return compiled.findall(string)
+
+
+def _search_cached(pattern: str, string: str, flags: int = 0):
+  """Search using a cached compiled pattern."""
+  compiled = _compile_pattern(pattern, flags)
+  return compiled.search(string)
+
+
+def _sub_cached(pattern: str, repl: str, string: str, count: int = 0, flags: int = 0) -> str:
+  """Substitute using a cached compiled pattern."""
+  compiled = _compile_pattern(pattern, flags)
+  return compiled.sub(repl, string, count)
 
 
 def _run_pattern_search(file_path: str, language: str, pattern: str) -> List[Dict[str, Any]]:
@@ -224,25 +249,25 @@ def _count_class_methods(code: str, language: str) -> int:
         Number of methods found
     """
     if language.lower() == "python":
-        return len(re.findall(r"^\s+def\s+", code, re.MULTILINE))
+        return len(_findall_cached(r"^\s+def\s+", code, re.MULTILINE))
     else:
         # Count function/method patterns in class body
-        return len(re.findall(r"^\s+\w+\s*\([^)]*\)\s*\{", code, re.MULTILINE))
+        return len(_findall_cached(r"^\s+\w+\s*\([^)]*\)\s*\{", code, re.MULTILINE))
 
 
 def _extract_param_string(code: str, language: str) -> str:
     """Extract the raw parameter string from a function signature."""
     if language.lower() == "python":
-        match = re.search(r"def\s+\w+\s*\(([^)]*)\)", code)
+        match = _search_cached(r"def\s+\w+\s*\(([^)]*)\)", code)
     else:
-        match = re.search(r"(?:function\s+\w+|\w+)\s*\(([^)]*)\)", code)
+        match = _search_cached(r"(?:function\s+\w+|\w+)\s*\(([^)]*)\)", code)
     return match.group(1).strip() if match else ""
 
 
 def _strip_python_self_cls(params: str) -> str:
     """Remove self/cls receiver args from a Python parameter string."""
-    params = re.sub(r"\bself\b\s*,?\s*", "", params)
-    params = re.sub(r"\bcls\b\s*,?\s*", "", params)
+    params = _sub_cached(r"\bself\b\s*,?\s*", "", params)
+    params = _sub_cached(r"\bcls\b\s*,?\s*", "", params)
     return params.strip()
 
 

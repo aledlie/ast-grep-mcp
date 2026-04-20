@@ -5,7 +5,8 @@ import re
 import subprocess
 import tempfile
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from functools import lru_cache
+from typing import Any, Callable, Dict, List, Optional, Pattern, Tuple
 
 import sentry_sdk
 import yaml
@@ -23,6 +24,18 @@ from ast_grep_mcp.features.rewrite.backup import (
     list_available_backups,
     restore_backup,
 )
+
+
+@lru_cache(maxsize=32)
+def _compile_pattern(pattern: str, flags: int = 0) -> Pattern[str]:
+    """Compile and cache a regex pattern."""
+    return re.compile(pattern, flags)
+
+
+def _search_cached(pattern: str, string: str, flags: int = 0):
+    """Search using a cached compiled pattern."""
+    compiled = _compile_pattern(pattern, flags)
+    return compiled.search(string)
 
 
 def _validate_python_syntax(content: str, file_path: str) -> Dict[str, Any]:
@@ -88,7 +101,7 @@ def _validate_javascript_syntax(content: str) -> Dict[str, Any]:
 def _extract_tsc_syntax_error(combined: str) -> Optional[str]:
     """Return the first TS1xxx syntax error line from tsc output, or None."""
     for line in combined.split("\n"):
-        if re.search(SyntaxValidationDefaults.TSC_SYNTAX_ERROR_PATTERN, line):
+        if _search_cached(SyntaxValidationDefaults.TSC_SYNTAX_ERROR_PATTERN, line):
             return line.strip()
     return None
 

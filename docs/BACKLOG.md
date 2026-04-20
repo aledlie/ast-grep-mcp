@@ -307,6 +307,21 @@ From code-reviewer final review of CR-01–CR-06.
 - [ ] **MQ-01** (P3) Refactor inline comment in `_split_params` to multi-line format — current comment extends line to ~106 chars (cosmetic issue, ruff passes). -- `src/ast_grep_mcp/features/documentation/docstring_generator.py:443`
 - [ ] **MQ-02** (P3) Document partial-result streaming semantics in `_execute_search` — currently logs partial matches before re-raising, but accumulated data is discarded. Add docstring clarifying all-or-nothing contract if exception occurs. -- `src/ast_grep_mcp/features/search/service.py:238`
 
+## Library Migration Opportunities (2026-04-19)
+
+Full analysis: [tmp/lib-audit-report.md](../tmp/lib-audit-report.md)
+
+**Phase 1 — Quick wins (2–8 hours, 5–15% perf improvement, 100–300 LOC reduction):**
+
+- [x] **LM-01** (High) Migrate cache.py to `cachetools.TTLCache` — eliminates 22 LOC manual TTL/LRU tracking. (commit pending, tests: 1770 passed)
+- [x] **LM-02** (High) Regex pattern compilation caching — cache compiled patterns via `functools.lru_cache` in `complexity/analyzer.py` and `rewrite/service.py`. Measured: 21.9% speedup on repeated patterns, 1.3x faster. Added `_compile_pattern()` + wrappers (`_findall_cached`, `_search_cached`, `_sub_cached`). Updated 6 call sites. Tests: 1770 passed.
+- [ ] **LM-03** (Medium) Migrate config to `pydantic-settings` — replace 200 LOC custom env parsing in `core/config.py` with typed model. ~2–3 hours, cleaner validation.
+- [ ] **LM-04** (Low) Use built-in `tempfile.TemporaryDirectory` — replace 70 LOC custom temp handling in `rewrite/service.py`. ~20 minutes.
+
+**Phase 2 — Refactoring (8–16 hours, 25–40% subprocess perf improvement, 350 LOC elimination):**
+
+- [ ] **LM-05** (High) Asyncio subprocess streaming — refactor `core/executor.py:stream_ast_grep_results` from blocking `subprocess.PIPE` + `json.loads` loop to `asyncio.subprocess` with parallel streams. Potential 25–40% faster subprocess calls, eliminates 350 LOC manual buffering/timeout logic.
+
 ## Deferred (2026-03-08)
 
 - [ ] **DF-01** (Low) Strategy pattern filter for deduplication — per `docs/duplicate-detector-misses.md` investigation. Only candidate (Group 5) would save ~18 lines with minor signature mismatch; over-engineering for marginal benefit.
