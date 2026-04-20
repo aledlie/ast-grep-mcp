@@ -26,8 +26,8 @@ Full analysis: [tmp/lib-audit-report.md](../tmp/lib-audit-report.md)
 **Phase 1.5 — Next quick wins:**
 - [x] **LM-04** (Low) Use built-in `tempfile.TemporaryDirectory` — replaced 70 LOC custom temp handling in `rewrite/service.py`. (commit 5db1912)
 
-**Phase 2 — Refactoring (8–16 hours, 25–40% subprocess perf improvement, 350 LOC elimination):**
-- [ ] **LM-05** (High) Asyncio subprocess streaming — refactor `core/executor.py:stream_ast_grep_results` from blocking `subprocess.PIPE` + `json.loads` loop to `asyncio.subprocess` with parallel streams. Potential 25–40% faster subprocess calls, eliminates 350 LOC manual buffering/timeout logic.
+**Phase 2 — Refactoring:**
+- [x] **LM-05** (High) Asyncio subprocess streaming — refactor `core/executor.py:stream_ast_grep_results` from blocking `subprocess.PIPE` + `json.loads` loop to `asyncio.subprocess` with parallel streams. Eliminates threading.Thread, adds timeout support, 5 helper functions removed. (commit 8a3724a)
 
 ## Deferred
 
