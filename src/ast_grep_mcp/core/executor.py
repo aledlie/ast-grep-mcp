@@ -1,13 +1,14 @@
 """Command execution and ast-grep interface for ast-grep MCP server."""
 
+import asyncio
 import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
-import threading
 import time
+from collections.abc import AsyncGenerator
 from typing import Any, Dict, Generator, List, Optional, Tuple, cast
 
 import sentry_sdk
@@ -411,24 +412,7 @@ def _should_log_progress(match_count: int, last_progress_log: int, progress_inte
     return match_count - last_progress_log >= progress_interval
 
 
-def _terminate_process(process: subprocess.Popen[str], logger: Any, reason: str) -> None:
-    """Terminate a process gracefully, then forcefully if needed.
 
-    Args:
-        process: Process to terminate
-        logger: Logger instance
-        reason: Reason for termination
-    """
-    logger.info(f"stream_{reason}")
-    process.terminate()
-    try:
-        process.wait(timeout=StreamDefaults.PROCESS_TERMINATE_TIMEOUT_SECONDS)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        try:
-            process.wait(timeout=StreamDefaults.PROCESS_KILL_TIMEOUT_SECONDS)
-        except subprocess.TimeoutExpired:
-            logger.error("process_kill_timeout", pid=process.pid)
 
 
 def _handle_stream_error(
@@ -500,6 +484,141 @@ def _raise_not_found_error(full_command: List[str], cause: Exception) -> None:
         error = AstGrepNotFoundError(f"Command '{full_command[0]}' not found")
     sentry_sdk.capture_exception(error, extras={"command": " ".join(full_command)})
     raise error from cause
+
+
+async def _async_terminate_process(
+    process: asyncio.subprocess.Process, logger: Any, reason: str
+) -> None:
+    """Terminate a process gracefully, then forcefully if needed."""
+    logger.info(f"stream_{reason}")
+    process.terminate()
+    try:
+        await asyncio.wait_for(
+            process.wait(), timeout=StreamDefaults.PROCESS_TERMINATE_TIMEOUT_SECONDS
+        )
+    except asyncio.TimeoutError:
+        process.kill()
+        try:
+            await asyncio.wait_for(
+                process.wait(), timeout=StreamDefaults.PROCESS_KILL_TIMEOUT_SECONDS
+            )
+        except asyncio.TimeoutError:
+            logger.error("process_kill_timeout", pid=process.pid)
+
+
+async def _async_iter_stdout_matches(
+    process: asyncio.subprocess.Process,
+    max_results: int,
+    progress_interval: int,
+    start_time: float,
+    logger: Any,
+) -> AsyncGenerator[Dict[str, Any], None]:
+    """Iterate over stdout lines, yielding parsed matches."""
+    if not process.stdout:
+        return
+
+    match_count = 0
+    last_progress_log = 0
+
+    async for raw_line in process.stdout:
+        line = raw_line.decode() if isinstance(raw_line, bytes) else raw_line
+        match = _parse_json_line(line, logger)
+        if not match:
+            continue
+
+        match_count += 1
+
+        if _should_log_progress(match_count, last_progress_log, progress_interval):
+            logger.info(
+                "stream_progress",
+                matches_found=match_count,
+                execution_time_seconds=round(
+                    time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION
+                ),
+            )
+            last_progress_log = match_count
+
+        yield match
+
+        if max_results > 0 and match_count >= max_results:
+            logger.info(
+                "stream_early_termination",
+                matches_found=match_count,
+                max_results=max_results,
+            )
+            await _async_terminate_process(process, logger, "early_termination")
+            return
+
+
+async def async_stream_ast_grep_results(
+    command: str,
+    args: List[str],
+    max_results: int = 0,
+    progress_interval: int = StreamDefaults.PROGRESS_INTERVAL,
+    language_globs: Optional[Dict[str, List[str]]] = None,
+) -> AsyncGenerator[Dict[str, Any], None]:
+    """Async version of stream_ast_grep_results using asyncio.subprocess.
+
+    Eliminates threading.Thread stderr drain; concurrent stdout/stderr via asyncio tasks.
+    Adds wall-clock timeout via asyncio.wait_for.
+    """
+    logger = get_logger("stream_results")
+    start_time = time.time()
+
+    tmpdir: Optional[str] = None
+    config_override: Optional[str] = None
+    if language_globs:
+        tmpdir = tempfile.mkdtemp()
+        config_override = _write_language_globs_config(language_globs, tmpdir)
+
+    full_command = _prepare_stream_command(command, args, config_override=config_override)
+    logger.info(
+        "stream_started",
+        command=command,
+        max_results=max_results,
+        progress_interval=progress_interval,
+    )
+
+    process: Optional[asyncio.subprocess.Process] = None
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *full_command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        match_count = 0
+        assert process.stderr  # guaranteed by asyncio.subprocess.PIPE
+        stderr_task = asyncio.create_task(process.stderr.read())
+
+        async for match in _async_iter_stdout_matches(
+            process, max_results, progress_interval, start_time, logger
+        ):
+            match_count += 1
+            yield match
+
+        returncode = await process.wait()
+        stderr_output = (await stderr_task).decode(errors="replace")
+        _handle_stream_error(
+            returncode, stderr_output, full_command, start_time, match_count, logger
+        )
+        _log_stream_completion(match_count, start_time, max_results, logger)
+
+    except FileNotFoundError as e:
+        logger.error("stream_command_not_found", command=full_command[0])
+        _raise_not_found_error(full_command, e)
+
+    finally:
+        if process and process.returncode is None:
+            process.terminate()
+            try:
+                await asyncio.wait_for(
+                    process.wait(), timeout=StreamDefaults.PROCESS_KILL_TIMEOUT_SECONDS
+                )
+            except asyncio.TimeoutError:
+                process.kill()
+        if tmpdir:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def stream_ast_grep_results(
