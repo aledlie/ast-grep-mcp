@@ -604,6 +604,7 @@ class RankerDefaults:
     DEFAULT_MIDDLE_SCORE = 50.0
     EFFORT_INSTANCE_PENALTY = 5
     EFFORT_FILE_PENALTY = 10
+    MIN_SAVINGS_SCORE_FOR_FULL_CALC = 5  # Skip risk/effort if savings < this
 
 
 class RiskMultipliers:

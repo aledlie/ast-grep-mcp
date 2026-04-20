@@ -53,16 +53,28 @@ class DeduplicationScoreCalculator:
         """
         scores = {}
 
-        # Calculate each component score
+        # Calculate savings score first
         scores["savings"] = self.calculate_savings_score(duplicate_group)
-        scores["complexity"] = self.calculate_complexity_score(complexity)
-        scores["risk"] = self.calculate_risk_score(test_coverage, impact_analysis)
-        scores["effort"] = self.calculate_effort_score(duplicate_group)
+        
+        # Early exit: skip risk/effort calculation for low-savings candidates
+        if scores["savings"] < RankerDefaults.MIN_SAVINGS_SCORE_FOR_FULL_CALC:
+            scores["complexity"] = self.calculate_complexity_score(complexity)
+            scores["risk"] = RankerDefaults.DEFAULT_MIDDLE_SCORE * self.WEIGHT_RISK
+            scores["effort"] = RankerDefaults.DEFAULT_MIDDLE_SCORE * self.WEIGHT_EFFORT
+            self.logger.debug(
+                "total_score_calculated_early_exit",
+                total_score=round(sum(scores.values()), 2),
+                breakdown=scores,
+            )
+        else:
+            # Full calculation for candidates with meaningful savings
+            scores["complexity"] = self.calculate_complexity_score(complexity)
+            scores["risk"] = self.calculate_risk_score(test_coverage, impact_analysis)
+            scores["effort"] = self.calculate_effort_score(duplicate_group)
+            self.logger.debug("total_score_calculated", total_score=round(sum(scores.values()), 2), breakdown=scores)
 
         # Calculate total
         total_score = sum(scores.values())
-
-        self.logger.debug("total_score_calculated", total_score=round(total_score, 2), breakdown=scores)
 
         return round(total_score, 2), scores
 
