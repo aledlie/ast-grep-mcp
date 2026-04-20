@@ -17,6 +17,9 @@ logger = get_logger("schema.html")
 
 DEFAULT_HTML_GLOBS = ["**/*.html", "**/*.htm", "*.html", "*.htm"]
 
+# Liquid/Jekyll template detection regex
+_LIQUID_TAG_RE = re.compile(r"{%.*?%}|{{.*?}}", re.DOTALL)
+
 # --- YAML Rules ---
 
 RULE_JSONLD_SCRIPTS = """\
@@ -135,6 +138,11 @@ def _run_rule(
     return matches
 
 
+def _has_liquid_tags(content: str) -> bool:
+    """Check if content contains Liquid/Jekyll template syntax."""
+    return bool(_LIQUID_TAG_RE.search(content))
+
+
 def _parse_jsonld_text(text: str) -> Optional[Dict[str, Any]]:
     """Parse JSON-LD text, returning None on malformed content."""
     try:
@@ -144,11 +152,106 @@ def _parse_jsonld_text(text: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _find_html_files(project_folder: str, globs: List[str]) -> List[str]:
+    """Find all HTML files matching the given globs in the project folder."""
+    html_files = []
+    for root, dirs, files in os.walk(project_folder):
+        # Skip hidden and common build directories
+        dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ('node_modules', '__pycache__', 'dist', 'build')]
+        
+        for file in files:
+            if file.endswith(('.html', '.htm')):
+                full_path = os.path.join(root, file)
+                if _match_globs(full_path, project_folder, globs):
+                    html_files.append(full_path)
+    
+    return html_files
+
+
+def _extract_jsonld_with_regex(file_path: str) -> List[Dict[str, Any]]:
+    """Extract JSON-LD from HTML file using regex (fallback for Liquid templates)."""
+    results: List[Dict[str, Any]] = []
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read()
+        
+        # Find all <script type="application/ld+json">...</script> blocks
+        pattern = r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>'
+        for match in re.finditer(pattern, content, re.DOTALL | re.IGNORECASE):
+            json_text = match.group(1).strip()
+            parsed = _parse_jsonld_text(json_text)
+            if parsed is not None:
+                # Estimate line number by counting newlines
+                line_num = content[:match.start()].count('\n') + 1
+                results.append({
+                    "file": file_path,
+                    "line": line_num,
+                    "text": json_text,
+                    "raw_length": len(json_text),
+                    "parsed": parsed,
+                    "type": parsed.get("@type", "unknown"),
+                    "fallback": True,
+                })
+    except (IOError, OSError) as e:
+        logger.warning("failed_to_read_file", file=file_path, error=str(e))
+    
+    return results
+
+
+def _extract_microdata_with_regex(file_path: str) -> List[Dict[str, Any]]:
+    """Extract microdata from HTML file using regex (fallback for Liquid templates)."""
+    results: List[Dict[str, Any]] = []
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read()
+        
+        # Find all itemscope elements with itemtype
+        pattern = r'<[^>]*itemscope[^>]*itemtype=["\']([^"\']*schema\.org/([^"\']+))["\'][^>]*>'
+        for match in re.finditer(pattern, content, re.IGNORECASE):
+            line_num = content[:match.start()].count('\n') + 1
+            results.append({
+                "file": file_path,
+                "line": line_num,
+                "schema_type": match.group(2),
+                "fallback": True,
+            })
+    except (IOError, OSError) as e:
+        logger.warning("failed_to_read_file", file=file_path, error=str(e))
+    
+    return results
+
+
+def _extract_rdfa_with_regex(file_path: str) -> List[Dict[str, Any]]:
+    """Extract RDFa properties from HTML file using regex (fallback for Liquid templates)."""
+    results: List[Dict[str, Any]] = []
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read()
+        
+        # Find elements with property, typeof, resource, about, prefix, or vocab attributes
+        pattern = r'(property|typeof|resource|about|prefix|vocab)\s*=\s*["\']([^"\']*)["\']'
+        for match in re.finditer(pattern, content, re.IGNORECASE):
+            line_num = content[:match.start()].count('\n') + 1
+            results.append({
+                "file": file_path,
+                "line": line_num,
+                "attribute": match.group(1),
+                "value": match.group(2),
+                "fallback": True,
+            })
+    except (IOError, OSError) as e:
+        logger.warning("failed_to_read_file", file=file_path, error=str(e))
+    
+    return results
+
+
 def detect_jsonld_in_html(
     project_folder: str,
     file_globs: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Find JSON-LD script tags in HTML files and extract their content.
+
+    Tries ast-grep first; falls back to regex for files with Liquid/Jekyll syntax.
 
     Args:
         project_folder: Project root path
@@ -162,11 +265,13 @@ def detect_jsonld_in_html(
 
     scripts: List[Dict[str, Any]] = []
     parse_errors: List[Dict[str, Any]] = []
+    processed_files = set()
 
     for match in content_matches:
         file_path = match.get("file", "")
         line = match.get("line", 0)
         text = match.get("text", match.get("code", ""))
+        processed_files.add(file_path)
 
         parsed = _parse_jsonld_text(text)
         entry: Dict[str, Any] = {
@@ -182,6 +287,20 @@ def detect_jsonld_in_html(
             entry["error"] = "malformed JSON-LD"
             parse_errors.append(entry)
 
+    # Fallback: scan HTML files with Liquid tags using regex
+    for html_file in _find_html_files(project_folder, globs):
+        if html_file in processed_files:
+            continue
+        try:
+            with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+            if _has_liquid_tags(content):
+                regex_results = _extract_jsonld_with_regex(html_file)
+                scripts.extend(regex_results)
+                processed_files.add(html_file)
+        except (IOError, OSError):
+            pass
+
     return {
         "format": "json-ld",
         "count": len(scripts),
@@ -195,6 +314,8 @@ def detect_microdata_in_html(
     file_globs: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Find microdata attributes in HTML files, mapping to Schema.org types.
+
+    Tries ast-grep first; falls back to regex for files with Liquid/Jekyll syntax.
 
     Args:
         project_folder: Project root path
@@ -210,13 +331,17 @@ def detect_microdata_in_html(
 
     # Extract schema types from element matches
     typed_elements: List[Dict[str, Any]] = []
+    processed_files = set()
+    
     for match in element_matches:
         text = match.get("text", match.get("code", ""))
         type_match = _SCHEMA_TYPE_RE.search(text)
         schema_type = type_match.group(1) if type_match else "unknown"
+        file_path = match.get("file", "")
+        processed_files.add(file_path)
         typed_elements.append(
             {
-                "file": match.get("file", ""),
+                "file": file_path,
                 "line": match.get("line", 0),
                 "schema_type": schema_type,
             }
@@ -230,6 +355,20 @@ def detect_microdata_in_html(
         }
         for m in missing_type_matches
     ]
+
+    # Fallback: scan HTML files with Liquid tags using regex
+    for html_file in _find_html_files(project_folder, globs):
+        if html_file in processed_files:
+            continue
+        try:
+            with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+            if _has_liquid_tags(content):
+                regex_results = _extract_microdata_with_regex(html_file)
+                typed_elements.extend(regex_results)
+                processed_files.add(html_file)
+        except (IOError, OSError):
+            pass
 
     return {
         "format": "microdata",
@@ -245,6 +384,8 @@ def detect_rdfa_in_html(
 ) -> Dict[str, Any]:
     """Find RDFa properties in HTML files.
 
+    Tries ast-grep first; falls back to regex for files with Liquid/Jekyll syntax.
+
     Args:
         project_folder: Project root path
         file_globs: File patterns to scan
@@ -257,16 +398,37 @@ def detect_rdfa_in_html(
 
     by_attribute: Dict[str, int] = {}
     properties: List[Dict[str, Any]] = []
+    processed_files = set()
+    
     for match in matches:
         text = match.get("text", match.get("code", "")).strip()
         by_attribute[text] = by_attribute.get(text, 0) + 1
+        file_path = match.get("file", "")
+        processed_files.add(file_path)
         properties.append(
             {
-                "file": match.get("file", ""),
+                "file": file_path,
                 "line": match.get("line", 0),
                 "attribute": text,
             }
         )
+
+    # Fallback: scan HTML files with Liquid tags using regex
+    for html_file in _find_html_files(project_folder, globs):
+        if html_file in processed_files:
+            continue
+        try:
+            with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+            if _has_liquid_tags(content):
+                regex_results = _extract_rdfa_with_regex(html_file)
+                for result in regex_results:
+                    attr = result.get("attribute", "")
+                    by_attribute[attr] = by_attribute.get(attr, 0) + 1
+                properties.extend(regex_results)
+                processed_files.add(html_file)
+        except (IOError, OSError):
+            pass
 
     return {
         "format": "rdfa",

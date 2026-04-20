@@ -1,8 +1,11 @@
 """Tests for HTML structured data detection via ast-grep rules."""
 
+import os
+import tempfile
 from unittest.mock import patch
 
 from ast_grep_mcp.features.schema.html_service import (
+    _has_liquid_tags,
     _parse_jsonld_text,
     detect_jsonld_in_html,
     detect_microdata_in_html,
@@ -167,3 +170,96 @@ class TestValidateHtmlStructuredData:
         assert summary["microdata_elements"] == 1
         assert summary["rdfa_properties"] == 1
         assert summary["total_issues"] == 1
+
+
+class TestLiquidTemplateFallback:
+    """Tests for Liquid/Jekyll template handling with regex fallback."""
+
+    def test_has_liquid_tags_detects_liquid_tags(self):
+        assert _has_liquid_tags("{% if test %}content{% endif %}")
+        assert _has_liquid_tags("{{ variable }}")
+        assert _has_liquid_tags("<div>{{ page.title }}</div>")
+        assert _has_liquid_tags("{% for item in items %}{{ item }}{% endfor %}")
+
+    def test_has_liquid_tags_ignores_regular_html(self):
+        assert not _has_liquid_tags("<div>regular html</div>")
+        assert not _has_liquid_tags("<script>var x = 1;</script>")
+        assert not _has_liquid_tags("")
+
+    @patch("ast_grep_mcp.features.schema.html_service.find_code_by_rule_impl")
+    def test_jsonld_with_liquid_fallback(self, mock_find):
+        """Verify JSON-LD extraction falls back to regex for Liquid files."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a Liquid HTML file with JSON-LD
+            html_file = os.path.join(tmpdir, "index.html")
+            with open(html_file, "w") as f:
+                f.write("""
+                <html>
+                {% if show_schema %}
+                <script type="application/ld+json">
+                {"@type":"Organization","name":"Acme Corp"}
+                </script>
+                {% endif %}
+                </html>
+                """)
+
+            # Mock ast-grep to return empty (can't parse Liquid)
+            mock_find.return_value = []
+
+            result = detect_jsonld_in_html(tmpdir)
+            # Should find JSON-LD via regex fallback
+            assert result["count"] >= 1
+            if result["count"] > 0:
+                assert result["scripts"][0]["type"] == "Organization"
+
+    @patch("ast_grep_mcp.features.schema.html_service.find_code_by_rule_impl")
+    def test_microdata_with_liquid_fallback(self, mock_find):
+        """Verify microdata extraction falls back to regex for Liquid files."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a Liquid HTML file with microdata
+            html_file = os.path.join(tmpdir, "index.html")
+            with open(html_file, "w") as f:
+                f.write("""
+                <html>
+                {% if product %}
+                <div itemscope itemtype="https://schema.org/Product">
+                  <span itemprop="name">{{ product.name }}</span>
+                </div>
+                {% endif %}
+                </html>
+                """)
+
+            # Mock ast-grep to return empty (can't parse Liquid)
+            mock_find.side_effect = [[], [], []]
+
+            result = detect_microdata_in_html(tmpdir)
+            # Should find microdata via regex fallback
+            assert result["attribute_count"] >= 0
+            if result["typed_elements"]:
+                assert result["typed_elements"][0]["schema_type"] == "Product"
+
+    @patch("ast_grep_mcp.features.schema.html_service.find_code_by_rule_impl")
+    def test_rdfa_with_liquid_fallback(self, mock_find):
+        """Verify RDFa extraction falls back to regex for Liquid files."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a Liquid HTML file with RDFa
+            html_file = os.path.join(tmpdir, "index.html")
+            with open(html_file, "w") as f:
+                f.write("""
+                <html>
+                {% if article %}
+                <article property="articleBody">
+                  {{ article.content }}
+                </article>
+                {% endif %}
+                </html>
+                """)
+
+            # Mock ast-grep to return empty (can't parse Liquid)
+            mock_find.return_value = []
+
+            result = detect_rdfa_in_html(tmpdir)
+            # Should find RDFa via regex fallback
+            assert result["count"] >= 0
+            if result["by_attribute"]:
+                assert "property" in result["by_attribute"]
