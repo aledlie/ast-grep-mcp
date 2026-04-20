@@ -11,8 +11,8 @@
 
 From code-reviewer final review of CR-01–CR-06.
 
-- [ ] **MQ-01** (P3) Refactor inline comment in `_split_params` to multi-line format — current comment extends line to ~106 chars (cosmetic issue, ruff passes). -- `src/ast_grep_mcp/features/documentation/docstring_generator.py:443`
-- [ ] **MQ-02** (P3) Document partial-result streaming semantics in `_execute_search` — currently logs partial matches before re-raising, but accumulated data is discarded. Add docstring clarifying all-or-nothing contract if exception occurs. -- `src/ast_grep_mcp/features/search/service.py:238`
+- [x] **MQ-01** (P3) Refactor inline comment in `_split_params` to multi-line format — current comment extends line to ~106 chars (cosmetic issue, ruff passes). -- `src/ast_grep_mcp/features/documentation/docstring_generator.py:443` (completed in commit 1c4f63b)
+- [x] **MQ-02** (P3) Document partial-result streaming semantics in `_execute_search` — currently logs partial matches before re-raising, but accumulated data is discarded. Add docstring clarifying all-or-nothing contract if exception occurs. -- `src/ast_grep_mcp/features/search/service.py:238` (completed in commit 1c4f63b)
 
 ## Pattern Analysis Performance Optimization (2026-04-20)
 
