@@ -57,7 +57,7 @@ Full analysis: [tmp/lib-audit-report.md](../tmp/lib-audit-report.md)
 - [x] **LM-03** (Medium) Migrate config to `pydantic-settings` — ServerSettings model with automatic env var loading. Eliminated 70+ LOC of manual parsing. (commit 87bc433)
 
 **Phase 1.5 — Next quick wins:**
-- [ ] **LM-04** (Low) Use built-in `tempfile.TemporaryDirectory` — replace 70 LOC custom temp handling in `rewrite/service.py`. ~20 minutes.
+- [x] **LM-04** (Low) Use built-in `tempfile.TemporaryDirectory` — replaced 70 LOC custom temp handling in `rewrite/service.py`. (commit 5db1912)
 
 **Phase 2 — Refactoring (8–16 hours, 25–40% subprocess perf improvement, 350 LOC elimination):**
 - [ ] **LM-05** (High) Asyncio subprocess streaming — refactor `core/executor.py:stream_ast_grep_results` from blocking `subprocess.PIPE` + `json.loads` loop to `asyncio.subprocess` with parallel streams. Potential 25–40% faster subprocess calls, eliminates 350 LOC manual buffering/timeout logic.
