@@ -1,0 +1,2 @@
+- [Library Migrations Phase 1 Complete](project/library-migrations-phase-1-complete.md) — LM-01 through LM-04 done (~210 LOC reduction, 21.9% regex speedup)
+- [Python Execution Requires uv](feedback_python_execution.md) — Always use `uv run python3` to prevent module import errors
