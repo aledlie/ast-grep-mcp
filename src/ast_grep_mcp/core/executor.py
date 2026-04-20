@@ -364,20 +364,7 @@ def _prepare_stream_command(command: str, args: List[str], config_override: Opti
     return [ExecutorDefaults.AST_GREP_COMMAND, command] + final_args
 
 
-def _create_stream_process(full_command: List[str]) -> subprocess.Popen[str]:
-    """Create and start the subprocess for streaming.
 
-    Args:
-        full_command: Complete command list
-
-    Returns:
-        Started Popen process
-
-    Raises:
-        FileNotFoundError: If command not found
-    """
-    use_shell = sys.platform == "win32" and full_command[0] == ExecutorDefaults.AST_GREP_COMMAND
-    return subprocess.Popen(full_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=use_shell)
 
 
 def _parse_json_line(line: str, logger: Any) -> Optional[Dict[str, Any]]:
@@ -485,74 +472,13 @@ def _handle_stream_error(
     raise error
 
 
-def _cleanup_process(process: Optional[subprocess.Popen[str]]) -> None:
-    """Ensure subprocess is properly cleaned up.
-
-    Args:
-        process: Process to cleanup (may be None)
-    """
-    if not process or process.poll() is not None:
-        return
-
-    process.terminate()
-    try:
-        process.wait(timeout=StreamDefaults.PROCESS_TERMINATE_TIMEOUT_SECONDS)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        try:
-            process.wait(timeout=StreamDefaults.PROCESS_KILL_TIMEOUT_SECONDS)
-        except subprocess.TimeoutExpired:
-            pass
 
 
-def _drain_stderr_to_list(process: subprocess.Popen[str], output: List[str]) -> None:
-    """Read stderr in background to prevent pipe buffer deadlock."""
-    if process.stderr:
-        for chunk in process.stderr:
-            output.append(chunk)
 
 
-def _iter_stdout_matches(
-    process: subprocess.Popen[str],
-    max_results: int,
-    progress_interval: int,
-    start_time: float,
-    logger: Any,
-) -> Generator[Dict[str, Any], None, int]:
-    """Iterate over stdout lines, yielding parsed matches.
 
-    Returns:
-        Total match count (accessible via ``yield from``).
-    """
-    match_count = 0
-    last_progress_log = 0
 
-    if not process.stdout:
-        return 0
 
-    for line in process.stdout:
-        match = _parse_json_line(line, logger)
-        if not match:
-            continue
-
-        match_count += 1
-
-        if _should_log_progress(match_count, last_progress_log, progress_interval):
-            logger.info(
-                "stream_progress",
-                matches_found=match_count,
-                execution_time_seconds=round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION),
-            )
-            last_progress_log = match_count
-
-        yield match
-
-        if max_results > 0 and match_count >= max_results:
-            logger.info("stream_early_termination", matches_found=match_count, max_results=max_results)
-            _terminate_process(process, logger, "early_termination")
-            break
-
-    return match_count
 
 
 def _log_stream_completion(match_count: int, start_time: float, max_results: int, logger: Any) -> None:
@@ -583,61 +509,12 @@ def stream_ast_grep_results(
     progress_interval: int = StreamDefaults.PROGRESS_INTERVAL,
     language_globs: Optional[Dict[str, List[str]]] = None,
 ) -> Generator[Dict[str, Any], None, None]:
-    """Stream ast-grep JSON results line-by-line with early termination support.
+    """Sync shim — delegates to async_stream_ast_grep_results via a new event loop."""
+    async def _collect() -> List[Dict[str, Any]]:
+        return [
+            m async for m in async_stream_ast_grep_results(
+                command, args, max_results, progress_interval, language_globs
+            )
+        ]
 
-    Uses subprocess.Popen for incremental reads: reduces memory on large result sets,
-    enables early termination at max_results, and logs progress during long searches.
-
-    Args:
-        command: ast-grep subcommand (run, scan, etc.)
-        args: Command arguments (must include --json=stream flag)
-        max_results: Maximum results to yield (0 = unlimited)
-        progress_interval: Log progress every N matches
-        language_globs: Optional mapping of language → glob patterns written to a
-            temporary sgconfig.yml and passed via --config.  When provided, takes
-            precedence over the global CONFIG_PATH.
-
-    Yields:
-        Individual match dictionaries from ast-grep JSON output
-
-    Raises:
-        AstGrepNotFoundError: If ast-grep binary not found
-        AstGrepExecutionError: If ast-grep execution fails
-    """
-    logger = get_logger("stream_results")
-    start_time = time.time()
-
-    tmpdir: Optional[str] = None
-    config_override: Optional[str] = None
-    if language_globs:
-        tmpdir = tempfile.mkdtemp()
-        config_override = _write_language_globs_config(language_globs, tmpdir)
-
-    full_command = _prepare_stream_command(command, args, config_override=config_override)
-
-    logger.info("stream_started", command=command, max_results=max_results, progress_interval=progress_interval)
-
-    process = None
-    stderr_chunks: List[str] = []
-
-    try:
-        process = _create_stream_process(full_command)
-
-        stderr_thread = threading.Thread(target=_drain_stderr_to_list, args=(process, stderr_chunks), daemon=True)
-        stderr_thread.start()
-
-        match_count = yield from _iter_stdout_matches(process, max_results, progress_interval, start_time, logger)
-
-        returncode = process.wait()
-        stderr_thread.join(timeout=StreamDefaults.PROCESS_KILL_TIMEOUT_SECONDS)
-        _handle_stream_error(returncode, "".join(stderr_chunks), full_command, start_time, match_count, logger)
-        _log_stream_completion(match_count, start_time, max_results, logger)
-
-    except FileNotFoundError as e:
-        logger.error("stream_command_not_found", command=full_command[0])
-        _raise_not_found_error(full_command, e)
-
-    finally:
-        _cleanup_process(process)
-        if tmpdir:
-            shutil.rmtree(tmpdir, ignore_errors=True)
+    yield from asyncio.run(_collect())
