@@ -49,7 +49,7 @@ constraints:
 ## Remaining Issues
 
 ### E4: No `usedforsecurity` exclusion for hashlib
-**Status:** ❌ NOT FIXED
+**Status:** ✅ FIXED in commit ef902aa
 
 **Problem:** Python 3.9+ added `hashlib.md5(data, usedforsecurity=False)` for legitimate non-security uses (checksums, content deduplication, git-style addressing). The `insecure-cryptography` rule flags all `hashlib.md5()` and `hashlib.sha1()` calls, including safe ones.
 
@@ -111,7 +111,7 @@ constraints:
 | E1 - Metavar constraints | ✅ Fixed | P0 | 30m | High (credential-specific matching) |
 | E2 - Dead comment patterns | ✅ Fixed | P0 | 20m | High (5 rules affected) |
 | E3 - Relational scope | ✅ Fixed | P1 | 45m | Medium (3 rules, subtle behavior) |
-| E4 - hashlib usedforsecurity | ❌ TODO | P1 | 10m | Medium (content-dedup false positives) |
+| E4 - hashlib usedforsecurity | ✅ Fixed | P1 | 10m | Medium (content-dedup false positives) |
 | E7 - Full semantic filtering | ❌ TODO | P2 | 60m | High (8 rules, broad false positive reduction) |
 
 ---
@@ -130,10 +130,13 @@ constraints:
 
 ## Files Modified
 
-- `rules/python-security-high-priority.yaml` (commit 3849633)
-  - E1: Added constraints to Rules 1, 9, 12
-  - E2: Removed dead comment patterns from 5 rules
-  - E3: Fixed Rules 5, 6, 9 relational logic
+- `rules/python-security-high-priority.yaml`
+  - Commit 3849633: E1-E3 fixes
+    - E1: Added constraints to Rules 1, 9, 12
+    - E2: Removed dead comment patterns from 5 rules
+    - E3: Fixed Rules 5, 6, 9 relational logic
+  - Commit ef902aa: E4 fix
+    - E4: Added `usedforsecurity=False` exclusions to Rule 4
 
 ---
 
