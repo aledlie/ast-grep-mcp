@@ -4,7 +4,7 @@
 
 ```bash
 uv sync                          # Install dependencies
-uv run pytest                    # Run all tests (1,790 collected)
+uv run pytest                    # Run all tests (1,803 collected)
 uv run ruff check . && uv run mypy src/ # Lint and type check
 uv run main.py                   # Run MCP server locally
 doppler run -- uv run main.py    # Run with Doppler secrets
@@ -88,7 +88,7 @@ See [docs/BACKLOG.md](docs/BACKLOG.md) § "Tool Invocation Failures" for full er
 
 - YAML rules support `kind`-based matching (e.g., `kind: catch_clause` with `has`); add `stopBy: end` to relational rules
 - Windows: use `shell=True` for npm-installed ast-grep
-- **All tool functions are synchronous** — call directly, do NOT wrap in `asyncio.run()`
+- **MCP tool handlers are synchronous** — call directly, do NOT wrap in `asyncio.run()`. Exception: `async_stream_ast_grep_results()` in `core/executor.py` is async; schema tools in `schema/tools.py` are async.
 - CLI invocation: `uv run python -c "from ast_grep_mcp.features.X.tools import Y; print(Y(...))"`
 - Codebase analyzer: `uv run python analyze_codebase.py <path> -l <language> [--fix]`
 - ast-grep supported languages: python, javascript, typescript, tsx, html, css, json, yaml, rust, go, java, kotlin, c, cpp, csharp, swift, ruby, lua, scala — **not** dart
