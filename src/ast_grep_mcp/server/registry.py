@@ -25,12 +25,12 @@ def register_all_tools(mcp: FastMCP) -> None:
     4. Deduplication (4 tools)
     5. Complexity (3 tools)
     6. Quality (7 tools)
-    7. Schema.org (9 tools)
+    7. Schema.org (11 tools)
     8. Documentation (5 tools)
     9. Cross-Language (5 tools)
     10. Condense (6 tools)
 
-    Total: 53 tools
+    Total: 55 tools
     """
     register_search_tools(mcp)
     register_rewrite_tools(mcp)
