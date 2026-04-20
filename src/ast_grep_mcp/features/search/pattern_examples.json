@@ -354,6 +354,14 @@
         "description": "Zod object schema definition"
       },
       {
+        "pattern": "z.strictObject({ $$$FIELDS })",
+        "description": "Zod strict object (no extra keys allowed)"
+      },
+      {
+        "pattern": "z.looseObject({ $$$FIELDS })",
+        "description": "Zod loose object (extra keys ignored)"
+      },
+      {
         "pattern": "z.string()",
         "description": "Zod string schema"
       },
@@ -378,8 +386,132 @@
         "description": "Zod string with minimum length"
       },
       {
+        "pattern": "z.string().max($N)",
+        "description": "Zod string with maximum length"
+      },
+      {
+        "pattern": "z.string().length($N)",
+        "description": "Zod string with exact length"
+      },
+      {
+        "pattern": "z.string().regex($PATTERN)",
+        "description": "Zod string with regex validation"
+      },
+      {
+        "pattern": "z.string().startsWith($STR)",
+        "description": "Zod string starts with"
+      },
+      {
+        "pattern": "z.string().endsWith($STR)",
+        "description": "Zod string ends with"
+      },
+      {
+        "pattern": "z.string().includes($STR)",
+        "description": "Zod string includes substring"
+      },
+      {
+        "pattern": "z.email()",
+        "description": "Zod email validation (top-level, v4 preferred)"
+      },
+      {
+        "pattern": "z.string().email()",
+        "description": "Zod string email validation (deprecated in v4)"
+      },
+      {
+        "pattern": "z.uuid()",
+        "description": "Zod UUID validation (top-level, v4 preferred)"
+      },
+      {
+        "pattern": "z.string().uuid()",
+        "description": "Zod string UUID validation (deprecated in v4)"
+      },
+      {
+        "pattern": "z.url()",
+        "description": "Zod URL validation (top-level, v4 preferred)"
+      },
+      {
+        "pattern": "z.string().url()",
+        "description": "Zod string URL validation (deprecated in v4)"
+      },
+      {
+        "pattern": "z.ipv4()",
+        "description": "Zod IPv4 validation (top-level, v4 preferred)"
+      },
+      {
+        "pattern": "z.string().ipv4()",
+        "description": "Zod string IPv4 validation (deprecated in v4)"
+      },
+      {
+        "pattern": "z.ipv6()",
+        "description": "Zod IPv6 validation (top-level, v4 preferred)"
+      },
+      {
+        "pattern": "z.string().ipv6()",
+        "description": "Zod string IPv6 validation (deprecated in v4)"
+      },
+      {
+        "pattern": "z.base64()",
+        "description": "Zod base64 validation (top-level, v4 preferred)"
+      },
+      {
+        "pattern": "z.string().base64()",
+        "description": "Zod string base64 validation (deprecated in v4)"
+      },
+      {
+        "pattern": "z.emoji()",
+        "description": "Zod emoji validation (top-level, v4 preferred)"
+      },
+      {
+        "pattern": "z.string().emoji()",
+        "description": "Zod string emoji validation (deprecated in v4)"
+      },
+      {
+        "pattern": "z.string().trim()",
+        "description": "Zod string trim whitespace"
+      },
+      {
+        "pattern": "z.string().toLowerCase()",
+        "description": "Zod string to lowercase transformation"
+      },
+      {
+        "pattern": "z.string().toUpperCase()",
+        "description": "Zod string to uppercase transformation"
+      },
+      {
         "pattern": "z.number().positive()",
-        "description": "Zod number with validation"
+        "description": "Zod number positive validation"
+      },
+      {
+        "pattern": "z.number().nonnegative()",
+        "description": "Zod number non-negative validation"
+      },
+      {
+        "pattern": "z.number().negative()",
+        "description": "Zod number negative validation"
+      },
+      {
+        "pattern": "z.number().nonpositive()",
+        "description": "Zod number non-positive validation"
+      },
+      {
+        "pattern": "z.number().gt($N)",
+        "description": "Zod number greater than"
+      },
+      {
+        "pattern": "z.number().gte($N)",
+        "description": "Zod number greater than or equal"
+      },
+      {
+        "pattern": "z.number().lt($N)",
+        "description": "Zod number less than"
+      },
+      {
+        "pattern": "z.number().lte($N)",
+        "description": "Zod number less than or equal"
+      },
+      {
+        "pattern": "z.number().multipleOf($N)",
+        "description": "Zod number multiple of"
       },
       {
         "pattern": "z.union([$$$SCHEMAS])",
@@ -387,7 +519,31 @@
       },
       {
         "pattern": "z.discriminatedUnion('$FIELD', [$$$OPTIONS])",
-        "description": "Zod discriminated union"
+        "description": "Zod discriminated union (basic)"
+      },
+      {
+        "pattern": "z.discriminatedUnion('$FIELD', [$$$UNIONS])",
+        "description": "Zod discriminated union with union types"
+      },
+      {
+        "pattern": "$SCHEMA.refine($VALIDATOR)",
+        "description": "Zod refinement (basic validation)"
+      },
+      {
+        "pattern": "$SCHEMA.refine($VALIDATOR).min($N)",
+        "description": "Zod refinement chained with other methods"
+      },
+      {
+        "pattern": "$SCHEMA.superRefine(($DATA, $CTX) => { $$$BODY })",
+        "description": "Zod super refinement with context"
+      },
+      {
+        "pattern": "$SCHEMA.check($$$VALIDATORS)",
+        "description": "Zod Mini check (multiple refinements)"
+      },
+      {
+        "pattern": "$SCHEMA.overwrite($VALUE)",
+        "description": "Zod overwrite for type-preserving transforms"
       },
       {
         "pattern": "type $NAME = z.infer<typeof $SCHEMA>",
@@ -406,12 +562,736 @@
         "description": "Zod schema extension"
       },
       {
+        "pattern": "$SCHEMA.pick({ $$$KEYS })",
+        "description": "Zod object pick (select fields)"
+      },
+      {
+        "pattern": "$SCHEMA.omit({ $$$KEYS })",
+        "description": "Zod object omit (exclude fields)"
+      },
+      {
+        "pattern": "$SCHEMA.partial()",
+        "description": "Zod object partial (all fields optional)"
+      },
+      {
+        "pattern": "$SCHEMA.required()",
+        "description": "Zod object required (remove optional)"
+      },
+      {
+        "pattern": "$SCHEMA.catchall($SCHEMA)",
+        "description": "Zod object catchall (validate extra keys)"
+      },
+      {
+        "pattern": "$SCHEMA.keyof()",
+        "description": "Zod object keyof (union of keys)"
+      },
+      {
+        "pattern": "$SCHEMA.readonly()",
+        "description": "Zod schema readonly"
+      },
+      {
+        "pattern": "$SCHEMA.brand($BRAND)",
+        "description": "Zod schema brand (nominal typing)"
+      },
+      {
+        "pattern": "z.pipe($SCHEMA, $TRANSFORM)",
+        "description": "Zod pipe (chain schemas)"
+      },
+      {
+        "pattern": "z.lazy(() => $SCHEMA)",
+        "description": "Zod lazy (recursive types)"
+      },
+      {
+        "pattern": "z.union([$$$SCHEMAS])",
+        "description": "Zod union type"
+      },
+      {
+        "pattern": "z.intersection($SCHEMA1, $SCHEMA2)",
+        "description": "Zod intersection"
+      },
+      {
+        "pattern": "z.xor($SCHEMA1, $SCHEMA2)",
+        "description": "Zod exclusive or (XOR)"
+      },
+      {
+        "pattern": "$SCHEMA.transform(($VAL) => $OUTPUT)",
+        "description": "Zod transform (custom transformation)"
+      },
+      {
+        "pattern": "$SCHEMA.preprocess(($VAL) => $PROCESSED)",
+        "description": "Zod preprocess (transform before validation)"
+      },
+      {
+        "pattern": "$SCHEMA.default($VALUE)",
+        "description": "Zod schema default value"
+      },
+      {
+        "pattern": "$SCHEMA.catch($VALUE)",
+        "description": "Zod schema catch (fallback on error)"
+      },
+      {
+        "pattern": "$SCHEMA.error($ERROR_MAP)",
+        "description": "Zod unified error API (v4)"
+      },
+      {
+        "pattern": "$RESULT.error.format()",
+        "description": "Zod error format (deprecated in v4, use z.treeifyError())"
+      },
+      {
+        "pattern": "z.treeifyError($ERROR)",
+        "description": "Zod tree format for errors (v4 preferred)"
+      },
+      {
         "pattern": "z.optional($SCHEMA)",
         "description": "Zod optional field"
       },
       {
         "pattern": "z.nullable($SCHEMA)",
         "description": "Zod nullable field"
+      }
+    ],
+    "codec": [
+      {
+        "pattern": "z.schema($INPUT).codec(($VAL) => $OUTPUT)",
+        "description": "Zod codec (bidirectional transformation)"
+      },
+      {
+        "pattern": "z.stringToNumber()",
+        "description": "Codec: convert string to number"
+      },
+      {
+        "pattern": "z.stringToBigInt()",
+        "description": "Codec: convert string to BigInt"
+      },
+      {
+        "pattern": "z.numberToBigInt()",
+        "description": "Codec: convert number to BigInt"
+      },
+      {
+        "pattern": "z.isoDatetimeToDate()",
+        "description": "Codec: convert ISO datetime string to Date"
+      },
+      {
+        "pattern": "z.epochSecondsToDate()",
+        "description": "Codec: convert epoch seconds to Date"
+      },
+      {
+        "pattern": "z.epochMillisToDate()",
+        "description": "Codec: convert epoch milliseconds to Date"
+      },
+      {
+        "pattern": "z.base64ToBytes()",
+        "description": "Codec: convert base64 string to bytes"
+      },
+      {
+        "pattern": "z.hexToBytes()",
+        "description": "Codec: convert hex string to bytes"
+      },
+      {
+        "pattern": "z.utf8ToBytes()",
+        "description": "Codec: convert UTF-8 string to bytes"
+      },
+      {
+        "pattern": "z.json($SCHEMA)",
+        "description": "Codec: JSON string to object with schema validation"
+      },
+      {
+        "pattern": "z.stringToURL()",
+        "description": "Codec: convert string to URL object"
+      },
+      {
+        "pattern": "z.uriComponent()",
+        "description": "Codec: URI component encoding/decoding"
+      },
+      {
+        "pattern": "$CODEC.decode($INPUT)",
+        "description": "Codec decode (transform input to output)"
+      },
+      {
+        "pattern": "$CODEC.encode($OUTPUT)",
+        "description": "Codec encode (transform output back to input)"
+      },
+      {
+        "pattern": "$CODEC.decodeAsync($INPUT)",
+        "description": "Codec async decode"
+      },
+      {
+        "pattern": "$CODEC.encodeAsync($OUTPUT)",
+        "description": "Codec async encode"
+      }
+    ],
+    "utility": [
+      {
+        "pattern": "z.enum(['$$$VALUES'])",
+        "description": "Zod enum (union of string literals)"
+      },
+      {
+        "pattern": "z.literal($VALUE)",
+        "description": "Zod literal (exact value match)"
+      },
+      {
+        "pattern": "z.date()",
+        "description": "Zod Date object validation"
+      },
+      {
+        "pattern": "z.function()",
+        "description": "Zod function type validation"
+      },
+      {
+        "pattern": "z.instanceof($CLASS)",
+        "description": "Zod instanceof type validation"
+      },
+      {
+        "pattern": "z.any()",
+        "description": "Zod any (accepts any value)"
+      },
+      {
+        "pattern": "z.unknown()",
+        "description": "Zod unknown (requires explicit type check)"
+      },
+      {
+        "pattern": "z.never()",
+        "description": "Zod never (no valid value)"
+      },
+      {
+        "pattern": "z.nullish()",
+        "description": "Zod nullish (null | undefined)"
+      },
+      {
+        "pattern": "z.tuple([$$$SCHEMAS])",
+        "description": "Zod tuple (fixed-length array)"
+      },
+      {
+        "pattern": "z.array($SCHEMA).nonempty()",
+        "description": "Zod non-empty array (v4: use .min(1) for new code)"
+      },
+      {
+        "pattern": "z.array($SCHEMA).min(1)",
+        "description": "Zod array minimum length (v4 preferred over .nonempty())"
+      },
+      {
+        "pattern": "z.record($SCHEMA)",
+        "description": "Zod record (string key object)"
+      },
+      {
+        "pattern": "z.partialRecord($SCHEMA)",
+        "description": "Zod partial record (optional keys, v4)"
+      },
+      {
+        "pattern": "$SCHEMA.merge($OTHER)",
+        "description": "Zod merge (deprecated in v4, use .extend())"
+      },
+      {
+        "pattern": "z.set($SCHEMA)",
+        "description": "Zod Set type validation"
+      },
+      {
+        "pattern": "z.map($KEY_SCHEMA, $VAL_SCHEMA)",
+        "description": "Zod Map type validation"
+      },
+      {
+        "pattern": "z.custom(($VAL) => $BOOL)",
+        "description": "Zod custom type validation"
+      },
+      {
+        "pattern": "z.coerce.string()",
+        "description": "Zod coerce to string"
+      },
+      {
+        "pattern": "z.coerce.number()",
+        "description": "Zod coerce to number"
+      },
+      {
+        "pattern": "z.coerce.boolean()",
+        "description": "Zod coerce to boolean"
+      },
+      {
+        "pattern": "z.coerce.date()",
+        "description": "Zod coerce to Date"
+      },
+      {
+        "pattern": "z.function({ input: $SCHEMA, output: $SCHEMA })",
+        "description": "Zod function factory (v4 redesigned)"
+      },
+      {
+        "pattern": "$FUNC.implement(($ARGS) => $RESULT)",
+        "description": "Zod function implement"
+      },
+      {
+        "pattern": "$FUNC.implementAsync(async ($ARGS) => $RESULT)",
+        "description": "Zod function implementAsync (v4)"
+      },
+      {
+        "pattern": "z.promise($SCHEMA)",
+        "description": "Zod promise (deprecated in v4)"
+      },
+      {
+        "pattern": "z.nativeEnum($ENUM)",
+        "description": "Zod nativeEnum (deprecated in v4, use z.enum())"
+      },
+      {
+        "pattern": "$SCHEMA.strict()",
+        "description": "Zod strict (deprecated in v4, use z.strictObject())"
+      },
+      {
+        "pattern": "$SCHEMA.passthrough()",
+        "description": "Zod passthrough (removed in v4, use z.looseObject())"
+      },
+      {
+        "pattern": "$SCHEMA.strip()",
+        "description": "Zod strip (removed in v4, default behavior)"
+      },
+      {
+        "pattern": "$SCHEMA.deepPartial()",
+        "description": "Zod deepPartial (removed in v4)"
+      },
+      {
+        "pattern": "z.core.$UTILITY",
+        "description": "Zod core sub-package for utilities (v4)"
+      },
+      {
+        "pattern": "z.nanoid()",
+        "description": "Zod Nanoid validation (top-level, v4 preferred)"
+      },
+      {
+        "pattern": "z.string().nanoid()",
+        "description": "Zod string Nanoid validation (deprecated in v4)"
+      },
+      {
+        "pattern": "z.cuid()",
+        "description": "Zod CUID validation (top-level, v4 preferred)"
+      },
+      {
+        "pattern": "z.string().cuid()",
+        "description": "Zod string CUID validation (deprecated in v4)"
+      },
+      {
+        "pattern": "z.cuid2()",
+        "description": "Zod CUID2 validation (top-level, v4 preferred)"
+      },
+      {
+        "pattern": "z.string().cuid2()",
+        "description": "Zod string CUID2 validation (deprecated in v4)"
+      },
+      {
+        "pattern": "z.ulid()",
+        "description": "Zod ULID validation (top-level, v4 preferred)"
+      },
+      {
+        "pattern": "z.string().ulid()",
+        "description": "Zod string ULID validation (deprecated in v4)"
+      }
+    ],
+    "linting": [
+      {
+        "pattern": "z.any()",
+        "description": "Zod any (linting: avoid per eslint-plugin-zod)"
+      },
+      {
+        "pattern": "z.unknown()",
+        "description": "Zod unknown (linting: avoid per eslint-plugin-zod)"
+      },
+      {
+        "pattern": "$SCHEMA.describe($MSG)",
+        "description": "Zod describe (deprecated, use .meta() per linting)"
+      },
+      {
+        "pattern": "$SCHEMA.meta($META)",
+        "description": "Zod meta (preferred over .describe())"
+      },
+      {
+        "pattern": "$SCHEMA.optional().default($VALUE)",
+        "description": "Zod optional + default (linting: avoid combining)"
+      },
+      {
+        "pattern": "z.string().uuid()",
+        "description": "Zod string uuid (deprecated, use z.uuid())"
+      },
+      {
+        "pattern": "z.number().int()",
+        "description": "Zod number int (legacy, use z.int())"
+      },
+      {
+        "pattern": "z.union([$VAL1, $VAL2, $VAL3])",
+        "description": "Zod string literal union (linting: prefer z.enum())"
+      },
+      {
+        "pattern": "z.record($SCHEMA.transform($FUNC))",
+        "description": "Zod record with transform in key (linting: disallowed)"
+      },
+      {
+        "pattern": "$SCHEMA.refine(($VAL) => { throw new Error($MSG) })",
+        "description": "Zod refine with throw (linting: use ctx.addIssue())"
+      },
+      {
+        "pattern": "$SCHEMA.refine(($VAL) => $BOOL)",
+        "description": "Zod refine without error message (linting: add message)"
+      },
+      {
+        "pattern": "import z from 'zod'",
+        "description": "Zod default import (linting: prefer namespace import)"
+      },
+      {
+        "pattern": "import * as z from 'zod'",
+        "description": "Zod namespace import (linting: preferred)"
+      },
+      {
+        "pattern": "const $VAR = z.$TYPE",
+        "description": "Zod schema without suffix (linting: add 'Schema' suffix)"
+      },
+      {
+        "pattern": "const $NAMESchema = z.$TYPE",
+        "description": "Zod schema with suffix (linting: preferred)"
+      },
+      {
+        "pattern": "$SCHEMA.brand($BRAND)",
+        "description": "Zod brand without type parameter (linting: add type)"
+      },
+      {
+        "pattern": "z.string().trim()",
+        "description": "Zod string trim (linting: recommended best practice)"
+      }
+    ],
+    "codegen": [
+      {
+        "pattern": "import ts from 'typescript'",
+        "description": "TypeScript compiler API import"
+      },
+      {
+        "pattern": "ts.createSourceFile($FILE, $CONTENT, $LANG_VERSION)",
+        "description": "Create source file from code string (TS compiler API)"
+      },
+      {
+        "pattern": "ts.factory.createVariableStatement($MODS, $DECLS)",
+        "description": "Create variable statement via factory (TS compiler API)"
+      },
+      {
+        "pattern": "ts.factory.createFunctionDeclaration($MODS, $NAME, $PARAMS, $RETURN, $BODY)",
+        "description": "Create function declaration via factory"
+      },
+      {
+        "pattern": "ts.factory.createInterfaceDeclaration($MODS, $NAME, $PARAMS, $EXTENDS, $MEMBERS)",
+        "description": "Create interface declaration via factory"
+      },
+      {
+        "pattern": "ts.factory.createTypeAliasDeclaration($MODS, $NAME, $PARAMS, $TYPE)",
+        "description": "Create type alias via factory"
+      },
+      {
+        "pattern": "const printer = ts.createPrinter()",
+        "description": "Create AST printer for code generation"
+      },
+      {
+        "pattern": "printer.printNode(ts.EmitHint.Unspecified, $NODE, $SOURCE_FILE)",
+        "description": "Print AST node to code string"
+      },
+      {
+        "pattern": "type $NAME<$PARAM> = $PARAM extends $TYPE ? $TRUE : $FALSE",
+        "description": "Conditional type (type-level if)"
+      },
+      {
+        "pattern": "type $NAME<$KEY in keyof $OBJ> = $TRANSFORM",
+        "description": "Mapped type (iterate object keys)"
+      },
+      {
+        "pattern": "type $NAME = Partial<$SCHEMA>",
+        "description": "Utility type Partial (all fields optional)"
+      },
+      {
+        "pattern": "type $NAME = Pick<$SCHEMA, '$FIELD1' | '$FIELD2'>",
+        "description": "Utility type Pick (select fields)"
+      },
+      {
+        "pattern": "type $NAME = Omit<$SCHEMA, '$FIELD'>",
+        "description": "Utility type Omit (exclude fields)"
+      },
+      {
+        "pattern": "type $NAME = Record<$KEY, $VALUE>",
+        "description": "Utility type Record (object with specified keys)"
+      },
+      {
+        "pattern": "type $NAME = Exclude<$UNION, $TYPE>",
+        "description": "Utility type Exclude (remove type from union)"
+      },
+      {
+        "pattern": "type $NAME = Extract<$UNION, $TYPE>",
+        "description": "Utility type Extract (select type from union)"
+      },
+      {
+        "pattern": "type $NAME = ReturnType<$FUNC>",
+        "description": "Utility type ReturnType (extract function return)"
+      },
+      {
+        "pattern": "type $NAME = Parameters<$FUNC>",
+        "description": "Utility type Parameters (extract function params)"
+      },
+      {
+        "pattern": "type $NAME = $OBJ is $TYPE",
+        "description": "Type guard (type predicate)"
+      },
+      {
+        "pattern": "function $FUNC($ARG): $ARG is $TYPE { $$$BODY }",
+        "description": "Type guard function implementation"
+      },
+      {
+        "pattern": "@$DECORATOR\\nclass $NAME { $$$BODY }",
+        "description": "Class decorator"
+      },
+      {
+        "pattern": "@$DECORATOR\\n$MODIFIER $PROPERTY: $TYPE",
+        "description": "Property decorator"
+      },
+      {
+        "pattern": "@$DECORATOR\\n$METHOD($$$PARAMS) { $$$BODY }",
+        "description": "Method decorator"
+      },
+      {
+        "pattern": "export namespace $NAME { $$$EXPORTS }",
+        "description": "Namespace declaration"
+      },
+      {
+        "pattern": "export { $$$EXPORTS } from '$PATH'",
+        "description": "Barrel export (re-export module)"
+      },
+      {
+        "pattern": "interface $NAME { $$$BODY }\\ninterface $NAME { $$$BODY }",
+        "description": "Declaration merging (interface)"
+      },
+      {
+        "pattern": "namespace $NAME { $$$A }\\nnamespace $NAME { $$$B }",
+        "description": "Declaration merging (namespace)"
+      },
+      {
+        "pattern": "type $NAME = $A | $B | $C",
+        "description": "Discriminated union type"
+      },
+      {
+        "pattern": "interface $NAME extends $TEMPLATE<$PARAM> { $$$BODY }",
+        "description": "Generic interface implementation"
+      },
+      {
+        "pattern": "const $FACTORY = <$PARAM,>($ARG: $PARAM): $PARAM => $ARG",
+        "description": "Generic factory function"
+      }
+    ],
+    "ast": [
+      {
+        "pattern": "import ts from 'typescript'",
+        "description": "Import TypeScript compiler for AST analysis"
+      },
+      {
+        "pattern": "ts.isSourceFile($NODE)",
+        "description": "Check if node is source file"
+      },
+      {
+        "pattern": "ts.isFunctionDeclaration($NODE)",
+        "description": "Check if node is function declaration"
+      },
+      {
+        "pattern": "ts.isClassDeclaration($NODE)",
+        "description": "Check if node is class declaration"
+      },
+      {
+        "pattern": "ts.isInterfaceDeclaration($NODE)",
+        "description": "Check if node is interface declaration"
+      },
+      {
+        "pattern": "ts.isTypeAliasDeclaration($NODE)",
+        "description": "Check if node is type alias"
+      },
+      {
+        "pattern": "ts.isVariableDeclaration($NODE)",
+        "description": "Check if node is variable declaration"
+      },
+      {
+        "pattern": "$NODE.kind === ts.SyntaxKind.$KIND_NAME",
+        "description": "Match AST node by kind/syntax type"
+      },
+      {
+        "pattern": "ts.forEachChild($NODE, ($CHILD) => { $$$BODY })",
+        "description": "Traverse immediate child nodes (visitor pattern)"
+      },
+      {
+        "pattern": "function visit($NODE: ts.Node): void { $$$BODY } ts.forEachChild($SOURCE, visit)",
+        "description": "Recursive AST traversal (depth-first)"
+      },
+      {
+        "pattern": "$NODE.getText($SOURCE_FILE)",
+        "description": "Get text content of AST node"
+      },
+      {
+        "pattern": "$NODE.getStart($SOURCE_FILE)",
+        "description": "Get start position of node in source"
+      },
+      {
+        "pattern": "$NODE.getEnd()",
+        "description": "Get end position of node in source"
+      },
+      {
+        "pattern": "$NODE.getLeadingTriviaWidth($SOURCE_FILE)",
+        "description": "Get leading whitespace/comments width"
+      },
+      {
+        "pattern": "ts.getJSDocComments($NODE)",
+        "description": "Extract JSDoc comments from node"
+      },
+      {
+        "pattern": "$FUNC.name.text",
+        "description": "Access function name property from AST"
+      },
+      {
+        "pattern": "$CLASS.members",
+        "description": "Access class members array"
+      },
+      {
+        "pattern": "$INTERFACE.heritageClauses",
+        "description": "Access interface extends/implements clauses"
+      },
+      {
+        "pattern": "ts.createSourceFile($FILE, $CONTENT, $LANG, true, ts.ScriptKind.$TYPE)",
+        "description": "Parse source with language detection"
+      },
+      {
+        "pattern": "const typeChecker = $PROGRAM.getTypeChecker()",
+        "description": "Get type checker from program (static analysis)"
+      },
+      {
+        "pattern": "typeChecker.getTypeAtLocation($NODE)",
+        "description": "Get type of node (type checking/analysis)"
+      },
+      {
+        "pattern": "typeChecker.getSymbolAtLocation($NODE)",
+        "description": "Get symbol at location (symbol table)"
+      },
+      {
+        "pattern": "$SYMBOL.getDeclarations()",
+        "description": "Get all declarations of a symbol"
+      },
+      {
+        "pattern": "$SYMBOL.valueDeclaration",
+        "description": "Get value declaration of symbol"
+      },
+      {
+        "pattern": "typeChecker.getPropertiesOfType($TYPE)",
+        "description": "Get properties of type (structural analysis)"
+      },
+      {
+        "pattern": "$PROGRAM.getSourceFiles()",
+        "description": "Get all source files in program"
+      },
+      {
+        "pattern": "const diagnostics = ts.getPreEmitDiagnostics($PROGRAM)",
+        "description": "Get compilation diagnostics (error checking)"
+      },
+      {
+        "pattern": "$NODE.parent",
+        "description": "Access parent node in AST tree"
+      },
+      {
+        "pattern": "$NODE.decorators",
+        "description": "Access decorator nodes on declaration"
+      },
+      {
+        "pattern": "$NODE.modifiers",
+        "description": "Access modifier nodes (public, private, etc.)"
+      }
+    ],
+    "ast-grep": [
+      {
+        "pattern": "pattern: '$CODE'",
+        "description": "ast-grep simple pattern rule"
+      },
+      {
+        "pattern": "pattern:\\n  context: '$CODE'\\n  selector: 'node_kind'",
+        "description": "ast-grep pattern object (context + selector)"
+      },
+      {
+        "pattern": "rule:\\n  inside: 'class $NAME { $$BODY }'",
+        "description": "ast-grep relational rule: inside (match within parent)"
+      },
+      {
+        "pattern": "rule:\\n  has: 'pattern: $MATCH'",
+        "description": "ast-grep relational rule: has (contains child)"
+      },
+      {
+        "pattern": "rule:\\n  follows: 'const $VAR = $VALUE'",
+        "description": "ast-grep relational rule: follows (comes after)"
+      },
+      {
+        "pattern": "rule:\\n  precedes: 'return $VALUE'",
+        "description": "ast-grep relational rule: precedes (comes before)"
+      },
+      {
+        "pattern": "rule:\\n  all:\\n    - pattern: $A\\n    - pattern: $B",
+        "description": "ast-grep composite rule: all (AND logic)"
+      },
+      {
+        "pattern": "rule:\\n  any:\\n    - pattern: $A\\n    - pattern: $B",
+        "description": "ast-grep composite rule: any (OR logic)"
+      },
+      {
+        "pattern": "rule:\\n  not: 'pattern: $EXCLUDE'",
+        "description": "ast-grep composite rule: not (negation)"
+      },
+      {
+        "pattern": "strictness: 'strict'",
+        "description": "ast-grep strictness: strict matching (exact types)"
+      },
+      {
+        "pattern": "strictness: 'lenient'",
+        "description": "ast-grep strictness: lenient matching (flexible)"
+      },
+      {
+        "pattern": "id: 'rule-id'\\nlanguage: 'typescript'",
+        "description": "ast-grep rule metadata (id and language)"
+      },
+      {
+        "pattern": "fix: 'replacement code'",
+        "description": "ast-grep auto-fix template"
+      },
+      {
+        "pattern": "fix: 'rewrite($A, $B)'",
+        "description": "ast-grep fix with helper function"
+      },
+      {
+        "pattern": "message: 'Human-readable error message'",
+        "description": "ast-grep rule message"
+      },
+      {
+        "pattern": "severity: 'error|warning|info|hint'",
+        "description": "ast-grep rule severity level"
+      },
+      {
+        "pattern": "utils:\\n  rule-name:\\n    pattern: $PATTERN",
+        "description": "ast-grep utility rule (reusable)"
+      },
+      {
+        "pattern": "rule:\\n  matches: 'utility-rule-id'",
+        "description": "ast-grep rule reference (use utility)"
+      },
+      {
+        "pattern": "kind: 'function_declaration'",
+        "description": "ast-grep kind-based matching (specific node type)"
+      },
+      {
+        "pattern": "regex: '[a-z]+_[A-Z]+'",
+        "description": "ast-grep regex matching on node text"
+      },
+      {
+        "pattern": "stopBy: 'end'",
+        "description": "ast-grep relational rule: stopBy (limit traversal)"
+      },
+      {
+        "pattern": "ast-grep scan --inline-rules rule.yml",
+        "description": "ast-grep CLI: scan with inline rules"
+      },
+      {
+        "pattern": "ast-grep run --pattern '$PATTERN' --lang 'typescript'",
+        "description": "ast-grep CLI: run pattern search"
+      },
+      {
+        "pattern": "ast-grep run --pattern '$PATTERN' --json",
+        "description": "ast-grep CLI: output as JSON"
       }
     ]
   },

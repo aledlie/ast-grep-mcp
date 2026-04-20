@@ -13,7 +13,6 @@ from ast_grep_mcp.features.rewrite.service import (
 
 
 def _register_rewrite_code(mcp: FastMCP) -> None:
-    @mcp.tool()
     def rewrite_code(
         project_folder: str = Field(description="The absolute path to the project folder"),
         yaml_rule: str = Field(description="YAML rule with 'fix' field for code transformation"),
@@ -30,7 +29,9 @@ def _register_rewrite_code(mcp: FastMCP) -> None:
         - Automatic backups before changes
         - Returns diff preview or list of modified files
 
-        Example YAML Rule:
+        ## General Usage
+
+        Example: Replace var with const
         ```yaml
         id: replace-var-with-const
         language: javascript
@@ -38,6 +39,108 @@ def _register_rewrite_code(mcp: FastMCP) -> None:
           pattern: var $NAME = $VAL
         fix: const $NAME = $VAL
         ```
+
+        ## Zod Schema Validation Rules
+
+        Enforce Zod best practices with these patterns:
+
+        **Fix: Disallow z.any()**
+        ```yaml
+        id: no-any-schema
+        language: typescript
+        rule:
+          pattern: z.any()
+        fix: z.unknown().catch({})
+        message: "Use z.unknown().catch({}) instead of z.any()"
+        ```
+
+        **Fix: Require Schema suffix**
+        ```yaml
+        id: require-schema-suffix
+        language: typescript
+        rule:
+          pattern: const $NAME = z.object($$ARGS)
+        fix: const $${NAME}Schema = z.object($$ARGS)
+        message: "Schema variables must end with 'Schema' suffix"
+        ```
+
+        **Fix: Require error message in refine**
+        ```yaml
+        id: require-error-message
+        language: typescript
+        rule:
+          pattern: $SCHEMA.refine($CB)
+        fix: $SCHEMA.refine($CB, { message: "Validation failed" })
+        message: "refine() must include error message"
+        ```
+
+        **Fix: Prefer z.enum() over literal union**
+        ```yaml
+        id: prefer-enum-over-literal-union
+        language: typescript
+        rule:
+          pattern: z.union([z.literal($LIT1), z.literal($LIT2)])
+        fix: z.enum([$LIT1, $LIT2])
+        message: "Use z.enum() instead of union of literals"
+        ```
+
+        **Fix: Remove .optional() when .default() exists**
+        ```yaml
+        id: no-optional-and-default-together
+        language: typescript
+        rule:
+          pattern: $SCHEMA.optional().default($VAL)
+        fix: $SCHEMA.default($VAL)
+        message: "Don't use both .optional() and .default()"
+        ```
+
+        ## Zod Import Rules
+
+        Enforce namespace imports for tree-shaking:
+
+        **Fix: Named import to namespace**
+        ```yaml
+        id: import-zod-namespace
+        language: typescript
+        rule:
+          pattern: import { z } from "zod"
+        fix: import * as z from "zod"
+        message: "Use namespace import for better tree-shaking"
+        ```
+
+        **Fix: Default import to namespace**
+        ```yaml
+        id: import-zod-default-namespace
+        language: typescript
+        rule:
+          pattern: import z from "zod"
+        fix: import * as z from "zod"
+        message: "Use namespace import for better tree-shaking"
+        ```
+
+        **Fix: Mixed imports to namespace + named**
+        ```yaml
+        id: import-zod-mixed-to-namespace
+        language: typescript
+        rule:
+          pattern: import z, { $$EXPORTS } from "zod"
+        fix: import * as z from "zod"; import { $$EXPORTS } from "zod"
+        message: "Separate namespace and named imports"
+        ```
+
+        ## Tips
+
+        - Use metavariables ($NAME, $$ARGS) to capture code patterns
+        - stopBy: "neighbor" for relational rules to stop at immediate children only
+        - Use "inside" and "has" constraints for context-aware matching
+        - Test with dry_run=True first to preview changes
+        - Use find_code_by_rule to locate matches before rewriting
+
+        ## Available Rules
+
+        Pre-built rules available in:
+        - `rules/zod-validation-rules.yaml` - 10 Zod schema validation rules
+        - `rules/import-zod-rules.yaml` - 7 Zod import enforcement rules
 
         Returns:
         - dry_run=True: Preview with diffs showing proposed changes
