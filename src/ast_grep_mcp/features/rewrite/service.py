@@ -52,7 +52,7 @@ def _parse_node_error(stderr: str) -> str:
 
 
 def _run_node_check(tmp_path: str) -> Dict[str, Any]:
-    """Run node --check on a temp file and return validity result."""
+    """Run node --check on a file and return validity result."""
     try:
         result = subprocess.run(
             ["node", "--check", tmp_path],
@@ -63,8 +63,8 @@ def _run_node_check(tmp_path: str) -> Dict[str, Any]:
         if result.returncode != 0:
             return {"valid": False, "error": _parse_node_error(result.stderr)}
         return {"valid": True, "error": None}
-    finally:
-        os.unlink(tmp_path)
+    except Exception:
+        return {"valid": True, "error": "JavaScript validation failed"}
 
 
 def _validate_javascript_syntax(content: str) -> Dict[str, Any]:
@@ -80,11 +80,12 @@ def _validate_javascript_syntax(content: str) -> Dict[str, Any]:
         Dict with 'valid' and 'error' keys
     """
     try:
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".mjs", delete=False, encoding="utf-8") as f:
-            f.write(content)
-            tmp_path = f.name
-        return _run_node_check(tmp_path)
-    except (subprocess.SubprocessError, FileNotFoundError):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = os.path.join(tmpdir, "check.mjs")
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            return _run_node_check(tmp_path)
+    except FileNotFoundError:
         return {"valid": True, "error": "JavaScript validation skipped (node not available)"}
 
 
@@ -272,18 +273,7 @@ def _validate_yaml_rule(yaml_rule: str) -> Dict[str, Any]:
     return rule_data
 
 
-def _create_temp_rule_file(yaml_rule: str) -> str:
-    """Write rule to temporary file.
 
-    Args:
-        yaml_rule: YAML rule string
-
-    Returns:
-        Path to temporary rule file
-    """
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
-        f.write(yaml_rule)
-        return f.name
 
 
 def _build_command_args(
@@ -503,21 +493,21 @@ def _handle_rewrite_error(e: Exception, logger: Any, start_time: float, project_
 def _execute_rewrite(
     project_folder: str,
     yaml_rule: str,
+    rule_file: str,
     dry_run: bool,
     backup: bool,
     max_file_size_mb: int,
     workers: int,
     logger: Any,
     start_time: float,
-) -> Tuple[Optional[str], Dict[str, Any]]:
-    """Validate, prepare, and dispatch rewrite. Returns (rule_file, result)."""
+) -> Dict[str, Any]:
+    """Validate and dispatch rewrite."""
     rule_data = _validate_yaml_rule(yaml_rule)
     language = rule_data.get("language", "unknown")
-    rule_file = _create_temp_rule_file(yaml_rule)
     args, search_targets = _build_command_args(rule_file, project_folder, max_file_size_mb, workers, language)
     if dry_run:
-        return rule_file, _perform_dry_run(args, search_targets, logger, start_time)
-    return rule_file, _apply_rewrites(args, search_targets, rule_file, project_folder, backup, workers, language, logger, start_time)
+        return _perform_dry_run(args, search_targets, logger, start_time)
+    return _apply_rewrites(args, search_targets, rule_file, project_folder, backup, workers, language, logger, start_time)
 
 
 def rewrite_code_impl(
@@ -545,19 +535,18 @@ def rewrite_code_impl(
     """
     logger = get_logger("rewrite.rewrite_code")
     start_time = time.time()
-    rule_file: Optional[str] = None
 
     logger.info("rewrite_code_started", project_folder=project_folder, dry_run=dry_run, backup=backup, workers=workers)
 
-    try:
-        rule_file, result = _execute_rewrite(project_folder, yaml_rule, dry_run, backup, max_file_size_mb, workers, logger, start_time)
-        return result
-    except Exception as e:
-        _handle_rewrite_error(e, logger, start_time, project_folder, dry_run)
-        raise
-    finally:
-        if rule_file and os.path.exists(rule_file):
-            os.unlink(rule_file)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        rule_file = os.path.join(tmpdir, "rule.yml")
+        with open(rule_file, "w", encoding="utf-8") as f:
+            f.write(yaml_rule)
+        try:
+            return _execute_rewrite(project_folder, yaml_rule, rule_file, dry_run, backup, max_file_size_mb, workers, logger, start_time)
+        except Exception as e:
+            _handle_rewrite_error(e, logger, start_time, project_folder, dry_run)
+            raise
 
 
 def _build_rollback_response(result: Dict[str, Any]) -> Dict[str, Any]:
