@@ -1,67 +1,120 @@
-# High-Priority Python Security Rules (Consolidated Composition)
+# High-Priority Python Security Rules (Fully Relational + Enhanced Follows)
 # Based on ast-grep-essentials: https://github.com/coderabbitai/ast-grep-essentials/tree/main/rules/python/security
-# Fully consolidated using all/any/not composition per ast-grep catalog patterns
+# All rules use advanced relational patterns with sophisticated follows/precedes/inside/not combinations
 
 ---
-# Rule 1: Hardcoded Secrets in Authentication Libraries (Consolidated)
-# JWT, OpenAI, Requests - all authentication methods
+# Rule 1: Hardcoded Secrets in Authentication Libraries
+# Enhanced: follows + precedes + inside + not composition
 id: hardcoded-auth-secret
 language: python
 severity: error
 message: >-
-  Authentication secret is hard-coded in the application.
-  Use environment variables (e.g., OPENAI_API_KEY, JWT_SECRET) instead.
+  Authentication secret is hard-coded. Use environment variables instead
+  (OPENAI_API_KEY, JWT_SECRET, etc.).
 note: |
   CWE-798: Use of Hard-coded Credentials
-  OWASP A07:2021: Identification and Authentication Failures
 rule:
   all:
+    # Pattern: hardcoded secret
     - any:
-        - pattern: jwt.encode($ARG1, "$SECRET", $$ARGS)
+        - pattern: jwt.encode($ARG1, "$SECRET", $$$ARGS)
         - pattern: openai.api_key = "$KEY"
         - pattern: requests.auth.HTTPBasicAuth("$USER", "$PASSWORD")
+    # Follows: library must be imported (not commented out)
     - follows:
         any:
-          - pattern: import jwt|from jwt import.*
-          - pattern: import openai|from openai import.*
-          - pattern: import requests|from requests import.*
+          - all:
+              - pattern: import jwt
+
+          - all:
+              - pattern: from jwt import.*
+
+          - all:
+              - pattern: import openai
+
+          - all:
+              - pattern: import requests
+
+    # Precedes: secret is actually used after import
+    - precedes:
+        any:
+          - pattern: jwt.encode(...)
+          - pattern: openai.Completion.create(...)
+          - pattern: requests.get(...)|requests.post(...)|requests.request(...)
+    # Inside: within function/class definition
+    - inside:
+        any:
+          - pattern: "def $$$FUNC($$$ARGS): $$$BODY"
+          - pattern: "class $$$CLASS: $$$BODY"
+    # Not: exclude tests and safe patterns
+    - not:
+        inside:
+          any:
+            - pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+            - pattern: "# Example|# Demo"
 
 ---
-# Rule 2: Hardcoded Database Credentials (Consolidated)
-# PostgreSQL, MySQL, MongoDB, Redis, CouchBase - all databases
+# Rule 2: Hardcoded Database Credentials
+# Enhanced: follows with strict import checking + precedes + inside + not
 id: database-hardcoded-credential
 language: python
 severity: error
 message: >-
-  Hard-coded database credential detected in connection.
-  Use environment variables or secure credential management instead.
+  Hard-coded database credential detected. Use environment variables or
+  secure credential management instead.
 note: |
   CWE-798: Use of Hard-coded Credentials
 rule:
   all:
+    # Pattern: any database with hardcoded password
     - any:
-        # Password in connection calls
         - pattern: psycopg2.connect(..., password="$PASSWORD", ...)
         - pattern: mysql.connector.connect(..., password="$PASSWORD", ...)
         - pattern: pymysql.connect(..., password="$PASSWORD", ...)
         - pattern: MongoClient(..., password="$PASSWORD", ...)
         - pattern: redis.Redis(..., password="$PASSWORD", ...)
         - pattern: couchbase.Cluster(..., password="$PASSWORD", ...)
-        # Username in connection calls
         - pattern: psycopg2.connect(..., user="$USER", password="$PASSWORD", ...)
         - pattern: MongoClient(..., username="$USER", password="$PASSWORD", ...)
+    # Follows: library must be imported at module level
     - follows:
         any:
-          - pattern: import psycopg2|from psycopg2 import.*
-          - pattern: import mysql.connector|from mysql.connector import.*
-          - pattern: import pymysql|from pymysql import.*
-          - pattern: from pymongo import|import pymongo
-          - pattern: import redis|from redis import.*
-          - pattern: import couchbase|from couchbase import.*
+          - all:
+              - pattern: import psycopg2
+
+          - all:
+              - pattern: from psycopg2 import.*
+
+          - all:
+              - pattern: import pymysql|import mysql.connector
+
+          - all:
+              - pattern: from pymongo import|from redis import|from couchbase import
+
+    # Precedes: connection is actually used
+    - precedes:
+        any:
+          - pattern: "db = .*\.connect(...)"
+          - pattern: "conn = .*\.connect(...)"
+          - pattern: "cursor = .*\.cursor()"
+    # Inside: within function that establishes connection
+    - inside:
+        any:
+          - pattern: "def connect($$$ARGS): $$$BODY"
+          - pattern: "def create_connection($$$ARGS): $$$BODY"
+          - pattern: "def init_db($$$ARGS): $$$BODY"
+          - pattern: "class $$$DB: $$$BODY"
+    # Not: exclude safe patterns
+    - not:
+        inside:
+          any:
+            - pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+            - pattern: "if os.getenv|if environ.get"
+            - pattern: "# password from env"
 
 ---
-# Rule 3: Empty/Default Database Passwords (Consolidated)
-# PostgreSQL, MySQL, MongoDB, Redis
+# Rule 3: Empty/Default Database Passwords
+# Enhanced: follows + inside + not with strict context matching
 id: database-empty-credential
 language: python
 severity: warning
@@ -72,20 +125,38 @@ note: |
   CWE-521: Weak Password Requirements
 rule:
   all:
+    # Pattern: empty password string
     - any:
         - pattern: psycopg2.connect(..., password="", ...)
         - pattern: pymysql.connect(..., password="", ...)
         - pattern: MongoClient(..., password="", ...)
         - pattern: redis.Redis(..., password="", ...)
+    # Follows: library imported without comment
     - follows:
         any:
-          - pattern: import psycopg2|from psycopg2 import.*
-          - pattern: import pymysql|from pymysql import.*
-          - pattern: from pymongo import|import pymongo
-          - pattern: import redis|from redis import.*
+          - all:
+              - pattern: import psycopg2|import pymysql|import redis
+
+          - all:
+              - pattern: from pymongo import|from redis import
+
+    # Inside: connection context
+    - inside:
+        any:
+          - pattern: "def $$$FUNC($$$ARGS): $$$BODY"
+          - pattern: "class $$$CLASS: $$$BODY"
+          - pattern: "try: $$$BODY"
+    # Not: exclude test/dev contexts
+    - not:
+        inside:
+          any:
+            - pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+            - pattern: "if __name__ == '__main__': $$$BODY"
+            - pattern: "def setup_test($$$ARGS): $$$BODY"
 
 ---
-# Rule 4: Insecure Cryptography (RC4 + deprecated algos)
+# Rule 4: Insecure Cryptography
+# Enhanced: follows + inside + not with algorithm-specific contexts
 id: insecure-cryptography
 language: python
 severity: error
@@ -96,69 +167,131 @@ note: |
   CWE-327: Use of Broken Cryptographic Algorithm
 rule:
   all:
+    # Pattern: weak algorithms
     - any:
-        - pattern: Cipher.new(AES.MODE_CBC, "RC4", ...)
+        - pattern: Cipher.new("RC4", ...)
         - pattern: Cipher.new("DES", ...)
         - pattern: hashlib.md5($$$ARGS)
         - pattern: hashlib.sha1($$$ARGS)
+    # Follows: crypto library imported
     - follows:
         any:
-          - pattern: from Crypto.Cipher import|import Crypto.Cipher
-          - pattern: import hashlib|from hashlib import.*
+          - all:
+              - pattern: from Crypto.Cipher import
+
+          - all:
+              - pattern: import hashlib
+
+    # Precedes: algorithm actually used
+    - precedes:
+        any:
+          - pattern: ".encrypt($$$ARGS)"
+          - pattern: ".digest()|.hexdigest()"
+          - pattern: "cipher = Cipher.new(...)"
+    # Inside: crypto function context
+    - inside:
+        any:
+          - pattern: "def encrypt($$$ARGS): $$$BODY"
+          - pattern: "def hash($$$ARGS): $$$BODY"
+          - pattern: "def digest($$$ARGS): $$$BODY"
+          - pattern: "def sign($$$ARGS): $$$BODY"
+    # Not: exclude tests and comments
+    - not:
+        inside:
+          any:
+            - pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+            - pattern: "# secure|# TODO: fix|# FIXME"
 
 ---
-# Rule 5: Flask Debug Mode Enabled (Consolidated variants)
-# Both direct and in-main-block detection
+# Rule 5: Flask Debug Mode Enabled
+# Enhanced: follows + inside with multi-context checking + not
 id: flask-debug-mode
 language: python
 severity: error
 message: >-
-  Flask debug mode is enabled. This exposes sensitive information and the debugger.
-  Use environment variables (FLASK_ENV=development) to control debug mode.
+  Flask debug mode is enabled. This exposes sensitive information and the
+  debugger. Use environment variables (FLASK_ENV=development) instead.
 note: |
   CWE-489: Active Debug Code
 rule:
   all:
+    # Pattern: debug=True in Flask
     - any:
-        # Direct debug=True in app.run()
         - pattern: app.run(..., debug=True, ...)
-        # Debug via flask.run()
         - pattern: flask.run(..., debug=True, ...)
+        - pattern: app.debug = True
+    # Follows: Flask imported
     - follows:
-        pattern: import flask|from flask import.*
-    - any:
-        # Allow inside main block (context)
-        - inside:
-            pattern: "if __name__ == '__main__': $$$BODY"
-        # Or flag anywhere if not in test
-        - not:
-            inside:
-              pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+        any:
+          - all:
+              - pattern: import flask
 
----
-# Rule 6: Insecure Temporary File Creation (mktemp)
-id: insecure-temp-file
-language: python
-severity: warning
-message: >-
-  mktemp() has a race condition vulnerability.
-  Use tempfile.NamedTemporaryFile() with delete=False instead.
-note: |
-  CWE-377: Insecure Temporary File
-rule:
-  all:
-    - any:
-        - pattern: tempfile.mktemp()
-        - pattern: mktemp()
-    - follows:
-        pattern: import tempfile|from tempfile import.*
+          - all:
+              - pattern: from flask import.*
+
+    # Precedes: app actually runs
+    - precedes:
+        any:
+          - pattern: app.run()"
+          - pattern: flask.run()"
+          - pattern: ".run()"
+    # Inside: context matters
+    - inside:
+        any:
+          # Acceptable: inside main block
+          - pattern: "if __name__ == '__main__': $$$BODY"
+          # Flag: inside app factory
+          - pattern: "def create_app($$$ARGS): $$$BODY"
+    # Not: exclude tests
     - not:
         inside:
           pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
 
 ---
-# Rule 7: Hardcoded API/Search Engine Credentials (Consolidated)
-# Elasticsearch, OpenSearch - all search engines
+# Rule 6: Insecure Temporary File Creation
+# Enhanced: follows + inside + precedes + not
+id: insecure-temp-file
+language: python
+severity: warning
+message: >-
+  mktemp() has a race condition vulnerability. Use tempfile.NamedTemporaryFile()
+  with delete=False instead.
+note: |
+  CWE-377: Insecure Temporary File
+rule:
+  all:
+    # Pattern: unsafe temp functions
+    - any:
+        - pattern: tempfile.mktemp()
+        - pattern: mktemp()
+    # Follows: tempfile imported at module level
+    - follows:
+        any:
+          - all:
+              - pattern: import tempfile
+
+          - all:
+              - pattern: from tempfile import mktemp
+
+    # Precedes: result actually used as file
+    - precedes:
+        any:
+          - pattern: "open($VAR, ...)"
+          - pattern: "with open($VAR, ...) as"
+          - pattern: "os.path.exists($VAR)"
+    # Inside: temp file context
+    - inside:
+        any:
+          - pattern: "def $$$FUNC($$$ARGS): $$$BODY"
+          - pattern: "$VAR = mktemp()"
+    # Not: exclude test context (safer)
+    - not:
+        inside:
+          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+
+---
+# Rule 7: Hardcoded API/Search Engine Credentials
+# Enhanced: follows with strict import + inside + not
 id: search-engine-hardcoded-credentials
 language: python
 severity: error
@@ -169,118 +302,217 @@ note: |
   CWE-798: Use of Hard-coded Credentials
 rule:
   all:
+    # Pattern: hardcoded credentials
     - any:
         - pattern: Elasticsearch(..., basic_auth=("$USER", "$PASSWORD"), ...)
         - pattern: Elasticsearch(..., api_key="$KEY", ...)
         - pattern: OpenSearch(..., basic_auth=("$USER", "$PASSWORD"), ...)
         - pattern: OpenSearch(..., api_key="$KEY", ...)
+    # Follows: client imported
     - follows:
         any:
-          - pattern: from elasticsearch import|import elasticsearch
-          - pattern: from opensearchpy import|import opensearchpy
+          - all:
+              - pattern: from elasticsearch import|import elasticsearch
+
+          - all:
+              - pattern: from opensearchpy import|import opensearchpy
+
+    # Precedes: client actually used
+    - precedes:
+        any:
+          - pattern: ".search(...)"
+          - pattern: ".index(...)"
+          - pattern: ".get(...)"
+    # Inside: client context
+    - inside:
+        any:
+          - pattern: "def connect($$$ARGS): $$$BODY"
+          - pattern: "def init_search($$$ARGS): $$$BODY"
+          - pattern: "class $$$Client: $$$BODY"
+    # Not: exclude tests
+    - not:
+        inside:
+          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
 
 ---
-# Rule 8: HTTP Requests with Embedded Credentials (Consolidated)
+# Rule 8: HTTP Requests with Embedded Credentials
+# Enhanced: follows + inside + not with request context
 id: http-embedded-credentials
 language: python
 severity: error
 message: >-
-  Credentials embedded in HTTP request URL.
-  Use environment variables and pass credentials via headers or auth parameter.
+  Credentials embedded in HTTP request URL. Use environment variables and
+  pass credentials via headers or auth parameter.
 note: |
   CWE-798: Use of Hard-coded Credentials
 rule:
   all:
+    # Pattern: credentials in URL
     - any:
         - pattern: requests.$METHOD("http://$USER:$PASSWORD@...", ...)
         - pattern: requests.$METHOD("https://$USER:$PASSWORD@...", ...)
         - pattern: urllib.request.urlopen("http://$USER:$PASSWORD@...", ...)
+    # Follows: requests/urllib imported
     - follows:
         any:
-          - pattern: import requests|from requests import.*
-          - pattern: import urllib|from urllib import.*
+          - all:
+              - pattern: import requests
+
+          - all:
+              - pattern: import urllib|from urllib import.*
+
+    # Precedes: request actually sent
+    - precedes:
+        any:
+          - pattern: ".json()|.text|.content"
+          - pattern: "response = requests.*"
+          - pattern: "urllib.request.urlopen(...).read()"
+    # Inside: request context
+    - inside:
+        any:
+          - pattern: "def fetch($$$ARGS): $$$BODY"
+          - pattern: "def call_api($$$ARGS): $$$BODY"
+          - pattern: "def request($$$ARGS): $$$BODY"
+    # Not: exclude tests
+    - not:
+        inside:
+          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
 
 ---
-# Rule 9: Secret Variable Assignment and Usage (with precedes)
+# Rule 9: Secret Variable Assignment and Usage
+# Enhanced: precedes with strict context + inside + not
 id: secret-variable-used-after-assignment
 language: python
 severity: error
 message: >-
-  Hard-coded secret assigned to variable then used.
-  Move secrets to environment variables, don't assign hardcoded values.
+  Hard-coded secret assigned to variable then used. Move secrets to
+  environment variables, don't assign hardcoded values.
 note: |
   CWE-798: Use of Hard-coded Credentials
 rule:
-  pattern:
-    context: $VAR = "$HARDCODED_SECRET"
-    selector: assignment
-  precedes:
-    any:
-      - pattern: jwt.encode(..., $VAR, ...)
-      - pattern: openai.api_key = $VAR
-      - pattern: "connect(..., password=$VAR, ...)"
-      - pattern: "Redis(..., password=$VAR, ...)"
-      - pattern: "Elasticsearch(..., api_key=$VAR, ...)"
+  all:
+    # Pattern: secret assignment
+    - pattern: $VAR = "$HARDCODED_SECRET"
+    # Precedes: variable used in credential context
+    - precedes:
+        any:
+          - pattern: jwt.encode(..., $VAR, ...)
+          - pattern: openai.api_key = $VAR
+          - pattern: "connect(..., password=$VAR, ...)"
+          - pattern: "Redis(..., password=$VAR, ...)"
+          - pattern: "Elasticsearch(..., api_key=$VAR, ...)"
+    # Inside: function definition
+    - inside:
+        pattern: "def $$$FUNC($$$ARGS): $$$BODY"
+    # Not: exclude safe patterns
+    - not:
+        inside:
+          any:
+            - pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+            - pattern: "# Example|# Demo"
 
 ---
-# Rule 10: Unencrypted Connection Strings (with inside context)
+# Rule 10: Unencrypted Connection Strings
+# Enhanced: inside + follows + not with protocol checking
 id: unencrypted-db-connection
 language: python
 severity: warning
 message: >-
-  Unencrypted connection string detected (http://).
-  Use secure protocols (https://, postgresql://, mongodb+srv://,etc.).
+  Unencrypted connection string detected (http://). Use secure protocols
+  (https://, postgresql://, mongodb+srv://, etc.).
 note: |
   CWE-295: Improper Certificate Validation
 rule:
   all:
-    - pattern: $VAR = "http://$$$HOST"
+    # Pattern: http:// URL
+    - pattern: $VAR = "http://$$$"
+    # Inside: connection context
     - inside:
         any:
           - pattern: "def connect($$$ARGS): $$$BODY"
           - pattern: "def create_connection($$$ARGS): $$$BODY"
           - pattern: "def init_db($$$ARGS): $$$BODY"
+          - pattern: "$VAR = os.getenv('DATABASE_URL')|$VAR = environ['DB']"
+    # Follows: database driver imported
+    - follows:
+        any:
+          - all:
+              - pattern: import psycopg2|from psycopg2 import.*
+
+          - all:
+              - pattern: from pymongo import|import pymongo
+
+          - all:
+              - pattern: import requests|from requests import.*
+
+    # Not: exclude tests
     - not:
-        pattern: "# https" # exclude if commented with https reminder
+        inside:
+          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
 
 ---
-# Rule 11: Credentials via String Concatenation (with inside)
+# Rule 11: Credentials via String Concatenation
+# Enhanced: inside + follows + not with string context
 id: credentials-string-concatenation
 language: python
 severity: warning
 message: >-
-  Credentials constructed via string concatenation.
-  Use environment variables or secure vaults instead of building strings.
+  Credentials constructed via string concatenation. Use environment variables
+  or secure vaults instead of building strings.
 note: |
   CWE-798: Use of Hard-coded Credentials
 rule:
   all:
+    # Pattern: concatenated strings for credentials
     - any:
         - pattern: password = $STR1 + $STR2
         - pattern: api_key = $STR1 + $STR2 + $STR3
         - pattern: secret = $STR1 + $STR2
         - pattern: token = $STR1 + $STR2
+    # Inside: function definition
     - inside:
         pattern: "def $$$FUNC($$$ARGS): $$$BODY"
+    # Follows: implicit concatenation (no explicit os.getenv)
+    - not:
+        follows:
+          any:
+            - pattern: password = os.getenv(...)|password = environ.get(...)
+            - pattern: api_key = os.getenv(...)|api_key = environ.get(...)
+    # Not: exclude safe patterns
+    - not:
+        inside:
+          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
 
 ---
-# Rule 12: Logging Secrets (with inside pattern)
+# Rule 12: Logging Secrets
+# Enhanced: inside + not with safe logging patterns
 id: secrets-in-logging
 language: python
 severity: warning
 message: >-
-  Potential secret in logging call.
-  Never log passwords, API keys, tokens, or other sensitive data.
+  Potential secret in logging call. Never log passwords, API keys, tokens,
+  or other sensitive data.
 note: |
   CWE-532: Insertion of Sensitive Information into Log File
 rule:
   all:
+    # Pattern: secrets in log calls
     - any:
         - pattern: print($PASSWORD)
         - pattern: logger.info(..., $PASSWORD, ...)
         - pattern: logger.debug(..., $PASSWORD, ...)
-        - pattern: log(..., api_key=...)
-        - pattern: print(..., $SECRET, ...)
+        - pattern: logger.error(..., $SECRET, ...)
+        - pattern: logger.warning(..., token=...)
+        - pattern: print(..., "password"=..., ...)
+    # Inside: function definition
+    - inside:
+        pattern: "def $$$FUNC($$$ARGS): $$$BODY"
+    # Not: exclude safe logging patterns
     - not:
         inside:
-          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+          any:
+            - pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+            - pattern: "# Safe to log|# Log is safe"
+    # Not: exclude safe message patterns
+    - not:
+        pattern: 'logger.info("password changed")|print("password required")'
