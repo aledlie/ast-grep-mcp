@@ -5,6 +5,7 @@ This module provides functionality for scoring, classifying, and ranking
 duplicate code based on refactoring value, complexity, and impact.
 """
 
+import functools
 import heapq
 import json
 import logging
@@ -221,6 +222,7 @@ class DeduplicationPriorityClassifier:
     def __init__(self) -> None:
         """Initialize the priority classifier."""
         self.logger = get_logger("deduplication.priority_classifier")
+        self._priority_cache: Dict[float, str] = {}
 
     def get_priority_label(self, score: float) -> str:
         """Get priority label from score.
@@ -236,18 +238,29 @@ class DeduplicationPriorityClassifier:
             score: Total deduplication score (0-100)
 
         Returns:
-            Priority label string
+            Priority label string (cached)
         """
-        if score >= self.THRESHOLD_CRITICAL:
-            return "critical"
-        elif score >= self.THRESHOLD_HIGH:
-            return "high"
-        elif score >= self.THRESHOLD_MEDIUM:
-            return "medium"
-        elif score >= self.THRESHOLD_LOW:
-            return "low"
+        # Round to 2 decimal places for cache key consistency
+        rounded_score = round(score, 2)
+        
+        # Check cache first
+        if rounded_score in self._priority_cache:
+            return self._priority_cache[rounded_score]
+        
+        # Compute and cache
+        if rounded_score >= self.THRESHOLD_CRITICAL:
+            label = "critical"
+        elif rounded_score >= self.THRESHOLD_HIGH:
+            label = "high"
+        elif rounded_score >= self.THRESHOLD_MEDIUM:
+            label = "medium"
+        elif rounded_score >= self.THRESHOLD_LOW:
+            label = "low"
         else:
-            return "minimal"
+            label = "minimal"
+        
+        self._priority_cache[rounded_score] = label
+        return label
 
     def get_score_breakdown(self, candidate: Dict[str, Any], total_score: float, score_components: Dict[str, float]) -> Dict[str, Any]:
         """Get detailed score breakdown with factors and recommendation.
@@ -328,6 +341,10 @@ class DeduplicationPriorityClassifier:
         )
 
         return classified
+
+    def clear_cache(self) -> None:
+        """Clear the priority label cache."""
+        self._priority_cache.clear()
 
 
 class DuplicationRanker:
