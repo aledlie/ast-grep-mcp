@@ -206,10 +206,15 @@ rule:
           - pattern: "def hash($$$ARGS): $$$BODY"
           - pattern: "def digest($$$ARGS): $$$BODY"
           - pattern: "def sign($$$ARGS): $$$BODY"
-    # Not: exclude tests
+    # Not: exclude tests and safe hashlib usage
     - not:
-        inside:
-          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+        any:
+          # Exclude test functions
+          - inside:
+              pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+          # Exclude safe hashlib usage (Python 3.9+): usedforsecurity=False for checksums/dedup
+          - pattern: hashlib.md5($$$ARGS, usedforsecurity=False)
+          - pattern: hashlib.sha1($$$ARGS, usedforsecurity=False)
 
 ---
 # Rule 5: Flask Debug Mode Enabled
