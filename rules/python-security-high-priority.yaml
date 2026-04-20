@@ -452,3 +452,59 @@ rule:
               - pattern: import requests|from requests import.*
         stopBy:
           pattern: "def $$$ARGS"
+---
+# Rule 11: Credentials via String Concatenation
+# Enhanced: inside + not with string context
+id: credentials-string-concatenation
+language: python
+severity: warning
+message: >-
+  Credentials constructed via string concatenation. Use environment variables
+  or secure vaults instead of building strings.
+note: |-
+  CWE-798: Use of Hard-coded Credentials
+rule:
+  all:
+    # Pattern: concatenated strings for credentials
+    - any:
+        - pattern: password = $STR1 + $STR2
+        - pattern: api_key = $STR1 + $STR2 + $STR3
+        - pattern: secret = $STR1 + $STR2
+        - pattern: token = $STR1 + $STR2
+    # Inside: function definition
+    - inside:
+        pattern: "def $$$FUNC($$$ARGS): $$$BODY"
+    # Not: exclude safe patterns
+    - not:
+        inside:
+          pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+
+---
+# Rule 12: Logging Secrets
+# Enhanced: inside + not with safe logging patterns
+id: secrets-in-logging
+language: python
+severity: warning
+message: >-
+  Potential secret in logging call. Never log passwords, API keys, tokens,
+  or other sensitive data.
+note: |-
+  CWE-532: Insertion of Sensitive Information into Log File
+rule:
+  all:
+    # Pattern: secrets in log calls
+    - any:
+        - pattern: print($PASSWORD)
+        - pattern: logger.info(..., $PASSWORD, ...)
+        - pattern: logger.debug(..., $PASSWORD, ...)
+        - pattern: logger.error(..., $SECRET, ...)
+        - pattern: logger.warning(..., token=...)
+    # Inside: function definition
+    - inside:
+        pattern: "def $$$FUNC($$$ARGS): $$$BODY"
+    # Not: exclude safe logging patterns
+    - not:
+        inside:
+          any:
+            - pattern: "def test_$$$ARGS($$$PARAMS): $$$BODY"
+            - pattern: "# safe to log|# log is safe"
