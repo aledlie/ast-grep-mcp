@@ -15,34 +15,18 @@ note: |
   CWE-798: Use of Hard-coded Credentials
 rule:
   all:
-    # Pattern: hardcoded secret (constrain string literals to credential patterns)
+    # Pattern: hardcoded secret in specific credential contexts
     - any:
         - pattern: jwt.encode($ARG1, "$SECRET", $$$ARGS)
-          constraints:
-            - kind: string_content
-              regex: "(?i).*(secret|key|password|token|credential).*"
         - pattern: openai.api_key = "$KEY"
-          constraints:
-            - kind: string_content
-              regex: ".{5,}"
         - pattern: requests.auth.HTTPBasicAuth("$USER", "$PASSWORD")
-          constraints:
-            - kind: string_content
-              regex: ".{3,}"
     # Follows: library must be imported at module level
     - follows:
         any:
-          - all:
-              - pattern: import jwt
-
-          - all:
-              - pattern: from jwt import.*
-
-          - all:
-              - pattern: import openai
-
-          - all:
-              - pattern: import requests
+          - pattern: import jwt
+          - pattern: from jwt import.*
+          - pattern: import openai
+          - pattern: import requests
         stopBy:
           pattern: "def $$$ARGS"
 
@@ -395,12 +379,12 @@ note: |
   CWE-798: Use of Hard-coded Credentials
 rule:
   all:
-    # Pattern: hardcoded secret directly assigned to credential variable or used in credential context
+    # Pattern: hardcoded secret in credential contexts (named or literal)
     - any:
-        - pattern: $VAR = "$$$HARDCODED_SECRET"
-          constraints:
-            - kind: identifier
-              regex: "(?i)(password|secret|api_key|token|credential|auth|key).*"
+        - pattern: password = "$$$"
+        - pattern: secret = "$$$"
+        - pattern: api_key = "$$$"
+        - pattern: token = "$$$"
         - pattern: jwt.encode(..., "$$$SECRET", ...)
         - pattern: openai.api_key = "$$$KEY"
         - pattern: "connect(..., password=\"$$$CRED\", ...)"
@@ -489,28 +473,22 @@ note: |-
   CWE-532: Insertion of Sensitive Information into Log File
 rule:
   all:
-    # Pattern: secrets in log calls - constrain to credential-like variable names
+    # Pattern: logging common credential-named variables
     - any:
-        - pattern: print($VAR)
-          constraints:
-            - kind: identifier
-              regex: "(?i).*(password|secret|api_key|token|credential|auth|key).*"
-        - pattern: logger.info(..., $VAR, ...)
-          constraints:
-            - kind: identifier
-              regex: "(?i).*(password|secret|api_key|token|credential|auth|key).*"
-        - pattern: logger.debug(..., $VAR, ...)
-          constraints:
-            - kind: identifier
-              regex: "(?i).*(password|secret|api_key|token|credential|auth|key).*"
-        - pattern: logger.error(..., $VAR, ...)
-          constraints:
-            - kind: identifier
-              regex: "(?i).*(password|secret|api_key|token|credential|auth|key).*"
-        - pattern: logger.warning(..., $VAR=...)
-          constraints:
-            - kind: identifier
-              regex: "(?i).*(password|secret|api_key|token|credential|auth|key).*"
+        - pattern: print(password)
+        - pattern: print(secret)
+        - pattern: print(api_key)
+        - pattern: print(token)
+        - pattern: print(credential)
+        - pattern: logger.info(..., password, ...)
+        - pattern: logger.info(..., secret, ...)
+        - pattern: logger.info(..., api_key, ...)
+        - pattern: logger.debug(..., password, ...)
+        - pattern: logger.debug(..., secret, ...)
+        - pattern: logger.debug(..., token, ...)
+        - pattern: logger.error(..., password, ...)
+        - pattern: logger.error(..., api_key, ...)
+        - pattern: logger.warning(..., secret, ...)
     # Inside: function definition
     - inside:
         pattern: "def $$$FUNC($$$ARGS): $$$BODY"
