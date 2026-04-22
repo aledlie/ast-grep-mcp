@@ -13,6 +13,7 @@ from ast_grep_mcp.features.rewrite.service import (
 
 
 def _register_rewrite_code(mcp: FastMCP) -> None:
+    @mcp.tool()
     def rewrite_code(
         project_folder: str = Field(description="The absolute path to the project folder"),
         yaml_rule: str = Field(description="YAML rule with 'fix' field for code transformation"),
