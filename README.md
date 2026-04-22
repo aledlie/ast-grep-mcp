@@ -22,7 +22,7 @@ A Model Context Protocol (MCP) server providing structural code search, refactor
 ## Architecture
 
 ```
-src/ast_grep_mcp/          # 122 modules
+src/ast_grep_mcp/          # 125 modules
 ├── core/                  # Config, cache, executor, logging, sentry, usage tracking
 ├── models/                # Data models (15 modules)
 ├── utils/                 # Formatters, validation, templates, text processing
@@ -35,12 +35,12 @@ src/ast_grep_mcp/          # 122 modules
 │   ├── quality/           # 7 tools  — linting, security scanner, auto-fix, reports
 │   ├── documentation/     # 5 tools  — docstrings, readme, api_docs, changelog, sync
 │   ├── cross_language/    # 5 tools  — multi-lang search, equivalents, conversion, refactoring, bindings
-│   ├── schema/            # 9 tools  — type search, properties, validation, templates, entity graph
+│   ├── schema/            # 11 tools — type search, properties, validation, templates, entity graph
 │   └── condense/          # 6 tools  — surface extraction, normalization, strip, pack, estimate, dictionary
 └── server/                # MCP registry + runner
 ```
 
-**53 MCP tools** | **1,744 tests collected** | **Quality gates: Ruff + mypy + pytest + analyzer pipeline**
+**55 MCP tools** | **1,807 tests collected** | **Quality gates: Ruff + mypy + pytest + analyzer pipeline**
 
 ## Quick Start
 
