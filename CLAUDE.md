@@ -14,7 +14,7 @@ doppler run -- uv run main.py    # Run with Doppler secrets
 
 ## Overview
 
-Modular MCP server (124 modules) with ast-grep structural code search, Schema.org tools, refactoring, deduplication, quality, documentation generation, and semantic code condensation.
+Modular MCP server (125 modules) with ast-grep structural code search, Schema.org tools, refactoring, deduplication, quality, documentation generation, and semantic code condensation.
 
 **55 Tools:** Search (9), Rewrite (3), Refactoring (2), Deduplication (4), Schema.org (11), Complexity (3), Quality (7), Documentation (5), Cross-Language (5), Condense (6)
 
