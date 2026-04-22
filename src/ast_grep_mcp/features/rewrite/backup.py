@@ -16,55 +16,30 @@ from ast_grep_mcp.utils.backup import (
 )
 
 
-def create_backup(files_to_backup: List[str], project_folder: str) -> str:
-    logger = get_logger("rewrite.backup")
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[: -FormattingDefaults.TIMESTAMP_MS_TRIM]
-    backup_base_dir = Path(project_folder) / BackupDefaults.DIR_NAME
-    backup_id, backup_dir = resolve_backup_dir(BackupDefaults.REWRITE_PREFIX, timestamp, backup_base_dir)
-    backup_dir.mkdir(parents=True, exist_ok=True)
-
-    metadata: Dict[str, Any] = {
-        "backup_id": backup_id,
-        "timestamp": datetime.now().isoformat(),
-        "files": [],
-        "project_folder": project_folder,
-    }
-    for file_path in files_to_backup:
-        entry = copy_file_to_backup(file_path, project_folder, backup_dir)
-        if entry is None:
-            logger.warning("file_not_found_for_backup", file_path=file_path)
-        else:
-            metadata["files"].append(entry)
-
-    with open(backup_dir / BackupDefaults.METADATA_FILE, "w") as f:
-        json.dump(metadata, f, indent=2)
-
-    logger.info("backup_created", backup_id=backup_id, files_backed_up=len(metadata["files"]), backup_dir=str(backup_dir))
-    return backup_id
-
-
-def create_deduplication_backup(
-    files_to_backup: List[str], project_folder: str, duplicate_group_id: int, strategy: str, original_hashes: Dict[str, str]
+def _create_backup_common(
+    files_to_backup: List[str],
+    project_folder: str,
+    prefix: str,
+    extra_metadata: Optional[Dict[str, Any]] = None,
+    original_hashes: Optional[Dict[str, str]] = None,
+    log_event: str = "backup_created",
+    extra_log_fields: Optional[Dict[str, Any]] = None,
 ) -> str:
     logger = get_logger("rewrite.backup")
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[: -FormattingDefaults.TIMESTAMP_MS_TRIM]
     backup_base_dir = Path(project_folder) / BackupDefaults.DIR_NAME
-    backup_id, backup_dir = resolve_backup_dir(BackupDefaults.DEDUP_PREFIX, timestamp, backup_base_dir)
+    backup_id, backup_dir = resolve_backup_dir(prefix, timestamp, backup_base_dir)
     backup_dir.mkdir(parents=True, exist_ok=True)
 
     metadata: Dict[str, Any] = {
         "backup_id": backup_id,
-        "backup_type": "deduplication",
         "timestamp": datetime.now().isoformat(),
         "files": [],
         "project_folder": project_folder,
-        "deduplication_metadata": {
-            "duplicate_group_id": duplicate_group_id,
-            "strategy": strategy,
-            "original_hashes": original_hashes,
-            "affected_files": files_to_backup,
-        },
     }
+    if extra_metadata:
+        metadata.update(extra_metadata)
+
     for file_path in files_to_backup:
         entry = copy_file_to_backup(file_path, project_folder, backup_dir, original_hashes)
         if entry is None:
@@ -76,14 +51,40 @@ def create_deduplication_backup(
         json.dump(metadata, f, indent=2)
 
     logger.info(
-        "deduplication_backup_created",
+        log_event,
         backup_id=backup_id,
         files_backed_up=len(metadata["files"]),
         backup_dir=str(backup_dir),
-        duplicate_group_id=duplicate_group_id,
-        strategy=strategy,
+        **(extra_log_fields or {}),
     )
     return backup_id
+
+
+def create_backup(files_to_backup: List[str], project_folder: str) -> str:
+    return _create_backup_common(files_to_backup, project_folder, BackupDefaults.REWRITE_PREFIX)
+
+
+def create_deduplication_backup(
+    files_to_backup: List[str], project_folder: str, duplicate_group_id: int, strategy: str, original_hashes: Dict[str, str]
+) -> str:
+    extra_metadata = {
+        "backup_type": "deduplication",
+        "deduplication_metadata": {
+            "duplicate_group_id": duplicate_group_id,
+            "strategy": strategy,
+            "original_hashes": original_hashes,
+            "affected_files": files_to_backup,
+        },
+    }
+    return _create_backup_common(
+        files_to_backup,
+        project_folder,
+        BackupDefaults.DEDUP_PREFIX,
+        extra_metadata=extra_metadata,
+        original_hashes=original_hashes,
+        log_event="deduplication_backup_created",
+        extra_log_fields={"duplicate_group_id": duplicate_group_id, "strategy": strategy},
+    )
 
 
 def _verify_backup_files_exist(metadata: Dict[str, Any], errors: List[str]) -> None:
