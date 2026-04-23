@@ -62,7 +62,7 @@ Session: `run_all_tools.py` testing against `~/code/jobs/config/` revealed ast-g
 
 ## Library Migration Opportunities (2026-04-19)
 
-Full analysis: [tmp/lib-audit-report.md](../tmp/lib-audit-report.md)
+Full analysis: `tmp/lib-audit-report.md` (working doc, not checked in)
 
 Phase 1 — Quick wins (2–8 hours, 5–15% perf improvement, 100–300 LOC reduction):
 

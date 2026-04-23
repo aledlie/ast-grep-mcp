@@ -84,7 +84,7 @@ The Tree-sitter-based compression preserves function/method signatures, class st
 
 ### Future Granularity (Tracked)
 
-Granular compression controls (e.g., `keep_signatures`, `keep_interfaces`, `keep_docstrings`, per-directory compression modes) do not exist in the current repomix API but are being discussed upstream. Potential configuration might include per-category toggles for what the Tree-sitter extractor preserves vs. strips, and include/exclude patterns specific to the `--compress` pass. This is tracked in [docs/BACKLOG.md](../docs/BACKLOG.md) for integration when upstream support lands.
+Granular compression controls (e.g., `keep_signatures`, `keep_interfaces`, `keep_docstrings`, per-directory compression modes) do not exist in the current repomix API but are being discussed upstream. Potential configuration might include per-category toggles for what the Tree-sitter extractor preserves vs. strips, and include/exclude patterns specific to the `--compress` pass. This is tracked in [docs/BACKLOG.md](../BACKLOG.md) for integration when upstream support lands.
 
 ### Pro Tips for Compression
 

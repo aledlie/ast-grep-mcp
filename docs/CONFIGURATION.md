@@ -475,7 +475,7 @@ Returns:
 - Token usage
 - Model information
 
-See [SENTRY-INTEGRATION.md](../SENTRY-INTEGRATION.md) for detailed documentation.
+See [SENTRY-INTEGRATION.md](./SENTRY-INTEGRATION.md) for detailed documentation.
 
 ---
 
@@ -862,7 +862,7 @@ test_sentry_integration()
 ## Additional Resources
 
 - **ast-grep Configuration**: [ast-grep docs](https://ast-grep.github.io/guide/project/project-config.html)
-- **Sentry Integration**: [SENTRY-INTEGRATION.md](../SENTRY-INTEGRATION.md)
+- **Sentry Integration**: [SENTRY-INTEGRATION.md](./SENTRY-INTEGRATION.md)
 - **Doppler Setup**: [docs/README.md](README.md#configuration)
 - **Main Documentation**: [README.md](../README.md)
 - **Development Guide**: [CLAUDE.md](../CLAUDE.md)

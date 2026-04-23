@@ -766,5 +766,5 @@ Keep a team wiki/doc with:
 For issues with this integration:
 1. Check this documentation
 2. Run `test_sentry_integration()` for diagnostic info
-3. Review [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+3. Review [KNOWN_ISSUES.md](./KNOWN_ISSUES.md)
 4. Open an issue on GitHub with diagnostic output

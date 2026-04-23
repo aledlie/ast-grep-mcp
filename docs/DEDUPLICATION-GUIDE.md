@@ -805,7 +805,7 @@ features/deduplication/
 - `impact.py`: `_parallel_enrich` reduced from 74→2 cognitive complexity (97%)
 - `impact.py`: `_find_import_references` reduced from 31→5 cognitive complexity (84%)
 - Shared utilities extracted to `utils/syntax_validation.py` (DRY principle)
-- See [PATTERNS.md](../PATTERNS.md) for refactoring techniques used
+- See [PATTERNS.md](./PATTERNS.md) for refactoring techniques used
 
 ### Direct Module Imports
 
@@ -1079,10 +1079,10 @@ python scripts/find_duplication.py /path --language python \
 
 ## Additional Resources
 
-- [CLAUDE.md](/Users/alyshialedlie/code/ast-grep-mcp/CLAUDE.md) - Project overview and tool documentation
-- [README.md](/Users/alyshialedlie/code/ast-grep-mcp/README.md) - Quick start and installation
-- [CONFIGURATION.md](/Users/alyshialedlie/code/ast-grep-mcp/CONFIGURATION.md) - Configuration options
-- [BENCHMARKING.md](/Users/alyshialedlie/code/ast-grep-mcp/BENCHMARKING.md) - Performance benchmarks
+- [CLAUDE.md](../CLAUDE.md) - Project overview and tool documentation
+- [README.md](../README.md) - Quick start and installation
+- [CONFIGURATION.md](./CONFIGURATION.md) - Configuration options
+- [BENCHMARKING.md](./BENCHMARKING.md) - Performance benchmarks
 
 ---
 
