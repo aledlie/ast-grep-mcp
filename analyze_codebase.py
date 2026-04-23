@@ -12,6 +12,7 @@ This script analyzes the ast-grep-mcp codebase for:
 import argparse
 import subprocess
 import sys
+import traceback
 from pathlib import Path
 
 # Add src to path
@@ -53,6 +54,17 @@ def out(message: object = "") -> None:
 def print_section(title: str):
     """Print a formatted section header."""
     print_section_header(out, title, width=FormattingDefaults.WIDE_SECTION_WIDTH)
+
+
+def _language_include_patterns(language: str) -> list[str]:
+    """Build MCP tool include_patterns for a language's source extension."""
+    return [f"**/*.{LANGUAGE_EXTENSIONS.get(language, language)}"]
+
+
+def _report_phase_exception(phase: str, exc: Exception) -> None:
+    """Log an exception that escaped a phase and emit a traceback."""
+    out(f"Exception during {phase}: {exc}")
+    traceback.print_exc()
 
 
 def _discover_source_files(project_folder: str, language: str) -> list[Path]:
@@ -136,7 +148,7 @@ def analyze_project_complexity(project_folder: str, language: str):
         result = analyze_complexity_tool(
             project_folder=project_folder,
             language=language,
-            include_patterns=[f"**/*.{LANGUAGE_EXTENSIONS.get(language, language)}"],
+            include_patterns=_language_include_patterns(language),
             exclude_patterns=EXCLUDE_PATTERNS,
             store_results=False,
             include_trends=False,
@@ -170,10 +182,7 @@ def analyze_project_complexity(project_folder: str, language: str):
         else:
             out(f"Error: {result.get('error')}")
     except Exception as e:
-        out(f"Exception during project complexity analysis: {e}")
-        import traceback
-
-        traceback.print_exc()
+        _report_phase_exception("project complexity analysis", e)
 
 
 def detect_code_smells(project_folder: str, language: str):
@@ -184,7 +193,7 @@ def detect_code_smells(project_folder: str, language: str):
         result = detect_code_smells_tool(
             project_folder=project_folder,
             language=language,
-            include_patterns=[f"**/*.{LANGUAGE_EXTENSIONS.get(language, language)}"],
+            include_patterns=_language_include_patterns(language),
             exclude_patterns=EXCLUDE_PATTERNS,
         )
 
@@ -208,10 +217,7 @@ def detect_code_smells(project_folder: str, language: str):
         else:
             out(f"Error: {result.get('error')}")
     except Exception as e:
-        out(f"Exception during code smell detection: {e}")
-        import traceback
-
-        traceback.print_exc()
+        _report_phase_exception("code smell detection", e)
 
 
 def detect_security_issues(project_folder: str, language: str):
@@ -251,10 +257,7 @@ def detect_security_issues(project_folder: str, language: str):
                 out(f"    File: {issue.file}:{issue.line}")
                 out(f"    {issue.description}")
     except Exception as e:
-        out(f"Exception during security scanning: {e}")
-        import traceback
-
-        traceback.print_exc()
+        _report_phase_exception("security scanning", e)
 
 
 def analyze_duplication(project_folder: str, language: str):
@@ -308,10 +311,7 @@ def analyze_duplication(project_folder: str, language: str):
         else:
             out(f"Error: {result.get('error')}")
     except Exception as e:
-        out(f"Exception during duplication analysis: {e}")
-        import traceback
-
-        traceback.print_exc()
+        _report_phase_exception("duplication analysis", e)
 
 
 def _run_enforcement(project_folder: str, language: str) -> dict:  # type: ignore[type-arg]
@@ -319,7 +319,7 @@ def _run_enforcement(project_folder: str, language: str) -> dict:  # type: ignor
     return enforce_standards_tool(
         project_folder=project_folder,
         language=language,
-        include_patterns=[f"**/*.{LANGUAGE_EXTENSIONS.get(language, language)}"],
+        include_patterns=_language_include_patterns(language),
         exclude_patterns=EXCLUDE_PATTERNS,
     )
 
@@ -372,10 +372,7 @@ def generate_summary_report(project_folder: str, language: str, apply_fixes: boo
             _apply_fixes(enforcement_result, language, project_folder=project_folder)
 
     except Exception as e:
-        out(f"Exception during report generation: {e}")
-        import traceback
-
-        traceback.print_exc()
+        _report_phase_exception("report generation", e)
 
 
 def _run_tsc_check(project_folder: str) -> bool:
@@ -426,7 +423,7 @@ def _is_cli_entry_point(file_path: str) -> bool:
     """Check if a file is a CLI entry point (has if __name__ == '__main__')."""
     try:
         content = Path(file_path).read_text(encoding="utf-8")
-        return "__name__" in content and "'__main__'" in content or '"__main__"' in content
+        return "__name__" in content and ("'__main__'" in content or '"__main__"' in content)
     except (OSError, UnicodeDecodeError):
         return False
 
@@ -529,10 +526,7 @@ def _apply_fixes(enforcement_result: dict, language: str, project_folder: str = 
                 out("Review errors above and restore from backup if needed.")
 
     except Exception as e:
-        out(f"Exception during fix application: {e}")
-        import traceback
-
-        traceback.print_exc()
+        _report_phase_exception("fix application", e)
 
 
 def parse_args() -> argparse.Namespace:
