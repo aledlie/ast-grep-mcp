@@ -192,12 +192,11 @@ def _check_docstring_sync(
 
 
 _LINK_PATTERN = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
-_SKIP_URL_PREFIXES = ("http://", "https://", "mailto:", "#")
+# Skip external schemes, fragments, and absolute-path URLs (web-root convention, not repo-relative).
+_SKIP_URL_PREFIXES = ("http://", "https://", "mailto:", "#", "/", "~")
 
 
 def _resolve_link_path(url: str, file_path: str, project_folder: str) -> str:
-    if url.startswith("/"):
-        return os.path.join(project_folder, url[1:])
     return os.path.normpath(os.path.join(os.path.dirname(file_path), url.split("#")[0]))
 
 

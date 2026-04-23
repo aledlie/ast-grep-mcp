@@ -13,6 +13,8 @@ from ast_grep_mcp.features.quality.tools import detect_orphans_tool  # noqa: E40
 
 STATUS_ICON = {"confirmed": "X", "likely": "!", "uncertain": "?"}
 DEFAULT_TOP = 10
+MAX_IMPORTERS_SHOWN = 3  # importers listed inline per orphan-file before truncating
+MAX_FN_NAMES_PER_FILE = 5  # orphan-function names shown inline per file before truncating
 
 
 def main() -> None:
@@ -84,10 +86,10 @@ def _print_files(files: list, project: str, extended: bool) -> None:
                 reason = f.get("reason", "")
                 icon = STATUS_ICON.get(status, " ")
                 print(f"    [{icon}] {lines:>5}  {name:<40} {reason}")
-                for imp in f.get("importers", [])[:3]:
+                for imp in f.get("importers", [])[:MAX_IMPORTERS_SHOWN]:
                     print(f"              -> {Path(imp).name}")
-                if len(f.get("importers", [])) > 3:
-                    print(f"              ... +{len(f['importers']) - 3} more")
+                if len(f.get("importers", [])) > MAX_IMPORTERS_SHOWN:
+                    print(f"              ... +{len(f['importers']) - MAX_IMPORTERS_SHOWN} more")
     else:
         for f in sorted(files, key=lambda x: x.get("file_path", "")):
             fp = f.get("file_path", "").replace(project + "/", "")
@@ -126,8 +128,8 @@ def _print_functions(funcs: list, project: str, extended: bool, top: int) -> Non
         for fp in sorted(by_file):
             fns = by_file[fp]
             short = fp.replace(project + "/", "")
-            names = ", ".join(fn["name"] for fn in fns[:5])
-            suffix = f" +{len(fns) - 5} more" if len(fns) > 5 else ""
+            names = ", ".join(fn["name"] for fn in fns[:MAX_FN_NAMES_PER_FILE])
+            suffix = f" +{len(fns) - MAX_FN_NAMES_PER_FILE} more" if len(fns) > MAX_FN_NAMES_PER_FILE else ""
             print(f"  {short:<55} ({len(fns):>3}): {names}{suffix}")
 
     print()

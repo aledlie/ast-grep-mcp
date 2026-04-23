@@ -25,7 +25,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-from migration_common import iter_migration_targets
+try:
+    from scripts.migration_common import iter_migration_targets
+except ImportError:  # pragma: no cover - script execution path
+    from migration_common import iter_migration_targets
 
 from ast_grep_mcp.constants import FormattingDefaults, SemanticVolumeDefaults
 from ast_grep_mcp.utils.console_logger import console

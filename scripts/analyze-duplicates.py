@@ -13,8 +13,8 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-_MAX_GROUPS_DISPLAY = 15  # number of duplicate groups to show
-_MAX_FILES_DISPLAY = 4  # number of file names to show per group
+MAX_GROUPS_DISPLAY = 15  # number of duplicate groups to show
+MAX_FILES_DISPLAY = 4  # number of file names to show per group
 
 
 def get_file_path(location):
@@ -45,15 +45,15 @@ def analyze_report(report_path):
     print(f"Exact duplicate patterns: {len(exact_dups)}")
     print()
 
-    for i, (h, blocks) in enumerate(exact_dups[:_MAX_GROUPS_DISPLAY], 1):
+    for i, (h, blocks) in enumerate(exact_dups[:MAX_GROUPS_DISPLAY], 1):
         files = list(set(get_file_path(b["location"]) for b in blocks))
         code = blocks[0]["source_code"]
-        short_files = [Path(f).name for f in files[:_MAX_FILES_DISPLAY]]
+        short_files = [Path(f).name for f in files[:MAX_FILES_DISPLAY]]
 
         print(f"=== Group {i}: {len(blocks)}x in {len(files)} files ===")
         print(f"Files: {', '.join(short_files)}")
-        if len(files) > _MAX_FILES_DISPLAY:
-            print(f"       +{len(files) - _MAX_FILES_DISPLAY} more")
+        if len(files) > MAX_FILES_DISPLAY:
+            print(f"       +{len(files) - MAX_FILES_DISPLAY} more")
         print(f"Code:\n{code}\n")
 
 

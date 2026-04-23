@@ -10,6 +10,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "src"))
 
 from ast_grep_mcp.features.quality.tools import detect_orphans_tool
 
+MAX_FN_NAMES_PER_FILE = 5  # orphan-function names shown inline before truncating
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Detect orphan files and functions")
@@ -66,8 +68,8 @@ def main() -> None:
             for fpath in sorted(by_file):
                 fns = by_file[fpath]
                 short = fpath.replace(args.project + "/", "")
-                names = ", ".join(fn["name"] for fn in fns[:5])
-                suffix = f" +{len(fns) - 5} more" if len(fns) > 5 else ""
+                names = ", ".join(fn["name"] for fn in fns[:MAX_FN_NAMES_PER_FILE])
+                suffix = f" +{len(fns) - MAX_FN_NAMES_PER_FILE} more" if len(fns) > MAX_FN_NAMES_PER_FILE else ""
                 print(f"  {short:<55} ({len(fns):>3}): {names}{suffix}")
 
 

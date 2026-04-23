@@ -10,9 +10,9 @@ import sys
 import time
 from pathlib import Path
 
-_MAX_COMPLEXITY_DISPLAY = 10  # top N complex functions to display
-_MAX_DUP_GROUPS_DISPLAY = 10  # top N duplication groups to display
-_MAX_DUP_INSTANCES_DISPLAY = 3  # max instances per duplication group
+MAX_COMPLEXITY_DISPLAY = 10  # top N complex functions to display
+MAX_DUP_GROUPS_DISPLAY = 10  # top N duplication groups to display
+MAX_DUP_INSTANCES_DISPLAY = 3  # max instances per duplication group
 
 
 def run_complexity(project_folder: str) -> dict:
@@ -25,11 +25,11 @@ def run_complexity(project_folder: str) -> dict:
     funcs = result.get("functions", [])
     print(f"Functions exceeding thresholds: {len(funcs)}")
     # Response keys: name, file, lines, cyclomatic, cognitive, nesting_depth, length, exceeds
-    for f in sorted(funcs, key=lambda x: x.get("cognitive", 0), reverse=True)[:_MAX_COMPLEXITY_DISPLAY]:
+    for f in sorted(funcs, key=lambda x: x.get("cognitive", 0), reverse=True)[:MAX_COMPLEXITY_DISPLAY]:
         rel = f.get("file", "").split("src/")[-1]
         print(f"  {rel} {f['name']} cyc={f['cyclomatic']} cog={f['cognitive']} nest={f['nesting_depth']} len={f['length']}")
-    if len(funcs) > _MAX_COMPLEXITY_DISPLAY:
-        print(f"  ... and {len(funcs) - _MAX_COMPLEXITY_DISPLAY} more")
+    if len(funcs) > MAX_COMPLEXITY_DISPLAY:
+        print(f"  ... and {len(funcs) - MAX_COMPLEXITY_DISPLAY} more")
     return result
 
 
@@ -107,13 +107,13 @@ def run_duplication(project_folder: str) -> dict:
     summary = result.get("summary", {})
     print(json.dumps(summary, indent=2))
     groups = result.get("duplication_groups", [])
-    for g in groups[:_MAX_DUP_GROUPS_DISPLAY]:
+    for g in groups[:MAX_DUP_GROUPS_DISPLAY]:
         print(f"  Group {g.get('group_id', '?')}: sim={g.get('similarity_score', 0):.2f}")
-        for inst in g.get("instances", [])[:_MAX_DUP_INSTANCES_DISPLAY]:
+        for inst in g.get("instances", [])[:MAX_DUP_INSTANCES_DISPLAY]:
             rel = inst.get("file", "").split("src/")[-1]
             print(f"    {rel} lines={inst.get('lines', '')}")
-    if len(groups) > _MAX_DUP_GROUPS_DISPLAY:
-        print(f"  ... and {len(groups) - _MAX_DUP_GROUPS_DISPLAY} more groups")
+    if len(groups) > MAX_DUP_GROUPS_DISPLAY:
+        print(f"  ... and {len(groups) - MAX_DUP_GROUPS_DISPLAY} more groups")
     return result
 
 

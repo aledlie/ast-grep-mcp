@@ -11,6 +11,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "src"))
 from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool
 
 DEFAULT_TOP = 15
+NAME_COL_WIDTH = 40
+FILE_COL_WIDTH = 55
 
 
 def main() -> None:
@@ -46,8 +48,8 @@ def main() -> None:
     print(f"  {'-' * 40} {'-' * 55} {'-' * 12} {'-' * 4} {'-' * 4} {'-' * 5} {'-' * 4}")
 
     for f in show:
-        name = f["name"][:40]
-        filepath = f["file"].replace(args.project + "/", "")[:55]
+        name = f["name"][:NAME_COL_WIDTH]
+        filepath = f["file"].replace(args.project + "/", "")[:FILE_COL_WIDTH]
         lines = f["lines"] if isinstance(f["lines"], str) else f"{f['lines']}"
         print(f"  {name:<40} {filepath:<55} {lines:<12} {f['cyclomatic']:>4} {f['cognitive']:>4} {f['nesting_depth']:>5} {f['length']:>4}")
 
