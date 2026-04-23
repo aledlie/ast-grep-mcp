@@ -54,7 +54,6 @@ scripts/
     orphans.py
   all_tools_results.json
   analysis_output_helpers.py
-  analyze_analyticsbot.py
   analyze_violations.py
   analyze-duplicates.py
   backfill-skill-spans.py
@@ -86,6 +85,7 @@ scripts/
   run-python-tests.sh
   scan_complexity_offenders.py
   schema-graph-builder.py
+  tool_result_recorder.py
   verify-bugfixes.sh
   warm-doppler-cache.sh
 src/
@@ -232,55 +232,7 @@ normalized = str(raw_value) if raw_value else default
 remaining = dict(counts)
 keys: list[str] = []
 ⋮----
-label = key.capitalize() if capitalize_labels else key</file><file path="scripts/analyze_analyticsbot.py">project_root = Path(__file__).parent.parent
-⋮----
-_TS_PATTERNS = [&quot;**/*.ts&quot;, &quot;**/*.tsx&quot;, &quot;**/*.js&quot;, &quot;**/*.mjs&quot;]
-_TS_EXCLUDES = [&quot;**/node_modules/**&quot;, &quot;**/build/**&quot;, &quot;**/dist/**&quot;]
-def _run_complexity_scan(project_path: str) -&gt; dict
-⋮----
-result = analyze_complexity_tool(
-⋮----
-def _format_complexity_summary(complexity_result: dict) -&gt; dict
-⋮----
-summary = complexity_result.get(&quot;summary&quot;, {})
-functions = complexity_result.get(&quot;functions&quot;, [])
-⋮----
-def _run_smell_scan(project_path: str) -&gt; dict:  # type: ignore[type-arg]
-⋮----
-&quot;&quot;&quot;Run code smell detection and log summary.&quot;&quot;&quot;
-⋮----
-result = detect_code_smells_tool(
-⋮----
-def _format_smell_summary(smells_result: dict) -&gt; dict
-⋮----
-by_severity = count_by_key(smells_result[&quot;smells&quot;], &quot;severity&quot;)
-⋮----
-def _run_security_scan(project_path: str) -&gt; dict
-⋮----
-result = detect_security_issues_tool(
-⋮----
-def _format_security_summary(security_result: dict) -&gt; dict
-⋮----
-by_severity = count_by_key(security_result[&quot;issues&quot;], &quot;severity&quot;)
-by_type = count_by_key(security_result[&quot;issues&quot;], &quot;issue_type&quot;)
-⋮----
-top_types = take_top_n(sorted(by_type.items(), key=lambda x: x[1], reverse=True), AnalyticsBotTopN.TOP_SECURITY_TYPES_PREVIEW)
-⋮----
-def analyze_project(project_path: str) -&gt; dict
-⋮----
-complexity_result: dict = {}
-smells_result: dict = {}
-security_result: dict = {}
-⋮----
-complexity_result = _run_complexity_scan(project_path)
-⋮----
-smells_result = _run_smell_scan(project_path)
-⋮----
-security_result = _run_security_scan(project_path)
-⋮----
-analyticsbot_path = &quot;/Users/alyshialedlie/code/ISPublicSites/AnalyticsBot&quot;
-results = analyze_project(analyticsbot_path)
-output_file = Path(__file__).parent.parent / &quot;analyticsbot_analysis.json&quot;</file><file path="scripts/analyze_violations.py">def analyze_function_complexity(file_path: Path, func_name: str) -&gt; dict
+label = key.capitalize() if capitalize_labels else key</file><file path="scripts/analyze_violations.py">def analyze_function_complexity(file_path: Path, func_name: str) -&gt; dict
 ⋮----
 tree = ast.parse(f.read())
 ⋮----
@@ -321,82 +273,7 @@ metrics = analyze_function_complexity(file_path, func_name)
 ⋮----
 violation_reasons = []
 ⋮----
-rel_path = file_path.relative_to(project_root)</file><file path="scripts/benchmark_batch_coverage.py">project_root = Path(__file__).parent.parent
-⋮----
-def create_test_candidates(file_count: int, files_per_candidate: int) -&gt; List[Dict]
-⋮----
-project_root_path = Path(__file__).parent.parent
-src_path = project_root_path / &quot;src&quot; / &quot;ast_grep_mcp&quot;
-all_files = list(src_path.rglob(&quot;*.py&quot;))[:file_count]
-⋮----
-file_count = len(all_files)
-# Create candidates with overlapping files (realistic scenario)
-candidates = []
-⋮----
-file_slice = all_files[i : i + files_per_candidate]
-⋮----
-def benchmark_legacy_sequential(detector: CoverageDetector, candidates: List[Dict], project_path: str) -&gt; Dict
-⋮----
-start = time.perf_counter()
-⋮----
-files = candidate.get(&quot;files&quot;, [])
-⋮----
-coverage_map = detector.get_test_coverage_for_files(files, &quot;python&quot;, project_path)
-⋮----
-elapsed = time.perf_counter() - start
-⋮----
-def benchmark_legacy_parallel(orchestrator: DeduplicationAnalysisOrchestrator, candidates: List[Dict], project_path: str) -&gt; Dict
-def benchmark_batch_sequential(orchestrator: DeduplicationAnalysisOrchestrator, candidates: List[Dict], project_path: str) -&gt; Dict
-def benchmark_batch_parallel(orchestrator: DeduplicationAnalysisOrchestrator, candidates: List[Dict], project_path: str) -&gt; Dict
-def run_benchmark_suite(file_count: int, files_per_candidate: int, project_path: str) -&gt; Dict
-⋮----
-detector = CoverageDetector()
-orchestrator = DeduplicationAnalysisOrchestrator()
-results = {
-⋮----
-candidates = create_test_candidates(file_count, files_per_candidate)
-result = benchmark_legacy_sequential(detector, candidates, project_path)
-⋮----
-result = benchmark_legacy_parallel(orchestrator, candidates, project_path)
-⋮----
-result = benchmark_batch_sequential(orchestrator, candidates, project_path)
-⋮----
-result = benchmark_batch_parallel(orchestrator, candidates, project_path)
-⋮----
-baseline = results[&quot;benchmarks&quot;][0][&quot;elapsed_seconds&quot;]
-⋮----
-speedup = baseline / benchmark[&quot;elapsed_seconds&quot;]
-improvement = ((baseline - benchmark[&quot;elapsed_seconds&quot;]) / baseline) * 100
-⋮----
-def main()
-⋮----
-parser = argparse.ArgumentParser(description=&quot;Benchmark batch test coverage detection performance&quot;)
-⋮----
-args = parser.parse_args()
-project_path = str(Path(__file__).parent.parent)
-results = run_benchmark_suite(args.file_count, args.files_per_candidate, project_path)
-⋮----
-output_path = Path(args.output)
-⋮----
-# Compare with baseline if requested
-⋮----
-baseline_path = Path(args.compare)
-⋮----
-baseline_results = json.load(f)
-⋮----
-baseline_bench = next((b for b in baseline_results[&quot;benchmarks&quot;] if b[&quot;method&quot;] == method), None)
-current_bench = next((b for b in results[&quot;benchmarks&quot;] if b[&quot;method&quot;] == method), None)
-⋮----
-baseline_time = baseline_bench[&quot;elapsed_seconds&quot;]
-current_time = current_bench[&quot;elapsed_seconds&quot;]
-change = ((current_time - baseline_time) / baseline_time) * 100
-⋮----
-# Print expected vs actual
-⋮----
-batch_parallel = next((b for b in results[&quot;benchmarks&quot;] if b[&quot;method&quot;] == &quot;batch_parallel&quot;), None)
-⋮----
-speedup = results[&quot;speedups&quot;][&quot;batch_parallel&quot;][&quot;speedup&quot;]
-improvement = results[&quot;speedups&quot;][&quot;batch_parallel&quot;][&quot;improvement_percent&quot;]</file><file path="scripts/benchmark_parallel_enrichment.py">MOCK_CANDIDATE_SCORE = 75.5
+rel_path = file_path.relative_to(project_root)</file><file path="scripts/benchmark_parallel_enrichment.py">MOCK_CANDIDATE_SCORE = 75.5
 MOCK_CANDIDATE_COMPLEXITY = 8
 BENCHMARK_CANDIDATE_COUNT_SMALL = 10
 BENCHMARK_CANDIDATE_COUNT_MEDIUM = 25
@@ -570,279 +447,7 @@ violation_reasons = []
 ⋮----
 rel_path = file_path.relative_to(project_root)
 ⋮----
-separator = &quot;=&quot; * FormattingDefaults.WIDE_SECTION_WIDTH</file><file path="scripts/migrate_print_to_logger.py">@dataclass
-class PrintStatement
-⋮----
-file_path: str
-line_number: int
-column: int
-original_code: str
-suggested_replacement: str
-print_type: str
-class PrintMigrator
-⋮----
-def __init__(self, dry_run: bool = True, backup: bool = False)
-def analyze_print_call(self, code: str) -&gt; str
-⋮----
-# Check for error output ( or &apos;error&apos; in string)
-⋮----
-def migrate_print_statement(self, code: str, print_type: str) -&gt; str
-⋮----
-match = re.match(r&quot;print\((.*)\)$&quot;, code.strip(), re.DOTALL)
-⋮----
-# Fallback: return original if we can&apos;t parse
-⋮----
-content = match.group(1)
-# Remove if present
-content = re.sub(r&quot;,?\s*file=sys\.stderr&quot;, &quot;&quot;, content)
-# Handle different types
-⋮----
-json_match = re.search(r&quot;json\.dumps\((.*?)(,\s*indent=\d+)?\)&quot;, content)
-⋮----
-data = json_match.group(1)
-⋮----
-sep_match = re.search(r&apos;[&quot;\&apos;]([=\-_*])\1*[&quot;\&apos;]&apos;, content)
-⋮----
-char = sep_match.group(1)
-length = len(re.search(r&apos;[&quot;\&apos;]([=\-_*]+)[&quot;\&apos;]&apos;, content).group(1))
-⋮----
-else:  # simple
-⋮----
-def find_print_statements(self, file_path: Path) -&gt; List[PrintStatement]
-⋮----
-&quot;&quot;&quot;Find all console.blank() statements in a file.
-        Args:
-            file_path: Path to Python file
-        Returns:
-            List of PrintStatement objects
-        &quot;&quot;&quot;
-statements = []
-⋮----
-content = f.read()
-lines = content.split(&quot;\n&quot;)
-# Use regex to find print statements (simple approach)
-⋮----
-# Skip comments
-⋮----
-# Find console.log( statements
-⋮----
-# Extract full print statement (may span multiple lines)
-start_col = match.start()
-original_code = self._extract_print_call(lines, line_num - 1, start_col)
-⋮----
-print_type = self.analyze_print_call(original_code)
-replacement = self.migrate_print_statement(original_code, print_type)
-⋮----
-def _extract_print_call(self, lines: List[str], start_line: int, start_col: int) -&gt; str
-⋮----
-&quot;&quot;&quot;Extract complete console.blank() call that may span multiple lines.
-        Args:
-            lines: All lines in the file
-            start_line: Line number where console.log( starts (0-indexed)
-            start_col: Column where console.log( starts
-        Returns:
-            Complete console.blank() statement as string
-        &quot;&quot;&quot;
-# Simple extraction - find matching closing parenthesis
-line = lines[start_line][start_col:]
-depth = 0
-in_string = False
-string_char = None
-escaped = False
-result = []
-⋮----
-escaped = True
-⋮----
-in_string = True
-string_char = char
-⋮----
-# If we didn&apos;t find closing paren on same line, it might span multiple lines
-⋮----
-def _read_file_lines(self, file_path: Path) -&gt; List[str]
-⋮----
-&quot;&quot;&quot;Read file content and return split lines.&quot;&quot;&quot;
-⋮----
-def _create_backup_if_needed(self, file_path: Path, changes: List[str]) -&gt; None
-⋮----
-backup_path = file_path.with_suffix(&quot;.py.bak&quot;)
-⋮----
-def _scan_import_state(self, lines: List[str]) -&gt; Tuple[bool, int]
-⋮----
-&quot;&quot;&quot;Return whether console import exists and last import line index.&quot;&quot;&quot;
-⋮----
-def _apply_statement_replacements(self, lines: List[str], statements: List[PrintStatement], changes: List[str]) -&gt; None
-⋮----
-&quot;&quot;&quot;Replace print statements in reverse order to preserve line indices.&quot;&quot;&quot;
-⋮----
-line_idx = stmt.line_number - 1
-line = lines[line_idx]
-⋮----
-def _compute_import_insert_index(self, lines: List[str]) -&gt; int
-⋮----
-&quot;&quot;&quot;Find insertion index after shebang/docstring for import insertion.&quot;&quot;&quot;
-⋮----
-def _ensure_import_present(self, lines: List[str], has_import: bool, import_line_index: int, changes: List[str]) -&gt; None
-⋮----
-&quot;&quot;&quot;Ensure console import exists in file content.&quot;&quot;&quot;
-⋮----
-_ = import_line_index  # Kept for compatibility with current call signature.
-⋮----
-def _write_lines_if_needed(self, file_path: Path, lines: List[str]) -&gt; None
-⋮----
-&quot;&quot;&quot;Persist updated lines unless running in dry-run mode.&quot;&quot;&quot;
-⋮----
-def migrate_file(self, file_path: Path) -&gt; Tuple[int, List[str]]
-⋮----
-statements = self.find_print_statements(file_path)
-⋮----
-changes = []
-lines = self._read_file_lines(file_path)
-⋮----
-def migrate_directory(self, directory: Path, pattern: str = &quot;**/*.py&quot;) -&gt; Dict[str, any]
-⋮----
-results = {&quot;files_processed&quot;: 0, &quot;files_modified&quot;: 0, &quot;total_migrations&quot;: 0, &quot;changes_by_file&quot;: {}}
-⋮----
-def main()
-⋮----
-parser = argparse.ArgumentParser(description=&quot;Migrate console.blank() statements to console logger&quot;)
-⋮----
-args = parser.parse_args()
-script_dir = Path(__file__).parent
-project_root = script_dir.parent
-migrator = PrintMigrator(dry_run=args.dry_run, backup=args.backup)
-⋮----
-path = Path(args.path)
-⋮----
-path = project_root / path
-⋮----
-path = project_root
-⋮----
-results = {
-⋮----
-results = migrator.migrate_directory(path)
-⋮----
-mode = &quot;DRY RUN - &quot; if args.dry_run else &quot;&quot;</file><file path="scripts/migrate_prints_smart.py">def smart_replace_print(line: str) -&gt; Tuple[str, bool]
-⋮----
-modified = False
-⋮----
-line = re.sub(r&quot;\bprint\(\s*\)&quot;, &quot;console.blank()&quot;, line)
-modified = True
-# Pattern 2: Separator lines (=, -, *, _)
-⋮----
-match = re.search(r&apos;print\([&quot;\&apos;]([=\-_*]+)[&quot;\&apos;]\)&apos;, line)
-⋮----
-char = match.group(1)[0]
-length = len(match.group(1))
-line = re.sub(r&apos;print\([&quot;\&apos;]([=\-_*]+)[&quot;\&apos;]\)&apos;, f&apos;console.separator(&quot;{char}&quot;, {length})&apos;, line)
-⋮----
-# Pattern 3: JSON output
-⋮----
-match = re.search(r&quot;print\(json\.dumps\((.*?)(,\s*indent=\d+)?\)\)&quot;, line)
-⋮----
-line = re.sub(r&quot;print\(json\.dumps\((.*?)(,\s*indent=\d+)?\)\)&quot;, r&quot;console.json(\1)&quot;, line)
-⋮----
-# Pattern 4: Error messages ( or &quot;error&quot; in text)
-⋮----
-# Remove file=sys.stderr and use console.error
-content = re.sub(r&quot;,?\s*file=sys\.stderr&quot;, &quot;&quot;, line)
-content = re.sub(r&quot;\bprint\((.*)\)&quot;, r&quot;console.error(\1)&quot;, content)
-line = content
-⋮----
-line = re.sub(r&quot;\bprint\(&quot;, &quot;console.error(&quot;, line)
-⋮----
-# Pattern 5: Success/completion messages
-⋮----
-line = re.sub(r&quot;\bprint\(&quot;, &quot;console.success(&quot;, line)
-⋮----
-# Pattern 6: Warning messages
-⋮----
-line = re.sub(r&quot;\bprint\(&quot;, &quot;console.warning(&quot;, line)
-⋮----
-# Pattern 7: Debug/verbose messages
-⋮----
-line = re.sub(r&quot;\bprint\(&quot;, &quot;console.debug(&quot;, line)
-⋮----
-# Pattern 8: Default to console.log()
-⋮----
-line = re.sub(r&quot;\bprint\(&quot;, &quot;console.log(&quot;, line)
-⋮----
-def add_console_import(lines: List[str]) -&gt; List[str]
-⋮----
-&quot;&quot;&quot;Add console import if not present.
-    Args:
-        lines: File lines
-    Returns:
-        Modified lines with import added
-    &quot;&quot;&quot;
-⋮----
-def migrate_file(file_path: Path, dry_run: bool = True) -&gt; Tuple[int, List[str]]
-⋮----
-&quot;&quot;&quot;Migrate print statements in a file.
-    Args:
-        file_path: Path to file
-        dry_run: If True, don&apos;t modify files
-    Returns:
-        Tuple of (migrations_count, changes_list)
-    &quot;&quot;&quot;
-⋮----
-lines = f.readlines()
-modified_lines = []
-changes = []
-migrations = 0
-⋮----
-# Add import
-modified_lines_stripped = [line.rstrip(&quot;\n&quot;) for line in modified_lines]
-modified_lines_stripped = add_console_import(modified_lines_stripped)
-⋮----
-def migrate_directory(dir_path: Path, pattern: str = &quot;**/*.py&quot;, dry_run: bool = True)
-⋮----
-results = {&quot;total_files&quot;: 0, &quot;modified_files&quot;: 0, &quot;total_migrations&quot;: 0, &quot;files&quot;: {}}
-⋮----
-def main()
-⋮----
-parser = argparse.ArgumentParser(description=&quot;Smart console.blank() to console migration&quot;)
-⋮----
-args = parser.parse_args()
-project_root = Path(__file__).parent.parent
-⋮----
-path = Path(args.path)
-⋮----
-path = project_root / path
-⋮----
-results = migrate_directory(path, dry_run=args.dry_run)
-⋮----
-results = migrate_directory(project_root / &quot;scripts&quot;, dry_run=args.dry_run)
-⋮----
-results = migrate_directory(project_root / &quot;tests&quot;, dry_run=args.dry_run)
-⋮----
-scripts_results = migrate_directory(project_root / &quot;scripts&quot;, dry_run=args.dry_run)
-⋮----
-# Tests
-⋮----
-tests_results = migrate_directory(project_root / &quot;tests&quot;, dry_run=args.dry_run)
-⋮----
-# Root level scripts
-⋮----
-root_results = migrate_directory(project_root, pattern=&quot;*.py&quot;, dry_run=args.dry_run)
-⋮----
-# Summary
-total_migrations = scripts_results[&quot;total_migrations&quot;] + tests_results[&quot;total_migrations&quot;] + root_results[&quot;total_migrations&quot;]</file><file path="scripts/migration_common.py">MIGRATION_ERROR_TEST_FILES = [
-def read_lines(file_path: Path) -&gt; List[str]
-def write_lines(file_path: Path, lines: Sequence[str]) -&gt; None
-def _normalize_ranges(ranges: Sequence[Tuple[int, int]]) -&gt; List[Tuple[int, int]]
-⋮----
-valid = sorted((start, end) for start, end in ranges if start &lt; end)
-⋮----
-merged: List[Tuple[int, int]] = [valid[0]]
-⋮----
-def remove_line_ranges(lines: Sequence[str], ranges: Sequence[Tuple[int, int]]) -&gt; List[str]
-⋮----
-merged = _normalize_ranges(ranges)
-⋮----
-result: List[str] = []
-range_idx = 0
-⋮----
-in_range = range_idx &lt; len(merged) and current_start &lt;= line_idx &lt; current_end</file><file path="scripts/run_benchmarks.py">def run_benchmarks(save_baseline: bool = False, check_regression: bool = False, output_file: str = &quot;benchmark_report.md&quot;) -&gt; int
+separator = &quot;=&quot; * FormattingDefaults.WIDE_SECTION_WIDTH</file><file path="scripts/run_benchmarks.py">def run_benchmarks(save_baseline: bool = False, check_regression: bool = False, output_file: str = &quot;benchmark_report.md&quot;) -&gt; int
 ⋮----
 cmd = [&quot;uv&quot;, &quot;run&quot;, &quot;python&quot;, &quot;-m&quot;, &quot;pytest&quot;, &quot;tests/test_benchmark.py&quot;, &quot;-v&quot;, &quot;-s&quot;]
 ⋮----
@@ -1132,7 +737,81 @@ exported = &quot; [exported]&quot; if fn.get(&quot;is_exported&quot;) else &quot
 private = &quot; [private]&quot; if fn.get(&quot;is_private&quot;) else &quot;&quot;
 ⋮----
 names = &quot;, &quot;.join(fn[&quot;name&quot;] for fn in fns[:5])
-suffix = f&quot; +{len(fns) - 5} more&quot; if len(fns) &gt; 5 else &quot;&quot;</file><file path="scripts/deploy-traditional-server.sh">set -e
+suffix = f&quot; +{len(fns) - 5} more&quot; if len(fns) &gt; 5 else &quot;&quot;</file><file path="scripts/benchmark_batch_coverage.py">project_root = Path(__file__).parent.parent
+⋮----
+def create_test_candidates(file_count: int, files_per_candidate: int) -&gt; List[Dict]
+⋮----
+project_root_path = Path(__file__).parent.parent
+src_path = project_root_path / &quot;src&quot; / &quot;ast_grep_mcp&quot;
+all_files = list(src_path.rglob(&quot;*.py&quot;))[:file_count]
+⋮----
+file_count = len(all_files)
+# Create candidates with overlapping files (realistic scenario)
+candidates = []
+⋮----
+file_slice = all_files[i : i + files_per_candidate]
+⋮----
+BENCHMARK_MAX_WORKERS = 4
+⋮----
+start = time.perf_counter()
+⋮----
+elapsed = time.perf_counter() - start
+⋮----
+def benchmark_legacy_sequential(detector: CoverageDetector, candidates: List[Dict], project_path: str) -&gt; Dict
+⋮----
+def action(cs: List[Dict]) -&gt; None
+⋮----
+files = candidate.get(&quot;files&quot;, [])
+⋮----
+coverage_map = detector.get_test_coverage_for_files(files, &quot;python&quot;, project_path)
+⋮----
+def benchmark_legacy_parallel(orchestrator: DeduplicationAnalysisOrchestrator, candidates: List[Dict], project_path: str) -&gt; Dict
+def benchmark_batch_sequential(orchestrator: DeduplicationAnalysisOrchestrator, candidates: List[Dict], project_path: str) -&gt; Dict
+def benchmark_batch_parallel(orchestrator: DeduplicationAnalysisOrchestrator, candidates: List[Dict], project_path: str) -&gt; Dict
+def run_benchmark_suite(file_count: int, files_per_candidate: int, project_path: str) -&gt; Dict
+⋮----
+detector = CoverageDetector()
+orchestrator = DeduplicationAnalysisOrchestrator()
+results = {
+benchmark_plan = [
+⋮----
+candidates = create_test_candidates(file_count, files_per_candidate)
+result = run_benchmark(ctx, candidates, project_path)
+⋮----
+baseline = results[&quot;benchmarks&quot;][0][&quot;elapsed_seconds&quot;]
+⋮----
+speedup = baseline / benchmark[&quot;elapsed_seconds&quot;]
+improvement = ((baseline - benchmark[&quot;elapsed_seconds&quot;]) / baseline) * 100
+⋮----
+def main()
+⋮----
+parser = argparse.ArgumentParser(description=&quot;Benchmark batch test coverage detection performance&quot;)
+⋮----
+args = parser.parse_args()
+project_path = str(Path(__file__).parent.parent)
+results = run_benchmark_suite(args.file_count, args.files_per_candidate, project_path)
+⋮----
+output_path = Path(args.output)
+⋮----
+# Compare with baseline if requested
+⋮----
+baseline_path = Path(args.compare)
+⋮----
+baseline_results = json.load(f)
+⋮----
+baseline_bench = next((b for b in baseline_results[&quot;benchmarks&quot;] if b[&quot;method&quot;] == method), None)
+current_bench = next((b for b in results[&quot;benchmarks&quot;] if b[&quot;method&quot;] == method), None)
+⋮----
+baseline_time = baseline_bench[&quot;elapsed_seconds&quot;]
+current_time = current_bench[&quot;elapsed_seconds&quot;]
+change = ((current_time - baseline_time) / baseline_time) * 100
+⋮----
+# Print expected vs actual
+⋮----
+batch_parallel = next((b for b in results[&quot;benchmarks&quot;] if b[&quot;method&quot;] == &quot;batch_parallel&quot;), None)
+⋮----
+speedup = results[&quot;speedups&quot;][&quot;batch_parallel&quot;][&quot;speedup&quot;]
+improvement = results[&quot;speedups&quot;][&quot;batch_parallel&quot;][&quot;improvement_percent&quot;]</file><file path="scripts/deploy-traditional-server.sh">set -e
 set -u
 OS=&quot;$(uname -s)&quot;
 IS_MACOS=false
@@ -1661,7 +1340,284 @@ category = TOOL_CATEGORIES.get(name)
 ⋮----
 total = 0
 ⋮----
-items = grouped[category]</file><file path="scripts/quality_docs_results.json">{
+items = grouped[category]</file><file path="scripts/migrate_print_to_logger.py">@dataclass
+class PrintStatement
+⋮----
+file_path: str
+line_number: int
+column: int
+original_code: str
+suggested_replacement: str
+print_type: str
+class PrintMigrator
+⋮----
+def __init__(self, dry_run: bool = True, backup: bool = False)
+def analyze_print_call(self, code: str) -&gt; str
+⋮----
+# Check for error output ( or &apos;error&apos; in string)
+⋮----
+def migrate_print_statement(self, code: str, print_type: str) -&gt; str
+⋮----
+match = re.match(r&quot;print\((.*)\)$&quot;, code.strip(), re.DOTALL)
+⋮----
+# Fallback: return original if we can&apos;t parse
+⋮----
+content = match.group(1)
+# Remove if present
+content = re.sub(r&quot;,?\s*file=sys\.stderr&quot;, &quot;&quot;, content)
+# Handle different types
+⋮----
+json_match = re.search(r&quot;json\.dumps\((.*?)(,\s*indent=\d+)?\)&quot;, content)
+⋮----
+data = json_match.group(1)
+⋮----
+sep_match = re.search(r&apos;[&quot;\&apos;]([=\-_*])\1*[&quot;\&apos;]&apos;, content)
+⋮----
+char = sep_match.group(1)
+length = len(re.search(r&apos;[&quot;\&apos;]([=\-_*]+)[&quot;\&apos;]&apos;, content).group(1))
+⋮----
+else:  # simple
+⋮----
+def find_print_statements(self, file_path: Path) -&gt; List[PrintStatement]
+⋮----
+&quot;&quot;&quot;Find all console.blank() statements in a file.
+        Args:
+            file_path: Path to Python file
+        Returns:
+            List of PrintStatement objects
+        &quot;&quot;&quot;
+statements = []
+⋮----
+content = f.read()
+lines = content.split(&quot;\n&quot;)
+# Use regex to find print statements (simple approach)
+⋮----
+# Skip comments
+⋮----
+# Find console.log( statements
+⋮----
+# Extract full print statement (may span multiple lines)
+start_col = match.start()
+original_code = self._extract_print_call(lines, line_num - 1, start_col)
+⋮----
+print_type = self.analyze_print_call(original_code)
+replacement = self.migrate_print_statement(original_code, print_type)
+⋮----
+def _extract_print_call(self, lines: List[str], start_line: int, start_col: int) -&gt; str
+⋮----
+&quot;&quot;&quot;Extract complete console.blank() call that may span multiple lines.
+        Args:
+            lines: All lines in the file
+            start_line: Line number where console.log( starts (0-indexed)
+            start_col: Column where console.log( starts
+        Returns:
+            Complete console.blank() statement as string
+        &quot;&quot;&quot;
+# Simple extraction - find matching closing parenthesis
+line = lines[start_line][start_col:]
+depth = 0
+in_string = False
+string_char = None
+escaped = False
+result = []
+⋮----
+escaped = True
+⋮----
+in_string = True
+string_char = char
+⋮----
+# If we didn&apos;t find closing paren on same line, it might span multiple lines
+⋮----
+def _read_file_lines(self, file_path: Path) -&gt; List[str]
+⋮----
+&quot;&quot;&quot;Read file content and return split lines.&quot;&quot;&quot;
+⋮----
+def _create_backup_if_needed(self, file_path: Path, changes: List[str]) -&gt; None
+⋮----
+backup_path = file_path.with_suffix(&quot;.py.bak&quot;)
+⋮----
+def _scan_import_state(self, lines: List[str]) -&gt; Tuple[bool, int]
+⋮----
+&quot;&quot;&quot;Return whether console import exists and last import line index.&quot;&quot;&quot;
+⋮----
+def _apply_statement_replacements(self, lines: List[str], statements: List[PrintStatement], changes: List[str]) -&gt; None
+⋮----
+&quot;&quot;&quot;Replace print statements in reverse order to preserve line indices.&quot;&quot;&quot;
+⋮----
+line_idx = stmt.line_number - 1
+line = lines[line_idx]
+⋮----
+def _compute_import_insert_index(self, lines: List[str]) -&gt; int
+⋮----
+&quot;&quot;&quot;Find insertion index after shebang/docstring for import insertion.&quot;&quot;&quot;
+⋮----
+def _ensure_import_present(self, lines: List[str], has_import: bool, import_line_index: int, changes: List[str]) -&gt; None
+⋮----
+&quot;&quot;&quot;Ensure console import exists in file content.&quot;&quot;&quot;
+⋮----
+_ = import_line_index  # Kept for compatibility with current call signature.
+⋮----
+def _write_lines_if_needed(self, file_path: Path, lines: List[str]) -&gt; None
+⋮----
+&quot;&quot;&quot;Persist updated lines unless running in dry-run mode.&quot;&quot;&quot;
+⋮----
+def migrate_file(self, file_path: Path) -&gt; Tuple[int, List[str]]
+⋮----
+statements = self.find_print_statements(file_path)
+⋮----
+changes = []
+lines = self._read_file_lines(file_path)
+⋮----
+def migrate_directory(self, directory: Path, pattern: str = &quot;**/*.py&quot;) -&gt; Dict[str, any]
+⋮----
+results = {&quot;files_processed&quot;: 0, &quot;files_modified&quot;: 0, &quot;total_migrations&quot;: 0, &quot;changes_by_file&quot;: {}}
+⋮----
+def main()
+⋮----
+parser = argparse.ArgumentParser(description=&quot;Migrate console.blank() statements to console logger&quot;)
+⋮----
+args = parser.parse_args()
+script_dir = Path(__file__).parent
+project_root = script_dir.parent
+migrator = PrintMigrator(dry_run=args.dry_run, backup=args.backup)
+⋮----
+path = Path(args.path)
+⋮----
+path = project_root / path
+⋮----
+path = project_root
+⋮----
+results = {
+⋮----
+results = migrator.migrate_directory(path)
+⋮----
+mode = &quot;DRY RUN - &quot; if args.dry_run else &quot;&quot;</file><file path="scripts/migrate_prints_smart.py">def smart_replace_print(line: str) -&gt; Tuple[str, bool]
+⋮----
+modified = False
+⋮----
+line = re.sub(r&quot;\bprint\(\s*\)&quot;, &quot;console.blank()&quot;, line)
+modified = True
+# Pattern 2: Separator lines (=, -, *, _)
+⋮----
+match = re.search(r&apos;print\([&quot;\&apos;]([=\-_*]+)[&quot;\&apos;]\)&apos;, line)
+⋮----
+char = match.group(1)[0]
+length = len(match.group(1))
+line = re.sub(r&apos;print\([&quot;\&apos;]([=\-_*]+)[&quot;\&apos;]\)&apos;, f&apos;console.separator(&quot;{char}&quot;, {length})&apos;, line)
+⋮----
+# Pattern 3: JSON output
+⋮----
+match = re.search(r&quot;print\(json\.dumps\((.*?)(,\s*indent=\d+)?\)\)&quot;, line)
+⋮----
+line = re.sub(r&quot;print\(json\.dumps\((.*?)(,\s*indent=\d+)?\)\)&quot;, r&quot;console.json(\1)&quot;, line)
+⋮----
+# Pattern 4: Error messages ( or &quot;error&quot; in text)
+⋮----
+# Remove file=sys.stderr and use console.error
+content = re.sub(r&quot;,?\s*file=sys\.stderr&quot;, &quot;&quot;, line)
+content = re.sub(r&quot;\bprint\((.*)\)&quot;, r&quot;console.error(\1)&quot;, content)
+line = content
+⋮----
+line = re.sub(r&quot;\bprint\(&quot;, &quot;console.error(&quot;, line)
+⋮----
+# Pattern 5: Success/completion messages
+⋮----
+line = re.sub(r&quot;\bprint\(&quot;, &quot;console.success(&quot;, line)
+⋮----
+# Pattern 6: Warning messages
+⋮----
+line = re.sub(r&quot;\bprint\(&quot;, &quot;console.warning(&quot;, line)
+⋮----
+# Pattern 7: Debug/verbose messages
+⋮----
+line = re.sub(r&quot;\bprint\(&quot;, &quot;console.debug(&quot;, line)
+⋮----
+# Pattern 8: Default to console.log()
+⋮----
+line = re.sub(r&quot;\bprint\(&quot;, &quot;console.log(&quot;, line)
+⋮----
+def add_console_import(lines: List[str]) -&gt; List[str]
+⋮----
+&quot;&quot;&quot;Add console import if not present.
+    Args:
+        lines: File lines
+    Returns:
+        Modified lines with import added
+    &quot;&quot;&quot;
+⋮----
+def migrate_file(file_path: Path, dry_run: bool = True) -&gt; Tuple[int, List[str]]
+⋮----
+&quot;&quot;&quot;Migrate print statements in a file.
+    Args:
+        file_path: Path to file
+        dry_run: If True, don&apos;t modify files
+    Returns:
+        Tuple of (migrations_count, changes_list)
+    &quot;&quot;&quot;
+⋮----
+lines = f.readlines()
+modified_lines = []
+changes = []
+migrations = 0
+⋮----
+# Add import
+modified_lines_stripped = [line.rstrip(&quot;\n&quot;) for line in modified_lines]
+modified_lines_stripped = add_console_import(modified_lines_stripped)
+⋮----
+def migrate_directory(dir_path: Path, pattern: str = &quot;**/*.py&quot;, dry_run: bool = True)
+⋮----
+results = {&quot;total_files&quot;: 0, &quot;modified_files&quot;: 0, &quot;total_migrations&quot;: 0, &quot;files&quot;: {}}
+⋮----
+def main()
+⋮----
+parser = argparse.ArgumentParser(description=&quot;Smart console.blank() to console migration&quot;)
+⋮----
+args = parser.parse_args()
+project_root = Path(__file__).parent.parent
+⋮----
+path = Path(args.path)
+⋮----
+path = project_root / path
+⋮----
+results = migrate_directory(path, dry_run=args.dry_run)
+⋮----
+results = migrate_directory(project_root / &quot;scripts&quot;, dry_run=args.dry_run)
+⋮----
+results = migrate_directory(project_root / &quot;tests&quot;, dry_run=args.dry_run)
+⋮----
+scripts_results = migrate_directory(project_root / &quot;scripts&quot;, dry_run=args.dry_run)
+⋮----
+# Tests
+⋮----
+tests_results = migrate_directory(project_root / &quot;tests&quot;, dry_run=args.dry_run)
+⋮----
+# Root level scripts
+⋮----
+root_results = migrate_directory(project_root, pattern=&quot;*.py&quot;, dry_run=args.dry_run)
+⋮----
+# Summary
+total_migrations = scripts_results[&quot;total_migrations&quot;] + tests_results[&quot;total_migrations&quot;] + root_results[&quot;total_migrations&quot;]</file><file path="scripts/migration_common.py">MIGRATION_ERROR_TEST_FILES = [
+def read_lines(file_path: Path) -&gt; List[str]
+def write_lines(file_path: Path, lines: Sequence[str]) -&gt; None
+⋮----
+paths = directory.glob(pattern)
+⋮----
+paths = sorted(paths)
+⋮----
+def _normalize_ranges(ranges: Sequence[Tuple[int, int]]) -&gt; List[Tuple[int, int]]
+⋮----
+valid = sorted((start, end) for start, end in ranges if start &lt; end)
+⋮----
+merged: List[Tuple[int, int]] = [valid[0]]
+⋮----
+def remove_line_ranges(lines: Sequence[str], ranges: Sequence[Tuple[int, int]]) -&gt; List[str]
+⋮----
+merged = _normalize_ranges(ranges)
+⋮----
+result: List[str] = []
+range_idx = 0
+⋮----
+in_range = range_idx &lt; len(merged) and current_start &lt;= line_idx &lt; current_end</file><file path="scripts/quality_docs_results.json">{
   &quot;create_linting_rule&quot;: {
     &quot;tool&quot;: &quot;create_linting_rule&quot;,
     &quot;status&quot;: &quot;OK&quot;,
@@ -2567,7 +2523,12 @@ for candidate in &quot;${CANDIDATES[@]}&quot;; do
 done
 echo &quot;No Python interpreter with both pytest and pydantic was found.&quot; &gt;&amp;2
 echo &quot;Set PYTEST_PYTHON=/path/to/python and retry.&quot; &gt;&amp;2
-exit 1</file><file path="scripts/verify-bugfixes.sh">set -e
+exit 1</file><file path="scripts/tool_result_recorder.py">ERROR_MESSAGE_MAX_LEN = 500
+STRING_RESULT_PREVIEW_LEN = 200
+OTHER_RESULT_STR_LEN = 300
+DICT_KEYS_PREVIEW = 10
+⋮----
+entry: Dict[str, Any] = {&quot;tool&quot;: name}</file><file path="scripts/verify-bugfixes.sh">set -e
 GREEN=&apos;\033[0;32m&apos;
 RED=&apos;\033[0;31m&apos;
 YELLOW=&apos;\033[1;33m&apos;
@@ -3237,52 +3198,7 @@ project_folder = sys.argv[1] if len(sys.argv) &gt; 1 else str(Path(__file__).res
 ⋮----
 start = time.time()
 ⋮----
-elapsed = time.time() - start</file><file path="scripts/run_quality_docs.py">TARGET = sys.argv[1] if len(sys.argv) &gt; 1 else str(Path.home() / &quot;code&quot; / &quot;jobs&quot;)
-LANG = sys.argv[2] if len(sys.argv) &gt; 2 else &quot;typescript&quot;
-results: dict[str, dict] = {}
-def record(name, result=None, error=None, skipped=None)
-⋮----
-entry = {&quot;tool&quot;: name}
-⋮----
-def main()
-⋮----
-start = time.time()
-⋮----
-r = create_linting_rule_tool(
-⋮----
-r = list_rule_templates_tool(language=LANG)
-⋮----
-r = enforce_standards_tool(project_folder=TARGET, language=LANG)
-⋮----
-r = detect_security_issues_tool(project_folder=TARGET, language=LANG)
-⋮----
-r = detect_orphans_tool(project_folder=TARGET)
-⋮----
-enforcement = enforce_standards_tool(project_folder=TARGET, language=LANG)
-r = generate_quality_report_tool(enforcement_result=enforcement, project_name=&quot;jobs&quot;)
-⋮----
-r = generate_docstrings_tool(project_folder=TARGET, file_pattern=&quot;**/*.ts&quot;, language=LANG, dry_run=True)
-⋮----
-r = generate_readme_sections_tool(project_folder=TARGET, language=LANG)
-⋮----
-r = generate_api_docs_tool(project_folder=TARGET, language=LANG)
-⋮----
-r = generate_changelog_tool(project_folder=TARGET)
-⋮----
-r = sync_documentation_tool(project_folder=TARGET, language=LANG, check_only=True)
-⋮----
-elapsed = time.time() - start
-ok = sum(1 for r in results.values() if r[&quot;status&quot;] == &quot;OK&quot;)
-err = sum(1 for r in results.values() if r[&quot;status&quot;] == &quot;ERROR&quot;)
-skip = sum(1 for r in results.values() if r[&quot;status&quot;] == &quot;SKIPPED&quot;)
-⋮----
-status = entry[&quot;status&quot;]
-icon = {&quot;OK&quot;: &quot;+&quot;, &quot;ERROR&quot;: &quot;!&quot;, &quot;SKIPPED&quot;: &quot;-&quot;}[status]
-line = f&quot;[{icon}] {name}&quot;
-⋮----
-extras = []
-⋮----
-out = Path(__file__).parent / &quot;quality_docs_results.json&quot;</file><file path="scripts/all_tools_results.json">{
+elapsed = time.time() - start</file><file path="scripts/all_tools_results.json">{
   &quot;dump_syntax_tree&quot;: {
     &quot;tool&quot;: &quot;dump_syntax_tree&quot;,
     &quot;status&quot;: &quot;OK&quot;,
@@ -4158,7 +4074,49 @@ orphan_functions = summary.get(&quot;orphan_functions&quot;, 0)
 total_files = summary.get(&quot;total_files_analyzed&quot;, 0)
 total_functions = summary.get(&quot;total_functions_analyzed&quot;, 0)
 ⋮----
-out_path = Path(&quot;/tmp/benchmark_orphans.json&quot;)</file><file path="scripts/scan_complexity_offenders.py">_PROJECT_ROOT = pathlib.Path(__file__).parent.parent
+out_path = Path(&quot;/tmp/benchmark_orphans.json&quot;)</file><file path="scripts/run_quality_docs.py">TARGET = sys.argv[1] if len(sys.argv) &gt; 1 else str(Path.home() / &quot;code&quot; / &quot;jobs&quot;)
+LANG = sys.argv[2] if len(sys.argv) &gt; 2 else &quot;typescript&quot;
+results: dict[str, dict] = {}
+def record(name, result=None, error=None, skipped=None)
+def main()
+⋮----
+start = time.time()
+⋮----
+r = create_linting_rule_tool(
+⋮----
+r = list_rule_templates_tool(language=LANG)
+⋮----
+r = enforce_standards_tool(project_folder=TARGET, language=LANG)
+⋮----
+r = detect_security_issues_tool(project_folder=TARGET, language=LANG)
+⋮----
+r = detect_orphans_tool(project_folder=TARGET)
+⋮----
+enforcement = enforce_standards_tool(project_folder=TARGET, language=LANG)
+r = generate_quality_report_tool(enforcement_result=enforcement, project_name=&quot;jobs&quot;)
+⋮----
+r = generate_docstrings_tool(project_folder=TARGET, file_pattern=&quot;**/*.ts&quot;, language=LANG, dry_run=True)
+⋮----
+r = generate_readme_sections_tool(project_folder=TARGET, language=LANG)
+⋮----
+r = generate_api_docs_tool(project_folder=TARGET, language=LANG)
+⋮----
+r = generate_changelog_tool(project_folder=TARGET)
+⋮----
+r = sync_documentation_tool(project_folder=TARGET, language=LANG, check_only=True)
+⋮----
+elapsed = time.time() - start
+ok = sum(1 for r in results.values() if r[&quot;status&quot;] == &quot;OK&quot;)
+err = sum(1 for r in results.values() if r[&quot;status&quot;] == &quot;ERROR&quot;)
+skip = sum(1 for r in results.values() if r[&quot;status&quot;] == &quot;SKIPPED&quot;)
+⋮----
+status = entry[&quot;status&quot;]
+icon = {&quot;OK&quot;: &quot;+&quot;, &quot;ERROR&quot;: &quot;!&quot;, &quot;SKIPPED&quot;: &quot;-&quot;}[status]
+line = f&quot;[{icon}] {name}&quot;
+⋮----
+extras = []
+⋮----
+out = Path(__file__).parent / &quot;quality_docs_results.json&quot;</file><file path="scripts/scan_complexity_offenders.py">_PROJECT_ROOT = pathlib.Path(__file__).parent.parent
 FILES: list[tuple[str, str]] = [
 CYC_THRESHOLD = 10
 COG_THRESHOLD = 15
@@ -4533,9 +4491,6 @@ warnings = []
 suggestions = &quot;, &quot;.join(f&quot;{_EXT_TO_LANG[e]} (for {e})&quot; for e in sorted(config_ext_counts) if e in _EXT_TO_LANG)
 ⋮----
 def record(name: str, result=None, error=None, skipped=None)
-⋮----
-entry = {&quot;tool&quot;: name}
-⋮----
 def run_sync_tools()
 ⋮----
 _exts = {&quot;typescript&quot;: &quot;*.ts&quot;, &quot;javascript&quot;: &quot;*.cjs&quot;, &quot;python&quot;: &quot;*.py&quot;}

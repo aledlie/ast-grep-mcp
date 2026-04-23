@@ -1,3 +1,9 @@
+fdbcacc 2026-04-22 docs(repomix): regenerate compressed docs and token tree
+  docs/repomix/repo-compressed.xml
+  docs/repomix/repomix-docs.xml
+  docs/repomix/repomix-git-ranked.xml
+  docs/repomix/repomix.xml
+
 51989be 2026-04-20 feat(search): add Python security pattern examples for CWE-798/327/489/521
   src/ast_grep_mcp/features/search/pattern_examples.json
 
