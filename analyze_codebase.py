@@ -14,19 +14,21 @@ import re
 import subprocess
 import sys
 import traceback
+from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from ast_grep_mcp.constants import DeduplicationDefaults, FilePatterns, FormattingDefaults, SemanticVolumeDefaults
+from ast_grep_mcp.constants import DeduplicationDefaults, FilePatterns, FormattingDefaults, SemanticVolumeDefaults, SubprocessDefaults
 from ast_grep_mcp.features.complexity.analyzer import analyze_file_complexity
 from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool, detect_code_smells_tool
 from ast_grep_mcp.features.deduplication.scoring_scales import AnalyzeCodebaseTopN
 from ast_grep_mcp.features.deduplication.tools import analyze_deduplication_candidates_tool, find_duplication_tool
 from ast_grep_mcp.features.quality.security_scanner import detect_security_issues_impl
 from ast_grep_mcp.features.quality.tools import apply_standards_fixes_tool, enforce_standards_tool, generate_quality_report_tool
-from ast_grep_mcp.models.complexity import ComplexityThresholds
+from ast_grep_mcp.models.complexity import ComplexityThresholds, FunctionComplexity
 from ast_grep_mcp.utils.console_logger import console
 from ast_grep_mcp.utils.slicing import take_top_n
 from scripts.analysis_output_helpers import log_count_breakdown, print_section_header
@@ -45,6 +47,7 @@ LANGUAGE_EXTENSIONS = {
     "cpp": "cpp",
     "c": "c",
 }
+DUPLICATION_MIN_LINES = 10
 
 
 def out(message: object = "") -> None:
@@ -52,7 +55,7 @@ def out(message: object = "") -> None:
     console.log(str(message))
 
 
-def print_section(title: str):
+def print_section(title: str) -> None:
     """Print a formatted section header."""
     print_section_header(out, title, width=FormattingDefaults.WIDE_SECTION_WIDTH)
 
@@ -71,7 +74,6 @@ def _report_phase_exception(phase: str, exc: Exception) -> None:
 def _discover_source_files(project_folder: str, language: str) -> list[Path]:
     """Discover source files in the project folder by language."""
     ext = LANGUAGE_EXTENSIONS.get(language, language)
-    glob_pattern = f"*.{ext}"
     folder = Path(project_folder)
     if not folder.is_dir():
         return []
@@ -81,12 +83,12 @@ def _discover_source_files(project_folder: str, language: str) -> list[Path]:
     exclude_suffixes = {p.removeprefix("**/").removeprefix("*") for p in FilePatterns.MINIFIED_EXCLUDE}
     return [
         f
-        for f in sorted(folder.rglob(glob_pattern))
+        for f in sorted(folder.rglob(f"*.{ext}"))
         if not any(part in exclude_dirs for part in f.parts) and not any(str(f).endswith(s) for s in exclude_suffixes)
     ]
 
 
-def analyze_individual_files(project_folder: str, language: str):
+def analyze_individual_files(project_folder: str, language: str) -> None:
     """Analyze the top most complex files individually."""
     print_section("PHASE 1: Individual File Complexity Analysis")
 
@@ -96,7 +98,7 @@ def analyze_individual_files(project_folder: str, language: str):
         return
 
     thresholds = ComplexityThresholds()
-    file_functions: dict[str, list] = {}
+    file_functions: dict[str, list[FunctionComplexity]] = {}
     for f in source_files:
         try:
             file_functions[str(f)] = analyze_file_complexity(str(f), language, thresholds)
@@ -132,7 +134,7 @@ def analyze_individual_files(project_folder: str, language: str):
                 )
 
 
-def analyze_project_complexity(project_folder: str, language: str):
+def analyze_project_complexity(project_folder: str, language: str) -> None:
     """Run project-wide complexity analysis."""
     print_section("PHASE 2: Project-Wide Complexity Analysis")
 
@@ -146,38 +148,41 @@ def analyze_project_complexity(project_folder: str, language: str):
             include_trends=False,
         )
 
-        if result.get("success"):
-            summary = result.get("summary", {})
-            out(f"\nTotal functions analyzed: {summary.get('total_functions', 0)}")
-            out(f"Functions exceeding thresholds: {summary.get('exceeding_thresholds', 0)}")
-            out(f"Percentage over threshold: {summary.get('percentage_exceeding', 0):.1f}%")
-            out(f"\nAverage cyclomatic complexity: {summary.get('average_cyclomatic', 0):.2f}")
-            out(f"Average cognitive complexity: {summary.get('average_cognitive', 0):.2f}")
-            out(f"Average nesting depth: {summary.get('average_nesting', 0):.2f}")
-            out(f"Average function length: {summary.get('average_length', 0):.1f} lines")
-
-            exceeding = result.get("exceeding_functions", [])
-            if exceeding:
-                out("\nTop 10 most complex functions by cognitive complexity:")
-                for i, func in enumerate(
-                    take_top_n(
-                        sorted(exceeding, key=lambda x: x.get("cognitive", 0), reverse=True),
-                        AnalyzeCodebaseTopN.TOP_COMPLEX_FUNCTIONS,
-                    ),
-                    1,
-                ):
-                    out(f"  {i}. {func['file']}:{func['name']} (line {func['start_line']})")
-                    out(
-                        f"     Cyclomatic: {func['cyclomatic']}, Cognitive: {func['cognitive']}, "
-                        f"Nesting: {func['nesting_depth']}, Lines: {func['length']}"
-                    )
-        else:
+        if not result.get("success"):
             out(f"Error: {result.get('error')}")
+            return
+
+        summary = result.get("summary", {})
+        out(f"\nTotal functions analyzed: {summary.get('total_functions', 0)}")
+        out(f"Functions exceeding thresholds: {summary.get('exceeding_thresholds', 0)}")
+        out(f"Percentage over threshold: {summary.get('percentage_exceeding', 0):.1f}%")
+        out(f"\nAverage cyclomatic complexity: {summary.get('average_cyclomatic', 0):.2f}")
+        out(f"Average cognitive complexity: {summary.get('average_cognitive', 0):.2f}")
+        out(f"Average nesting depth: {summary.get('average_nesting', 0):.2f}")
+        out(f"Average function length: {summary.get('average_length', 0):.1f} lines")
+
+        exceeding = result.get("exceeding_functions", [])
+        if not exceeding:
+            return
+
+        out("\nTop 10 most complex functions by cognitive complexity:")
+        for i, func in enumerate(
+            take_top_n(
+                sorted(exceeding, key=lambda x: x.get("cognitive", 0), reverse=True),
+                AnalyzeCodebaseTopN.TOP_COMPLEX_FUNCTIONS,
+            ),
+            1,
+        ):
+            out(f"  {i}. {func['file']}:{func['name']} (line {func['start_line']})")
+            out(
+                f"     Cyclomatic: {func['cyclomatic']}, Cognitive: {func['cognitive']}, "
+                f"Nesting: {func['nesting_depth']}, Lines: {func['length']}"
+            )
     except Exception as e:
         _report_phase_exception("project complexity analysis", e)
 
 
-def detect_code_smells(project_folder: str, language: str):
+def detect_code_smells(project_folder: str, language: str) -> None:
     """Run code smell detection."""
     print_section("PHASE 3: Code Smell Detection")
 
@@ -189,30 +194,33 @@ def detect_code_smells(project_folder: str, language: str):
             exclude_patterns=EXCLUDE_PATTERNS,
         )
 
-        if result.get("success"):
-            summary = result.get("summary", {})
-            out(f"\nTotal files analyzed: {summary.get('total_files', 0)}")
-            out(f"Files with smells: {summary.get('files_with_smells', 0)}")
-            out(f"Total smells found: {summary.get('total_smells', 0)}")
-
-            by_severity = summary.get("by_severity", {})
-            out("\nBy severity:")
-            log_count_breakdown(out, by_severity, order=["high", "medium", "low"], indent="  ", capitalize_labels=True)
-
-            smells = result.get("smells", [])
-            if smells:
-                out("\nTop 10 code smells:")
-                for smell in take_top_n(smells, AnalyzeCodebaseTopN.TOP_SMELLS_PREVIEW):
-                    out(f"  - [{smell.get('severity', 'unknown').upper()}] {smell.get('type', 'unknown')}")
-                    out(f"    File: {smell.get('file', 'unknown')}:{smell.get('line', '?')}")
-                    out(f"    {smell.get('message', 'No message')}")
-        else:
+        if not result.get("success"):
             out(f"Error: {result.get('error')}")
+            return
+
+        summary = result.get("summary", {})
+        out(f"\nTotal files analyzed: {summary.get('total_files', 0)}")
+        out(f"Files with smells: {summary.get('files_with_smells', 0)}")
+        out(f"Total smells found: {summary.get('total_smells', 0)}")
+
+        by_severity = summary.get("by_severity", {})
+        out("\nBy severity:")
+        log_count_breakdown(out, by_severity, order=["high", "medium", "low"], indent="  ", capitalize_labels=True)
+
+        smells = result.get("smells", [])
+        if not smells:
+            return
+
+        out("\nTop 10 code smells:")
+        for smell in take_top_n(smells, AnalyzeCodebaseTopN.TOP_SMELLS_PREVIEW):
+            out(f"  - [{smell.get('severity', 'unknown').upper()}] {smell.get('type', 'unknown')}")
+            out(f"    File: {smell.get('file', 'unknown')}:{smell.get('line', '?')}")
+            out(f"    {smell.get('message', 'No message')}")
     except Exception as e:
         _report_phase_exception("code smell detection", e)
 
 
-def detect_security_issues(project_folder: str, language: str):
+def detect_security_issues(project_folder: str, language: str) -> None:
     """Run security vulnerability scanning."""
     print_section("PHASE 4: Security Vulnerability Scanning")
 
@@ -252,7 +260,7 @@ def detect_security_issues(project_folder: str, language: str):
         _report_phase_exception("security scanning", e)
 
 
-def analyze_duplication(project_folder: str, language: str):
+def analyze_duplication(project_folder: str, language: str) -> None:
     """Analyze code duplication opportunities."""
     print_section("PHASE 5: Code Duplication Analysis")
 
@@ -261,12 +269,11 @@ def analyze_duplication(project_folder: str, language: str):
             project_folder=project_folder,
             language=language,
             min_similarity=DeduplicationDefaults.MIN_SIMILARITY,
-            min_lines=10,
+            min_lines=DUPLICATION_MIN_LINES,
             exclude_patterns=EXCLUDE_PATTERNS,
         )
 
-        groups = find_result.get("groups", [])
-        if not groups:
+        if not find_result.get("groups"):
             out("\nNo duplication groups found.")
             return
 
@@ -274,77 +281,42 @@ def analyze_duplication(project_folder: str, language: str):
             project_path=project_folder,
             language=language,
             min_similarity=DeduplicationDefaults.MIN_SIMILARITY,
-            min_lines=10,
+            min_lines=DUPLICATION_MIN_LINES,
             exclude_patterns=EXCLUDE_PATTERNS,
         )
 
-        if result.get("success"):
-            summary = result.get("summary", {})
-            out(f"\nTotal files analyzed: {summary.get('total_files', 0)}")
-            out(f"Duplication groups found: {summary.get('total_groups', 0)}")
-            out(f"Total duplicated instances: {summary.get('total_instances', 0)}")
-
-            if summary.get("total_groups", 0) > 0:
-                out(f"Average group size: {summary.get('average_group_size', 0):.1f} instances")
-                out(f"Average similarity: {summary.get('average_similarity', 0):.1%}")
-                out(f"Estimated LOC savings: {summary.get('estimated_loc_savings', 0)}")
-
-            dedup_groups = result.get("groups", [])
-            if dedup_groups:
-                out(f"\nTop {SemanticVolumeDefaults.TOP_RESULTS_LIMIT} duplication groups by potential savings:")
-                for i, group in enumerate(dedup_groups[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT], 1):
-                    out(f"  {i}. Group with {group.get('instance_count', 0)} instances ({group.get('similarity', 0):.1%} similar)")
-                    out(f"     Potential LOC savings: {group.get('potential_loc_savings', 0)} lines")
-                    instances = group.get("instances", [])
-                    if instances:
-                        out("     Locations:")
-                        for inst in take_top_n(instances, AnalyzeCodebaseTopN.DUPLICATION_LOCATION_PREVIEW):
-                            out(f"       - {inst.get('file', 'unknown')}:{inst.get('start_line', '?')}")
-        else:
+        if not result.get("success"):
             out(f"Error: {result.get('error')}")
+            return
+
+        summary = result.get("summary", {})
+        out(f"\nTotal files analyzed: {summary.get('total_files', 0)}")
+        out(f"Duplication groups found: {summary.get('total_groups', 0)}")
+        out(f"Total duplicated instances: {summary.get('total_instances', 0)}")
+
+        if summary.get("total_groups", 0) > 0:
+            out(f"Average group size: {summary.get('average_group_size', 0):.1f} instances")
+            out(f"Average similarity: {summary.get('average_similarity', 0):.1%}")
+            out(f"Estimated LOC savings: {summary.get('estimated_loc_savings', 0)}")
+
+        dedup_groups = result.get("groups", [])
+        if not dedup_groups:
+            return
+
+        out(f"\nTop {SemanticVolumeDefaults.TOP_RESULTS_LIMIT} duplication groups by potential savings:")
+        for i, group in enumerate(dedup_groups[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT], 1):
+            out(f"  {i}. Group with {group.get('instance_count', 0)} instances ({group.get('similarity', 0):.1%} similar)")
+            out(f"     Potential LOC savings: {group.get('potential_loc_savings', 0)} lines")
+            instances = group.get("instances", [])
+            if instances:
+                out("     Locations:")
+                for inst in take_top_n(instances, AnalyzeCodebaseTopN.DUPLICATION_LOCATION_PREVIEW):
+                    out(f"       - {inst.get('file', 'unknown')}:{inst.get('start_line', '?')}")
     except Exception as e:
         _report_phase_exception("duplication analysis", e)
 
 
-def _run_enforcement(project_folder: str, language: str) -> dict:  # type: ignore[type-arg]
-    """Run standards enforcement and return the result dict."""
-    return enforce_standards_tool(
-        project_folder=project_folder,
-        language=language,
-        include_patterns=_language_include_patterns(language),
-        exclude_patterns=EXCLUDE_PATTERNS,
-    )
-
-
-def _generate_markdown_report(enforcement_result: dict) -> dict:  # type: ignore[type-arg]
-    """Generate and save markdown quality report, return result dict."""
-    return generate_quality_report_tool(
-        enforcement_result=enforcement_result,
-        project_name="ast-grep-mcp",
-        output_format="markdown",
-        save_to_file="QUALITY_REPORT.md",
-    )
-
-
-def _print_report_summary(result: dict) -> None:  # type: ignore[type-arg]
-    """Print success/failure message and summary section from report result."""
-    if not result.get("success"):
-        out(f"Error: {result.get('error')}")
-        return
-
-    out("\nQuality report generated successfully!")
-    report_path = result.get("file_path")
-    if report_path:
-        out(f"Report saved to: {report_path}")
-
-    report_content = result.get("report", "")
-    if report_content:
-        out("\nReport Summary:")
-        for line in _iter_summary_section(report_content, SemanticVolumeDefaults.SUMMARY_PREVIEW_LIMIT):
-            out(line)
-
-
-def _iter_summary_section(report: str, limit: int):
+def _iter_summary_section(report: str, limit: int) -> Iterator[str]:
     """Yield lines of the Summary section, stopping at the next top-level header."""
     in_summary = False
     for line in report.split("\n")[:limit]:
@@ -356,14 +328,38 @@ def _iter_summary_section(report: str, limit: int):
             yield line
 
 
-def generate_summary_report(project_folder: str, language: str, apply_fixes: bool = False):
+def generate_summary_report(project_folder: str, language: str, apply_fixes: bool = False) -> None:
     """Generate comprehensive quality report and optionally apply fixes."""
     print_section("PHASE 6: Generate Comprehensive Quality Report")
 
     try:
-        enforcement_result = _run_enforcement(project_folder, language)
-        result = _generate_markdown_report(enforcement_result)
-        _print_report_summary(result)
+        enforcement_result = enforce_standards_tool(
+            project_folder=project_folder,
+            language=language,
+            include_patterns=_language_include_patterns(language),
+            exclude_patterns=EXCLUDE_PATTERNS,
+        )
+
+        result = generate_quality_report_tool(
+            enforcement_result=enforcement_result,
+            project_name="ast-grep-mcp",
+            output_format="markdown",
+            save_to_file="QUALITY_REPORT.md",
+        )
+
+        if not result.get("success"):
+            out(f"Error: {result.get('error')}")
+        else:
+            out("\nQuality report generated successfully!")
+            report_path = result.get("file_path")
+            if report_path:
+                out(f"Report saved to: {report_path}")
+
+            report_content = result.get("report", "")
+            if report_content:
+                out("\nReport Summary:")
+                for line in _iter_summary_section(report_content, SemanticVolumeDefaults.SUMMARY_PREVIEW_LIMIT):
+                    out(line)
 
         if apply_fixes:
             _apply_fixes(enforcement_result, language, project_folder=project_folder)
@@ -375,11 +371,7 @@ def generate_summary_report(project_folder: str, language: str, apply_fixes: boo
 def _run_tsc_check(project_folder: str) -> bool:
     """Run tsc --noEmit to verify no type errors after fixes.
 
-    Args:
-        project_folder: Path to the project folder
-
-    Returns:
-        True if tsc passes (or is not available), False if errors found
+    Returns True if tsc passes (or is not available), False if errors found.
     """
     tsconfig = Path(project_folder) / "tsconfig.json"
     if not tsconfig.exists():
@@ -392,7 +384,7 @@ def _run_tsc_check(project_folder: str) -> bool:
             cwd=project_folder,
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=SubprocessDefaults.TSC_NOEMIT_TIMEOUT_SECONDS,
         )
         if result.returncode == 0:
             out("tsc --noEmit: PASSED (no type errors)")
@@ -401,7 +393,6 @@ def _run_tsc_check(project_folder: str) -> bool:
         error_lines = result.stdout.strip().splitlines() if result.stdout else []
         error_count = sum(1 for line in error_lines if ": error TS" in line)
         out(f"tsc --noEmit: FAILED ({error_count} type errors)")
-        # Show bounded error preview
         for line in error_lines[: SemanticVolumeDefaults.DETAIL_RESULTS_LIMIT]:
             if ": error TS" in line:
                 out(f"  {line}")
@@ -412,7 +403,7 @@ def _run_tsc_check(project_folder: str) -> bool:
         out("tsc not found, skipping type check")
         return True
     except subprocess.TimeoutExpired:
-        out("tsc --noEmit timed out after 120s, skipping")
+        out(f"tsc --noEmit timed out after {SubprocessDefaults.TSC_NOEMIT_TIMEOUT_SECONDS}s, skipping")
         return True
 
 
@@ -435,7 +426,7 @@ def _is_cli_entry_point(file_path: str) -> bool:
 _DESTRUCTIVE_RULES = {"no-print-production", "no-console-log", "no-system-out"}
 
 
-def _filter_destructive_violations(violations: list[dict]) -> tuple[list[dict], int]:
+def _filter_destructive_violations(violations: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
     """Filter out removal-rule violations targeting CLI entry points.
 
     Skips violations from _DESTRUCTIVE_RULES when the target file contains
@@ -466,7 +457,7 @@ def _filter_destructive_violations(violations: list[dict]) -> tuple[list[dict], 
     return filtered, skipped
 
 
-def _apply_fixes(enforcement_result: dict, language: str, project_folder: str = ""):
+def _apply_fixes(enforcement_result: dict[str, Any], language: str, project_folder: str = "") -> None:
     """Apply automatic standards fixes from enforcement violations."""
     print_section("PHASE 7: Apply Standards Fixes")
 
@@ -475,7 +466,6 @@ def _apply_fixes(enforcement_result: dict, language: str, project_folder: str = 
         out("\nNo violations to fix.")
         return
 
-    # Filter out destructive fixes targeting CLI scripts and test runners
     violations, skipped = _filter_destructive_violations(violations)
     if skipped:
         out(f"\nSkipped {skipped} violations in CLI/test files (removal rules would delete intentional output)")
@@ -484,7 +474,6 @@ def _apply_fixes(enforcement_result: dict, language: str, project_folder: str = 
         return
 
     try:
-        # Dry run first
         dry_result = apply_standards_fixes_tool(
             violations=violations,
             language=language,
@@ -502,7 +491,6 @@ def _apply_fixes(enforcement_result: dict, language: str, project_folder: str = 
             out("No auto-fixable violations found.")
             return
 
-        # Apply fixes
         fix_result = apply_standards_fixes_tool(
             violations=violations,
             language=language,
@@ -519,7 +507,6 @@ def _apply_fixes(enforcement_result: dict, language: str, project_folder: str = 
         if backup_id:
             out(f"Backup ID: {backup_id}")
 
-        # Post-fix type check for TypeScript
         if language == "typescript" and project_folder:
             if not _run_tsc_check(project_folder):
                 out(f"\nWARNING: Type errors detected after fixes. Backup available: {backup_id}")
@@ -552,14 +539,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main():
+def main() -> None:
     """Run all analyses."""
     args = parse_args()
     project_folder = args.project_folder
     language = args.language
 
-    folder = Path(project_folder)
-    if not folder.is_dir():
+    if not Path(project_folder).is_dir():
         out(f"Error: '{project_folder}' is not a valid directory")
         sys.exit(1)
 

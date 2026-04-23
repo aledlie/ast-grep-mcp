@@ -10,8 +10,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 from ...constants import RegexCaptureGroups, SemanticVolumeDefaults
 from ...core.logging import get_logger
-from ...models.deduplication import FunctionTemplate
-from ...utils.formatters import format_generated_code
 from ...utils.parsing import detect_triple_quote, skip_blank_lines
 from ...utils.text import indent_lines
 
@@ -251,97 +249,6 @@ class CodeGenerator:
         self.language = language
         self.logger = get_logger("deduplication.generator")
 
-    def _generate_python_function(
-        self, function_name: str, parameters: List[Dict[str, str]], body: str, return_type: Optional[str], docstring: Optional[str]
-    ) -> str:
-        """Generate Python function using template system."""
-        param_tuples = [(p["name"], p.get("type")) for p in parameters]
-        template = FunctionTemplate(name=function_name, parameters=param_tuples, body=body, return_type=return_type, docstring=docstring)
-        return template.generate()
-
-    def _generate_js_ts_function(
-        self, function_name: str, parameters: List[Dict[str, str]], body: str, return_type: Optional[str], docstring: Optional[str]
-    ) -> str:
-        """Generate JavaScript/TypeScript function."""
-        param_list = self._format_js_parameters(parameters)
-        type_annotation = f": {return_type}" if return_type and self.language == "typescript" else ""
-
-        function_code = f"function {function_name}({param_list}){type_annotation} {{\n"
-        if docstring:
-            function_code += f"    // {docstring}\n"
-
-        indented_body = "\n".join(f"    {line}" for line in body.split("\n"))
-        function_code += indented_body + "\n}"
-        return function_code
-
-    def _generate_java_function(
-        self, function_name: str, parameters: List[Dict[str, str]], body: str, return_type: Optional[str], docstring: Optional[str]
-    ) -> str:
-        """Generate Java method."""
-        param_list = ", ".join(f"{p.get('type', 'Object')} {p['name']}" for p in parameters)
-        return_annotation = return_type if return_type else "void"
-
-        function_code = f"public {return_annotation} {function_name}({param_list}) {{\n"
-        if docstring:
-            function_code += f"    // {docstring}\n"
-
-        indented_body = "\n".join(f"    {line}" for line in body.split("\n"))
-        function_code += indented_body + "\n}"
-        return function_code
-
-    def _generate_generic_function(self, function_name: str, parameters: List[Dict[str, str]], body: str, **kwargs: Any) -> str:
-        """Generate generic function format."""
-        param_list = ", ".join(p["name"] for p in parameters)
-        return f"function {function_name}({param_list}) {{\n{body}\n}}"
-
-    def generate_extracted_function(
-        self,
-        function_name: str,
-        parameters: List[Dict[str, str]],
-        body: str,
-        return_type: Optional[str] = None,
-        docstring: Optional[str] = None,
-    ) -> str:
-        """
-        Generate an extracted function from duplicated code.
-
-        Args:
-            function_name: Name of the extracted function
-            parameters: List of parameter dicts with 'name' and optionally 'type'
-            body: Function body code
-            return_type: Optional return type annotation
-            docstring: Optional function documentation
-
-        Returns:
-            Generated function code
-        """
-        self.logger.info("generating_extracted_function", function_name=function_name, param_count=len(parameters), language=self.language)
-
-        # Language-specific generators map
-        generators = {
-            "python": self._generate_python_function,
-            "javascript": self._generate_js_ts_function,
-            "typescript": self._generate_js_ts_function,
-            "java": self._generate_java_function,
-        }
-
-        # Get the appropriate generator or use generic
-        generator = generators.get(self.language, self._generate_generic_function)
-        function_code = generator(function_name, parameters, body, return_type=return_type, docstring=docstring)
-
-        # Format the generated code
-        return self._format_generated_code(function_code, function_name)
-
-    def _format_generated_code(self, function_code: str, function_name: str) -> str:
-        """Format generated code with error handling."""
-        try:
-            formatted_code = format_generated_code(function_code, self.language)
-            self.logger.info("formatted_generated_function", function_name=function_name, language=self.language)
-            return formatted_code
-        except Exception as e:
-            self.logger.warning("formatting_failed", function_name=function_name, language=self.language, error=str(e))
-            return function_code
-
     def generate_function_call(self, function_name: str, arguments: List[str], assign_to: Optional[str] = None) -> str:
         """
         Generate a function call to replace duplicated code.
@@ -447,18 +354,6 @@ class CodeGenerator:
             else:
                 formatted.append(param["name"])
         return ", ".join(formatted)
-
-    def _format_ts_param(self, param: Dict[str, str]) -> str:
-        """Format a single TypeScript parameter with optional type annotation."""
-        if "type" in param and param["type"]:
-            return f"{param['name']}: {param['type']}"
-        return param["name"]
-
-    def _format_js_parameters(self, parameters: List[Dict[str, str]]) -> str:
-        """Format parameters for JavaScript/TypeScript function signature."""
-        if self.language == "typescript":
-            return ", ".join(self._format_ts_param(p) for p in parameters)
-        return ", ".join(p["name"] for p in parameters)
 
     def _get_python_number_type(self, value: str, lang_config: Dict[str, Any]) -> Optional[str]:
         """Get Python-specific number type (int vs float)."""
