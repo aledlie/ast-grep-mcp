@@ -15,13 +15,13 @@ The benchmarking suite provides:
 
 ```bash
 # Run benchmarks
-python scripts/run_benchmarks.py
+uv run python scripts/run_benchmarks.py
 
 # Update baseline (after performance improvements)
-python scripts/run_benchmarks.py --save-baseline
+uv run python scripts/run_benchmarks.py --save-baseline
 
 # Check for regressions (for CI)
-python scripts/run_benchmarks.py --check-regression
+uv run python scripts/run_benchmarks.py --check-regression
 ```
 
 ## Benchmark Suite
@@ -92,7 +92,7 @@ Update the baseline after:
 
 ```bash
 # Run benchmarks and save as new baseline
-python scripts/run_benchmarks.py --save-baseline
+uv run python scripts/run_benchmarks.py --save-baseline
 ```
 
 ## Running Benchmarks
@@ -117,7 +117,7 @@ Add to your `.github/workflows/ci.yml`:
 ```yaml
 - name: Run performance benchmarks
   run: |
-    uv run python scripts/run_benchmarks.py --check-regression
+    uv run uv run python scripts/run_benchmarks.py --check-regression
   env:
     CI: true
 ```
@@ -249,12 +249,12 @@ Compare performance across branches:
 ```bash
 # On main branch
 git checkout main
-python scripts/run_benchmarks.py --save-baseline
+uv run python scripts/run_benchmarks.py --save-baseline
 mv tests/benchmark_baseline.json tests/baseline_main.json
 
 # On feature branch
 git checkout feature-branch
-python scripts/run_benchmarks.py --save-baseline
+uv run python scripts/run_benchmarks.py --save-baseline
 mv tests/benchmark_baseline.json tests/baseline_feature.json
 
 # Compare

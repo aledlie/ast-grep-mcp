@@ -2,7 +2,7 @@
 
 This guide covers the enhanced code deduplication system in ast-grep-mcp, which provides intelligent detection, analysis, and automated refactoring of duplicate code.
 
-**Last Updated:** 2025-11-29
+**Last Updated:** 2026-04-22
 **Architecture:** Modular (v2.0)
 **Code Quality:** ✅ ZERO complexity violations (all deduplication modules refactored)
 
@@ -40,6 +40,11 @@ The enhanced deduplication system extends beyond simple duplicate detection to p
 1. **`find_duplication`** - Detects duplicate functions, classes, and methods
 2. **`analyze_deduplication_candidates`** - Ranks duplicates by refactoring value
 3. **`apply_deduplication`** - Applies refactoring with validation and backup
+4. **`benchmark_deduplication`** - Benchmarks candidate scoring pipelines
+5. **`calculate_ast_similarity`** - Structural AST similarity between two code snippets
+6. **`calculate_semantic_similarity`** - CodeBERT-based semantic similarity between two code snippets
+
+**Parallel scoring (PA-06):** `DuplicationRanker` accepts `max_workers=N` to score candidates in parallel via `ThreadPoolExecutor`; `max_workers=0` disables parallelism, `None` uses the default pool.
 
 ### Supported Languages
 
@@ -425,7 +430,7 @@ Inlines duplicated code into a single location (for small snippets).
 
 ## CLI Usage
 
-The `scripts/find_duplication.py` script provides a command-line interface for duplication detection.
+> **Note:** The standalone CLI script (`scripts/find_duplication.py`) is not currently shipped in this repo; only the bash wrapper `scripts/find_duplication.sh` exists and it invokes the missing `.py`. The flag reference below documents the intended CLI surface. For working usage today, call the MCP tool `find_duplication` directly (see the Python examples elsewhere in this guide).
 
 ### Basic Usage
 

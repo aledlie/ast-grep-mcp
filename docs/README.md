@@ -59,12 +59,12 @@ Add to `.cursor-mcp/settings.json` or `~/Library/Application Support/Claude/clau
 
 **Custom ast-grep config:** Use `--config /path/to/sgconfig.yaml` or `AST_GREP_CONFIG` env var. See [ast-grep config docs](https://ast-grep.github.io/guide/project/project-config.html).
 
-**Rule writing guide:** See [ast-grep.mdc](https://github.com/ast-grep/ast-grep-mcp/blob/main/ast-grep.mdc) for comprehensive rule patterns.
+**Rule writing guide:** See [ast-grep.mdc](https://github.com/aledlie/ast-grep-mcp/blob/main/ast-grep.mdc) for comprehensive rule patterns.
 
 ## Error Tracking (Optional)
 
 **Sentry integration** (optional, zero overhead when disabled) provides:
-- Error tracking for all 53 tools
+- Error tracking for all 55 tools
 - Performance monitoring (subprocess, API, batch operations)
 - AI interaction tracking (with Anthropic SDK)
 - Service tagging: `service:ast-grep-mcp`
@@ -83,19 +83,19 @@ export SENTRY_ENVIRONMENT="production"
 
 **Docs:** [SENTRY-INTEGRATION.md](SENTRY-INTEGRATION.md)
 
-## Tools (53 Total)
+## Tools (55 Total)
 
 | Feature | Count | Tools |
 |---------|-------|-------|
 | Search | 9 | find_code, find_code_by_rule, dump_syntax_tree, test_match_code_rule, debug_pattern, develop_pattern, get_ast_grep_docs, build_rule, get_pattern_examples |
 | Rewrite | 3 | rewrite_code, rollback_rewrite, list_backups |
 | Refactoring | 2 | extract_function, rename_symbol |
-| Deduplication | 4 | find_duplication, analyze_deduplication_candidates, apply_deduplication, benchmark_deduplication |
+| Deduplication | 6 | find_duplication, analyze_deduplication_candidates, apply_deduplication, benchmark_deduplication, calculate_ast_similarity, calculate_semantic_similarity |
 | Complexity | 3 | analyze_complexity, test_sentry_integration, detect_code_smells |
 | Quality | 7 | create_linting_rule, list_linting_rules, apply_linting_rule, detect_security_issues, apply_standards_fixes, generate_quality_report, enforce_code_standards |
 | Documentation | 5 | generate_docstrings, generate_readme_sections, generate_api_docs, generate_changelog, sync_documentation |
 | Cross-Language | 5 | search_multi_language, find_language_equivalents, convert_code_language, refactor_polyglot, generate_language_bindings |
-| Schema.org | 9 | get_schema_type, search_schemas, get_type_hierarchy, get_type_properties, generate_schema_example, generate_entity_id, validate_entity_id, build_entity_graph, enhance_entity_graph |
+| Schema.org | 11 | get_schema_type, search_schemas, get_type_hierarchy, get_type_properties, generate_schema_example, generate_entity_id, validate_entity_id, build_entity_graph, enhance_entity_graph, detect_structured_data, validate_structured_data |
 | Condense | 6 | condense_extract_surface, condense_normalize, condense_strip, condense_pack, condense_estimate, condense_train_dictionary |
 
 
@@ -157,7 +157,7 @@ JavaScript/TypeScript, Python, Rust, Go, Java, C/C++, C#, and [many more](https:
 ## Repository
 
 ```
-src/ast_grep_mcp/          # 121 modules
+src/ast_grep_mcp/          # 125 modules
 ├── core/                  # Config, cache, executor, logging, sentry, usage tracking
 ├── models/                # Data models (13 modules)
 ├── utils/                 # Formatters, validation, templates, text processing
@@ -166,7 +166,7 @@ src/ast_grep_mcp/          # 121 modules
 └── server/                # MCP registry + runner
 ```
 
-- `tests/` - 1,668 collected tests (unit + integration + quality regression)
+- `tests/` - 1,807 collected tests (unit + integration + quality regression)
 
 ## Recent Updates
 

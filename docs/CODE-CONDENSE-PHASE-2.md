@@ -1,6 +1,6 @@
 # Code Condense Phase 2: Additional Insights from Whitepaper Research
 
-> Supplementary findings from the [code-condense-whitepaper](~/reports/code-condense-whitepaper/) collection that extend [CODE-CONDENSE-PREP.md](CODE-CONDENSE-PREP.md) with dictionary training, complexity-guided extraction, per-file-type routing, and archival pipeline options.
+> Supplementary findings from the [code-condense-whitepaper](./code-condense-whitepaper/) collection that extend the Phase 1 plan (see [Appendix A](#appendix-a-phase-1-reference-excerpts)) with dictionary training, complexity-guided extraction, per-file-type routing, and archival pipeline options.
 
 ### Provenance Guide
 
@@ -13,7 +13,7 @@ This document contains two types of content, marked throughout:
 
 ## 1. Dictionary Training Integration
 
-**Source:** [zstd-condense-report.md](~/reports/code-condense-whitepaper/zstd-condense-report.md) Section "Small Data Compression", [pipeline doc](~/reports/code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md) Section 3d
+**Source:** [zstd-condense-report.md](./code-condense-whitepaper/zstd-condense-report.md) Section "Small Data Compression", [pipeline doc](./code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md) Section 3d
 
 Repos with consistent coding style (naming conventions, indentation, import patterns) benefit from zstd dictionary training — 10-30% better compression on small-to-medium files (<100KB) vs. standard zstd.
 
@@ -63,9 +63,9 @@ class CondenseDictionaryDefaults:
 
 ## 2. Complexity-Guided Extraction Depth
 
-**Source:** [pipeline doc](~/reports/code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md) Section 3b, CODE-CONDENSE-PREP Section 6b
+**Source:** [pipeline doc](./code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md) Section 3b, Appendix A.1 (complexity-guided extraction)
 
-CODE-CONDENSE-PREP Section 6b states:
+Appendix A.1 (complexity-guided extraction) states:
 - "High complexity functions: Keep full body (complex = important)"
 - "Low complexity functions: Signature + docstring only"
 - "Trivial functions (≤3 lines): Inline the body"
@@ -74,14 +74,14 @@ This section formalizes those rules with specific thresholds.
 
 ### Extraction Depth Rules
 
-> **Design inference:** The specific cyclomatic/cognitive cutoffs below are proposed thresholds, not sourced from the whitepaper. They are derived from the project's existing `ComplexityDefaults` (cyclomatic ≤20, cognitive ≤30) and CODE-CONDENSE-PREP Section 6b guidance. Tune during implementation based on measured reduction vs. information loss.
+> **Design inference:** The specific cyclomatic/cognitive cutoffs below are proposed thresholds, not sourced from the whitepaper. They are derived from the project's existing `ComplexityDefaults` (cyclomatic ≤20, cognitive ≤30) and Appendix A.1 (complexity-guided extraction) guidance. Tune during implementation based on measured reduction vs. information loss.
 
 | Cyclomatic Complexity | Cognitive Complexity | Extraction Behavior | Source |
 |---|---|---|---|
-| ≤5 and ≤3 lines | Any | **Inline**: keep full body (trivial, costs little) | PREP Section 6b: "Trivial functions (≤3 lines): Inline the body" |
-| ≤10 | ≤15 | **Signature + docstring**: low complexity, strip body | PREP Section 6b: "Low complexity functions: Signature + docstring only" |
-| >10 | >15 | **Full body**: high complexity = important logic, keep it | PREP Section 6b: "High complexity functions: Keep full body" |
-| Any | Any (test files) | **Signature only**: test names matter, bodies don't | PREP Section 7: test files strategy |
+| ≤5 and ≤3 lines | Any | **Inline**: keep full body (trivial, costs little) | Appendix A.1: "Trivial functions (≤3 lines): Inline the body" |
+| ≤10 | ≤15 | **Signature + docstring**: low complexity, strip body | Appendix A.1: "Low complexity functions: Signature + docstring only" |
+| >10 | >15 | **Full body**: high complexity = important logic, keep it | Appendix A.1: "High complexity functions: Keep full body" |
+| Any | Any (test files) | **Signature only**: test names matter, bodies don't | Appendix A.2: test files strategy |
 
 ### Parameter Addition to `condense_extract_surface`
 
@@ -104,9 +104,9 @@ async def extract_surface_impl(
 
 ## 3. Per-File-Type Routing in `condense_pack`
 
-**Source:** [pipeline doc](~/reports/code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md) Section 3c (Makefile strategies)
+**Source:** [pipeline doc](./code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md) Section 3c (Makefile strategies)
 
-CODE-CONDENSE-PREP Section 7 describes polyglot strategy selection but the `condense_pack` tool definition does not expose file-type routing. This section formalizes it.
+Appendix A.2 (polyglot pipeline strategy) describes polyglot strategy selection but the `condense_pack` tool definition does not expose file-type routing. This section formalizes it.
 
 ### File-Type Strategy Map
 
@@ -152,7 +152,7 @@ class CondenseFileRouting:
 
 ## 4. Archival Pipeline Options (Downstream)
 
-**Source:** [pipeline doc](~/reports/code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md) Section 3a, [PPM doc](~/reports/code-condense-whitepaper/prediction-by-partial-matching.md)
+**Source:** [pipeline doc](./code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md) Section 3a, [PPM doc](./code-condense-whitepaper/prediction-by-partial-matching.md)
 
 These are downstream of ast-grep-mcp's semantic extraction but relevant for users building full pipelines.
 
@@ -184,13 +184,13 @@ Cold archive: ast-grep-mcp condense → repomix pack → PPMd via 7z  (93-95% re
 
 Add to `condense_pack` tool description:
 
-> The condensed output is optimized for downstream compression. For active AI consumption, pipe through `zstd -9`. For archival, use `7z a -m0=PPMd -mx=9`. See the [code-condense-whitepaper](~/reports/code-condense-whitepaper/) for pipeline benchmarks.
+> The condensed output is optimized for downstream compression. For active AI consumption, pipe through `zstd -9`. For archival, use `7z a -m0=PPMd -mx=9`. See the [code-condense-whitepaper](./code-condense-whitepaper/) for pipeline benchmarks.
 
 ---
 
 ## 5. ast-grep-mcp's Differentiator vs. Repomix
 
-**Source:** [repomix cheat sheet](~/reports/code-condense-whitepaper/repomix-command-line-cheat-sheet.md) Section "Is --compress Lossless?"
+**Source:** [repomix cheat sheet](./code-condense-whitepaper/repomix-command-line-cheat-sheet.md) Section "Is --compress Lossless?"
 
 Repomix `--compress` is all-or-nothing:
 - No per-function granularity
@@ -214,7 +214,7 @@ This surgical precision is the core value proposition. Repomix treats all code u
 
 ## 6. Updated Implementation Order
 
-Extends CODE-CONDENSE-PREP Section 10 with Phase 2 additions:
+Extends the Phase 1 implementation order (Appendix A.3) with Phase 2 additions:
 
 | Phase | Work | New in Phase 2 |
 |---|---|---|
@@ -232,8 +232,51 @@ Extends CODE-CONDENSE-PREP Section 10 with Phase 2 additions:
 
 ## References
 
-- [CODE-CONDENSE-PREP.md](CODE-CONDENSE-PREP.md) — Phase 1 implementation plan
-- [Repomix-to-Condense Pipeline](~/reports/code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md) — Core whitepaper
-- [Repomix CLI Cheat Sheet](~/reports/code-condense-whitepaper/repomix-command-line-cheat-sheet.md) — Repomix limitations
-- [Zstandard Condense Report](~/reports/code-condense-whitepaper/zstd-condense-report.md) — Dictionary training, benchmarks
-- [Prediction by Partial Matching](~/reports/code-condense-whitepaper/prediction-by-partial-matching.md) — PPMd archival option
+- [Appendix A](#appendix-a-phase-1-reference-excerpts) — Phase 1 reference excerpts (folded in from retired `CODE-CONDENSE-PREP.md`)
+- [Repomix-to-Condense Pipeline](./code-condense-whitepaper/repomix_to_condense_with_additional_integrations.md) — Core whitepaper
+- [Repomix CLI Cheat Sheet](./code-condense-whitepaper/repomix-command-line-cheat-sheet.md) — Repomix limitations
+- [Zstandard Condense Report](./code-condense-whitepaper/zstd-condense-report.md) — Dictionary training, benchmarks
+- [Prediction by Partial Matching](./code-condense-whitepaper/prediction-by-partial-matching.md) — PPMd archival option
+
+---
+
+## Appendix A: Phase 1 Reference Excerpts
+
+> Folded in from the retired `CODE-CONDENSE-PREP.md` (deleted in commit `8dca38e`). Only the sections referenced elsewhere in this document are preserved; the remainder of the Phase 1 plan is obsolete.
+
+### A.1 Complexity-Guided Extraction (formerly PREP Section 6b)
+
+Use `features/complexity/complexity_analyzer.py` to decide extraction depth:
+
+- **High complexity functions:** Keep full body (complex = important)
+- **Low complexity functions:** Signature + docstring only
+- **Trivial functions (≤3 lines):** Inline the body
+
+### A.2 Polyglot Pipeline Strategy (formerly PREP Section 7)
+
+Per-file-type strategy selection (see also Section 3 above for the expanded Phase 2 routing table):
+
+| File Type | Strategy | Reason |
+|---|---|---|
+| Code (.ts, .py, .rs, .go) | `condense_pack` with `ai_chat` | AST extraction removes 70%+ |
+| Config (.json, .yaml, .toml) | Pass-through (no AST extraction) | Structure must be preserved |
+| Text (.md, .txt) | Strip empty lines only | Natural language, minimal reduction |
+| Test files | `condense_extract_surface` | Keep test names/structure, strip bodies |
+| Generated files | Exclude entirely | Regenerable from source |
+
+Implementation: `strategies.py` selects per-file strategy based on language and path patterns.
+
+### A.3 Phase 1 Implementation Order (formerly PREP Section 10)
+
+| Phase | Work | Dependencies | Est. Files |
+|---|---|---|---|
+| **P1** | Constants + models + estimator | None | 3 |
+| **P2** | Surface extraction (per-language patterns) | P1 | 2 |
+| **P3** | Normalizer (rewrite transforms) | P1 | 1 |
+| **P4** | Strip (dead code removal) | P1 | 1 |
+| **P5** | Pack pipeline (orchestration) | P2, P3, P4 | 1 |
+| **P6** | Tool registration + MCP integration | P5 | 2 |
+| **P7** | Tests (unit + integration) | P6 | 8 |
+| **P8** | Polyglot strategy refinement | P7 | 1 |
+
+Total new files: ~19 (6 source + 1 model + 1 constants update + ~8 test files + 3 supporting).
