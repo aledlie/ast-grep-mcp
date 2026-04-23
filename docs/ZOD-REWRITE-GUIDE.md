@@ -26,6 +26,17 @@ uv run main.py rewrite_code \
   --dry_run false
 ```
 
+### Using the MCP Tools
+
+```
+# List available Zod rules (category: 'schema', 'import', or 'all')
+list_zod_rewrite_rules(category="all")
+
+# Fetch a specific rule and apply it
+rule = get_zod_rewrite_rule(rule_id="no-any-schema")
+rewrite_code(project_folder="/path/to/project", yaml_rule=rule["yaml_rule"], dry_run=True)
+```
+
 ### Using Templates from Code
 
 ```python
