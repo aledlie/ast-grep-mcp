@@ -16,7 +16,7 @@ doppler run -- uv run main.py    # Run with Doppler secrets
 
 Modular MCP server (125 modules) with ast-grep structural code search, Schema.org tools, refactoring, deduplication, quality, documentation generation, and semantic code condensation.
 
-**55 Tools:** Search (9), Rewrite (3), Refactoring (2), Deduplication (4), Schema.org (11), Complexity (3), Quality (7), Documentation (5), Cross-Language (5), Condense (6)
+**55 Tools:** Search (9), Rewrite (3), Refactoring (2), Deduplication (6), Schema.org (11), Complexity (3), Quality (7), Documentation (5), Cross-Language (5), Condense (6)
 
 **Deps:** ast-grep CLI (required), Doppler CLI (optional), Python 3.13+, uv
 
@@ -53,6 +53,8 @@ uv run pytest tests/quality/test_complexity_regression.py -v
 
 **Environment:** `AST_GREP_CONFIG`, `LOG_LEVEL`, `SENTRY_DSN`, `CACHE_DISABLED`/`CACHE_SIZE`/`CACHE_TTL`
 
+Config loads via **pydantic-settings** — env vars are auto-read and type-coerced on `AstGrepConfig` (`core/config.py`); no manual `os.getenv` needed.
+
 ## Tool Response Field Names
 
 When calling tools programmatically, use these field names (NOT `line`/`file_path`):
@@ -82,6 +84,7 @@ Exception: **search** tools use `_impl` functions — `from ast_grep_mcp.feature
 - **deduplication reporting** — `create_enhanced_duplication_response(candidates, include_diffs, include_colors)` is a method on `DuplicationReporter` in `deduplication.reporting`, not a module-level function.
 - **deduplication recommendations** — `generate_deduplication_recommendation(score, complexity, lines, has_tests, files)` is a method on `RecommendationEngine` in `deduplication.recommendations`, not a module-level function.
 - **DuplicationRanker parallelization** — pass `max_workers=N` to enable parallel candidate scoring (ThreadPoolExecutor); `max_workers=0` disables it. Default (`None`) uses ThreadPoolExecutor's default pool.
+- **calculate_ast_similarity** / **calculate_semantic_similarity** — import as `calculate_ast_similarity_tool` / `calculate_semantic_similarity_tool` from `deduplication.tools`. Accept two code strings + language; return `{"similarity_score": float, "method": str, ...}`. Semantic variant uses CodeBERT; AST variant is structural.
 
 See [docs/BACKLOG.md](docs/BACKLOG.md) for open items and deferred work.
 
