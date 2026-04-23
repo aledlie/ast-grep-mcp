@@ -14,7 +14,6 @@ Expected Results:
 
 import argparse
 import json
-import sys
 import time
 from pathlib import Path
 from typing import Callable, Dict, List
@@ -25,14 +24,9 @@ from ast_grep_mcp.constants import (
     ReportingDefaults,
     SemanticSimilarityDefaults,
 )
+from ast_grep_mcp.features.deduplication.analysis_orchestrator import DeduplicationAnalysisOrchestrator
+from ast_grep_mcp.features.deduplication.coverage import CoverageDetector
 from ast_grep_mcp.utils.console_logger import console
-
-# Add project root to path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-
-from ast_grep_mcp.features.deduplication.analysis_orchestrator import DeduplicationAnalysisOrchestrator  # noqa: E402
-from ast_grep_mcp.features.deduplication.coverage import CoverageDetector  # noqa: E402
 
 
 def create_test_candidates(file_count: int, files_per_candidate: int) -> List[Dict]:
@@ -73,6 +67,7 @@ def create_test_candidates(file_count: int, files_per_candidate: int) -> List[Di
 
 
 BENCHMARK_MAX_WORKERS = 4
+BENCHMARK_LANGUAGE = "python"
 
 
 def _run_timed_benchmark(
@@ -98,7 +93,7 @@ def benchmark_legacy_sequential(detector: CoverageDetector, candidates: List[Dic
         for candidate in cs:
             files = candidate.get("files", [])
             if files:
-                coverage_map = detector.get_test_coverage_for_files(files, "python", project_path)
+                coverage_map = detector.get_test_coverage_for_files(files, BENCHMARK_LANGUAGE, project_path)
                 candidate["test_coverage"] = coverage_map
                 candidate["has_tests"] = any(coverage_map.values())
 
@@ -110,7 +105,7 @@ def benchmark_legacy_parallel(orchestrator: DeduplicationAnalysisOrchestrator, c
     return _run_timed_benchmark(
         "legacy_parallel",
         candidates,
-        lambda cs: orchestrator._add_test_coverage(cs, "python", project_path, parallel=True, max_workers=BENCHMARK_MAX_WORKERS),
+        lambda cs: orchestrator._add_test_coverage(cs, BENCHMARK_LANGUAGE, project_path, parallel=True, max_workers=BENCHMARK_MAX_WORKERS),
     )
 
 
@@ -119,7 +114,7 @@ def benchmark_batch_sequential(orchestrator: DeduplicationAnalysisOrchestrator, 
     return _run_timed_benchmark(
         "batch_sequential",
         candidates,
-        lambda cs: orchestrator._add_test_coverage_batch(cs, "python", project_path, parallel=False),
+        lambda cs: orchestrator._add_test_coverage_batch(cs, BENCHMARK_LANGUAGE, project_path, parallel=False),
     )
 
 
@@ -128,7 +123,9 @@ def benchmark_batch_parallel(orchestrator: DeduplicationAnalysisOrchestrator, ca
     return _run_timed_benchmark(
         "batch_parallel",
         candidates,
-        lambda cs: orchestrator._add_test_coverage_batch(cs, "python", project_path, parallel=True, max_workers=BENCHMARK_MAX_WORKERS),
+        lambda cs: orchestrator._add_test_coverage_batch(
+            cs, BENCHMARK_LANGUAGE, project_path, parallel=True, max_workers=BENCHMARK_MAX_WORKERS
+        ),
     )
 
 
@@ -192,7 +189,7 @@ def run_benchmark_suite(file_count: int, files_per_candidate: int, project_path:
     return results
 
 
-def main():
+def main() -> None:
     """Main benchmark runner."""
     parser = argparse.ArgumentParser(description="Benchmark batch test coverage detection performance")
     parser.add_argument("--file-count", type=int, default=50, help="Number of unique files to test (default: 50)")
