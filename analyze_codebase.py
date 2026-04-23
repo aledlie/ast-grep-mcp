@@ -25,7 +25,7 @@ from ast_grep_mcp.constants import DeduplicationDefaults, FilePatterns, Formatti
 from ast_grep_mcp.features.complexity.analyzer import analyze_file_complexity
 from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool, detect_code_smells_tool
 from ast_grep_mcp.features.deduplication.scoring_scales import AnalyzeCodebaseTopN
-from ast_grep_mcp.features.deduplication.tools import analyze_deduplication_candidates_tool, find_duplication_tool
+from ast_grep_mcp.features.deduplication.tools import analyze_deduplication_candidates_tool
 from ast_grep_mcp.features.quality.security_scanner import detect_security_issues_impl
 from ast_grep_mcp.features.quality.tools import apply_standards_fixes_tool, enforce_standards_tool, generate_quality_report_tool
 from ast_grep_mcp.models.complexity import ComplexityThresholds, FunctionComplexity
@@ -77,15 +77,7 @@ def _discover_source_files(project_folder: str, language: str) -> list[Path]:
     folder = Path(project_folder)
     if not folder.is_dir():
         return []
-    # Derive dir names from glob patterns like "**/node_modules/**" -> "node_modules"
-    exclude_dirs = {p.strip("**/") for p in FilePatterns.DEFAULT_EXCLUDE}
-    # Derive suffixes from glob patterns like "**/*.min.js" -> ".min.js"
-    exclude_suffixes = {p.removeprefix("**/").removeprefix("*") for p in FilePatterns.MINIFIED_EXCLUDE}
-    return [
-        f
-        for f in sorted(folder.rglob(f"*.{ext}"))
-        if not any(part in exclude_dirs for part in f.parts) and not any(str(f).endswith(s) for s in exclude_suffixes)
-    ]
+    return [f for f in sorted(folder.rglob(f"*.{ext}")) if not any(f.match(p) for p in EXCLUDE_PATTERNS)]
 
 
 def analyze_individual_files(project_folder: str, language: str) -> None:
@@ -148,20 +140,18 @@ def analyze_project_complexity(project_folder: str, language: str) -> None:
             include_trends=False,
         )
 
-        if not result.get("success"):
-            out(f"Error: {result.get('error')}")
-            return
-
         summary = result.get("summary", {})
-        out(f"\nTotal functions analyzed: {summary.get('total_functions', 0)}")
-        out(f"Functions exceeding thresholds: {summary.get('exceeding_thresholds', 0)}")
-        out(f"Percentage over threshold: {summary.get('percentage_exceeding', 0):.1f}%")
-        out(f"\nAverage cyclomatic complexity: {summary.get('average_cyclomatic', 0):.2f}")
-        out(f"Average cognitive complexity: {summary.get('average_cognitive', 0):.2f}")
-        out(f"Average nesting depth: {summary.get('average_nesting', 0):.2f}")
-        out(f"Average function length: {summary.get('average_length', 0):.1f} lines")
+        total_functions = summary.get("total_functions", 0)
+        exceeding_count = summary.get("exceeding_threshold", 0)
+        pct = (exceeding_count / total_functions * 100) if total_functions else 0
+        out(f"\nTotal functions analyzed: {total_functions}")
+        out(f"Functions exceeding thresholds: {exceeding_count}")
+        out(f"Percentage over threshold: {pct:.1f}%")
+        out(f"\nAverage cyclomatic complexity: {summary.get('avg_cyclomatic', 0):.2f}")
+        out(f"Average cognitive complexity: {summary.get('avg_cognitive', 0):.2f}")
+        out(f"Max nesting depth: {summary.get('max_nesting', 0)}")
 
-        exceeding = result.get("exceeding_functions", [])
+        exceeding = result.get("functions", [])
         if not exceeding:
             return
 
@@ -173,7 +163,7 @@ def analyze_project_complexity(project_folder: str, language: str) -> None:
             ),
             1,
         ):
-            out(f"  {i}. {func['file']}:{func['name']} (line {func['start_line']})")
+            out(f"  {i}. {func['file']}:{func['name']} (lines {func['lines']})")
             out(
                 f"     Cyclomatic: {func['cyclomatic']}, Cognitive: {func['cognitive']}, "
                 f"Nesting: {func['nesting_depth']}, Lines: {func['length']}"
@@ -194,14 +184,9 @@ def detect_code_smells(project_folder: str, language: str) -> None:
             exclude_patterns=EXCLUDE_PATTERNS,
         )
 
-        if not result.get("success"):
-            out(f"Error: {result.get('error')}")
-            return
-
         summary = result.get("summary", {})
-        out(f"\nTotal files analyzed: {summary.get('total_files', 0)}")
-        out(f"Files with smells: {summary.get('files_with_smells', 0)}")
-        out(f"Total smells found: {summary.get('total_smells', 0)}")
+        out(f"\nTotal files analyzed: {result.get('files_analyzed', 0)}")
+        out(f"Total smells found: {result.get('total_smells', 0)}")
 
         by_severity = summary.get("by_severity", {})
         out("\nBy severity:")
@@ -265,18 +250,6 @@ def analyze_duplication(project_folder: str, language: str) -> None:
     print_section("PHASE 5: Code Duplication Analysis")
 
     try:
-        find_result = find_duplication_tool(
-            project_folder=project_folder,
-            language=language,
-            min_similarity=DeduplicationDefaults.MIN_SIMILARITY,
-            min_lines=DUPLICATION_MIN_LINES,
-            exclude_patterns=EXCLUDE_PATTERNS,
-        )
-
-        if not find_result.get("groups"):
-            out("\nNo duplication groups found.")
-            return
-
         result = analyze_deduplication_candidates_tool(
             project_path=project_folder,
             language=language,
@@ -285,33 +258,27 @@ def analyze_duplication(project_folder: str, language: str) -> None:
             exclude_patterns=EXCLUDE_PATTERNS,
         )
 
-        if not result.get("success"):
-            out(f"Error: {result.get('error')}")
+        total_groups = result.get("total_groups_analyzed", 0)
+        candidates = result.get("candidates", [])
+        out(f"\nDuplication groups analyzed: {total_groups}")
+        out(f"Top candidates: {result.get('top_candidates_count', len(candidates))}")
+        out(f"Estimated LOC savings (top candidates): {result.get('top_candidates_savings_potential', 0)}")
+
+        if not candidates:
+            out("\nNo duplication candidates found.")
             return
 
-        summary = result.get("summary", {})
-        out(f"\nTotal files analyzed: {summary.get('total_files', 0)}")
-        out(f"Duplication groups found: {summary.get('total_groups', 0)}")
-        out(f"Total duplicated instances: {summary.get('total_instances', 0)}")
-
-        if summary.get("total_groups", 0) > 0:
-            out(f"Average group size: {summary.get('average_group_size', 0):.1f} instances")
-            out(f"Average similarity: {summary.get('average_similarity', 0):.1%}")
-            out(f"Estimated LOC savings: {summary.get('estimated_loc_savings', 0)}")
-
-        dedup_groups = result.get("groups", [])
-        if not dedup_groups:
-            return
-
-        out(f"\nTop {SemanticVolumeDefaults.TOP_RESULTS_LIMIT} duplication groups by potential savings:")
-        for i, group in enumerate(dedup_groups[: SemanticVolumeDefaults.TOP_RESULTS_LIMIT], 1):
-            out(f"  {i}. Group with {group.get('instance_count', 0)} instances ({group.get('similarity', 0):.1%} similar)")
-            out(f"     Potential LOC savings: {group.get('potential_loc_savings', 0)} lines")
+        top_limit = SemanticVolumeDefaults.TOP_RESULTS_LIMIT
+        out(f"\nTop {top_limit} duplication candidates by potential savings:")
+        for i, group in enumerate(candidates[:top_limit], 1):
             instances = group.get("instances", [])
+            similarity = group.get("similarity_score", group.get("similarity", 0))
+            out(f"  {i}. Group with {len(instances)} instances ({similarity:.1%} similar)")
+            out(f"     Potential LOC savings: {group.get('potential_line_savings', 0)} lines")
             if instances:
                 out("     Locations:")
                 for inst in take_top_n(instances, AnalyzeCodebaseTopN.DUPLICATION_LOCATION_PREVIEW):
-                    out(f"       - {inst.get('file', 'unknown')}:{inst.get('start_line', '?')}")
+                    out(f"       - {inst.get('file', 'unknown')}:{inst.get('lines', '?')}")
     except Exception as e:
         _report_phase_exception("duplication analysis", e)
 
@@ -347,19 +314,16 @@ def generate_summary_report(project_folder: str, language: str, apply_fixes: boo
             save_to_file="QUALITY_REPORT.md",
         )
 
-        if not result.get("success"):
-            out(f"Error: {result.get('error')}")
-        else:
-            out("\nQuality report generated successfully!")
-            report_path = result.get("file_path")
-            if report_path:
-                out(f"Report saved to: {report_path}")
+        out("\nQuality report generated successfully!")
+        report_path = result.get("saved_to")
+        if report_path:
+            out(f"Report saved to: {report_path}")
 
-            report_content = result.get("report", "")
-            if report_content:
-                out("\nReport Summary:")
-                for line in _iter_summary_section(report_content, SemanticVolumeDefaults.SUMMARY_PREVIEW_LIMIT):
-                    out(line)
+        report_content = result.get("content", "")
+        if isinstance(report_content, str) and report_content:
+            out("\nReport Summary:")
+            for line in _iter_summary_section(report_content, SemanticVolumeDefaults.SUMMARY_PREVIEW_LIMIT):
+                out(line)
 
         if apply_fixes:
             _apply_fixes(enforcement_result, language, project_folder=project_folder)
@@ -482,12 +446,11 @@ def _apply_fixes(enforcement_result: dict[str, Any], language: str, project_fold
             create_backup=True,
         )
 
-        summary = dry_result.get("summary", {})
-        fixable = summary.get("total_violations", 0)
-        safe_count = sum(1 for r in dry_result.get("results", []) if r.get("fix_type") == "safe")
-        out(f"\nDry run: {safe_count} of {fixable} violations can be auto-fixed (safe fixes only)")
+        dry_summary = dry_result.get("summary", {})
+        fixable = dry_summary.get("fixes_successful", 0)
+        out(f"\nDry run: {fixable} of {dry_summary.get('total_violations', 0)} violations can be auto-fixed (safe fixes only)")
 
-        if safe_count == 0:
+        if fixable == 0:
             out("No auto-fixable violations found.")
             return
 

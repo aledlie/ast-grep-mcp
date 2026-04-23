@@ -1041,10 +1041,6 @@ class EnhancedStructureHash:
             LogBucketThresholds.MAX_BUCKET,
         )
 
-    def _extract_tokens(self, code: str) -> List[str]:
-        """Extract meaningful tokens from code (legacy method)."""
-        return re.findall(r"[a-zA-Z_][a-zA-Z0-9_]*", code.lower())
-
     def create_buckets(
         self,
         code_items: List[Tuple[str, str]],

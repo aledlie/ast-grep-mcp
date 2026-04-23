@@ -80,27 +80,6 @@ def extract_functions_from_file(file_path: str, language: str) -> List[Dict[str,
     return all_functions
 
 
-def _extract_classes_from_file(file_path: str, language: str) -> List[Dict[str, Any]]:
-    """Extract all classes from a file using ast-grep.
-
-    Args:
-        file_path: Path to source file
-        language: Programming language
-
-    Returns:
-        List of class info dicts with name, start_line, end_line, method_count
-    """
-    pattern = _get_class_extraction_pattern(language)
-
-    try:
-        matches = _execute_ast_grep_for_classes(file_path, language, pattern)
-        return _process_class_match_results(matches, language)
-    except Exception as e:
-        logger = get_logger("code_smell.extract_classes")
-        logger.warning("extract_classes_failed", file=file_path, error=str(e))
-        return []
-
-
 def _get_class_extraction_pattern(language: str) -> str:
     """Get the ast-grep pattern for class detection based on language.
 

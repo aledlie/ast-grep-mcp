@@ -206,29 +206,6 @@ def _apply_patterns(
     return result, applied
 
 
-_TYPE_HINT_PATTERNS: Dict[str, str] = {
-    "python": r"(\w+):\s*(\w+(?:\[[\w,\s]+\])?)",
-    "typescript": r"(\w+):\s*(\w+(?:<[\w,\s]+>)?)",
-    "java": r"(\w+):\s*(\w+(?:<[\w,\s]+>)?)",
-}
-
-
-def _extract_type_hints(code: str, language: str) -> List[Tuple[str, str]]:
-    """Extract type hints from code.
-
-    Args:
-        code: Source code
-        language: Source language
-
-    Returns:
-        List of (variable, type) tuples
-    """
-    pattern = _TYPE_HINT_PATTERNS.get(language)
-    if pattern is None:
-        return []
-    return [(m.group(RegexCaptureGroups.FIRST), m.group(RegexCaptureGroups.SECOND)) for m in re.finditer(pattern, code)]
-
-
 def _try_replace_type(result: str, source_type: str, target_type: str) -> Tuple[str, bool]:
     pattern = rf"\b{re.escape(source_type)}\b"
     if re.search(pattern, result):

@@ -345,16 +345,6 @@ class CodeGenerator:
         parameters.extend(self._collect_external_params(base_code, seen_names))
         return parameters
 
-    def _format_python_parameters(self, parameters: List[Dict[str, str]]) -> str:
-        """Format parameters for Python function signature."""
-        formatted = []
-        for param in parameters:
-            if "type" in param and param["type"]:
-                formatted.append(f"{param['name']}: {param['type']}")
-            else:
-                formatted.append(param["name"])
-        return ", ".join(formatted)
-
     def _get_python_number_type(self, value: str, lang_config: Dict[str, Any]) -> Optional[str]:
         """Get Python-specific number type (int vs float)."""
         if "." not in value:

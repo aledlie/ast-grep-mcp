@@ -1543,12 +1543,6 @@ def _generate_generalized_pattern(code: str, identifiers: List[str], literals: L
     return pattern
 
 
-def _generate_structural_pattern(root_kind: str, language: str) -> str:
-    """Generate a pattern based on node kind (for YAML rules)."""
-    # This is guidance for using kind-based matching
-    return f"kind: {root_kind}  # Use in YAML rule"
-
-
 def _exact_confidence(analysis: CodeAnalysis) -> float:
     """Return confidence level for exact pattern based on code complexity."""
     if analysis.complexity == "simple":

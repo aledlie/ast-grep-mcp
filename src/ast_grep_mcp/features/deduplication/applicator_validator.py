@@ -106,27 +106,6 @@ class RefactoringPlanValidator:
             }
         return None
 
-    def _validate_files_exist(self, plan: Dict[str, Any], project_folder: str) -> List[Dict[str, Any]]:
-        """Verify all affected files exist.
-
-        Args:
-            plan: Refactoring plan
-            project_folder: Project root folder
-
-        Returns:
-            List of error dictionaries
-        """
-        errors = []
-        for file_info in plan.get("files_affected", []):
-            file_path = file_info if isinstance(file_info, str) else file_info.get("file", "")
-            if not file_path:
-                continue
-            full_path = self._resolve_file_path(file_path, project_folder)
-            error = self._check_file_error(file_path, full_path)
-            if error:
-                errors.append(error)
-        return errors
-
     def _check_extracted_function(self, code: str, language: str) -> List[Dict[str, Any]]:
         if not code:
             return []
