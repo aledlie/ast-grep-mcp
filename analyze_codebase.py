@@ -10,6 +10,7 @@ This script analyzes the ast-grep-mcp codebase for:
 """
 
 import argparse
+import re
 import subprocess
 import sys
 import traceback
@@ -419,11 +420,14 @@ def _run_tsc_check(project_folder: str) -> bool:
         return True
 
 
+_CLI_ENTRY_POINT_RE = re.compile(r'\bif\s+__name__\s*==\s*["\']__main__["\']')
+
+
 def _is_cli_entry_point(file_path: str) -> bool:
     """Check if a file is a CLI entry point (has if __name__ == '__main__')."""
     try:
-        content = Path(file_path).read_text(encoding="utf-8")
-        return "__name__" in content and ("'__main__'" in content or '"__main__"' in content)
+        with open(file_path, encoding="utf-8") as f:
+            return bool(_CLI_ENTRY_POINT_RE.search(f.read()))
     except (OSError, UnicodeDecodeError):
         return False
 

@@ -13,6 +13,8 @@ import re
 from pathlib import Path
 from typing import List, Tuple
 
+from migration_common import iter_migration_targets
+
 from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.features.deduplication.scoring_scales import PrintMigrationTopN
 from ast_grep_mcp.utils.console_logger import console
@@ -161,18 +163,16 @@ def migrate_directory(dir_path: Path, pattern: str = "**/*.py", dry_run: bool = 
     """
     results = {"total_files": 0, "modified_files": 0, "total_migrations": 0, "files": {}}
 
-    for file_path in sorted(dir_path.glob(pattern)):
-        if file_path.is_file() and "__pycache__" not in str(file_path):
-            results["total_files"] += 1
-            migrations, changes = migrate_file(file_path, dry_run=dry_run)
-
-            if migrations > 0:
-                results["modified_files"] += 1
-                results["total_migrations"] += migrations
-                results["files"][str(file_path)] = {
-                    "migrations": migrations,
-                    "changes": take_top_n(changes, PrintMigrationTopN.MIGRATION_CHANGES_SUMMARY),
-                }
+    for file_path in iter_migration_targets(dir_path, pattern, sort=True):
+        results["total_files"] += 1
+        migrations, changes = migrate_file(file_path, dry_run=dry_run)
+        if migrations > 0:
+            results["modified_files"] += 1
+            results["total_migrations"] += migrations
+            results["files"][str(file_path)] = {
+                "migrations": migrations,
+                "changes": take_top_n(changes, PrintMigrationTopN.MIGRATION_CHANGES_SUMMARY),
+            }
 
     return results
 

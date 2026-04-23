@@ -25,6 +25,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+from migration_common import iter_migration_targets
+
 from ast_grep_mcp.constants import FormattingDefaults, SemanticVolumeDefaults
 from ast_grep_mcp.utils.console_logger import console
 
@@ -319,16 +321,13 @@ class PrintMigrator:
         """
         results = {"files_processed": 0, "files_modified": 0, "total_migrations": 0, "changes_by_file": {}}
 
-        for file_path in directory.glob(pattern):
-            if file_path.is_file():
-                results["files_processed"] += 1
-
-                count, changes = self.migrate_file(file_path)
-
-                if count > 0:
-                    results["files_modified"] += 1
-                    results["total_migrations"] += count
-                    results["changes_by_file"][str(file_path)] = {"migrations": count, "changes": changes}
+        for file_path in iter_migration_targets(directory, pattern, skip_pycache=False):
+            results["files_processed"] += 1
+            count, changes = self.migrate_file(file_path)
+            if count > 0:
+                results["files_modified"] += 1
+                results["total_migrations"] += count
+                results["changes_by_file"][str(file_path)] = {"migrations": count, "changes": changes}
 
         return results
 

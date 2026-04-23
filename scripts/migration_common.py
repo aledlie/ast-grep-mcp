@@ -1,7 +1,7 @@
 """Shared helpers/constants for migration-fix scripts."""
 
 from pathlib import Path
-from typing import List, Sequence, Tuple
+from typing import Iterator, List, Sequence, Tuple
 
 MIGRATION_ERROR_TEST_FILES = [
     "tests/unit/test_duplication.py",
@@ -34,6 +34,24 @@ def write_lines(file_path: Path, lines: Sequence[str]) -> None:
     """Write lines to file."""
     with open(file_path, "w", encoding="utf-8") as file_obj:
         file_obj.writelines(lines)
+
+
+def iter_migration_targets(
+    directory: Path,
+    pattern: str = "**/*.py",
+    skip_pycache: bool = True,
+    sort: bool = False,
+) -> Iterator[Path]:
+    """Yield files under `directory` matching `pattern`, optionally skipping __pycache__."""
+    paths = directory.glob(pattern)
+    if sort:
+        paths = sorted(paths)
+    for file_path in paths:
+        if not file_path.is_file():
+            continue
+        if skip_pycache and "__pycache__" in str(file_path):
+            continue
+        yield file_path
 
 
 def _normalize_ranges(ranges: Sequence[Tuple[int, int]]) -> List[Tuple[int, int]]:
