@@ -7,6 +7,8 @@ import sys
 import time
 from pathlib import Path
 
+from tool_result_recorder import record_tool_result
+
 # Ensure src is on path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
@@ -104,35 +106,7 @@ def _detect_target_info(target: str) -> dict:
 
 
 def record(name: str, result=None, error=None, skipped=None):
-    entry = {"tool": name}
-    if skipped:
-        entry["status"] = "SKIPPED"
-        entry["reason"] = skipped
-    elif error:
-        entry["status"] = "ERROR"
-        entry["error"] = str(error)[:500]
-    else:
-        entry["status"] = "OK"
-        if isinstance(result, dict):
-            # Summarize large dicts
-            entry["result_keys"] = list(result.keys())
-            for k, v in result.items():
-                if k == "status":
-                    continue  # Don't overwrite our OK/ERROR/SKIPPED status
-                if isinstance(v, (int, float, str, bool)):
-                    entry[k] = v
-                elif isinstance(v, list):
-                    entry[f"{k}_count"] = len(v)
-                elif isinstance(v, dict):
-                    entry[f"{k}_keys"] = list(v.keys())[:10]
-        elif isinstance(result, list):
-            entry["result_count"] = len(result)
-        elif isinstance(result, str):
-            entry["result_length"] = len(result)
-            entry["result_preview"] = result[:200]
-        else:
-            entry["result"] = str(result)[:300]
-    results[name] = entry
+    record_tool_result(results, name, result=result, error=error, skipped=skipped)
 
 
 def run_sync_tools():

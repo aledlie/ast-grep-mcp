@@ -8,6 +8,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+from tool_result_recorder import record_tool_result  # noqa: E402
+
 TARGET = sys.argv[1] if len(sys.argv) > 1 else str(Path.home() / "code" / "jobs")
 LANG = sys.argv[2] if len(sys.argv) > 2 else "typescript"
 
@@ -15,31 +17,15 @@ results: dict[str, dict] = {}
 
 
 def record(name, result=None, error=None, skipped=None):
-    entry = {"tool": name}
-    if skipped:
-        entry["status"] = "SKIPPED"
-        entry["reason"] = skipped
-    elif error:
-        entry["status"] = "ERROR"
-        entry["error"] = str(error)[:500]
-    else:
-        entry["status"] = "OK"
-        if isinstance(result, dict):
-            entry["result_keys"] = list(result.keys())
-            for k, v in result.items():
-                if k == "status":
-                    continue
-                if isinstance(v, (int, float, str, bool)):
-                    entry[k] = v
-                elif isinstance(v, list):
-                    entry[f"{k}_count"] = len(v)
-                elif isinstance(v, dict):
-                    entry[f"{k}_keys"] = list(v.keys())[:10]
-        elif isinstance(result, list):
-            entry["result_count"] = len(result)
-        elif isinstance(result, str):
-            entry["result_length"] = len(result)
-    results[name] = entry
+    record_tool_result(
+        results,
+        name,
+        result=result,
+        error=error,
+        skipped=skipped,
+        include_string_preview=False,
+        include_other_fallback=False,
+    )
 
 
 def main():

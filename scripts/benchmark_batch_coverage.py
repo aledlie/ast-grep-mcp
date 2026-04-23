@@ -17,7 +17,7 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List
+from typing import Callable, Dict, List
 
 from ast_grep_mcp.constants import (
     BenchmarkExpectationDefaults,
@@ -72,73 +72,64 @@ def create_test_candidates(file_count: int, files_per_candidate: int) -> List[Di
     return candidates
 
 
-def benchmark_legacy_sequential(detector: CoverageDetector, candidates: List[Dict], project_path: str) -> Dict:
-    """Benchmark legacy sequential test coverage detection."""
+BENCHMARK_MAX_WORKERS = 4
+
+
+def _run_timed_benchmark(
+    method: str,
+    candidates: List[Dict],
+    action: Callable[[List[Dict]], None],
+) -> Dict:
+    """Time `action(candidates)` and return the standard benchmark result envelope."""
     start = time.perf_counter()
-
-    for candidate in candidates:
-        files = candidate.get("files", [])
-        if files:
-            coverage_map = detector.get_test_coverage_for_files(files, "python", project_path)
-            candidate["test_coverage"] = coverage_map
-            candidate["has_tests"] = any(coverage_map.values())
-
+    action(candidates)
     elapsed = time.perf_counter() - start
-
     return {
-        "method": "legacy_sequential",
+        "method": method,
         "elapsed_seconds": elapsed,
         "candidates": len(candidates),
         "total_files": sum(len(c.get("files", [])) for c in candidates),
     }
+
+
+def benchmark_legacy_sequential(detector: CoverageDetector, candidates: List[Dict], project_path: str) -> Dict:
+    """Benchmark legacy sequential test coverage detection."""
+    def action(cs: List[Dict]) -> None:
+        for candidate in cs:
+            files = candidate.get("files", [])
+            if files:
+                coverage_map = detector.get_test_coverage_for_files(files, "python", project_path)
+                candidate["test_coverage"] = coverage_map
+                candidate["has_tests"] = any(coverage_map.values())
+
+    return _run_timed_benchmark("legacy_sequential", candidates, action)
 
 
 def benchmark_legacy_parallel(orchestrator: DeduplicationAnalysisOrchestrator, candidates: List[Dict], project_path: str) -> Dict:
     """Benchmark legacy parallel test coverage detection."""
-    start = time.perf_counter()
-
-    orchestrator._add_test_coverage(candidates, "python", project_path, parallel=True, max_workers=4)
-
-    elapsed = time.perf_counter() - start
-
-    return {
-        "method": "legacy_parallel",
-        "elapsed_seconds": elapsed,
-        "candidates": len(candidates),
-        "total_files": sum(len(c.get("files", [])) for c in candidates),
-    }
+    return _run_timed_benchmark(
+        "legacy_parallel",
+        candidates,
+        lambda cs: orchestrator._add_test_coverage(cs, "python", project_path, parallel=True, max_workers=BENCHMARK_MAX_WORKERS),
+    )
 
 
 def benchmark_batch_sequential(orchestrator: DeduplicationAnalysisOrchestrator, candidates: List[Dict], project_path: str) -> Dict:
     """Benchmark optimized batch sequential detection."""
-    start = time.perf_counter()
-
-    orchestrator._add_test_coverage_batch(candidates, "python", project_path, parallel=False)
-
-    elapsed = time.perf_counter() - start
-
-    return {
-        "method": "batch_sequential",
-        "elapsed_seconds": elapsed,
-        "candidates": len(candidates),
-        "total_files": sum(len(c.get("files", [])) for c in candidates),
-    }
+    return _run_timed_benchmark(
+        "batch_sequential",
+        candidates,
+        lambda cs: orchestrator._add_test_coverage_batch(cs, "python", project_path, parallel=False),
+    )
 
 
 def benchmark_batch_parallel(orchestrator: DeduplicationAnalysisOrchestrator, candidates: List[Dict], project_path: str) -> Dict:
     """Benchmark optimized batch parallel detection."""
-    start = time.perf_counter()
-
-    orchestrator._add_test_coverage_batch(candidates, "python", project_path, parallel=True, max_workers=4)
-
-    elapsed = time.perf_counter() - start
-
-    return {
-        "method": "batch_parallel",
-        "elapsed_seconds": elapsed,
-        "candidates": len(candidates),
-        "total_files": sum(len(c.get("files", [])) for c in candidates),
-    }
+    return _run_timed_benchmark(
+        "batch_parallel",
+        candidates,
+        lambda cs: orchestrator._add_test_coverage_batch(cs, "python", project_path, parallel=True, max_workers=BENCHMARK_MAX_WORKERS),
+    )
 
 
 def run_benchmark_suite(file_count: int, files_per_candidate: int, project_path: str) -> Dict:
@@ -164,33 +155,19 @@ def run_benchmark_suite(file_count: int, files_per_candidate: int, project_path:
         "benchmarks": [],
     }
 
-    # Test 1: Legacy Sequential
-    console.log("1. Testing legacy sequential method...")
-    candidates = create_test_candidates(file_count, files_per_candidate)
-    result = benchmark_legacy_sequential(detector, candidates, project_path)
-    results["benchmarks"].append(result)
-    console.log(f"   Time: {result['elapsed_seconds']:.3f}s")
+    benchmark_plan = [
+        ("legacy sequential", benchmark_legacy_sequential, detector),
+        ("legacy parallel", benchmark_legacy_parallel, orchestrator),
+        ("batch sequential", benchmark_batch_sequential, orchestrator),
+        ("batch parallel", benchmark_batch_parallel, orchestrator),
+    ]
 
-    # Test 2: Legacy Parallel
-    console.log("2. Testing legacy parallel method...")
-    candidates = create_test_candidates(file_count, files_per_candidate)
-    result = benchmark_legacy_parallel(orchestrator, candidates, project_path)
-    results["benchmarks"].append(result)
-    console.log(f"   Time: {result['elapsed_seconds']:.3f}s")
-
-    # Test 3: Batch Sequential
-    console.log("3. Testing batch sequential method...")
-    candidates = create_test_candidates(file_count, files_per_candidate)
-    result = benchmark_batch_sequential(orchestrator, candidates, project_path)
-    results["benchmarks"].append(result)
-    console.log(f"   Time: {result['elapsed_seconds']:.3f}s")
-
-    # Test 4: Batch Parallel
-    console.log("4. Testing batch parallel method...")
-    candidates = create_test_candidates(file_count, files_per_candidate)
-    result = benchmark_batch_parallel(orchestrator, candidates, project_path)
-    results["benchmarks"].append(result)
-    console.log(f"   Time: {result['elapsed_seconds']:.3f}s")
+    for idx, (label, run_benchmark, ctx) in enumerate(benchmark_plan, 1):
+        console.log(f"{idx}. Testing {label} method...")
+        candidates = create_test_candidates(file_count, files_per_candidate)
+        result = run_benchmark(ctx, candidates, project_path)
+        results["benchmarks"].append(result)
+        console.log(f"   Time: {result['elapsed_seconds']:.3f}s")
 
     # Calculate speedups
     baseline = results["benchmarks"][0]["elapsed_seconds"]

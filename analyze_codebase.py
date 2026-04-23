@@ -95,50 +95,41 @@ def analyze_individual_files(project_folder: str, language: str):
         out(f"\nNo {language} source files found in {project_folder}")
         return
 
-    # First pass: score each file by max cognitive complexity
     thresholds = ComplexityThresholds()
-    file_scores: list[tuple[str, int]] = []
+    file_functions: dict[str, list] = {}
     for f in source_files:
         try:
-            functions = analyze_file_complexity(str(f), language, thresholds)
-            max_cog = max((fn.metrics.cognitive for fn in functions), default=0)
-            file_scores.append((str(f), max_cog))
+            file_functions[str(f)] = analyze_file_complexity(str(f), language, thresholds)
         except Exception:
             continue
 
-    # Take the top N files by worst cognitive complexity
-    top_files = [
-        path
-        for path, _ in take_top_n(
-            sorted(file_scores, key=lambda x: x[1], reverse=True),
-            AnalyzeCodebaseTopN.TOP_FILES,
-        )
-    ]
+    ranked = sorted(
+        file_functions.items(),
+        key=lambda item: max((fn.metrics.cognitive for fn in item[1]), default=0),
+        reverse=True,
+    )
+    top_files = take_top_n(ranked, AnalyzeCodebaseTopN.TOP_FILES)
 
     out(f"\nAnalyzing top {len(top_files)} most complex files out of {len(source_files)} total:")
 
-    for file_path in top_files:
+    for file_path, functions in top_files:
         out(f"\n--- {file_path} ---")
-        try:
-            functions = analyze_file_complexity(file_path, language, thresholds)
-            critical = [f for f in functions if f.metrics.cyclomatic > thresholds.cyclomatic or f.metrics.cognitive > thresholds.cognitive]
+        critical = [f for f in functions if f.metrics.cyclomatic > thresholds.cyclomatic or f.metrics.cognitive > thresholds.cognitive]
 
-            out(f"Total functions: {len(functions)}")
-            out(f"Critical functions: {len(critical)}")
+        out(f"Total functions: {len(functions)}")
+        out(f"Critical functions: {len(critical)}")
 
-            if critical:
-                out("\nWorst offenders:")
-                for func in take_top_n(
-                    sorted(critical, key=lambda x: x.metrics.cognitive, reverse=True),
-                    AnalyzeCodebaseTopN.WORST_OFFENDERS,
-                ):
-                    out(f"  - {func.function_name} (line {func.start_line})")
-                    out(
-                        f"    Cyclomatic: {func.metrics.cyclomatic}, Cognitive: {func.metrics.cognitive}, "
-                        f"Nesting: {func.metrics.nesting_depth}, Lines: {func.metrics.lines}"
-                    )
-        except Exception as e:
-            out(f"  Exception: {e}")
+        if critical:
+            out("\nWorst offenders:")
+            for func in take_top_n(
+                sorted(critical, key=lambda x: x.metrics.cognitive, reverse=True),
+                AnalyzeCodebaseTopN.WORST_OFFENDERS,
+            ):
+                out(f"  - {func.function_name} (line {func.start_line})")
+                out(
+                    f"    Cyclomatic: {func.metrics.cyclomatic}, Cognitive: {func.metrics.cognitive}, "
+                    f"Nesting: {func.metrics.nesting_depth}, Lines: {func.metrics.lines}"
+                )
 
 
 def analyze_project_complexity(project_folder: str, language: str):
@@ -349,15 +340,20 @@ def _print_report_summary(result: dict) -> None:  # type: ignore[type-arg]
     report_content = result.get("report", "")
     if report_content:
         out("\nReport Summary:")
-        lines = report_content.split("\n")
-        in_summary = False
-        for line in lines[: SemanticVolumeDefaults.SUMMARY_PREVIEW_LIMIT]:
-            if "## Summary" in line or "## Executive Summary" in line:
-                in_summary = True
-            if in_summary:
-                out(line)
-                if line.startswith("##") and "Summary" not in line:
-                    break
+        for line in _iter_summary_section(report_content, SemanticVolumeDefaults.SUMMARY_PREVIEW_LIMIT):
+            out(line)
+
+
+def _iter_summary_section(report: str, limit: int):
+    """Yield lines of the Summary section, stopping at the next top-level header."""
+    in_summary = False
+    for line in report.split("\n")[:limit]:
+        if "## Summary" in line or "## Executive Summary" in line:
+            in_summary = True
+        elif in_summary and line.startswith("##"):
+            return
+        if in_summary:
+            yield line
 
 
 def generate_summary_report(project_folder: str, language: str, apply_fixes: bool = False):
