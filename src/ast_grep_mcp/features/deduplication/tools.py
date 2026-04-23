@@ -15,6 +15,11 @@ from .analysis_orchestrator import DeduplicationAnalysisOrchestrator
 from .applicator import DeduplicationApplicator
 from .benchmark import DeduplicationBenchmark
 from .detector import DuplicationDetector
+from .similarity import (
+    HybridSimilarity,
+    SemanticSimilarity,
+    SemanticSimilarityConfig,
+)
 
 
 def find_duplication_tool(
@@ -166,6 +171,60 @@ def benchmark_deduplication_tool(iterations: int = 10, save_baseline: bool = Fal
     return results
 
 
+def calculate_ast_similarity_tool(code1: str, code2: str) -> Dict[str, Any]:
+    """Score two code snippets purely on AST/structural similarity.
+
+    Uses HybridSimilarity's Stage 2 algorithm: SequenceMatcher on
+    normalized code (or Jaccard of structural keyword patterns for
+    snippets exceeding max_lines_for_full_ast).
+    """
+    logger = get_logger("deduplication.tool.ast_similarity")
+    hybrid = HybridSimilarity()
+    lines1 = len(code1.split("\n"))
+    lines2 = len(code2.split("\n"))
+    max_lines = hybrid.hybrid_config.max_lines_for_full_ast
+    method = "simplified_jaccard" if max(lines1, lines2) > max_lines else "sequence_matcher"
+    similarity = hybrid._calculate_ast_similarity(code1, code2)
+
+    logger.info("ast_similarity_complete", similarity=similarity, method=method)
+    return {
+        "similarity": similarity,
+        "method": method,
+        "code1_lines": lines1,
+        "code2_lines": lines2,
+    }
+
+
+def calculate_semantic_similarity_tool(
+    code1: str,
+    code2: str,
+    model_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Score two code snippets on CodeBERT semantic (embedding) similarity.
+
+    Requires optional deps: transformers + torch. Returns an error dict
+    if the deps are not installed.
+    """
+    logger = get_logger("deduplication.tool.semantic_similarity")
+
+    if not SemanticSimilarity.is_available():
+        return {
+            "error": "semantic_dependencies_missing",
+            "message": "CodeBERT semantic similarity requires `transformers` and `torch`. Install with `pip install transformers torch`.",
+        }
+
+    config = SemanticSimilarityConfig(model_name=model_name) if model_name else None
+    calculator = SemanticSimilarity(config=config)
+    result = calculator.calculate_similarity_detailed(code1, code2)
+
+    logger.info(
+        "semantic_similarity_complete",
+        similarity=result.similarity,
+        model=result.model_used,
+    )
+    return result.to_dict()
+
+
 def _register_find_duplication(mcp: FastMCP) -> None:
     from pydantic import Field
 
@@ -250,9 +309,36 @@ def _register_benchmark_deduplication(mcp: FastMCP) -> None:
         return benchmark_deduplication_tool(iterations=iterations, save_baseline=save_baseline, check_regression=check_regression)
 
 
+def _register_calculate_ast_similarity(mcp: FastMCP) -> None:
+    from pydantic import Field
+
+    @mcp.tool()
+    def calculate_ast_similarity(
+        code1: str = Field(description="First code snippet"),
+        code2: str = Field(description="Second code snippet"),
+    ) -> Dict[str, Any]:
+        """Score two code snippets purely on AST/structural similarity (Stage 2 only)."""
+        return calculate_ast_similarity_tool(code1=code1, code2=code2)
+
+
+def _register_calculate_semantic_similarity(mcp: FastMCP) -> None:
+    from pydantic import Field
+
+    @mcp.tool()
+    def calculate_semantic_similarity(
+        code1: str = Field(description="First code snippet"),
+        code2: str = Field(description="Second code snippet"),
+        model_name: Optional[str] = Field(default=None, description="Optional CodeBERT-compatible model name (defaults to microsoft/codebert-base)"),
+    ) -> Dict[str, Any]:
+        """Score two code snippets on CodeBERT semantic similarity (Stage 3 only)."""
+        return calculate_semantic_similarity_tool(code1=code1, code2=code2, model_name=model_name)
+
+
 def register_deduplication_tools(mcp: FastMCP) -> None:
     """Register all deduplication tools with the MCP server."""
     _register_find_duplication(mcp)
     _register_analyze_candidates(mcp)
     _register_apply_deduplication(mcp)
     _register_benchmark_deduplication(mcp)
+    _register_calculate_ast_similarity(mcp)
+    _register_calculate_semantic_similarity(mcp)
