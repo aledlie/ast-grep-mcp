@@ -16,7 +16,7 @@ doppler run -- uv run main.py    # Run with Doppler secrets
 
 Modular MCP server (125 modules) with ast-grep structural code search, Schema.org tools, refactoring, deduplication, quality, documentation generation, and semantic code condensation.
 
-**55 Tools:** Search (9), Rewrite (3), Refactoring (2), Deduplication (6), Schema.org (11), Complexity (3), Quality (7), Documentation (5), Cross-Language (5), Condense (6)
+**57 Tools:** Search (9), Rewrite (5), Refactoring (2), Deduplication (6), Schema.org (11), Complexity (3), Quality (7), Documentation (5), Cross-Language (5), Condense (6)
 
 **Deps:** ast-grep CLI (required), Doppler CLI (optional), Python 3.13+, uv
 
@@ -74,6 +74,7 @@ Exception: **search** tools use `_impl` functions — `from ast_grep_mcp.feature
 
 - **search tools** — use `find_code_impl`, `find_code_by_rule_impl`, `dump_syntax_tree_impl`, `debug_pattern_impl`, `build_rule_impl`, `develop_pattern_impl` from `search.service`. The `tools.py` registers inner functions via `@mcp.tool()` that are not importable.
 - **search doc helpers** — `get_docs(topic)` and `get_pattern_examples(language, category=None)` live in `search.docs`, not `search.service`. There is no `get_ast_grep_docs_impl` or `get_pattern_examples_tool`.
+- **get_zod_rewrite_rule / list_zod_rewrite_rules** — from `rewrite.tools`; `get_zod_rewrite_rule(rule_id)` returns `{rule_id, yaml_rule}` ready for `rewrite_code()`. `list_zod_rewrite_rules(category)` browses rules by `'schema'`, `'import'`, or `'all'`. Rule IDs defined in `rewrite.zod_templates`.
 - **rewrite_code** — `from ast_grep_mcp.features.rewrite.service import rewrite_code_impl`; signature is `rewrite_code_impl(project_folder, yaml_rule, dry_run=True, backup=True, ...)`. The `yaml_rule` must be a complete YAML rule string with `fix` field — do NOT pass separate `pattern`/`replacement`/`language` positional args.
 - **extract_function** — always call via `extract_function_tool(project_folder, file_path, start_line, end_line, language)` from `refactoring.tools`. Do NOT instantiate `FunctionExtractor` directly; it is an internal class that requires `language` and does not accept `project_folder`.
 - **refactor_polyglot** — `refactoring_type` accepts `rename_api`, `extract_constant`, `update_contract`. `rename` is also accepted as an alias for `rename_api`.
