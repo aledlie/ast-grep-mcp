@@ -3,10 +3,19 @@
 
 from ast_grep_mcp.features.search.service import build_rule_impl
 
+SEPARATOR_WIDTH = 60
+SEPARATOR = "=" * SEPARATOR_WIDTH
+
+
+def print_header(title: str, leading_newline: bool = False) -> None:
+    prefix = "\n" if leading_newline else ""
+    print(f"{prefix}{SEPARATOR}")
+    print(title)
+    print(SEPARATOR)
+
+
 # Rule 1: no-any-schema - Disallow z.any()
-print("=" * 60)
-print("RULE 1: no-any-schema")
-print("=" * 60)
+print_header("RULE 1: no-any-schema")
 rule1 = build_rule_impl(
     pattern="z.any()",
     language="typescript",
@@ -17,9 +26,7 @@ rule1 = build_rule_impl(
 print(rule1)
 
 # Rule 2: require-schema-suffix - Require Schema suffix
-print("\n" + "=" * 60)
-print("RULE 2: require-schema-suffix")
-print("=" * 60)
+print_header("RULE 2: require-schema-suffix", leading_newline=True)
 rule2 = build_rule_impl(
     pattern="const $NAME = z.object($$ARGS)",
     language="typescript",
@@ -30,9 +37,7 @@ rule2 = build_rule_impl(
 print(rule2)
 
 # Rule 3: require-error-message - Refine must have error message
-print("\n" + "=" * 60)
-print("RULE 3: require-error-message")
-print("=" * 60)
+print_header("RULE 3: require-error-message", leading_newline=True)
 rule3 = build_rule_impl(
     pattern="$SCHEMA.refine($$ARGS)",
     language="typescript",
@@ -43,9 +48,7 @@ rule3 = build_rule_impl(
 print(rule3)
 
 # Rule 4: prefer-enum-over-literal-union - Use enum for literal unions
-print("\n" + "=" * 60)
-print("RULE 4: prefer-enum-over-literal-union")
-print("=" * 60)
+print_header("RULE 4: prefer-enum-over-literal-union", leading_newline=True)
 rule4 = build_rule_impl(
     pattern="z.union([z.literal($LIT1), z.literal($LIT2)])",
     language="typescript",
@@ -56,9 +59,7 @@ rule4 = build_rule_impl(
 print(rule4)
 
 # Rule 5: no-optional-and-default-together
-print("\n" + "=" * 60)
-print("RULE 5: no-optional-and-default-together")
-print("=" * 60)
+print_header("RULE 5: no-optional-and-default-together", leading_newline=True)
 rule5 = build_rule_impl(
     pattern="$SCHEMA.optional().default($VAL)",
     language="typescript",
@@ -68,6 +69,4 @@ rule5 = build_rule_impl(
 )
 print(rule5)
 
-print("\n" + "=" * 60)
-print("All rules generated successfully!")
-print("=" * 60)
+print_header("All rules generated successfully!", leading_newline=True)

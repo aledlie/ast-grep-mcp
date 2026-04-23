@@ -3,10 +3,19 @@
 
 from ast_grep_mcp.features.search.service import build_rule_impl
 
+SEPARATOR_WIDTH = 60
+SEPARATOR = "=" * SEPARATOR_WIDTH
+
+
+def print_header(title: str, leading_newline: bool = False) -> None:
+    prefix = "\n" if leading_newline else ""
+    print(f"{prefix}{SEPARATOR}")
+    print(title)
+    print(SEPARATOR)
+
+
 # Rule 1: Named imports of z
-print("=" * 60)
-print("RULE 1: import-zod-named-to-namespace")
-print("=" * 60)
+print_header("RULE 1: import-zod-named-to-namespace")
 rule1 = build_rule_impl(
     pattern='import { z } from "zod"',
     language="typescript",
@@ -18,9 +27,7 @@ rule1 = build_rule_impl(
 print(rule1)
 
 # Rule 2: Default imports of z
-print("\n" + "=" * 60)
-print("RULE 2: import-zod-default-to-namespace")
-print("=" * 60)
+print_header("RULE 2: import-zod-default-to-namespace", leading_newline=True)
 rule2 = build_rule_impl(
     pattern='import z from "zod"',
     language="typescript",
@@ -32,9 +39,7 @@ rule2 = build_rule_impl(
 print(rule2)
 
 # Rule 3: Default imports with different names
-print("\n" + "=" * 60)
-print("RULE 3: import-zod-default-renamed-to-namespace")
-print("=" * 60)
+print_header("RULE 3: import-zod-default-renamed-to-namespace", leading_newline=True)
 rule3 = build_rule_impl(
     pattern='import $NAME from "zod"',
     language="typescript",
@@ -45,9 +50,7 @@ rule3 = build_rule_impl(
 print(rule3)
 
 # Rule 4: Type default imports
-print("\n" + "=" * 60)
-print("RULE 4: import-zod-type-default-to-namespace")
-print("=" * 60)
+print_header("RULE 4: import-zod-type-default-to-namespace", leading_newline=True)
 rule4 = build_rule_impl(
     pattern='import type z from "zod"',
     language="typescript",
@@ -59,9 +62,7 @@ rule4 = build_rule_impl(
 print(rule4)
 
 # Rule 5: Mixed default and named imports
-print("\n" + "=" * 60)
-print("RULE 5: import-zod-mixed-to-namespace")
-print("=" * 60)
+print_header("RULE 5: import-zod-mixed-to-namespace", leading_newline=True)
 rule5 = build_rule_impl(
     pattern='import z, { $$EXPORTS } from "zod"',
     language="typescript",
@@ -72,9 +73,7 @@ rule5 = build_rule_impl(
 print(rule5)
 
 # Rule 6: Subpath imports with z
-print("\n" + "=" * 60)
-print("RULE 6: import-zod-subpath-to-namespace")
-print("=" * 60)
+print_header("RULE 6: import-zod-subpath-to-namespace", leading_newline=True)
 rule6 = build_rule_impl(
     pattern='import { z } from "zod/$$SUBPATH"',
     language="typescript",
@@ -85,9 +84,7 @@ rule6 = build_rule_impl(
 print(rule6)
 
 # Rule 7: Type-only mixed imports
-print("\n" + "=" * 60)
-print("RULE 7: import-zod-type-mixed-to-namespace")
-print("=" * 60)
+print_header("RULE 7: import-zod-type-mixed-to-namespace", leading_newline=True)
 rule7 = build_rule_impl(
     pattern='import type { $$TYPES, z } from "zod"',
     language="typescript",
@@ -97,6 +94,4 @@ rule7 = build_rule_impl(
 )
 print(rule7)
 
-print("\n" + "=" * 60)
-print("All import-zod rules generated successfully!")
-print("=" * 60)
+print_header("All import-zod rules generated successfully!", leading_newline=True)
