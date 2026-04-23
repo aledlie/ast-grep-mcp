@@ -709,6 +709,7 @@ class SubprocessDefaults:
     GREP_TIMEOUT_SECONDS = 10
     AST_GREP_TIMEOUT_SECONDS = 30
     ZSTD_TRAIN_TIMEOUT_SECONDS = 60  # Timeout for zstd dictionary training
+    TSC_NOEMIT_TIMEOUT_SECONDS = 120  # Full project type-check compile
 
 
 class LogBucketThresholds:

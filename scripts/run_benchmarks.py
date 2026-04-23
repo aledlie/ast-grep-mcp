@@ -44,7 +44,7 @@ def run_benchmarks(save_baseline: bool = False, check_regression: bool = False, 
     console.blank()
 
     # Build pytest command
-    cmd = ["uv", "run", "python", "-m", "pytest", "tests/test_benchmark.py", "-v", "-s"]
+    cmd = ["uv", "run", "python", "-m", "pytest", "tests/integration/test_benchmark.py", "-v", "-s"]
 
     # Add markers to skip CI-only tests
     cmd.extend(["-m", "not skipif"])

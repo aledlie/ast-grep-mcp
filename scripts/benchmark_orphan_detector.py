@@ -55,6 +55,8 @@ with open(out_path, "w") as f:
             "baseline_s": BASELINE_S,
             "speedup": round(BASELINE_S / elapsed, 1),
             "summary": summary,
+            "orphan_files": result.get("orphan_files", []),
+            "orphan_functions": result.get("orphan_functions", []),
         },
         f,
         indent=2,
