@@ -10,6 +10,12 @@ from ast_grep_mcp.features.rewrite.service import (
     rewrite_code_impl,
     rollback_rewrite_impl,
 )
+from ast_grep_mcp.features.rewrite.zod_templates import (
+    get_rules_by_category,
+    get_zod_rule,
+    list_import_rules,
+    list_schema_rules,
+)
 
 
 def _register_rewrite_code(mcp: FastMCP) -> None:
@@ -193,6 +199,56 @@ def _register_list_backups(mcp: FastMCP) -> None:
         return list_backups_impl(project_folder)
 
 
+def _register_get_zod_rule(mcp: FastMCP) -> None:
+    @mcp.tool()
+    def get_zod_rewrite_rule(
+        rule_id: str = Field(description="Zod rule ID (e.g., 'no-any-schema', 'import-zod-named-to-namespace')"),
+    ) -> Dict[str, str]:
+        """
+        Get a pre-built Zod rewrite rule by ID.
+
+        Returns a complete YAML rule string that can be passed directly to rewrite_code().
+        Use list_zod_rewrite_rules() to discover available rule IDs.
+
+        Returns:
+        - rule_id: The requested rule ID
+        - yaml_rule: YAML rule string ready for rewrite_code(yaml_rule=...)
+        """
+        try:
+            yaml_rule = get_zod_rule(rule_id)
+        except KeyError as exc:
+            return {"error": str(exc)}
+        return {"rule_id": rule_id, "yaml_rule": yaml_rule}
+
+
+def _register_list_zod_rules(mcp: FastMCP) -> None:
+    @mcp.tool()
+    def list_zod_rewrite_rules(
+        category: str = Field(default="all", description="'schema', 'import', or 'all'"),
+    ) -> Dict[str, Any]:
+        """
+        List pre-built Zod rewrite rules by category.
+
+        Categories:
+        - 'schema': Zod schema validation rules (e.g., no-any-schema, require-schema-suffix)
+        - 'import': Zod import namespace rules (e.g., import-zod-named-to-namespace)
+        - 'all': Both schema and import rules
+
+        Returns:
+        - category: The requested category
+        - rules: Dict of rule_id -> description (for 'all', includes both groups)
+        """
+        if category not in ("schema", "import", "all"):
+            return {"error": f"Invalid category: {category}. Use 'schema', 'import', or 'all'"}
+        if category == "schema":
+            rules: Dict[str, Any] = list_schema_rules()
+        elif category == "import":
+            rules = list_import_rules()
+        else:
+            rules = {"schema": list_schema_rules(), "import": list_import_rules()}
+        return {"category": category, "rules": rules, "count": len(get_rules_by_category(category))}  # type: ignore[arg-type]
+
+
 def register_rewrite_tools(mcp: FastMCP) -> None:
     """Register rewrite-related MCP tools.
 
@@ -202,3 +258,5 @@ def register_rewrite_tools(mcp: FastMCP) -> None:
     _register_rewrite_code(mcp)
     _register_rollback_rewrite(mcp)
     _register_list_backups(mcp)
+    _register_get_zod_rule(mcp)
+    _register_list_zod_rules(mcp)
