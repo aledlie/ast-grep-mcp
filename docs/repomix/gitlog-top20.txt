@@ -1,8 +1,79 @@
-684c91d 2026-03-11 docs(backlog): add config file support section CF-01–CF-04
+51989be 2026-04-20 feat(search): add Python security pattern examples for CWE-798/327/489/521
+  src/ast_grep_mcp/features/search/pattern_examples.json
+
+310fa71 2026-04-20 feat(rewrite): add Zod schema validation rules and extended pattern examples
+  src/ast_grep_mcp/features/search/pattern_examples.json
+
+e558c49 2026-04-20 feat(deduplication): add parallel candidate scoring via ThreadPoolExecutor (PA-06)
+  src/ast_grep_mcp/features/search/pattern_examples.json
+
+1c4f63b 2026-04-20 docs(quality): MQ-01 multi-line comment in _split_params, MQ-02 docstring for _execute_search
+  src/ast_grep_mcp/features/documentation/docstring_generator.py
+  src/ast_grep_mcp/features/search/service.py
+
+87bc433 2026-04-19 refactor(config): migrate to pydantic-settings for automatic env var handling
+  uv.lock
+
+7a21e94 2026-04-19 perf(regex): implement pattern compilation caching via functools.lru_cache
+  .claude/skills/repomix-reference-ast-grep/references/files.md
+
+9f3f18f 2026-04-19 chore(deps): add cachetools>=5.3.0 dependency
+  uv.lock
+
+5c3e1ba 2026-03-15 style: apply ruff format to 37 files
+  src/ast_grep_mcp/features/search/service.py
+  tests/unit/test_standards_enforcement.py
+
+b3dd42d 2026-03-15 (fix) script fixes
+  .condense/dictionaries/dict_python.zdict
   scripts/all_tools_results.json
 
-dfc4a95 2026-03-09 docs: document tool return structures + cleanup backlog/changelog
-  src/ast_grep_mcp/features/quality/tools.py
+5922844 2026-03-15 fix(lint): resolve 9 ruff errors (E402, E501) in scripts and tests
+  tests/unit/test_standards_enforcement.py
+
+2693511 2026-03-13 refactor(tests): reduce duplication in orchestrator and standards enforcement tests
+  tests/unit/test_standards_enforcement.py
+
+8611153 2026-03-13 (doc) regen docs
+  scripts/quality_docs_results.json
+
+8dca38e 2026-03-13 fix(scripts): fix invalid export pattern in find_code_by_rule test
+  docs/repomix/repo-compressed.xml
+  docs/repomix/repomix-docs.xml
+  docs/repomix/repomix-git-ranked.xml
+  docs/repomix/repomix.xml
+  docs/repomix/server-scripts.xml
+  scripts/all_tools_results.json
+
+ff02be3 2026-03-12 fix(search): log partial results when streaming fails mid-stream
+  src/ast_grep_mcp/features/search/service.py
+
+689011f 2026-03-12 docs(docstring): clarify _split_params bracket fallthrough is intentional
+  src/ast_grep_mcp/features/documentation/docstring_generator.py
+
+946e887 2026-03-12 fix(dedup): remove dead if TYPE_CHECKING: pass block in similarity.py
+  src/ast_grep_mcp/features/deduplication/similarity.py
+
+5242488 2026-03-12 fix(search): remove 5 unused type: ignore[return-value] suppressors
+  src/ast_grep_mcp/features/search/service.py
+
+f723b72 2026-03-12 style(search,test): fix ruff E501 and E402 lint errors
+  src/ast_grep_mcp/features/search/service.py
+
+531fb39 2026-03-11 refactor(search,quality,dedup,docs): reduce top 5 largest files by 27%
+  src/ast_grep_mcp/features/deduplication/similarity.py
+  src/ast_grep_mcp/features/documentation/docstring_generator.py
+  src/ast_grep_mcp/features/search/pattern_examples.json
+  src/ast_grep_mcp/features/search/service.py
+
+3a42b76 2026-03-11 fix(search): include language_globs in cache key to prevent cache poisoning
+  src/ast_grep_mcp/features/search/service.py
+
+f5fb506 2026-03-11 feat(executor): add languageGlobs support for non-standard file extensions (CF-01)
+  src/ast_grep_mcp/features/search/service.py
+
+684c91d 2026-03-11 docs(backlog): add config file support section CF-01–CF-04
+  scripts/all_tools_results.json
 
 354ae83 2026-03-09 docs(backlog): mark build_diff_tree done in offenders table
   docs/repomix/repomix-docs.xml
@@ -24,7 +95,6 @@ dfc4a95 2026-03-09 docs: document tool return structures + cleanup backlog/chang
   docs/repomix/repomix-docs.xml
   docs/repomix/repomix-git-ranked.xml
   docs/repomix/repomix.xml
-  src/ast_grep_mcp/features/deduplication/generator.py
 
 5fdd930 2026-03-08 (chore) update docs, repomix, and backlog
   docs/repomix/repo-compressed.xml
@@ -53,11 +123,7 @@ f25cbab 2026-03-08 docs: fix outdated references in docs and regenerate repomix-
   docs/repomix/repomix-docs.xml
 
 eac6227 2026-03-08 refactor(utils): promote indent_lines, read_file_lines, write_file_lines to shared utils
-  src/ast_grep_mcp/features/deduplication/generator.py
   src/ast_grep_mcp/features/documentation/docstring_generator.py
-
-166841b 2026-03-08 refactor(tools): consolidate to inline Field() pattern across cross_language, documentation, quality
-  src/ast_grep_mcp/features/quality/tools.py
 
 a07407b 2026-03-08 docs(complexity): add 2026-03-08 analysis with change history and helper appendix
   .claude/skills/ast-grep-mcp-expert/references/files.md
@@ -65,9 +131,6 @@ a07407b 2026-03-08 docs(complexity): add 2026-03-08 analysis with change history
   docs/repomix/repomix-docs.xml
   docs/repomix/repomix-git-ranked.xml
   docs/repomix/repomix.xml
-
-d09f996 2026-03-08 refactor(quality): reduce complexity in tools.py and analyzer.py
-  src/ast_grep_mcp/features/quality/tools.py
 
 aebd562 2026-03-08 refactor(search): derive severity prefix from lookup dict in _add_suggestions_by_severity
   src/ast_grep_mcp/features/search/service.py
@@ -80,7 +143,6 @@ aebd562 2026-03-08 refactor(search): derive severity prefix from lookup dict in 
 
 2bb7b59 2026-03-07 style: apply ruff format to 42 files
   src/ast_grep_mcp/features/deduplication/analyzer.py
-  src/ast_grep_mcp/features/deduplication/generator.py
   src/ast_grep_mcp/features/deduplication/similarity.py
   src/ast_grep_mcp/features/documentation/docstring_generator.py
   src/ast_grep_mcp/features/search/service.py
@@ -97,12 +159,8 @@ f1b587d 2026-03-06 fix(types): wrap yaml.dump return with str() to resolve no-an
 
 5a3f682 2026-03-06 fix(types): resolve 38 mypy errors introduced by complexity refactoring
   src/ast_grep_mcp/features/deduplication/analyzer.py
-  src/ast_grep_mcp/features/deduplication/generator.py
   src/ast_grep_mcp/features/deduplication/similarity.py
   src/ast_grep_mcp/features/documentation/docstring_generator.py
-
-6bf92be 2026-03-06 refactor(CQ): reduce complexity in batch 10 (7 files)
-  src/ast_grep_mcp/features/search/docs.py
 
 98dd5a9 2026-03-06 refactor(CQ): reduce complexity in batch 3 (4 files)
   src/ast_grep_mcp/features/deduplication/similarity.py
@@ -110,7 +168,6 @@ f1b587d 2026-03-06 fix(types): wrap yaml.dump return with str() to resolve no-an
 
 7ec47ad 2026-03-06 refactor(CQ): reduce complexity in batch 2 (4 files)
   src/ast_grep_mcp/features/deduplication/analyzer.py
-  src/ast_grep_mcp/features/deduplication/generator.py
   src/ast_grep_mcp/features/documentation/docstring_generator.py
 
 c12667e 2026-03-06 refactor: decompose _normalize_for_ast into focused helpers
@@ -137,8 +194,6 @@ afdf71a 2026-03-06 refactor: extract 90 magic numbers into shared constants acro
   src/ast_grep_mcp/features/search/service.py
 
 f40d1f2 2026-03-04 chore: format codebase and clear standards violations
-  src/ast_grep_mcp/features/quality/tools.py
-  src/ast_grep_mcp/features/search/docs.py
   src/ast_grep_mcp/features/search/service.py
 
 0cf6cd3 2026-03-04 refactor: extract remaining magic numbers into local/shared constants
@@ -151,34 +206,22 @@ f40d1f2 2026-03-04 chore: format codebase and clear standards violations
 
 646364b 2026-03-04 chore: apply regex/severity constants to additional callsites
   src/ast_grep_mcp/features/deduplication/analyzer.py
-  src/ast_grep_mcp/features/deduplication/generator.py
 
 84cf30d 2026-03-04 chore: checkpoint outstanding changes
   src/ast_grep_mcp/features/deduplication/similarity.py
-  src/ast_grep_mcp/features/search/docs.py
   tests/unit/test_duplication_detector.py
-  tests/unit/test_minhash_similarity.py
 
 5194d99 2026-03-04 chore: MOAR const migrations
   src/ast_grep_mcp/features/deduplication/analyzer.py
-  src/ast_grep_mcp/features/deduplication/generator.py
   src/ast_grep_mcp/features/search/service.py
 
 662578b 2026-03-04 refactor: centralize semantic-volume and confidence constants
   src/ast_grep_mcp/features/deduplication/analyzer.py
-  src/ast_grep_mcp/features/deduplication/generator.py
   src/ast_grep_mcp/features/search/service.py
 
 3b9b5fc 2026-03-04 Fix remaining Ruff E501 line-length violations
   src/ast_grep_mcp/features/deduplication/analyzer.py
-  src/ast_grep_mcp/features/quality/tools.py
   src/ast_grep_mcp/features/search/service.py
-
-7a96e4d 2026-03-03 Enforce venv exclusions across analysis tools
-  src/ast_grep_mcp/features/quality/tools.py
-
-00f2223 2026-03-01 fix(analyzer): unify exclude patterns and prevent destructive fixes on CLI/test files
-  src/ast_grep_mcp/features/quality/tools.py
 
 0e24a7c 2026-03-01 fix(quality): fix off-by-one in violation line numbers causing wrong-line removal
   tests/unit/test_standards_enforcement.py
@@ -197,13 +240,11 @@ f40d1f2 2026-03-04 chore: format codebase and clear standards violations
 
 9e65f55 2026-02-24 (stand) migrate magic numbers batch 2: complete standardization
   src/ast_grep_mcp/features/deduplication/similarity.py
-  src/ast_grep_mcp/features/quality/tools.py
   src/ast_grep_mcp/features/search/service.py
 
 dcae1ff 2026-02-24 (stand) start standardization for more efficient code condensing.  Step 1/n for migrating magic numbers to standard constants
   src/ast_grep_mcp/features/deduplication/analyzer.py
   src/ast_grep_mcp/features/deduplication/similarity.py
-  src/ast_grep_mcp/features/quality/tools.py
 
 c369bdf 2026-02-12 documentaion update
   src/ast_grep_mcp/features/deduplication/similarity.py
@@ -218,12 +259,8 @@ b0ea4b0 2026-02-12 refactor: extract magic numbers into named constants across 1
 
 28861dd 2026-02-12 style: apply ruff format to 72 files
   src/ast_grep_mcp/features/deduplication/analyzer.py
-  src/ast_grep_mcp/features/deduplication/generator.py
-  src/ast_grep_mcp/features/quality/tools.py
   src/ast_grep_mcp/features/search/service.py
   tests/unit/test_duplication_detector.py
-  tests/unit/test_minhash_similarity.py
-  tests/unit/test_schema.py
   tests/unit/test_standards_enforcement.py
 
 e1ab927 2026-02-11 deps: add pillow to project dependencies
@@ -236,38 +273,25 @@ e1ab927 2026-02-11 deps: add pillow to project dependencies
 a08936e 2026-01-10 test(deduplication): add comprehensive tests for duplication detector
   tests/unit/test_duplication_detector.py
 
-9641374 2026-01-10 docs(search): add matches rule documentation to get_ast_grep_docs
-  src/ast_grep_mcp/features/search/docs.py
-
-691e344 2026-01-10 docs(search): add pattern objects, lazy metavariables, and playground link
-  src/ast_grep_mcp/features/search/docs.py
-
 63613b0 2026-01-10 feat(search): add develop_pattern tool and strictness documentation
-  src/ast_grep_mcp/features/search/docs.py
   src/ast_grep_mcp/features/search/service.py
 
 082fde6 2026-01-10 feat(search): add warning detection for YAML rules
   src/ast_grep_mcp/features/search/service.py
-
-86d5756 2026-01-10 feat(search): add documentation and rule builder modules
-  src/ast_grep_mcp/features/search/docs.py
 
 a1b4d1a 2026-01-09 feat(search): add debug_pattern tool for diagnosing pattern matching issues
   src/ast_grep_mcp/features/search/service.py
 
 9bdd029 2026-01-09 fix: resolve 6 complexity violations in deduplication module
   src/ast_grep_mcp/features/deduplication/analyzer.py
-  src/ast_grep_mcp/features/deduplication/generator.py
 
 55de598 2026-01-09 fix: resolve all lint errors
   .playwright-mcp/reports-index-styling.png
   .playwright-mcp/sumedh-site.png
-  tests/unit/test_minhash_similarity.py
   tests/unit/test_standards_enforcement.py
 
 9284084 2025-12-04 refactor(deduplication): migrate functions to modular architecture
   src/ast_grep_mcp/features/deduplication/analyzer.py
-  src/ast_grep_mcp/features/deduplication/generator.py
 
 fd0c16f 2025-12-04 test(refactor): migrate unit tests from main.py stubs to modular imports
   tests/unit/test_standards_enforcement.py
@@ -275,22 +299,12 @@ fd0c16f 2025-12-04 test(refactor): migrate unit tests from main.py stubs to modu
 f920615 2025-12-03 fix(lint): resolve ruff violations for SIM115 and B007
   tests/unit/test_standards_enforcement.py
 
-0a3045b 2025-12-03 feat(mcp): register detect_orphans tool and reduce complexity
-  src/ast_grep_mcp/features/quality/tools.py
-
 010052b 2025-12-03 fix(type-debt): resolve all ruff and mypy errors
   src/ast_grep_mcp/features/deduplication/analyzer.py
-  src/ast_grep_mcp/features/deduplication/generator.py
   src/ast_grep_mcp/features/deduplication/similarity.py
   src/ast_grep_mcp/features/documentation/docstring_generator.py
-  src/ast_grep_mcp/features/quality/tools.py
   src/ast_grep_mcp/features/search/service.py
-  tests/unit/test_minhash_similarity.py
-  tests/unit/test_schema.py
   tests/unit/test_standards_enforcement.py
-
-0e370ed 2025-12-03 fix(types): resolve Protocol and Union type mismatches
-  src/ast_grep_mcp/features/deduplication/generator.py
 
 41dcb51 2025-12-03 fix(types): add Callable type annotations to lambda dictionaries
   src/ast_grep_mcp/features/deduplication/analyzer.py
@@ -299,25 +313,15 @@ f920615 2025-12-03 fix(lint): resolve ruff violations for SIM115 and B007
   src/ast_grep_mcp/features/deduplication/similarity.py
   uv.lock
 
-8784da3 2025-12-02 test(dedup): add fallback and performance tests
-  tests/unit/test_minhash_similarity.py
-
 fbc7b71 2025-12-02 feat(dedup): add sequencematcher fallback for small code
   src/ast_grep_mcp/features/deduplication/similarity.py
-
-a6c55a6 2025-12-02 test(dedup): add regression and hybrid similarity tests
-  tests/unit/test_minhash_similarity.py
 
 a8f51d0 2025-12-02 feat(dedup): implement hybrid two-stage similarity pipeline
   src/ast_grep_mcp/features/deduplication/similarity.py
 
 f62b036 2025-12-02 feat(deduplication): implement MinHash + LSH for O(n) similarity detection
   src/ast_grep_mcp/features/deduplication/similarity.py
-  tests/unit/test_minhash_similarity.py
   uv.lock
-
-8d0e229 2025-11-30 fix: resolve all 74 pytest warnings
-  src/ast_grep_mcp/features/quality/tools.py
 
 3b7217a 2025-11-30 test: fix deduplication fixture and metavariables parsing tests
   tests/unit/test_standards_enforcement.py
@@ -329,27 +333,19 @@ f62b036 2025-12-02 feat(deduplication): implement MinHash + LSH for O(n) similar
   src/ast_grep_mcp/features/documentation/docstring_generator.py
 
 7551cba 2025-11-29 refactor(complexity): reduce violations to zero
-  src/ast_grep_mcp/features/deduplication/generator.py
-  src/ast_grep_mcp/features/quality/tools.py
   src/ast_grep_mcp/features/search/service.py
 
 12cfbfb 2025-11-28 refactor(search): extract helpers to reduce search service complexity
   src/ast_grep_mcp/features/search/service.py
-
-898ff8b 2025-11-28 refactor(quality): simplify MCP tool definitions with service layer
-  src/ast_grep_mcp/features/quality/tools.py
 
 074c744 2025-11-28 refactor(deduplication): reduce complexity across analyzer, detector, ranker
   src/ast_grep_mcp/features/deduplication/analyzer.py
 
 5307c19 2025-11-28 phase 5.1
   src/ast_grep_mcp/features/deduplication/analyzer.py
-  src/ast_grep_mcp/features/deduplication/generator.py
-  src/ast_grep_mcp/features/quality/tools.py
   src/ast_grep_mcp/features/search/service.py
 
 8080d88 2025-11-28 refactor(tests): migrate print() to console logger
-  tests/unit/test_schema.py
   tests/unit/test_standards_enforcement.py
 
 bb81421 2025-11-27 chore: fix package name and remove 852 obsolete tests
@@ -357,9 +353,6 @@ bb81421 2025-11-27 chore: fix package name and remove 852 obsolete tests
 
 aaa266e 2025-11-27 delete tests
   src/ast_grep_mcp/features/deduplication/analyzer.py
-
-3fd38ab 2025-11-27 feat(quality): add security vulnerability scanner (phase 3)
-  src/ast_grep_mcp/features/quality/tools.py
 
 7e67575 2025-11-27 archive docs
   tests/unit/test_standards_enforcement.py
@@ -373,34 +366,18 @@ aaa266e 2025-11-27 delete tests
 c23d295 2025-11-26 test: migrate test_standards_enforcement.py to pytest fixtures (2186→2138 lines, -2.2%)
   tests/unit/test_standards_enforcement.py
 
-69e11ea 2025-11-26 test: migrate test_schema.py to pytest fixtures (932→912 lines, -2.1%)
-  tests/unit/test_schema.py
-
-a3e34f3 2025-11-25 websocket fixes
-  src/ast_grep_mcp/features/quality/tools.py
-
 dfd11ec 2025-11-25 refactor: remove unused imports and fix critical import errors
   src/ast_grep_mcp/features/deduplication/analyzer.py
-  src/ast_grep_mcp/features/deduplication/generator.py
-  src/ast_grep_mcp/features/quality/tools.py
   src/ast_grep_mcp/features/search/service.py
 
 3079772 2025-11-24 fix: resolve import errors in 19 test files
   tests/unit/test_standards_enforcement.py
 
-06462d0 2025-11-24 feat: implement function template generation system
-  src/ast_grep_mcp/features/deduplication/generator.py
-
 d62daa0 2025-11-24 test: add conftest.py and update test imports for modular architecture
-  tests/unit/test_schema.py
   tests/unit/test_standards_enforcement.py
 
 ae5d7ac 2025-11-24 refactor: extract deduplication feature modules (Phase 7 - partial)
   src/ast_grep_mcp/features/deduplication/analyzer.py
-  src/ast_grep_mcp/features/deduplication/generator.py
-
-9b1b4af 2025-11-24 refactor: extract quality feature (Phase 9)
-  src/ast_grep_mcp/features/quality/tools.py
 
 5d61b10 2025-11-24 refactor: extract search, rewrite, and schema features (Phases 4-6)
   src/ast_grep_mcp/features/search/service.py
@@ -408,17 +385,10 @@ ae5d7ac 2025-11-24 refactor: extract deduplication feature modules (Phase 7 - pa
 1e15b4a 2025-11-24 feat: implement code quality & standards feature (Phase 1 & 2)
   tests/unit/test_standards_enforcement.py
 
-93d4d81 2025-11-18 chore: fix remaining ruff import ordering errors
-  tests/unit/test_schema.py
-
-77e06e7 2025-11-18 fix: resolve ruff and mypy lint errors
-  tests/unit/test_schema.py
-
 826529c 2025-11-17 Add Sentry error tracking with Anthropic AI integration
   uv.lock
 
 746e9b5 2025-11-17 Add comprehensive Schema.org test suite - Coverage: 59% → 90%
-  tests/unit/test_schema.py
   uv.lock
 
 a40c7d9 2025-11-10 add DRY tool
