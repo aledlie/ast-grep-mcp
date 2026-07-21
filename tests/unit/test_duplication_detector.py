@@ -770,6 +770,44 @@ class TestFormatResult:
         assert result["duplication_groups"][0]["instances"][0]["file"] == "/path/f1.py"
         assert result["duplication_groups"][0]["instances"][0]["lines"] == "10-11"
 
+    def test_format_group_includes_files_field(self):
+        """Regression test for BUG-04: _format_group must emit a 'files' field.
+
+        Downstream ranking and enrichment read candidate.get('files', []) to
+        compute test coverage, recommendations, and savings potential.  Without
+        this field those steps silently no-op and return zero/empty values.
+        """
+        detector = DuplicationDetector()
+        code = "def foo():\n    return 1"
+        group = [
+            {"file": "src/a.py", "range": {"start": {"line": 0}, "end": {"line": 1}}, "text": code},
+            {"file": "src/b.py", "range": {"start": {"line": 5}, "end": {"line": 6}}, "text": code},
+        ]
+
+        formatted = detector._format_group(0, group)
+
+        assert "files" in formatted, "'files' key missing from _format_group output"
+        assert set(formatted["files"]) == {"src/a.py", "src/b.py"}
+
+    def test_format_group_includes_potential_line_savings(self):
+        """Regression test for BUG-04: _format_group must emit 'potential_line_savings'.
+
+        The ranker's calculate_savings_score() reads potential_line_savings (40% weight).
+        Without it, every candidate scores zero on savings and ranking is meaningless.
+        """
+        detector = DuplicationDetector()
+        # 3-line snippet duplicated twice → saves 3 lines
+        code = "def foo():\n    x = 1\n    return x"
+        group = [
+            {"file": "src/a.py", "range": {"start": {"line": 0}, "end": {"line": 2}}, "text": code},
+            {"file": "src/b.py", "range": {"start": {"line": 10}, "end": {"line": 12}}, "text": code},
+        ]
+
+        formatted = detector._format_group(0, group)
+
+        assert "potential_line_savings" in formatted, "'potential_line_savings' key missing"
+        assert formatted["potential_line_savings"] > 0, "potential_line_savings should be non-zero for a duplicated group"
+
 
 class TestFindDuplication:
     """Tests for find_duplication method."""

@@ -709,7 +709,16 @@ class DuplicationDetector:
             if len(group) >= 2
             else 1.0
         )
-        return {"group_id": idx + 1, "similarity_score": similarity, "instances": self._format_group_instances(group)}
+        files = list(dict.fromkeys(item.get("file", "") for item in group if item.get("file", "")))
+        lines = self._code_line_count(group[0].get("text", "")) if group else 0
+        potential_line_savings = lines * (len(group) - 1) if len(group) >= 2 else 0
+        return {
+            "group_id": idx + 1,
+            "similarity_score": similarity,
+            "instances": self._format_group_instances(group),
+            "files": files,
+            "potential_line_savings": potential_line_savings,
+        }
 
     def _format_result(
         self,
