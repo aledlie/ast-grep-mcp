@@ -5,15 +5,11 @@ This module provides functionality for scoring, classifying, and ranking
 duplicate code based on refactoring value, complexity, and impact.
 """
 
-import functools
 import heapq
-import json
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional, Tuple
-
-import structlog
 
 from ...constants import CodeAnalysisDefaults, DeduplicationDefaults, PriorityClassifierThresholds, RankerDefaults, RiskMultipliers
 from ...core.logging import get_logger
@@ -257,11 +253,11 @@ class DeduplicationPriorityClassifier:
         """
         # Round to 2 decimal places for cache key consistency
         rounded_score = round(score, 2)
-        
+
         # Check cache first
         if rounded_score in self._priority_cache:
             return self._priority_cache[rounded_score]
-        
+
         # Compute and cache
         if rounded_score >= self.THRESHOLD_CRITICAL:
             label = "critical"
@@ -273,7 +269,7 @@ class DeduplicationPriorityClassifier:
             label = "low"
         else:
             label = "minimal"
-        
+
         self._priority_cache[rounded_score] = label
         return label
 
@@ -471,7 +467,7 @@ class DuplicationRanker:
             return total_score, score_components, 0, 0
 
         cache_key = self._generate_cache_key(candidate)
-        
+
         with self._cache_lock:
             if cache_key in self._score_cache:
                 total_score, score_components = self._score_cache[cache_key]
@@ -483,7 +479,7 @@ class DuplicationRanker:
             test_coverage=candidate.get("test_coverage"),
             impact_analysis=candidate.get("impact_analysis"),
         )
-        
+
         with self._cache_lock:
             self._score_cache[cache_key] = (total_score, score_components)
         return total_score, score_components, 0, 1
@@ -492,20 +488,20 @@ class DuplicationRanker:
         self, candidates: List[Dict[str, Any]]
     ) -> Tuple[List[Tuple[float, Dict[str, float], int, int]], int]:
         """Score candidates in parallel using ThreadPoolExecutor.
-        
+
         Returns tuple of (scores_list, total_workers_used)
         """
         results = []
         workers_used = 0
-        
+
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = {executor.submit(self._score_candidate, c): i for i, c in enumerate(candidates)}
             workers_used = executor._max_workers or 1
-            
+
             for future in as_completed(futures):
                 score_result = future.result()
                 results.append(score_result)
-        
+
         return results, workers_used
 
     def _build_ranked_candidate(
@@ -571,7 +567,7 @@ class DuplicationRanker:
                 cache_hits += hits
                 cache_misses += misses
                 ranked.append(self._build_ranked_candidate(candidate, total_score, score_components, include_analysis))
-            
+
             if logging.getLogger().isEnabledFor(logging.DEBUG):
                 self.logger.debug("parallel_scoring_used", workers=workers_used)
 

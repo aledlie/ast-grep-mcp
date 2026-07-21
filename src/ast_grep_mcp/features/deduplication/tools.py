@@ -328,7 +328,10 @@ def _register_calculate_semantic_similarity(mcp: FastMCP) -> None:
     def calculate_semantic_similarity(
         code1: str = Field(description="First code snippet"),
         code2: str = Field(description="Second code snippet"),
-        model_name: Optional[str] = Field(default=None, description="Optional CodeBERT-compatible model name (defaults to microsoft/codebert-base)"),
+        model_name: Optional[str] = Field(
+            default=None,
+            description="Optional CodeBERT-compatible model name (defaults to microsoft/codebert-base)",
+        ),
     ) -> Dict[str, Any]:
         """Score two code snippets on CodeBERT semantic similarity (Stage 3 only)."""
         return calculate_semantic_similarity_tool(code1=code1, code2=code2, model_name=model_name)

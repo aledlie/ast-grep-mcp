@@ -11,9 +11,7 @@ Usage:
     pytest tests/performance/benchmark_streaming.py -v --benchmark-compare
 """
 
-import asyncio
 import json
-import time
 from unittest.mock import AsyncMock, patch
 
 import pytest

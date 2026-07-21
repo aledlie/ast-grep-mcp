@@ -9,10 +9,8 @@ Usage:
 
 import asyncio
 import json
-import sys
 import time
 from statistics import mean, stdev
-from typing import List
 from unittest.mock import AsyncMock, patch
 
 from ast_grep_mcp.core.executor import async_stream_ast_grep_results, stream_ast_grep_results
@@ -197,7 +195,7 @@ def main():
     sync_throughput = benchmark_sync_shim_throughput(num_matches=1000, iterations=3)
     async_throughput = asyncio.run(benchmark_async_throughput(num_matches=1000, iterations=3))
 
-    print(f"\n✨ Throughput Comparison")
+    print("\n✨ Throughput Comparison")
     print("-" * 60)
     print(f"  Sync Shim: {sync_throughput:,.0f} matches/sec")
     print(f"  Async:     {async_throughput:,.0f} matches/sec")
@@ -209,14 +207,14 @@ def main():
     # Error handling benchmark
     error_throughput = benchmark_error_skipping(total_lines=1000, error_ratio=0.5, iterations=3)
 
-    print(f"\n" + "=" * 60)
+    print("\n" + "=" * 60)
     print("   Summary")
     print("=" * 60)
-    print(f"✅ Async streaming provides minimal latency overhead")
+    print("✅ Async streaming provides minimal latency overhead")
     print(f"✅ Early termination stops efficiently at {early_term_latency*1000:.2f}ms avg")
     print(f"✅ Error handling maintains throughput at {error_throughput:,.0f} matches/sec")
-    print(f"✅ No threading.Thread contention or deadlock risk")
-    print(f"✅ Foundation ready for concurrent subprocess calls")
+    print("✅ No threading.Thread contention or deadlock risk")
+    print("✅ Foundation ready for concurrent subprocess calls")
     print()
 
 

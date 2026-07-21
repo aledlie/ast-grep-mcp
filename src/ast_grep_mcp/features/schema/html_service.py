@@ -158,13 +158,13 @@ def _find_html_files(project_folder: str, globs: List[str]) -> List[str]:
     for root, dirs, files in os.walk(project_folder):
         # Skip hidden and common build directories
         dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ('node_modules', '__pycache__', 'dist', 'build')]
-        
+
         for file in files:
             if file.endswith(('.html', '.htm')):
                 full_path = os.path.join(root, file)
                 if _match_globs(full_path, project_folder, globs):
                     html_files.append(full_path)
-    
+
     return html_files
 
 
@@ -174,7 +174,7 @@ def _extract_jsonld_with_regex(file_path: str) -> List[Dict[str, Any]]:
     try:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
-        
+
         # Find all <script type="application/ld+json">...</script> blocks
         pattern = r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>'
         for match in re.finditer(pattern, content, re.DOTALL | re.IGNORECASE):
@@ -194,7 +194,7 @@ def _extract_jsonld_with_regex(file_path: str) -> List[Dict[str, Any]]:
                 })
     except (IOError, OSError) as e:
         logger.warning("failed_to_read_file", file=file_path, error=str(e))
-    
+
     return results
 
 
@@ -204,7 +204,7 @@ def _extract_microdata_with_regex(file_path: str) -> List[Dict[str, Any]]:
     try:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
-        
+
         # Find all itemscope elements with itemtype
         pattern = r'<[^>]*itemscope[^>]*itemtype=["\']([^"\']*schema\.org/([^"\']+))["\'][^>]*>'
         for match in re.finditer(pattern, content, re.IGNORECASE):
@@ -217,7 +217,7 @@ def _extract_microdata_with_regex(file_path: str) -> List[Dict[str, Any]]:
             })
     except (IOError, OSError) as e:
         logger.warning("failed_to_read_file", file=file_path, error=str(e))
-    
+
     return results
 
 
@@ -227,7 +227,7 @@ def _extract_rdfa_with_regex(file_path: str) -> List[Dict[str, Any]]:
     try:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
-        
+
         # Find elements with property, typeof, resource, about, prefix, or vocab attributes
         pattern = r'(property|typeof|resource|about|prefix|vocab)\s*=\s*["\']([^"\']*)["\']'
         for match in re.finditer(pattern, content, re.IGNORECASE):
@@ -241,7 +241,7 @@ def _extract_rdfa_with_regex(file_path: str) -> List[Dict[str, Any]]:
             })
     except (IOError, OSError) as e:
         logger.warning("failed_to_read_file", file=file_path, error=str(e))
-    
+
     return results
 
 
@@ -332,7 +332,7 @@ def detect_microdata_in_html(
     # Extract schema types from element matches
     typed_elements: List[Dict[str, Any]] = []
     processed_files = set()
-    
+
     for match in element_matches:
         text = match.get("text", match.get("code", ""))
         type_match = _SCHEMA_TYPE_RE.search(text)
@@ -399,7 +399,7 @@ def detect_rdfa_in_html(
     by_attribute: Dict[str, int] = {}
     properties: List[Dict[str, Any]] = []
     processed_files = set()
-    
+
     for match in matches:
         text = match.get("text", match.get("code", "")).strip()
         by_attribute[text] = by_attribute.get(text, 0) + 1

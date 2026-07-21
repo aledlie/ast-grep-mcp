@@ -24,7 +24,6 @@ from ast_grep_mcp.features.rewrite.backup import (
     restore_backup,
 )
 
-
 _TSC_ERROR_PATTERN: Pattern[str] = re.compile(SyntaxValidationDefaults.TSC_SYNTAX_ERROR_PATTERN)
 
 

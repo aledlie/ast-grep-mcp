@@ -3,11 +3,11 @@
 import argparse
 import os
 import sys
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 import yaml
-from pydantic import ConfigDict, Field, model_validator
-from pydantic_settings import BaseSettings
+from pydantic import Field, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ast_grep_mcp.constants import CacheDefaults
 from ast_grep_mcp.core.exceptions import ConfigurationError
@@ -18,7 +18,7 @@ from ast_grep_mcp.models.config import AstGrepConfig
 class ServerSettings(BaseSettings):
     """Server configuration using pydantic-settings for automatic env var loading."""
 
-    model_config = ConfigDict(case_sensitive=False, populate_by_name=True)
+    model_config = SettingsConfigDict(case_sensitive=False, populate_by_name=True)
 
     config_path: Optional[str] = Field(
         default=None,
