@@ -29,7 +29,11 @@
     "useDefaultPatterns": true,
     "customPatterns": [
       "**/node_modules/**",
-      "docs/repomix/**"
+      "docs/repomix/**",
+      "tests/**",
+      "**/results/**",
+      "scripts/*_results.json",
+      "scripts/all_tools_results.json"
     ]
   },
 

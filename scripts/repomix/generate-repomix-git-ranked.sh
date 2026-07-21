@@ -36,6 +36,7 @@ fi
 # Optional overrides via environment variables.
 INCLUDE_DIFFS="${REPOMIX_INCLUDE_DIFFS:-true}"
 INCLUDE_LOGS="${REPOMIX_INCLUDE_LOGS:-true}"
+INCLUDE_FILES="${REPOMIX_INCLUDE_FILES:-false}"
 SORT_BY_CHANGES_MAX_COMMITS="${REPOMIX_SORT_BY_CHANGES_MAX_COMMITS:-1000}"
 TIMEOUT_SECONDS="${REPOMIX_TIMEOUT_SECONDS:-120}"
 REPOMIX_LOG_TAIL_LINES="${REPOMIX_LOG_TAIL_LINES:-20}"
@@ -60,6 +61,11 @@ if [[ "$INCLUDE_LOGS" != "true" && "$INCLUDE_LOGS" != "false" ]]; then
   exit 1
 fi
 
+if [[ "$INCLUDE_FILES" != "true" && "$INCLUDE_FILES" != "false" ]]; then
+  echo "REPOMIX_INCLUDE_FILES must be true|false: $INCLUDE_FILES" >&2
+  exit 1
+fi
+
 # Cross-field warning after boolean validation (M2).
 if [[ "$INCLUDE_LOGS_COUNT" -eq 0 && "$INCLUDE_LOGS" == "true" ]]; then
   echo "Warning: INCLUDE_LOGS=true but include_logs_count=0; no logs will be included" >&2
@@ -71,14 +77,13 @@ TMP_FILES="$(mktemp "${TMPDIR:-/tmp}/repomix-git-ranked-files.XXXXXX")"
 TMP_LOG="$(mktemp "${TMPDIR:-/tmp}/repomix-run.XXXXXX.log")"
 trap 'rm -f "$TMP_CONFIG" "$TMP_FILES" "$TMP_LOG"' EXIT INT TERM
 
-# Generated bundle patterns sourced from base repomix config.
+# Ignore patterns sourced from base repomix config (full set: generated
+# bundles, docs, tests, results, media, secrets, etc.).
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUNDLE_IGNORE_PATTERNS_FILE="$SCRIPT_DIR/repomix.config.json"
 if [[ -f "$BUNDLE_IGNORE_PATTERNS_FILE" ]]; then
   BUNDLE_IGNORE_PATTERNS_JSON="$(
-    jq -c '
-      [.ignore.customPatterns[]? | select(test("repomix|repo-compressed"))] | unique
-    ' "$BUNDLE_IGNORE_PATTERNS_FILE" 2>/dev/null
+    jq -c '[.ignore.customPatterns[]?] | unique' "$BUNDLE_IGNORE_PATTERNS_FILE" 2>/dev/null
   )" || {
     echo "Warning: $BUNDLE_IGNORE_PATTERNS_FILE exists but is not valid JSON; using empty ignore patterns" >&2
     BUNDLE_IGNORE_PATTERNS_JSON='[]'
@@ -134,7 +139,8 @@ jq -n \
   --argjson includeLogsCount "$INCLUDE_LOGS_COUNT" \
   --argjson sortByChangesMaxCommits "$SORT_BY_CHANGES_MAX_COMMITS" \
   --arg includeDiffs "$INCLUDE_DIFFS" \
-  --arg includeLogs "$INCLUDE_LOGS" '
+  --arg includeLogs "$INCLUDE_LOGS" \
+  --arg includeFiles "$INCLUDE_FILES" '
 {
   "$schema": "https://repomix.com/schemas/latest/schema.json",
   "output": {
@@ -144,7 +150,7 @@ jq -n \
     "removeEmptyLines": true,
     "fileSummary": false,
     "directoryStructure": false,
-    "files": true,
+    "files": ($includeFiles == "true"),
     "includeEmptyDirectories": false,
     "git": {
       "sortByChanges": true,

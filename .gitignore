@@ -12,8 +12,12 @@ wheels/
 # Virtual environments
 .venv
 
+# OS artifacts
+.DS_Store
+
 # Generated outputs
 repomix-output.xml
+benchmark_output.txt
 .doppler.yaml
 .coverage
 htmlcov/
