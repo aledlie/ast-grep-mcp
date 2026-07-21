@@ -24,14 +24,14 @@ A Model Context Protocol (MCP) server providing structural code search, refactor
 ```
 src/ast_grep_mcp/          # 125 modules
 ├── core/                  # Config, cache, executor, logging, sentry, usage tracking
-├── models/                # Data models (15 modules)
+├── models/                # Data models (14 modules)
 ├── utils/                 # Formatters, validation, templates, text processing
 ├── features/
 │   ├── search/            # 9 tools  — find_code, find_code_by_rule, dump_ast, debug_pattern, etc.
-│   ├── rewrite/           # 3 tools  — rewrite_code, rollback_rewrite, list_backups
+│   ├── rewrite/           # 5 tools  — rewrite_code, rollback_rewrite, list_backups, zod rule lookup/browse
 │   ├── refactoring/       # 2 tools  — extract_function, rename_symbol
-│   ├── deduplication/     # 4 tools  — find_duplication, analyze/apply/benchmark
-│   ├── complexity/        # 3 tools  — analyze_complexity, test_sentry, detect_code_smells
+│   ├── deduplication/     # 6 tools  — find_duplication, analyze/apply/benchmark, AST/semantic similarity
+│   ├── complexity/        # 3 tools  — analyze_complexity, test_sentry_integration, detect_code_smells
 │   ├── quality/           # 7 tools  — linting, security scanner, auto-fix, reports
 │   ├── documentation/     # 5 tools  — docstrings, readme, api_docs, changelog, sync
 │   ├── cross_language/    # 5 tools  — multi-lang search, equivalents, conversion, refactoring, bindings
@@ -40,7 +40,7 @@ src/ast_grep_mcp/          # 125 modules
 └── server/                # MCP registry + runner
 ```
 
-**55 MCP tools** | **1,807 tests collected** | **Quality gates: Ruff + mypy + pytest + analyzer pipeline**
+**59 MCP tools** | **1,809 tests collected** | **Quality gates: Ruff + mypy + pytest + analyzer pipeline**
 
 ## Quick Start
 
@@ -132,7 +132,7 @@ rewrite_code(
 )
 
 # Rollback if needed
-rollback_rewrite(backup_id="backup-20251124-103045")
+rollback_rewrite(backup_id="backup-20251124-103045", project_folder="/path")
 ```
 
 ### Deduplication
