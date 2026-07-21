@@ -213,6 +213,7 @@ class DuplicationDetector:
         "arrow_function": "const $NAME = ($$$) => $$$",
         "traditional_function": "function $NAME($$$) { $$$ }",
         "method_definition": "$NAME($$$) { $$$ }",
+        "class_definition": "class $NAME",
     }
     _C_LIKE_PATTERNS: Dict[str, str] = {
         "function_definition": "$TYPE $NAME($$$) { $$$ }",

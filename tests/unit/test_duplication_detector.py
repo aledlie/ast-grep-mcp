@@ -218,6 +218,42 @@ class TestGetConstructPattern:
 
         assert "const $NAME" in pattern
 
+    def test_javascript_class_definition_uses_class_pattern(self):
+        """Test that JS class_definition returns 'class $NAME', not const fallback (BUG-05)."""
+        detector = DuplicationDetector(language="javascript")
+
+        pattern = detector._get_construct_pattern("class_definition")
+
+        assert "class $NAME" in pattern
+        assert "const" not in pattern
+
+    def test_typescript_class_definition_uses_class_pattern(self):
+        """Test that TS class_definition returns 'class $NAME', not const fallback (BUG-05)."""
+        detector = DuplicationDetector(language="typescript")
+
+        pattern = detector._get_construct_pattern("class_definition")
+
+        assert "class $NAME" in pattern
+        assert "const" not in pattern
+
+    def test_tsx_class_definition_uses_class_pattern(self):
+        """Test that TSX class_definition returns 'class $NAME', not const fallback (BUG-05)."""
+        detector = DuplicationDetector(language="tsx")
+
+        pattern = detector._get_construct_pattern("class_definition")
+
+        assert "class $NAME" in pattern
+        assert "const" not in pattern
+
+    def test_jsx_class_definition_uses_class_pattern(self):
+        """Test that JSX class_definition returns 'class $NAME', not const fallback (BUG-05)."""
+        detector = DuplicationDetector(language="jsx")
+
+        pattern = detector._get_construct_pattern("class_definition")
+
+        assert "class $NAME" in pattern
+        assert "const" not in pattern
+
 
 class TestCalculateSimilarity:
     """Tests for calculate_similarity method."""
