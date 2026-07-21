@@ -20,9 +20,9 @@ def register_all_tools(mcp: FastMCP) -> None:
     This is the central registration point for all tools in the system.
     Tools are organized by feature and registered in order:
     1. Search (9 tools)
-    2. Rewrite (3 tools)
+    2. Rewrite (5 tools)
     3. Refactoring (2 tools)
-    4. Deduplication (4 tools)
+    4. Deduplication (6 tools)
     5. Complexity (3 tools)
     6. Quality (7 tools)
     7. Schema.org (11 tools)
@@ -30,7 +30,7 @@ def register_all_tools(mcp: FastMCP) -> None:
     9. Cross-Language (5 tools)
     10. Condense (6 tools)
 
-    Total: 55 tools
+    Total: 59 tools
     """
     register_search_tools(mcp)
     register_rewrite_tools(mcp)

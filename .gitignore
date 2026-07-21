@@ -17,6 +17,8 @@ wheels/
 
 # Generated outputs
 repomix-output.xml
+docs/repomix/*
+!docs/repomix/repomix-instruction.md
 benchmark_output.txt
 .doppler.yaml
 .coverage
