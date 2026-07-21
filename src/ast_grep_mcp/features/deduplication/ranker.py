@@ -57,34 +57,47 @@ class DeduplicationScoreCalculator:
         Returns:
             Tuple of (total_score, score_breakdown)
         """
-        scores = {}
+        scores = {"savings": self.calculate_savings_score(duplicate_group)}
+        scores["complexity"] = self.calculate_complexity_score(complexity)
 
-        # Calculate savings score first
-        scores["savings"] = self.calculate_savings_score(duplicate_group)
-        
         # Early exit: skip risk/effort calculation for low-savings candidates
-        if scores["savings"] < RankerDefaults.MIN_SAVINGS_SCORE_FOR_FULL_CALC:
-            scores["complexity"] = self.calculate_complexity_score(complexity)
-            scores["risk"] = RankerDefaults.DEFAULT_MIDDLE_SCORE * self.WEIGHT_RISK
-            scores["effort"] = RankerDefaults.DEFAULT_MIDDLE_SCORE * self.WEIGHT_EFFORT
-            if logging.getLogger().isEnabledFor(logging.DEBUG):
-                self.logger.debug(
-                    "total_score_calculated_early_exit",
-                    total_score=round(sum(scores.values()), 2),
-                    breakdown=scores,
-                )
-        else:
-            # Full calculation for candidates with meaningful savings
-            scores["complexity"] = self.calculate_complexity_score(complexity)
-            scores["risk"] = self.calculate_risk_score(test_coverage, impact_analysis)
-            scores["effort"] = self.calculate_effort_score(duplicate_group)
-            if logging.getLogger().isEnabledFor(logging.DEBUG):
-                self.logger.debug("total_score_calculated", total_score=round(sum(scores.values()), 2), breakdown=scores)
+        early_exit = scores["savings"] < RankerDefaults.MIN_SAVINGS_SCORE_FOR_FULL_CALC
+        scores.update(
+            self._default_risk_effort_scores()
+            if early_exit
+            else self._full_risk_effort_scores(duplicate_group, test_coverage, impact_analysis)
+        )
 
-        # Calculate total
         total_score = sum(scores.values())
+        self._debug_log_total_score(early_exit, total_score, scores)
 
         return round(total_score, 2), scores
+
+    def _default_risk_effort_scores(self) -> Dict[str, float]:
+        """Default middle-of-range risk/effort scores for low-savings candidates."""
+        return {
+            "risk": RankerDefaults.DEFAULT_MIDDLE_SCORE * self.WEIGHT_RISK,
+            "effort": RankerDefaults.DEFAULT_MIDDLE_SCORE * self.WEIGHT_EFFORT,
+        }
+
+    def _full_risk_effort_scores(
+        self,
+        duplicate_group: Dict[str, Any],
+        test_coverage: Optional[float],
+        impact_analysis: Optional[Dict[str, Any]],
+    ) -> Dict[str, float]:
+        """Full risk/effort calculation for candidates with meaningful savings."""
+        return {
+            "risk": self.calculate_risk_score(test_coverage, impact_analysis),
+            "effort": self.calculate_effort_score(duplicate_group),
+        }
+
+    def _debug_log_total_score(self, early_exit: bool, total_score: float, scores: Dict[str, float]) -> None:
+        """Log the score breakdown when debug logging is enabled."""
+        if not logging.getLogger().isEnabledFor(logging.DEBUG):
+            return
+        event = "total_score_calculated_early_exit" if early_exit else "total_score_calculated"
+        self.logger.debug(event, total_score=round(total_score, 2), breakdown=scores)
 
     def calculate_savings_score(self, duplicate_group: Dict[str, Any]) -> float:
         """Calculate savings score (40% weight).

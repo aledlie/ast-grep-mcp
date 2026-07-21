@@ -506,6 +506,44 @@ async def _async_terminate_process(
             logger.error("process_kill_timeout", pid=process.pid)
 
 
+def _log_stream_progress(
+    match_count: int,
+    last_progress_log: int,
+    progress_interval: int,
+    start_time: float,
+    logger: Any,
+) -> int:
+    """Log streaming progress at the configured interval.
+
+    Returns the updated last-progress-log watermark.
+    """
+    if not _should_log_progress(match_count, last_progress_log, progress_interval):
+        return last_progress_log
+    logger.info(
+        "stream_progress",
+        matches_found=match_count,
+        execution_time_seconds=round(
+            time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION
+        ),
+    )
+    return match_count
+
+
+async def _terminate_stream_early(
+    process: "asyncio.subprocess.Process",
+    match_count: int,
+    max_results: int,
+    logger: Any,
+) -> None:
+    """Log and terminate the process once max_results is reached."""
+    logger.info(
+        "stream_early_termination",
+        matches_found=match_count,
+        max_results=max_results,
+    )
+    await _async_terminate_process(process, logger, "early_termination")
+
+
 async def _async_iter_stdout_matches(
     process: "asyncio.subprocess.Process",
     max_results: int,
@@ -514,7 +552,7 @@ async def _async_iter_stdout_matches(
     logger: Any,
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """Iterate over stdout lines, yielding parsed matches.
-    
+
     Reads raw bytes to avoid asyncio StreamReader buffer limits (8KB default).
     Manually handles newline splitting to support large JSON outputs.
     """
@@ -524,56 +562,38 @@ async def _async_iter_stdout_matches(
     match_count = 0
     last_progress_log = 0
     buffer = b''
-    
+
     # Read in 64KB chunks to handle large lines
     chunk_size = 65536
-    
+
     while True:
         chunk = await process.stdout.read(chunk_size)
         if not chunk:
             # Flush remaining buffer
-            if buffer:
-                line = buffer.decode()
-                match = _parse_json_line(line, logger)
-                if match:
-                    match_count += 1
-                    yield match
+            match = _parse_json_line(buffer.decode(), logger) if buffer else None
+            if match:
+                yield match
             break
-        
+
         buffer += chunk
         lines = buffer.split(b'\n')
         buffer = lines[-1]  # Keep incomplete line
-        
+
         for line in lines[:-1]:
-            if not line:
-                continue
-            
-            match = _parse_json_line(line.decode(), logger)
+            match = _parse_json_line(line.decode(), logger) if line else None
             if not match:
                 continue
 
             match_count += 1
-
-            if _should_log_progress(match_count, last_progress_log, progress_interval):
-                logger.info(
-                    "stream_progress",
-                    matches_found=match_count,
-                    execution_time_seconds=round(
-                        time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION
-                    ),
-                )
-                last_progress_log = match_count
+            last_progress_log = _log_stream_progress(
+                match_count, last_progress_log, progress_interval, start_time, logger
+            )
 
             yield match
 
-        if max_results > 0 and match_count >= max_results:
-            logger.info(
-                "stream_early_termination",
-                matches_found=match_count,
-                max_results=max_results,
-            )
-            await _async_terminate_process(process, logger, "early_termination")
-            return
+            if max_results > 0 and match_count >= max_results:
+                await _terminate_stream_early(process, match_count, max_results, logger)
+                return
 
 
 async def async_stream_ast_grep_results(

@@ -9,13 +9,12 @@ This module registers MCP tools for:
 """
 
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
-import sentry_sdk
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-from ast_grep_mcp.constants import CrossLanguageDefaults, DisplayDefaults, FormattingDefaults
+from ast_grep_mcp.constants import CrossLanguageDefaults, FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.cross_language.binding_generator import generate_language_bindings_impl
 from ast_grep_mcp.features.cross_language.language_converter import convert_code_language_impl
@@ -31,31 +30,7 @@ from ast_grep_mcp.models.cross_language import (
     PatternExample,
     TypeMapping,
 )
-
-# =============================================================================
-# Shared Execution Helper
-# =============================================================================
-
-
-def _run_tool(tool_name: str, fn: Callable[[], Dict[str, Any]], start_time: float, log_kwargs: Dict[str, Any]) -> Dict[str, Any]:
-    logger = get_logger(f"tool.{tool_name}")
-    logger.info("tool_invoked", tool=tool_name, **log_kwargs)
-    try:
-        result = fn()
-        elapsed = round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION)
-        logger.info("tool_completed", tool=tool_name, execution_time_seconds=elapsed)
-        return result
-    except Exception as e:
-        elapsed = round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION)
-        logger.error(
-            "tool_failed",
-            tool=tool_name,
-            execution_time_seconds=elapsed,
-            error=str(e)[: DisplayDefaults.ERROR_OUTPUT_PREVIEW_LENGTH],
-        )
-        sentry_sdk.capture_exception(e)
-        raise
-
+from ast_grep_mcp.utils.tool_context import tool_context
 
 # =============================================================================
 # Response Formatting Helpers
@@ -174,9 +149,16 @@ def search_multi_language_tool(
 ) -> Dict[str, Any]:
     if languages is None:
         languages = ["auto"]
-    return _run_tool(
-        "search_multi_language",
-        lambda: _format_search_result(
+    logger = get_logger("tool.search_multi_language")
+    logger.info(
+        "tool_invoked",
+        tool="search_multi_language",
+        project_folder=project_folder,
+        semantic_pattern=semantic_pattern,
+        languages=languages,
+    )
+    with tool_context("search_multi_language", project_folder=project_folder, semantic_pattern=semantic_pattern) as start_time:
+        result = _format_search_result(
             search_multi_language_impl(
                 project_folder=project_folder,
                 semantic_pattern=semantic_pattern,
@@ -184,10 +166,10 @@ def search_multi_language_tool(
                 group_by=group_by,
                 max_results_per_language=max_results_per_language,
             )
-        ),
-        time.time(),
-        {"project_folder": project_folder, "semantic_pattern": semantic_pattern, "languages": languages},
-    )
+        )
+        elapsed = round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION)
+        logger.info("tool_completed", tool="search_multi_language", execution_time_seconds=elapsed)
+        return result
 
 
 def find_language_equivalents_tool(
@@ -195,18 +177,24 @@ def find_language_equivalents_tool(
     source_language: Optional[str] = None,
     target_languages: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
-    return _run_tool(
-        "find_language_equivalents",
-        lambda: _format_equivalents_result(
+    logger = get_logger("tool.find_language_equivalents")
+    logger.info(
+        "tool_invoked",
+        tool="find_language_equivalents",
+        pattern_description=pattern_description,
+        source_language=source_language,
+    )
+    with tool_context("find_language_equivalents", pattern_description=pattern_description, source_language=source_language) as start_time:
+        result = _format_equivalents_result(
             find_language_equivalents_impl(
                 pattern_description=pattern_description,
                 source_language=source_language,
                 target_languages=target_languages,
             )
-        ),
-        time.time(),
-        {"pattern_description": pattern_description, "source_language": source_language},
-    )
+        )
+        elapsed = round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION)
+        logger.info("tool_completed", tool="find_language_equivalents", execution_time_seconds=elapsed)
+        return result
 
 
 def convert_code_language_tool(
@@ -216,9 +204,16 @@ def convert_code_language_tool(
     conversion_style: str = "idiomatic",
     include_comments: bool = True,
 ) -> Dict[str, Any]:
-    return _run_tool(
-        "convert_code_language",
-        lambda: _format_conversion_result(
+    logger = get_logger("tool.convert_code_language")
+    logger.info(
+        "tool_invoked",
+        tool="convert_code_language",
+        from_language=from_language,
+        to_language=to_language,
+        conversion_style=conversion_style,
+    )
+    with tool_context("convert_code_language", from_language=from_language, to_language=to_language) as start_time:
+        result = _format_conversion_result(
             convert_code_language_impl(
                 code_snippet=code_snippet,
                 from_language=from_language,
@@ -226,10 +221,10 @@ def convert_code_language_tool(
                 conversion_style=conversion_style,
                 include_comments=include_comments,
             )
-        ),
-        time.time(),
-        {"from_language": from_language, "to_language": to_language, "conversion_style": conversion_style},
-    )
+        )
+        elapsed = round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION)
+        logger.info("tool_completed", tool="convert_code_language", execution_time_seconds=elapsed)
+        return result
 
 
 def _format_polyglot_result(result: Any) -> Dict[str, Any]:
@@ -273,9 +268,17 @@ def refactor_polyglot_tool(
 ) -> Dict[str, Any]:
     if affected_languages is None:
         affected_languages = ["all"]
-    return _run_tool(
-        "refactor_polyglot",
-        lambda: _format_polyglot_result(
+    logger = get_logger("tool.refactor_polyglot")
+    logger.info(
+        "tool_invoked",
+        tool="refactor_polyglot",
+        project_folder=project_folder,
+        refactoring_type=refactoring_type,
+        symbol_name=symbol_name,
+        dry_run=dry_run,
+    )
+    with tool_context("refactor_polyglot", project_folder=project_folder, refactoring_type=refactoring_type) as start_time:
+        result = _format_polyglot_result(
             refactor_polyglot_impl(
                 project_folder=project_folder,
                 refactoring_type=refactoring_type,
@@ -284,10 +287,10 @@ def refactor_polyglot_tool(
                 affected_languages=affected_languages,
                 dry_run=dry_run,
             )
-        ),
-        time.time(),
-        {"project_folder": project_folder, "refactoring_type": refactoring_type, "symbol_name": symbol_name, "dry_run": dry_run},
-    )
+        )
+        elapsed = round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION)
+        logger.info("tool_completed", tool="refactor_polyglot", execution_time_seconds=elapsed)
+        return result
 
 
 def _format_bindings_result(result: Any) -> Dict[str, Any]:
@@ -320,19 +323,26 @@ def generate_language_bindings_tool(
 ) -> Dict[str, Any]:
     if target_languages is None:
         target_languages = ["python", "typescript", "javascript"]
-    return _run_tool(
-        "generate_language_bindings",
-        lambda: _format_bindings_result(
+    logger = get_logger("tool.generate_language_bindings")
+    logger.info(
+        "tool_invoked",
+        tool="generate_language_bindings",
+        api_definition_file=api_definition_file,
+        target_languages=target_languages,
+        binding_style=binding_style,
+    )
+    with tool_context("generate_language_bindings", api_definition_file=api_definition_file, binding_style=binding_style) as start_time:
+        result = _format_bindings_result(
             generate_language_bindings_impl(
                 api_definition_file=api_definition_file,
                 target_languages=target_languages,
                 binding_style=binding_style,
                 include_types=include_types,
             )
-        ),
-        time.time(),
-        {"api_definition_file": api_definition_file, "target_languages": target_languages, "binding_style": binding_style},
-    )
+        )
+        elapsed = round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION)
+        logger.info("tool_completed", tool="generate_language_bindings", execution_time_seconds=elapsed)
+        return result
 
 
 # =============================================================================
