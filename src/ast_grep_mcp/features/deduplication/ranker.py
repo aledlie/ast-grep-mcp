@@ -399,7 +399,8 @@ class DuplicationRanker:
 
     def clear_cache(self) -> None:
         """Clear the score cache."""
-        self._score_cache.clear()
+        with self._cache_lock:
+            self._score_cache.clear()
         if logging.getLogger().isEnabledFor(logging.DEBUG):
             self.logger.debug("score_cache_cleared")
 
@@ -491,16 +492,16 @@ class DuplicationRanker:
 
         Returns tuple of (scores_list, total_workers_used)
         """
-        results = []
+        results: List[Any] = [None] * len(candidates)
         workers_used = 0
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = {executor.submit(self._score_candidate, c): i for i, c in enumerate(candidates)}
-            workers_used = executor._max_workers or 1
+            workers_used = self.max_workers or 1
 
             for future in as_completed(futures):
-                score_result = future.result()
-                results.append(score_result)
+                idx = futures[future]
+                results[idx] = future.result()
 
         return results, workers_used
 

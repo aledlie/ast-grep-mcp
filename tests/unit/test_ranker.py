@@ -272,3 +272,40 @@ class TestParallelScoring:
         # Scores should still be identical
         for r1, r2 in zip(ranked1, ranked2):
             assert abs(r1["score"] - r2["score"]) < 1e-9
+
+    def test_parallel_scoring_assigns_score_to_correct_candidate(self):
+        """Regression test for BUG-03: parallel scoring must not shuffle scores between candidates.
+
+        Creates candidates with distinct, widely-separated savings values so each
+        candidate has a unique expected score.  Verifies that the parallel-ranked
+        result for each original candidate matches the score computed sequentially
+        from that same candidate's own data — not a neighbour's score.
+        """
+        ranker_seq = DuplicationRanker(max_workers=0)
+        ranker_par = DuplicationRanker(max_workers=4)
+
+        # 10 candidates with non-overlapping scores (potential_line_savings drives 40% weight)
+        candidates = [
+            {
+                "potential_line_savings": (i + 1) * 50,
+                "complexity_score": 3,
+                "has_tests": False,
+                "affected_files": 1,
+                "external_call_sites": 0,
+            }
+            for i in range(10)
+        ]
+
+        ranked_seq = ranker_seq.rank_deduplication_candidates(candidates)
+        ranked_par = ranker_par.rank_deduplication_candidates(candidates)
+
+        # Build a map from potential_line_savings → sequential score
+        seq_score_by_savings = {c["potential_line_savings"]: c["score"] for c in ranked_seq}
+
+        # Every parallel result must carry the score that matches its own savings value
+        for c in ranked_par:
+            savings = c["potential_line_savings"]
+            assert abs(c["score"] - seq_score_by_savings[savings]) < 1e-9, (
+                f"Candidate with savings={savings} got score={c['score']!r}, "
+                f"expected {seq_score_by_savings[savings]!r} — score was likely misassigned"
+            )
