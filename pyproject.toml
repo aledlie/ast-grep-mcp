@@ -120,6 +120,10 @@ dev = [
     "mypy>=1.17.1",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.3.0",
+    "sympy>=1.14.0",
+    "tokenizers>=0.22.2",
+    "torch>=2.13.0",
+    "transformers>=5.14.1",
     "types-cachetools>=7.0.0.20260713",
     "types-pyyaml>=6.0.12.20250809",
 ]
