@@ -405,8 +405,6 @@ def generate_file_diff(old_content: str, new_content: str, filename: str) -> str
     """
     old_lines = old_content.splitlines(keepends=True) if old_content else []
     new_lines = new_content.splitlines(keepends=True) if new_content else []
-    _ensure_trailing_newline(old_lines)
-    _ensure_trailing_newline(new_lines)
     return "".join(
         difflib.unified_diff(
             old_lines,
