@@ -363,8 +363,8 @@ def generate_file_diff(
     Returns:
         FileDiff object with raw and formatted diffs
     """
-    original_lines = _prepare_lines_for_diff(original_content.splitlines(keepends=True))
-    new_lines = _prepare_lines_for_diff(new_content.splitlines(keepends=True))
+    original_lines = original_content.splitlines(keepends=True)
+    new_lines = new_content.splitlines(keepends=True)
     diff_lines = _compute_unified_diff(file_path, original_lines, new_lines, context_lines)
     hunks, additions, deletions = _process_diff_lines(diff_lines)
 

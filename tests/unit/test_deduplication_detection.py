@@ -171,6 +171,21 @@ class TestDiffPreview:
         assert isinstance(diff, str)
         assert "def foo()" in diff or diff == ""
 
+    def test_generate_file_diff_trailing_newline_change_is_visible(self):
+        """Trailing-newline-only changes must appear in the diff (BUGL-05 regression)."""
+        old_content = "def foo(): pass"  # no trailing newline
+        new_content = "def foo(): pass\n"  # trailing newline added
+
+        diff = generate_file_diff(old_content, new_content, "file.py")
+        # Diff must be non-empty: a newline-only change cannot silently disappear
+        assert diff != "", "trailing-newline change was hidden (BUGL-05 regression)"
+
+    def test_generate_file_diff_identical_content_is_empty(self):
+        """Identical content must produce an empty diff."""
+        content = "def foo(): pass\n"
+        diff = generate_file_diff(content, content, "file.py")
+        assert diff == ""
+
     def test_generate_multi_file_diff(self):
         """Test generating diff for multiple files."""
         changes = [
