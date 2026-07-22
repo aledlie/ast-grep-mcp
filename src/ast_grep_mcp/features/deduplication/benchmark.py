@@ -141,7 +141,7 @@ class BenchmarkExecutor:
         """
         candidates = [
             {
-                "lines_saved": i * 10,
+                "potential_line_savings": i * 10,
                 "complexity_score": (i % 10) + 1,
                 "has_tests": i % 2 == 0,
                 "affected_files": (i % BENCHMARK_SCORING_MODULE_BUCKET_COUNT) + 1,
@@ -150,8 +150,10 @@ class BenchmarkExecutor:
             for i in range(BENCHMARK_PATTERN_CANDIDATE_COUNT)
         ]
 
-        ranker = DuplicationRanker()
-        return self.run_timed_benchmark("pattern_analysis", ranker.rank_deduplication_candidates, iterations, candidates)
+        def run_pattern_analysis() -> None:
+            DuplicationRanker(enable_cache=False).rank_deduplication_candidates(candidates)
+
+        return self.run_timed_benchmark("pattern_analysis", run_pattern_analysis, iterations)
 
     def benchmark_code_generation(self, iterations: int) -> Dict[str, Any]:
         """Benchmark recommendation generation.
