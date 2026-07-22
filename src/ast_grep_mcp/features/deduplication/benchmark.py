@@ -69,10 +69,12 @@ class BenchmarkExecutor:
             elapsed = time.perf_counter() - t_start
             times.append(elapsed)
 
+        raw_mean = statistics.mean(times)
         result = {
             "name": name,
             "iterations": iterations,
-            "mean_seconds": round(statistics.mean(times), FormattingDefaults.BENCHMARK_PRECISION),
+            "mean_seconds": round(raw_mean, FormattingDefaults.BENCHMARK_PRECISION),
+            "mean_seconds_raw": raw_mean,
             "std_dev_seconds": round(statistics.stdev(times) if len(times) > 1 else 0.0, FormattingDefaults.BENCHMARK_PRECISION),
             "min_seconds": round(min(times), FormattingDefaults.BENCHMARK_PRECISION),
             "max_seconds": round(max(times), FormattingDefaults.BENCHMARK_PRECISION),
@@ -413,8 +415,8 @@ class RegressionDetector:
         Returns:
             Regression error message if regression detected, None otherwise
         """
-        baseline_mean = baseline_result.get("mean_seconds", 0)
-        current_mean = current_result["mean_seconds"]
+        baseline_mean = baseline_result.get("mean_seconds_raw", baseline_result.get("mean_seconds", 0))
+        current_mean = current_result.get("mean_seconds_raw", current_result["mean_seconds"])
         threshold = self.thresholds.get(name, DeduplicationDefaults.REGRESSION_CODE_GENERATION)
 
         if baseline_mean <= 0:
