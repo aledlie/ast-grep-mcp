@@ -259,7 +259,8 @@ class TestComplexityRegression:
     """Test suite to prevent complexity regression in refactored functions."""
 
     @pytest.fixture(scope="class")
-    def project_root(self) -> Path:
+    @classmethod
+    def project_root(cls) -> Path:
         """Get project root path."""
         return get_project_root()
 
@@ -350,7 +351,8 @@ class TestComplexityTrends:
     """Monitor complexity trends across the codebase."""
 
     @pytest.fixture(scope="class")
-    def project_root(self) -> Path:
+    @classmethod
+    def project_root(cls) -> Path:
         """Get project root path."""
         return get_project_root()
 
