@@ -203,7 +203,7 @@ class DuplicationReporter:
             "original_code": candidate.get("code", ""),
             "suggested_function_name": function_name,
             "replacement_code": candidate.get("replacement", ""),
-            "similarity_score": candidate.get("similarity", float(RankerDefaults.MAX_NORMALIZED_SCORE)),
+            "similarity_score": candidate.get("similarity_score", float(RankerDefaults.MAX_NORMALIZED_SCORE)),
             "complexity_score": complexity,
             "before_after": before_after,
             "complexity_viz": self.visualize_complexity(complexity),
