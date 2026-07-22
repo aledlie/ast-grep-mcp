@@ -56,11 +56,12 @@ def find_duplication_tool(
         exclude_patterns=exclude_patterns,
     )
 
+    summary = results.get("summary", {})
     logger.info(
         "find_duplication_complete",
-        duplicate_groups=results.get("duplicate_groups", 0),
-        total_duplicates=results.get("total_duplicates", 0),
-        total_lines_duplicated=results.get("total_lines_duplicated", 0),
+        duplicate_groups=summary.get("duplicate_groups", 0),
+        total_duplicated_lines=summary.get("total_duplicated_lines", 0),
+        potential_line_savings=summary.get("potential_line_savings", 0),
     )
 
     return results
