@@ -332,16 +332,26 @@ class DeduplicationApplicator:
         post_validation_result = self.post_validator.validate_modified_files(modified_files, language)
         validation_result["post_validation"] = post_validation_result.to_dict()
 
-        # AUTO-ROLLBACK if post-validation fails
-        if not post_validation_result.is_valid and backup_id:
-            backup_manager = DeduplicationBackupManager(project_folder)
-            restored = backup_manager.rollback(backup_id)
+        # POST-VALIDATION FAILURE: handle with or without a backup
+        if not post_validation_result.is_valid:
+            if backup_id:
+                # AUTO-ROLLBACK when a backup exists
+                backup_manager = DeduplicationBackupManager(project_folder)
+                restored = backup_manager.rollback(backup_id)
+                return self._build_response(
+                    "rolled_back",
+                    f"Rolled back due to {len(post_validation_result.errors)} validation error(s)",
+                    validation_result,
+                    files_restored=restored,
+                    backup_id=backup_id,
+                    errors=post_validation_result.errors,
+                    group_id=group_id,
+                )
+            # No backup — files on disk are broken; surface the failure explicitly
             return self._build_response(
-                "rolled_back",
-                f"Rolled back due to {len(post_validation_result.errors)} validation error(s)",
+                "validation_failed",
+                f"Post-validation failed with {len(post_validation_result.errors)} error(s); no backup available to restore",
                 validation_result,
-                files_restored=restored,
-                backup_id=backup_id,
                 errors=post_validation_result.errors,
                 group_id=group_id,
             )

@@ -15,6 +15,7 @@ Note: This test uses fixtures from conftest.py for MCP tool access.
 import json
 import os
 import sys
+from unittest.mock import patch
 
 import pytest
 
@@ -235,6 +236,39 @@ class TestBackupIntegration:
         assert "rollback_command" in result
         assert result["backup_id"] in result["rollback_command"]
         assert "rollback_rewrite" in result["rollback_command"]
+
+    def test_post_validation_failure_without_backup_returns_validation_failed(  # noqa: E501
+        self, project_folder, backup_test_files, apply_deduplication_tool, refactoring_plan_factory
+    ) -> None:
+        """BUG-01: post-validation failure with backup=False must not return success.
+
+        When backup=False the backup_id is None, so _validate_and_rollback_if_needed
+        previously fell through and returned None, causing the caller to build a
+        'success' response despite files on disk having syntax errors. The fix
+        returns status='validation_failed' instead.
+        """
+        from ast_grep_mcp.features.deduplication.applicator_validator import ValidationResult
+
+        failing_result = ValidationResult(
+            is_valid=False,
+            errors=[{"type": "syntax_error", "file": backup_test_files["file1"], "error": "invalid syntax", "suggestion": ""}],
+        )
+
+        new_content = "def func1():\n    pass\n"
+        plan = refactoring_plan_factory(files=[backup_test_files["file1"]], new_contents=[new_content])
+
+        with patch(
+            "ast_grep_mcp.features.deduplication.applicator_post_validator.RefactoringPostValidator.validate_modified_files",
+            return_value=failing_result,
+        ):
+            result = apply_deduplication_tool(
+                project_folder=str(project_folder), group_id=1, refactoring_plan=plan, dry_run=False, backup=False
+            )
+
+        assert result["status"] == "validation_failed", f"Expected 'validation_failed', got '{result['status']}'"
+        assert "errors" in result
+        assert len(result["errors"]) > 0
+        assert result.get("backup_id") is None
 
 
 class TestPhase33MultiFileOrchestration:
