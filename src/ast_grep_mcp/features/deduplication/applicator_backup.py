@@ -11,10 +11,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List
 
-from ...constants import BackupDefaults, FormattingDefaults
+from ...constants import BackupDefaults
 from ...core.logging import get_logger
 from ...utils.backup import (
     copy_file_to_backup,
+    generate_backup_timestamp,
     get_file_hash,
     resolve_backup_dir,
     restore_file_from_backup,
@@ -163,7 +164,7 @@ class DeduplicationBackupManager:
 
     def _generate_backup_id(self) -> tuple[str, Path]:
         """Generate a unique backup ID with timestamp, handling collisions."""
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[: -FormattingDefaults.TIMESTAMP_MS_TRIM]
+        timestamp = generate_backup_timestamp()
         return resolve_backup_dir(BackupDefaults.DEDUP_PREFIX, timestamp, self.backup_base_dir)
 
     def _compute_file_hashes(self, files: List[str]) -> Dict[str, str]:

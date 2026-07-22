@@ -6,10 +6,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ast_grep_mcp.constants import BackupDefaults, FormattingDefaults
+from ast_grep_mcp.constants import BackupDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.utils.backup import (
     copy_file_to_backup,
+    generate_backup_timestamp,
     get_file_hash,
     resolve_backup_dir,
     restore_file_from_backup,
@@ -26,7 +27,7 @@ def _create_backup_common(
     extra_log_fields: Optional[Dict[str, Any]] = None,
 ) -> str:
     logger = get_logger("rewrite.backup")
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[: -FormattingDefaults.TIMESTAMP_MS_TRIM]
+    timestamp = generate_backup_timestamp()
     backup_base_dir = Path(project_folder) / BackupDefaults.DIR_NAME
     backup_id, backup_dir = resolve_backup_dir(prefix, timestamp, backup_base_dir)
     backup_dir.mkdir(parents=True, exist_ok=True)

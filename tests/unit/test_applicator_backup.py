@@ -208,8 +208,11 @@ class TestCreateBackup:
             collision_dir2.mkdir(parents=True, exist_ok=True)
 
             # Now create a backup with the same timestamp - should get -2 suffix
-            with patch("ast_grep_mcp.features.deduplication.applicator_backup.datetime") as mock_dt:
-                mock_dt.now.return_value.strftime.return_value = strftime_return
+            with (
+                patch("ast_grep_mcp.utils.backup.datetime") as mock_ts_dt,
+                patch("ast_grep_mcp.features.deduplication.applicator_backup.datetime") as mock_dt,
+            ):
+                mock_ts_dt.now.return_value.strftime.return_value = strftime_return
                 mock_dt.now.return_value.isoformat.return_value = "2024-01-01T12:00:00"
 
                 backup_id = manager.create_backup([file_path], {})

@@ -3,8 +3,19 @@
 import hashlib
 import os
 import shutil
+from datetime import datetime
 from pathlib import Path
 from typing import Dict
+
+from ast_grep_mcp.constants import FormattingDefaults
+
+
+def generate_backup_timestamp() -> str:
+    """Return a millisecond-precision timestamp string for backup IDs.
+
+    Format: YYYYMMDD-HHMMSS-mmm (last 3 microsecond digits trimmed).
+    """
+    return datetime.now().strftime("%Y%m%d-%H%M%S-%f")[: -FormattingDefaults.TIMESTAMP_MS_TRIM]
 
 
 def get_file_hash(file_path: str) -> str:
