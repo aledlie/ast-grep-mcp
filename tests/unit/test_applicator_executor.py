@@ -267,7 +267,7 @@ class TestUpdateFiles:
                 assert f.read() == "new content"
 
     def test_skips_nonexistent_file(self):
-        """Test that nonexistent files are skipped."""
+        """Test that nonexistent files are reported as failed, not silently skipped."""
         executor = RefactoringExecutor()
 
         update_list = [{"path": "/nonexistent/file.py"}]
@@ -275,7 +275,9 @@ class TestUpdateFiles:
         result = executor._update_files(update_list, {}, {}, "python")
 
         assert len(result["updated"]) == 0
-        assert len(result["failed"]) == 0
+        assert len(result["failed"]) == 1
+        assert result["failed"][0]["file"] == "/nonexistent/file.py"
+        assert result["failed"][0]["error"] == "file not found"
 
     def test_skips_empty_path(self):
         """Test that empty path is skipped."""

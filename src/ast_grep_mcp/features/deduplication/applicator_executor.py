@@ -125,6 +125,8 @@ class RefactoringExecutor:
         for update_info in update_file_list:
             file_path = update_info.get("path", "")
             if not file_path or not os.path.exists(file_path):
+                self.logger.warning("update_file_missing", file=file_path)
+                failed.append({"file": file_path, "error": "file not found"})
                 continue
             self._update_single_file(file_path, replacements, import_additions, language, updated, failed)
 
