@@ -677,6 +677,31 @@ class TestGenerateRefactoringSuggestions:
         assert result[0]["lines_per_duplicate"] == 2
         assert "refactoring_strategy" in result[0]
 
+    def test_total_lines_uses_per_item_counts(self):
+        """Regression test for BUGL-01: total_duplicated_lines must sum actual
+        per-item line counts, not multiply group[0]'s count by len(group)."""
+        detector = DuplicationDetector()
+
+        short_code = "def a():\n    return 1"  # 2 lines
+        long_code = "def a():\n    x = 1\n    y = 2\n    return x + y"  # 4 lines
+
+        groups = [
+            [
+                {"text": short_code, "file": "f1.py", "range": {"start": {"line": 1}}},
+                {"text": long_code, "file": "f2.py", "range": {"start": {"line": 10}}},
+            ]
+        ]
+
+        result = detector.generate_refactoring_suggestions(groups, "function_definition")
+
+        assert len(result) == 1
+        # lines_per_duplicate is always from group[0]
+        assert result[0]["lines_per_duplicate"] == 2
+        # total must be sum of actual lengths (2 + 4), NOT 2 * 2 = 4
+        assert result[0]["total_duplicated_lines"] == 6
+        # savings = total - kept copy (group[0])
+        assert result[0]["potential_line_savings"] == 4
+
 
 class TestDetermineRefactoringStrategy:
     """Tests for _determine_refactoring_strategy method."""

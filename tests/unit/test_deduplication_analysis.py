@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 # Import from modular code
 # Variation analysis functions migrated to modular architecture
 from ast_grep_mcp.features.deduplication.analyzer import (
+    PatternAnalyzer,
     _detect_nested_function_call,
     classify_variations,
     detect_conditional_variations,
@@ -129,6 +130,38 @@ class TestParameterExtraction:
         assert hasattr(ParameterType, "STRING")
         assert hasattr(ParameterType, "NUMBER")
         assert hasattr(ParameterType, "BOOLEAN")
+
+
+class TestCalculateCallNestingDepth:
+    """Regression tests for PatternAnalyzer._calculate_call_nesting_depth (BUGL-09)."""
+
+    def setup_method(self) -> None:
+        self.analyzer = PatternAnalyzer()
+
+    def test_identifier_after_closed_nested_calls_is_depth_zero(self) -> None:
+        """Regression: BUGL-09 — f(g(x)) + identifier must report depth 0.
+
+        The old code returned max_depth=2 because it tracked the highest
+        parenthesis depth seen before the identifier, not the depth AT the
+        identifier's position.
+        """
+        depth = self.analyzer._calculate_call_nesting_depth("f(g(x)) + identifier", "identifier")
+        assert depth == 0
+
+    def test_identifier_inside_nested_calls_reports_correct_depth(self) -> None:
+        """f(g(identifier)) — identifier is at depth 2."""
+        depth = self.analyzer._calculate_call_nesting_depth("f(g(identifier))", "identifier")
+        assert depth == 2
+
+    def test_identifier_at_top_level(self) -> None:
+        """identifier alone — depth is 0."""
+        depth = self.analyzer._calculate_call_nesting_depth("identifier", "identifier")
+        assert depth == 0
+
+    def test_identifier_not_found_returns_zero(self) -> None:
+        """Unknown identifier — returns 0 without error."""
+        depth = self.analyzer._calculate_call_nesting_depth("f(g(x))", "missing")
+        assert depth == 0
 
 
 class TestComplexityScoring:
