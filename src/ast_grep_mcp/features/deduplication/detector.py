@@ -626,7 +626,7 @@ class DuplicationDetector:
     def _build_suggestion(self, idx: int, group: List[Dict[str, Any]], construct_type: str) -> Dict[str, Any]:
         """Build a single refactoring suggestion for a duplication group."""
         lines = self._code_line_count(group[0].get("text", ""))
-        total_lines = lines * len(group)
+        total_lines = sum(self._code_line_count(item.get("text", "")) for item in group)
         return {
             "group_id": idx + 1,
             "duplicate_count": len(group),
