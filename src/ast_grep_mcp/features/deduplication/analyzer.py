@@ -816,7 +816,7 @@ class PatternAnalyzer:
             elif char == ")":
                 depth -= 1
 
-        return max_depth
+        return depth
 
     def _detect_nested_call_regex(self, code: str, identifier: str) -> Optional[Dict[str, Any]]:
         """Fallback regex-based detection for nested function calls."""
