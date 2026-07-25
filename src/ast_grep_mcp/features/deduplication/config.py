@@ -63,6 +63,9 @@ class AnalysisConfig:
         exclude_patterns: Path patterns to exclude from analysis. Default: None
         parallel: Enable parallel execution for enrichment. Default: True
         max_workers: Maximum worker threads for parallel execution. Default: 4
+        timeout_per_candidate: Per-candidate enrichment timeout in seconds.
+            None uses the default (30s). Raise this if legitimate enrichment
+            operations are spuriously marked timed-out. Default: None
         progress_callback: Optional callback for progress reporting.
             Signature: (stage_name: str, progress_percent: float) -> None
     """
@@ -83,6 +86,7 @@ class AnalysisConfig:
     # Parallel execution settings
     parallel: bool = True
     max_workers: int = ParallelProcessing.DEFAULT_WORKERS
+    timeout_per_candidate: Optional[int] = None
 
     # Progress tracking
     progress_callback: Optional[Callable[[str, float], None]] = None
@@ -119,5 +123,6 @@ class AnalysisConfig:
             "exclude_patterns": self.exclude_patterns,
             "parallel": self.parallel,
             "max_workers": self.max_workers,
+            "timeout_per_candidate": self.timeout_per_candidate,
             "has_progress_callback": self.progress_callback is not None,
         }

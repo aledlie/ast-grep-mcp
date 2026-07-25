@@ -88,6 +88,7 @@ class DeduplicationAnalysisOrchestrator:
         max_candidates: int = DeduplicationDefaults.MAX_CANDIDATES,
         exclude_patterns: List[str] | None = None,
         progress_callback: Optional[ProgressCallback] = None,
+        timeout_per_candidate: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Analyze a project for deduplication candidates (legacy interface).
 
@@ -106,6 +107,7 @@ class DeduplicationAnalysisOrchestrator:
             max_candidates=max_candidates,
             exclude_patterns=exclude_patterns,
             progress_callback=progress_callback,
+            timeout_per_candidate=timeout_per_candidate,
         )
         return self.analyze_candidates_with_config(config)
 
@@ -336,12 +338,22 @@ class DeduplicationAnalysisOrchestrator:
         if config.include_test_coverage:
             report("Checking test coverage", DeduplicationDefaults.PROGRESS_COVERAGE_CHECK)
             self._add_test_coverage_batch(
-                top_candidates, config.language, config.project_path, parallel=config.parallel, max_workers=config.max_workers
+                top_candidates,
+                config.language,
+                config.project_path,
+                parallel=config.parallel,
+                max_workers=config.max_workers,
+                timeout_per_candidate=config.timeout_per_candidate,
             )
             report("Test coverage complete", DeduplicationDefaults.PROGRESS_COVERAGE_COMPLETE)
 
         report("Generating recommendations", DeduplicationDefaults.PROGRESS_RECOMMENDATIONS)
-        self._add_recommendations(top_candidates, parallel=config.parallel, max_workers=config.max_workers)
+        self._add_recommendations(
+            top_candidates,
+            parallel=config.parallel,
+            max_workers=config.max_workers,
+            timeout_per_candidate=config.timeout_per_candidate,
+        )
 
         report("Calculating statistics", DeduplicationDefaults.PROGRESS_STATISTICS)
         return self._build_enrich_result(top_candidates, ranked_candidates, config)
