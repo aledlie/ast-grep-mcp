@@ -11,12 +11,31 @@ Usage:
     pytest tests/performance/benchmark_streaming.py -v --benchmark-compare
 """
 
+import asyncio
 import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from ast_grep_mcp.core.executor import async_stream_ast_grep_results, stream_ast_grep_results
+
+
+def make_mock_process(json_output: str, returncode: int = 0) -> AsyncMock:
+    """Mock asyncio subprocess delivering json_output as a single stdout chunk.
+
+    The executor reads stdout via `await process.stdout.read(chunk_size)`, so
+    stdout.read must yield bytes then b"" (EOF). Each mock supports exactly one
+    streaming pass — build a fresh one per benchmarked call.
+    """
+    process = AsyncMock()
+    process.stdout = AsyncMock()
+    process.stdout.read = AsyncMock(side_effect=[json_output.encode(), b""])
+    process.returncode = returncode
+    process.wait = AsyncMock(return_value=returncode)
+    process.stderr = AsyncMock()
+    process.stderr.read = AsyncMock(return_value=b"")
+    process.terminate = lambda: None
+    return process
 
 
 class TestStreamingBenchmark:
@@ -28,15 +47,8 @@ class TestStreamingBenchmark:
         matches = [{"file": f"test{i}.py", "line": i, "column": 0} for i in range(1000)]
         json_lines = "\n".join(json.dumps(m) for m in matches)
 
-        mock_process = AsyncMock()
-        mock_process.stdout = AsyncMock()
-        mock_process.stdout.__aiter__.return_value = iter(json_lines.split("\n"))
-        mock_process.returncode = 0
-        mock_process.wait = AsyncMock(return_value=0)
-        mock_process.stderr = AsyncMock()
-        mock_process.stderr.read = AsyncMock(return_value=b"")
-
         def run_sync_stream():
+            mock_process = make_mock_process(json_lines)
             with patch("ast_grep_mcp.core.executor.asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_create:
                 mock_create.return_value = mock_process
                 return list(stream_ast_grep_results("run", ["--json=stream", "/test"]))
@@ -45,29 +57,18 @@ class TestStreamingBenchmark:
         assert len(result) == 1000
 
     @pytest.mark.benchmark(group="streaming")
-    @pytest.mark.asyncio
-    async def test_async_streaming_1k_matches(self, benchmark):
+    def test_async_streaming_1k_matches(self, benchmark):
         """Benchmark async streaming with 1,000 matches."""
         matches = [{"file": f"test{i}.py", "line": i, "column": 0} for i in range(1000)]
         json_lines = "\n".join(json.dumps(m) for m in matches)
 
-        mock_process = AsyncMock()
-        mock_process.stdout = AsyncMock()
-        mock_process.stdout.__aiter__.return_value = iter(json_lines.split("\n"))
-        mock_process.returncode = 0
-        mock_process.wait = AsyncMock(return_value=0)
-        mock_process.stderr = AsyncMock()
-        mock_process.stderr.read = AsyncMock(return_value=b"")
-
-        async def run_async_stream():
+        async def collect():
+            mock_process = make_mock_process(json_lines)
             with patch("ast_grep_mcp.core.executor.asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_create:
                 mock_create.return_value = mock_process
-                results = []
-                async for match in async_stream_ast_grep_results("run", ["--json=stream", "/test"]):
-                    results.append(match)
-                return results
+                return [m async for m in async_stream_ast_grep_results("run", ["--json=stream", "/test"])]
 
-        result = await benchmark.pedantic(run_async_stream, rounds=5, iterations=1)
+        result = benchmark(lambda: asyncio.run(collect()))
         assert len(result) == 1000
 
     @pytest.mark.benchmark(group="streaming")
@@ -76,16 +77,9 @@ class TestStreamingBenchmark:
         matches = [{"file": f"test{i}.py", "line": i} for i in range(1000)]
         json_lines = "\n".join(json.dumps(m) for m in matches)
 
-        mock_process = AsyncMock()
-        mock_process.stdout = AsyncMock()
-        mock_process.stdout.__aiter__.return_value = iter(json_lines.split("\n"))
-        mock_process.returncode = -15  # SIGTERM from early termination
-        mock_process.wait = AsyncMock(return_value=-15)
-        mock_process.stderr = AsyncMock()
-        mock_process.stderr.read = AsyncMock(return_value=b"")
-        mock_process.terminate = lambda: None
-
         def run_early_term():
+            # SIGTERM returncode: the executor terminates the process at max_results
+            mock_process = make_mock_process(json_lines, returncode=-15)
             with patch("ast_grep_mcp.core.executor.asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_create:
                 mock_create.return_value = mock_process
                 return list(stream_ast_grep_results("run", ["--json=stream", "/test"], max_results=100))
@@ -95,7 +89,7 @@ class TestStreamingBenchmark:
 
     @pytest.mark.benchmark(group="streaming")
     def test_sync_shim_invalid_json_skipping(self, benchmark):
-        """Benchmark JSON parse error handling (100 valid, 100 invalid)."""
+        """Benchmark JSON parse error handling (50 valid, 50 invalid)."""
         valid = [{"file": f"test{i}.py"} for i in range(50)]
         invalid = ["invalid json"] * 50
 
@@ -106,15 +100,8 @@ class TestStreamingBenchmark:
             json_lines_list.append(invalid[i])
         json_lines = "\n".join(json_lines_list)
 
-        mock_process = AsyncMock()
-        mock_process.stdout = AsyncMock()
-        mock_process.stdout.__aiter__.return_value = iter(json_lines.split("\n"))
-        mock_process.returncode = 0
-        mock_process.wait = AsyncMock(return_value=0)
-        mock_process.stderr = AsyncMock()
-        mock_process.stderr.read = AsyncMock(return_value=b"")
-
         def run_with_errors():
+            mock_process = make_mock_process(json_lines)
             with patch("ast_grep_mcp.core.executor.asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_create:
                 mock_create.return_value = mock_process
                 return list(stream_ast_grep_results("run", ["--json=stream", "/test"]))
@@ -128,16 +115,9 @@ class TestStreamingBenchmark:
         matches = [{"file": f"test{i}.py", "line": i, "data": "x" * 100} for i in range(100)]
         json_lines = "\n".join(json.dumps(m) for m in matches)
 
-        mock_process = AsyncMock()
-        mock_process.stdout = AsyncMock()
-        mock_process.stdout.__aiter__.return_value = iter(json_lines.split("\n"))
-        mock_process.returncode = 0
-        mock_process.wait = AsyncMock(return_value=0)
-        mock_process.stderr = AsyncMock()
-        mock_process.stderr.read = AsyncMock(return_value=b"")
-
         def iterate_streaming():
             """Iterate results (streaming), not collect all at once."""
+            mock_process = make_mock_process(json_lines)
             with patch("ast_grep_mcp.core.executor.asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_create:
                 mock_create.return_value = mock_process
                 count = 0
