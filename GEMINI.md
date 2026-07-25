@@ -6,7 +6,7 @@ This file provides critical context and instructions for AI agents (like Gemini)
 
 **ast-grep-mcp** is a high-performance Model Context Protocol (MCP) server that provides structural code search, refactoring, and quality analysis capabilities using [ast-grep](https://ast-grep.github.io/).
 
-- **Architecture:** Modular design with 118+ modules.
+- **Architecture:** Modular design with 126 modules.
 - **Key Features:**
     - **Structural Search:** Pattern and YAML rule-based search across 15+ languages.
     - **Refactoring:** Safe rewrites, extract function, and scope-aware rename.
@@ -22,7 +22,7 @@ src/ast_grep_mcp/
 ├── core/           # Infrastructure: Config, cache, executor, logging, sentry
 ├── models/         # Pydantic data models for tools and internal logic
 ├── utils/          # Shared utilities: Formatters, validation, text processing
-├── features/       # 50+ MCP tools organized by domain
+├── features/       # 59 MCP tools organized by domain
 │   ├── search/     # Code search & pattern debugging
 │   ├── rewrite/    # Safe code transformations & rollbacks
 │   ├── refactoring/# Extract function, rename symbol
@@ -41,7 +41,7 @@ src/ast_grep_mcp/
 ### Key Commands
 - **Install Dependencies:** `uv sync`
 - **Run Server Locally:** `uv run main.py`
-- **Run Tests:** `uv run pytest` (Run all 1,300+ tests)
+- **Run Tests:** `uv run pytest` (Run all 1,849 tests)
 - **Linting:** `uv run ruff check .`
 - **Type Checking:** `uv run mypy src/`
 - **Complexity Check:** `uv run pytest tests/quality/test_complexity_regression.py -v`
@@ -49,7 +49,7 @@ src/ast_grep_mcp/
 ## Development Conventions
 
 ### 1. Tool Implementation
-- **Synchronous Only:** All MCP tool functions MUST be synchronous. Do NOT use `async def` for tools.
+- **Synchronous by Default:** MCP tool functions are synchronous — call them directly, do NOT wrap in `asyncio.run()`. Exceptions: schema tools in `features/schema/tools.py` are `async def`, as is `async_stream_ast_grep_results()` in `core/executor.py`.
 - **Registration:** Register new tools in `src/ast_grep_mcp/server/registry.py` and their respective `features/<name>/tools.py`.
 - **Parameter Validation:** Use Pydantic `Field` for tool parameters to provide descriptions for LLM clients.
 
@@ -77,7 +77,7 @@ The project enforces "Zero Complexity Violations":
 - Ensure all file operations are backed up when performing rewrites (use the `rewrite` feature's infrastructure).
 
 ## Key Files for Reference
-- `CLAUDE.md`: High-level summary and quick start (used by Claude/Cursor).
+- `CLAUDE.md`: High-level summary and quick start (used by Claude/Cursor). **Source of truth** for tool/module/test counts, tool response field names, and public-API-vs-internals guidance — if this file disagrees with CLAUDE.md, trust CLAUDE.md.
 - `README.md`: Comprehensive project overview and usage examples.
 - `pyproject.toml`: Dependency and tool configuration.
 - `src/ast_grep_mcp/server/registry.py`: Central list of all available tools.

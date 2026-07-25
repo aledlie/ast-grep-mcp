@@ -4,7 +4,7 @@
 
 ```bash
 uv sync                          # Install dependencies
-uv run pytest                    # Run all tests (1,809 collected)
+uv run pytest                    # Run all tests (1,849 collected)
 uv run pytest tests/unit/        # Unit tests only
 uv run pytest tests/integration/test_benchmark.py  # Benchmarks
 uv run ruff check . && uv run mypy src/ # Lint and type check
@@ -14,7 +14,7 @@ doppler run -- uv run main.py    # Run with Doppler secrets
 
 ## Overview
 
-Modular MCP server (125 modules) with ast-grep structural code search, Schema.org tools, refactoring, deduplication, quality, documentation generation, and semantic code condensation.
+Modular MCP server (126 modules) with ast-grep structural code search, Schema.org tools, refactoring, deduplication, quality, documentation generation, and semantic code condensation.
 
 **59 Tools:** Search (9), Rewrite (5), Refactoring (2), Deduplication (6), Schema.org (11), Complexity (3), Quality (7), Documentation (5), Cross-Language (5), Condense (6)
 
