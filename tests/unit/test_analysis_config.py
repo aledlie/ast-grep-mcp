@@ -151,6 +151,7 @@ class TestAnalysisConfigSerialization:
             "exclude_patterns": [],
             "parallel": True,
             "max_workers": 4,
+            "timeout_per_candidate": None,
             "has_progress_callback": False,
         }
 
@@ -170,6 +171,7 @@ class TestAnalysisConfigSerialization:
             exclude_patterns=["*.test.ts"],
             parallel=False,
             max_workers=8,
+            timeout_per_candidate=60,
             progress_callback=callback,
         )
 
@@ -185,6 +187,7 @@ class TestAnalysisConfigSerialization:
             "exclude_patterns": ["*.test.ts"],
             "parallel": False,
             "max_workers": 8,
+            "timeout_per_candidate": 60,
             "has_progress_callback": True,  # Callback present but not serialized
         }
 
