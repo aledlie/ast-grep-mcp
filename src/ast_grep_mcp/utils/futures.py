@@ -10,6 +10,9 @@ enrichment, batch test-coverage checks, and cross-language search:
   ``shutdown(wait=True)``, which blocks on hung workers even after their items
   timed out. Shut down with ``wait=False, cancel_futures=True`` instead, so
   hung workers are abandoned and queued work that never started is dropped.
+- Cancel a future the moment its wait fails — waiting for the shutdown's
+  ``cancel_futures`` leaves a window where a worker freed mid-loop dequeues
+  and runs an item already reported as timed out.
 - Pass ``total_timeout_seconds`` to bound the total wall-clock for the entire
   call to T seconds instead of N × per-item timeout.
 """
@@ -53,6 +56,11 @@ def map_with_per_item_timeout(
     in ``on_success``. Abandoned workers keep their (non-daemon) thread until
     they finish, so a worker that never finishes blocks interpreter exit.
 
+    Every failed wait cancels its future before ``on_error`` runs: an item
+    still queued when it is reported failed can never start later, even if
+    the callback unblocks a worker (cancelling a running or finished future
+    is a no-op — running workers are abandoned, not stopped).
+
     Callbacks must not raise: a raising callback aborts the wait loop, skipping
     callbacks for every remaining item (the pool is still shut down without
     blocking).
@@ -84,6 +92,7 @@ def map_with_per_item_timeout(
             if deadline is not None:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
+                    future.cancel()
                     on_error(item, TimeoutError("Global deadline exceeded"))
                     continue
                 item_timeout = min(timeout_seconds, remaining)
@@ -92,6 +101,11 @@ def map_with_per_item_timeout(
             try:
                 result = future.result(timeout=item_timeout)
             except Exception as error:
+                # Cancel before on_error: a still-queued future must never
+                # start after its item is reported failed, and a callback
+                # that unblocks workers must not race the cancel. No-op for
+                # running/done futures.
+                future.cancel()
                 on_error(item, error)
             else:
                 on_success(item, result)

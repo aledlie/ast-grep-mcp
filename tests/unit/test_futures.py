@@ -131,6 +131,47 @@ class TestMapWithPerItemTimeout:
         assert callback_threads and all(thread is calling_thread for thread in callback_threads)
 
 
+class TestTimedOutPendingFutureCancellation:
+    """A queued item whose wait timed out must never execute later (CR-06)."""
+
+    def test_timed_out_queued_item_never_runs_after_worker_frees(self):
+        release = threading.Event()
+        executed = []
+        results = {}
+        errors = {}
+
+        def func(item):
+            executed.append(item)
+            if item == "hung":
+                release.wait(timeout=HUNG_WORKER_SAFETY_NET_SECONDS)
+            return item
+
+        def on_error(item, error):
+            errors[item] = error
+            if item == "queued":
+                # Free the hung worker while the loop is still waiting on
+                # "last". Pre-fix, the freed worker dequeued and ran "queued"
+                # even though it was already reported as timed out; post-fix
+                # "queued" was cancelled before this callback ran.
+                release.set()
+
+        try:
+            map_with_per_item_timeout(
+                ["hung", "queued", "last"],
+                func,
+                timeout_seconds=TIMEOUT_SECONDS,
+                max_workers=1,
+                on_success=lambda item, result: results.__setitem__(item, result),
+                on_error=on_error,
+            )
+        finally:
+            release.set()
+
+        assert "queued" not in executed, "timed-out queued item must not run after a worker frees"
+        assert isinstance(errors["hung"], TimeoutError)
+        assert isinstance(errors["queued"], TimeoutError)
+
+
 TOTAL_TIMEOUT_SECONDS = 1.5
 HUNG_WORKER_TOTAL_SAFETY_NET_SECONDS = 30
 
