@@ -13,8 +13,7 @@ Tests cover:
 
 import os
 import tempfile
-from concurrent.futures import Future
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from ast_grep_mcp.features.deduplication.coverage import (
     CoverageDetector,
@@ -784,30 +783,29 @@ class TestProcessSequentialBatch:
             assert isinstance(covered_count, int)
 
 
-class TestGetFutureResult:
-    """Tests for _get_future_result method."""
+class TestParallelBatchErrorHandling:
+    """Coverage-check failures degrade to False per file, not a stage abort.
 
-    def test_successful_future(self):
-        """Test getting result from successful future."""
+    Replaces the direct tests of the removed _get_future_result helpers; error
+    routing now runs through utils.futures.map_with_per_item_timeout.
+    """
+
+    def test_failed_coverage_check_yields_false(self):
+        """A file whose coverage check raises is reported uncovered."""
         detector = CoverageDetector()
 
-        mock_future = MagicMock(spec=Future)
-        mock_future.result.return_value = True
+        def raise_for_bad(file_path, language, project_root, test_files):
+            if "bad" in file_path:
+                raise RuntimeError("check failed")
+            return True
 
-        result = detector._get_future_result(mock_future, "/some/file.py")
+        with patch.object(detector, "_has_test_coverage_optimized", side_effect=raise_for_bad):
+            coverage_map, covered_count = detector._process_parallel_batch(
+                ["/some/good.py", "/some/bad.py"], "python", "/some", set(), max_workers=2
+            )
 
-        assert result is True
-
-    def test_failed_future(self):
-        """Test getting result from failed future."""
-        detector = CoverageDetector()
-
-        mock_future = MagicMock(spec=Future)
-        mock_future.result.side_effect = RuntimeError("Future failed")
-
-        result = detector._get_future_result(mock_future, "/some/file.py")
-
-        assert result is False
+        assert coverage_map == {"/some/good.py": True, "/some/bad.py": False}
+        assert covered_count == 1
 
 
 class TestLogBatchResults:

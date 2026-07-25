@@ -247,3 +247,94 @@ class TestBatchCoverageIntegration:
         file_list = call_args[0][0]
         assert len(file_list) == 3  # Only 3 unique files
         assert len(set(file_list)) == 3  # No duplicates
+
+
+class TestBatchCoverageParallelTimeout:
+    """Regression tests for BUG-06-CR-01: batch coverage parallel path must enforce timeout.
+
+    Before the fix, _process_parallel_batch used `with ThreadPoolExecutor` (implicit
+    shutdown(wait=True)) and as_completed() without a timeout, so a single hung
+    _has_test_coverage_optimized call blocked the MCP call forever.
+    """
+
+    TIMEOUT_SECONDS = 1
+
+    def test_hung_file_coverage_times_out_and_returns_false(self):
+        """A hung per-file coverage check is marked False and the call returns promptly."""
+        import threading
+        import time
+
+        detector = CoverageDetector()
+        release = threading.Event()
+
+        hung_path = "/virtual/hung_file.py"
+        fast_path = "/virtual/fast_file.py"
+        test_files: set = set()
+
+        original_fn = detector._has_test_coverage_optimized
+
+        def patched_coverage(file_path, language, project_root, test_files_arg):
+            if file_path == hung_path:
+                release.wait(timeout=60)
+                return False
+            return original_fn(file_path, language, project_root, test_files_arg)
+
+        detector._has_test_coverage_optimized = patched_coverage  # type: ignore[method-assign]
+
+        try:
+            start = time.monotonic()
+            coverage_map, covered_count = detector._process_parallel_batch(
+                file_paths=[hung_path, fast_path],
+                language="python",
+                project_root="/virtual",
+                test_files=test_files,
+                max_workers=2,
+                timeout_per_file=self.TIMEOUT_SECONDS,
+            )
+            elapsed = time.monotonic() - start
+        finally:
+            release.set()
+
+        assert elapsed < 10, f"call should return promptly, took {elapsed:.1f}s"
+        assert hung_path in coverage_map
+        assert coverage_map[hung_path] is False  # timed out → False
+        assert fast_path in coverage_map
+
+    def test_timeout_threaded_through_get_test_coverage_for_files_batch(self):
+        """timeout_per_file parameter reaches _process_parallel_batch."""
+        import threading
+        import time
+
+        detector = CoverageDetector()
+        release = threading.Event()
+
+        hung_path = "/virtual/hung.py"
+        fast_path = "/virtual/fast.py"
+
+        original_fn = detector._has_test_coverage_optimized
+
+        def patched_coverage(file_path, language, project_root, test_files_arg):
+            if file_path == hung_path:
+                release.wait(timeout=60)
+                return False
+            return original_fn(file_path, language, project_root, test_files_arg)
+
+        detector._has_test_coverage_optimized = patched_coverage  # type: ignore[method-assign]
+        detector._find_all_test_files = lambda lang, root: set()  # type: ignore[method-assign]
+
+        try:
+            start = time.monotonic()
+            coverage_map = detector.get_test_coverage_for_files_batch(
+                file_paths=[hung_path, fast_path],
+                language="python",
+                project_root="/virtual",
+                parallel=True,
+                max_workers=2,
+                timeout_per_file=self.TIMEOUT_SECONDS,
+            )
+            elapsed = time.monotonic() - start
+        finally:
+            release.set()
+
+        assert elapsed < 10, f"call should return promptly, took {elapsed:.1f}s"
+        assert coverage_map[hung_path] is False

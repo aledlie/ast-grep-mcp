@@ -3,11 +3,11 @@
 import glob as glob_module
 import os
 import re as regex_module
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from typing import Callable, Dict, List, Optional, Set, Tuple
 
 from ...constants import ParallelProcessing
 from ...core.logging import get_logger
+from ...utils.futures import map_with_per_item_timeout
 
 __all__ = [
     "CoverageDetector",
@@ -476,6 +476,7 @@ class CoverageDetector:
         project_root: str,
         parallel: bool = True,
         max_workers: int = ParallelProcessing.DEFAULT_WORKERS,
+        timeout_per_file: Optional[int] = None,
     ) -> Dict[str, bool]:
         """Get test coverage status for multiple files with batch optimization.
 
@@ -491,6 +492,8 @@ class CoverageDetector:
             project_root: Root directory of the project
             parallel: Whether to use parallel execution (default: True)
             max_workers: Maximum number of threads for parallel execution
+            timeout_per_file: Per-file timeout in seconds; defaults to
+                ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS
 
         Returns:
             Dictionary mapping file paths to their test coverage status
@@ -507,7 +510,9 @@ class CoverageDetector:
 
         # Process files using appropriate strategy
         if parallel and len(file_paths) > 1:
-            coverage_map, covered_count = self._process_parallel_batch(file_paths, language, project_root, test_files, max_workers)
+            coverage_map, covered_count = self._process_parallel_batch(
+                file_paths, language, project_root, test_files, max_workers, timeout_per_file
+            )
         else:
             coverage_map, covered_count = self._process_sequential_batch(file_paths, language, project_root, test_files)
 
@@ -535,9 +540,15 @@ class CoverageDetector:
             return False
 
     def _process_parallel_batch(
-        self, file_paths: List[str], language: str, project_root: str, test_files: Set[str], max_workers: int
+        self,
+        file_paths: List[str],
+        language: str,
+        project_root: str,
+        test_files: Set[str],
+        max_workers: int,
+        timeout_per_file: Optional[int] = None,
     ) -> Tuple[Dict[str, bool], int]:
-        """Process files in parallel for coverage checking.
+        """Process files in parallel for coverage checking with per-file timeout.
 
         Args:
             file_paths: List of source file paths
@@ -545,30 +556,40 @@ class CoverageDetector:
             project_root: Root directory
             test_files: Pre-computed set of test files
             max_workers: Maximum number of threads
+            timeout_per_file: Per-file timeout in seconds; defaults to
+                ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS
 
         Returns:
             Tuple of (coverage_map, covered_count)
         """
         self.logger.debug("batch_coverage_parallel_start", file_count=len(file_paths), max_workers=max_workers)
 
+        timeout = timeout_per_file if timeout_per_file is not None else ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS
         coverage_map: Dict[str, bool] = {}
-        covered_count = 0
 
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all tasks
-            futures = {
-                executor.submit(self._has_test_coverage_optimized, file_path, language, project_root, test_files): file_path
-                for file_path in file_paths
-            }
+        def check_file(file_path: str) -> bool:
+            return self._has_test_coverage_optimized(file_path, language, project_root, test_files)
 
-            # Process results as they complete
-            for future in as_completed(futures):
-                file_path = futures[future]
-                has_coverage = self._get_future_result(future, file_path)
-                coverage_map[file_path] = has_coverage
-                if has_coverage:
-                    covered_count += 1
+        def on_success(file_path: str, has_coverage: bool) -> None:
+            coverage_map[file_path] = has_coverage
 
+        def on_error(file_path: str, error: Exception) -> None:
+            if isinstance(error, TimeoutError):
+                self.logger.error("test_coverage_check_timed_out", file_path=file_path, timeout_seconds=timeout)
+            else:
+                self.logger.error("test_coverage_check_failed", file_path=file_path, error=str(error))
+            coverage_map[file_path] = False
+
+        map_with_per_item_timeout(
+            file_paths,
+            check_file,
+            timeout_seconds=timeout,
+            max_workers=max_workers,
+            on_success=on_success,
+            on_error=on_error,
+        )
+
+        covered_count = sum(1 for has_coverage in coverage_map.values() if has_coverage)
         return coverage_map, covered_count
 
     def _process_sequential_batch(
@@ -597,22 +618,6 @@ class CoverageDetector:
                 covered_count += 1
 
         return coverage_map, covered_count
-
-    def _get_future_result(self, future: Future[bool], file_path: str) -> bool:
-        """Get result from future with error handling.
-
-        Args:
-            future: Concurrent future object
-            file_path: Path to file being processed
-
-        Returns:
-            Coverage status or False on error
-        """
-        try:
-            return future.result()
-        except Exception as e:
-            self.logger.error("test_coverage_check_failed", file_path=file_path, error=str(e))
-            return False
 
     def _log_batch_results(self, total_files: int, covered_count: int, parallel: bool, test_files_count: int) -> None:
         """Log the final batch processing results.

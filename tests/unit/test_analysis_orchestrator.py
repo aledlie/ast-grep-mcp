@@ -716,27 +716,32 @@ class TestParallelErrorHandling:
             assert "parallel_error" in candidate
             assert candidate["failed_parallel"] is True
 
-    def test_process_completed_future_handles_timeout(self, orchestrator):
-        """Test _process_completed_future handles TimeoutError."""
-        from concurrent.futures import Future
-        from concurrent.futures import TimeoutError as FuturesTimeoutError
+    def test_timed_out_enrichment_marks_candidate_failed(self, orchestrator):
+        """A hung enrichment marks the candidate failed with the timeout error fields.
 
+        Replaces the direct test of the removed _process_completed_future helper;
+        the timeout path now runs through utils.futures.map_with_per_item_timeout.
+        """
+        import threading
+
+        release = threading.Event()
         candidate: Dict[str, Any] = {"id": "timeout_test"}
-        failed_candidates: List[Dict[str, Any]] = []
 
-        # Create a mock future that raises TimeoutError
-        mock_future = MagicMock(spec=Future)
-        mock_future.result.side_effect = FuturesTimeoutError()
+        def hung_enrich(cand):
+            release.wait(timeout=30)
 
-        orchestrator._process_completed_future(
-            future=mock_future,
-            candidate=candidate,
-            timeout_seconds=5,
-            operation_name="timeout_test",
-            error_field="timeout_error",
-            default_error_value={"timed_out": True},
-            failed_candidates=failed_candidates,
-        )
+        try:
+            failed_candidates = orchestrator._parallel_enrich(
+                candidates=[candidate],
+                enrich_func=hung_enrich,
+                operation_name="timeout_test",
+                error_field="timeout_error",
+                default_error_value={"timed_out": True},
+                parallel=True,
+                timeout_per_candidate=1,
+            )
+        finally:
+            release.set()
 
         assert len(failed_candidates) == 1
         assert candidate["timed_out"] is True

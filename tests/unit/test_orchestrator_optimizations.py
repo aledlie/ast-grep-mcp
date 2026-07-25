@@ -853,3 +853,340 @@ class TestParallelEnrichUtility:
 
         # Verify it ran without error and added coverage info
         assert "test_coverage" in candidates[0] or "has_tests" in candidates[0]
+
+
+class TestPerCandidateTimeoutEnforcement:
+    """Regression tests for BUG-06: a hung enrichment must not block the call forever.
+
+    Before the fix, _process_parallel_enrichment iterated as_completed(futures)
+    without a timeout, so future.result(timeout=...) only ran on already-completed
+    futures and TimeoutError was unreachable; one hung enrichment blocked forever
+    (including at the executor's implicit shutdown(wait=True)).
+    """
+
+    def test_hung_enrichment_times_out_and_marks_candidate(self):
+        """A hung candidate is marked timed out while fast candidates succeed."""
+        import threading
+        import time
+
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        release = threading.Event()
+        hung = {"id": "hung"}
+        fast = {"id": "fast"}
+
+        def enrich_func(candidate):
+            if candidate["id"] == "hung":
+                release.wait(timeout=60)
+            else:
+                candidate["done"] = True
+
+        try:
+            start = time.monotonic()
+            failed = orchestrator._parallel_enrich(
+                candidates=[hung, fast],
+                enrich_func=enrich_func,
+                operation_name="test",
+                error_field="error",
+                default_error_value={"enriched": False},
+                parallel=True,
+                max_workers=2,
+                timeout_per_candidate=1,
+            )
+            elapsed = time.monotonic() - start
+        finally:
+            release.set()
+
+        assert elapsed < 10, f"call should return promptly, took {elapsed:.1f}s"
+        assert failed == [hung]
+        assert hung["error"] == "Operation timed out after 1s"
+        assert hung["enriched"] is False
+        assert fast["done"] is True
+        assert "error" not in fast
+
+    def test_all_hung_candidates_each_marked_timed_out(self):
+        """Every hung candidate gets its own timeout; the call still returns."""
+        import threading
+        import time
+
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        release = threading.Event()
+        candidates = [{"id": f"c{i}"} for i in range(3)]
+
+        def enrich_func(candidate):
+            release.wait(timeout=60)
+
+        try:
+            start = time.monotonic()
+            failed = orchestrator._parallel_enrich(
+                candidates=candidates,
+                enrich_func=enrich_func,
+                operation_name="test",
+                error_field="error",
+                default_error_value={},
+                parallel=True,
+                max_workers=2,
+                timeout_per_candidate=1,
+            )
+            elapsed = time.monotonic() - start
+        finally:
+            release.set()
+
+        assert elapsed < 15, f"call should return promptly, took {elapsed:.1f}s"
+        assert failed == candidates
+        assert all(c["error"] == "Operation timed out after 1s" for c in candidates)
+
+
+class TestSequentialPathTimeoutEnforcement:
+    """Regression tests for BUG-06-CR-02: sequential/single-candidate path must enforce timeout.
+
+    Before the fix, _parallel_enrich routed parallel=False or len==1 to
+    _process_sequential_enrichment, which called enrich_func inline with no
+    timeout — timeout_per_candidate was silently ignored.
+    """
+
+    TIMEOUT_SECONDS = 1
+    EXPECTED_TIMEOUT_ERROR = f"Operation timed out after {TIMEOUT_SECONDS}s"
+
+    def test_single_candidate_hung_enrichment_times_out(self):
+        """A single hung candidate is timed out even with parallel=True (len==1 path)."""
+        import threading
+        import time
+
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        release = threading.Event()
+        hung = {"id": "hung"}
+
+        def enrich_func(candidate):
+            release.wait(timeout=60)
+
+        try:
+            start = time.monotonic()
+            failed = orchestrator._parallel_enrich(
+                candidates=[hung],
+                enrich_func=enrich_func,
+                operation_name="test",
+                error_field="error",
+                default_error_value={"enriched": False},
+                parallel=True,
+                max_workers=4,
+                timeout_per_candidate=self.TIMEOUT_SECONDS,
+            )
+            elapsed = time.monotonic() - start
+        finally:
+            release.set()
+
+        assert elapsed < 10, f"call should return promptly, took {elapsed:.1f}s"
+        assert failed == [hung]
+        assert hung["error"] == self.EXPECTED_TIMEOUT_ERROR
+        assert hung["enriched"] is False
+
+    def test_sequential_parallel_false_hung_enrichment_times_out(self):
+        """A hung enrichment is timed out when parallel=False is explicitly requested."""
+        import threading
+        import time
+
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        release = threading.Event()
+        hung = {"id": "hung"}
+        fast = {"id": "fast"}
+
+        def enrich_func(candidate):
+            if candidate["id"] == "hung":
+                release.wait(timeout=60)
+            else:
+                candidate["done"] = True
+
+        try:
+            start = time.monotonic()
+            failed = orchestrator._parallel_enrich(
+                candidates=[hung, fast],
+                enrich_func=enrich_func,
+                operation_name="test",
+                error_field="error",
+                default_error_value={"enriched": False},
+                parallel=False,
+                max_workers=4,
+                timeout_per_candidate=self.TIMEOUT_SECONDS,
+            )
+            elapsed = time.monotonic() - start
+        finally:
+            release.set()
+
+        assert elapsed < 10, f"call should return promptly, took {elapsed:.1f}s"
+        assert failed == [hung]
+        assert hung["error"] == self.EXPECTED_TIMEOUT_ERROR
+        assert hung["enriched"] is False
+        assert fast["done"] is True
+        assert "error" not in fast
+
+
+class TestAbandonedWorkerIsolation:
+    """Regression tests for BUG-06-CR-03: abandoned workers must not mutate returned candidates.
+
+    Workers enrich a private deep copy that is merged back only on success, so
+    a hung worker that wakes after its timeout writes into an orphaned copy —
+    never into the candidate dict the caller already received (previously a
+    race with downstream stages and MCP JSON serialization).
+    """
+
+    TIMEOUT_SECONDS = 1
+    EXPECTED_TIMEOUT_ERROR = f"Operation timed out after {TIMEOUT_SECONDS}s"
+    WORKER_JOIN_SECONDS = 10
+    HUNG_WORKER_SAFETY_NET_SECONDS = 60
+
+    def test_late_finishing_worker_cannot_mutate_returned_candidate(self):
+        """Parallel path: a worker waking after timeout writes only to the orphaned copy."""
+        import threading
+
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        release = threading.Event()
+        worker_done = threading.Event()
+        hung = {"id": "hung"}
+        fast = {"id": "fast"}
+
+        def enrich_func(candidate):
+            if candidate["id"] == "hung":
+                release.wait(timeout=self.HUNG_WORKER_SAFETY_NET_SECONDS)
+                candidate["late_write"] = True
+                candidate["has_tests"] = True
+                worker_done.set()
+            else:
+                candidate["done"] = True
+
+        try:
+            failed = orchestrator._parallel_enrich(
+                candidates=[hung, fast],
+                enrich_func=enrich_func,
+                operation_name="test",
+                error_field="error",
+                default_error_value={"has_tests": False},
+                parallel=True,
+                max_workers=2,
+                timeout_per_candidate=self.TIMEOUT_SECONDS,
+            )
+        finally:
+            release.set()
+
+        assert failed == [hung]
+        assert hung["error"] == self.EXPECTED_TIMEOUT_ERROR
+        assert hung["has_tests"] is False
+
+        # Wake the abandoned worker and let it finish its late writes.
+        assert worker_done.wait(timeout=self.WORKER_JOIN_SECONDS), "abandoned worker never finished"
+        assert "late_write" not in hung, "late worker write leaked into the returned candidate"
+        assert hung["has_tests"] is False
+        assert fast["done"] is True
+
+    def test_sequential_path_late_worker_cannot_mutate_returned_candidate(self):
+        """Sequential (single-candidate) path gets the same isolation."""
+        import threading
+
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        release = threading.Event()
+        worker_done = threading.Event()
+        hung = {"id": "hung"}
+
+        def enrich_func(candidate):
+            release.wait(timeout=self.HUNG_WORKER_SAFETY_NET_SECONDS)
+            candidate["late_write"] = True
+            worker_done.set()
+
+        try:
+            failed = orchestrator._parallel_enrich(
+                candidates=[hung],
+                enrich_func=enrich_func,
+                operation_name="test",
+                error_field="error",
+                default_error_value={"enriched": False},
+                parallel=True,
+                timeout_per_candidate=self.TIMEOUT_SECONDS,
+            )
+        finally:
+            release.set()
+
+        assert failed == [hung]
+        assert hung["error"] == self.EXPECTED_TIMEOUT_ERROR
+
+        assert worker_done.wait(timeout=self.WORKER_JOIN_SECONDS), "abandoned worker never finished"
+        assert "late_write" not in hung, "late worker write leaked into the returned candidate"
+        assert hung["enriched"] is False
+
+    def test_successful_enrichment_merges_back_onto_original_dicts(self):
+        """Success path: enrich_func mutations land on the exact dict objects passed in."""
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        candidates = [{"id": "c1", "files": ["a.py"]}, {"id": "c2", "files": ["b.py"]}]
+        originals = list(candidates)
+
+        def enrich_func(candidate):
+            candidate["enriched"] = True
+            candidate["score"] = {"value": 1}
+
+        failed = orchestrator._parallel_enrich(
+            candidates=candidates,
+            enrich_func=enrich_func,
+            operation_name="test",
+            error_field="error",
+            default_error_value={},
+            parallel=True,
+            max_workers=2,
+            timeout_per_candidate=self.TIMEOUT_SECONDS,
+        )
+
+        assert failed == []
+        for original in originals:
+            assert original["enriched"] is True
+            assert original["score"] == {"value": 1}
+            assert "error" not in original
+
+    def test_failed_enrichment_leaves_original_without_partial_writes(self):
+        """An enrich_func that mutates then raises leaves only error fields on the original."""
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        candidates = [{"id": "c1"}, {"id": "c2"}]
+
+        def enrich_func(candidate):
+            candidate["partial"] = True
+            raise ValueError("boom")
+
+        failed = orchestrator._parallel_enrich(
+            candidates=candidates,
+            enrich_func=enrich_func,
+            operation_name="test",
+            error_field="error",
+            default_error_value={"enriched": False},
+            parallel=True,
+            max_workers=2,
+            timeout_per_candidate=self.TIMEOUT_SECONDS,
+        )
+
+        assert failed == candidates
+        for candidate in candidates:
+            assert "partial" not in candidate, "partial write from failed enrichment leaked"
+            assert candidate["error"] == "boom"
+            assert candidate["enriched"] is False
+
+    def test_uncopyable_candidate_fails_alone_without_aborting_stage(self):
+        """A candidate deepcopy can't handle fails alone; the rest still enrich."""
+        import threading
+
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        uncopyable = {"id": "bad", "lock": threading.Lock()}
+        normal = {"id": "ok"}
+
+        def enrich_func(candidate):
+            candidate["enriched"] = True
+
+        failed = orchestrator._parallel_enrich(
+            candidates=[uncopyable, normal],
+            enrich_func=enrich_func,
+            operation_name="test",
+            error_field="error",
+            default_error_value={"enriched": False},
+            parallel=True,
+            max_workers=2,
+            timeout_per_candidate=self.TIMEOUT_SECONDS,
+        )
+
+        assert failed == [uncopyable]
+        assert "error" in uncopyable
+        assert uncopyable["enriched"] is False
+        assert normal["enriched"] is True

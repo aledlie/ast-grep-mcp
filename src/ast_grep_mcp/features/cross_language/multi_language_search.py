@@ -7,9 +7,8 @@ languages simultaneously using semantic patterns.
 import json as json_module
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from ast_grep_mcp.constants import ConversionFactors, CrossLanguageDefaults, SubprocessDefaults
 from ast_grep_mcp.core.executor import run_ast_grep
@@ -19,6 +18,7 @@ from ast_grep_mcp.models.cross_language import (
     MultiLanguageMatch,
     MultiLanguageSearchResult,
 )
+from ast_grep_mcp.utils.futures import map_with_per_item_timeout
 
 logger = get_logger(__name__)
 
@@ -280,57 +280,54 @@ def _resolve_languages(project_folder: str, languages: Optional[List[str]]) -> L
     return [lang for lang in languages if lang in SUPPORTED_LANGUAGES]
 
 
-def _submit_language_futures(
-    executor: ThreadPoolExecutor,
-    project_folder: str,
-    languages: List[str],
-    semantic_key: str,
-    max_results_per_language: int,
-) -> Dict[Any, str]:
-    """Submit per-language search futures and return future→lang mapping."""
-    futures: Dict[Any, str] = {}
-    for lang in languages:
-        ast_pattern = _get_ast_grep_pattern(semantic_key, lang)
-        if ast_pattern:
-            future = executor.submit(
-                _search_language,
-                project_folder,
-                lang,
-                ast_pattern,
-                max_results_per_language,
-            )
-            futures[future] = lang
-    return futures
-
-
-def _collect_future_results(
-    futures: Dict[Any, str],
-) -> tuple[List[MultiLanguageMatch], Dict[str, int]]:
-    """Collect results from submitted futures."""
-    all_matches: List[MultiLanguageMatch] = []
-    matches_by_language: Dict[str, int] = {}
-    for future, lang in futures.items():
-        try:
-            matches = future.result(timeout=SubprocessDefaults.AST_GREP_TIMEOUT_SECONDS)
-            all_matches.extend(matches)
-            matches_by_language[lang] = len(matches)
-        except Exception as e:
-            logger.warning("language_search_failed", language=lang, error=str(e)[:100])
-            matches_by_language[lang] = 0
-    return all_matches, matches_by_language
-
-
 def _run_parallel_search(
     project_folder: str,
     languages: List[str],
     semantic_key: str,
     max_results_per_language: int,
 ) -> tuple[List[MultiLanguageMatch], Dict[str, int]]:
-    """Execute parallel search across all languages."""
-    workers = min(len(languages), MAX_LANGUAGE_SEARCH_WORKERS)
-    with ThreadPoolExecutor(max_workers=workers) as executor:
-        futures = _submit_language_futures(executor, project_folder, languages, semantic_key, max_results_per_language)
-        return _collect_future_results(futures)
+    """Execute parallel search across all languages, one bounded wait per language.
+
+    Uses the shared per-item-timeout helper: a hung language search is
+    abandoned after its wait instead of blocking the whole call at executor
+    shutdown (the previous `with ThreadPoolExecutor` form waited for every
+    worker, hung ones included, before returning).
+    """
+    searchable = [(lang, _get_ast_grep_pattern(semantic_key, lang)) for lang in languages]
+    items: List[Tuple[str, str]] = [(lang, pattern) for lang, pattern in searchable if pattern]
+
+    all_matches: List[MultiLanguageMatch] = []
+    matches_by_language: Dict[str, int] = {}
+    if not items:
+        return all_matches, matches_by_language
+
+    def search_one(item: Tuple[str, str]) -> List[MultiLanguageMatch]:
+        lang, pattern = item
+        return _search_language(project_folder, lang, pattern, max_results_per_language)
+
+    def on_success(item: Tuple[str, str], matches: List[MultiLanguageMatch]) -> None:
+        all_matches.extend(matches)
+        matches_by_language[item[0]] = len(matches)
+
+    def on_error(item: Tuple[str, str], error: Exception) -> None:
+        if isinstance(error, TimeoutError):
+            # str(TimeoutError()) is empty — log the timeout explicitly.
+            logger.warning(
+                "language_search_timed_out", language=item[0], timeout_seconds=SubprocessDefaults.AST_GREP_TIMEOUT_SECONDS
+            )
+        else:
+            logger.warning("language_search_failed", language=item[0], error=str(error)[:100])
+        matches_by_language[item[0]] = 0
+
+    map_with_per_item_timeout(
+        items,
+        search_one,
+        timeout_seconds=SubprocessDefaults.AST_GREP_TIMEOUT_SECONDS,
+        max_workers=min(len(items), MAX_LANGUAGE_SEARCH_WORKERS),
+        on_success=on_success,
+        on_error=on_error,
+    )
+    return all_matches, matches_by_language
 
 
 def search_multi_language_impl(

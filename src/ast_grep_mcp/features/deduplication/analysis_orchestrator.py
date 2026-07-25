@@ -4,12 +4,13 @@ This module handles the multi-step process of finding duplicates,
 ranking them, checking test coverage, and generating recommendations.
 """
 
+import copy
 import os
-from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ...constants import CodeAnalysisDefaults, DeduplicationDefaults, ParallelProcessing
 from ...core.logging import get_logger
+from ...utils.futures import map_with_per_item_timeout
 from .config import AnalysisConfig
 from .coverage import CoverageDetector
 from .detector import DuplicationDetector
@@ -414,38 +415,37 @@ class DeduplicationAnalysisOrchestrator:
             for key, value in default_error_value.items():
                 candidate[key] = value
 
-    def _process_completed_future(
+    def _make_enrichment_callbacks(
         self,
-        future: Any,
-        candidate: Dict[str, Any],
-        timeout_seconds: int,
         operation_name: str,
         error_field: str,
         default_error_value: Any,
+        timeout_seconds: int,
         failed_candidates: List[Dict[str, Any]],
-    ) -> None:
-        """Process a completed future and handle any errors.
+    ) -> Tuple[
+        Callable[[Tuple[Dict[str, Any], Dict[str, Any]], None], None],
+        Callable[[Tuple[Dict[str, Any], Dict[str, Any]], Exception], None],
+    ]:
+        """Build on_success/on_error callbacks for map_with_per_item_timeout.
 
-        Args:
-            future: The completed future to process
-            candidate: The candidate being processed
-            timeout_seconds: Timeout for the operation
-            operation_name: Name of operation for logging
-            error_field: Field name to store error message
-            default_error_value: Default value to set on error
-            failed_candidates: List to append failed candidates to
+        Items are (original, working) pairs: workers enrich the private working
+        copy, which is merged onto the original only on success — an abandoned
+        hung worker can never mutate the dict the caller already received back,
+        and an enrich_func that mutates then raises leaks no partial writes.
+        Keys deleted by enrich_func are not propagated.
         """
-        try:
-            # Wait for individual future with per-candidate timeout
-            future.result(timeout=timeout_seconds)
-        except TimeoutError as e:
-            self._handle_enrichment_error(
-                candidate, e, operation_name, error_field, default_error_value, error_message=str(timeout_seconds)
-            )
-            failed_candidates.append(candidate)
-        except Exception as e:
-            self._handle_enrichment_error(candidate, e, operation_name, error_field, default_error_value)
-            failed_candidates.append(candidate)
+
+        def on_success(pair: Tuple[Dict[str, Any], Dict[str, Any]], _result: None) -> None:
+            original, working = pair
+            original.update(working)
+
+        def on_error(pair: Tuple[Dict[str, Any], Dict[str, Any]], error: Exception) -> None:
+            original, _working = pair
+            message = str(timeout_seconds) if isinstance(error, TimeoutError) else None
+            self._handle_enrichment_error(original, error, operation_name, error_field, default_error_value, error_message=message)
+            failed_candidates.append(original)
+
+        return on_success, on_error
 
     def _process_parallel_enrichment(
         self,
@@ -458,7 +458,7 @@ class DeduplicationAnalysisOrchestrator:
         timeout_seconds: int,
         kwargs: Dict[str, Any],
     ) -> List[Dict[str, Any]]:
-        """Process enrichment in parallel using ThreadPoolExecutor.
+        """Process enrichment in parallel with per-candidate timeouts.
 
         Args:
             candidates: List of candidates to enrich
@@ -474,14 +474,26 @@ class DeduplicationAnalysisOrchestrator:
             List of failed candidates
         """
         failed_candidates: List[Dict[str, Any]] = []
+        on_success, on_error = self._make_enrichment_callbacks(
+            operation_name, error_field, default_error_value, timeout_seconds, failed_candidates
+        )
 
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(enrich_func, candidate, **kwargs): candidate for candidate in candidates}
+        pairs: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
+        for candidate in candidates:
+            try:
+                pairs.append((candidate, copy.deepcopy(candidate)))
+            except Exception as error:
+                # An uncopyable candidate fails alone rather than aborting the stage.
+                on_error((candidate, candidate), error)
 
-            for future in as_completed(futures):
-                candidate = futures[future]
-                args = (future, candidate, timeout_seconds, operation_name, error_field, default_error_value, failed_candidates)
-                self._process_completed_future(*args)
+        map_with_per_item_timeout(
+            pairs,
+            lambda pair: enrich_func(pair[1], **kwargs),
+            timeout_seconds=timeout_seconds,
+            max_workers=max_workers,
+            on_success=on_success,
+            on_error=on_error,
+        )
 
         return failed_candidates
 
@@ -492,9 +504,15 @@ class DeduplicationAnalysisOrchestrator:
         operation_name: str,
         error_field: str,
         default_error_value: Any,
+        timeout_seconds: int,
         kwargs: Dict[str, Any],
     ) -> List[Dict[str, Any]]:
-        """Process enrichment sequentially.
+        """Process enrichment one candidate at a time with per-candidate timeout.
+
+        Each candidate gets its own single-worker pool (one helper call each) so
+        a hung enrichment is abandoned after timeout_seconds without blocking the
+        next candidate. Previously this path called enrich_func inline with no
+        timeout, so timeout_per_candidate was silently ignored.
 
         Args:
             candidates: List of candidates to enrich
@@ -502,19 +520,32 @@ class DeduplicationAnalysisOrchestrator:
             operation_name: Name of operation for logging
             error_field: Field name to store error message
             default_error_value: Default value to set on error
+            timeout_seconds: Maximum seconds to wait per candidate
             kwargs: Additional arguments for enrich_func
 
         Returns:
             List of failed candidates
         """
         failed_candidates: List[Dict[str, Any]] = []
+        on_success, on_error = self._make_enrichment_callbacks(
+            operation_name, error_field, default_error_value, timeout_seconds, failed_candidates
+        )
 
         for candidate in candidates:
             try:
-                enrich_func(candidate, **kwargs)
-            except Exception as e:
-                self._handle_enrichment_error(candidate, e, operation_name, error_field, default_error_value)
-                failed_candidates.append(candidate)
+                pair = (candidate, copy.deepcopy(candidate))
+            except Exception as error:
+                # An uncopyable candidate fails alone rather than aborting the stage.
+                on_error((candidate, candidate), error)
+                continue
+            map_with_per_item_timeout(
+                [pair],
+                lambda pair: enrich_func(pair[1], **kwargs),
+                timeout_seconds=timeout_seconds,
+                max_workers=1,
+                on_success=on_success,
+                on_error=on_error,
+            )
 
         return failed_candidates
 
@@ -558,8 +589,10 @@ class DeduplicationAnalysisOrchestrator:
                 candidates, enrich_func, operation_name, error_field, default_error_value, max_workers, timeout_seconds, kwargs
             )
         else:
+            # Sequential path also enforces the per-candidate timeout; previously
+            # timeout_per_candidate was silently ignored on this branch.
             failed_candidates = self._process_sequential_enrichment(
-                candidates, enrich_func, operation_name, error_field, default_error_value, kwargs
+                candidates, enrich_func, operation_name, error_field, default_error_value, timeout_seconds, kwargs
             )
         self.logger.info(f"{operation_name}_added", candidate_count=len(candidates), failed_count=len(failed_candidates), parallel=parallel)
         return failed_candidates
@@ -612,7 +645,7 @@ class DeduplicationAnalysisOrchestrator:
         )
 
         coverage_map = self.coverage_detector.get_test_coverage_for_files_batch(
-            unique_files, language, project_path, parallel=parallel, max_workers=max_workers
+            unique_files, language, project_path, parallel=parallel, max_workers=max_workers, timeout_per_file=timeout_per_candidate
         )
         self._distribute_coverage(candidates, coverage_map)
         self.logger.info("batch_coverage_added", candidate_count=len(candidates), unique_files_checked=len(unique_files), parallel=parallel)

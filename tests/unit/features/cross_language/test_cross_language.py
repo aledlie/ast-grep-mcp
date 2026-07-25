@@ -630,3 +630,64 @@ class TestIntegration:
             languages = {c.language for c in result.plan.changes}
             assert "python" in languages
             assert "typescript" in languages
+
+
+class TestRunParallelSearchTimeout:
+    """Regression tests for the BUG-06-CR-16 hang fix in _run_parallel_search.
+
+    The previous `with ThreadPoolExecutor` form blocked at shutdown(wait=True)
+    until every worker finished, hung ones included; the shared per-item-timeout
+    helper abandons a hung language search after its wait instead.
+    """
+
+    TIMEOUT_SECONDS = 1
+    PROMPT_RETURN_BOUND_SECONDS = 10
+    HUNG_WORKER_SAFETY_NET_SECONDS = 30
+
+    def test_hung_language_search_times_out_without_blocking(self):
+        import threading
+        import time as time_module
+
+        from ast_grep_mcp.features.cross_language import multi_language_search as mls
+
+        release = threading.Event()
+
+        def fake_search(project_folder, language, pattern, max_results):
+            if language == "python":
+                release.wait(timeout=self.HUNG_WORKER_SAFETY_NET_SECONDS)
+                return []
+            return []
+
+        try:
+            with (
+                patch.object(mls, "_search_language", side_effect=fake_search),
+                patch.object(mls.SubprocessDefaults, "AST_GREP_TIMEOUT_SECONDS", self.TIMEOUT_SECONDS),
+            ):
+                start = time_module.monotonic()
+                all_matches, matches_by_language = mls._run_parallel_search(
+                    project_folder="/tmp/does-not-matter",
+                    languages=["python", "javascript"],
+                    semantic_key="function",
+                    max_results_per_language=10,
+                )
+                elapsed = time_module.monotonic() - start
+        finally:
+            release.set()
+
+        assert elapsed < self.PROMPT_RETURN_BOUND_SECONDS, f"search should return promptly, took {elapsed:.1f}s"
+        assert matches_by_language["python"] == 0
+        assert matches_by_language["javascript"] == 0
+        assert all_matches == []
+
+    def test_languages_without_patterns_are_skipped(self):
+        from ast_grep_mcp.features.cross_language import multi_language_search as mls
+
+        all_matches, matches_by_language = mls._run_parallel_search(
+            project_folder="/tmp/does-not-matter",
+            languages=["not-a-language"],
+            semantic_key="function",
+            max_results_per_language=10,
+        )
+
+        assert all_matches == []
+        assert matches_by_language == {}
