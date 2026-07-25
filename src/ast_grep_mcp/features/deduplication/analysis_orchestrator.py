@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ...constants import CodeAnalysisDefaults, DeduplicationDefaults, ParallelProcessing
 from ...core.logging import get_logger
-from ...utils.futures import map_with_per_item_timeout
+from ...utils.futures import WaitTimeoutError, map_with_per_item_timeout
 from .config import AnalysisConfig
 from .coverage import CoverageDetector
 from .detector import DuplicationDetector
@@ -411,8 +411,10 @@ class DeduplicationAnalysisOrchestrator:
             default_error_value: Default value to set on error
             error_message: Optional custom error message (for timeouts)
         """
-        # Log the error
-        if isinstance(error, TimeoutError):
+        # Log the error. Only a helper wait expiry is a "timeout" here — a
+        # TimeoutError raised by the enrichment itself (socket.timeout,
+        # OSError(ETIMEDOUT)) is a worker failure with its own message.
+        if isinstance(error, WaitTimeoutError):
             self.logger.error(
                 f"{operation_name}_timeout",
                 candidate_id=candidate.get("id", "unknown"),
@@ -420,8 +422,9 @@ class DeduplicationAnalysisOrchestrator:
             )
             candidate[error_field] = f"Operation timed out after {error_message}s"
         else:
-            self.logger.error(f"{operation_name}_enrichment_failed", candidate_id=candidate.get("id", "unknown"), error=str(error))
-            candidate[error_field] = str(error)
+            error_text = str(error) or type(error).__name__
+            self.logger.error(f"{operation_name}_enrichment_failed", candidate_id=candidate.get("id", "unknown"), error=error_text)
+            candidate[error_field] = error_text
 
         # Set default error value
         if isinstance(default_error_value, dict):
@@ -454,7 +457,7 @@ class DeduplicationAnalysisOrchestrator:
 
         def on_error(pair: Tuple[Dict[str, Any], Dict[str, Any]], error: Exception) -> None:
             original, _working = pair
-            message = str(timeout_seconds) if isinstance(error, TimeoutError) else None
+            message = str(timeout_seconds) if isinstance(error, WaitTimeoutError) else None
             self._handle_enrichment_error(original, error, operation_name, error_field, default_error_value, error_message=message)
             failed_candidates.append(original)
 
@@ -568,7 +571,7 @@ class DeduplicationAnalysisOrchestrator:
             if deadline is not None:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    on_error((candidate, candidate), TimeoutError("Global deadline exceeded"))
+                    on_error((candidate, candidate), WaitTimeoutError("Global deadline exceeded"))
                     continue
                 call_total: Optional[float] = remaining
             else:

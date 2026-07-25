@@ -7,7 +7,7 @@ from typing import Callable, Dict, List, Optional, Set, Tuple
 
 from ...constants import ParallelProcessing
 from ...core.logging import get_logger
-from ...utils.futures import map_with_per_item_timeout
+from ...utils.futures import WaitTimeoutError, map_with_per_item_timeout
 
 __all__ = [
     "CoverageDetector",
@@ -574,10 +574,10 @@ class CoverageDetector:
             coverage_map[file_path] = has_coverage
 
         def on_error(file_path: str, error: Exception) -> None:
-            if isinstance(error, TimeoutError):
+            if isinstance(error, WaitTimeoutError):
                 self.logger.error("test_coverage_check_timed_out", file_path=file_path, timeout_seconds=timeout)
             else:
-                self.logger.error("test_coverage_check_failed", file_path=file_path, error=str(error))
+                self.logger.error("test_coverage_check_failed", file_path=file_path, error=str(error) or type(error).__name__)
             coverage_map[file_path] = False
 
         map_with_per_item_timeout(

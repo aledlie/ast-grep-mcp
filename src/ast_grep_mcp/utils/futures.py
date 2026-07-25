@@ -1,4 +1,4 @@
-"""ThreadPoolExecutor helper enforcing per-item timeouts.
+"""Daemon-thread pool helper enforcing per-item timeouts.
 
 The corrected wait lifecycle lives here once, shared by deduplication
 enrichment, batch test-coverage checks, and cross-language search:
@@ -6,23 +6,73 @@ enrichment, batch test-coverage checks, and cross-language search:
 - Wait on each future directly with ``future.result(timeout=...)`` —
   ``as_completed()`` without a timeout only yields finished futures, which
   makes a per-item timeout unreachable and lets one hung worker block forever.
-- Never use the executor as a context manager: ``__exit__`` calls
-  ``shutdown(wait=True)``, which blocks on hung workers even after their items
-  timed out. Shut down with ``wait=False, cancel_futures=True`` instead, so
-  hung workers are abandoned and queued work that never started is dropped.
-- Cancel a future the moment its wait fails — waiting for the shutdown's
-  ``cancel_futures`` leaves a window where a worker freed mid-loop dequeues
-  and runs an item already reported as timed out.
+- Workers are daemon threads, not a ``ThreadPoolExecutor``: the executor's
+  workers are non-daemon and joined both by ``concurrent.futures``' atexit
+  hook and by ``threading._shutdown``, so a single permanently hung worker
+  blocks clean interpreter exit until SIGKILL. Daemon workers never block
+  exit; a worker still hung at return time is abandoned, counted, and logged.
+- Cancel a future the moment its wait fails — a cancelled future's work item
+  is skipped by its worker (``set_running_or_notify_cancel``), so an item
+  already reported as timed out can never start running later.
 - Pass ``total_timeout_seconds`` to bound the total wall-clock for the entire
   call to T seconds instead of N × per-item timeout.
+- Wait expiries are delivered as ``WaitTimeoutError``; a ``TimeoutError``
+  raised by ``func`` itself passes through unchanged, so adopters never
+  mistake a worker-raised timeout (``socket.timeout``, ``OSError(ETIMEDOUT)``
+  — all the builtin ``TimeoutError`` on Python 3.11+) for a wait expiry.
 """
 
+import queue
+import threading
 import time
-from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Callable, Dict, Optional, Sequence, TypeVar
+from concurrent.futures import Future
+from typing import Callable, List, Optional, Sequence, Tuple, TypeVar
+
+from ..core.logging import get_logger
 
 ItemT = TypeVar("ItemT")
 ResultT = TypeVar("ResultT")
+
+logger = get_logger(__name__)
+
+_WORKER_THREAD_NAME_PREFIX = "map-timeout-worker"
+
+
+class WaitTimeoutError(TimeoutError):
+    """An item's wait window expired before its future delivered a result.
+
+    Raised only by ``map_with_per_item_timeout`` (per-item wait expiry or the
+    shared global deadline) — never by ``func``. A ``TimeoutError`` raised by
+    ``func`` reaches ``on_error`` as-is, so ``isinstance(error,
+    WaitTimeoutError)`` cleanly separates "the helper gave up waiting" from
+    "the operation itself timed out" even though both are the builtin
+    ``TimeoutError`` on Python 3.11+.
+    """
+
+
+def _run_worker(
+    work_queue: "queue.SimpleQueue[Tuple[Future[ResultT], ItemT]]",
+    func: Callable[[ItemT], ResultT],
+) -> None:
+    """Drain the work queue, delivering each result through its future.
+
+    A future cancelled before its work item is dequeued is skipped —
+    ``set_running_or_notify_cancel`` returns False for cancelled futures,
+    which is what guarantees a timed-out queued item never runs.
+    """
+    while True:
+        try:
+            future, item = work_queue.get_nowait()
+        except queue.Empty:
+            return
+        if not future.set_running_or_notify_cancel():
+            continue
+        try:
+            result = func(item)
+        except BaseException as error:  # noqa: BLE001 — delivered via the future
+            future.set_exception(error)
+        else:
+            future.set_result(result)
 
 
 def map_with_per_item_timeout(
@@ -35,7 +85,7 @@ def map_with_per_item_timeout(
     on_error: Callable[[ItemT, Exception], None],
     total_timeout_seconds: Optional[float] = None,
 ) -> None:
-    """Run ``func`` over ``items`` in a fresh thread pool, bounding each wait.
+    """Run ``func`` over ``items`` on daemon worker threads, bounding each wait.
 
     Waits happen in submission order, each bounded by ``timeout_seconds``
     measured from when the wait loop reaches that item's future — so total
@@ -53,8 +103,14 @@ def map_with_per_item_timeout(
     A worker that outlives its timeout is abandoned: it keeps running but its
     result is discarded. ``func`` therefore must not mutate state the caller
     reads after this returns — hand workers private copies and merge results
-    in ``on_success``. Abandoned workers keep their (non-daemon) thread until
-    they finish, so a worker that never finishes blocks interpreter exit.
+    in ``on_success``. Workers are daemon threads: an abandoned worker keeps
+    its thread (and pins its in-flight item) until it finishes, but never
+    blocks interpreter exit — at exit it is terminated abruptly, so ``func``
+    must not perform writes that corrupt state if killed mid-operation.
+    Workers still running at return time are counted and logged as a warning
+    (``abandoned_worker_threads``) so leak accumulation is observable; the
+    work queue is drained on return so cancelled queued items are not pinned
+    in memory by a hung worker's reference to it.
 
     Every failed wait cancels its future before ``on_error`` runs: an item
     still queued when it is reported failed can never start later, even if
@@ -62,38 +118,51 @@ def map_with_per_item_timeout(
     is a no-op — running workers are abandoned, not stopped).
 
     Callbacks must not raise: a raising callback aborts the wait loop, skipping
-    callbacks for every remaining item (the pool is still shut down without
-    blocking).
+    callbacks for every remaining item (queued work is still cancelled).
 
     Args:
         items: Work items, one future each.
-        func: Called as ``func(item)`` on a worker thread.
+        func: Called as ``func(item)`` on a daemon worker thread.
         timeout_seconds: Maximum seconds to wait for each individual item.
-        max_workers: Thread pool size for this call.
+        max_workers: Number of worker threads for this call.
         on_success: Called on the calling thread with ``(item, result)`` for
             each item completing within its wait window.
         on_error: Called on the calling thread with ``(item, exception)`` when
-            the wait timed out (a ``TimeoutError``) or ``func`` raised.
+            the wait timed out (a ``WaitTimeoutError``) or ``func`` raised
+            (the original exception, including a ``func``-raised
+            ``TimeoutError``, which is never rewrapped).
         total_timeout_seconds: Optional shared wall-clock deadline for all
             items combined. When set, each item's wait is capped at
             ``min(timeout_seconds, remaining_time)`` and items reached after
-            the deadline has elapsed are reported as ``TimeoutError``
+            the deadline has elapsed are reported as ``WaitTimeoutError``
             immediately. Default ``None`` disables the shared deadline.
     """
+    if max_workers < 1:
+        raise ValueError(f"max_workers must be >= 1, got {max_workers}")
     if not items:
         return
 
     deadline: Optional[float] = time.monotonic() + total_timeout_seconds if total_timeout_seconds is not None else None
 
-    executor = ThreadPoolExecutor(max_workers=max_workers)
+    pairs: List[Tuple[Future[ResultT], ItemT]] = [(Future(), item) for item in items]
+    work_queue: "queue.SimpleQueue[Tuple[Future[ResultT], ItemT]]" = queue.SimpleQueue()
+    for pair in pairs:
+        work_queue.put(pair)
+
     try:
-        futures: Dict[Future[ResultT], ItemT] = {executor.submit(func, item): item for item in items}
-        for future, item in futures.items():
+        for index in range(min(max_workers, len(pairs))):
+            threading.Thread(
+                target=_run_worker,
+                args=(work_queue, func),
+                name=f"{_WORKER_THREAD_NAME_PREFIX}-{index}",
+                daemon=True,
+            ).start()
+        for future, item in pairs:
             if deadline is not None:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     future.cancel()
-                    on_error(item, TimeoutError("Global deadline exceeded"))
+                    on_error(item, WaitTimeoutError("Global deadline exceeded"))
                     continue
                 item_timeout = min(timeout_seconds, remaining)
             else:
@@ -101,6 +170,12 @@ def map_with_per_item_timeout(
             try:
                 result = future.result(timeout=item_timeout)
             except Exception as error:
+                # result() re-raises a worker-raised exception as the exact
+                # stored object; a wait expiry raises a fresh TimeoutError.
+                # Only the latter becomes WaitTimeoutError — worker-raised
+                # timeouts pass through with their real message.
+                if isinstance(error, TimeoutError) and not (future.done() and future.exception() is error):
+                    error = WaitTimeoutError(f"No result within {item_timeout} seconds")
                 # Cancel before on_error: a still-queued future must never
                 # start after its item is reported failed, and a callback
                 # that unblocks workers must not race the cancel. No-op for
@@ -110,6 +185,22 @@ def map_with_per_item_timeout(
             else:
                 on_success(item, result)
     finally:
-        # Threads cannot be killed; abandon hung workers rather than blocking
-        # the caller, and cancel queued work that never started.
-        executor.shutdown(wait=False, cancel_futures=True)
+        # Threads cannot be killed; cancel queued work that never started and
+        # abandon hung workers rather than blocking the caller. Runs even if a
+        # callback raised mid-loop.
+        for future, _ in pairs:
+            future.cancel()
+        # Drain the queue so a hung worker's queue reference cannot pin
+        # cancelled items in memory (workers skip cancelled futures anyway).
+        while True:
+            try:
+                work_queue.get_nowait()
+            except queue.Empty:
+                break
+        abandoned_count = sum(1 for future, _ in pairs if future.running())
+        if abandoned_count:
+            logger.warning(
+                "abandoned_worker_threads",
+                abandoned_count=abandoned_count,
+                timeout_seconds=timeout_seconds,
+            )

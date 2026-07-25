@@ -1285,3 +1285,52 @@ class TestGlobalDeadlineEnforcement:
         orchestrator = DeduplicationAnalysisOrchestrator()
         assert orchestrator._resolve_total_timeout(None) == float(ParallelProcessing.MAX_TIMEOUT_SECONDS)
         assert orchestrator._resolve_total_timeout(60.0) == 60.0
+
+
+class TestWorkerRaisedTimeoutClassification:
+    """CR-08/CR-09: a TimeoutError raised by the enrichment itself must be
+    recorded with its real message, not misclassified as a wait timeout."""
+
+    def test_worker_raised_os_timeout_keeps_real_message(self):
+        import errno
+
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        candidates = [{"id": "c1"}, {"id": "c2"}]
+
+        def enrich_func(candidate):
+            raise OSError(errno.ETIMEDOUT, "read timed out after 2s")
+
+        failed = orchestrator._parallel_enrich(
+            candidates=candidates,
+            enrich_func=enrich_func,
+            operation_name="test_enrich",
+            error_field="test_error",
+            default_error_value={"enriched": False},
+            parallel=True,
+            max_workers=2,
+        )
+
+        assert len(failed) == 2
+        for candidate in candidates:
+            assert "read timed out after 2s" in candidate["test_error"]
+            assert "Operation timed out after" not in candidate["test_error"]
+
+    def test_sequential_worker_raised_bare_timeout_never_yields_nones(self):
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        candidates = [{"id": "c1"}]
+
+        def enrich_func(candidate):
+            raise TimeoutError()
+
+        failed = orchestrator._parallel_enrich(
+            candidates=candidates,
+            enrich_func=enrich_func,
+            operation_name="test_enrich",
+            error_field="test_error",
+            default_error_value={"enriched": False},
+            parallel=False,
+        )
+
+        assert len(failed) == 1
+        assert candidates[0]["test_error"] == "TimeoutError"
+        assert "None" not in candidates[0]["test_error"]

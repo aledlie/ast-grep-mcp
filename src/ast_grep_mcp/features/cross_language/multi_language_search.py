@@ -18,7 +18,7 @@ from ast_grep_mcp.models.cross_language import (
     MultiLanguageMatch,
     MultiLanguageSearchResult,
 )
-from ast_grep_mcp.utils.futures import map_with_per_item_timeout
+from ast_grep_mcp.utils.futures import WaitTimeoutError, map_with_per_item_timeout
 
 logger = get_logger(__name__)
 
@@ -310,13 +310,12 @@ def _run_parallel_search(
         matches_by_language[item[0]] = len(matches)
 
     def on_error(item: Tuple[str, str], error: Exception) -> None:
-        if isinstance(error, TimeoutError):
-            # str(TimeoutError()) is empty — log the timeout explicitly.
+        if isinstance(error, WaitTimeoutError):
             logger.warning(
                 "language_search_timed_out", language=item[0], timeout_seconds=SubprocessDefaults.AST_GREP_TIMEOUT_SECONDS
             )
         else:
-            logger.warning("language_search_failed", language=item[0], error=str(error)[:100])
+            logger.warning("language_search_failed", language=item[0], error=(str(error) or type(error).__name__)[:100])
         matches_by_language[item[0]] = 0
 
     map_with_per_item_timeout(

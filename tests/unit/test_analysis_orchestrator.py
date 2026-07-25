@@ -520,12 +520,12 @@ class TestErrorHandling:
         assert candidate["test_error"] == "Something went wrong"
         assert candidate["fallback"] is True
 
-    def test_handle_timeout_error(self, orchestrator):
-        """Test that timeout errors are handled correctly."""
-        from concurrent.futures import TimeoutError
+    def test_handle_wait_timeout_error(self, orchestrator):
+        """A helper wait expiry (WaitTimeoutError) takes the timeout branch."""
+        from ast_grep_mcp.utils.futures import WaitTimeoutError
 
         candidate: Dict[str, Any] = {"id": "test123"}
-        error = TimeoutError()
+        error = WaitTimeoutError()
 
         orchestrator._handle_enrichment_error(
             candidate=candidate,
@@ -538,6 +538,21 @@ class TestErrorHandling:
 
         assert "timed out" in candidate["test_error"]
         assert "30" in candidate["test_error"]
+
+    def test_handle_worker_raised_timeout_error_is_generic_failure(self, orchestrator):
+        """A TimeoutError raised by the enrichment itself must not be
+        misclassified as a wait timeout (CR-08)."""
+        candidate: Dict[str, Any] = {"id": "test123"}
+
+        orchestrator._handle_enrichment_error(
+            candidate=candidate,
+            error=TimeoutError("connection timed out on host"),
+            operation_name="test_op",
+            error_field="test_error",
+            default_error_value={},
+        )
+
+        assert candidate["test_error"] == "connection timed out on host"
 
 
 class TestLegacyMethods:

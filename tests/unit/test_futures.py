@@ -6,14 +6,23 @@ adopted by deduplication enrichment, batch coverage, and cross-language
 search.
 """
 
+import gc
+import subprocess
+import sys
+import textwrap
 import threading
 import time
+import weakref
 
-from ast_grep_mcp.utils.futures import map_with_per_item_timeout
+import pytest
+
+from ast_grep_mcp.utils import futures as futures_module
+from ast_grep_mcp.utils.futures import WaitTimeoutError, map_with_per_item_timeout
 
 TIMEOUT_SECONDS = 1
 PROMPT_RETURN_BOUND_SECONDS = 10
 HUNG_WORKER_SAFETY_NET_SECONDS = 30
+SUBPROCESS_EXIT_BOUND_SECONDS = 30
 
 
 class TestMapWithPerItemTimeout:
@@ -170,6 +179,187 @@ class TestTimedOutPendingFutureCancellation:
         assert "queued" not in executed, "timed-out queued item must not run after a worker frees"
         assert isinstance(errors["hung"], TimeoutError)
         assert isinstance(errors["queued"], TimeoutError)
+
+
+class TestWaitTimeoutDisambiguation:
+    """A TimeoutError raised by func must not be misread as a wait expiry (CR-08)."""
+
+    def test_worker_raised_timeout_error_passes_through_unchanged(self):
+        raised = TimeoutError("[Errno 60] read timed out after 2s")
+        errors = {}
+
+        def func(item):
+            raise raised
+
+        map_with_per_item_timeout(
+            ["x"],
+            func,
+            timeout_seconds=TIMEOUT_SECONDS,
+            max_workers=1,
+            on_success=lambda item, result: None,
+            on_error=lambda item, error: errors.__setitem__(item, error),
+        )
+
+        assert errors["x"] is raised
+        assert not isinstance(errors["x"], WaitTimeoutError)
+
+    def test_wait_expiry_delivered_as_wait_timeout_error(self):
+        release = threading.Event()
+        errors = {}
+
+        try:
+            map_with_per_item_timeout(
+                ["hung"],
+                lambda item: release.wait(timeout=HUNG_WORKER_SAFETY_NET_SECONDS),
+                timeout_seconds=0.2,
+                max_workers=1,
+                on_success=lambda item, result: None,
+                on_error=lambda item, error: errors.__setitem__(item, error),
+            )
+        finally:
+            release.set()
+
+        assert isinstance(errors["hung"], WaitTimeoutError)
+        assert str(errors["hung"])
+
+    def test_expired_global_deadline_delivered_as_wait_timeout_error(self):
+        errors = {}
+
+        def func(item):
+            if item == "slow":
+                time.sleep(0.5)
+
+        map_with_per_item_timeout(
+            ["slow", "after_deadline"],
+            func,
+            timeout_seconds=10.0,
+            max_workers=1,
+            on_success=lambda item, result: None,
+            on_error=lambda item, error: errors.__setitem__(item, error),
+            total_timeout_seconds=0.3,
+        )
+
+        assert isinstance(errors["after_deadline"], WaitTimeoutError)
+
+
+class TestPoolHardening:
+    """Guards restoring ThreadPoolExecutor parity lost in the daemon-pool rewrite."""
+
+    def test_zero_workers_rejected(self):
+        with pytest.raises(ValueError, match="max_workers"):
+            map_with_per_item_timeout(
+                ["a"],
+                lambda item: item,
+                timeout_seconds=TIMEOUT_SECONDS,
+                max_workers=0,
+                on_success=lambda item, result: None,
+                on_error=lambda item, error: None,
+            )
+
+    def test_cancelled_queued_items_not_pinned_by_hung_worker(self):
+        release = threading.Event()
+
+        class Payload:
+            pass
+
+        payload = Payload()
+        payload_ref = weakref.ref(payload)
+
+        def func(item):
+            if item == "hung":
+                release.wait(timeout=HUNG_WORKER_SAFETY_NET_SECONDS)
+
+        try:
+            map_with_per_item_timeout(
+                ["hung", payload],
+                func,
+                timeout_seconds=0.2,
+                max_workers=1,
+                on_success=lambda item, result: None,
+                on_error=lambda item, error: None,
+            )
+            del payload
+            gc.collect()
+            assert payload_ref() is None, "cancelled queued item still pinned after return"
+        finally:
+            release.set()
+
+
+class _RecordingLogger:
+    def __init__(self):
+        self.warnings = []
+
+    def warning(self, event, **kwargs):
+        self.warnings.append((event, kwargs))
+
+
+class TestAbandonedWorkerAccounting:
+    """Hung workers must not block interpreter exit and must be logged (CR-04)."""
+
+    def test_hung_worker_does_not_block_interpreter_exit(self):
+        # Pre-fix, ThreadPoolExecutor's non-daemon worker was joined at exit
+        # by concurrent.futures' atexit hook, hanging the process forever;
+        # the subprocess timeout below is only reached on regression.
+        script = textwrap.dedent(
+            """
+            import threading
+            from ast_grep_mcp.utils.futures import map_with_per_item_timeout
+
+            map_with_per_item_timeout(
+                ["hung"],
+                lambda item: threading.Event().wait(),
+                timeout_seconds=0.2,
+                max_workers=1,
+                on_success=lambda item, result: None,
+                on_error=lambda item, error: None,
+            )
+            print("RETURNED", flush=True)
+            """
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            timeout=SUBPROCESS_EXIT_BOUND_SECONDS,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "RETURNED" in result.stdout
+
+    def test_abandoned_workers_logged_with_count(self, monkeypatch):
+        recorder = _RecordingLogger()
+        monkeypatch.setattr(futures_module, "logger", recorder)
+        release = threading.Event()
+
+        try:
+            map_with_per_item_timeout(
+                ["hung"],
+                lambda item: release.wait(timeout=HUNG_WORKER_SAFETY_NET_SECONDS),
+                timeout_seconds=0.2,
+                max_workers=1,
+                on_success=lambda item, result: None,
+                on_error=lambda item, error: None,
+            )
+        finally:
+            release.set()
+
+        assert [(event, kwargs["abandoned_count"]) for event, kwargs in recorder.warnings] == [
+            ("abandoned_worker_threads", 1)
+        ]
+
+    def test_no_abandoned_log_when_all_items_complete(self, monkeypatch):
+        recorder = _RecordingLogger()
+        monkeypatch.setattr(futures_module, "logger", recorder)
+
+        map_with_per_item_timeout(
+            ["a", "b"],
+            lambda item: item,
+            timeout_seconds=TIMEOUT_SECONDS,
+            max_workers=2,
+            on_success=lambda item, result: None,
+            on_error=lambda item, error: None,
+        )
+
+        assert recorder.warnings == []
 
 
 TOTAL_TIMEOUT_SECONDS = 1.5
