@@ -27,3 +27,4 @@ analysis_reports/
 benchmark_comparisons/
 .claude/py-cache/
 .claude/tsc-cache/
+.serena/project.yml
