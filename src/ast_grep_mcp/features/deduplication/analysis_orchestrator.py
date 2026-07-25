@@ -469,6 +469,7 @@ class DeduplicationAnalysisOrchestrator:
         max_workers: int,
         timeout_seconds: int,
         kwargs: Dict[str, Any],
+        total_timeout_seconds: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
         """Process enrichment in parallel with per-candidate timeouts.
 
@@ -481,6 +482,9 @@ class DeduplicationAnalysisOrchestrator:
             max_workers: Maximum number of threads
             timeout_seconds: Timeout per candidate
             kwargs: Additional arguments for enrich_func
+            total_timeout_seconds: Shared wall-clock deadline across all candidates.
+                Items reached after the deadline expires are immediately marked as
+                timed out without waiting. Defaults to None (no shared deadline).
 
         Returns:
             List of failed candidates
@@ -505,6 +509,7 @@ class DeduplicationAnalysisOrchestrator:
             max_workers=max_workers,
             on_success=on_success,
             on_error=on_error,
+            total_timeout_seconds=total_timeout_seconds,
         )
 
         return failed_candidates
@@ -518,6 +523,7 @@ class DeduplicationAnalysisOrchestrator:
         default_error_value: Any,
         timeout_seconds: int,
         kwargs: Dict[str, Any],
+        total_timeout_seconds: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
         """Process enrichment one candidate at a time with per-candidate timeout.
 
@@ -525,6 +531,10 @@ class DeduplicationAnalysisOrchestrator:
         a hung enrichment is abandoned after timeout_seconds without blocking the
         next candidate. Previously this path called enrich_func inline with no
         timeout, so timeout_per_candidate was silently ignored.
+
+        When ``total_timeout_seconds`` is set, a shared deadline is computed at
+        entry and the remaining time is passed to each per-candidate call so the
+        entire stage returns within the deadline regardless of candidate count.
 
         Args:
             candidates: List of candidates to enrich
@@ -534,14 +544,19 @@ class DeduplicationAnalysisOrchestrator:
             default_error_value: Default value to set on error
             timeout_seconds: Maximum seconds to wait per candidate
             kwargs: Additional arguments for enrich_func
+            total_timeout_seconds: Shared wall-clock deadline across all candidates.
 
         Returns:
             List of failed candidates
         """
+        import time
+
         failed_candidates: List[Dict[str, Any]] = []
         on_success, on_error = self._make_enrichment_callbacks(
             operation_name, error_field, default_error_value, timeout_seconds, failed_candidates
         )
+
+        deadline: Optional[float] = time.monotonic() + total_timeout_seconds if total_timeout_seconds is not None else None
 
         for candidate in candidates:
             try:
@@ -550,6 +565,16 @@ class DeduplicationAnalysisOrchestrator:
                 # An uncopyable candidate fails alone rather than aborting the stage.
                 on_error((candidate, candidate), error)
                 continue
+
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    on_error((candidate, candidate), TimeoutError("Global deadline exceeded"))
+                    continue
+                call_total: Optional[float] = remaining
+            else:
+                call_total = None
+
             map_with_per_item_timeout(
                 [pair],
                 lambda pair: enrich_func(pair[1], **kwargs),
@@ -557,6 +582,7 @@ class DeduplicationAnalysisOrchestrator:
                 max_workers=1,
                 on_success=on_success,
                 on_error=on_error,
+                total_timeout_seconds=call_total,
             )
 
         return failed_candidates
@@ -566,6 +592,12 @@ class DeduplicationAnalysisOrchestrator:
         if timeout_per_candidate is not None:
             return timeout_per_candidate
         return ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS
+
+    def _resolve_total_timeout(self, total_timeout_seconds: Optional[float]) -> float:
+        """Return total_timeout_seconds, defaulting to ParallelProcessing.MAX_TIMEOUT_SECONDS."""
+        if total_timeout_seconds is not None:
+            return total_timeout_seconds
+        return float(ParallelProcessing.MAX_TIMEOUT_SECONDS)
 
     def _parallel_enrich(
         self,
@@ -577,6 +609,7 @@ class DeduplicationAnalysisOrchestrator:
         parallel: bool = True,
         max_workers: int = ParallelProcessing.DEFAULT_WORKERS,
         timeout_per_candidate: Optional[int] = None,
+        total_timeout_seconds: Optional[float] = None,
         **kwargs: Any,
     ) -> List[Dict[str, Any]]:
         """Generic parallel enrichment helper.
@@ -590,21 +623,28 @@ class DeduplicationAnalysisOrchestrator:
             parallel: Use parallel execution when True and len(candidates) > 1
             max_workers: Thread pool size
             timeout_per_candidate: Per-candidate timeout in seconds (default 30s)
+            total_timeout_seconds: Shared wall-clock deadline across all candidates
+                in seconds. Items reached after the deadline expires are immediately
+                marked as timed out. Defaults to ParallelProcessing.MAX_TIMEOUT_SECONDS
+                (300s), enforcing the documented 5-minute cap.
             **kwargs: Forwarded to enrich_func
 
         Returns:
             List of candidates that failed enrichment
         """
         timeout_seconds = self._resolve_timeout(timeout_per_candidate)
+        resolved_total = self._resolve_total_timeout(total_timeout_seconds)
         if parallel and len(candidates) > 1:
             failed_candidates = self._process_parallel_enrichment(
-                candidates, enrich_func, operation_name, error_field, default_error_value, max_workers, timeout_seconds, kwargs
+                candidates, enrich_func, operation_name, error_field, default_error_value, max_workers, timeout_seconds, kwargs,
+                total_timeout_seconds=resolved_total,
             )
         else:
             # Sequential path also enforces the per-candidate timeout; previously
             # timeout_per_candidate was silently ignored on this branch.
             failed_candidates = self._process_sequential_enrichment(
-                candidates, enrich_func, operation_name, error_field, default_error_value, timeout_seconds, kwargs
+                candidates, enrich_func, operation_name, error_field, default_error_value, timeout_seconds, kwargs,
+                total_timeout_seconds=resolved_total,
             )
         self.logger.info(f"{operation_name}_added", candidate_count=len(candidates), failed_count=len(failed_candidates), parallel=parallel)
         return failed_candidates

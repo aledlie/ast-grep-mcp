@@ -1190,3 +1190,98 @@ class TestAbandonedWorkerIsolation:
         assert "error" in uncopyable
         assert uncopyable["enriched"] is False
         assert normal["enriched"] is True
+
+
+class TestGlobalDeadlineEnforcement:
+    """Regression tests for CR-05 / CR-26: MAX_TIMEOUT_SECONDS must be enforced as a shared
+    wall-clock cap in _parallel_enrich so total wall-clock is O(MAX_TIMEOUT) not O(N×per_item).
+
+    Before the fix ParallelProcessing.MAX_TIMEOUT_SECONDS=300 was dead config — defined but never
+    referenced by the actual wait loop — so N hung candidates × 30s per item = ~3000s worst case.
+    """
+
+    HUNG_WORKER_SAFETY_NET_SECONDS = 30
+    PER_ITEM_TIMEOUT_SECONDS = 5
+    TOTAL_TIMEOUT_SECONDS = 1.5  # well below n_candidates × PER_ITEM_TIMEOUT_SECONDS
+
+    def test_total_timeout_bounds_wall_clock_below_n_times_per_item(self):
+        """Parallel path: total wall-clock is bounded by total_timeout_seconds, not N×per_item."""
+        import threading
+        import time
+
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        release = threading.Event()
+        n_candidates = 4
+        candidates = [{"id": f"c{i}"} for i in range(n_candidates)]
+
+        def enrich_func(candidate):
+            release.wait(timeout=self.HUNG_WORKER_SAFETY_NET_SECONDS)
+
+        try:
+            start = time.monotonic()
+            failed = orchestrator._parallel_enrich(
+                candidates=candidates,
+                enrich_func=enrich_func,
+                operation_name="test",
+                error_field="error",
+                default_error_value={"enriched": False},
+                parallel=True,
+                max_workers=2,
+                timeout_per_candidate=self.PER_ITEM_TIMEOUT_SECONDS,
+                total_timeout_seconds=self.TOTAL_TIMEOUT_SECONDS,
+            )
+            elapsed = time.monotonic() - start
+        finally:
+            release.set()
+
+        assert elapsed < self.PER_ITEM_TIMEOUT_SECONDS, (
+            f"should return in ~{self.TOTAL_TIMEOUT_SECONDS}s, not {n_candidates}×{self.PER_ITEM_TIMEOUT_SECONDS}s; "
+            f"took {elapsed:.2f}s"
+        )
+        assert len(failed) == n_candidates
+        assert all(c["enriched"] is False for c in candidates)
+
+    def test_sequential_total_timeout_bounds_wall_clock(self):
+        """Sequential path: global deadline also prevents N×per_item wait."""
+        import threading
+        import time
+
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        release = threading.Event()
+        n_candidates = 3
+        candidates = [{"id": f"c{i}"} for i in range(n_candidates)]
+
+        def enrich_func(candidate):
+            release.wait(timeout=self.HUNG_WORKER_SAFETY_NET_SECONDS)
+
+        try:
+            start = time.monotonic()
+            failed = orchestrator._parallel_enrich(
+                candidates=candidates,
+                enrich_func=enrich_func,
+                operation_name="test",
+                error_field="error",
+                default_error_value={"enriched": False},
+                parallel=False,
+                max_workers=1,
+                timeout_per_candidate=self.PER_ITEM_TIMEOUT_SECONDS,
+                total_timeout_seconds=self.TOTAL_TIMEOUT_SECONDS,
+            )
+            elapsed = time.monotonic() - start
+        finally:
+            release.set()
+
+        assert elapsed < self.PER_ITEM_TIMEOUT_SECONDS, (
+            f"should return in ~{self.TOTAL_TIMEOUT_SECONDS}s, not {n_candidates}×{self.PER_ITEM_TIMEOUT_SECONDS}s; "
+            f"took {elapsed:.2f}s"
+        )
+        assert len(failed) == n_candidates
+        assert all(c["enriched"] is False for c in candidates)
+
+    def test_max_timeout_seconds_constant_is_enforced_as_default(self):
+        """ParallelProcessing.MAX_TIMEOUT_SECONDS is the default total_timeout resolved by _parallel_enrich."""
+        from ast_grep_mcp.constants import ParallelProcessing
+
+        orchestrator = DeduplicationAnalysisOrchestrator()
+        assert orchestrator._resolve_total_timeout(None) == float(ParallelProcessing.MAX_TIMEOUT_SECONDS)
+        assert orchestrator._resolve_total_timeout(60.0) == 60.0

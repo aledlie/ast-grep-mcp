@@ -129,3 +129,87 @@ class TestMapWithPerItemTimeout:
         )
 
         assert callback_threads and all(thread is calling_thread for thread in callback_threads)
+
+
+TOTAL_TIMEOUT_SECONDS = 1.5
+HUNG_WORKER_TOTAL_SAFETY_NET_SECONDS = 30
+
+
+class TestMapWithTotalTimeout:
+    """Tests for the shared total_timeout_seconds deadline (CR-05 / CR-26)."""
+
+    def test_fast_items_complete_within_total_deadline(self):
+        """Items that finish quickly are unaffected by a generous total deadline."""
+        results = {}
+        errors = {}
+
+        map_with_per_item_timeout(
+            ["a", "b", "c"],
+            lambda item: item.upper(),
+            timeout_seconds=TIMEOUT_SECONDS,
+            max_workers=2,
+            on_success=lambda item, result: results.__setitem__(item, result),
+            on_error=lambda item, error: errors.__setitem__(item, error),
+            total_timeout_seconds=TOTAL_TIMEOUT_SECONDS,
+        )
+
+        assert results == {"a": "A", "b": "B", "c": "C"}
+        assert errors == {}
+
+    def test_total_deadline_caps_wall_clock_below_n_times_per_item(self):
+        """With N hung workers, total wall-clock must stay near total_timeout_seconds, not N×timeout."""
+        release = threading.Event()
+        errors = {}
+
+        # 5 items, 1 worker → serial waits; per-item=5s → worst case 25s without total deadline
+        n_items = 5
+        per_item_timeout = 5.0
+        total_timeout = 2.0  # must return in ~2s, not ~25s
+
+        try:
+            start = time.monotonic()
+            map_with_per_item_timeout(
+                [f"h{i}" for i in range(n_items)],
+                lambda item: release.wait(timeout=HUNG_WORKER_TOTAL_SAFETY_NET_SECONDS),
+                timeout_seconds=per_item_timeout,
+                max_workers=1,
+                on_success=lambda item, result: None,
+                on_error=lambda item, error: errors.__setitem__(item, error),
+                total_timeout_seconds=total_timeout,
+            )
+            elapsed = time.monotonic() - start
+        finally:
+            release.set()
+
+        assert elapsed < per_item_timeout, f"should return in ~{total_timeout}s, took {elapsed:.2f}s"
+        assert len(errors) == n_items
+        assert all(isinstance(e, TimeoutError) for e in errors.values())
+
+    def test_expired_deadline_marks_remaining_items_without_waiting(self):
+        """Items past the deadline are reported immediately as TimeoutError."""
+        errors = {}
+        processed = []
+
+        # Simulate: first item takes 0.5s (just under total_timeout=0.3s, so deadline expires)
+        # remaining items should be marked without waiting
+        def func(item):
+            if item == "slow":
+                time.sleep(0.5)
+            return item
+
+        start = time.monotonic()
+        map_with_per_item_timeout(
+            ["slow", "after_deadline"],
+            func,
+            timeout_seconds=10.0,
+            max_workers=1,
+            on_success=lambda item, result: processed.append(item),
+            on_error=lambda item, error: errors.__setitem__(item, error),
+            total_timeout_seconds=0.3,
+        )
+        elapsed = time.monotonic() - start
+
+        # Should have returned quickly (not waited 10s for after_deadline)
+        assert elapsed < 2.0, f"should return promptly, took {elapsed:.2f}s"
+        assert "after_deadline" in errors
+        assert isinstance(errors["after_deadline"], TimeoutError)
