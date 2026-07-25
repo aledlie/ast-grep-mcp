@@ -6,6 +6,7 @@ ranking them, checking test coverage, and generating recommendations.
 
 import copy
 import os
+import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ...constants import CodeAnalysisDefaults, DeduplicationDefaults, ParallelProcessing
@@ -549,14 +550,12 @@ class DeduplicationAnalysisOrchestrator:
         Returns:
             List of failed candidates
         """
-        import time
-
         failed_candidates: List[Dict[str, Any]] = []
         on_success, on_error = self._make_enrichment_callbacks(
             operation_name, error_field, default_error_value, timeout_seconds, failed_candidates
         )
 
-        deadline: Optional[float] = time.monotonic() + total_timeout_seconds if total_timeout_seconds is not None else None
+        deadline: Optional[float] = (time.monotonic() + total_timeout_seconds) if total_timeout_seconds is not None else None
 
         for candidate in candidates:
             try:
