@@ -8,13 +8,12 @@ This module registers MCP tools for:
 - generate_language_bindings: Generate API client bindings
 """
 
-import time
 from typing import Any, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-from ast_grep_mcp.constants import CrossLanguageDefaults, FormattingDefaults
+from ast_grep_mcp.constants import CrossLanguageDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.cross_language.binding_generator import generate_language_bindings_impl
 from ast_grep_mcp.features.cross_language.language_converter import convert_code_language_impl
@@ -157,8 +156,8 @@ def search_multi_language_tool(
         semantic_pattern=semantic_pattern,
         languages=languages,
     )
-    with tool_context("search_multi_language", project_folder=project_folder, semantic_pattern=semantic_pattern) as start_time:
-        result = _format_search_result(
+    with tool_context("search_multi_language", project_folder=project_folder, semantic_pattern=semantic_pattern):
+        return _format_search_result(
             search_multi_language_impl(
                 project_folder=project_folder,
                 semantic_pattern=semantic_pattern,
@@ -167,9 +166,6 @@ def search_multi_language_tool(
                 max_results_per_language=max_results_per_language,
             )
         )
-        elapsed = round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION)
-        logger.info("tool_completed", tool="search_multi_language", execution_time_seconds=elapsed)
-        return result
 
 
 def find_language_equivalents_tool(
@@ -184,17 +180,14 @@ def find_language_equivalents_tool(
         pattern_description=pattern_description,
         source_language=source_language,
     )
-    with tool_context("find_language_equivalents", pattern_description=pattern_description, source_language=source_language) as start_time:
-        result = _format_equivalents_result(
+    with tool_context("find_language_equivalents", pattern_description=pattern_description, source_language=source_language):
+        return _format_equivalents_result(
             find_language_equivalents_impl(
                 pattern_description=pattern_description,
                 source_language=source_language,
                 target_languages=target_languages,
             )
         )
-        elapsed = round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION)
-        logger.info("tool_completed", tool="find_language_equivalents", execution_time_seconds=elapsed)
-        return result
 
 
 def convert_code_language_tool(
@@ -212,8 +205,8 @@ def convert_code_language_tool(
         to_language=to_language,
         conversion_style=conversion_style,
     )
-    with tool_context("convert_code_language", from_language=from_language, to_language=to_language) as start_time:
-        result = _format_conversion_result(
+    with tool_context("convert_code_language", from_language=from_language, to_language=to_language):
+        return _format_conversion_result(
             convert_code_language_impl(
                 code_snippet=code_snippet,
                 from_language=from_language,
@@ -222,9 +215,6 @@ def convert_code_language_tool(
                 include_comments=include_comments,
             )
         )
-        elapsed = round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION)
-        logger.info("tool_completed", tool="convert_code_language", execution_time_seconds=elapsed)
-        return result
 
 
 def _format_polyglot_result(result: Any) -> Dict[str, Any]:
@@ -277,8 +267,8 @@ def refactor_polyglot_tool(
         symbol_name=symbol_name,
         dry_run=dry_run,
     )
-    with tool_context("refactor_polyglot", project_folder=project_folder, refactoring_type=refactoring_type) as start_time:
-        result = _format_polyglot_result(
+    with tool_context("refactor_polyglot", project_folder=project_folder, refactoring_type=refactoring_type):
+        return _format_polyglot_result(
             refactor_polyglot_impl(
                 project_folder=project_folder,
                 refactoring_type=refactoring_type,
@@ -288,9 +278,6 @@ def refactor_polyglot_tool(
                 dry_run=dry_run,
             )
         )
-        elapsed = round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION)
-        logger.info("tool_completed", tool="refactor_polyglot", execution_time_seconds=elapsed)
-        return result
 
 
 def _format_bindings_result(result: Any) -> Dict[str, Any]:
@@ -331,8 +318,8 @@ def generate_language_bindings_tool(
         target_languages=target_languages,
         binding_style=binding_style,
     )
-    with tool_context("generate_language_bindings", api_definition_file=api_definition_file, binding_style=binding_style) as start_time:
-        result = _format_bindings_result(
+    with tool_context("generate_language_bindings", api_definition_file=api_definition_file, binding_style=binding_style):
+        return _format_bindings_result(
             generate_language_bindings_impl(
                 api_definition_file=api_definition_file,
                 target_languages=target_languages,
@@ -340,9 +327,6 @@ def generate_language_bindings_tool(
                 include_types=include_types,
             )
         )
-        elapsed = round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION)
-        logger.info("tool_completed", tool="generate_language_bindings", execution_time_seconds=elapsed)
-        return result
 
 
 # =============================================================================

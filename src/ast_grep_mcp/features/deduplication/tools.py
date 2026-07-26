@@ -263,7 +263,7 @@ def _register_analyze_candidates(mcp: FastMCP) -> None:
         exclude_patterns: Optional[List[str]] = Field(default=None, description="Path patterns to exclude from analysis"),
         timeout_per_candidate: Optional[float] = Field(
             default=None,
-            description="Per-candidate enrichment timeout in seconds as a float (default: 30s). Raise this if enrichment is spuriously timing out.",
+            description="Per-candidate enrichment timeout in seconds (default: 30s). Raise this if enrichment is spuriously timing out.",
         ),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone analyze_deduplication_candidates_tool function."""

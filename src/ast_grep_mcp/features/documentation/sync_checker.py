@@ -18,6 +18,7 @@ from ast_grep_mcp.models.documentation import (
     DocSyncResult,
     FunctionSignature,
 )
+from ast_grep_mcp.utils.text import read_file_lines
 
 from .docstring_generator import FunctionSignatureParser
 
@@ -232,8 +233,7 @@ def _check_markdown_links(file_path: str, project_folder: str) -> List[DocSyncIs
         List of broken link issues
     """
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            lines = f.read().split("\n")
+        lines = read_file_lines(file_path)
     except OSError:
         return []
 

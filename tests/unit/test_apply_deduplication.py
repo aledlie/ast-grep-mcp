@@ -493,6 +493,61 @@ class TestOrchestrationHelperFunctions:
         assert "helper" in result
         assert "import" in result
 
+    def test_generate_import_one_parent_directory_up(self, project_folder) -> None:
+        """BUG-09: ../shared/utils.py must yield two dots, not four."""
+        source = os.path.join(str(project_folder), "src", "pkg", "file.py")
+        target = os.path.join(str(project_folder), "src", "shared", "utils.py")
+
+        result = _generate_import_for_extracted_function(
+            source_file=source, target_file=target, function_name="helper", project_folder=str(project_folder), language="python"
+        )
+
+        assert result == "from ..shared.utils import helper"
+
+    def test_generate_import_two_parent_directories_up(self, project_folder) -> None:
+        """BUG-09: ../../common/helpers.py must yield three dots."""
+        source = os.path.join(str(project_folder), "src", "pkg", "sub", "file.py")
+        target = os.path.join(str(project_folder), "src", "common", "helpers.py")
+
+        result = _generate_import_for_extracted_function(
+            source_file=source, target_file=target, function_name="helper", project_folder=str(project_folder), language="python"
+        )
+
+        assert result == "from ...common.helpers import helper"
+
+    def test_generate_import_target_in_parent_directory(self, project_folder) -> None:
+        """BUG-09: ../utils.py (bare parent-dir module) must yield two dots."""
+        source = os.path.join(str(project_folder), "src", "pkg", "file.py")
+        target = os.path.join(str(project_folder), "src", "utils.py")
+
+        result = _generate_import_for_extracted_function(
+            source_file=source, target_file=target, function_name="helper", project_folder=str(project_folder), language="python"
+        )
+
+        assert result == "from ..utils import helper"
+
+    def test_generate_import_same_directory_unchanged(self, project_folder) -> None:
+        """Same-directory targets keep their pre-BUG-09 non-relative form."""
+        source = os.path.join(str(project_folder), "src", "file.py")
+        target = os.path.join(str(project_folder), "src", "utils.py")
+
+        result = _generate_import_for_extracted_function(
+            source_file=source, target_file=target, function_name="helper", project_folder=str(project_folder), language="python"
+        )
+
+        assert result == "from utils import helper"
+
+    def test_generate_import_subdirectory_unchanged(self, project_folder) -> None:
+        """Subdirectory targets keep their pre-BUG-09 dotted-path form."""
+        source = os.path.join(str(project_folder), "src", "file.py")
+        target = os.path.join(str(project_folder), "src", "shared", "utils.py")
+
+        result = _generate_import_for_extracted_function(
+            source_file=source, target_file=target, function_name="helper", project_folder=str(project_folder), language="python"
+        )
+
+        assert result == "from shared.utils import helper"
+
 
 class TestNormalizeReplacementKeys:
     """Regression tests for BUG-02: relative replacement keys must match plan paths.

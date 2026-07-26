@@ -1,12 +1,10 @@
 """Schema.org feature MCP tool definitions."""
 
-import time
 from typing import Any, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-from ast_grep_mcp.constants import FormattingDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.schema.client import get_schema_org_client
 from ast_grep_mcp.features.schema.enhancement_service import analyze_entity_graph
@@ -40,16 +38,8 @@ async def get_schema_type_tool(type_name: str) -> Dict[str, Any]:
     """
     logger = get_logger("tool.get_schema_type")
     logger.info("tool_invoked", tool="get_schema_type", type_name=type_name)
-    async with async_tool_context("get_schema_type", type_name=type_name) as start_time:
-        result = await get_schema_org_client().get_schema_type(type_name)
-        elapsed = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="get_schema_type",
-            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
-            status="success",
-        )
-        return result
+    async with async_tool_context("get_schema_type", type_name=type_name):
+        return await get_schema_org_client().get_schema_type(type_name)
 
 
 async def search_schemas_tool(query: str, limit: int = 10) -> List[Dict[str, Any]]:
@@ -69,16 +59,9 @@ async def search_schemas_tool(query: str, limit: int = 10) -> List[Dict[str, Any
     """
     logger = get_logger("tool.search_schemas")
     logger.info("tool_invoked", tool="search_schemas", query=query, limit=limit)
-    async with async_tool_context("search_schemas", query=query, limit=limit) as start_time:
+    async with async_tool_context("search_schemas", query=query, limit=limit) as run:
         results = await get_schema_org_client().search_schemas(query, limit)
-        elapsed = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="search_schemas",
-            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
-            result_count=len(results),
-            status="success",
-        )
+        run.add_completion_fields(result_count=len(results))
         return results
 
 
@@ -98,16 +81,8 @@ async def get_type_hierarchy_tool(type_name: str) -> Dict[str, Any]:
     """
     logger = get_logger("tool.get_type_hierarchy")
     logger.info("tool_invoked", tool="get_type_hierarchy", type_name=type_name)
-    async with async_tool_context("get_type_hierarchy", type_name=type_name) as start_time:
-        result = await get_schema_org_client().get_type_hierarchy(type_name)
-        elapsed = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="get_type_hierarchy",
-            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
-            status="success",
-        )
-        return result
+    async with async_tool_context("get_type_hierarchy", type_name=type_name):
+        return await get_schema_org_client().get_type_hierarchy(type_name)
 
 
 async def get_type_properties_tool(type_name: str, include_inherited: bool = True) -> List[Dict[str, Any]]:
@@ -127,16 +102,9 @@ async def get_type_properties_tool(type_name: str, include_inherited: bool = Tru
     """
     logger = get_logger("tool.get_type_properties")
     logger.info("tool_invoked", tool="get_type_properties", type_name=type_name, include_inherited=include_inherited)
-    async with async_tool_context("get_type_properties", type_name=type_name, include_inherited=include_inherited) as start_time:
+    async with async_tool_context("get_type_properties", type_name=type_name, include_inherited=include_inherited) as run:
         results = await get_schema_org_client().get_type_properties(type_name, include_inherited)
-        elapsed = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="get_type_properties",
-            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
-            property_count=len(results),
-            status="success",
-        )
+        run.add_completion_fields(property_count=len(results))
         return results
 
 
@@ -157,16 +125,8 @@ async def generate_schema_example_tool(type_name: str, custom_properties: Option
     """
     logger = get_logger("tool.generate_schema_example")
     logger.info("tool_invoked", tool="generate_schema_example", type_name=type_name)
-    async with async_tool_context("generate_schema_example", type_name=type_name) as start_time:
-        result = await get_schema_org_client().generate_example(type_name, custom_properties)
-        elapsed = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="generate_schema_example",
-            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
-            status="success",
-        )
-        return result
+    async with async_tool_context("generate_schema_example", type_name=type_name):
+        return await get_schema_org_client().generate_example(type_name, custom_properties)
 
 
 def generate_entity_id_tool(base_url: str, entity_type: str, entity_slug: Optional[str] = None) -> str:
@@ -192,16 +152,9 @@ def generate_entity_id_tool(base_url: str, entity_type: str, entity_slug: Option
     """
     logger = get_logger("tool.generate_entity_id")
     logger.info("tool_invoked", tool="generate_entity_id", base_url=base_url, entity_type=entity_type)
-    with tool_context("generate_entity_id", base_url=base_url, entity_type=entity_type) as start_time:
+    with tool_context("generate_entity_id", base_url=base_url, entity_type=entity_type) as run:
         result = get_schema_org_client().generate_entity_id(base_url, entity_type, entity_slug)
-        elapsed = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="generate_entity_id",
-            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
-            generated_id=result,
-            status="success",
-        )
+        run.add_completion_fields(generated_id=result)
         return result
 
 
@@ -228,17 +181,9 @@ def validate_entity_id_tool(entity_id: str) -> Dict[str, Any]:
     """
     logger = get_logger("tool.validate_entity_id")
     logger.info("tool_invoked", tool="validate_entity_id", entity_id=entity_id)
-    with tool_context("validate_entity_id", entity_id=entity_id) as start_time:
+    with tool_context("validate_entity_id", entity_id=entity_id) as run:
         result = get_schema_org_client().validate_entity_id(entity_id)
-        elapsed = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="validate_entity_id",
-            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
-            is_valid=result["valid"],
-            warning_count=len(result["warnings"]),
-            status="success",
-        )
+        run.add_completion_fields(is_valid=result["valid"], warning_count=len(result["warnings"]))
         return result
 
 
@@ -255,16 +200,9 @@ async def build_entity_graph_tool(entities: List[Dict[str, Any]], base_url: str)
     """
     logger = get_logger("tool.build_entity_graph")
     logger.info("tool_invoked", tool="build_entity_graph", entity_count=len(entities), base_url=base_url)
-    async with async_tool_context("build_entity_graph", entity_count=len(entities), base_url=base_url) as start_time:
+    async with async_tool_context("build_entity_graph", entity_count=len(entities), base_url=base_url) as run:
         result = await get_schema_org_client().build_entity_graph(entities, base_url)
-        elapsed = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="build_entity_graph",
-            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
-            entity_count=len(result.get("@graph", [])),
-            status="success",
-        )
+        run.add_completion_fields(entity_count=len(result.get("@graph", [])))
         return result
 
 
@@ -284,16 +222,11 @@ async def enhance_entity_graph_tool(input_source: str, input_type: str = "file",
     logger.info("tool_invoked", tool="enhance_entity_graph", input_source=input_source, input_type=input_type, output_mode=output_mode)
     async with async_tool_context(
         "enhance_entity_graph", input_source=input_source, input_type=input_type, output_mode=output_mode
-    ) as start_time:
+    ) as run:
         result = await analyze_entity_graph(input_source=input_source, input_type=input_type, output_mode=output_mode)
-        elapsed = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="enhance_entity_graph",
-            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
+        run.add_completion_fields(
             entity_count=len(result.get("entity_enhancements", [])),
             seo_score=result.get("overall_seo_score", 0),
-            status="success",
         )
         return result
 
@@ -387,7 +320,7 @@ def detect_structured_data_tool(
     """
     logger = get_logger("tool.detect_structured_data")
     logger.info("tool_invoked", tool="detect_structured_data", project_folder=project_folder)
-    with tool_context("detect_structured_data", project_folder=project_folder) as start_time:
+    with tool_context("detect_structured_data", project_folder=project_folder) as run:
         all_formats = {"json-ld", "microdata", "rdfa", "frontmatter"}
         active = set(formats) & all_formats if formats else all_formats
 
@@ -401,14 +334,7 @@ def detect_structured_data_tool(
         if "frontmatter" in active:
             results["frontmatter"] = extract_schema_from_frontmatter(project_folder, file_globs)
 
-        elapsed = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="detect_structured_data",
-            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
-            formats_scanned=list(active),
-            status="success",
-        )
+        run.add_completion_fields(formats_scanned=list(active))
         return results
 
 
@@ -429,12 +355,12 @@ def validate_structured_data_tool(
     """
     logger = get_logger("tool.validate_structured_data")
     logger.info("tool_invoked", tool="validate_structured_data", project_folder=project_folder)
-    with tool_context("validate_structured_data", project_folder=project_folder) as start_time:
+    with tool_context("validate_structured_data", project_folder=project_folder):
         html_validation = validate_html_structured_data(project_folder, file_globs)
         md_validation = validate_frontmatter_schema(project_folder, file_globs)
         md_suggestions = suggest_frontmatter_enhancements(project_folder, file_globs)
 
-        result: Dict[str, Any] = {
+        return {
             "html": html_validation,
             "markdown": md_validation,
             "suggestions": md_suggestions,
@@ -445,15 +371,6 @@ def validate_structured_data_tool(
                 "enhancement_suggestions": md_suggestions["files_with_suggestions"],
             },
         }
-
-        elapsed = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="validate_structured_data",
-            execution_time_seconds=round(elapsed, FormattingDefaults.ROUNDING_PRECISION),
-            status="success",
-        )
-        return result
 
 
 def _reg_enhance(mcp: FastMCP) -> None:

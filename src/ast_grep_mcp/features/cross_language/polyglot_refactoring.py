@@ -131,8 +131,7 @@ def _find_symbol_occurrences(
 ) -> List[Tuple[int, str, str]]:
     """Find occurrences of a symbol in a file."""
     try:
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-            lines = f.readlines()
+        lines = read_file_lines(file_path, errors="ignore")
     except Exception as e:
         logger.warning("file_read_error", file=file_path, error=str(e)[: DisplayDefaults.CONTENT_PREVIEW_LENGTH])
         return []

@@ -5,17 +5,48 @@ from unittest.mock import patch
 
 import pytest
 
-from ast_grep_mcp.utils.tool_context import async_tool_context, tool_context
+from ast_grep_mcp.utils.tool_context import ToolRun, async_tool_context, tool_context
 
 
 class TestToolContext:
     """Tests for the synchronous tool_context context manager."""
 
-    def test_yields_start_time(self) -> None:
+    def test_yields_tool_run_with_start_time(self) -> None:
         before = time.time()
-        with tool_context("test_tool") as start:
+        with tool_context("test_tool") as run:
             after = time.time()
-        assert before <= start <= after
+        assert isinstance(run, ToolRun)
+        assert before <= run.start_time <= after
+
+    def test_logs_tool_completed_on_success(self) -> None:
+        with patch("ast_grep_mcp.utils.tool_context.get_logger") as mock_get:
+            mock_logger = mock_get.return_value
+            with tool_context("my_tool"):
+                pass
+            mock_logger.info.assert_called_once()
+            args, kwargs = mock_logger.info.call_args
+            assert args[0] == "tool_completed"
+            assert kwargs["tool"] == "my_tool"
+            assert kwargs["status"] == "success"
+            assert "execution_time_seconds" in kwargs
+
+    def test_completion_fields_included_in_log(self) -> None:
+        with patch("ast_grep_mcp.utils.tool_context.get_logger") as mock_get:
+            mock_logger = mock_get.return_value
+            with tool_context("my_tool") as run:
+                run.add_completion_fields(items_found=3, filtered=True)
+            kwargs = mock_logger.info.call_args[1]
+            assert kwargs["items_found"] == 3
+            assert kwargs["filtered"] is True
+
+    def test_no_tool_completed_log_on_error(self) -> None:
+        with patch("ast_grep_mcp.utils.tool_context.get_logger") as mock_get:
+            mock_logger = mock_get.return_value
+            with patch("ast_grep_mcp.utils.tool_context.sentry_sdk.capture_exception"):
+                with pytest.raises(ValueError):
+                    with tool_context("my_tool"):
+                        raise ValueError("x")
+            mock_logger.info.assert_not_called()
 
     def test_reraises_exception(self) -> None:
         with pytest.raises(ValueError, match="boom"):
@@ -58,11 +89,25 @@ class TestAsyncToolContext:
     """Tests for the async variant."""
 
     @pytest.mark.asyncio
-    async def test_yields_start_time(self) -> None:
+    async def test_yields_tool_run_with_start_time(self) -> None:
         before = time.time()
-        async with async_tool_context("test_tool") as start:
+        async with async_tool_context("test_tool") as run:
             after = time.time()
-        assert before <= start <= after
+        assert isinstance(run, ToolRun)
+        assert before <= run.start_time <= after
+
+    @pytest.mark.asyncio
+    async def test_logs_tool_completed_on_success(self) -> None:
+        with patch("ast_grep_mcp.utils.tool_context.get_logger") as mock_get:
+            mock_logger = mock_get.return_value
+            async with async_tool_context("my_tool") as run:
+                run.add_completion_fields(result_count=2)
+            mock_logger.info.assert_called_once()
+            args, kwargs = mock_logger.info.call_args
+            assert args[0] == "tool_completed"
+            assert kwargs["tool"] == "my_tool"
+            assert kwargs["status"] == "success"
+            assert kwargs["result_count"] == 2
 
     @pytest.mark.asyncio
     async def test_reraises_exception(self) -> None:

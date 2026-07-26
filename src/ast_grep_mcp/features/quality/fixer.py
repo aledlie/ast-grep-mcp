@@ -23,6 +23,7 @@ from ast_grep_mcp.models.standards import (
     FixValidation,
     RuleViolation,
 )
+from ast_grep_mcp.utils.text import read_file_lines, write_file_lines
 
 logger = get_logger(__name__)
 REVIEW_EMPTY_CATCH_CONFIDENCE = 0.75
@@ -160,10 +161,8 @@ def apply_pattern_fix(file_path: str, violation: RuleViolation, fix_pattern: str
     """
     try:
         # Read the file
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
-
-        lines = content.splitlines(keepends=True)
+        original_lines = read_file_lines(file_path)
+        lines = list(original_lines)
 
         # Get the original code snippet
         start_line = violation.line - 1  # Convert to 0-indexed
@@ -198,9 +197,7 @@ def apply_pattern_fix(file_path: str, violation: RuleViolation, fix_pattern: str
         lines = _splice_fixed_code(lines, start_line, end_line, original_code, fixed_code)
 
         # Write back
-        new_content = "".join(lines)
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(new_content)
+        write_file_lines(file_path, lines)
 
         # Validate syntax
         validation = validate_syntax(file_path, language)
@@ -208,8 +205,7 @@ def apply_pattern_fix(file_path: str, violation: RuleViolation, fix_pattern: str
 
         if not syntax_valid:
             # Rollback the change
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(content)
+            write_file_lines(file_path, original_lines)
 
             return FixResult(
                 violation=violation,
@@ -279,10 +275,8 @@ def apply_removal_fix(file_path: str, violation: RuleViolation, language: str) -
     """
     try:
         # Read the file
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
-
-        lines = content.splitlines(keepends=True)
+        original_lines = read_file_lines(file_path)
+        lines = list(original_lines)
 
         # Get the original code snippet
         start_line = violation.line - 1  # Convert to 0-indexed
@@ -303,9 +297,7 @@ def apply_removal_fix(file_path: str, violation: RuleViolation, language: str) -
         del lines[start_line : end_line + 1]
 
         # Write back
-        new_content = "".join(lines)
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(new_content)
+        write_file_lines(file_path, lines)
 
         # Validate syntax
         validation = validate_syntax(file_path, language)
@@ -313,8 +305,7 @@ def apply_removal_fix(file_path: str, violation: RuleViolation, language: str) -
 
         if not syntax_valid:
             # Rollback the change
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(content)
+            write_file_lines(file_path, original_lines)
 
             return FixResult(
                 violation=violation,
@@ -594,8 +585,7 @@ def _is_variable_reassigned(file_path: str, var_name: str, decl_line: int) -> bo
         True if the variable appears to be reassigned
     """
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
+        lines = read_file_lines(file_path)
     except OSError:
         return True  # Assume reassigned if we can't read
 

@@ -1,7 +1,6 @@
 """MCP tool definitions for code quality and standards features."""
 
 import os
-import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, cast
@@ -11,7 +10,7 @@ import yaml
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-from ast_grep_mcp.constants import FilePatterns, FormattingDefaults, ParallelProcessing, SecurityScanDefaults
+from ast_grep_mcp.constants import FilePatterns, ParallelProcessing, SecurityScanDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.quality.enforcer import enforce_standards_impl, format_violation_report
 from ast_grep_mcp.features.quality.fixer import apply_fixes_batch
@@ -129,7 +128,7 @@ def create_linting_rule_tool(
         save_to_project=save_to_project,
     )
 
-    with tool_context("create_linting_rule", rule_name=rule_name, language=language) as start_time:
+    with tool_context("create_linting_rule", rule_name=rule_name, language=language) as run:
         with sentry_sdk.start_span(op="create_linting_rule", name="Create custom linting rule"):
             rule = _create_rule_from_params(rule_name, description, pattern, severity, language, suggested_fix, note, use_template)
 
@@ -142,11 +141,7 @@ def create_linting_rule_tool(
             saved_path = _save_rule_if_requested(rule, save_to_project, project_folder, validation_result)
             result = _format_rule_result(rule, validation_result, saved_path)
 
-            execution_time = time.time() - start_time
-            logger.info(
-                "tool_completed",
-                tool="create_linting_rule",
-                execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            run.add_completion_fields(
                 rule_id=rule.id,
                 is_valid=validation_result.is_valid,
                 saved=saved_path is not None,
@@ -160,7 +155,7 @@ def list_rule_templates_tool(language: Optional[str] = None, category: Optional[
     logger = get_logger("tool.list_rule_templates")
     logger.info("tool_invoked", tool="list_rule_templates", language=language, category=category)
 
-    with tool_context("list_rule_templates", language=language, category=category) as start_time:
+    with tool_context("list_rule_templates", language=language, category=category) as run:
         with sentry_sdk.start_span(op="list_templates", name="Get rule templates"):
             templates = get_available_templates(language=language, category=category)
 
@@ -184,11 +179,7 @@ def list_rule_templates_tool(language: Optional[str] = None, category: Optional[
                 for t in templates
             ]
 
-            execution_time = time.time() - start_time
-            logger.info(
-                "tool_completed",
-                tool="list_rule_templates",
-                execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+            run.add_completion_fields(
                 total_templates=len(template_dicts),
                 filtered=bool(language or category),
             )
@@ -285,7 +276,7 @@ def enforce_standards_tool(
         max_threads=max_threads,
     )
 
-    with tool_context("enforce_standards", project_folder=project_folder, language=language, rule_set=rule_set) as start_time:
+    with tool_context("enforce_standards", project_folder=project_folder, language=language, rule_set=rule_set) as run:
         _validate_enforcement_inputs(severity_threshold, output_format)
 
         result = enforce_standards_impl(
@@ -300,11 +291,7 @@ def enforce_standards_tool(
             max_threads=max_threads,
         )
 
-        execution_time = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="enforce_standards",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        run.add_completion_fields(
             total_violations=result.summary["total_violations"],
             files_scanned=result.files_scanned,
         )
@@ -395,7 +382,7 @@ def apply_standards_fixes_tool(
         create_backup=create_backup,
     )
 
-    with tool_context("apply_standards_fixes", violations_count=len(violations), language=language, fix_types=fix_types) as start_time:
+    with tool_context("apply_standards_fixes", violations_count=len(violations), language=language, fix_types=fix_types) as run:
         violation_objects = _convert_violations_to_objects(violations)
         project_folder_inferred = _infer_project_folder(violations)
 
@@ -408,11 +395,7 @@ def apply_standards_fixes_tool(
             create_backup_flag=create_backup,
         )
 
-        execution_time = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="apply_standards_fixes",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        run.add_completion_fields(
             total_violations=result.total_violations,
             fixes_attempted=result.fixes_attempted,
             fixes_successful=result.fixes_successful,
@@ -437,7 +420,7 @@ def generate_quality_report_tool(
         "tool_invoked", tool="generate_quality_report", project_name=project_name, output_format=output_format, save_to_file=save_to_file
     )
 
-    with tool_context("generate_quality_report", project_name=project_name, output_format=output_format) as start_time:
+    with tool_context("generate_quality_report", project_name=project_name, output_format=output_format) as run:
         result_obj = _dict_to_enforcement_result(enforcement_result)
 
         if project_name == "Project":
@@ -453,11 +436,7 @@ def generate_quality_report_tool(
             save_to_file=save_to_file,
         )
 
-        execution_time = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="generate_quality_report",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        run.add_completion_fields(
             output_format=output_format,
             saved=save_to_file is not None,
         )
@@ -556,7 +535,7 @@ def detect_security_issues_tool(
         max_issues=max_issues,
     )
 
-    with tool_context("detect_security_issues", project_folder=project_folder, language=language, issue_types=issue_types) as start_time:
+    with tool_context("detect_security_issues", project_folder=project_folder, language=language, issue_types=issue_types) as run:
         result = detect_security_issues_impl(
             project_folder=project_folder,
             language=language,
@@ -565,11 +544,7 @@ def detect_security_issues_tool(
             max_issues=max_issues,
         )
 
-        execution_time = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="detect_security_issues",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        run.add_completion_fields(
             total_issues=result.summary["total_issues"],
             critical_count=result.summary["critical_count"],
             high_count=result.summary["high_count"],
@@ -605,7 +580,7 @@ def detect_orphans_tool(
         verify_with_grep=verify_with_grep,
     )
 
-    with tool_context("detect_orphans", project_folder=project_folder, analyze_functions=analyze_functions) as start_time:
+    with tool_context("detect_orphans", project_folder=project_folder, analyze_functions=analyze_functions) as run:
         result = detect_orphans_impl(
             project_folder=project_folder,
             include_patterns=include_patterns,
@@ -614,11 +589,7 @@ def detect_orphans_tool(
             verify_with_grep=verify_with_grep,
         )
 
-        execution_time = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="detect_orphans",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        run.add_completion_fields(
             orphan_files=result["summary"]["orphan_files"],
             orphan_functions=result["summary"]["orphan_functions"],
             total_files=result["summary"]["total_files_analyzed"],

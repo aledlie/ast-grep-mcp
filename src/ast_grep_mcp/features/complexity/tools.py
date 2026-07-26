@@ -24,7 +24,7 @@ from ast_grep_mcp.constants import (
 )
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.complexity import ComplexityThresholds
-from ast_grep_mcp.utils.tool_context import tool_context
+from ast_grep_mcp.utils.tool_context import ToolRun, tool_context
 
 from .complexity_analyzer import ParallelComplexityAnalyzer
 from .complexity_file_finder import ComplexityFileFinder
@@ -226,22 +226,17 @@ def _execute_analysis(
     store_results: bool,
     include_trends: bool,
     max_threads: int,
-    start_time: float,
-    logger: Any,
+    run: ToolRun,
 ) -> Dict[str, Any]:
     all_functions, exceeding_functions, _ = _analyze_files_parallel(files_to_analyze, language, thresholds, max_threads)
-    execution_time = time.time() - start_time
+    execution_time = time.time() - run.start_time
     summary, statistics = _calculate_summary_statistics(all_functions, exceeding_functions, len(files_to_analyze), execution_time)
     run_id, stored_at, trends = _store_and_generate_trends(
         store_results, include_trends, project_folder, summary, all_functions, statistics
     )
-    logger.info(
-        "tool_completed",
-        tool="analyze_complexity",
-        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+    run.add_completion_fields(
         total_functions=summary["total_functions"],
         exceeding_threshold=len(exceeding_functions),
-        status="success",
     )
     return _format_response(summary, _thresholds_to_dict(thresholds), exceeding_functions, run_id, stored_at, trends, statistics)
 
@@ -279,16 +274,16 @@ def analyze_complexity_tool(
         max_threads=max_threads,
     )
 
-    with tool_context("analyze_complexity", project_folder=project_folder, language=language) as start_time:
+    with tool_context("analyze_complexity", project_folder=project_folder, language=language) as run:
         _validate_inputs(language)
         thresholds = ComplexityThresholds(
             cyclomatic=cyclomatic_threshold, cognitive=cognitive_threshold, nesting_depth=nesting_threshold, lines=length_threshold
         )
         files_to_analyze, _ = _find_files_to_analyze(project_folder, language, include_patterns, exclude_patterns, logger)
         if not files_to_analyze:
-            return _handle_no_files_found(language, time.time() - start_time)
+            return _handle_no_files_found(language, time.time() - run.start_time)
         return _execute_analysis(
-            project_folder, language, thresholds, files_to_analyze, store_results, include_trends, max_threads, start_time, logger
+            project_folder, language, thresholds, files_to_analyze, store_results, include_trends, max_threads, run
         )
 
 
@@ -361,14 +356,13 @@ def test_sentry_integration_tool(
     logger = get_logger("tool.test_sentry_integration")
     logger.info("tool_invoked", tool="test_sentry_integration", test_type=test_type)
 
-    with tool_context("test_sentry_integration", test_type=test_type) as start_time:
+    with tool_context("test_sentry_integration", test_type=test_type) as run:
         if not os.getenv("SENTRY_DSN"):
             return {"status": "skipped", "message": "Sentry not configured (SENTRY_DSN not set)", "test_type": test_type}
         result: Dict[str, Any] = {"status": "success", "test_type": test_type}
         _SENTRY_TEST_HANDLERS[test_type](message, result)
-        et = round(time.time() - start_time, FormattingDefaults.ROUNDING_PRECISION)
-        logger.info("tool_completed", tool="test_sentry_integration", test_type=test_type, execution_time_seconds=et, status="success")
-        result["execution_time_seconds"] = et
+        run.add_completion_fields(test_type=test_type)
+        result["execution_time_seconds"] = round(time.time() - run.start_time, FormattingDefaults.ROUNDING_PRECISION)
         result["sentry_configured"] = True
         return result
 
@@ -392,28 +386,21 @@ def _prepare_smell_detection_params(include_patterns: List[str] | None, exclude_
     return include_patterns, exclude_patterns
 
 
-def _process_smell_detection_result(result: Dict[str, Any], start_time: float, logger: Any) -> Dict[str, Any]:
-    """Add execution time and log completion metrics.
+def _process_smell_detection_result(result: Dict[str, Any], run: ToolRun) -> Dict[str, Any]:
+    """Add execution time and attach completion metrics.
 
     Args:
         result: Smell detection result dictionary
-        start_time: Start time of the analysis
-        logger: Logger instance
+        run: ToolRun handle from the enclosing tool_context
 
     Returns:
         Result dictionary with execution_time_ms added
     """
-    execution_time = time.time() - start_time
-    result["execution_time_ms"] = round(execution_time * ConversionFactors.MILLISECONDS_PER_SECOND)
-
-    logger.info(
-        "tool_completed",
-        tool="detect_code_smells",
+    result["execution_time_ms"] = round((time.time() - run.start_time) * ConversionFactors.MILLISECONDS_PER_SECOND)
+    run.add_completion_fields(
         files_analyzed=result.get("files_analyzed", 0),
         total_smells=result.get("total_smells", 0),
-        execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
     )
-
     return result
 
 
@@ -439,7 +426,7 @@ def detect_code_smells_tool(
     include_patterns, exclude_patterns = _prepare_smell_detection_params(include_patterns, exclude_patterns)
     logger.info("tool_invoked", tool="detect_code_smells", project_folder=project_folder, language=language)
 
-    with tool_context("detect_code_smells", project_folder=project_folder, language=language) as start_time:
+    with tool_context("detect_code_smells", project_folder=project_folder, language=language) as run:
         result = detect_code_smells_impl(
             project_folder=project_folder,
             language=language,
@@ -454,7 +441,7 @@ def detect_code_smells_tool(
             severity_filter=severity_filter,
             max_threads=max_threads,
         )
-        return _process_smell_detection_result(result, start_time, logger)
+        return _process_smell_detection_result(result, run)
 
 
 def _register_analyze_complexity(mcp: FastMCP) -> None:

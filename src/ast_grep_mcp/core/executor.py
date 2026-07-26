@@ -129,17 +129,11 @@ def run_command(args: List[str], input_text: Optional[str] = None, *, allow_nonz
     has_stdin = input_text is not None
     logger.info("executing_command", command=args[0], args=args[1:], has_stdin=has_stdin)
 
-    with tool_context("run_command", command=" ".join(args), has_stdin=has_stdin) as start_time:
+    with tool_context("run_command", command=" ".join(args), has_stdin=has_stdin) as run:
         try:
             use_shell = sys.platform == "win32" and args[0] == ExecutorDefaults.AST_GREP_COMMAND
             result = _execute_subprocess(args, input_text, allow_nonzero, use_shell=use_shell)
-            execution_time = time.time() - start_time
-            logger.info(
-                "command_completed",
-                command=args[0],
-                execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-                returncode=result.returncode,
-            )
+            run.add_completion_fields(command=args[0], returncode=result.returncode)
             return result
         except subprocess.CalledProcessError as e:
             stderr_msg = e.stderr.strip() if e.stderr else ""

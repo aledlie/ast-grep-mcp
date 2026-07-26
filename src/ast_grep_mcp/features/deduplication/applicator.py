@@ -589,18 +589,13 @@ class DeduplicationApplicator:
         source_dir = os.path.dirname(source_file)
         target_rel = os.path.relpath(target_file, source_dir)
 
-        # Convert path to module path
-        module_path = os.path.splitext(target_rel)[0]
-        module_path = module_path.replace(os.sep, ".")
-        module_path = module_path.replace("/", ".")
-
-        # Handle parent directory references
-        if module_path.startswith(".."):
-            # Convert ../foo to relative import
-            parts = module_path.split(".")
-            parent_count = sum(1 for p in parts if p == "")
-            module_parts = [p for p in parts if p and p != ".."]
-            module_path = "." * parent_count + ".".join(module_parts)
+        # Count ".." components before joining with dots — the code generator adds
+        # one leading dot for the current package, so N parent hops need N dots here.
+        module_rel = os.path.splitext(target_rel)[0]
+        parts = module_rel.replace(os.sep, "/").split("/")
+        parent_count = sum(1 for p in parts if p == "..")
+        module_parts = [p for p in parts if p not in ("..", ".")]
+        module_path = "." * parent_count + ".".join(module_parts)
 
         # Generate import using code generator
         return self.code_generator.generate_import_statement(

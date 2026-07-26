@@ -9,14 +9,13 @@ Registers 6 tools:
 - condense_train_dictionary
 """
 
-import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-from ...constants import CondenseDefaults, CondenseDictionaryDefaults, FormattingDefaults
+from ...constants import CondenseDefaults, CondenseDictionaryDefaults
 from ...core.logging import get_logger
 from ...utils.tool_context import tool_context
 from .dictionary import train_dictionary_impl
@@ -57,7 +56,7 @@ def condense_extract_surface_tool(
     """Extract public API surface from source files."""
     logger.info("tool_invoked", tool="condense_extract_surface", path=path, language=language)
 
-    with tool_context("condense_extract_surface", path=path, language=language) as start:
+    with tool_context("condense_extract_surface", path=path, language=language) as run:
         result = extract_surface_impl(
             path=path,
             language=language,
@@ -65,10 +64,7 @@ def condense_extract_surface_tool(
             complexity_guided=complexity_guided,
             complexity_threshold=complexity_threshold,
         )
-        logger.info(
-            "tool_completed",
-            tool="condense_extract_surface",
-            execution_time_seconds=round(time.time() - start, FormattingDefaults.ROUNDING_PRECISION),
+        run.add_completion_fields(
             files_processed=result.get("files_processed", 0),
             reduction_pct=result.get("reduction_pct", 0.0),
         )
@@ -82,7 +78,7 @@ def condense_normalize_tool(
     """Normalize source code to canonical forms for better downstream compression."""
     logger.info("tool_invoked", tool="condense_normalize", path=path, language=language)
 
-    with tool_context("condense_normalize", path=path, language=language) as start:
+    with tool_context("condense_normalize", path=path, language=language) as run:
         resolved = _resolve_file_path(path)
         source = resolved.read_text(encoding="utf-8", errors="replace")
         normalized, count = normalize_source(source, language)
@@ -93,12 +89,7 @@ def condense_normalize_tool(
             "original_bytes": len(source.encode("utf-8")),
             "normalized_bytes": len(normalized.encode("utf-8")),
         }
-        logger.info(
-            "tool_completed",
-            tool="condense_normalize",
-            execution_time_seconds=round(time.time() - start, FormattingDefaults.ROUNDING_PRECISION),
-            normalizations_applied=count,
-        )
+        run.add_completion_fields(normalizations_applied=count)
         return result
 
 
@@ -109,7 +100,7 @@ def condense_strip_tool(
     """Remove dead code, debug statements, and empty blocks."""
     logger.info("tool_invoked", tool="condense_strip", path=path, language=language)
 
-    with tool_context("condense_strip", path=path, language=language) as start:
+    with tool_context("condense_strip", path=path, language=language) as run:
         resolved = _resolve_file_path(path)
         source = resolved.read_text(encoding="utf-8", errors="replace")
         stripped, removed = strip_dead_code(source, language)
@@ -120,12 +111,7 @@ def condense_strip_tool(
             "original_lines": source.count("\n") + 1,
             "stripped_lines": stripped.count("\n") + 1,
         }
-        logger.info(
-            "tool_completed",
-            tool="condense_strip",
-            execution_time_seconds=round(time.time() - start, FormattingDefaults.ROUNDING_PRECISION),
-            lines_removed=removed,
-        )
+        run.add_completion_fields(lines_removed=removed)
         return result
 
 
@@ -151,7 +137,7 @@ def condense_pack_tool(
         language=language,
     )
 
-    with tool_context("condense_pack", path=path, strategy=strategy, language=language) as start:
+    with tool_context("condense_pack", path=path, strategy=strategy, language=language) as run:
         result = condense_pack_impl(
             path=path,
             language=language,
@@ -159,10 +145,7 @@ def condense_pack_tool(
             file_type_routing=file_type_routing,
             exclude_patterns=exclude_patterns,
         )
-        logger.info(
-            "tool_completed",
-            tool="condense_pack",
-            execution_time_seconds=round(time.time() - start, FormattingDefaults.ROUNDING_PRECISION),
+        run.add_completion_fields(
             files_processed=result.get("files_processed", 0),
             reduction_pct=result.get("reduction_pct", 0.0),
         )
@@ -176,14 +159,9 @@ def condense_estimate_tool(
     """Estimate condensation reduction ratios without modifying any files."""
     logger.info("tool_invoked", tool="condense_estimate", path=path, language=language)
 
-    with tool_context("condense_estimate", path=path, language=language) as start:
+    with tool_context("condense_estimate", path=path, language=language) as run:
         result = estimate_condensation_impl(path=path, language=language)
-        logger.info(
-            "tool_completed",
-            tool="condense_estimate",
-            execution_time_seconds=round(time.time() - start, FormattingDefaults.ROUNDING_PRECISION),
-            total_files=result.get("total_files", 0),
-        )
+        run.add_completion_fields(total_files=result.get("total_files", 0))
         return result
 
 
@@ -202,17 +180,14 @@ def condense_train_dictionary_tool(
         sample_count=sample_count,
     )
 
-    with tool_context("condense_train_dictionary", path=path, language=language, sample_count=sample_count) as start:
+    with tool_context("condense_train_dictionary", path=path, language=language, sample_count=sample_count) as run:
         result = train_dictionary_impl(
             path=path,
             language=language,
             sample_count=sample_count,
             output_dir=output_dir,
         )
-        logger.info(
-            "tool_completed",
-            tool="condense_train_dictionary",
-            execution_time_seconds=round(time.time() - start, FormattingDefaults.ROUNDING_PRECISION),
+        run.add_completion_fields(
             samples_used=result.get("samples_used", 0),
             dict_size_bytes=result.get("dict_size_bytes", 0),
         )

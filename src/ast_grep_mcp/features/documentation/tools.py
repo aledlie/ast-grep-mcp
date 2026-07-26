@@ -8,13 +8,12 @@ This module registers MCP tools for:
 - sync_documentation: Keep docs synchronized with code
 """
 
-import time
 from typing import Any, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-from ast_grep_mcp.constants import ConversionFactors, FormattingDefaults
+from ast_grep_mcp.constants import ConversionFactors
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.features.documentation.api_docs_generator import generate_api_docs_impl
 from ast_grep_mcp.features.documentation.changelog_generator import generate_changelog_impl
@@ -150,7 +149,7 @@ def generate_docstrings_tool(
         dry_run=dry_run,
     )
 
-    with tool_context("generate_docstrings", project_folder=project_folder, language=language) as start_time:
+    with tool_context("generate_docstrings", project_folder=project_folder, language=language) as run:
         result = generate_docstrings_impl(
             project_folder=project_folder,
             file_pattern=file_pattern,
@@ -160,11 +159,7 @@ def generate_docstrings_tool(
             dry_run=dry_run,
             skip_private=skip_private,
         )
-        execution_time = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="generate_docstrings",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        run.add_completion_fields(
             total_functions=result.total_functions,
             functions_generated=result.functions_generated,
         )
@@ -190,20 +185,14 @@ def generate_readme_sections_tool(
         sections=sections,
     )
 
-    with tool_context("generate_readme_sections", project_folder=project_folder, language=language) as start_time:
+    with tool_context("generate_readme_sections", project_folder=project_folder, language=language) as run:
         result = generate_readme_sections_impl(
             project_folder=project_folder,
             language=language,
             sections=sections,
             include_examples=include_examples,
         )
-        execution_time = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="generate_readme_sections",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            sections_generated=len(result.sections),
-        )
+        run.add_completion_fields(sections_generated=len(result.sections))
         return _format_readme_response(result)
 
 
@@ -243,7 +232,7 @@ def generate_api_docs_tool(
         output_format=output_format,
     )
 
-    with tool_context("generate_api_docs", project_folder=project_folder, language=language) as start_time:
+    with tool_context("generate_api_docs", project_folder=project_folder, language=language) as run:
         result = generate_api_docs_impl(
             project_folder=project_folder,
             language=language,
@@ -251,11 +240,7 @@ def generate_api_docs_tool(
             output_format=output_format,
             include_examples=include_examples,
         )
-        execution_time = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="generate_api_docs",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        run.add_completion_fields(
             routes_found=len(result.routes),
             framework=result.framework,
         )
@@ -285,7 +270,7 @@ def generate_changelog_tool(
         format=changelog_format,
     )
 
-    with tool_context("generate_changelog", project_folder=project_folder) as start_time:
+    with tool_context("generate_changelog", project_folder=project_folder) as run:
         result = generate_changelog_impl(
             project_folder=project_folder,
             from_version=from_version,
@@ -293,11 +278,7 @@ def generate_changelog_tool(
             changelog_format=changelog_format,
             group_by=group_by,
         )
-        execution_time = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="generate_changelog",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
+        run.add_completion_fields(
             commits_processed=result.commits_processed,
             versions=len(result.versions),
         )
@@ -330,20 +311,14 @@ def sync_documentation_tool(
         check_only=check_only,
     )
 
-    with tool_context("sync_documentation", project_folder=project_folder, language=language) as start_time:
+    with tool_context("sync_documentation", project_folder=project_folder, language=language) as run:
         result = sync_documentation_impl(
             project_folder=project_folder,
             language=language,
             doc_types=doc_types,
             check_only=check_only,
         )
-        execution_time = time.time() - start_time
-        logger.info(
-            "tool_completed",
-            tool="sync_documentation",
-            execution_time_seconds=round(execution_time, FormattingDefaults.ROUNDING_PRECISION),
-            issues_found=len(result.issues),
-        )
+        run.add_completion_fields(issues_found=len(result.issues))
         return _format_sync_response(result)
 
 

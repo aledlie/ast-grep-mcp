@@ -122,11 +122,13 @@ def indent_lines(text: str, prefix: str = "    ") -> list[str]:
 FilePath = Union[str, "os.PathLike[str]"]
 
 
-def read_file_lines(file_path: FilePath) -> list[str]:
+def read_file_lines(file_path: FilePath, errors: str | None = None) -> list[str]:
     """Read a file and return its lines (including newlines).
 
     Args:
         file_path: Path to the file (str or PathLike)
+        errors: Decoding error handling passed to open() (e.g. "ignore");
+            None uses the default strict handling
 
     Returns:
         List of lines with trailing newlines preserved
@@ -135,7 +137,7 @@ def read_file_lines(file_path: FilePath) -> list[str]:
         OSError: If the file cannot be read, with the path in the message
     """
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, "r", encoding="utf-8", errors=errors) as f:
             return f.readlines()
     except OSError as e:
         raise OSError(f"Failed to read {file_path}: {e}") from e

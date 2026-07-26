@@ -20,6 +20,7 @@ from ...models.refactoring import (
     ScopeInfo,
     SymbolReference,
 )
+from ...utils.text import read_file_lines
 
 logger = get_logger(__name__)
 
@@ -320,9 +321,7 @@ class SymbolRenamer:
         scopes: List[ScopeInfo] = []
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-                lines = content.split("\n")
+            lines = "".join(read_file_lines(file_path)).split("\n")
 
             if self.language == "python":
                 scopes = self._build_python_scope_tree(lines)
