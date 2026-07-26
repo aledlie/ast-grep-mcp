@@ -8,11 +8,11 @@ duplicate code based on refactoring value, complexity, and impact.
 import heapq
 import logging
 import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional, Tuple
 
-from ...constants import CodeAnalysisDefaults, DeduplicationDefaults, PriorityClassifierThresholds, RankerDefaults, RiskMultipliers
+from ...constants import CodeAnalysisDefaults, DeduplicationDefaults, ParallelProcessing, PriorityClassifierThresholds, RankerDefaults, RiskMultipliers
 from ...core.logging import get_logger
+from ...utils.futures import map_with_per_item_timeout
 
 
 class DeduplicationScoreCalculator:
@@ -488,20 +488,43 @@ class DuplicationRanker:
     def _score_candidates_parallel(
         self, candidates: List[Dict[str, Any]]
     ) -> Tuple[List[Tuple[float, Dict[str, float], int, int]], int]:
-        """Score candidates in parallel using ThreadPoolExecutor.
+        """Score candidates in parallel using daemon workers with per-item timeouts.
+
+        Scoring is pure in-memory arithmetic (no I/O), so hangs are extremely
+        unlikely in practice. The shared helper is used for consistency with
+        the rest of the deduplication pipeline and to eliminate the executor's
+        implicit ``shutdown(wait=True)`` which would block indefinitely if any
+        worker hung (BUG-06-CR-10).
 
         Returns tuple of (scores_list, total_workers_used)
         """
         results: List[Any] = [None] * len(candidates)
-        workers_used = 0
+        workers_used = min(self.max_workers or 1, len(candidates))
 
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {executor.submit(self._score_candidate, c): i for i, c in enumerate(candidates)}
-            workers_used = self.max_workers or 1
+        def on_success(item: Tuple[int, Dict[str, Any]], score_tuple: Tuple[float, Dict[str, float], int, int]) -> None:
+            idx, _ = item
+            results[idx] = score_tuple
 
-            for future in as_completed(futures):
-                idx = futures[future]
-                results[idx] = future.result()
+        def on_error(item: Tuple[int, Dict[str, Any]], error: Exception) -> None:
+            idx, candidate = item
+            self.logger.warning(
+                "scoring_failed_using_default",
+                candidate_id=candidate.get("id", "unknown"),
+                error=str(error),
+            )
+            # Scoring is pure in-memory; a failure here is unexpected. Fall
+            # back to score=0 (lowest priority) rather than crashing the stage.
+            results[idx] = (0.0, {}, 0, 0)
+
+        indexed = [(i, c) for i, c in enumerate(candidates)]
+        map_with_per_item_timeout(
+            indexed,
+            lambda item: self._score_candidate(item[1]),
+            timeout_seconds=float(ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS),
+            max_workers=workers_used,
+            on_success=on_success,
+            on_error=on_error,
+        )
 
         return results, workers_used
 

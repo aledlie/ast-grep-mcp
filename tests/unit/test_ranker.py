@@ -7,6 +7,9 @@ Tests focus on:
 - Priority classification
 """
 
+import threading
+import time
+
 import pytest
 
 from ast_grep_mcp.features.deduplication.ranker import DuplicationRanker
@@ -309,3 +312,66 @@ class TestParallelScoring:
                 f"Candidate with savings={savings} got score={c['score']!r}, "
                 f"expected {seq_score_by_savings[savings]!r} — score was likely misassigned"
             )
+
+
+class TestParallelScoringTimeout:
+    """Regression tests for BUG-06-CR-10: ranker parallel scoring must use
+    map_with_per_item_timeout so a hung scorer cannot block indefinitely.
+
+    Before the fix, _score_candidates_parallel used ThreadPoolExecutor +
+    as_completed() without a timeout — the executor's implicit shutdown(wait=True)
+    would block until every worker finished, including permanently hung ones.
+    """
+
+    TIMEOUT_SECONDS = 0.2
+    HUNG_WORKER_SAFETY_NET_SECONDS = 30
+    ELAPSED_BOUND_SECONDS = 10
+
+    def test_hung_scorer_does_not_block_rank_call(self):
+        """A scorer that blocks forever is abandoned; ranking returns promptly.
+
+        Monkeypatches map_with_per_item_timeout to use a 0.2s timeout so the
+        test completes quickly without relying on the 30s production default.
+        """
+        from ast_grep_mcp.features.deduplication import ranker as ranker_mod
+        from ast_grep_mcp.utils.futures import map_with_per_item_timeout
+
+        ranker = DuplicationRanker(max_workers=2)
+        release = threading.Event()
+        real_score = ranker._score_candidate
+
+        def patched_score(candidate):
+            if candidate.get("id") == "hung":
+                release.wait(timeout=self.HUNG_WORKER_SAFETY_NET_SECONDS)
+            return real_score(candidate)
+
+        ranker._score_candidate = patched_score
+
+        original_map = ranker_mod.map_with_per_item_timeout
+
+        def fast_map(items, func, *, timeout_seconds, max_workers, on_success, on_error, **kw):
+            return map_with_per_item_timeout(
+                items, func,
+                timeout_seconds=self.TIMEOUT_SECONDS,
+                max_workers=max_workers,
+                on_success=on_success,
+                on_error=on_error,
+                **kw,
+            )
+
+        ranker_mod.map_with_per_item_timeout = fast_map
+        candidates = [{"id": "hung"}, {"id": "fast", "potential_line_savings": 50}]
+        try:
+            start = time.monotonic()
+            ranked = ranker.rank_deduplication_candidates(candidates)
+            elapsed = time.monotonic() - start
+        finally:
+            release.set()
+            ranker_mod.map_with_per_item_timeout = original_map
+
+        assert elapsed < self.ELAPSED_BOUND_SECONDS, f"ranking should return promptly, took {elapsed:.1f}s"
+        assert len(ranked) == 2
+        hung_ranked = next(r for r in ranked if r.get("id") == "hung")
+        fast_ranked = next(r for r in ranked if r.get("id") == "fast")
+        assert hung_ranked["score"] == 0.0, "hung candidate should get fallback score"
+        assert fast_ranked["score"] > 0.0, "fast candidate should score normally"
