@@ -18,7 +18,13 @@ from typing import Any, Dict, List, cast
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import ConversionFactors, PatternSuggestionConfidence, SecurityScanDefaults, SeverityRankingDefaults
+from ast_grep_mcp.constants import (
+    ConversionFactors,
+    FilePatterns,
+    PatternSuggestionConfidence,
+    SecurityScanDefaults,
+    SeverityRankingDefaults,
+)
 from ast_grep_mcp.core.executor import stream_ast_grep_results
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.standards import SecurityIssue, SecurityScanResult
@@ -378,8 +384,7 @@ def _should_skip_file(file_path: Path) -> bool:
     Returns:
         True if file should be skipped
     """
-    skip_dirs = ["node_modules", "__pycache__", "venv", ".venv", "dist", "build"]
-    return any(part in str(file_path) for part in skip_dirs)
+    return any(part in str(file_path) for part in FilePatterns.SKIP_DIR_NAMES)
 
 
 def _scan_files_for_secrets(project_path: Path, ext: str) -> List[SecurityIssue]:

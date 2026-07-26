@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import ConversionFactors, RegexCaptureGroups
+from ast_grep_mcp.constants import ConversionFactors, FilePatterns, RegexCaptureGroups
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
     ApiDocsResult,
@@ -511,9 +511,6 @@ _LANGUAGE_EXTENSIONS: Dict[str, List[str]] = {
     "javascript": [".js"],
 }
 
-_SKIP_DIRS = {"node_modules", ".git", "venv", "__pycache__", "dist", "build"}
-
-
 def _is_route_file(full_path: str, file: str, project_folder: str, patterns: List[str], exts: List[str]) -> bool:
     if not any(file.endswith(ext) for ext in exts):
         return False
@@ -536,7 +533,7 @@ def _find_route_files(project_folder: str, language: str, framework: str) -> Lis
     exts = _LANGUAGE_EXTENSIONS.get(language, [".py", ".js", ".ts"])
     route_files = []
     for root, _dirs, files in os.walk(project_folder):
-        if any(skip in root for skip in _SKIP_DIRS):
+        if any(skip in root for skip in FilePatterns.SKIP_DIR_NAMES):
             continue
         for file in files:
             full_path = os.path.join(root, file)

@@ -7,7 +7,7 @@ without modifying any files.
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ...constants import CondenseDefaults, CondenseFileRouting, ConversionFactors
+from ...constants import CondenseDefaults, CondenseFileRouting, ConversionFactors, FilePatterns
 from ...core.logging import get_logger
 from .strategies import STRATEGY_REDUCTION_RATIOS as _STRATEGY_REDUCTION
 
@@ -124,9 +124,8 @@ def _should_include_file(
 
 def _is_excluded(rel: Path, exclude_patterns: set[str]) -> bool:
     """Check if a relative path matches any exclusion pattern or skip directory."""
-    skip_dirs = {"dist", "build", "node_modules", "__pycache__", ".git", ".venv", "venv"}
     parts = rel.parts
-    if any(p in skip_dirs for p in parts):
+    if any(p in FilePatterns.SKIP_DIR_NAMES for p in parts):
         return True
     return any(rel.match(pattern) for pattern in exclude_patterns)
 

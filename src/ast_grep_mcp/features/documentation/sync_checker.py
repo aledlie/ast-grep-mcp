@@ -255,15 +255,6 @@ _DEFAULT_SOURCE_PATTERNS: Dict[str, List[str]] = {
     "java": ["**/*.java"],
 }
 
-_DEFAULT_EXCLUDE_PATTERNS = [
-    "**/node_modules/**",
-    "**/__pycache__/**",
-    "**/venv/**",
-    "**/.venv/**",
-    "**/dist/**",
-    "**/build/**",
-    "**/.git/**",
-]
 
 
 def _resolve_include_patterns(language: str, include_patterns: List[str]) -> List[str]:
@@ -297,7 +288,7 @@ def _find_source_files(
     import glob
 
     include_patterns = _resolve_include_patterns(language, include_patterns)
-    exclude_patterns = FilePatterns.normalize_excludes(exclude_patterns, defaults=_DEFAULT_EXCLUDE_PATTERNS)
+    exclude_patterns = FilePatterns.normalize_excludes(exclude_patterns)
 
     files: List[str] = []
     for pattern in include_patterns:
@@ -325,9 +316,7 @@ def _find_markdown_files(project_folder: str) -> List[str]:
         matched = glob.glob(full_pattern, recursive=True)
         files.extend(matched)
 
-    # Exclude node_modules, etc.
-    exclude_dirs = ["node_modules", ".git", "venv", ".venv"]
-    files = [f for f in files if not any(d in f for d in exclude_dirs)]
+    files = [f for f in files if not any(d in f for d in FilePatterns.SKIP_DIR_NAMES)]
 
     return list(set(files))
 

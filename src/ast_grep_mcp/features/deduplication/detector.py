@@ -20,7 +20,15 @@ import time
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Literal, Optional
 
-from ...constants import DeduplicationDefaults, DetectorDefaults, DisplayDefaults, FormattingDefaults, IndentationDefaults, StreamDefaults
+from ...constants import (
+    DeduplicationDefaults,
+    DetectorDefaults,
+    DisplayDefaults,
+    FilePatterns,
+    FormattingDefaults,
+    IndentationDefaults,
+    StreamDefaults,
+)
 from ...core.executor import stream_ast_grep_results
 from ...core.logging import get_logger
 from ...core.usage_tracking import OperationType, track_operation
@@ -35,7 +43,6 @@ from .similarity import (
 
 # Type alias for similarity mode selection
 SimilarityMode = Literal["minhash", "hybrid", "sequence_matcher"]
-_MANDATORY_ENV_EXCLUDE_PATTERNS = ["site-packages", ".venv", "venv", "virtualenv"]
 
 
 class DuplicationDetector:
@@ -77,10 +84,10 @@ class DuplicationDetector:
 
     def _build_exclude_patterns(self, exclude_patterns: Optional[List[str]]) -> List[str]:
         """Merge user-supplied and mandatory exclusion patterns."""
-        result = ["site-packages", "node_modules", ".venv", "venv", "vendor"] if exclude_patterns is None else list(exclude_patterns)
-        for pattern in _MANDATORY_ENV_EXCLUDE_PATTERNS:
-            if pattern not in result:
-                result.append(pattern)
+        result = list(exclude_patterns) if exclude_patterns is not None else []
+        for name in FilePatterns.SKIP_DIR_NAMES:
+            if name not in result:
+                result.append(name)
         return result
 
     def _run_detection(

@@ -14,7 +14,7 @@ from typing import Any, Dict, Generator, List, Optional, Tuple, cast
 import sentry_sdk
 import yaml
 
-from ast_grep_mcp.constants import DisplayDefaults, ExecutorDefaults, FileConstants, FormattingDefaults, StreamDefaults
+from ast_grep_mcp.constants import DisplayDefaults, ExecutorDefaults, FileConstants, FilePatterns, FormattingDefaults, StreamDefaults
 from ast_grep_mcp.core.config import CONFIG_PATH
 from ast_grep_mcp.core.exceptions import (
     AstGrepExecutionError,
@@ -187,7 +187,7 @@ def _should_skip_directory(dirname: str) -> bool:
     """
     if dirname.startswith("."):
         return True
-    return dirname in ["node_modules", "venv", ".venv", "build", "dist"]
+    return dirname in FilePatterns.SKIP_DIR_NAMES
 
 
 def _process_file(

@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
+from ast_grep_mcp.constants import FilePatterns
+
 
 class OrphanType(str, Enum):
     """Type of orphan artifact."""
@@ -201,17 +203,7 @@ class OrphanAnalysisConfig:
     """
 
     include_patterns: List[str] = field(default_factory=lambda: ["**/*.py", "**/*.ts", "**/*.js"])
-    exclude_patterns: List[str] = field(
-        default_factory=lambda: [
-            "**/node_modules/**",
-            "**/__pycache__/**",
-            "**/.git/**",
-            "**/dist/**",
-            "**/build/**",
-            "**/.venv/**",
-            "**/venv/**",
-        ]
-    )
+    exclude_patterns: List[str] = field(default_factory=lambda: list(FilePatterns.DEFAULT_EXCLUDE))
     entry_point_patterns: List[str] = field(
         default_factory=lambda: [
             "**/main.py",

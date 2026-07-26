@@ -126,6 +126,21 @@ class FilePatterns:
         "**/test_*.py",
     ]
 
+    SKIP_DIR_NAMES: frozenset[str] = frozenset(
+        {
+            "node_modules",
+            ".git",
+            "venv",
+            ".venv",
+            "__pycache__",
+            "dist",
+            "build",
+            "vendor",
+            "site-packages",
+            "virtualenv",
+        }
+    )
+
     @staticmethod
     def merge_with_venv_excludes(exclude_patterns: list[str] | None) -> list[str]:
         """Ensure virtualenv/site-packages paths are always excluded.

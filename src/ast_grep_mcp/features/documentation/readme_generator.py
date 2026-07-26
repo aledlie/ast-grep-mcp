@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Tuple, cast
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import ConversionFactors, ReadmeDefaults, ReadmeSectionOrder
+from ast_grep_mcp.constants import ConversionFactors, FilePatterns, ReadmeDefaults, ReadmeSectionOrder
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
     ProjectInfo,
@@ -119,8 +119,6 @@ def _detect_package_manager(project_folder: str) -> Tuple[Optional[str], Optiona
     return None, "", ""
 
 
-_SKIP_DIRS = {"node_modules", ".git", "venv", "__pycache__", "dist", "build"}
-
 _EXT_TO_LANG = {
     ".py": "python",
     ".ts": "typescript",
@@ -143,7 +141,7 @@ _EXT_TO_LANG = {
 def _count_extensions(project_folder: str) -> Dict[str, int]:
     extensions: Dict[str, int] = {}
     for root, _, files in os.walk(project_folder):
-        if any(skip in root for skip in _SKIP_DIRS):
+        if any(skip in root for skip in FilePatterns.SKIP_DIR_NAMES):
             continue
         for file in files:
             ext = os.path.splitext(file)[1].lower()
