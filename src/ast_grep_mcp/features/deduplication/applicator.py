@@ -297,7 +297,9 @@ class DeduplicationApplicator:
             Dict with modified_files
         """
         try:
-            apply_result = self.executor.apply_changes(orchestration_plan, generated_code.get("replacements", {}), language, dry_run=False)
+            raw_replacements = generated_code.get("replacements", {})
+            normalized_replacements = self._normalize_replacement_keys(raw_replacements, project_folder)
+            apply_result = self.executor.apply_changes(orchestration_plan, normalized_replacements, language, dry_run=False)
             return {"modified_files": apply_result["modified_files"]}
 
         except Exception:
@@ -412,6 +414,27 @@ class DeduplicationApplicator:
             elif file_path and os.path.isfile(os.path.join(project_folder, file_path)):
                 files_to_modify.append(os.path.join(project_folder, file_path))
         return files_to_modify
+
+    def _normalize_replacement_keys(self, replacements: Dict[str, Dict[str, Any]], project_folder: str) -> Dict[str, Dict[str, Any]]:
+        """Resolve relative replacement keys to absolute paths.
+
+        The pre-validator accepts relative replacement keys (joining with
+        project_folder), but the executor looks up replacements by the absolute
+        path used in the orchestration plan. Normalizing here ensures the
+        lookup in _update_single_file always matches.
+
+        Args:
+            replacements: Dict keyed by file path (may be relative or absolute)
+            project_folder: Project root used to resolve relative paths
+
+        Returns:
+            Dict with all keys resolved to absolute paths
+        """
+        normalized: Dict[str, Dict[str, Any]] = {}
+        for key, value in replacements.items():
+            abs_key = key if os.path.isabs(key) else os.path.join(project_folder, key)
+            normalized[abs_key] = value
+        return normalized
 
     def _build_response(self, status: str, message: str, validation_result: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         """Build standardized response dictionary.

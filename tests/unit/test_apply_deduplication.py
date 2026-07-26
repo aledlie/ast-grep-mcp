@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 # Import functions from modular architecture
 from ast_grep_mcp.features.deduplication.applicator import (
+    DeduplicationApplicator,
     _add_import_to_content,
     _generate_import_for_extracted_function,
     _plan_file_modification_order,
@@ -491,3 +492,92 @@ class TestOrchestrationHelperFunctions:
 
         assert "helper" in result
         assert "import" in result
+
+
+class TestNormalizeReplacementKeys:
+    """Regression tests for BUG-02: relative replacement keys must match plan paths.
+
+    The pre-validator accepts relative replacement keys (joining with
+    project_folder), but the executor looks up replacements by the absolute
+    orchestration-plan path. Without normalization the lookup misses, the
+    original content is written back unchanged, and the file is reported as
+    successfully modified.
+    """
+
+    def test_relative_key_replacement_applied(self, apply_deduplication_tool, tmp_path) -> None:
+        """Relative replacement key must actually rewrite the file content."""
+        target = tmp_path / "module.py"
+        target.write_text("def duplicate():\n    return 1\n")
+
+        relative_key = "module.py"
+        new_content = "def deduplicated():\n    return extracted()\n"
+
+        plan = {
+            "strategy": "extract_function",
+            "language": "python",
+            "files_affected": [str(target)],
+            "generated_code": {
+                "replacements": {
+                    relative_key: {"new_content": new_content},
+                }
+            },
+        }
+
+        result = apply_deduplication_tool(
+            project_folder=str(tmp_path),
+            group_id=1,
+            refactoring_plan=plan,
+            dry_run=False,
+            backup=False,
+        )
+
+        assert result["status"] == "success", result
+        assert "deduplicated" in target.read_text(), "relative-key replacement was not applied"
+
+    def test_absolute_key_replacement_still_works(self, apply_deduplication_tool, tmp_path) -> None:
+        """Absolute replacement keys must continue to work after normalization."""
+        target = tmp_path / "module.py"
+        target.write_text("def duplicate():\n    return 1\n")
+
+        new_content = "def deduplicated():\n    return extracted()\n"
+
+        plan = {
+            "strategy": "extract_function",
+            "language": "python",
+            "files_affected": [str(target)],
+            "generated_code": {
+                "replacements": {
+                    str(target): {"new_content": new_content},
+                }
+            },
+        }
+
+        result = apply_deduplication_tool(
+            project_folder=str(tmp_path),
+            group_id=1,
+            refactoring_plan=plan,
+            dry_run=False,
+            backup=False,
+        )
+
+        assert result["status"] == "success", result
+        assert "deduplicated" in target.read_text()
+
+    def test_normalize_replacement_keys_resolves_relative(self, tmp_path) -> None:
+        """_normalize_replacement_keys converts relative keys to absolute."""
+        applicator = DeduplicationApplicator()
+        replacements = {
+            "src/foo.py": {"new_content": "foo"},
+            str(tmp_path / "bar.py"): {"new_content": "bar"},
+        }
+
+        normalized = applicator._normalize_replacement_keys(replacements, str(tmp_path))
+
+        assert str(tmp_path / "src/foo.py") in normalized
+        assert str(tmp_path / "bar.py") in normalized
+        assert "src/foo.py" not in normalized
+
+    def test_normalize_replacement_keys_empty(self, tmp_path) -> None:
+        """_normalize_replacement_keys handles empty replacements."""
+        applicator = DeduplicationApplicator()
+        assert applicator._normalize_replacement_keys({}, str(tmp_path)) == {}
