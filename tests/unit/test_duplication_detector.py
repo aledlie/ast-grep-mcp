@@ -1243,3 +1243,83 @@ class TestApplyPrecisionFilters:
 
         result = detector._apply_precision_filters([group])
         assert len(result) == 1
+
+
+class TestFindConstructsBUG07:
+    """Regression tests for BUG-07: exclude patterns must not consume the construct budget.
+
+    Previously, max_constructs was passed as the stream limit before filtering.
+    Excluded paths (.venv, node_modules) appearing early in the walk consumed
+    the entire budget and were then discarded, leaving zero real matches.
+    """
+
+    def test_excluded_matches_do_not_consume_limit(self) -> None:
+        """Real matches survive even when excluded matches would fill the old budget."""
+        detector = DuplicationDetector()
+
+        excluded = [
+            {"file": f"/project/.venv/lib/f{i}.py", "text": f"def func{i}(): pass", "range": {"start": {"line": 1}}}
+            for i in range(10)
+        ]
+        real = [
+            {"file": f"/project/src/module{i}.py", "text": f"def real{i}(): pass", "range": {"start": {"line": 1}}}
+            for i in range(3)
+        ]
+        # Stream returns excluded first, then real — old code would cap at 5 (all excluded)
+        all_raw = excluded + real
+
+        with patch("ast_grep_mcp.features.deduplication.detector.stream_ast_grep_results") as mock_stream:
+            mock_stream.return_value = iter(all_raw)
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                result = detector._find_constructs(tmpdir, "def $NAME($$$)", max_constructs=5, exclude_patterns=[".venv"])
+
+        assert len(result) == 3, "real matches must survive after excluded ones are filtered out"
+        assert all("/project/src/" in m["file"] for m in result)
+
+    def test_limit_applied_after_filtering(self) -> None:
+        """max_constructs truncates kept matches, not raw matches."""
+        detector = DuplicationDetector()
+
+        real = [
+            {"file": f"/project/src/m{i}.py", "text": f"def f{i}(): pass", "range": {"start": {"line": 1}}}
+            for i in range(10)
+        ]
+
+        with patch("ast_grep_mcp.features.deduplication.detector.stream_ast_grep_results") as mock_stream:
+            mock_stream.return_value = iter(real)
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                result = detector._find_constructs(tmpdir, "def $NAME($$$)", max_constructs=4, exclude_patterns=[])
+
+        assert len(result) == 4
+
+    def test_zero_max_constructs_returns_all(self) -> None:
+        """max_constructs=0 returns all kept matches without truncation."""
+        detector = DuplicationDetector()
+
+        real = [
+            {"file": f"/project/src/m{i}.py", "text": f"def f{i}(): pass", "range": {"start": {"line": 1}}}
+            for i in range(8)
+        ]
+
+        with patch("ast_grep_mcp.features.deduplication.detector.stream_ast_grep_results") as mock_stream:
+            mock_stream.return_value = iter(real)
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                result = detector._find_constructs(tmpdir, "def $NAME($$$)", max_constructs=0, exclude_patterns=[])
+
+        assert len(result) == 8
+
+    def test_stream_called_with_unlimited_max_results(self) -> None:
+        """_find_constructs must pass max_results=0 to the stream (no pre-filter)."""
+        detector = DuplicationDetector()
+
+        with patch("ast_grep_mcp.features.deduplication.detector.stream_ast_grep_results") as mock_stream:
+            mock_stream.return_value = iter([])
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                detector._find_constructs(tmpdir, "def $NAME($$$)", max_constructs=5, exclude_patterns=[])
+
+        _, kwargs = mock_stream.call_args
+        assert kwargs.get("max_results") == 0, "stream must be called with max_results=0 so excluded paths can't consume the budget"

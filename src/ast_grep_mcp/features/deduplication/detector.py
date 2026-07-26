@@ -251,24 +251,31 @@ class DuplicationDetector:
         return filtered
 
     def _find_constructs(self, project_folder: str, pattern: str, max_constructs: int, exclude_patterns: List[str]) -> List[Dict[str, Any]]:
-        """Find all constructs matching the pattern."""
+        """Find all constructs matching the pattern.
+
+        The stream limit is intentionally not applied before exclude filtering:
+        excluded paths (e.g. .venv, node_modules) would otherwise consume the
+        max_constructs budget before real project code is seen. Instead, all
+        raw matches are collected, exclude patterns are applied, and only then
+        the result is truncated to max_constructs.
+        """
         args = ["--pattern", pattern, "--lang", self.language]
         self.logger.info("searching_constructs", pattern=pattern, language=self.language)
 
-        stream_limit = max_constructs if max_constructs > 0 else 0
-        all_matches = list(
+        raw_matches = list(
             stream_ast_grep_results(
                 "run",
                 args + ["--json=stream", project_folder],
-                max_results=stream_limit,
+                max_results=0,
                 progress_interval=StreamDefaults.PROGRESS_INTERVAL,
             )
         )
 
-        all_matches = self._apply_exclude_patterns(all_matches, exclude_patterns)
+        all_matches = self._apply_exclude_patterns(raw_matches, exclude_patterns)
 
-        if max_constructs > 0 and len(all_matches) >= max_constructs:
+        if max_constructs > 0 and len(all_matches) > max_constructs:
             self.logger.info("construct_limit_reached", total_found=len(all_matches), max_constructs=max_constructs)
+            all_matches = all_matches[:max_constructs]
 
         return all_matches
 
