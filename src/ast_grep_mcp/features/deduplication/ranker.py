@@ -10,7 +10,14 @@ import logging
 import threading
 from typing import Any, Dict, List, Optional, Tuple
 
-from ...constants import CodeAnalysisDefaults, DeduplicationDefaults, ParallelProcessing, PriorityClassifierThresholds, RankerDefaults, RiskMultipliers
+from ...constants import (
+    CodeAnalysisDefaults,
+    DeduplicationDefaults,
+    ParallelProcessing,
+    PriorityClassifierThresholds,
+    RankerDefaults,
+    RiskMultipliers,
+)
 from ...core.logging import get_logger
 from ...utils.futures import map_with_per_item_timeout
 
