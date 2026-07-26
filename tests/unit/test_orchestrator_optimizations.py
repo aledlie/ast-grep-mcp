@@ -9,6 +9,8 @@ Tests focus on low-effort optimizations:
 
 import os
 import tempfile
+import threading
+import time
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -107,8 +109,6 @@ class TestComponentInstanceCaching:
 
     def test_initialization_performance_improvement(self):
         """Test that instantiation is faster with lazy initialization."""
-        import time
-
         # Measure initialization time (should be very fast)
         start = time.time()
         for _ in range(100):
@@ -707,8 +707,6 @@ class TestParallelEnrichUtility:
 
     def test_parallel_enrich_timeout_parameter_accepted(self):
         """Test that timeout_per_candidate parameter is accepted."""
-        import time
-
         orchestrator = DeduplicationAnalysisOrchestrator()
         candidates = [{"id": "c1"}, {"id": "c2"}]
 
@@ -733,8 +731,6 @@ class TestParallelEnrichUtility:
 
     def test_parallel_enrich_timeout_uses_default(self):
         """Test that default timeout is used when not specified."""
-        import time
-
         from ast_grep_mcp.constants import ParallelProcessing
 
         orchestrator = DeduplicationAnalysisOrchestrator()
@@ -864,11 +860,15 @@ class TestPerCandidateTimeoutEnforcement:
     (including at the executor's implicit shutdown(wait=True)).
     """
 
+    TIMEOUT_SECONDS = 0.2
+    HUNG_WORKER_SAFETY_NET_SECONDS = 30
+    # Elapsed bound: total_timeout (300s default) caps wall-clock, so each test
+    # should return well before even a single per-candidate wait expires.
+    ELAPSED_BOUND_SECONDS = 10
+    EXPECTED_TIMEOUT_ERROR = f"Operation timed out after {TIMEOUT_SECONDS}s"
+
     def test_hung_enrichment_times_out_and_marks_candidate(self):
         """A hung candidate is marked timed out while fast candidates succeed."""
-        import threading
-        import time
-
         orchestrator = DeduplicationAnalysisOrchestrator()
         release = threading.Event()
         hung = {"id": "hung"}
@@ -876,7 +876,7 @@ class TestPerCandidateTimeoutEnforcement:
 
         def enrich_func(candidate):
             if candidate["id"] == "hung":
-                release.wait(timeout=60)
+                release.wait(timeout=self.HUNG_WORKER_SAFETY_NET_SECONDS)
             else:
                 candidate["done"] = True
 
@@ -890,30 +890,27 @@ class TestPerCandidateTimeoutEnforcement:
                 default_error_value={"enriched": False},
                 parallel=True,
                 max_workers=2,
-                timeout_per_candidate=1,
+                timeout_per_candidate=self.TIMEOUT_SECONDS,
             )
             elapsed = time.monotonic() - start
         finally:
             release.set()
 
-        assert elapsed < 10, f"call should return promptly, took {elapsed:.1f}s"
+        assert elapsed < self.ELAPSED_BOUND_SECONDS, f"call should return promptly, took {elapsed:.1f}s"
         assert failed == [hung]
-        assert hung["error"] == "Operation timed out after 1s"
+        assert hung["error"] == self.EXPECTED_TIMEOUT_ERROR
         assert hung["enriched"] is False
         assert fast["done"] is True
         assert "error" not in fast
 
     def test_all_hung_candidates_each_marked_timed_out(self):
-        """Every hung candidate gets its own timeout; the call still returns."""
-        import threading
-        import time
-
+        """Every hung candidate is marked failed; never-started ones are marked too."""
         orchestrator = DeduplicationAnalysisOrchestrator()
         release = threading.Event()
         candidates = [{"id": f"c{i}"} for i in range(3)]
 
         def enrich_func(candidate):
-            release.wait(timeout=60)
+            release.wait(timeout=self.HUNG_WORKER_SAFETY_NET_SECONDS)
 
         try:
             start = time.monotonic()
@@ -925,15 +922,17 @@ class TestPerCandidateTimeoutEnforcement:
                 default_error_value={},
                 parallel=True,
                 max_workers=2,
-                timeout_per_candidate=1,
+                timeout_per_candidate=self.TIMEOUT_SECONDS,
             )
             elapsed = time.monotonic() - start
         finally:
             release.set()
 
-        assert elapsed < 15, f"call should return promptly, took {elapsed:.1f}s"
+        # Wall-clock is bounded by total_timeout (300s default), not N×per_item.
+        assert elapsed < self.ELAPSED_BOUND_SECONDS, f"call should return promptly, took {elapsed:.1f}s"
         assert failed == candidates
-        assert all(c["error"] == "Operation timed out after 1s" for c in candidates)
+        # All candidates are marked as failed with a timeout or cancellation error.
+        assert all("error" in c for c in candidates)
 
 
 class TestSequentialPathTimeoutEnforcement:
@@ -944,20 +943,19 @@ class TestSequentialPathTimeoutEnforcement:
     timeout — timeout_per_candidate was silently ignored.
     """
 
-    TIMEOUT_SECONDS = 1
+    TIMEOUT_SECONDS = 0.2
+    HUNG_WORKER_SAFETY_NET_SECONDS = 30
+    ELAPSED_BOUND_SECONDS = 10
     EXPECTED_TIMEOUT_ERROR = f"Operation timed out after {TIMEOUT_SECONDS}s"
 
     def test_single_candidate_hung_enrichment_times_out(self):
         """A single hung candidate is timed out even with parallel=True (len==1 path)."""
-        import threading
-        import time
-
         orchestrator = DeduplicationAnalysisOrchestrator()
         release = threading.Event()
         hung = {"id": "hung"}
 
         def enrich_func(candidate):
-            release.wait(timeout=60)
+            release.wait(timeout=self.HUNG_WORKER_SAFETY_NET_SECONDS)
 
         try:
             start = time.monotonic()
@@ -975,16 +973,13 @@ class TestSequentialPathTimeoutEnforcement:
         finally:
             release.set()
 
-        assert elapsed < 10, f"call should return promptly, took {elapsed:.1f}s"
+        assert elapsed < self.ELAPSED_BOUND_SECONDS, f"call should return promptly, took {elapsed:.1f}s"
         assert failed == [hung]
         assert hung["error"] == self.EXPECTED_TIMEOUT_ERROR
         assert hung["enriched"] is False
 
     def test_sequential_parallel_false_hung_enrichment_times_out(self):
         """A hung enrichment is timed out when parallel=False is explicitly requested."""
-        import threading
-        import time
-
         orchestrator = DeduplicationAnalysisOrchestrator()
         release = threading.Event()
         hung = {"id": "hung"}
@@ -992,7 +987,7 @@ class TestSequentialPathTimeoutEnforcement:
 
         def enrich_func(candidate):
             if candidate["id"] == "hung":
-                release.wait(timeout=60)
+                release.wait(timeout=self.HUNG_WORKER_SAFETY_NET_SECONDS)
             else:
                 candidate["done"] = True
 
@@ -1012,7 +1007,7 @@ class TestSequentialPathTimeoutEnforcement:
         finally:
             release.set()
 
-        assert elapsed < 10, f"call should return promptly, took {elapsed:.1f}s"
+        assert elapsed < self.ELAPSED_BOUND_SECONDS, f"call should return promptly, took {elapsed:.1f}s"
         assert failed == [hung]
         assert hung["error"] == self.EXPECTED_TIMEOUT_ERROR
         assert hung["enriched"] is False
@@ -1036,8 +1031,6 @@ class TestAbandonedWorkerIsolation:
 
     def test_late_finishing_worker_cannot_mutate_returned_candidate(self):
         """Parallel path: a worker waking after timeout writes only to the orphaned copy."""
-        import threading
-
         orchestrator = DeduplicationAnalysisOrchestrator()
         release = threading.Event()
         worker_done = threading.Event()
@@ -1079,8 +1072,6 @@ class TestAbandonedWorkerIsolation:
 
     def test_sequential_path_late_worker_cannot_mutate_returned_candidate(self):
         """Sequential (single-candidate) path gets the same isolation."""
-        import threading
-
         orchestrator = DeduplicationAnalysisOrchestrator()
         release = threading.Event()
         worker_done = threading.Event()
@@ -1166,8 +1157,6 @@ class TestAbandonedWorkerIsolation:
 
     def test_uncopyable_candidate_fails_alone_without_aborting_stage(self):
         """A candidate deepcopy can't handle fails alone; the rest still enrich."""
-        import threading
-
         orchestrator = DeduplicationAnalysisOrchestrator()
         uncopyable = {"id": "bad", "lock": threading.Lock()}
         normal = {"id": "ok"}
@@ -1206,9 +1195,6 @@ class TestGlobalDeadlineEnforcement:
 
     def test_total_timeout_bounds_wall_clock_below_n_times_per_item(self):
         """Parallel path: total wall-clock is bounded by total_timeout_seconds, not N×per_item."""
-        import threading
-        import time
-
         orchestrator = DeduplicationAnalysisOrchestrator()
         release = threading.Event()
         n_candidates = 4
@@ -1243,9 +1229,6 @@ class TestGlobalDeadlineEnforcement:
 
     def test_sequential_total_timeout_bounds_wall_clock(self):
         """Sequential path: global deadline also prevents N×per_item wait."""
-        import threading
-        import time
-
         orchestrator = DeduplicationAnalysisOrchestrator()
         release = threading.Event()
         n_candidates = 3

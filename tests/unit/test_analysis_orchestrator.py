@@ -533,7 +533,7 @@ class TestErrorHandling:
             operation_name="test_op",
             error_field="test_error",
             default_error_value={},
-            error_message="30",
+            timeout_seconds=30,
         )
 
         assert "timed out" in candidate["test_error"]

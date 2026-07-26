@@ -75,7 +75,7 @@ def analyze_deduplication_candidates_tool(
     min_lines: int = DeduplicationDefaults.MIN_LINES,
     max_candidates: int = DeduplicationDefaults.MAX_CANDIDATES,
     exclude_patterns: Optional[List[str]] = None,
-    timeout_per_candidate: Optional[int] = None,
+    timeout_per_candidate: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Analyze a project for deduplication candidates and return ranked results."""
     logger = get_logger("deduplication.tool.analyze")
@@ -261,9 +261,9 @@ def _register_analyze_candidates(mcp: FastMCP) -> None:
         min_lines: int = Field(default=DeduplicationDefaults.MIN_LINES, description="Minimum number of lines to consider for duplication"),
         max_candidates: int = Field(default=DeduplicationDefaults.MAX_CANDIDATES, description="Maximum number of candidates to return"),
         exclude_patterns: Optional[List[str]] = Field(default=None, description="Path patterns to exclude from analysis"),
-        timeout_per_candidate: Optional[int] = Field(
+        timeout_per_candidate: Optional[float] = Field(
             default=None,
-            description="Per-candidate enrichment timeout in seconds (default: 30s). Raise this if enrichment is spuriously timing out.",
+            description="Per-candidate enrichment timeout in seconds as a float (default: 30s). Raise this if enrichment is spuriously timing out.",
         ),
     ) -> Dict[str, Any]:
         """Wrapper that calls the standalone analyze_deduplication_candidates_tool function."""

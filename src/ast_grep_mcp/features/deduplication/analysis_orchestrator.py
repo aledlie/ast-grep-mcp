@@ -89,7 +89,7 @@ class DeduplicationAnalysisOrchestrator:
         max_candidates: int = DeduplicationDefaults.MAX_CANDIDATES,
         exclude_patterns: List[str] | None = None,
         progress_callback: Optional[ProgressCallback] = None,
-        timeout_per_candidate: Optional[int] = None,
+        timeout_per_candidate: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Analyze a project for deduplication candidates (legacy interface).
 
@@ -399,7 +399,7 @@ class DeduplicationAnalysisOrchestrator:
         operation_name: str,
         error_field: str,
         default_error_value: Any,
-        error_message: Optional[str] = None,
+        timeout_seconds: Optional[float] = None,
     ) -> None:
         """Handle enrichment errors by logging and updating candidate.
 
@@ -409,7 +409,9 @@ class DeduplicationAnalysisOrchestrator:
             operation_name: Name of operation for logging
             error_field: Field name to store error message
             default_error_value: Default value to set on error
-            error_message: Optional custom error message (for timeouts)
+            timeout_seconds: Resolved timeout value for WaitTimeoutError log and
+                message (a number, not a string). None when the error is not a
+                wait timeout.
         """
         # Log the error. Only a helper wait expiry is a "timeout" here — a
         # TimeoutError raised by the enrichment itself (socket.timeout,
@@ -418,9 +420,9 @@ class DeduplicationAnalysisOrchestrator:
             self.logger.error(
                 f"{operation_name}_timeout",
                 candidate_id=candidate.get("id", "unknown"),
-                timeout_seconds=error_message,  # Pass timeout value via error_message
+                timeout_seconds=timeout_seconds,
             )
-            candidate[error_field] = f"Operation timed out after {error_message}s"
+            candidate[error_field] = f"Operation timed out after {timeout_seconds:g}s"
         else:
             error_text = str(error) or type(error).__name__
             self.logger.error(f"{operation_name}_enrichment_failed", candidate_id=candidate.get("id", "unknown"), error=error_text)
@@ -436,7 +438,7 @@ class DeduplicationAnalysisOrchestrator:
         operation_name: str,
         error_field: str,
         default_error_value: Any,
-        timeout_seconds: int,
+        timeout_seconds: float,
         failed_candidates: List[Dict[str, Any]],
     ) -> Tuple[
         Callable[[Tuple[Dict[str, Any], Dict[str, Any]], None], None],
@@ -457,8 +459,8 @@ class DeduplicationAnalysisOrchestrator:
 
         def on_error(pair: Tuple[Dict[str, Any], Dict[str, Any]], error: Exception) -> None:
             original, _working = pair
-            message = str(timeout_seconds) if isinstance(error, WaitTimeoutError) else None
-            self._handle_enrichment_error(original, error, operation_name, error_field, default_error_value, error_message=message)
+            ts = timeout_seconds if isinstance(error, WaitTimeoutError) else None
+            self._handle_enrichment_error(original, error, operation_name, error_field, default_error_value, timeout_seconds=ts)
             failed_candidates.append(original)
 
         return on_success, on_error
@@ -471,7 +473,7 @@ class DeduplicationAnalysisOrchestrator:
         error_field: str,
         default_error_value: Any,
         max_workers: int,
-        timeout_seconds: int,
+        timeout_seconds: float,
         kwargs: Dict[str, Any],
         total_timeout_seconds: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
@@ -525,7 +527,7 @@ class DeduplicationAnalysisOrchestrator:
         operation_name: str,
         error_field: str,
         default_error_value: Any,
-        timeout_seconds: int,
+        timeout_seconds: float,
         kwargs: Dict[str, Any],
         total_timeout_seconds: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
@@ -589,11 +591,17 @@ class DeduplicationAnalysisOrchestrator:
 
         return failed_candidates
 
-    def _resolve_timeout(self, timeout_per_candidate: Optional[int]) -> int:
-        """Return timeout_per_candidate, defaulting to ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS."""
-        if timeout_per_candidate is not None:
-            return timeout_per_candidate
-        return ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS
+    def _resolve_timeout(self, timeout_per_candidate: Optional[float]) -> float:
+        """Return timeout_per_candidate, defaulting to ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS.
+
+        A value of 0 or negative is treated the same as None (use the default)
+        to prevent ``future.result(timeout=0)`` from instantly failing every
+        running future — a behaviour that was previously unreachable dead code
+        (CR-11).
+        """
+        if timeout_per_candidate is not None and timeout_per_candidate > 0:
+            return float(timeout_per_candidate)
+        return float(ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS)
 
     def _resolve_total_timeout(self, total_timeout_seconds: Optional[float]) -> float:
         """Return total_timeout_seconds, defaulting to ParallelProcessing.MAX_TIMEOUT_SECONDS."""
@@ -610,7 +618,7 @@ class DeduplicationAnalysisOrchestrator:
         default_error_value: Any,
         parallel: bool = True,
         max_workers: int = ParallelProcessing.DEFAULT_WORKERS,
-        timeout_per_candidate: Optional[int] = None,
+        timeout_per_candidate: Optional[float] = None,
         total_timeout_seconds: Optional[float] = None,
         **kwargs: Any,
     ) -> List[Dict[str, Any]]:
@@ -624,7 +632,8 @@ class DeduplicationAnalysisOrchestrator:
             default_error_value: Value(s) set on candidate when enrichment fails
             parallel: Use parallel execution when True and len(candidates) > 1
             max_workers: Thread pool size
-            timeout_per_candidate: Per-candidate timeout in seconds (default 30s)
+            timeout_per_candidate: Per-candidate timeout in seconds, as a float
+                (default 30s). Zero or negative is treated as None (use default).
             total_timeout_seconds: Shared wall-clock deadline across all candidates
                 in seconds. Items reached after the deadline expires are immediately
                 marked as timed out. Defaults to ParallelProcessing.MAX_TIMEOUT_SECONDS
@@ -677,7 +686,7 @@ class DeduplicationAnalysisOrchestrator:
         project_path: str,
         parallel: bool = True,
         max_workers: int = ParallelProcessing.DEFAULT_WORKERS,
-        timeout_per_candidate: Optional[int] = None,
+        timeout_per_candidate: Optional[float] = None,
     ) -> None:
         """Add test coverage via optimized batch processing (60-80% faster than per-candidate).
 
@@ -746,7 +755,7 @@ class DeduplicationAnalysisOrchestrator:
         candidates: List[Dict[str, Any]],
         parallel: bool = True,
         max_workers: int = ParallelProcessing.DEFAULT_WORKERS,
-        timeout_per_candidate: Optional[int] = None,
+        timeout_per_candidate: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
         """Add recommendations to candidates.
 

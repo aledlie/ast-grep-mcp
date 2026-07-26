@@ -476,7 +476,7 @@ class CoverageDetector:
         project_root: str,
         parallel: bool = True,
         max_workers: int = ParallelProcessing.DEFAULT_WORKERS,
-        timeout_per_file: Optional[int] = None,
+        timeout_per_file: Optional[float] = None,
     ) -> Dict[str, bool]:
         """Get test coverage status for multiple files with batch optimization.
 
@@ -546,7 +546,7 @@ class CoverageDetector:
         project_root: str,
         test_files: Set[str],
         max_workers: int,
-        timeout_per_file: Optional[int] = None,
+        timeout_per_file: Optional[float] = None,
     ) -> Tuple[Dict[str, bool], int]:
         """Process files in parallel for coverage checking with per-file timeout.
 
