@@ -50,6 +50,21 @@ class WaitTimeoutError(TimeoutError):
     """
 
 
+class CancelledBeforeStartError(WaitTimeoutError):
+    """A timed-out item that was never dequeued from the work queue.
+
+    A subtype of ``WaitTimeoutError`` raised when ``future.cancel()`` returns
+    ``True`` after the wait expires — meaning the item was still PENDING (queued
+    but not yet picked up by a worker) when the timeout fired. The item was
+    "starved" behind hung workers and never ran, as opposed to a
+    ``WaitTimeoutError`` where a worker started the item but did not finish in
+    time.
+
+    Use ``isinstance(error, CancelledBeforeStartError)`` to distinguish "never
+    ran" from "ran but exceeded the deadline" in error callbacks and telemetry.
+    """
+
+
 def _run_worker(
     work_queue: "queue.SimpleQueue[Tuple[Future[ResultT], ItemT]]",
     func: Callable[[ItemT], ResultT],
@@ -101,12 +116,22 @@ def _wait_for_item(
         # Only the latter becomes WaitTimeoutError — worker-raised
         # timeouts pass through with their real message.
         if isinstance(error, TimeoutError) and not (future.done() and future.exception() is error):
-            error = WaitTimeoutError(f"No result within {item_timeout} seconds")
-        # Cancel before on_error: a still-queued future must never
-        # start after its item is reported failed, and a callback
-        # that unblocks workers must not race the cancel. No-op for
-        # running/done futures.
-        future.cancel()
+            # Cancel before building the error: future.cancel() returns True
+            # when the future is still PENDING (never picked up by a worker),
+            # False when it is already RUNNING or DONE. This distinguishes
+            # "starved behind hung workers — never ran" from "ran but exceeded
+            # the deadline", giving callers cleaner telemetry (CR-07).
+            was_pending = future.cancel()
+            if was_pending:
+                error = CancelledBeforeStartError(
+                    f"Cancelled before start (starved after {item_timeout} seconds)"
+                )
+            else:
+                error = WaitTimeoutError(f"No result within {item_timeout} seconds")
+        else:
+            # Cancel is a no-op for running/done futures; still called so a
+            # queued future that squeezed past the timeout check never runs.
+            future.cancel()
         on_error(item, error)
     else:
         on_success(item, result)

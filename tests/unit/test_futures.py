@@ -17,7 +17,7 @@ import weakref
 import pytest
 
 from ast_grep_mcp.utils import futures as futures_module
-from ast_grep_mcp.utils.futures import WaitTimeoutError, map_with_per_item_timeout
+from ast_grep_mcp.utils.futures import CancelledBeforeStartError, WaitTimeoutError, map_with_per_item_timeout
 
 TIMEOUT_SECONDS = 1
 PROMPT_RETURN_BOUND_SECONDS = 10
@@ -179,6 +179,65 @@ class TestTimedOutPendingFutureCancellation:
         assert "queued" not in executed, "timed-out queued item must not run after a worker frees"
         assert isinstance(errors["hung"], TimeoutError)
         assert isinstance(errors["queued"], TimeoutError)
+
+
+class TestCancelledBeforeStartDisambiguation:
+    """Never-started items must be labelled CancelledBeforeStartError, not
+    WaitTimeoutError, so callers can distinguish "starved" from "ran but slow"
+    in error callbacks and telemetry (CR-07)."""
+
+    def test_starved_item_raises_cancelled_before_start_error(self):
+        """A queued item that times out before a worker picks it up is reported as
+        CancelledBeforeStartError, not a generic WaitTimeoutError."""
+        release = threading.Event()
+        errors = {}
+
+        def func(item):
+            if item == "hung":
+                release.wait(timeout=HUNG_WORKER_SAFETY_NET_SECONDS)
+
+        try:
+            map_with_per_item_timeout(
+                ["hung", "starved"],
+                func,
+                timeout_seconds=TIMEOUT_SECONDS,
+                max_workers=1,  # only 1 worker; "starved" is queued behind "hung"
+                on_success=lambda item, result: None,
+                on_error=lambda item, error: errors.__setitem__(item, error),
+            )
+        finally:
+            release.set()
+
+        # "hung" ran but exceeded the deadline → WaitTimeoutError (not CancelledBefore)
+        assert isinstance(errors["hung"], WaitTimeoutError)
+        assert not isinstance(errors["hung"], CancelledBeforeStartError)
+        # "starved" never dequeued → CancelledBeforeStartError (subtype of WaitTimeoutError)
+        assert isinstance(errors["starved"], CancelledBeforeStartError)
+        assert isinstance(errors["starved"], WaitTimeoutError)  # is-a WaitTimeoutError
+
+    def test_running_timed_out_item_is_not_cancelled_before_start(self):
+        """A running item that exceeds the deadline is WaitTimeoutError, not
+        CancelledBeforeStartError."""
+        release = threading.Event()
+        errors = {}
+
+        def func(item):
+            release.wait(timeout=HUNG_WORKER_SAFETY_NET_SECONDS)
+
+        try:
+            map_with_per_item_timeout(
+                ["item"],
+                func,
+                timeout_seconds=TIMEOUT_SECONDS,
+                max_workers=1,
+                on_success=lambda item, result: None,
+                on_error=lambda item, error: errors.__setitem__(item, error),
+            )
+        finally:
+            release.set()
+
+        assert isinstance(errors["item"], WaitTimeoutError)
+        assert not isinstance(errors["item"], CancelledBeforeStartError)
 
 
 class TestWaitTimeoutDisambiguation:

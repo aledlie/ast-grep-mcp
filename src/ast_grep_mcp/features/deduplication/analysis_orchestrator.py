@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ...constants import CodeAnalysisDefaults, DeduplicationDefaults, ParallelProcessing
 from ...core.logging import get_logger
-from ...utils.futures import WaitTimeoutError, map_with_per_item_timeout
+from ...utils.futures import CancelledBeforeStartError, WaitTimeoutError, map_with_per_item_timeout
 from .config import AnalysisConfig
 from .coverage import CoverageDetector
 from .detector import DuplicationDetector
@@ -416,7 +416,17 @@ class DeduplicationAnalysisOrchestrator:
         # Log the error. Only a helper wait expiry is a "timeout" here — a
         # TimeoutError raised by the enrichment itself (socket.timeout,
         # OSError(ETIMEDOUT)) is a worker failure with its own message.
-        if isinstance(error, WaitTimeoutError):
+        # CancelledBeforeStartError is a subtype of WaitTimeoutError that means
+        # the item was never dequeued (starved behind hung workers), distinct
+        # from a running worker that exceeded the deadline (CR-07).
+        if isinstance(error, CancelledBeforeStartError):
+            self.logger.warning(
+                f"{operation_name}_never_started",
+                candidate_id=candidate.get("id", "unknown"),
+                timeout_seconds=timeout_seconds,
+            )
+            candidate[error_field] = "Cancelled before start"
+        elif isinstance(error, WaitTimeoutError):
             self.logger.error(
                 f"{operation_name}_timeout",
                 candidate_id=candidate.get("id", "unknown"),
@@ -632,8 +642,13 @@ class DeduplicationAnalysisOrchestrator:
             default_error_value: Value(s) set on candidate when enrichment fails
             parallel: Use parallel execution when True and len(candidates) > 1
             max_workers: Thread pool size
-            timeout_per_candidate: Per-candidate timeout in seconds, as a float
-                (default 30s). Zero or negative is treated as None (use default).
+            timeout_per_candidate: Per-candidate wait window in seconds, as a
+                float (default 30s). Zero or negative is treated as None (use
+                default). The wait clock starts when the loop *reaches* the
+                future, not when the candidate started executing, so a candidate
+                running behind hung workers may complete in more than
+                ``timeout_per_candidate`` wall-clock seconds and still pass.
+                Use ``total_timeout_seconds`` for a hard wall-clock cap.
             total_timeout_seconds: Shared wall-clock deadline across all candidates
                 in seconds. Items reached after the deadline expires are immediately
                 marked as timed out. Defaults to ParallelProcessing.MAX_TIMEOUT_SECONDS
