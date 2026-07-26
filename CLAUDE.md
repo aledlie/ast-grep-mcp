@@ -112,5 +112,4 @@ See [docs/BACKLOG.md](docs/BACKLOG.md) for open items and deferred work.
 - [docs/BENCHMARKING.md](docs/BENCHMARKING.md) - Performance benchmarking
 - [docs/CODE-CONDENSE-PHASE-2.md](docs/CODE-CONDENSE-PHASE-2.md) - Condense phase 2 design
 - [docs/BACKLOG.md](docs/BACKLOG.md) - Open backlog items
-- [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) - Known issues and workarounds
 - [docs/BACKFILLING.md](docs/BACKFILLING.md) - OTEL telemetry backfilling for skills
