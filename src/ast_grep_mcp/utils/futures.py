@@ -75,6 +75,67 @@ def _run_worker(
             future.set_result(result)
 
 
+def _compute_item_timeout(deadline: Optional[float], timeout_seconds: float) -> Optional[float]:
+    """Return this item's wait budget, or ``None`` when the deadline has passed."""
+    if deadline is None:
+        return timeout_seconds
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        return None
+    return min(timeout_seconds, remaining)
+
+
+def _wait_for_item(
+    future: "Future[ResultT]",
+    item: ItemT,
+    item_timeout: float,
+    on_success: Callable[[ItemT, ResultT], None],
+    on_error: Callable[[ItemT, Exception], None],
+) -> None:
+    """Wait on one future, dispatching to the success or error callback."""
+    try:
+        result = future.result(timeout=item_timeout)
+    except Exception as error:
+        # result() re-raises a worker-raised exception as the exact
+        # stored object; a wait expiry raises a fresh TimeoutError.
+        # Only the latter becomes WaitTimeoutError — worker-raised
+        # timeouts pass through with their real message.
+        if isinstance(error, TimeoutError) and not (future.done() and future.exception() is error):
+            error = WaitTimeoutError(f"No result within {item_timeout} seconds")
+        # Cancel before on_error: a still-queued future must never
+        # start after its item is reported failed, and a callback
+        # that unblocks workers must not race the cancel. No-op for
+        # running/done futures.
+        future.cancel()
+        on_error(item, error)
+    else:
+        on_success(item, result)
+
+
+def _cancel_and_drain(
+    pairs: List[Tuple["Future[ResultT]", ItemT]],
+    work_queue: "queue.SimpleQueue[Tuple[Future[ResultT], ItemT]]",
+    timeout_seconds: float,
+) -> None:
+    """Cancel queued work, drain the queue, and log abandoned workers."""
+    for future, _ in pairs:
+        future.cancel()
+    # Drain the queue so a hung worker's queue reference cannot pin
+    # cancelled items in memory (workers skip cancelled futures anyway).
+    while True:
+        try:
+            work_queue.get_nowait()
+        except queue.Empty:
+            break
+    abandoned_count = sum(1 for future, _ in pairs if future.running())
+    if abandoned_count:
+        logger.warning(
+            "abandoned_worker_threads",
+            abandoned_count=abandoned_count,
+            timeout_seconds=timeout_seconds,
+        )
+
+
 def map_with_per_item_timeout(
     items: Sequence[ItemT],
     func: Callable[[ItemT], ResultT],
@@ -158,49 +219,14 @@ def map_with_per_item_timeout(
                 daemon=True,
             ).start()
         for future, item in pairs:
-            if deadline is not None:
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    future.cancel()
-                    on_error(item, WaitTimeoutError("Global deadline exceeded"))
-                    continue
-                item_timeout = min(timeout_seconds, remaining)
-            else:
-                item_timeout = timeout_seconds
-            try:
-                result = future.result(timeout=item_timeout)
-            except Exception as error:
-                # result() re-raises a worker-raised exception as the exact
-                # stored object; a wait expiry raises a fresh TimeoutError.
-                # Only the latter becomes WaitTimeoutError — worker-raised
-                # timeouts pass through with their real message.
-                if isinstance(error, TimeoutError) and not (future.done() and future.exception() is error):
-                    error = WaitTimeoutError(f"No result within {item_timeout} seconds")
-                # Cancel before on_error: a still-queued future must never
-                # start after its item is reported failed, and a callback
-                # that unblocks workers must not race the cancel. No-op for
-                # running/done futures.
+            item_timeout = _compute_item_timeout(deadline, timeout_seconds)
+            if item_timeout is None:
                 future.cancel()
-                on_error(item, error)
-            else:
-                on_success(item, result)
+                on_error(item, WaitTimeoutError("Global deadline exceeded"))
+                continue
+            _wait_for_item(future, item, item_timeout, on_success, on_error)
     finally:
         # Threads cannot be killed; cancel queued work that never started and
         # abandon hung workers rather than blocking the caller. Runs even if a
         # callback raised mid-loop.
-        for future, _ in pairs:
-            future.cancel()
-        # Drain the queue so a hung worker's queue reference cannot pin
-        # cancelled items in memory (workers skip cancelled futures anyway).
-        while True:
-            try:
-                work_queue.get_nowait()
-            except queue.Empty:
-                break
-        abandoned_count = sum(1 for future, _ in pairs if future.running())
-        if abandoned_count:
-            logger.warning(
-                "abandoned_worker_threads",
-                abandoned_count=abandoned_count,
-                timeout_seconds=timeout_seconds,
-            )
+        _cancel_and_drain(pairs, work_queue, timeout_seconds)
