@@ -4,7 +4,7 @@ Tests the O(n) MinHash similarity implementation that replaces
 the O(n²) SequenceMatcher for scalable code clone detection.
 """
 
-from ast_grep_mcp.constants import SemanticSimilarityDefaults
+from ast_grep_mcp.constants import MinHashDefaults, SemanticSimilarityDefaults
 from ast_grep_mcp.features.deduplication.similarity import (
     EnhancedStructureHash,
     MinHashSimilarity,
@@ -112,6 +112,30 @@ class DataProcessor:
         # Create new signature - should not be the same object
         m2 = similarity.create_minhash(code)
         assert m1 is not m2
+
+    def test_signature_cache_keyed_on_code_string(self):
+        """Cache keys must be exact code strings, not hash() values (BUG-12)."""
+        code1 = "def alpha(): return 1"
+        code2 = "def beta(): return 2"
+        similarity = MinHashSimilarity()
+
+        similarity.create_minhash(code1)
+        similarity.create_minhash(code2)
+
+        assert set(similarity._signature_cache.keys()) == {code1, code2}
+
+    def test_signature_cache_lru_eviction(self, monkeypatch):
+        """Signature cache should evict the least-recently-used entry at the bound."""
+        monkeypatch.setattr(MinHashDefaults, "SIGNATURE_CACHE_MAX_SIZE", 2)
+        similarity = MinHashSimilarity()
+        codes = ["def a(): return 1", "def b(): return 2", "def c(): return 3"]
+
+        similarity.create_minhash(codes[0])
+        similarity.create_minhash(codes[1])
+        similarity.create_minhash(codes[0])  # Refresh recency of codes[0]
+        similarity.create_minhash(codes[2])  # Evicts codes[1] (LRU)
+
+        assert set(similarity._signature_cache.keys()) == {codes[0], codes[2]}
 
 
 class TestMinHashLSH:

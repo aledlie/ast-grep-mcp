@@ -236,6 +236,60 @@ class TestSemanticSimilarityMocked:
 
 
 # =============================================================================
+# Embedding Cache Keying and LRU Tests (BUG-12)
+# =============================================================================
+
+
+class TestEmbeddingCacheLRU:
+    """Tests for collision-safe embedding cache keys and LRU bound (BUG-12)."""
+
+    @staticmethod
+    def _make_semantic() -> SemanticSimilarity:
+        """Create a SemanticSimilarity that skips model loading."""
+        semantic = SemanticSimilarity()
+        semantic._initialized = True
+        return semantic
+
+    def test_embedding_cache_keyed_on_code_string(self):
+        """Cache keys must be exact code strings, not hash() values."""
+        semantic = self._make_semantic()
+        code1 = "def alpha(): return 1"
+        code2 = "def beta(): return 2"
+
+        with patch.object(semantic, "_run_model_inference", side_effect=lambda code: MagicMock()):
+            semantic.get_embedding(code1)
+            semantic.get_embedding(code2)
+
+        assert set(semantic._embedding_cache.keys()) == {code1, code2}
+
+    def test_embedding_cache_hit_returns_cached_object(self):
+        """Repeated code should hit the cache and skip inference."""
+        semantic = self._make_semantic()
+        code = "def alpha(): return 1"
+
+        with patch.object(semantic, "_run_model_inference", side_effect=[MagicMock(), MagicMock()]) as mock_infer:
+            emb1 = semantic.get_embedding(code)
+            emb2 = semantic.get_embedding(code)
+
+        assert emb1 is emb2
+        assert mock_infer.call_count == 1
+        assert semantic._cache_hits == 1
+
+    def test_embedding_cache_lru_eviction(self, monkeypatch):
+        """Embedding cache should evict the least-recently-used entry at the bound."""
+        monkeypatch.setattr(SemanticSimilarityDefaults, "EMBEDDING_CACHE_MAX_SIZE", 2)
+        semantic = self._make_semantic()
+
+        with patch.object(semantic, "_run_model_inference", side_effect=lambda code: MagicMock()):
+            semantic.get_embedding("code_a")
+            semantic.get_embedding("code_b")
+            semantic.get_embedding("code_a")  # Refresh recency of code_a
+            semantic.get_embedding("code_c")  # Evicts code_b (LRU)
+
+        assert set(semantic._embedding_cache.keys()) == {"code_a", "code_c"}
+
+
+# =============================================================================
 # HybridSimilarityConfig with Semantic Tests
 # =============================================================================
 

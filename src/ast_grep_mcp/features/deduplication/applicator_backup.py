@@ -35,12 +35,15 @@ class DeduplicationBackupManager:
         self.backup_base_dir = Path(project_folder) / BackupDefaults.DIR_NAME
         self.logger = get_logger("deduplication.backup")
 
-    def create_backup(self, files: List[str], metadata: Dict[str, Any]) -> str:
+    def create_backup(self, files: List[str], metadata: Dict[str, Any], created_files: List[str] | None = None) -> str:
         """Create backup of files before modification.
 
         Args:
-            files: List of file paths to backup
+            files: List of file paths to backup (must already exist)
             metadata: Additional metadata to store with backup
+            created_files: Paths of files that will be newly created (not yet
+                existing) so rollback can delete them instead of trying to
+                restore them.
 
         Returns:
             Backup ID for later restoration
@@ -59,6 +62,7 @@ class DeduplicationBackupManager:
             "timestamp": datetime.now().isoformat(),
             "project_folder": self.project_folder,
             "files": [],
+            "created_files": created_files or [],
             "deduplication_metadata": metadata_with_hashes,
         }
 
@@ -98,7 +102,9 @@ class DeduplicationBackupManager:
 
         restored_files = [path for file_info in metadata.get("files", []) if (path := self._restore_single_file(file_info)) is not None]
 
-        self.logger.info("rollback_complete", backup_id=backup_id, files_restored=len(restored_files))
+        deleted_files = self._delete_created_files(metadata.get("created_files", []))
+
+        self.logger.info("rollback_complete", backup_id=backup_id, files_restored=len(restored_files), files_deleted=len(deleted_files))
         return restored_files
 
     def cleanup_old_backups(self, days: int = BackupDefaults.RETENTION_DAYS) -> int:
@@ -170,6 +176,31 @@ class DeduplicationBackupManager:
     def _compute_file_hashes(self, files: List[str]) -> Dict[str, str]:
         """Compute SHA-256 hashes for all existing files."""
         return {fp: get_file_hash(fp) for fp in files if os.path.exists(fp)}
+
+    def _delete_created_files(self, created_files: List[str]) -> List[str]:
+        """Delete files that were newly created during the refactoring operation.
+
+        These files did not exist at backup time, so they cannot be restored —
+        they must be removed to return the project to its pre-operation state.
+
+        Args:
+            created_files: Absolute paths of files to delete
+
+        Returns:
+            List of paths that were successfully deleted
+        """
+        deleted: List[str] = []
+        for file_path in created_files:
+            if not os.path.exists(file_path):
+                self.logger.debug("created_file_already_gone", file=file_path)
+                continue
+            try:
+                os.remove(file_path)
+                self.logger.debug("created_file_deleted", file=file_path)
+                deleted.append(file_path)
+            except Exception as e:
+                self.logger.error("created_file_delete_failed", file=file_path, error=str(e))
+        return deleted
 
     def _restore_single_file(self, file_info: Dict[str, str]) -> str | None:
         """Restore a single file from backup.

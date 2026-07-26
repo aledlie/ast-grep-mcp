@@ -146,7 +146,9 @@ class DeduplicationApplicator:
             return {"early_return": self._handle_dry_run(plan_data["files_to_modify"], validation_result, group_id, plan_data["strategy"])}
 
         # Create backup if needed
-        backup_id = self._create_backup_if_needed(backup, project_folder, plan_data["files_to_modify"], group_id, plan_data["strategy"])
+        backup_id = self._create_backup_if_needed(
+            backup, project_folder, plan_data["files_to_modify"], group_id, plan_data["strategy"], plan_data["orchestration_plan"]
+        )
 
         # Return complete plan with backup_id
         return {**plan_data, "backup_id": backup_id}
@@ -252,7 +254,13 @@ class DeduplicationApplicator:
         return self._build_dry_run_response(files_to_modify, validation_result, group_id, strategy)
 
     def _create_backup_if_needed(
-        self, backup: bool, project_folder: str, files_to_modify: List[str], group_id: int, strategy: str
+        self,
+        backup: bool,
+        project_folder: str,
+        files_to_modify: List[str],
+        group_id: int,
+        strategy: str,
+        orchestration_plan: Optional[Dict[str, Any]] = None,
     ) -> Optional[str]:
         """Create backup if requested.
 
@@ -262,6 +270,9 @@ class DeduplicationApplicator:
             files_to_modify: Files to backup
             group_id: Duplication group ID
             strategy: Refactoring strategy
+            orchestration_plan: File modification plan; used to include the
+                target file in the backup set and to track newly created files
+                for deletion on rollback.
 
         Returns:
             Backup ID if created, None otherwise
@@ -269,10 +280,29 @@ class DeduplicationApplicator:
         if not backup:
             return None
 
+        # Separate target-file entries into those that already exist (need a
+        # content backup) and those that will be created fresh (need deletion
+        # on rollback, not restoration).
+        existing_target_files: List[str] = []
+        created_files: List[str] = []
+        for entry in (orchestration_plan or {}).get("create_files", []):
+            path = entry.get("path", "")
+            if not path:
+                continue
+            if entry.get("append", False):
+                # File exists and will be appended to — back up its current content.
+                existing_target_files.append(path)
+            else:
+                # File does not yet exist — track it for deletion on rollback.
+                created_files.append(path)
+
+        files_to_backup = [fp for fp in files_to_modify + existing_target_files if os.path.exists(fp)]
+
         backup_manager = DeduplicationBackupManager(project_folder)
         backup_id = backup_manager.create_backup(
-            files=[fp for fp in files_to_modify if os.path.exists(fp)],
+            files=files_to_backup,
             metadata={"duplicate_group_id": group_id, "strategy": strategy, "file_count": len(files_to_modify)},
+            created_files=created_files,
         )
         return backup_id
 
@@ -632,8 +662,10 @@ class DeduplicationApplicator:
         """Insert import into Python source lines."""
         last_import_idx = -1
         for i, line in enumerate(lines):
+            # Only match module-level (column-0) imports; indented function-local
+            # imports must not be used as an insertion anchor (BUG-10).
             stripped = line.strip()
-            if stripped.startswith("import ") or stripped.startswith("from "):
+            if line.startswith("import ") or line.startswith("from "):
                 last_import_idx = i
             elif stripped and not stripped.startswith("#") and last_import_idx >= 0:
                 break
@@ -642,13 +674,33 @@ class DeduplicationApplicator:
             lines.insert(last_import_idx + 1, import_statement)
             return
 
-        # No imports found, add after shebang/encoding comments
+        # No imports found — add after shebang/encoding comments and any module
+        # docstring so the docstring is not demoted to a plain string expression
+        # (BUG-10).
         insert_idx = 0
         for i, line in enumerate(lines):
             if not line.strip() or line.startswith("#"):
                 insert_idx = i + 1
             else:
                 break
+
+        # Skip past a module docstring if present at the insertion point.
+        if insert_idx < len(lines):
+            s = lines[insert_idx].strip()
+            if s.startswith('"""') or s.startswith("'''"):
+                q = s[:3]
+                if q in s[3:]:
+                    # Single-line docstring: """...""" all on one line.
+                    insert_idx += 1
+                else:
+                    # Multi-line docstring: scan forward to the closing quotes.
+                    insert_idx += 1
+                    while insert_idx < len(lines):
+                        if q in lines[insert_idx]:
+                            insert_idx += 1
+                            break
+                        insert_idx += 1
+
         lines.insert(insert_idx, import_statement)
         if insert_idx > 0:
             lines.insert(insert_idx, "")

@@ -989,3 +989,161 @@ class TestIntegration:
             # Verify remaining backups
             backups = manager.list_backups()
             assert len(backups) == 2
+
+
+class TestCreatedFilesTracking:
+    """Tests for rollback of newly created files (BUG-08)."""
+
+    def test_create_backup_stores_created_files_in_metadata(self):
+        """created_files list is persisted in backup metadata."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            existing = os.path.join(tmpdir, "existing.py")
+            with open(existing, "w") as f:
+                f.write("original")
+
+            new_file = os.path.join(tmpdir, "_extracted_utils.py")
+
+            backup_id = manager.create_backup(
+                files=[existing],
+                metadata={},
+                created_files=[new_file],
+            )
+
+            metadata_path = manager.backup_base_dir / backup_id / "backup-metadata.json"
+            with open(metadata_path) as f:
+                metadata = json.load(f)
+
+            assert metadata["created_files"] == [new_file]
+
+    def test_create_backup_created_files_defaults_to_empty(self):
+        """created_files defaults to [] when not supplied."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            fp = os.path.join(tmpdir, "mod.py")
+            with open(fp, "w") as f:
+                f.write("code")
+
+            backup_id = manager.create_backup(files=[fp], metadata={})
+
+            metadata_path = manager.backup_base_dir / backup_id / "backup-metadata.json"
+            with open(metadata_path) as f:
+                metadata = json.load(f)
+
+            assert metadata["created_files"] == []
+
+    def test_rollback_deletes_newly_created_file(self):
+        """Rollback deletes a file that was created during refactoring."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            existing = os.path.join(tmpdir, "source.py")
+            with open(existing, "w") as f:
+                f.write("original content")
+
+            new_file = os.path.join(tmpdir, "_extracted_utils.py")
+
+            backup_id = manager.create_backup(
+                files=[existing],
+                metadata={},
+                created_files=[new_file],
+            )
+
+            # Simulate the refactoring: modify existing file and create new file
+            with open(existing, "w") as f:
+                f.write("modified content")
+            with open(new_file, "w") as f:
+                f.write("def extracted(): pass")
+
+            assert os.path.exists(new_file)
+
+            manager.rollback(backup_id)
+
+            # Existing file should be restored
+            with open(existing) as f:
+                assert f.read() == "original content"
+
+            # Newly created file should be deleted
+            assert not os.path.exists(new_file)
+
+    def test_rollback_restores_appended_target_file(self):
+        """Rollback restores an existing file that was appended to during extract."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            shared_utils = os.path.join(tmpdir, "utils.py")
+            with open(shared_utils, "w") as f:
+                f.write("def helper(): pass\n")
+
+            source = os.path.join(tmpdir, "source.py")
+            with open(source, "w") as f:
+                f.write("duplicate code here\n")
+
+            # Both the source and the append-target are in the backup set
+            backup_id = manager.create_backup(
+                files=[source, shared_utils],
+                metadata={},
+                created_files=[],
+            )
+
+            # Simulate append: add extracted function to the shared utils file
+            with open(shared_utils, "a") as f:
+                f.write("\ndef extracted(): pass\n")
+            with open(source, "w") as f:
+                f.write("from utils import extracted\nextracted()\n")
+
+            manager.rollback(backup_id)
+
+            with open(shared_utils) as f:
+                assert f.read() == "def helper(): pass\n"
+            with open(source) as f:
+                assert f.read() == "duplicate code here\n"
+
+    def test_rollback_skips_already_deleted_created_file(self):
+        """Rollback does not error when a tracked created file no longer exists."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            fp = os.path.join(tmpdir, "mod.py")
+            with open(fp, "w") as f:
+                f.write("code")
+
+            ghost_file = os.path.join(tmpdir, "ghost.py")
+
+            backup_id = manager.create_backup(
+                files=[fp],
+                metadata={},
+                created_files=[ghost_file],
+            )
+
+            # ghost_file was never created; rollback should not raise
+            restored = manager.rollback(backup_id)
+            assert isinstance(restored, list)
+
+    def test_rollback_handles_delete_error_gracefully(self):
+        """Rollback logs but does not raise when a created file cannot be deleted."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = DeduplicationBackupManager(tmpdir)
+
+            fp = os.path.join(tmpdir, "mod.py")
+            with open(fp, "w") as f:
+                f.write("code")
+
+            new_file = os.path.join(tmpdir, "new.py")
+            backup_id = manager.create_backup(
+                files=[fp],
+                metadata={},
+                created_files=[new_file],
+            )
+
+            with open(new_file, "w") as f:
+                f.write("def fn(): pass")
+
+            with patch("os.remove", side_effect=PermissionError("denied")):
+                # Should not raise
+                restored = manager.rollback(backup_id)
+
+            assert isinstance(restored, list)
+            assert os.path.exists(new_file)

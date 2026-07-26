@@ -299,19 +299,23 @@ class CoverageDetector:
         test_dir = os.path.dirname(test_file_path)
         return os.path.normpath(source_dir) == os.path.normpath(test_dir)
 
-    def _check_test_file_references_source(self, test_file_path: str, source_file_path: str, language: str) -> bool:
+    def _check_test_file_references_source(
+        self, test_file_path: str, source_file_path: str, language: str, content: Optional[str] = None
+    ) -> bool:
         """Check if a test file references/imports the source file.
 
         Args:
             test_file_path: Path to the test file
             source_file_path: Path to the source file being tested
             language: Programming language
+            content: Pre-read test file content; read from disk when omitted
 
         Returns:
             True if the test file appears to test the source file
         """
         # Early return: read file content
-        content = self._read_file_content(test_file_path)
+        if content is None:
+            content = self._read_file_content(test_file_path)
         if content is None:
             return False
 
@@ -324,7 +328,7 @@ class CoverageDetector:
             if self._check_go_same_directory(test_file_path, source_file_path):
                 return True
             # Check for package import
-            if regex_module.search(f"import.*{source_name}", content):
+            if regex_module.search(f"import.*{source_name}", content, regex_module.IGNORECASE):
                 return True
 
         # Configuration-driven pattern checking
@@ -405,7 +409,25 @@ class CoverageDetector:
 
         return test_files
 
-    def _has_test_coverage_optimized(self, file_path: str, language: str, project_root: str, test_files: Set[str]) -> bool:
+    def _read_test_file_contents(self, test_files: Set[str]) -> Dict[str, Optional[str]]:
+        """Read all test file contents once for reuse across a batch (BUG-11).
+
+        Args:
+            test_files: Set of test file paths
+
+        Returns:
+            Mapping of test file path to its content (None if unreadable)
+        """
+        return {test_file: self._read_file_content(test_file) for test_file in test_files}
+
+    def _has_test_coverage_optimized(
+        self,
+        file_path: str,
+        language: str,
+        project_root: str,
+        test_files: Set[str],
+        content_cache: Optional[Dict[str, Optional[str]]] = None,
+    ) -> bool:
         """Optimized test coverage check using pre-computed test file set.
 
         Args:
@@ -413,6 +435,8 @@ class CoverageDetector:
             language: Programming language
             project_root: Root directory of the project
             test_files: Pre-computed set of all test files
+            content_cache: Pre-read test file contents keyed by path; files are
+                read from disk on each call when omitted
 
         Returns:
             True if test coverage exists for the file
@@ -429,7 +453,13 @@ class CoverageDetector:
 
         # Check if any test file references our source
         for test_file in test_files:
-            if self._check_test_file_references_source(test_file, file_path, language):
+            if content_cache is not None:
+                content = content_cache.get(test_file)
+                if content is None:  # unreadable at cache-build time; don't re-read per file
+                    continue
+            else:
+                content = None
+            if self._check_test_file_references_source(test_file, file_path, language, content=content):
                 self.logger.debug("found_test_by_reference", source_file=file_path, test_file=test_file)
                 return True
 
@@ -505,23 +535,33 @@ class CoverageDetector:
         if not file_paths:
             return {}
 
-        # Pre-compute all test files once (major optimization)
+        # Pre-compute all test files and their contents once (major optimization)
         test_files = self._find_all_test_files(language, project_root)
+        content_cache = self._read_test_file_contents(test_files)
 
         # Process files using appropriate strategy
         if parallel and len(file_paths) > 1:
             coverage_map, covered_count = self._process_parallel_batch(
-                file_paths, language, project_root, test_files, max_workers, timeout_per_file
+                file_paths, language, project_root, test_files, max_workers, timeout_per_file, content_cache
             )
         else:
-            coverage_map, covered_count = self._process_sequential_batch(file_paths, language, project_root, test_files)
+            coverage_map, covered_count = self._process_sequential_batch(
+                file_paths, language, project_root, test_files, content_cache
+            )
 
         # Log final results
         self._log_batch_results(len(file_paths), covered_count, parallel, len(test_files))
 
         return coverage_map
 
-    def _process_file_coverage(self, file_path: str, language: str, project_root: str, test_files: Set[str]) -> bool:
+    def _process_file_coverage(
+        self,
+        file_path: str,
+        language: str,
+        project_root: str,
+        test_files: Set[str],
+        content_cache: Optional[Dict[str, Optional[str]]] = None,
+    ) -> bool:
         """Process coverage check for a single file with error handling.
 
         Args:
@@ -529,12 +569,13 @@ class CoverageDetector:
             language: Programming language
             project_root: Root directory
             test_files: Pre-computed set of test files
+            content_cache: Pre-read test file contents keyed by path
 
         Returns:
             True if test coverage exists, False otherwise or on error
         """
         try:
-            return self._has_test_coverage_optimized(file_path, language, project_root, test_files)
+            return self._has_test_coverage_optimized(file_path, language, project_root, test_files, content_cache)
         except Exception as e:
             self.logger.error("test_coverage_check_failed", file_path=file_path, error=str(e))
             return False
@@ -547,6 +588,7 @@ class CoverageDetector:
         test_files: Set[str],
         max_workers: int,
         timeout_per_file: Optional[float] = None,
+        content_cache: Optional[Dict[str, Optional[str]]] = None,
     ) -> Tuple[Dict[str, bool], int]:
         """Process files in parallel for coverage checking with per-file timeout.
 
@@ -558,6 +600,7 @@ class CoverageDetector:
             max_workers: Maximum number of threads
             timeout_per_file: Per-file timeout in seconds; defaults to
                 ParallelProcessing.DEFAULT_TIMEOUT_PER_CANDIDATE_SECONDS
+            content_cache: Pre-read test file contents keyed by path
 
         Returns:
             Tuple of (coverage_map, covered_count)
@@ -568,7 +611,7 @@ class CoverageDetector:
         coverage_map: Dict[str, bool] = {}
 
         def check_file(file_path: str) -> bool:
-            return self._has_test_coverage_optimized(file_path, language, project_root, test_files)
+            return self._has_test_coverage_optimized(file_path, language, project_root, test_files, content_cache)
 
         def on_success(file_path: str, has_coverage: bool) -> None:
             coverage_map[file_path] = has_coverage
@@ -593,7 +636,12 @@ class CoverageDetector:
         return coverage_map, covered_count
 
     def _process_sequential_batch(
-        self, file_paths: List[str], language: str, project_root: str, test_files: Set[str]
+        self,
+        file_paths: List[str],
+        language: str,
+        project_root: str,
+        test_files: Set[str],
+        content_cache: Optional[Dict[str, Optional[str]]] = None,
     ) -> Tuple[Dict[str, bool], int]:
         """Process files sequentially for coverage checking.
 
@@ -602,6 +650,7 @@ class CoverageDetector:
             language: Programming language
             project_root: Root directory
             test_files: Pre-computed set of test files
+            content_cache: Pre-read test file contents keyed by path
 
         Returns:
             Tuple of (coverage_map, covered_count)
@@ -612,7 +661,7 @@ class CoverageDetector:
         covered_count = 0
 
         for file_path in file_paths:
-            has_coverage = self._process_file_coverage(file_path, language, project_root, test_files)
+            has_coverage = self._process_file_coverage(file_path, language, project_root, test_files, content_cache)
             coverage_map[file_path] = has_coverage
             if has_coverage:
                 covered_count += 1

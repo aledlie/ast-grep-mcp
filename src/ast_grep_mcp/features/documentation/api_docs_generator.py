@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 import sentry_sdk
 
-from ast_grep_mcp.constants import ConversionFactors, FilePatterns, RegexCaptureGroups
+from ast_grep_mcp.constants import LANGUAGE_EXTENSIONS, ConversionFactors, FilePatterns, RegexCaptureGroups
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.documentation import (
     ApiDocsResult,
@@ -505,12 +505,6 @@ _ROUTE_PATTERNS: Dict[str, List[str]] = {
     "nestjs": ["controller", "routes"],
 }
 
-_LANGUAGE_EXTENSIONS: Dict[str, List[str]] = {
-    "python": [".py"],
-    "typescript": [".ts"],
-    "javascript": [".js"],
-}
-
 def _is_route_file(full_path: str, file: str, project_folder: str, patterns: List[str], exts: List[str]) -> bool:
     if not any(file.endswith(ext) for ext in exts):
         return False
@@ -530,7 +524,7 @@ def _find_route_files(project_folder: str, language: str, framework: str) -> Lis
         List of file paths
     """
     patterns = _ROUTE_PATTERNS.get(framework, ["routes", "api", "controllers"])
-    exts = _LANGUAGE_EXTENSIONS.get(language, [".py", ".js", ".ts"])
+    exts = LANGUAGE_EXTENSIONS.get(language, [".py", ".js", ".ts"])
     route_files = []
     for root, _dirs, files in os.walk(project_folder):
         if any(skip in root for skip in FilePatterns.SKIP_DIR_NAMES):

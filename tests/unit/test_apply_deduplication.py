@@ -481,6 +481,62 @@ class TestOrchestrationHelperFunctions:
         # Should appear only once
         assert result.count("from utils import helper") == 1
 
+    def test_add_import_ignores_function_local_import(self) -> None:
+        """BUG-10: indented function-local imports must not be used as anchor."""
+        content = (
+            "def fetch():\n"
+            "    import requests\n"
+            "    return requests.get('http://example.com')\n"
+        )
+        import_stmt = "from utils import helper"
+
+        result = _add_import_to_content(content, import_stmt, "python")
+
+        # Import must appear at the top of the file (before the function def),
+        # not mid-function after the indented 'import requests'.
+        lines = result.splitlines()
+        import_line = next(i for i, line in enumerate(lines) if "from utils import helper" in line)
+        def_line = next(i for i, line in enumerate(lines) if line.startswith("def fetch"))
+        assert import_line < def_line, (
+            "Import was inserted inside the function body instead of at module level"
+        )
+
+    def test_add_import_preserves_module_docstring(self) -> None:
+        """BUG-10: inserting import when no imports exist must not demote module docstring."""
+        content = '"""Module docstring."""\n\ndef main():\n    pass\n'
+        import_stmt = "from utils import helper"
+
+        result = _add_import_to_content(content, import_stmt, "python")
+
+        lines = result.splitlines()
+        # Docstring must remain the first non-empty line
+        first_nonempty = next(line for line in lines if line.strip())
+        assert first_nonempty.startswith('"""'), (
+            f"Module docstring was demoted; first non-empty line is: {first_nonempty!r}"
+        )
+        assert "from utils import helper" in result
+
+    def test_add_import_preserves_multiline_module_docstring(self) -> None:
+        """BUG-10: multi-line module docstring must also be preserved."""
+        content = (
+            '"""Multi-line\n'
+            "module docstring.\n"
+            '"""\n'
+            "\n"
+            "def main():\n"
+            "    pass\n"
+        )
+        import_stmt = "from utils import helper"
+
+        result = _add_import_to_content(content, import_stmt, "python")
+
+        lines = result.splitlines()
+        first_nonempty = next(line for line in lines if line.strip())
+        assert first_nonempty.startswith('"""'), (
+            f"Multi-line module docstring was demoted; first line is: {first_nonempty!r}"
+        )
+        assert "from utils import helper" in result
+
     def test_generate_import_for_extracted_function(self, project_folder) -> None:
         """Test _generate_import_for_extracted_function generates correct imports."""
         source = os.path.join(str(project_folder), "src", "file.py")

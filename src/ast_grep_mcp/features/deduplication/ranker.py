@@ -8,6 +8,7 @@ duplicate code based on refactoring value, complexity, and impact.
 import heapq
 import logging
 import threading
+from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Tuple
 
 from ...constants import (
@@ -380,17 +381,21 @@ class DuplicationRanker:
         self.priority_classifier = DeduplicationPriorityClassifier()
         self.enable_cache = enable_cache
         self.max_workers = max_workers
-        self._score_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+        self._score_cache: OrderedDict[str, Tuple[float, Dict[str, Any]]] = OrderedDict()
         self._cache_lock = threading.Lock()
 
     def _generate_cache_key(self, candidate: Dict[str, Any]) -> str:
-        """Generate a stable cache key for candidate scores using fast hashing.
+        """Generate a stable, collision-safe cache key for candidate scores.
+
+        The key embeds the exact ``repr`` of the scoring-relevant fields rather
+        than ``hash()``, which is both collision-prone and salted per-process
+        for strings (BUG-12).
 
         Args:
             candidate: Candidate dictionary
 
         Returns:
-            Cache key string (uses Python's hash with tuple encoding)
+            Cache key string (exact tuple encoding)
         """
         cache_tuple = (
             candidate.get("similarity", 0),
@@ -402,7 +407,7 @@ class DuplicationRanker:
             candidate.get("test_coverage"),
             str(candidate.get("impact_analysis")),
         )
-        return f"cache_{abs(hash(cache_tuple))}"
+        return f"cache_{cache_tuple!r}"
 
     def clear_cache(self) -> None:
         """Clear the score cache."""
@@ -478,6 +483,7 @@ class DuplicationRanker:
 
         with self._cache_lock:
             if cache_key in self._score_cache:
+                self._score_cache.move_to_end(cache_key)
                 total_score, score_components = self._score_cache[cache_key]
                 return total_score, score_components, 1, 0
 
@@ -490,6 +496,8 @@ class DuplicationRanker:
 
         with self._cache_lock:
             self._score_cache[cache_key] = (total_score, score_components)
+            if len(self._score_cache) > RankerDefaults.SCORE_CACHE_MAX_SIZE:
+                self._score_cache.popitem(last=False)
         return total_score, score_components, 0, 1
 
     def _score_candidates_parallel(

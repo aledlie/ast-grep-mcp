@@ -324,6 +324,9 @@ class SemanticSimilarityDefaults:
     # Default batch size for embedding inference
     DEFAULT_BATCH_SIZE = 8
 
+    # LRU bound for the embedding cache; each entry holds a 768-float tensor (BUG-12)
+    EMBEDDING_CACHE_MAX_SIZE = 1024
+
 
 class SecurityScanDefaults:
     """Defaults for security scanning."""
@@ -372,11 +375,12 @@ class LoggingDefaults:
     MAX_BREADCRUMBS = 50  # Maximum Sentry breadcrumbs to keep
 
 
-# Language-specific extensions mapping
-LANGUAGE_EXTENSIONS = {
-    "python": [".py"],
+# Language-specific extensions mapping (canonical — primary extension first).
+# Single source of truth; feature modules and scripts import this map (DRY-06).
+LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
+    "python": [".py", ".pyi"],
     "typescript": [".ts", ".tsx"],
-    "javascript": [".js", ".jsx"],
+    "javascript": [".js", ".jsx", ".mjs", ".cjs"],
     "java": [".java"],
     "kotlin": [".kt", ".kts"],
     "go": [".go"],
@@ -384,7 +388,7 @@ LANGUAGE_EXTENSIONS = {
     "ruby": [".rb"],
     "php": [".php"],
     "c": [".c", ".h"],
-    "cpp": [".cpp", ".cc", ".cxx", ".hpp", ".hxx"],
+    "cpp": [".cpp", ".cc", ".cxx", ".hpp", ".hxx", ".hh"],
     "csharp": [".cs"],
     "swift": [".swift"],
 }
@@ -586,6 +590,7 @@ class MinHashDefaults:
     SEQUENCEMATCHER_TOKEN_THRESHOLD = 15  # Below this, use SequenceMatcher instead of MinHash
     LSH_RECALL_MARGIN = 0.2  # LSH threshold margin below min_similarity for recall
     MAX_FALLBACK_ITEMS = 100  # Max items before all-pairs O(n²) becomes too expensive
+    SIGNATURE_CACHE_MAX_SIZE = 1024  # LRU bound for MinHash signature cache (BUG-12)
 
 
 class ASTFingerprintDefaults:
@@ -620,6 +625,7 @@ class RankerDefaults:
     EFFORT_INSTANCE_PENALTY = 5
     EFFORT_FILE_PENALTY = 10
     MIN_SAVINGS_SCORE_FOR_FULL_CALC = 5  # Skip risk/effort if savings < this
+    SCORE_CACHE_MAX_SIZE = 1024  # LRU bound for candidate score cache (BUG-12)
 
 
 class RiskMultipliers:

@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from ast_grep_mcp.constants import ConversionFactors, DisplayDefaults
+from ast_grep_mcp.constants import LANGUAGE_EXTENSIONS, ConversionFactors, DisplayDefaults
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.cross_language import (
     SUPPORTED_LANGUAGES,
@@ -22,19 +22,6 @@ from ast_grep_mcp.models.cross_language import (
 from ast_grep_mcp.utils.text import read_file_lines, write_file_lines
 
 logger = get_logger(__name__)
-
-# Language file extensions
-LANGUAGE_EXTENSIONS: Dict[str, List[str]] = {
-    "python": [".py"],
-    "typescript": [".ts", ".tsx"],
-    "javascript": [".js", ".jsx"],
-    "java": [".java"],
-    "kotlin": [".kt"],
-    "go": [".go"],
-    "rust": [".rs"],
-    "csharp": [".cs"],
-    "ruby": [".rb"],
-}
 
 # API symbol patterns by language
 # Note: Use {{}} to escape literal braces in .format() templates

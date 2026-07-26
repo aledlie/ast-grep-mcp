@@ -10,6 +10,8 @@ Focus: Variation analysis, parameter extraction, complexity scoring
 
 import os
 import sys
+from typing import Any, Dict, List
+from unittest.mock import patch
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -188,3 +190,53 @@ class TestComplexityScoring:
         assert get_complexity_level(5) == "medium"
         assert get_complexity_level(9) == "medium"
         assert get_complexity_level(10) == "high"
+
+
+def _fake_extract_literals(code: str, literal_type: str, language: str) -> List[Dict[str, Any]]:
+    """Deterministic stand-in for ast-grep literal extraction (no subprocess)."""
+    if literal_type != "string":
+        return []
+    return [{"line": 0, "column": 0, "value": code, "type": literal_type}]
+
+
+class TestLiteralVariationExtraction:
+    """Tests for literal-map reuse in group analysis (BUG-13)."""
+
+    LANGUAGE = "python"
+
+    def test_precomputed_maps_match_default_path(self) -> None:
+        """Passing pre-extracted maps for code1 yields identical results."""
+        analyzer = PatternAnalyzer()
+        code1, code2 = 'x = "a"', 'x = "b"'
+        with patch.object(analyzer, "_extract_literals_with_ast_grep", side_effect=_fake_extract_literals):
+            default_result = analyzer.identify_varying_literals(code1, code2, self.LANGUAGE)
+            maps = analyzer._extract_literal_maps(code1, self.LANGUAGE)
+            precomputed_result = analyzer.identify_varying_literals(code1, code2, self.LANGUAGE, code1_literal_maps=maps)
+        assert default_result == precomputed_result
+        assert default_result == [
+            {"position": 1, "column": 0, "value1": code1, "value2": code2, "literal_type": "string"}
+        ]
+
+    def test_base_literals_extracted_once_per_group(self) -> None:
+        """Group analysis extracts the base snippet's literals only once."""
+        analyzer = PatternAnalyzer()
+        base = 'x = "a"'
+        group = [{"text": base}, {"text": 'x = "b"'}, {"text": 'x = "c"'}, {"text": 'x = "d"'}]
+        with patch.object(analyzer, "_extract_literals_with_ast_grep", side_effect=_fake_extract_literals) as mock_extract:
+            result = analyzer.analyze_duplicate_group_literals(group, self.LANGUAGE)
+        types_count = len(PatternAnalyzer._LITERAL_TYPES)
+        base_calls = [call for call in mock_extract.call_args_list if call.args[0] == base]
+        assert len(base_calls) == types_count
+        # base extracted once + one extraction per non-base member
+        assert mock_extract.call_count == types_count * len(group)
+        assert result["total_variations"] == 1
+        assert result["variations"][0]["values"] == [base, 'x = "b"', 'x = "c"', 'x = "d"']
+
+    def test_identical_group_skips_extraction(self) -> None:
+        """No literal extraction is performed when all members equal the base."""
+        analyzer = PatternAnalyzer()
+        group = [{"text": 'x = "a"'}, {"text": 'x = "a"'}, {"text": 'x = "a"'}]
+        with patch.object(analyzer, "_extract_literals_with_ast_grep", side_effect=_fake_extract_literals) as mock_extract:
+            result = analyzer.analyze_duplicate_group_literals(group, self.LANGUAGE)
+        assert mock_extract.call_count == 0
+        assert result["total_variations"] == 0

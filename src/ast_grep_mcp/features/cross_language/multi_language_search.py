@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from ast_grep_mcp.constants import ConversionFactors, CrossLanguageDefaults, SubprocessDefaults
+from ast_grep_mcp.constants import LANGUAGE_EXTENSIONS, ConversionFactors, CrossLanguageDefaults, SubprocessDefaults
 from ast_grep_mcp.core.executor import run_ast_grep
 from ast_grep_mcp.core.logging import get_logger
 from ast_grep_mcp.models.cross_language import (
@@ -21,23 +21,6 @@ from ast_grep_mcp.models.cross_language import (
 from ast_grep_mcp.utils.futures import WaitTimeoutError, map_with_per_item_timeout
 
 logger = get_logger(__name__)
-
-# Language file extensions mapping
-LANGUAGE_EXTENSIONS: Dict[str, List[str]] = {
-    "python": [".py", ".pyi"],
-    "typescript": [".ts", ".tsx"],
-    "javascript": [".js", ".jsx", ".mjs", ".cjs"],
-    "java": [".java"],
-    "kotlin": [".kt", ".kts"],
-    "go": [".go"],
-    "rust": [".rs"],
-    "c": [".c", ".h"],
-    "cpp": [".cpp", ".hpp", ".cc", ".hh", ".cxx", ".hxx"],
-    "csharp": [".cs"],
-    "ruby": [".rb"],
-    "php": [".php"],
-    "swift": [".swift"],
-}
 
 # Semantic pattern to ast-grep pattern mapping
 SEMANTIC_TO_AST_GREP: Dict[str, Dict[str, str]] = {

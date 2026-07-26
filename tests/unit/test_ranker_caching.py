@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.ast_grep_mcp.constants import SemanticSimilarityDefaults
+from src.ast_grep_mcp.constants import RankerDefaults, SemanticSimilarityDefaults
 from src.ast_grep_mcp.features.deduplication.ranker import DuplicationRanker
 
 
@@ -55,7 +55,7 @@ class TestScoreCaching:
 
         assert key1 == key2
         assert isinstance(key1, str)
-        assert key1.startswith("cache_")  # Fast hash format
+        assert key1.startswith("cache_")  # Exact tuple encoding (BUG-12)
 
     def test_cache_key_generation_different_for_different_candidates(self, ranker_with_cache, sample_candidate):
         """Test that different candidates produce different cache keys."""
@@ -231,7 +231,27 @@ class TestScoreCaching:
 
         key = ranker_with_cache._generate_cache_key(candidate)
         assert isinstance(key, str)
-        assert key.startswith("cache_")  # Fast hash format
+        assert key.startswith("cache_")  # Exact tuple encoding (BUG-12)
+
+    def test_cache_key_is_exact_not_hash_based(self, ranker_with_cache, sample_candidate):
+        """Cache key embeds exact field values, not a collision-prone hash() (BUG-12)."""
+        key = ranker_with_cache._generate_cache_key(sample_candidate)
+
+        assert "/tmp/file1.py" in key
+        assert "/tmp/file2.py" in key
+        assert str(sample_candidate["lines_saved"]) in key
+
+    def test_score_cache_lru_eviction(self, ranker_with_cache, sample_candidate, monkeypatch):
+        """Score cache should evict the least-recently-used entry at the bound."""
+        monkeypatch.setattr(RankerDefaults, "SCORE_CACHE_MAX_SIZE", 2)
+        candidates = [{**sample_candidate, "lines_saved": i} for i in range(3)]
+
+        for candidate in candidates:
+            ranker_with_cache._score_candidate(candidate)
+
+        assert len(ranker_with_cache._score_cache) == 2
+        evicted_key = ranker_with_cache._generate_cache_key(candidates[0])
+        assert evicted_key not in ranker_with_cache._score_cache
 
 
 class TestCachePerformance:

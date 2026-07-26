@@ -8,6 +8,7 @@ Stage 3: Optional CodeBERT semantic similarity for Type-4 clone detection.
 
 import re
 import time
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Literal, Optional, Set, Tuple
@@ -210,15 +211,21 @@ class MinHashSimilarity:
     def __init__(self, config: Optional[SimilarityConfig] = None) -> None:
         self.config = config or SimilarityConfig()
         self.logger = get_logger("deduplication.similarity")
-        self._signature_cache: Dict[int, MinHash] = {}
+        self._signature_cache: OrderedDict[str, MinHash] = OrderedDict()
         self._lsh_index: Optional[MinHashLSH] = None
         self._lsh_keys: Dict[str, int] = {}
 
     def create_minhash(self, code: str) -> MinHash:
-        """Create a MinHash signature from code."""
-        code_hash = hash(code)
-        if code_hash in self._signature_cache:
-            return self._signature_cache[code_hash]
+        """Create a MinHash signature from code.
+
+        Signatures are cached keyed on the exact code string (collision-safe,
+        unlike ``hash()``) with an LRU bound of
+        ``MinHashDefaults.SIGNATURE_CACHE_MAX_SIZE`` entries.
+        """
+        cached = self._signature_cache.get(code)
+        if cached is not None:
+            self._signature_cache.move_to_end(code)
+            return cached
 
         m = MinHash(num_perm=self.config.num_permutations)
 
@@ -231,7 +238,9 @@ class MinHashSimilarity:
         for shingle in shingles:
             m.update(shingle.encode("utf8"))
 
-        self._signature_cache[code_hash] = m
+        self._signature_cache[code] = m
+        if len(self._signature_cache) > MinHashDefaults.SIGNATURE_CACHE_MAX_SIZE:
+            self._signature_cache.popitem(last=False)
         return m
 
     def estimate_similarity(self, code1: str, code2: str) -> float:
@@ -1170,7 +1179,7 @@ class SemanticSimilarity:
         self._model: Any = None
         self._tokenizer: Any = None
         self._device: Optional[str] = None
-        self._embedding_cache: Dict[int, Any] = {}
+        self._embedding_cache: OrderedDict[str, Any] = OrderedDict()
         self._cache_hits = 0
         self._cache_misses = 0
         self._initialized = False
@@ -1236,16 +1245,25 @@ class SemanticSimilarity:
         return embedding
 
     def get_embedding(self, code: str) -> Any:
-        """Generate a (768,) embedding tensor for code using CodeBERT."""
+        """Generate a (768,) embedding tensor for code using CodeBERT.
+
+        Embeddings are cached keyed on the exact code string (collision-safe,
+        unlike ``hash()``) with an LRU bound of
+        ``SemanticSimilarityDefaults.EMBEDDING_CACHE_MAX_SIZE`` entries.
+        """
         self._load_model()
-        code_hash = hash(code)
-        if self.config.cache_embeddings and code_hash in self._embedding_cache:
-            self._cache_hits += 1
-            return self._embedding_cache[code_hash]
+        if self.config.cache_embeddings:
+            cached = self._embedding_cache.get(code)
+            if cached is not None:
+                self._cache_hits += 1
+                self._embedding_cache.move_to_end(code)
+                return cached
         self._cache_misses += 1
         embedding = self._run_model_inference(code)
         if self.config.cache_embeddings:
-            self._embedding_cache[code_hash] = embedding
+            self._embedding_cache[code] = embedding
+            if len(self._embedding_cache) > SemanticSimilarityDefaults.EMBEDDING_CACHE_MAX_SIZE:
+                self._embedding_cache.popitem(last=False)
         return embedding
 
     def calculate_similarity(self, code1: str, code2: str) -> float:

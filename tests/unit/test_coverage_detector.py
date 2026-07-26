@@ -725,6 +725,69 @@ class TestGetTestCoverageForFilesBatch:
                 assert f in result
 
 
+class TestBatchContentCache:
+    """Batch coverage reads each test file's content once, not once per source file (BUG-11)."""
+
+    def test_test_file_contents_read_once_per_batch(self):
+        """N source files against M test files trigger M reads, not N*M."""
+        detector = CoverageDetector()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            source_files = []
+            for i in range(4):
+                source_file = os.path.join(tmpdir, f"srcmod{i}.py")
+                with open(source_file, "w") as f:
+                    f.write(f"def func{i}(): pass\n")
+                source_files.append(source_file)
+
+            test_files = []
+            for i in range(3):
+                test_file = os.path.join(tmpdir, f"test_other{i}.py")
+                with open(test_file, "w") as f:
+                    f.write("import unrelated\n")
+                test_files.append(test_file)
+
+            original_read = detector._read_file_content
+            read_paths = []
+
+            def counting_read(file_path):
+                read_paths.append(os.path.normpath(file_path))
+                return original_read(file_path)
+
+            with patch.object(detector, "_read_file_content", side_effect=counting_read):
+                detector.get_test_coverage_for_files_batch(source_files, "python", tmpdir, parallel=False)
+
+            for test_file in test_files:
+                assert read_paths.count(os.path.normpath(test_file)) == 1
+
+    def test_unreadable_cached_file_not_reread(self):
+        """A file unreadable at cache-build time is skipped, not re-read per source file."""
+        detector = CoverageDetector()
+
+        test_files = {os.path.normpath("/gone/test_x.py")}
+        content_cache = {os.path.normpath("/gone/test_x.py"): None}
+
+        with patch.object(detector, "_read_file_content") as mock_read:
+            result = detector._has_test_coverage_optimized("/src/mod.py", "python", "/src", test_files, content_cache)
+
+        assert result is False
+        mock_read.assert_not_called()
+
+    def test_cached_content_used_for_reference_match(self):
+        """Reference detection works from cached content without touching disk."""
+        detector = CoverageDetector()
+
+        test_path = os.path.normpath("/proj/test_helper.py")
+        test_files = {test_path}
+        content_cache = {test_path: "from helper import help\n"}
+
+        with patch.object(detector, "_read_file_content") as mock_read:
+            result = detector._has_test_coverage_optimized("/proj/helper.py", "python", "/proj", test_files, content_cache)
+
+        assert result is True
+        mock_read.assert_not_called()
+
+
 class TestProcessFileCoverage:
     """Tests for _process_file_coverage method."""
 
@@ -794,7 +857,7 @@ class TestParallelBatchErrorHandling:
         """A file whose coverage check raises is reported uncovered."""
         detector = CoverageDetector()
 
-        def raise_for_bad(file_path, language, project_root, test_files):
+        def raise_for_bad(file_path, language, project_root, test_files, content_cache=None):
             if "bad" in file_path:
                 raise RuntimeError("check failed")
             return True

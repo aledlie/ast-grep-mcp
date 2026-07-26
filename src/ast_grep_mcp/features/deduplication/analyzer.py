@@ -148,7 +148,31 @@ class PatternAnalyzer:
                 )
         return result
 
-    def identify_varying_literals(self, code1: str, code2: str, language: str = "python") -> List[Dict[str, Any]]:
+    def _extract_literal_maps(self, code: str, language: str) -> Dict[str, Dict[Tuple[int, int], Dict[str, Any]]]:
+        """Extract per-type literal position maps for a code snippet.
+
+        Args:
+            code: Code snippet to scan
+            language: Programming language
+
+        Returns:
+            Mapping of literal type to {(line, column): literal} position map
+        """
+        return {
+            literal_type: {
+                (lit["line"], lit["column"]): lit
+                for lit in self._extract_literals_with_ast_grep(code, literal_type, language)
+            }
+            for literal_type in self._LITERAL_TYPES
+        }
+
+    def identify_varying_literals(
+        self,
+        code1: str,
+        code2: str,
+        language: str = "python",
+        code1_literal_maps: Optional[Dict[str, Dict[Tuple[int, int], Dict[str, Any]]]] = None,
+    ) -> List[Dict[str, Any]]:
         """
         Identify varying literal values between two similar code blocks.
 
@@ -156,6 +180,8 @@ class PatternAnalyzer:
             code1: First code snippet
             code2: Second code snippet
             language: Programming language
+            code1_literal_maps: Optional pre-extracted literal maps for code1
+                (from ``_extract_literal_maps``) to avoid re-parsing it
 
         Returns:
             List of varying literals with positions and values
@@ -164,16 +190,16 @@ class PatternAnalyzer:
 
         varying_literals = []
 
-        for literal_type in ["string", "number", "boolean"]:
-            literals1 = self._extract_literals_with_ast_grep(code1, literal_type, language)
-            literals2 = self._extract_literals_with_ast_grep(code2, literal_type, language)
-            pos_map1 = {(lit["line"], lit["column"]): lit for lit in literals1}
-            pos_map2 = {(lit["line"], lit["column"]): lit for lit in literals2}
-            varying_literals.extend(self._compare_literal_maps(pos_map1, pos_map2, literal_type))
+        maps1 = code1_literal_maps if code1_literal_maps is not None else self._extract_literal_maps(code1, language)
+        maps2 = self._extract_literal_maps(code2, language)
+        for literal_type in self._LITERAL_TYPES:
+            varying_literals.extend(self._compare_literal_maps(maps1[literal_type], maps2[literal_type], literal_type))
 
         varying_literals.sort(key=lambda x: (x["position"], x.get("column", 0)))
         self.logger.info("varying_literals_found", count=len(varying_literals))
         return varying_literals
+
+    _LITERAL_TYPES: Tuple[str, ...] = ("string", "number", "boolean")
 
     _LITERAL_EXT_MAP: Dict[str, str] = {
         "python": ".py",
@@ -269,8 +295,15 @@ class PatternAnalyzer:
             "suggested_parameters": suggested_parameters,
         }
 
-    def _accumulate_one_item(self, base_code: str, code: str, all_variations: Dict[tuple[Any, ...], List[str]], language: str) -> None:
-        for var in self.identify_varying_literals(base_code, code, language):
+    def _accumulate_one_item(
+        self,
+        base_code: str,
+        code: str,
+        all_variations: Dict[tuple[Any, ...], List[str]],
+        language: str,
+        base_literal_maps: Optional[Dict[str, Dict[Tuple[int, int], Dict[str, Any]]]] = None,
+    ) -> None:
+        for var in self.identify_varying_literals(base_code, code, language, code1_literal_maps=base_literal_maps):
             key = (var["position"], var.get("column", 0), var["literal_type"])
             vals = all_variations.setdefault(key, [var["value1"]])
             if var["value2"] not in vals:
@@ -280,10 +313,13 @@ class PatternAnalyzer:
         self, base_code: str, items: List[Dict[str, Any]], language: str
     ) -> Dict[tuple[Any, ...], List[str]]:
         all_variations: Dict[tuple[Any, ...], List[str]] = {}
+        base_literal_maps: Optional[Dict[str, Dict[Tuple[int, int], Dict[str, Any]]]] = None
         for item in items:
             code = item.get("text", "")
             if code != base_code:
-                self._accumulate_one_item(base_code, code, all_variations, language)
+                if base_literal_maps is None:
+                    base_literal_maps = self._extract_literal_maps(base_code, language)
+                self._accumulate_one_item(base_code, code, all_variations, language, base_literal_maps)
         return all_variations
 
     def _format_literal_variations(self, all_variations: Dict[tuple[Any, ...], List[str]]) -> tuple[List[Dict[str, Any]], List[str]]:

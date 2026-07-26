@@ -21,7 +21,14 @@ from typing import Any
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from ast_grep_mcp.constants import DeduplicationDefaults, FilePatterns, FormattingDefaults, SemanticVolumeDefaults, SubprocessDefaults
+from ast_grep_mcp.constants import (
+    LANGUAGE_EXTENSIONS,
+    DeduplicationDefaults,
+    FilePatterns,
+    FormattingDefaults,
+    SemanticVolumeDefaults,
+    SubprocessDefaults,
+)
 from ast_grep_mcp.features.complexity.analyzer import analyze_file_complexity
 from ast_grep_mcp.features.complexity.tools import analyze_complexity_tool, detect_code_smells_tool
 from ast_grep_mcp.features.deduplication.scoring_scales import AnalyzeCodebaseTopN
@@ -36,17 +43,6 @@ from scripts.analysis_output_helpers import log_count_breakdown, print_section_h
 DEFAULT_PROJECT_FOLDER = "src/ast_grep_mcp"
 DEFAULT_LANGUAGE = "python"
 EXCLUDE_PATTERNS = FilePatterns.DEFAULT_EXCLUDE + FilePatterns.TEST_EXCLUDE + FilePatterns.MINIFIED_EXCLUDE
-LANGUAGE_EXTENSIONS = {
-    "python": "py",
-    "javascript": "js",
-    "typescript": "ts",
-    "java": "java",
-    "rust": "rs",
-    "go": "go",
-    "ruby": "rb",
-    "cpp": "cpp",
-    "c": "c",
-}
 DUPLICATION_MIN_LINES = 10
 
 
@@ -60,9 +56,14 @@ def print_section(title: str) -> None:
     print_section_header(out, title, width=FormattingDefaults.WIDE_SECTION_WIDTH)
 
 
+def _language_extensions(language: str) -> list[str]:
+    """Dotted source extensions for a language, falling back to the language name."""
+    return LANGUAGE_EXTENSIONS.get(language, [f".{language}"])
+
+
 def _language_include_patterns(language: str) -> list[str]:
-    """Build MCP tool include_patterns for a language's source extension."""
-    return [f"**/*.{LANGUAGE_EXTENSIONS.get(language, language)}"]
+    """Build MCP tool include_patterns for a language's source extensions."""
+    return [f"**/*{ext}" for ext in _language_extensions(language)]
 
 
 def _report_phase_exception(phase: str, exc: Exception) -> None:
@@ -73,11 +74,11 @@ def _report_phase_exception(phase: str, exc: Exception) -> None:
 
 def _discover_source_files(project_folder: str, language: str) -> list[Path]:
     """Discover source files in the project folder by language."""
-    ext = LANGUAGE_EXTENSIONS.get(language, language)
     folder = Path(project_folder)
     if not folder.is_dir():
         return []
-    return [f for f in sorted(folder.rglob(f"*.{ext}")) if not any(f.match(p) for p in EXCLUDE_PATTERNS)]
+    files = {f for ext in _language_extensions(language) for f in folder.rglob(f"*{ext}")}
+    return [f for f in sorted(files) if not any(f.match(p) for p in EXCLUDE_PATTERNS)]
 
 
 def analyze_individual_files(project_folder: str, language: str) -> None:
